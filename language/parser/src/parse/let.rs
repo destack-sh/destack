@@ -10,8 +10,7 @@ use destack_source::NodeSpanType;
 impl Parser {
     /// Peek a mutability modifier.
     pub fn peek_mutability(&mut self) -> ParseResult<()> {
-        let keyword = self.peek_any_keyword()?;
-        if keyword == Keyword::Var || keyword == Keyword::Const || keyword == Keyword::Readonly {
+        if self.peek_mutability_is() {
             Ok(())
         } else {
             Err(ParseError::expected(
@@ -19,6 +18,16 @@ impl Parser {
                 TokenType::Identifier,
             ))
         }
+    }
+
+    /// Return true when the next token is a mutability modifier.
+    #[inline]
+    pub fn peek_mutability_is(&mut self) -> bool {
+        let Ok(keyword) = self.peek_any_keyword() else {
+            return false;
+        };
+
+        keyword == Keyword::Var || keyword == Keyword::Const || keyword == Keyword::Readonly
     }
 
     /// Eat a let/var/const keyword and return the kind and mutability.
@@ -213,6 +222,11 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Declarator>> {
         let _timing = self.timing_scope(tags::PARSE_DECLARATOR);
         let start = self.mark_span();
+        let pattern_options = self
+            .options
+            .not_in_position()
+            .in_before_type()
+            .not_in_before_block();
 
         // pattern
         let pattern_id = if self.peek_is(TokenType::Identifier) {
@@ -260,31 +274,13 @@ impl Parser {
                     self.tree.set_main_span(pattern_id, name_span);
                     pattern_id
                 } else {
-                    self.with_options(
-                        self.options
-                            .not_in_position()
-                            .in_before_type()
-                            .not_in_before_block(),
-                        |parser| parser.eat_pattern(),
-                    )?
+                    self.with_options(pattern_options, |parser| parser.eat_pattern())?
                 }
             } else {
-                self.with_options(
-                    self.options
-                        .not_in_position()
-                        .in_before_type()
-                        .not_in_before_block(),
-                    |parser| parser.eat_pattern(),
-                )?
+                self.with_options(pattern_options, |parser| parser.eat_pattern())?
             }
         } else {
-            self.with_options(
-                self.options
-                    .not_in_position()
-                    .in_before_type()
-                    .not_in_before_block(),
-                |parser| parser.eat_pattern(),
-            )?
+            self.with_options(pattern_options, |parser| parser.eat_pattern())?
         };
 
         // declaration declarators must use binding patterns
@@ -293,13 +289,12 @@ impl Parser {
         }
 
         // type
-        let (ty, ty_span) = if self.peek_colon().is_ok() {
+        let (ty, ty_span) = if self.peek_colon_is() {
             let type_start = self.mark_span();
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
-            let ty = self.with_options(self.options.not_in_position().in_type(), |parser| {
-                parser.eat_expression()
-            })?;
+            let type_options = self.options.not_in_position().in_type();
+            let ty = self.eat_expression(type_options)?;
             (Some(ty), Some(self.get_span_from(&type_start)))
         } else {
             (None, None)
@@ -312,10 +307,8 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
-            Some(self.with_options(
-                self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
-            )?)
+            let value_options = self.options.not_in_position().not_in_sequence_expression();
+            Some(self.eat_expression(value_options)?)
         } else if require_value {
             return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
         } else {
@@ -484,7 +477,7 @@ using x = open()
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
 
         // const foo: Tmp = <T,>(str: T): T => { return str; }
         assert_node!(parser.tree, expr_id, Expression::Let { declarators, mutability, .. } => {
@@ -768,7 +761,7 @@ const registry: Map<
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_expression().unwrap();
+        let let_id = parser.eat_expression(parser.options).unwrap();
 
         // const renderCounter
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {

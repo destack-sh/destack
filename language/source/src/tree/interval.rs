@@ -1,3 +1,5 @@
+use crate::Span;
+
 /// Interval entry with parent pointer for containment tree.
 #[derive(Debug, Clone, Copy)]
 struct IntervalEntry {
@@ -27,44 +29,103 @@ impl IntervalTree {
 
         let n = intervals.len();
 
-        // sort by (start ASC, end DESC) - parents come before children at same start
-        // check if already sorted by (start ASC, end DESC) (common case from parsing)
-        let needs_sort = intervals.windows(2).any(|w| {
-            let (s1, e1, _) = w[0];
-            let (s2, e2, _) = w[1];
-            s1 > s2 || (s1 == s2 && e1 < e2)
+        // sort by (start ASC, end DESC): parents come before children at same start
+        // check if already sorted by (start ASC, end DESC): common case from parsing
+        let needs_sort = intervals.windows(2).any(|window| {
+            let (left_start, left_end, _) = window[0];
+            let (right_start, right_end, _) = window[1];
+            left_start > right_start || (left_start == right_start && left_end < right_end)
         });
         if needs_sort {
-            intervals.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)));
+            intervals
+                .sort_unstable_by(|left, right| left.0.cmp(&right.0).then(right.1.cmp(&left.1)));
         }
 
         // build entries with parent pointers using a stack
-        // the stack contains indices of potential parents (intervals that haven't ended yet)
+        // the stack contains indices of potential parents (intervals that have not ended yet)
         let mut entries: Vec<IntervalEntry> = Vec::with_capacity(n);
-        let mut stack: Vec<usize> = Vec::with_capacity(32); // typical nesting depth
+        let mut stack: Vec<usize> = Vec::with_capacity(32);
         for (start, end, node_id) in intervals {
-            // pop intervals that have ended before this one starts
-            while let Some(&top_idx) = stack.last() {
-                if entries[top_idx].end <= start {
+            while let Some(&top_index) = stack.last() {
+                if entries[top_index].end <= start {
                     stack.pop();
                 } else {
                     break;
                 }
             }
 
-            // parent is the top of stack (or none if stack is empty)
-            let parent = stack.last().map(|&i| i as u32).unwrap_or(u32::MAX);
+            let parent = stack.last().map(|&index| index as u32).unwrap_or(u32::MAX);
 
-            let idx = entries.len();
+            let index = entries.len();
             entries.push(IntervalEntry {
                 start,
                 end,
                 node_id,
                 parent,
             });
+            stack.push(index);
+        }
 
-            // push this interval as potential parent for future intervals
-            stack.push(idx);
+        Self { entries }
+    }
+
+    /// Build a nested interval tree from node spans.
+    /// Node ids correspond to span indices.
+    pub fn build_from_spans(spans: &[Span]) -> Self {
+        if spans.is_empty() {
+            return Self {
+                entries: Vec::new(),
+            };
+        }
+
+        // check if spans are already sorted by (start ASC, end DESC): common parse order
+        let needs_sort = spans.windows(2).any(|window| {
+            let left = window[0];
+            let right = window[1];
+            left.start > right.start || (left.start == right.start && left.end < right.end)
+        });
+
+        let mut entries: Vec<IntervalEntry> = Vec::with_capacity(spans.len());
+        let mut stack: Vec<usize> = Vec::with_capacity(32);
+
+        // emit one interval entry and wire its parent using the active stack
+        let emit_interval =
+            |entries: &mut Vec<IntervalEntry>, stack: &mut Vec<usize>, node_id: u32, span: Span| {
+                while let Some(&top_index) = stack.last() {
+                    if entries[top_index].end <= span.start {
+                        stack.pop();
+                    } else {
+                        break;
+                    }
+                }
+
+                let parent = stack.last().map(|&index| index as u32).unwrap_or(u32::MAX);
+                let index = entries.len();
+                entries.push(IntervalEntry {
+                    start: span.start,
+                    end: span.end,
+                    node_id,
+                    parent,
+                });
+                stack.push(index);
+            };
+
+        if needs_sort {
+            let mut node_order: Vec<u32> = (0..spans.len() as u32).collect();
+            node_order.sort_unstable_by(|&left_id, &right_id| {
+                let left = spans[left_id as usize];
+                let right = spans[right_id as usize];
+                left.start.cmp(&right.start).then(right.end.cmp(&left.end))
+            });
+
+            for node_id in node_order {
+                let span = spans[node_id as usize];
+                emit_interval(&mut entries, &mut stack, node_id, span);
+            }
+        } else {
+            for (index, span) in spans.iter().copied().enumerate() {
+                emit_interval(&mut entries, &mut stack, index as u32, span);
+            }
         }
 
         Self { entries }

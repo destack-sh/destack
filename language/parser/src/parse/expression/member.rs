@@ -173,12 +173,12 @@ impl Parser {
     /// Peek a member access with an IdentifierName compatible token.
     /// Returns the total distance to eat (including the newlines, dot, and token).
     #[inline]
-    pub(super) fn peek_member_name(&mut self) -> ParseResult<u8> {
+    pub(super) fn peek_member_name_maybe(&mut self) -> Option<u8> {
         let base = self.pos_index();
 
         // direct case: `.name` or `.\nname`
         if let Some(distance) = self.peek_member_distance_from_offset(base, 0) {
-            return Ok(distance);
+            return Some(distance);
         }
 
         // continuation case: `\n.name` or `\n.\nname`
@@ -186,10 +186,10 @@ impl Parser {
         if newline_count > 0
             && let Some(distance) = self.peek_member_distance_from_offset(base, offset)
         {
-            return Ok(distance);
+            return Some(distance);
         }
 
-        Err(ParseError::unexpected(self.peek()?.span))
+        None
     }
 
     /// Check whether `?.` starts an optional chaining segment.
@@ -269,12 +269,12 @@ impl Parser {
 
     /// Peek a private member access using `.#`.
     #[inline]
-    pub(super) fn peek_private_member(&mut self) -> ParseResult<u8> {
+    pub(super) fn peek_private_member_maybe(&mut self) -> ParseResult<Option<u8>> {
         let base = self.pos_index();
 
         // direct case: `.#name` or `.\n#name`
         if let Some(distance) = self.peek_private_member_distance_from_offset(base, 0)? {
-            return Ok(distance);
+            return Ok(Some(distance));
         }
 
         // continuation case: `\n.#name` or `\n.\n#name`
@@ -282,10 +282,10 @@ impl Parser {
         if newline_count > 0
             && let Some(distance) = self.peek_private_member_distance_from_offset(base, offset)?
         {
-            return Ok(distance);
+            return Ok(Some(distance));
         }
 
-        Err(ParseError::unexpected(self.peek()?.span))
+        Ok(None)
     }
 
     /// Eat an expression that might be parenthesized.
@@ -294,14 +294,14 @@ impl Parser {
         if self.peek_is(TokenType::OpenParenthesis) {
             self.bump(); // eat open parenthesis
             self.eat_newlines_maybe()?;
-            let expression_id = self.eat_expression()?;
+            let expression_id = self.eat_expression(self.options)?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseParenthesis)?;
             self.tree
                 .set_span(expression_id, self.get_span_from(&start));
             Ok(expression_id)
         } else {
-            self.eat_expression()
+            self.eat_expression(self.options)
         }
     }
 }

@@ -7,6 +7,43 @@ use destack_source::{File, LanguageType, Span};
 use super::lex::is_semantic;
 use super::lexer::{Lexer, LexerSnapshot, TreeState};
 
+/// Return a keyword for an identifier when it can match keyword shape.
+#[inline]
+fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
+    // quick reject using identifier length bounds for known keywords
+    let length = identifier.len();
+    if !(2..=11).contains(&length) {
+        return None;
+    }
+
+    // quick reject using keyword (length, first byte) pairs before full string matching
+    let first = identifier.as_bytes().first().copied()?;
+    let can_match_keyword = matches!(
+        (length, first),
+        (2, b'a' | b'd' | b'i' | b'o' | b't')
+            | (3, b'a' | b'f' | b'g' | b'l' | b'n' | b's' | b't' | b'v')
+            | (
+                4,
+                b'c' | b'e' | b'f' | b'g' | b'l' | b'm' | b's' | b't' | b'v' | b'w'
+            )
+            | (
+                5,
+                b'a' | b'b' | b'c' | b'i' | b'k' | b'm' | b'n' | b's' | b't' | b'u' | b'w' | b'y'
+            )
+            | (6, b'a' | b'd' | b'e' | b'i' | b'p' | b'r' | b's' | b't')
+            | (7, b'a' | b'd' | b'e' | b'f' | b'n' | b'p')
+            | (8, b'a' | b'c' | b'd' | b'f' | b'o' | b'p' | b'r')
+            | (9, b'e' | b'i' | b'n' | b'p' | b's')
+            | (10, b'i')
+            | (11, b'c')
+    );
+    if !can_match_keyword {
+        return None;
+    }
+
+    Keyword::from_str(identifier).ok()
+}
+
 /// Snapshot of token stream state for speculative parsing.
 #[derive(Debug, Clone)]
 pub struct TokenStreamMark {
@@ -251,6 +288,16 @@ impl TokenStream {
 
     /// Ensure a token exists at the given index.
     pub fn ensure_token(&mut self, index: usize) {
+        // hot fast path: token is already available
+        if index < self.tokens.len() {
+            return;
+        }
+
+        // hot fast path: EOF already reached
+        if self.is_finished {
+            return;
+        }
+
         while !self.is_finished && self.tokens.len() <= index {
             self.lex_next();
         }
@@ -335,6 +382,15 @@ impl TokenStream {
     /// Return whether trivia before a semantic token index had a line terminator.
     #[inline]
     pub fn line_terminator_before(&mut self, index: usize) -> bool {
+        // hot fast path: full token stream is already materialized
+        if self.is_finished {
+            return self
+                .line_terminators_before
+                .get(index)
+                .copied()
+                .unwrap_or(false);
+        }
+
         self.ensure_token(index);
         self.line_terminators_before
             .get(index)
@@ -345,35 +401,39 @@ impl TokenStream {
     /// Return the keyword for a semantic token index.
     #[inline]
     pub fn keyword_at(&mut self, index: usize) -> Option<Keyword> {
-        self.ensure_token(index);
-        let is_cached = self
-            .token_keywords_cached
-            .get(index)
-            .copied()
-            .unwrap_or(false);
-        if is_cached {
+        // hot fast path: full token stream is already materialized
+        if self.is_finished {
             return self.token_keywords.get(index).copied().flatten();
         }
 
-        let token_span = self.tokens.get(index).copied()?;
-        let keyword = if token_span.token.ty == TokenType::Identifier {
-            Keyword::from_str(self.lexer.get_span_str(token_span.span)).ok()
-        } else {
-            None
-        };
-
-        if let Some(cached_keyword) = self.token_keywords.get_mut(index) {
-            *cached_keyword = keyword;
-        }
-        if let Some(cached_flag) = self.token_keywords_cached.get_mut(index) {
-            *cached_flag = true;
-        }
-
-        keyword
+        self.ensure_token(index);
+        self.token_keywords.get(index).copied().flatten()
     }
 
     /// Look up the next non-newline token index from a start index.
     pub fn next_non_newline_index_from(&mut self, start: usize) -> usize {
+        // hot fast path: full token stream is already materialized
+        if self.is_finished {
+            if start >= self.tokens.len() {
+                return self.tokens.len();
+            }
+
+            if self.tokens[start].token.ty != TokenType::Newline {
+                return start;
+            }
+
+            let next = self
+                .next_non_newline
+                .get(start)
+                .copied()
+                .unwrap_or(u32::MAX);
+            if next == u32::MAX {
+                return self.tokens.len();
+            }
+
+            return next as usize;
+        }
+
         // ensure the starting token exists
         self.ensure_token(start);
 
@@ -406,6 +466,16 @@ impl TokenStream {
 
     /// Return the matching close token index for an opening token, if known.
     pub fn matching_pair(&mut self, index: usize) -> Option<usize> {
+        // hot fast path: full token stream is already materialized
+        if self.is_finished {
+            let value = self.matching_pairs.get(index).copied().unwrap_or(u32::MAX);
+            if value == u32::MAX {
+                return None;
+            }
+
+            return Some(value as usize);
+        }
+
         self.ensure_token(index);
 
         let value = self.matching_pairs.get(index).copied().unwrap_or(u32::MAX);
@@ -449,7 +519,6 @@ impl TokenStream {
                 self.has_comment_annotation_tokens = true;
             }
             self.side_tokens.push(token_span);
-            self.lexer.side_tokens.push(token_span);
             if self.side_token_has_line_terminator(token_span) {
                 self.pending_line_terminator_before_next = true;
             }
@@ -468,12 +537,16 @@ impl TokenStream {
         // add token and cache slots
         let token_index = self.tokens.len();
         let is_identifier = token_span.token.ty == TokenType::Identifier;
+        let keyword = if is_identifier {
+            keyword_from_identifier(self.lexer.get_span_str(token_span.span))
+        } else {
+            None
+        };
         self.tokens.push(token_span);
-        self.lexer.tokens.push(token_span);
         self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
-        self.token_keywords.push(None);
-        self.token_keywords_cached.push(!is_identifier);
+        self.token_keywords.push(keyword);
+        self.token_keywords_cached.push(true);
         self.line_terminators_before
             .push(has_line_terminator_before);
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;

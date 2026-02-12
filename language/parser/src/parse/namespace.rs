@@ -47,7 +47,7 @@ impl Parser {
         };
 
         // name
-        let (names, name_span) = if is_module && self.peek_string_literal().is_ok() {
+        let (names, name_span) = if is_module && self.peek_string_literal_is() {
             let (name_id, span) = self.eat_string_literal_with_span()?;
             (vec![(Name::String(name_id), span)], Some(span))
         } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
@@ -179,7 +179,7 @@ declare global {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Global { descriptor, expressions, .. } => {
                 assert_eq!(descriptor.kind, DeclarationKind::Declaration);
@@ -203,7 +203,7 @@ global {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Global { descriptor, expressions, .. } => {
                 assert_eq!(descriptor.kind, DeclarationKind::Declaration);
@@ -226,7 +226,7 @@ declare module "foo" {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
                 assert_eq!(descriptor.kind, DeclarationKind::Declaration);
@@ -307,7 +307,7 @@ declare module "buffer" {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
                 assert_eq!(descriptor.kind, DeclarationKind::Declaration);
@@ -344,7 +344,7 @@ declare module "m" {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
                 assert_eq!(descriptor.kind, DeclarationKind::Declaration);
@@ -379,7 +379,7 @@ module "foo" {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
                 assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -405,7 +405,7 @@ module "foo" {
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
                 assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -422,7 +422,7 @@ module "foo" {
     fn test_reject_identifier_module_without_body_in_destack() {
         let mut test = TestParser::new_with_options("module Foo;", LanguageType::Destack);
         let mut parser = test.prepare();
-        let result = parser.eat_expression();
+        let result = parser.eat_expression(parser.options);
         assert!(result.is_err());
     }
 

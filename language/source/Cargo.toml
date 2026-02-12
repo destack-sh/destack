@@ -28,6 +28,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 simdutf8 = { workspace = true }
 smallvec = { workspace = true }
+rustc-hash = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

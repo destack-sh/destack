@@ -275,7 +275,7 @@ impl Parser {
             .options
             .not_in_position()
             .in_left_precedence(TypeBinaryOperator::Cast.precedence());
-        let asserted_value = self.with_options(right_options, |parser| parser.eat_expression())?;
+        let asserted_value = self.eat_expression(right_options)?;
 
         // in typescript, angle assertions require a real expression value: `<T>()` is invalid
         if self.language.is_typescript()

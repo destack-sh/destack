@@ -150,7 +150,7 @@ impl Parser {
                     self.eat_keyword(Keyword::Case)?;
                     let pattern_start = self.mark();
                     // allow a wildcard here so switch cases do not bind `_`
-                    let pattern = if self.peek_identifier_str("_").is_ok() {
+                    let pattern = if self.peek_identifier_str_is("_") {
                         self.bump();
                         self.tree
                             .insert(Pattern::Wildcard, self.get_span_from(&pattern_start))
@@ -160,7 +160,7 @@ impl Parser {
                                 .not_in_position()
                                 .in_match_case()
                                 .in_before_block(),
-                            |parser| parser.eat_expression(),
+                            |parser| parser.eat_expression(parser.options),
                         )?;
                         self.tree.insert(
                             Pattern::Expression { value },
@@ -321,7 +321,7 @@ impl Parser {
             Ok(match_case_id)
         }
         // block body
-        else if self.peek_block().is_ok() {
+        else if self.is_block_start() {
             let block_id = self.eat_block()?;
             let match_case_id = self.tree.insert(
                 MatchCase::Block {

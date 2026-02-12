@@ -63,7 +63,7 @@ impl Parser {
         decorator_options.in_type_conditional_right = false;
         decorator_options.in_type_mapped_constraint = false;
 
-        let expression = self.with_options(decorator_options, |parser| parser.eat_expression())?;
+        let expression = self.eat_expression(decorator_options)?;
 
         // decorator
         let decorator = self
@@ -109,10 +109,11 @@ impl Parser {
         }
 
         // precompute statement wrappers for expression promotion
-        let statement_wrappers = {
+        {
             let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_WRAPPERS);
-            self.collect_statement_wrappers()
-        };
+            self.collect_statement_wrappers();
+        }
+        let statement_wrappers = std::mem::take(&mut self.annotation_statement_wrappers);
 
         // attach annotations
         let side_span = self.compute_side_span();
@@ -132,6 +133,7 @@ impl Parser {
         }
         self.annotation_tokens = tokens;
         self.annotation_line_indices = line_indices;
+        self.annotation_statement_wrappers = statement_wrappers;
     }
 
     /// Collect semantic and side tokens without whitespace in source order.
@@ -862,9 +864,11 @@ impl Parser {
     }
 
     /// Collect statement wrapper ids keyed by expression id.
-    fn collect_statement_wrappers(&self) -> Vec<Option<u32>> {
+    fn collect_statement_wrappers(&mut self) {
         let total_nodes = self.tree.next_id() as usize;
-        let mut wrappers = vec![None; total_nodes];
+        let wrappers = &mut self.annotation_statement_wrappers;
+        wrappers.clear();
+        wrappers.resize(total_nodes, None);
 
         let mut node_id = 0;
         while node_id < total_nodes {
@@ -877,8 +881,6 @@ impl Parser {
             }
             node_id += 1;
         }
-
-        wrappers
     }
 
     /// Make and attach an annotation group.
@@ -1606,7 +1608,7 @@ export enum EventStatus {
   ?.();",
         );
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish();
 
         // locate the path expression for `foo.getParameters`
@@ -1652,7 +1654,7 @@ export enum EventStatus {
   .then(() => writeRegistry())",
         );
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish();
 
         let mut current = expr_id;
@@ -1731,7 +1733,7 @@ Promise.all(writeIconFiles)",
   .omg!",
         );
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish();
 
         let mut current = expr_id;
@@ -1771,7 +1773,7 @@ Promise.all(writeIconFiles)",
     fn test_attach_inline_comment_before_dot_member() {
         let mut test = TestParser::new("wow /* inline comment */ .omg");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish();
 
         let mut current = expr_id;
@@ -1806,7 +1808,7 @@ Promise.all(writeIconFiles)",
     fn test_attach_inline_comment_between_binary_operands() {
         let mut test = TestParser::new("a && /* keep */ b");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish();
 
         assert_node!(
@@ -1835,7 +1837,7 @@ Promise.all(writeIconFiles)",
     fn test_attach_inline_comment_before_call_argument() {
         let mut test = TestParser::new("foo(/* first */ a)");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish();
 
         assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
@@ -2552,7 +2554,7 @@ export namespace Outer {
 ]",
         );
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish();
 
         assert_node!(parser.tree, expr_id, Expression::ArrayExpression { elements } => {

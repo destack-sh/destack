@@ -610,7 +610,7 @@ impl Parser {
         let start = self.mark();
         let (strings, spans) = self.eat_template_literal_parts(|parser| {
             parser.with_options(parser.options.not_in_position().in_type(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression(parser.options)
             })
         })?;
 
@@ -700,7 +700,7 @@ impl Parser {
                 .not_in_position()
                 .not_in_tree_literal()
                 .not_in_left_precedence(),
-            |parser| parser.eat_expression(),
+            |parser| parser.eat_expression(parser.options),
         )?;
 
         let argument_id = self.tree.insert(
@@ -757,7 +757,7 @@ impl Parser {
                 break;
             }
             // consume comma separators, including newline then comma
-            let has_comma_separator = self.peek_comma().is_ok()
+            let has_comma_separator = self.peek_comma_is()
                 || self.peek_is(TokenType::Newline)
                     && self.is_token_after_newlines(self.pos(), TokenType::Comma);
             if has_comma_separator {
@@ -817,7 +817,11 @@ impl Parser {
         // object literal properties are always expression properties, not variant members
         let mut property_options = self.options;
         property_options.in_variant = false;
-        let properties = self.with_options(property_options, |parser| parser.eat_properties())?;
+        let old_options = self.options;
+        self.options = property_options;
+        let properties = self.eat_properties();
+        self.options = old_options;
+        let properties = properties?;
 
         // JS/TS object shorthand only supports identifier names
         if (self.language.is_javascript() || self.language.is_typescript()) && !self.options.in_type
@@ -858,10 +862,10 @@ impl Parser {
         }
 
         // require an identifier in the type parameter list
-        let has_identifier = self.peek_next_token(TokenType::Identifier).is_ok();
+        let has_identifier = self.peek_next_is(TokenType::Identifier);
 
         // allow multiline identifiers in generic parameter lists
-        let has_multiline_identifier = if self.peek_next_token(TokenType::Newline).is_ok() {
+        let has_multiline_identifier = if self.peek_next_is(TokenType::Newline) {
             let mut pos = self.pos() as usize;
             loop {
                 self.token_stream.ensure_token(pos + 1);
@@ -2090,7 +2094,7 @@ mod tests {
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-        let expression = parser.eat_expression().unwrap();
+        let expression = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expression, Expression::Parenthesized { expression } => {
             // <div className="font-semibold">
             assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
@@ -2442,7 +2446,7 @@ mod tests {
         // Just the ternary part, without leading condition
         let mut test = TestParser::new(r#"a ? <>{y && <E />}</> : null"#);
         let mut parser = test.prepare();
-        let expr = parser.eat_expression().unwrap();
+        let expr = parser.eat_expression(parser.options).unwrap();
         // a ? ... : null -> If with IfKind::Ternary
         assert_node!(parser.tree, expr, Expression::If { kind, condition, then_expression, else_expression } => {
             assert_eq!(*kind, IfKind::Ternary);
@@ -2982,7 +2986,7 @@ mod tests {
         for (input, expected_operator) in operator_cases {
             let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
             let mut parser = test.prepare();
-            let expression = parser.eat_expression().unwrap();
+            let expression = parser.eat_expression(parser.options).unwrap();
             assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, expected_operator);
                 assert_node!(parser.tree, *left, Expression::TreeExpression { .. });
@@ -3126,7 +3130,7 @@ mod tests {
         let input = "shouldShow ? <>{children}</> : <>off</>";
         let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
         let mut parser = test.prepare();
-        let expression = parser.eat_expression().unwrap();
+        let expression = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expression, Expression::If { kind, condition, then_expression, else_expression } => {
             assert_eq!(*kind, IfKind::Ternary);
             assert_node!(condition, IfCondition::Expression { condition } => {
@@ -3403,7 +3407,7 @@ function app() {
         let mut parser = test.prepare();
 
         // reject JSX after expression newline
-        let result = parser.eat_expression();
+        let result = parser.eat_expression(parser.options);
         assert!(result.is_err());
     }
 }

@@ -178,8 +178,127 @@ impl Parser {
         next_token_type: TokenType,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         let descriptor = DeclarationDescriptor::default();
+        let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
 
         match keyword {
+            Keyword::Function => {
+                if !Self::can_start_function_signature(next_token_type) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, descriptor, false, false)?;
+                Ok(Some(self.insert_declaration_expression(start, function_id)))
+            }
+            Keyword::Class if is_declaration_start || next_token_type == TokenType::Newline => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let struct_id = self.eat_struct_or_class(start, descriptor, false)?;
+                Ok(Some(self.insert_declaration_expression(start, struct_id)))
+            }
+            Keyword::Struct
+                if self.language.is_destack()
+                    && (is_declaration_start || next_token_type == TokenType::Newline) =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let struct_id = self.eat_struct_or_class(start, descriptor, false)?;
+                Ok(Some(self.insert_declaration_expression(start, struct_id)))
+            }
+            Keyword::Enum if is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
+                Ok(Some(self.insert_declaration_expression(start, enum_id)))
+            }
+            Keyword::Interface if is_declaration_start || next_token_type == TokenType::Newline => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
+                Ok(Some(
+                    self.insert_declaration_expression(start, interface_id),
+                ))
+            }
+            Keyword::Namespace
+                if is_declaration_start
+                    && next_token_type == TokenType::Identifier
+                    && !is_type_relation_keyword(self.keyword_for_index(self.index_for_next())) =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let namespace_id = self.eat_namespace(start, descriptor)?;
+                Ok(Some(
+                    self.insert_declaration_expression(start, namespace_id),
+                ))
+            }
+            Keyword::Extension if self.language.is_destack() && is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let extension_id = self.eat_extension(start, descriptor)?;
+                Ok(Some(
+                    self.insert_declaration_expression(start, extension_id),
+                ))
+            }
+            Keyword::Type if !self.options.in_new_receiver => {
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+                let next_index = self.index_for_next();
+                let after_next_index = self.next_non_newline_index_from(next_index + 1);
+                let after_next_token_type = self.token_type_at(after_next_index);
+                let starts_type_operator = is_type_relation_keyword(next_keyword)
+                    && !matches!(
+                        after_next_token_type,
+                        TokenType::Assign
+                            | TokenType::LessThan
+                            | TokenType::ShiftLeft
+                            | TokenType::SaturatingShiftLeft
+                    );
+
+                let can_start_type_alias =
+                    if self.language.is_typescript() || self.language.is_javascript() {
+                        next_token_type == TokenType::Identifier && !starts_type_operator
+                    } else {
+                        matches!(
+                            next_token_type,
+                            TokenType::Identifier
+                                | TokenType::OpenBrace
+                                | TokenType::OpenParenthesis
+                                | TokenType::OpenBracket
+                                | TokenType::Literal
+                        ) && !starts_type_operator
+                    };
+                if !can_start_type_alias {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                Ok(Some(self.eat_type(start, descriptor)?))
+            }
+            Keyword::Import if next_token_type == TokenType::OpenParenthesis => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                Ok(Some(self.eat_import_call_expression(start)?))
+            }
+            Keyword::Import => {
+                // treat `import.meta` as a path and reject other member access
+                if self.is_token_after_newlines(self.pos(), TokenType::Dot) {
+                    if self.keyword_member_access_is("meta", true)? {
+                        return Ok(None);
+                    }
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                // require a valid import statement shape
+                let can_start_import = matches!(
+                    next_token_type,
+                    TokenType::Multiply
+                        | TokenType::Identifier
+                        | TokenType::OpenBrace
+                        | TokenType::Literal
+                ) || self.can_start_import_statement();
+                if !can_start_import {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                Ok(Some(self.eat_import()?))
+            }
             Keyword::If => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_if()?))
@@ -196,7 +315,7 @@ impl Parser {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_for()?))
             }
-            Keyword::Loop if self.language.is_destack() && self.peek_next_block().is_ok() => {
+            Keyword::Loop if self.language.is_destack() && self.is_next_block_start() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_loop()?))
             }
@@ -292,6 +411,15 @@ impl Parser {
                     Ok(Some(self.eat_await()?))
                 }
             }
+            Keyword::Async if next_token_type == TokenType::Identifier => {
+                if self.keyword_for_index(self.index_for_next()) != Some(Keyword::Function) {
+                    return Ok(None);
+                }
+
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, descriptor, false, false)?;
+                Ok(Some(self.insert_declaration_expression(start, function_id)))
+            }
             _ => Ok(None),
         }
     }
@@ -300,7 +428,12 @@ impl Parser {
     pub(crate) fn try_eat_statement_keyword_expression_fast(
         &mut self,
         start: &ParserMark,
+        allow_fallback_keyword_parse: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.statement_keyword_fast_calls += 1;
+        }
+
         // only fast path in plain statement position without split tokens
         if !self.options.in_statement_position
             || self.options.in_decorator
@@ -308,11 +441,17 @@ impl Parser {
             || self.has_active_split()
             || !self.peek_is(TokenType::Identifier)
         {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.statement_keyword_fast_prefilter_rejects += 1;
+            }
             return Ok(None);
         }
 
         // only route commonly statement led keywords through the direct parser
         let Some(keyword) = self.keyword_for_index(self.pos_index()) else {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.statement_keyword_fast_keyword_rejects += 1;
+            }
             return Ok(None);
         };
         let can_fast_path = matches!(
@@ -350,6 +489,9 @@ impl Parser {
                 | Keyword::Comptime
         );
         if !can_fast_path {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.statement_keyword_fast_keyword_rejects += 1;
+            }
             return Ok(None);
         }
 
@@ -357,19 +499,42 @@ impl Parser {
         if let Some(expression_id) =
             self.try_eat_direct_statement_keyword_expression(start, keyword, next_token_type)?
         {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.statement_keyword_fast_direct_hits += 1;
+            }
             return Ok(Some(expression_id));
+        }
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.statement_keyword_fast_direct_misses += 1;
+        }
+
+        // stop after the direct dispatch path when fallback parsing is disabled
+        if !allow_fallback_keyword_parse {
+            return Ok(None);
         }
 
         // parse through the existing keyword machinery with a neutral descriptor
         let descriptor = DeclarationDescriptor::default();
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
-        self.eat_keyword_expression(
+        let expression_id = self.eat_keyword_expression(
             start,
             descriptor,
             keyword,
             next_token_type,
             is_declaration_start,
-        )
+        )?;
+
+        if expression_id.is_some() {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.statement_keyword_fast_fallback_hits += 1;
+            }
+        } else {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.statement_keyword_fast_fallback_misses += 1;
+            }
+        }
+
+        Ok(expression_id)
     }
 
     /// Eat a keyword-led expression when possible.
@@ -520,6 +685,9 @@ impl Parser {
 
                 // parse async function with speculative rollback
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                    speculation_stats.async_keyword_speculative_attempts += 1;
+                }
                 let speculative_start = self.mark();
                 let speculative_start_idx = self.tree.next_id();
                 if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
@@ -537,9 +705,15 @@ impl Parser {
 
                     // accept the parsed function
                     if should_accept {
+                        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                            speculation_stats.async_keyword_speculative_successes += 1;
+                        }
                         Ok(Some(self.insert_declaration_expression(start, function_id)))
                     // otherwise fall back to async path
                     } else {
+                        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                            speculation_stats.async_keyword_speculative_rollbacks += 1;
+                        }
                         self.restore(speculative_start, speculative_start_idx);
                         Ok(Some(
                             self.eat_keyword_path_or_static_call_expression(start)?,
@@ -547,6 +721,9 @@ impl Parser {
                     }
                 // fall back to async path when signature parsing failed
                 } else {
+                    if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                        speculation_stats.async_keyword_speculative_rollbacks += 1;
+                    }
                     self.restore(speculative_start, speculative_start_idx);
                     Ok(Some(
                         self.eat_keyword_path_or_static_call_expression(start)?,
@@ -810,7 +987,7 @@ impl Parser {
                 Ok(Some(self.eat_for()?))
             }
             // loop
-            Keyword::Loop if self.language.is_destack() && self.peek_next_block().is_ok() => {
+            Keyword::Loop if self.language.is_destack() && self.is_next_block_start() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_loop()?))
             }

@@ -32,6 +32,13 @@ impl Parser {
         self.keyword_is_at(pos, keyword)
     }
 
+    /// Return true when the next next token is the given keyword.
+    #[inline]
+    pub fn is_next_next_keyword(&mut self, keyword: Keyword) -> bool {
+        let pos = self.index_for_next_next();
+        self.keyword_is_at(pos, keyword)
+    }
+
     /// Return true when the token after any leading newlines is the given keyword.
     #[inline]
     pub fn is_keyword_after_newlines(&mut self, keyword: Keyword) -> bool {

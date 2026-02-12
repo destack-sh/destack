@@ -76,7 +76,7 @@ mod tests {
         assert_format!(
             "import \"foo\"",
             "import \"foo\"",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -86,7 +86,7 @@ mod tests {
         assert_format!(
             "import * as foo from \"foo\"",
             "import * as foo from \"foo\"",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -96,7 +96,7 @@ mod tests {
         assert_format!(
             "import {bar, baz} from \"foo\"",
             "import { bar, baz } from \"foo\"",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_with_line_width(60)
         );
     }
@@ -112,7 +112,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_with_line_width(60)
         );
     }
@@ -122,7 +122,7 @@ mod tests {
         assert_format!(
             r#"export * from "./foo""#,
             r#"export * from "./foo""#,
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -132,7 +132,7 @@ mod tests {
         assert_format!(
             "import Default, { type Item } from \"foo\"",
             "import Default, { type Item } from \"foo\"",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -142,7 +142,7 @@ mod tests {
         assert_format!(
             r#"import type React = require("react")"#,
             r#"import type React = require("react");"#,
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -152,7 +152,7 @@ mod tests {
         assert_format!(
             r#"export import type React = require("react")"#,
             r#"export import type React = require("react");"#,
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -162,7 +162,7 @@ mod tests {
         assert_format!(
             "export { default, default as bar, foo } from \"foo\"",
             "export { default, default as bar, foo } from \"foo\"",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -172,7 +172,7 @@ mod tests {
         assert_format!(
             "export { foo } from \"bar\" with { mode: \"strict\" }",
             "export { foo } from \"bar\" with { mode: \"strict\" }",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }

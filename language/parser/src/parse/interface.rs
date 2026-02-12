@@ -810,7 +810,7 @@ interface Add<T, R = Self> {
         );
         let mut parser = test.prepare();
 
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Interface { descriptor, members, .. } => {
                 assert_string!(parser, descriptor.name.unwrap().string(), "Webidl");

@@ -79,7 +79,7 @@ fn test_format_expression_simple() {
     assert_format!(
         "1 + 2 * 3 - a / b % c",
         "1 + 2 * 3 - a / b % c",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab()
     );
 }
@@ -90,7 +90,7 @@ fn test_format_expression_parenthesized() {
     assert_format!(
         "(((1 + 2) * 3) - a / (b % c))",
         "(((1 + 2) * 3) - a / (b % c))",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab()
     );
 }
@@ -101,7 +101,7 @@ fn test_format_expression_nested_empty_parenthesis() {
     assert_format!(
         "(((())))",
         "(((())))",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -112,7 +112,7 @@ fn test_format_expression_nested_empty_arguments() {
     assert_format!(
         "foo<()>(((())))",
         "foo<()>(((())))",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -122,7 +122,7 @@ fn test_format_expression_struct_literal_trivial() {
     assert_format!(
         "({ a: 1, ...B })",
         "({ a: 1, ...B })",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -132,7 +132,7 @@ fn test_format_expression_struct_literal_spread() {
     assert_format!(
         "Foo { ...B }",
         "Foo { ...B }",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -140,8 +140,9 @@ fn test_format_expression_struct_literal_spread() {
 #[test]
 fn test_assignment_target_detection() {
     let source = "({ className, unfurl: unfurlAttrr, ...attrs } = { className: \"name\", unfurl: \"unfurl\", others: [1, 2, 3] })";
-    let (formatter, _expression_id) = TestFormatter::parse(source, |p| p.eat_expression())
-        .expect("parse assignment target source");
+    let (formatter, _expression_id) =
+        TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+            .expect("parse assignment target source");
 
     let context = context_from_formatter(&formatter);
 
@@ -176,7 +177,7 @@ fn test_format_expression_if_ternary() {
     assert_format!(
         "true ? 1 : 2",
         "true ? 1 : 2",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -186,7 +187,7 @@ fn test_format_expression_index_call_mixed_postfix() {
     assert_format!(
         "x?.[f]?.[2]?.(a, b)",
         "x?.[f]?.[2]?.(a, b)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -197,7 +198,7 @@ fn test_format_expression_instantiation() {
     assert_format!(
         "f<number>",
         "f<number>",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -208,7 +209,7 @@ fn test_format_new_expression_drops_simple_member_parentheses() {
     assert_format!(
         "new (a.b)()",
         "new a.b()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -219,7 +220,7 @@ fn test_format_new_expression_keeps_optional_member_parentheses() {
     assert_format!(
         "new (a?.b)()",
         "new (a?.b)()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -230,7 +231,7 @@ fn test_format_new_expression_wraps_call_member_callee() {
     assert_format!(
         "new (X()).y",
         "new (X().y)()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -239,8 +240,8 @@ fn test_format_new_expression_wraps_call_member_callee() {
 #[test]
 fn test_parenthesis_policy_rejects_member_object_boundary_comment() {
     let source = "(value /* boundary */).member";
-    let (formatter, _) =
-        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse member expression");
+    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+        .expect("parse member expression");
     let context = context_from_formatter(&formatter);
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
@@ -257,8 +258,8 @@ fn test_parenthesis_policy_rejects_member_object_boundary_comment() {
 #[test]
 fn test_parenthesis_policy_rejects_optional_new_callee_unwrap() {
     let source = "new (value?.member)()";
-    let (formatter, _) =
-        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse new expression");
+    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+        .expect("parse new expression");
     let context = context_from_formatter(&formatter);
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |inner_expression| {
@@ -282,25 +283,25 @@ fn test_format_array_expression_sparse_elisions() {
     assert_format!(
         "[,,]",
         "[,,]",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
     assert_format!(
         "[,]",
         "[,]",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
     assert_format!(
         "[1,,]",
         "[1,,]",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
     assert_format!(
         "[1,,3]",
         "[1,, 3]",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -311,7 +312,7 @@ fn test_format_new_expression_empty_argument_comment() {
     assert_format!(
         "new require(/* comment */)",
         "new require(/* comment */)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -322,7 +323,7 @@ fn test_format_member_expression_unwraps_parenthesized_call_object() {
     assert_format!(
         "(require(\"x\")).TraceEntryPointsPlugin",
         "require('x').TraceEntryPointsPlugin",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -332,7 +333,8 @@ fn test_format_member_expression_unwraps_parenthesized_call_object() {
 fn test_tree_child_map_callback_breaks() {
     let input = "<List>{items.map((item) => <Item key={item.id} />)}</List>";
     let (formatter, expression_id) =
-        TestFormatter::parse(input, |p| p.eat_expression()).expect("parse tree expression");
+        TestFormatter::parse(input, |p| p.eat_expression(Default::default()))
+            .expect("parse tree expression");
 
     // find the tree child expression
     let Expression::TreeExpression { elements, .. } = formatter.tree.get(expression_id) else {
@@ -353,7 +355,8 @@ fn test_tree_child_map_callback_breaks() {
 /// Const on borrows normalizes to readonly in type formatting.
 #[test]
 fn test_format_type_const_borrow_normalizes_to_readonly() {
-    assert_format!("&const Foo", "&readonly Foo", |p| p.eat_expression());
+    assert_format!("&const Foo", "&readonly Foo", |p| p
+        .eat_expression(Default::default()));
 }
 
 /// Const on pointers normalizes to readonly in type formatting.
@@ -383,9 +386,10 @@ fn test_format_type_const_pointer_normalizes_to_readonly() {
 /// Type aliases preserve borrowed references.
 #[test]
 fn test_format_type_alias_preserves_borrowed_reference() {
-    let (formatter, expression_id) =
-        TestFormatter::parse("type Borrowed = &Buffer", |p| p.eat_expression())
-            .expect("parse type alias with borrowed reference");
+    let (formatter, expression_id) = TestFormatter::parse("type Borrowed = &Buffer", |p| {
+        p.eat_expression(Default::default())
+    })
+    .expect("parse type alias with borrowed reference");
     let Expression::Declaration(declaration_id) = formatter.tree.get(expression_id) else {
         panic!("expected type declaration expression");
     };
@@ -402,7 +406,7 @@ fn test_format_type_alias_preserves_borrowed_reference() {
     assert_format!(
         "type Borrowed = &Buffer",
         "type Borrowed = &Buffer;",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -413,7 +417,7 @@ fn test_format_type_alias_preserves_readonly_borrowed_reference() {
     assert_format!(
         "type Borrowed = &readonly Buffer",
         "type Borrowed = &readonly Buffer;",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -423,7 +427,7 @@ fn test_format_member_call_chain_line() {
     assert_format!(
         "call().followed().by().many().calls()",
         "call().followed().by().many().calls()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(100)
     );
 }
@@ -433,7 +437,7 @@ fn test_format_member_call_chain_retains_breaks() {
     assert_format!(
         "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
         "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );
 }
@@ -443,7 +447,7 @@ fn test_format_member_call_chain_breaks() {
     assert_format!(
         "call().followed().by().many().calls()",
         "call()\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );
 }
@@ -453,7 +457,7 @@ fn test_format_member_call_chain_breaks_with_maybe_and_index() {
     assert_format!(
         "call().followed()?.by()[0]?.many()?.calls()",
         "call()\n\t.followed()\n\t?.by()\n\t[0]\n\t?.many()\n\t?.calls()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );
 }
@@ -463,7 +467,7 @@ fn test_format_path_member_call_chain_breaks() {
     assert_format!(
         "long.base.path.followed().by().many().calls()",
         "long.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );
 }
@@ -473,7 +477,7 @@ fn test_format_index_member_chain_breaks() {
     assert_format!(
         "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]",
         "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );
 }
@@ -485,7 +489,7 @@ fn test_format_member_chain_breaks_before_long_boundary_comment_with_optional_ca
     assert_format!(
         "this.getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */\n  ?.();",
         "this\n  .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */\n  ?.()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         options
     );
 }
@@ -496,7 +500,7 @@ fn test_format_chain_planner_promotes_head_in_call_like_argument() {
     assert_format!(
         "render(foo.bar.getResource(id).map(transform).finalize())",
         "render(\n    foo.bar.getResource(id)\n        .map(transform)\n        .finalize(),\n)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(30)
     );
 }
@@ -507,7 +511,7 @@ fn test_format_chain_planner_respects_assignment_rhs_width() {
     assert_format!(
         "veryLongBindingName = source.alpha.beta.gamma().delta().epsilon()",
         "veryLongBindingName = source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
 }
@@ -517,7 +521,7 @@ fn test_format_expression_tree_literal_without_arguments() {
     assert_format!(
         "<Entity/>",
         "<Entity />",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -527,7 +531,7 @@ fn test_format_expression_tree_literal_with_arguments() {
     assert_format!(
         "<Entity a={1} b = {2} />",
         "<Entity a={1} b={2} />",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -547,7 +551,7 @@ fn test_format_expression_tree_literal_parenthesized() {
     assert_format!(
         source,
         expected,
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -575,7 +579,7 @@ fn test_format_expression_tree_literal_nested() {
     assert_format!(
         source,
         expected,
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -600,7 +604,7 @@ fn test_format_expression_tree_literal_with_array_of_struct_element() {
     assert_format!(
         source,
         expected,
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -621,7 +625,7 @@ fn test_format_expression_call_with_struct_literal() {
     },
     run: true,
 })"#,
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
 }
@@ -655,7 +659,7 @@ fn test_format_expression_let_call() {
     assert_format!(
         input,
         expected,
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
 }
@@ -664,7 +668,7 @@ fn test_format_expression_let_call() {
 fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
     let source = "call(/* comment */\n  () => {\n    //\n  }\n)";
     let expected = "call(\n    /* comment */\n    () => {\n        //\n    },\n)";
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 #[test]
@@ -672,7 +676,7 @@ fn test_format_call_nested_arrow_boundary_comments() {
     let source = "call(\n  () /**/ => //\n    () /**/ => /**/\n      () /**/ => /**/ {\n        //\n      }\n)";
     let expected =
         "call(() /**/ =>\n    //\n    () /**/ =>\n    /**/\n    () /**/ => /**/ {\n    //\n})";
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 #[test]
@@ -680,7 +684,7 @@ fn test_format_chained_assignment() {
     assert_format!(
         "a = b = c = 1",
         "a = b = c = 1",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -690,7 +694,7 @@ fn test_format_chained_assignment_long() {
     assert_format!(
         "veryLongName = anotherLongName = thirdLongName = 42",
         "veryLongName =\n    anotherLongName =\n    thirdLongName =\n    42",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(30)
     );
 }
@@ -700,7 +704,7 @@ fn test_format_jsx_with_comment() {
     assert_format!(
         "<Container>{/* XOXO */}</Container>",
         "(\n    <Container>\n        {/* XOXO */}\n    </Container>\n)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -710,7 +714,7 @@ fn test_format_jsx_conditional_child() {
     assert_format!(
         "<div>{loading && <Spinner />}</div>",
         "<div>{loading && <Spinner />}</div>",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -720,7 +724,7 @@ fn test_format_jsx_in_function_call() {
     assert_format!(
         "render(<App />)",
         "render(<App />)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -730,7 +734,7 @@ fn test_format_deeply_nested_callbacks() {
     assert_format!(
         "fetch(url).then((res) => res.json()).then((data) => process(data))",
         "fetch(url)\n    .then((res) => res.json())\n    .then((data) => process(data))",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
 }
@@ -741,7 +745,8 @@ fn test_call_chain_classifier_expands_callback_heavy_arguments() {
     let source =
         "compose((value) => step1(value), (value) => step2(value), (value) => step3(value)).run()";
     let (formatter, _expression_id) =
-        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse callback-heavy call");
+        TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+            .expect("parse callback-heavy call");
     let context = context_from_formatter(&formatter);
 
     let call_id = find_call_with_dynamic_argument_count(&formatter.tree, 3);
@@ -764,7 +769,8 @@ fn test_call_chain_classifier_expands_callback_heavy_arguments() {
 fn test_call_chain_classifier_expands_single_tree_child_argument() {
     let source = "render(<App><Body /></App>).run()";
     let (formatter, _expression_id) =
-        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse tree-argument call");
+        TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+            .expect("parse tree-argument call");
     let context = context_from_formatter(&formatter);
 
     let call_id = find_call_with_dynamic_argument_count(&formatter.tree, 1);
@@ -787,7 +793,7 @@ fn test_format_optional_chain_with_nullish() {
     assert_format!(
         r#"user?.profile?.name ?? "Anonymous""#,
         r#"user?.profile?.name ?? "Anonymous""#,
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -798,7 +804,7 @@ fn test_format_type_conditional_with_infer() {
     assert_format!(
         "type Result = T extends infer U ? U : never",
         "type Result = T extends infer U ? U : never;",
-        |p| p.eat_expression()
+        |p| p.eat_expression(Default::default())
     );
 }
 
@@ -808,7 +814,7 @@ fn test_format_type_conditional_with_constrained_infer() {
     assert_format!(
         "type Result = T extends infer U extends string ? U : never",
         "type Result = T extends infer U extends string ? U : never;",
-        |p| p.eat_expression()
+        |p| p.eat_expression(Default::default())
     );
 }
 
@@ -818,7 +824,7 @@ fn test_format_type_conditional_nested() {
     assert_format!(
         "type Result = T extends U ? (U extends V ? X : Y) : Z",
         "type Result = T extends U ? (U extends V ? X : Y) : Z;",
-        |p| p.eat_expression()
+        |p| p.eat_expression(Default::default())
     );
 }
 
@@ -828,7 +834,7 @@ fn test_format_type_intersection_trailing_operator_destack() {
     assert_format!(
         "type Combined = HasName & HasAge & HasEmail",
         "type Combined = HasName &\n    HasAge &\n    HasEmail;",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(30)
     );
 }
@@ -838,7 +844,7 @@ fn test_format_type_intersection_trailing_operator_destack() {
 fn test_format_type_mapped_with_remap() {
     let source = r#"type Remap = { readonly [K in keyof T as `${K}`]-?: T[K] }"#;
     let expected = r#"type Remap = { readonly [K in keyof T as `${K}`]-?: T[K] };"#;
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Formats mapped types with removal modifiers.
@@ -846,7 +852,7 @@ fn test_format_type_mapped_with_remap() {
 fn test_format_type_mapped_with_removals() {
     let source = r#"type Mutable = { -readonly [K in keyof T]-?: T[K] }"#;
     let expected = r#"type Mutable = { -readonly [K in keyof T]-?: T[K] };"#;
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Formats mapped types without modifiers.
@@ -854,7 +860,7 @@ fn test_format_type_mapped_with_removals() {
 fn test_format_type_mapped_without_modifiers() {
     let source = r#"type Plain = { [K in keyof T]: T[K] }"#;
     let expected = r#"type Plain = { [K in keyof T]: T[K] };"#;
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Formats mapped types with optional modifiers.
@@ -862,7 +868,7 @@ fn test_format_type_mapped_without_modifiers() {
 fn test_format_type_mapped_with_optional() {
     let source = r#"type Optional = { [K in keyof T]?: T[K] }"#;
     let expected = r#"type Optional = { [K in keyof T]?: T[K] };"#;
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Formats chained type index expressions.
@@ -870,7 +876,7 @@ fn test_format_type_mapped_with_optional() {
 fn test_format_type_index() {
     let source = r#"type Value = T[K][P]"#;
     let expected = r#"type Value = T[K][P];"#;
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Formats type template literals with single spans.
@@ -878,7 +884,7 @@ fn test_format_type_index() {
 fn test_format_type_template_literal() {
     let source = r#"type Key = `on${K}`"#;
     let expected = r#"type Key = `on${K}`;"#;
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Formats type template literals with multiple spans.
@@ -886,7 +892,7 @@ fn test_format_type_template_literal() {
 fn test_format_type_template_literal_multiple_spans() {
     let source = r#"type Key = `on${K}:${V}`"#;
     let expected = r#"type Key = `on${K}:${V}`;"#;
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Formats template literal type unions with leading `|` style.
@@ -894,7 +900,7 @@ fn test_format_type_template_literal_multiple_spans() {
 fn test_format_type_template_literal_union_with_leading_pipe() {
     let source = "type T = `${\n  | 'W'\n  | 'I'\n  | 'L'\n  | 'L'\n  | 'B'\n  | 'R'\n  | 'E'\n  | 'A'\n  | 'K'\n}${'!' | '!!'}`";
     let expected = "type T = `${\n    | 'W'\n    | 'I'\n    | 'L'\n    | 'L'\n    | 'B'\n    | 'R'\n    | 'E'\n    | 'A'\n    | 'K'}${'!' | \"!!\"}`;";
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Drops redundant wrappers around associative type unions.
@@ -902,7 +908,7 @@ fn test_format_type_template_literal_union_with_leading_pipe() {
 fn test_format_type_union_drops_redundant_parentheses() {
     let source = "type C = | (| (| A | B))";
     let expected = "type C = \n    | A\n    | B;";
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Drops single-member leading union wrappers in parenthesized array element types.
@@ -910,7 +916,7 @@ fn test_format_type_union_drops_redundant_parentheses() {
 fn test_format_type_single_member_leading_union_parenthesized_array() {
     let source = "type Items = ( | number)[]";
     let expected = "type Items = number[];";
-    assert_format!(source, expected, |p| p.eat_expression());
+    assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
 /// Drops single-member leading intersection wrappers in parenthesized array element types.
@@ -919,8 +925,10 @@ fn test_format_type_single_member_leading_intersection_parenthesized_array() {
     let source = "type Items = ( & number)[]";
     let expected = "type Items = number[];";
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| p.eat_expression())
-            .expect("parse typescript expression");
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse typescript expression");
     let options = DestackFormatOptions {
         language_type: LanguageType::TypeScript,
         ..DestackFormatOptions::default()
@@ -934,7 +942,8 @@ fn test_format_type_single_member_leading_intersection_parenthesized_array() {
 fn test_type_template_literal_union_is_in_type_context() {
     let source = "type T = `${\n  | 'W'\n  | 'I'\n}${'!' | '!!'}`";
     let (formatter, expression_id) =
-        TestFormatter::parse(source, |p| p.eat_expression()).expect("parse template literal type");
+        TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+            .expect("parse template literal type");
 
     let context = context_from_formatter(&formatter);
 
@@ -975,7 +984,7 @@ fn test_format_type_import() {
     assert_format!(
         r#"type Imported = import("mod").Type"#,
         r#"type Imported = import("mod").Type;"#,
-        |p| p.eat_expression()
+        |p| p.eat_expression(Default::default())
     );
 }
 
@@ -985,7 +994,7 @@ fn test_format_type_import_without_qualifier() {
     assert_format!(
         r#"type Imported = import("mod")"#,
         r#"type Imported = import("mod");"#,
-        |p| p.eat_expression()
+        |p| p.eat_expression(Default::default())
     );
 }
 
@@ -993,7 +1002,7 @@ fn test_format_type_import_without_qualifier() {
 #[test]
 fn test_format_type_infer_expression() {
     assert_format!("type Result = infer U", "type Result = infer U;", |p| p
-        .eat_expression());
+        .eat_expression(Default::default()));
 }
 
 #[test]
@@ -1001,7 +1010,7 @@ fn test_format_async_arrow() {
     assert_format!(
         "async (event) => await processEvent(event)",
         "async (event) => await processEvent(event)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -1012,7 +1021,7 @@ fn test_format_return_jsx_inline() {
     assert_format!(
         "return <App />",
         "return <App />",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -1022,7 +1031,7 @@ fn test_format_return_jsx_multiline() {
     assert_format!(
         "return <App prop=\"value\" another=\"thing\" />",
         "return (\n    <App\n        prop=\"value\"\n        another=\"thing\"\n    />\n)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(30)
     );
 }
@@ -1032,7 +1041,7 @@ fn test_format_nested_ternary() {
     assert_format!(
         "const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue",
         "const x = isFirst\n    ? firstValue\n    : isSecond\n    ? secondValue\n    : defaultValue",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(50)
     );
 }
@@ -1043,7 +1052,7 @@ fn test_format_const_call_with_multiline_object_rhs() {
     assert_format!(
         "const server = createServer({ port: config.server.port, middleware: [corsMiddleware(config.server.cors), authMiddleware(), loggingMiddleware({ level: \"info\" })], routes: [userRouter] })",
         "const server = createServer({\n    port: config.server.port,\n    middleware: [\n        corsMiddleware(config.server.cors),\n        authMiddleware(),\n        loggingMiddleware({ level: \"info\" }),\n    ],\n    routes: [userRouter],\n})",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(70)
     );
 }
@@ -1054,7 +1063,7 @@ fn test_format_export_const_chain_rhs_does_not_break_after_operator() {
     assert_format!(
         "export const userRouter =\n    Router\n    .create()\n    .get(\"/users\", async (ctx) => {\n        return Response.json(ctx);\n    })\n    .post(\"/users\", async (ctx) => {\n        return Response.created(ctx);\n    })",
         "export const userRouter = Router.create()\n    .get(\"/users\", async (ctx) => {\n        return Response.json(ctx);\n    })\n    .post(\"/users\", async (ctx) => {\n        return Response.created(ctx);\n    })",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(80)
     );
 }
@@ -1066,7 +1075,7 @@ fn test_format_const_generic_call_rhs_breaks_after_operator() {
     assert_format!(
         "const result = configurationService.getValue<Record<string, boolean>>(enalementSetting)",
         "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         options
     );
 }
@@ -1078,7 +1087,7 @@ fn test_format_const_generic_call_rhs_preserves_source_operator_break() {
     assert_format!(
         "const result =\n  configurationService.getValue<Record<string, boolean>>(\n  enalementSetting\n)",
         "const result =\n  configurationService.getValue<Record<string, boolean>>(enalementSetting)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         options
     );
 }
@@ -1090,7 +1099,7 @@ fn test_format_const_generic_call_with_multiline_type_argument_keeps_operator_in
     assert_format!(
         "const emitter = createGlobalEmitter<{\n  key: Extract<Event, { type: key }>\n}>()",
         "const emitter = createGlobalEmitter<{\n  key: Extract<Event, { type: key }>,\n}>()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         options
     );
 }
@@ -1102,7 +1111,7 @@ fn test_format_jsx_bracket_same_line_true() {
     assert_format!(
         r#"<Button variant="primary" size="large" disabled />"#,
         "(\n    <Button\n        variant=\"primary\"\n        size=\"large\"\n        disabled />\n)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         options
     );
 }
@@ -1114,7 +1123,7 @@ fn test_format_jsx_bracket_same_line_false() {
     assert_format!(
         r#"<Button variant="primary" size="large" disabled />"#,
         "(\n    <Button\n        variant=\"primary\"\n        size=\"large\"\n        disabled\n    />\n)",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         options
     );
 }
@@ -1127,7 +1136,7 @@ fn test_format_await_inside_maybe_gets_parenthesized() {
     assert_format!(
         "(await foo())?",
         "(await foo())?",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -1138,7 +1147,7 @@ fn test_format_unary_inside_maybe_gets_parenthesized() {
     assert_format!(
         "(-x)?",
         "(-x)?",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -1148,7 +1157,7 @@ fn test_format_unary_await_expression_parenthesizes_operand() {
     assert_format!(
         "async () => !await foo()",
         "async () => !(await foo())",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -1159,7 +1168,7 @@ fn test_format_postfix_inside_maybe_no_extra_parens() {
     assert_format!(
         "x.foo?",
         "x.foo?",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -1170,7 +1179,7 @@ fn test_format_call_inside_maybe_no_parens() {
     assert_format!(
         "foo()?",
         "foo()?",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }
@@ -1181,7 +1190,7 @@ fn test_format_await_maybe_sugar() {
     assert_format!(
         "await? foo()",
         "await? foo()",
-        |p| p.eat_expression(),
+        |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
 }

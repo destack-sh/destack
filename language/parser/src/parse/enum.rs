@@ -127,7 +127,7 @@ impl Parser {
                 self.eat_decorators_prefix_maybe()?;
             }
             // enum field
-            else if self.peek_enum_field().is_ok() {
+            else if self.peek_enum_field_is() {
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
                 fields.push(field);
             }
@@ -145,21 +145,18 @@ impl Parser {
         Ok((fields, members))
     }
 
-    /// Peek an enum field.
-    fn peek_enum_field(&mut self) -> ParseResult<()> {
+    /// Return true when the next tokens can start an enum field.
+    #[inline]
+    fn peek_enum_field_is(&mut self) -> bool {
         let is_computed_name = self.peek_is(TokenType::OpenBracket);
-        let is_bare_name = (self.peek_name().is_ok() || self.peek_numeric_literal().is_ok())
+        let is_bare_name = (self.peek_name_is() || self.peek_numeric_literal_is())
             && (self.peek_next_is(TokenType::Assign)
                 || self.peek_next_is(TokenType::Newline)
                 || self.peek_next_is(TokenType::Comma)
                 || self.peek_next_is(TokenType::Semicolon)
                 || self.peek_next_is(TokenType::CloseBrace));
 
-        if is_computed_name || is_bare_name {
-            Ok(())
-        } else {
-            Err(ParseError::expected(self.eof_span(), TokenType::Identifier))
-        }
+        is_computed_name || is_bare_name
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
@@ -174,7 +171,7 @@ impl Parser {
             self.eat_token(TokenType::Assign)?;
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             Some(value)
         } else {
@@ -207,7 +204,7 @@ impl Parser {
                 let string_id = self.strings.intern(&content);
                 self.bump();
                 Name::String(string_id)
-            } else if self.peek_numeric_literal().is_ok() {
+            } else if self.peek_numeric_literal_is() {
                 let token = *self.peek_numeric_literal()?;
                 let key_str = self.file.span_str(token.span);
                 let string_id = self.strings.intern(key_str);
@@ -228,7 +225,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBracket)?;
             Ok((name, self.get_span_from(&start)))
-        } else if self.peek_numeric_literal().is_ok() {
+        } else if self.peek_numeric_literal_is() {
             let token = *self.peek_numeric_literal()?;
             let key_str = self.file.span_str(token.span);
             let string_id = self.strings.intern(key_str);

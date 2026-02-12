@@ -9,6 +9,12 @@ impl Parser {
         self.peek_token(TokenType::Identifier)
     }
 
+    /// Return true when the next token is an identifier.
+    #[inline]
+    pub fn peek_identifier_is(&mut self) -> bool {
+        self.peek_is(TokenType::Identifier)
+    }
+
     /// Eat an identifier.
     #[inline]
     pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
@@ -77,6 +83,23 @@ impl Parser {
     /// Peek an identifier that matches a given string.
     #[inline]
     pub fn peek_identifier_str(&mut self, string: &str) -> ParseResult<&TokenSpan> {
+        if self.peek_identifier_str_is(string) {
+            self.peek_token(TokenType::Identifier)
+        } else {
+            Err(ParseError::expected(
+                self.peek()?.span,
+                TokenType::Identifier,
+            ))
+        }
+    }
+
+    /// Return true when the next token is an identifier matching a string.
+    #[inline]
+    pub fn peek_identifier_str_is(&mut self, string: &str) -> bool {
+        if !self.peek_identifier_is() {
+            return false;
+        }
+
         let index = self.pos_index();
         let has_active_split = self.has_active_split();
         let expected = match string {
@@ -85,25 +108,16 @@ impl Parser {
             "_" => Some(self.underscore_identifier),
             _ => None,
         };
-        let cached_identifier = if has_active_split {
-            None
-        } else {
-            self.identifier_for_index(index)
+
+        if !has_active_split && let Some(expected) = expected {
+            return self.identifier_for_index(index) == Some(expected);
+        }
+
+        let Some(token) = self.token_at(index) else {
+            return false;
         };
 
-        let token = *self.peek_token(TokenType::Identifier)?;
-        if !has_active_split && let Some(expected) = expected {
-            if cached_identifier == Some(expected) {
-                return self.peek_token(TokenType::Identifier);
-            }
-            return Err(ParseError::expected(token.span, TokenType::Identifier));
-        }
-
-        if self.get_token_str(token) == string {
-            self.peek_token(TokenType::Identifier)
-        } else {
-            Err(ParseError::expected(token.span, TokenType::Identifier))
-        }
+        self.get_token_str(token) == string
     }
 
     // identifier keyword check with unicode escape decoding
@@ -202,7 +216,7 @@ impl Parser {
     /// Eat a name maybe.
     #[inline]
     pub fn eat_name_maybe(&mut self) -> ParseResult<Option<Name>> {
-        if self.peek_name().is_ok() {
+        if self.peek_name_is() {
             Ok(Some(self.eat_name()?))
         } else {
             Ok(None)
@@ -214,7 +228,7 @@ impl Parser {
     pub fn eat_name_maybe_with_span(
         &mut self,
     ) -> ParseResult<Option<(Name, destack_source::Span)>> {
-        if self.peek_name().is_ok() {
+        if self.peek_name_is() {
             Ok(Some(self.eat_name_with_span()?))
         } else {
             Ok(None)
@@ -269,7 +283,7 @@ impl Parser {
                 };
 
             // kebab segments allow numeric suffixes, like panose-1
-            let token = if is_kebab && self.peek_numeric_literal().is_ok() {
+            let token = if is_kebab && self.peek_numeric_literal_is() {
                 let token = *self.peek_numeric_literal()?;
                 self.bump();
                 token
@@ -323,6 +337,27 @@ impl Parser {
         }
     }
 
+    /// Return true when the next token is a valid string literal.
+    #[inline]
+    pub fn peek_string_literal_is(&mut self) -> bool {
+        if self.peek_token_type() != TokenType::Literal {
+            return false;
+        }
+
+        let Some(token) = self.token_at(self.pos_index()) else {
+            return false;
+        };
+
+        matches!(
+            token.token.literal,
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            })
+        ) || matches!(token.token.literal, Some(LiteralType::Character { is_terminated: true, .. })
+        if self.language.is_typescript() || self.language.is_javascript())
+    }
+
     /// Get the content of a string literal (without surrounding quotes).
     #[inline]
     pub fn get_string_literal_str(&self, token: TokenSpan) -> &str {
@@ -361,6 +396,28 @@ impl Parser {
         }
     }
 
+    /// Return true when the next token after current is a valid string literal.
+    #[inline]
+    pub fn peek_next_string_literal_is(&mut self) -> bool {
+        if self.peek_next_token_type() != TokenType::Literal {
+            return false;
+        }
+
+        let next_index = self.index_for_next();
+        let Some(token) = self.token_at(next_index) else {
+            return false;
+        };
+
+        matches!(
+            token.token.literal,
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            })
+        ) || matches!(token.token.literal, Some(LiteralType::Character { is_terminated: true, .. })
+        if self.language.is_typescript() || self.language.is_javascript())
+    }
+
     /// Peek a numeric literal (int or float, for object keys).
     #[inline]
     pub fn peek_numeric_literal(&mut self) -> ParseResult<&TokenSpan> {
@@ -375,24 +432,53 @@ impl Parser {
         }
     }
 
+    /// Return true when the next token is a numeric literal.
+    #[inline]
+    pub fn peek_numeric_literal_is(&mut self) -> bool {
+        if self.peek_token_type() != TokenType::Literal {
+            return false;
+        }
+
+        let Some(token) = self.token_at(self.pos_index()) else {
+            return false;
+        };
+
+        matches!(
+            token.token.literal,
+            Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. })
+        )
+    }
+
     /// Peek a name (like `x` or `"Content-Type"`).
     #[inline]
     pub fn peek_name(&mut self) -> ParseResult<()> {
-        if self.peek_is(TokenType::Identifier) || self.peek_string_literal().is_ok() {
+        if self.peek_name_is() {
             Ok(())
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
+    /// Return true when the next token is a name.
+    #[inline]
+    pub fn peek_name_is(&mut self) -> bool {
+        self.peek_identifier_is() || self.peek_string_literal_is()
+    }
+
     /// Peek a next name (like `x` or `"Content-Type"`).
     #[inline]
     pub fn peek_next_name(&mut self) -> ParseResult<()> {
-        if self.peek_next_is(TokenType::Identifier) || self.peek_next_string_literal().is_ok() {
+        if self.peek_next_name_is() {
             Ok(())
         } else {
             Err(ParseError::unexpected(self.peek_next()?.span))
         }
+    }
+
+    /// Return true when the next token after current is a name.
+    #[inline]
+    pub fn peek_next_name_is(&mut self) -> bool {
+        self.peek_next_is(TokenType::Identifier) || self.peek_next_string_literal_is()
     }
 
     /// Eat a name (like `x` or `"Content-Type"`).
@@ -411,7 +497,7 @@ impl Parser {
             Ok((Name::Identifier(name), span))
         }
         // string identifier
-        else if self.peek_string_literal().is_ok() {
+        else if self.peek_string_literal_is() {
             let token = *self.peek_string_literal()?;
             let content = self.get_string_literal_str(token).to_owned();
             let string_id = self.strings.intern(&content);
@@ -427,50 +513,52 @@ impl Parser {
     /// Peek a name or a dynamic key.
     #[inline]
     pub fn peek_key(&mut self) -> ParseResult<()> {
-        if self.peek_private_hash_key().is_ok()
-            || self.peek_key_name().is_ok()
+        if self.peek_key_is() {
+            Ok(())
+        } else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Return true when the next token can start a key.
+    #[inline]
+    pub fn peek_key_is(&mut self) -> bool {
+        self.peek_private_hash_key_is()
+            || self.peek_key_name_is()
             || self.peek_is(TokenType::OpenBracket)
-            || self.peek_numeric_literal().is_ok()
-        {
-            Ok(())
-        } else {
-            Err(ParseError::unexpected(self.peek()?.span))
-        }
+            || self.peek_numeric_literal_is()
     }
 
-    /// Peek a key name token (`name`, `"name"`, `true`, or `false`).
+    /// Return true when the next token can be used as a key name.
     #[inline]
-    fn peek_key_name(&mut self) -> ParseResult<()> {
-        if self.peek_name().is_ok() || self.peek_boolean_name_literal().is_ok() {
-            Ok(())
-        } else {
-            Err(ParseError::unexpected(self.peek()?.span))
-        }
+    fn peek_key_name_is(&mut self) -> bool {
+        self.peek_name_is() || self.peek_boolean_name_literal_is()
     }
 
-    /// Peek a boolean literal key name (`true` or `false`).
+    /// Return true when the next token is a boolean literal key.
     #[inline]
-    fn peek_boolean_name_literal(&mut self) -> ParseResult<&TokenSpan> {
-        let token = self.peek()?;
-        if token.token.ty == TokenType::Literal
-            && matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
-        {
-            Ok(token)
-        } else {
-            Err(ParseError::expected(token.span, TokenType::Literal))
+    fn peek_boolean_name_literal_is(&mut self) -> bool {
+        if self.peek_token_type() != TokenType::Literal {
+            return false;
         }
+
+        let Some(token) = self.token_at(self.pos_index()) else {
+            return false;
+        };
+
+        matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
     }
 
     /// Eat a key name and return both the parsed name and its span.
     #[inline]
     fn eat_key_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
         // identifier or string key name
-        if self.peek_name().is_ok() {
+        if self.peek_name_is() {
             return self.eat_name_with_span();
         }
 
         // boolean identifier name key
-        if self.peek_boolean_name_literal().is_ok() {
+        if self.peek_boolean_name_literal_is() {
             let token = *self.eat()?;
             let raw = self.get_token_str(token).to_owned();
             let string_id = self.strings.intern(&raw);
@@ -481,42 +569,41 @@ impl Parser {
         Err(ParseError::unexpected(self.peek()?.span))
     }
 
-    /// Peek a private hash key like `#x` in JS/TS.
+    /// Return true when the next tokens start a private hash key.
     #[inline]
-    fn peek_private_hash_key(&mut self) -> ParseResult<()> {
-        if self.options.allow_private_hash_key
-            && (self.language.is_javascript()
+    fn peek_private_hash_key_is(&mut self) -> bool {
+        if !self.options.allow_private_hash_key
+            || !(self.language.is_javascript()
                 || self.language.is_typescript()
                 || self.language.is_destack())
-            && self.peek_is(TokenType::Hash)
-            && self.peek_next_is(TokenType::Identifier)
+            || !self.peek_is(TokenType::Hash)
+            || !self.peek_next_is(TokenType::Identifier)
         {
-            // require the hash and identifier to be adjacent
-            let hash_index = self.pos_index();
-            let ident_index = hash_index + 1;
-            self.check_tokens_are_adjacent(hash_index, ident_index)?;
-            Ok(())
-        } else {
-            Err(ParseError::unexpected(self.peek()?.span))
+            return false;
         }
+
+        // require the hash and identifier to be adjacent
+        let hash_index = self.pos_index();
+        let ident_index = hash_index + 1;
+        self.tokens_are_adjacent(hash_index, ident_index)
     }
 
     /// Eat a name or a dynamic key.
     #[inline]
     pub fn eat_key(&mut self) -> ParseResult<Key> {
         // private hash key
-        if self.peek_private_hash_key().is_ok() {
+        if self.peek_private_hash_key_is() {
             self.bump(); // eat #
             let name = self.eat_identifier()?;
             Ok(Key::Private(name))
         }
         // key name
-        else if self.peek_key_name().is_ok() {
+        else if self.peek_key_name_is() {
             let (name, _span) = self.eat_key_name_with_span()?;
             Ok(Key::Name(name))
         }
         // numeric key
-        else if self.peek_numeric_literal().is_ok() {
+        else if self.peek_numeric_literal_is() {
             let (string_id, _span) = self.eat_numeric_key_name_with_span()?;
             Ok(Key::Name(Name::Number(string_id)))
         }
@@ -530,7 +617,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 let key_type = self
                     .with_options(self.options.not_in_left_precedence().in_type(), |parser| {
-                        parser.eat_expression()
+                        parser.eat_expression(parser.options)
                     })?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok(Key::NamedExpression {
@@ -545,7 +632,7 @@ impl Parser {
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok(Key::Expression(key))
@@ -559,7 +646,7 @@ impl Parser {
 
     /// Eat a name or a dynamic key maybe.
     pub fn eat_key_maybe(&mut self) -> ParseResult<Option<Key>> {
-        if self.peek_key().is_ok() {
+        if self.peek_key_is() {
             Ok(Some(self.eat_key()?))
         } else {
             Ok(None)
@@ -570,19 +657,19 @@ impl Parser {
     pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, destack_source::Span)> {
         let start = self.mark();
         // private hash key
-        if self.peek_private_hash_key().is_ok() {
+        if self.peek_private_hash_key_is() {
             self.bump(); // eat #
             let name = self.eat_identifier()?;
             let span = self.get_span_from(&start);
             Ok((Key::Private(name), span))
         }
         // key name
-        else if self.peek_key_name().is_ok() {
+        else if self.peek_key_name_is() {
             let (name, span) = self.eat_key_name_with_span()?;
             Ok((Key::Name(name), span))
         }
         // numeric key
-        else if self.peek_numeric_literal().is_ok() {
+        else if self.peek_numeric_literal_is() {
             let (string_id, span) = self.eat_numeric_key_name_with_span()?;
             Ok((Key::Name(Name::Number(string_id)), span))
         }
@@ -596,7 +683,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 let key_type = self
                     .with_options(self.options.not_in_left_precedence().in_type(), |parser| {
-                        parser.eat_expression()
+                        parser.eat_expression(parser.options)
                     })?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok((
@@ -614,7 +701,7 @@ impl Parser {
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok((Key::Expression(key), self.get_span_from(&start)))
@@ -628,7 +715,7 @@ impl Parser {
 
     /// Eat a name or a dynamic key maybe, returning both the key and its span.
     pub fn eat_key_maybe_with_span(&mut self) -> ParseResult<Option<(Key, destack_source::Span)>> {
-        if self.peek_key().is_ok() {
+        if self.peek_key_is() {
             Ok(Some(self.eat_key_with_span()?))
         } else {
             Ok(None)

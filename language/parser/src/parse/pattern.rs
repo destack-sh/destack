@@ -50,7 +50,7 @@ impl Parser {
         // ------------------------------------------------------------
         let pattern_id = {
             // wildcard
-            if self.peek_identifier_str("_").is_ok() {
+            if self.peek_identifier_str_is("_") {
                 self.bump(); // eat wildcard
                 self.tree
                     .insert(Pattern::Wildcard, self.get_span_from(&start))
@@ -137,10 +137,10 @@ impl Parser {
                 )
             }
             // null and undefined literals
-            else if self.peek_identifier_str("null").is_ok()
-                || self.peek_identifier_str("undefined").is_ok()
+            else if self.peek_identifier_str_is("null")
+                || self.peek_identifier_str_is("undefined")
             {
-                let literal = if self.peek_identifier_str("null").is_ok() {
+                let literal = if self.peek_identifier_str_is("null") {
                     TypeLiteral::Null
                 } else {
                     TypeLiteral::Undefined
@@ -159,7 +159,7 @@ impl Parser {
             }
             // binding with expression or pattern
             else if !self.options.in_before_type
-                && self.peek_identifier().is_ok()
+                && self.peek_identifier_is()
                 && self.peek_next_is(TokenType::Colon)
             {
                 let (name, name_span) = self.eat_binding_identifier_with_span()?;
@@ -360,9 +360,9 @@ impl Parser {
             let mut name_span = None;
             let has_object_literal_alias_head =
                 is_object_pattern && self.peek_object_pattern_alias_head();
-            let can_start_named_or_spread_field = self.peek_name().is_ok()
+            let can_start_named_or_spread_field = self.peek_name_is()
                 || has_object_literal_alias_head
-                || self.peek_mutability().is_ok()
+                || self.peek_mutability_is()
                 || self.peek_is(TokenType::Spread);
             let pattern_field = {
                 // elision: empty slot before separator (like `[,a]` or `[,,b]`)
@@ -371,7 +371,7 @@ impl Parser {
                 }
                 // positional wildcard for tuples/arrays
                 else if !is_object_pattern
-                    && self.peek_identifier_str("_").is_ok()
+                    && self.peek_identifier_str_is("_")
                     && !self.peek_next_is(TokenType::Colon)
                 {
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
@@ -380,14 +380,13 @@ impl Parser {
                 // computed property (object patterns only)
                 else if is_object_pattern
                     && (self.peek_is(TokenType::OpenBracket)
-                        || (self.peek_mutability().is_ok()
-                            && self.peek_next_is(TokenType::OpenBracket)))
+                        || (self.peek_mutability_is() && self.peek_next_is(TokenType::OpenBracket)))
                 {
                     let mutability = self.eat_mutability_maybe()?;
                     self.eat_token(TokenType::OpenBracket)?;
                     let key = self.with_options(
                         self.options.not_in_position().not_in_sequence_expression(),
-                        |parser| parser.eat_expression(),
+                        |parser| parser.eat_expression(parser.options),
                     )?;
                     self.eat_token(TokenType::CloseBracket)?;
                     self.eat_newlines_maybe()?;
@@ -405,7 +404,7 @@ impl Parser {
                 else if can_start_named_or_spread_field {
                     // field modifiers
                     let mutability = if is_object_pattern
-                        && self.peek_mutability().is_ok()
+                        && self.peek_mutability_is()
                         && (self.peek_next_is(TokenType::Colon)
                             || self.peek_next_is(seperator)
                             || self.peek_next_is(terminator)
@@ -441,7 +440,7 @@ impl Parser {
                     }
                     // named alias and named pattern fields
                     else {
-                        let has_named_colon_field = self.peek_name().is_ok()
+                        let has_named_colon_field = self.peek_name_is()
                             && self.peek_next_is(TokenType::Colon)
                             || is_object_pattern && self.peek_object_pattern_alias_head();
                         if has_named_colon_field {
@@ -450,7 +449,7 @@ impl Parser {
                             self.bump(); // eat colon
 
                             // named alias field
-                            if self.peek_identifier().is_ok() {
+                            if self.peek_identifier_is() {
                                 let (alias, alias_span) = self
                                     .eat_binding_identifier_with_span()
                                     .for_node_type(NodeType::Pattern)?;
@@ -538,7 +537,7 @@ impl Parser {
         self.bump(); // eat assign
         let default = self.with_options(
             self.options.not_in_position().not_in_sequence_expression(),
-            |parser| parser.eat_expression(),
+            |parser| parser.eat_expression(parser.options),
         )?;
         Ok(Some(default))
     }
@@ -546,7 +545,7 @@ impl Parser {
     // check whether object pattern field head is a literal alias key before `:`
     fn peek_object_pattern_alias_head(&mut self) -> bool {
         let has_numeric_alias_head =
-            self.peek_numeric_literal().is_ok() && self.peek_next_is(TokenType::Colon);
+            self.peek_numeric_literal_is() && self.peek_next_is(TokenType::Colon);
         let has_boolean_alias_head =
             self.peek_boolean_pattern_name_head() && self.peek_next_is(TokenType::Colon);
         has_numeric_alias_head || has_boolean_alias_head
@@ -566,7 +565,7 @@ impl Parser {
         terminator: TokenType,
     ) -> ParseResult<(Name, destack_source::Span)> {
         let is_numeric_object_key =
-            terminator == TokenType::CloseBrace && self.peek_numeric_literal().is_ok();
+            terminator == TokenType::CloseBrace && self.peek_numeric_literal_is();
         if is_numeric_object_key {
             return self.eat_numeric_pattern_name_with_span();
         }

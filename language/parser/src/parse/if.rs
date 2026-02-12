@@ -90,7 +90,7 @@ impl Parser {
         // condition
         let condition = self.with_options(self.options.nested().in_before_block(), |parser| {
             let keyword = parser.peek_any_keyword().ok();
-            if matches!(keyword, Some(Keyword::Let)) || parser.peek_mutability().is_ok() {
+            if matches!(keyword, Some(Keyword::Let)) || parser.peek_mutability_is() {
                 let (kind, mutability) = parser.eat_let_kind()?;
                 let declarator = parser.eat_declarator(true, true)?;
                 Ok(IfCondition::Let {
@@ -122,11 +122,11 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
-            Some(
-                self.with_options(self.options.in_statement_position(), |parser| {
+            let else_expression_id = self
+                .with_options(self.options.in_statement_position(), |parser| {
                     parser.eat_expression_as_block()
-                })?,
-            )
+                })?;
+            Some(else_expression_id)
         } else {
             None
         };

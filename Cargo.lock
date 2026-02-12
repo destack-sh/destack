@@ -823,6 +823,7 @@ dependencies = [
  "destack_source",
  "destack_unicode",
  "pprof",
+ "rustc-hash 2.1.1",
  "serde",
  "smallvec",
 ]
@@ -1299,6 +1300,7 @@ dependencies = [
  "indexmap",
  "notify",
  "parking_lot",
+ "rustc-hash 2.1.1",
  "rustix",
  "serde",
  "serde_json",

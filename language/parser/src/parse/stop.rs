@@ -31,6 +31,15 @@ impl Parser {
         )
     }
 
+    /// Return true when the next token is any stop.
+    #[inline]
+    pub fn is_next_any_stop(&mut self) -> bool {
+        matches!(
+            self.peek_next_token_type(),
+            TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
+        )
+    }
+
     /// Peek an item stop (comma or newline).
     #[inline]
     pub fn peek_item_stop(&mut self) -> ParseResult<&TokenSpan> {
@@ -199,6 +208,15 @@ impl Parser {
         } else {
             Err(ParseError::expected(eof_span, TokenType::CloseParenthesis))
         }
+    }
+
+    /// Return true when the next token is any close parenthesis.
+    #[inline]
+    pub fn is_next_any_close_parenthesis(&mut self) -> bool {
+        matches!(
+            self.peek_next_token_type(),
+            TokenType::CloseParenthesis | TokenType::CloseBracket | TokenType::CloseBrace
+        )
     }
 
     /// Find a token.

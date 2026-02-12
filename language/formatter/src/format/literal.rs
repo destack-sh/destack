@@ -633,54 +633,55 @@ mod tests {
     /// Multi-char strings use double quotes in semantic mode.
     #[test]
     fn test_format_string_literal_multi_char() {
-        assert_format!("'hello'", "\"hello\"", |p| p.eat_expression());
+        assert_format!("'hello'", "\"hello\"", |p| p
+            .eat_expression(Default::default()));
     }
 
     /// Single-char strings use single quotes in semantic mode.
     #[test]
     fn test_format_string_literal_single_char() {
-        assert_format!("\"a\"", "'a'", |p| p.eat_expression());
+        assert_format!("\"a\"", "'a'", |p| p.eat_expression(Default::default()));
     }
 
     /// Empty strings use double quotes in semantic mode.
     #[test]
     fn test_format_string_literal_empty() {
-        assert_format!("''", "\"\"", |p| p.eat_expression());
+        assert_format!("''", "\"\"", |p| p.eat_expression(Default::default()));
     }
 
     /// Formats a template literal string with no interpolation.
     #[test]
     fn test_format_template_literal_plain() {
         let source = "`hello`";
-        assert_format!(source, source, |p| p.eat_expression());
+        assert_format!(source, source, |p| p.eat_expression(Default::default()));
     }
 
     /// Formats a template literal string with one interpolation.
     #[test]
     fn test_format_template_literal_one_interpolation() {
         let source = "tagged`hello ${name}`";
-        assert_format!(source, source, |p| p.eat_expression());
+        assert_format!(source, source, |p| p.eat_expression(Default::default()));
     }
 
     /// Formats a template literal string where the entire content is interpolation.
     #[test]
     fn test_format_template_literal_all_interpolation() {
         let source = "sql`${stmt}`";
-        assert_format!(source, source, |p| p.eat_expression());
+        assert_format!(source, source, |p| p.eat_expression(Default::default()));
     }
 
     /// Formats a template literal string with multiple adjacent interpolations.
     #[test]
     fn test_format_template_literal_adjacent_interpolations() {
         let source = "`${start}${middle}${end}`";
-        assert_format!(source, source, |p| p.eat_expression());
+        assert_format!(source, source, |p| p.eat_expression(Default::default()));
     }
 
     /// Formats a template literal with a complex SQL query and interpolation.
     #[test]
     fn test_format_template_literal_complex_sql() {
         let source = r#"sql.stmt`SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`"#;
-        assert_format!(source, source, |p| p.eat_expression());
+        assert_format!(source, source, |p| p.eat_expression(Default::default()));
     }
 
     /// Long strings are NOT broken even when they exceed line width (like Prettier).
@@ -691,7 +692,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -703,7 +704,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }

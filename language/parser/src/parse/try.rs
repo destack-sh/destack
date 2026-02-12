@@ -36,7 +36,7 @@ impl Parser {
         self.eat_keyword(Keyword::Try)?;
 
         // try block
-        if self.peek_block().is_ok() {
+        if self.is_block_start() {
             // try block
             let try_expression = self.eat_block()?;
             let try_expression = self.tree.insert(
@@ -51,11 +51,9 @@ impl Parser {
                 self.eat_newlines_maybe()?;
 
                 // no pattern or catch match
-                if self.peek_block().is_ok() || self.is_keyword(Keyword::Match) {
-                    let catch_expression = self.with_options(
-                        self.options.not_in_position().in_statement_position(),
-                        |parser| parser.eat_expression(),
-                    )?;
+                if self.is_block_start() || self.is_keyword(Keyword::Match) {
+                    let catch_expression =
+                        self.eat_statement_expression(self.options.not_in_position())?;
                     (None, None, Some(catch_expression))
                 }
                 // catch pattern with expression content
@@ -75,12 +73,12 @@ impl Parser {
 
                         self.eat_newlines_maybe()?;
 
-                        let catch_ty = if self.peek_colon().is_ok() {
+                        let catch_ty = if self.peek_colon_is() {
                             self.bump(); // eat :
                             self.eat_newlines_maybe()?;
                             let catch_ty = self.with_options(
                                 self.options.not_in_position().in_type().in_before_block(),
-                                |parser| parser.eat_expression(),
+                                |parser| parser.eat_expression(parser.options),
                             )?;
                             self.eat_newlines_maybe()?;
                             Some(catch_ty)
@@ -98,12 +96,12 @@ impl Parser {
                                 .in_before_block(),
                             |parser| parser.eat_pattern(),
                         )?;
-                        let catch_ty = if self.peek_colon().is_ok() {
+                        let catch_ty = if self.peek_colon_is() {
                             self.bump(); // eat :
                             self.eat_newlines_maybe()?;
                             let catch_ty = self.with_options(
                                 self.options.not_in_position().in_type().in_before_block(),
-                                |parser| parser.eat_expression(),
+                                |parser| parser.eat_expression(parser.options),
                             )?;
                             self.eat_newlines_maybe()?;
                             Some(catch_ty)
@@ -113,10 +111,8 @@ impl Parser {
                         (catch_pattern, catch_ty)
                     };
 
-                    let catch_expression = self.with_options(
-                        self.options.not_in_position().in_statement_position(),
-                        |parser| parser.eat_expression(),
-                    )?;
+                    let catch_expression =
+                        self.eat_statement_expression(self.options.not_in_position())?;
                     (Some(catch_pattern), catch_ty, Some(catch_expression))
                 }
             } else {
@@ -128,10 +124,8 @@ impl Parser {
             let finally_expression = if self.is_keyword(Keyword::Finally) {
                 self.bump(); // eat keyword
                 self.eat_newlines_maybe()?;
-                let finally_expression = self.with_options(
-                    self.options.not_in_position().in_statement_position(),
-                    |parser| parser.eat_expression(),
-                )?;
+                let finally_expression =
+                    self.eat_statement_expression(self.options.not_in_position())?;
                 Some(finally_expression)
             } else {
                 None
@@ -153,7 +147,7 @@ impl Parser {
         // try expression
         else {
             let expression_id = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression(parser.options)
             })?;
             let try_id = self.tree.insert(
                 Expression::Try {

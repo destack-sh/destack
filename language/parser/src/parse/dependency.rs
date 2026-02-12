@@ -33,7 +33,7 @@ impl Parser {
                 .nested()
                 .not_in_position()
                 .not_in_sequence_expression(),
-            |parser| parser.eat_expression(),
+            |parser| parser.eat_expression(parser.options),
         )?;
 
         // keep static string targets as interned strings
@@ -133,11 +133,11 @@ impl Parser {
 
             let value = if kind == Some(DependencyKind::Type) {
                 self.with_options(self.options.not_in_position().in_type(), |parser| {
-                    parser.eat_expression()
+                    parser.eat_expression(parser.options)
                 })?
             } else {
                 self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
+                    parser.eat_expression(parser.options)
                 })?
             };
             let descriptor = DeclarationDescriptor::default();
@@ -149,7 +149,7 @@ impl Parser {
 
         // binding
         let mut has_binding = false;
-        let items = if self.peek_dependency_binding().is_ok() {
+        let items = if self.peek_dependency_binding_is() {
             has_binding = true;
             let allow_type_modifier = kind != Some(DependencyKind::Type);
             self.eat_dependency_items_block(allow_type_modifier, false)?
@@ -264,12 +264,10 @@ impl Parser {
     fn try_eat_import_equals_require_target(
         &mut self,
     ) -> ParseResult<Option<(StringId, destack_source::Span)>> {
-        if !(self.peek_identifier_str("require").is_ok()
+        if !(self.peek_identifier_str_is("require")
             && self.peek_next_is(TokenType::OpenParenthesis)
-            && self.peek_next_next_token(TokenType::Literal).is_ok()
-            && self
-                .peek_next_next_next_token(TokenType::CloseParenthesis)
-                .is_ok())
+            && self.peek_next_next_is(TokenType::Literal)
+            && self.peek_next_next_next_is(TokenType::CloseParenthesis))
         {
             return Ok(None);
         }
@@ -320,11 +318,11 @@ impl Parser {
         // value expression
         let value = if kind == Some(DependencyKind::Type) {
             self.with_options(self.options.not_in_position().in_type(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression(parser.options)
             })?
         } else {
             self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression(parser.options)
             })?
         };
         // normalize descriptor export mode
@@ -389,7 +387,7 @@ impl Parser {
 
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let item = self.tree.insert(
                 DependencyItem {
@@ -429,7 +427,7 @@ impl Parser {
             self.bump(); // eat assign
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let item = self.tree.insert(
                 DependencyItem {
@@ -568,15 +566,20 @@ impl Parser {
 
     /// Peek a dependency binding.
     pub(crate) fn peek_dependency_binding(&mut self) -> ParseResult<()> {
-        if self.peek_is(TokenType::OpenBrace)
-            || self.peek_is(TokenType::Multiply)
-            || (self.peek_is(TokenType::Identifier)
-                && (self.peek_next_is(TokenType::Comma) || self.is_next_keyword(Keyword::From)))
-        {
+        if self.peek_dependency_binding_is() {
             Ok(())
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
         }
+    }
+
+    /// Return true when the next tokens can start a dependency binding.
+    #[inline]
+    pub(crate) fn peek_dependency_binding_is(&mut self) -> bool {
+        self.peek_is(TokenType::OpenBrace)
+            || self.peek_is(TokenType::Multiply)
+            || (self.peek_is(TokenType::Identifier)
+                && (self.peek_next_is(TokenType::Comma) || self.is_next_keyword(Keyword::From)))
     }
 
     /// Return true when tokens after `import` can start an import statement.
@@ -671,7 +674,7 @@ impl Parser {
                 if self.peek_is(TokenType::CloseBrace) {
                     break;
                 }
-                if self.peek_comma().is_ok() {
+                if self.peek_comma_is() {
                     self.eat_item_stop_with_newlines()?;
                     continue;
                 } else {
@@ -790,14 +793,12 @@ impl Parser {
 
         // handle `type as` disambiguation
         if self.is_next_keyword(Keyword::As) {
-            if self.peek_next_next_token(TokenType::Identifier).is_err() {
+            if !self.peek_next_next_is(TokenType::Identifier) {
                 return true;
             }
 
-            if self.peek_next_next_keyword(Keyword::As).is_ok() {
-                return self
-                    .peek_next_next_next_token(TokenType::Identifier)
-                    .is_ok();
+            if self.is_next_next_keyword(Keyword::As) {
+                return self.peek_next_next_next_is(TokenType::Identifier);
             }
 
             return false;
@@ -813,7 +814,7 @@ impl Parser {
             return Ok((Name::Identifier(name), span));
         }
 
-        if self.peek_string_literal().is_ok() {
+        if self.peek_string_literal_is() {
             let (name, span) = self.eat_string_literal_with_span()?;
             return Ok((Name::String(name), span));
         }
@@ -835,7 +836,7 @@ impl Parser {
         }
 
         // export specifiers also allow string literal aliases
-        if allow_literal_alias && self.peek_string_literal().is_ok() {
+        if allow_literal_alias && self.peek_string_literal_is() {
             return self.eat_string_literal_with_span();
         }
 
@@ -883,7 +884,7 @@ mod tests {
     fn test_parse_import_from_expression() {
         let mut test = TestParser::new("import os from 'os'");
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         // import os from 'os'
         assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, .. } => {

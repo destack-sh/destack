@@ -21,6 +21,7 @@ destack_unicode = { workspace = true }
 # general
 serde = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true, features = ["serde"] }
+rustc-hash = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

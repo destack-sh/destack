@@ -8,6 +8,58 @@ use destack_ast::{
 use super::common::{DescriptorHead, is_declaration_keyword};
 
 impl Parser {
+    /// Return true when declaration modifier parsing is needed in this context.
+    #[inline]
+    pub(super) fn should_parse_declaration_descriptor(&mut self) -> bool {
+        if self.options.in_type
+            || self.options.in_variant
+            || self.options.in_declare_context
+            || self.language.is_declaration()
+        {
+            return true;
+        }
+
+        if !self.peek_is(TokenType::Identifier) {
+            return false;
+        }
+
+        let split_active = self.has_active_split();
+        let keyword = if split_active {
+            self.peek_any_keyword().ok()
+        } else {
+            self.keyword_for_index(self.pos_index())
+        };
+        if matches!(
+            keyword,
+            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
+        ) {
+            return true;
+        }
+
+        // contextual global and module declarations in statement position
+        if !self.options.in_statement_position || split_active {
+            return false;
+        }
+
+        let next_token_type = self.peek_next_token_type();
+        let can_start_global_or_module_declaration = matches!(
+            next_token_type,
+            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
+        );
+        if !can_start_global_or_module_declaration {
+            return false;
+        }
+
+        let Some(identifier) = self.identifier_for_index(self.pos_index()) else {
+            return false;
+        };
+        if Some(identifier) == self.global_identifier {
+            return true;
+        }
+
+        self.language.supports_module_declaration() && Some(identifier) == self.module_identifier
+    }
+
     /// Check whether a `{` in statement position should be parsed as an object literal.
     /// NOTE #Cleanup: can_parse_object_literal_in_statement_position is ugly and might not be fixable.
     pub(super) fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
@@ -164,38 +216,28 @@ impl Parser {
             next_token_type,
             TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
         );
-        let is_modifier_keyword;
-        let is_global_identifier;
-        let is_module_identifier;
-
-        // fast path: read raw identifier text once and avoid keyword parsing for regular names
-        if !self.has_active_split() {
-            let token = self
-                .token_ref_at(pos)
-                .copied()
-                .ok_or(ParseError::unexpected(self.eof_span()))?;
-            let identifier = self.get_span_str(token.span);
-            is_modifier_keyword =
-                matches!(identifier, "export" | "declare" | "abstract" | "static");
-            is_global_identifier = !is_modifier_keyword
-                && can_start_global_or_module_declaration
-                && identifier == "global";
-            is_module_identifier = !is_modifier_keyword
-                && can_start_global_or_module_declaration
-                && self.language.supports_module_declaration()
-                && identifier == "module";
-        }
-        // split-aware fallback, kept for correctness around compound tokens
-        else {
-            let keyword = self.peek_any_keyword().ok();
-            let split_modifier_keyword = matches!(
-                keyword,
-                Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
-            );
-            is_modifier_keyword = split_modifier_keyword;
-            is_global_identifier = false;
-            is_module_identifier = false;
-        }
+        let split_active = self.has_active_split();
+        let keyword = if split_active {
+            self.peek_any_keyword().ok()
+        } else {
+            self.keyword_for_index(pos)
+        };
+        let is_modifier_keyword = matches!(
+            keyword,
+            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
+        );
+        let identifier = if split_active {
+            None
+        } else {
+            self.identifier_for_index(pos)
+        };
+        let is_global_identifier = !is_modifier_keyword
+            && can_start_global_or_module_declaration
+            && identifier.is_some_and(|value| Some(value) == self.global_identifier);
+        let is_module_identifier = !is_modifier_keyword
+            && can_start_global_or_module_declaration
+            && self.language.supports_module_declaration()
+            && identifier.is_some_and(|value| Some(value) == self.module_identifier);
 
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
             return Ok(DescriptorHead::Descriptor(descriptor));
@@ -227,7 +269,9 @@ impl Parser {
             let next_keyword = self.peek_any_keyword().ok();
             let has_module_identifier_declaration = self.language.supports_module_declaration()
                 && !self.has_active_split()
-                && self.identifier_equals_at(self.pos_index(), "module");
+                && self
+                    .identifier_for_index(self.pos_index())
+                    .is_some_and(|value| Some(value) == self.module_identifier);
             let has_declaration_keyword = next_keyword.is_some_and(is_declaration_keyword)
                 || has_module_identifier_declaration;
 
@@ -244,11 +288,11 @@ impl Parser {
                     || self.peek_next_is(TokenType::End));
             let is_invalid_export_form = !has_declaration_keyword
                 && !self.peek_is(TokenType::At)
-                && self.peek_dependency_binding().is_err()
+                && !self.peek_dependency_binding_is()
                 && !self.is_keyword_after_newlines(Keyword::Import);
             let is_export_dependency = export_mode == Some(DependencyMode::Namespace)
                 || is_export_type_binding
-                || (!has_declaration_keyword && self.peek_dependency_binding().is_ok())
+                || (!has_declaration_keyword && self.peek_dependency_binding_is())
                 || (export_mode == Some(DependencyMode::Default) && !has_declaration_keyword)
                 || is_invalid_export_form;
             if is_export_dependency {
@@ -365,7 +409,9 @@ impl Parser {
             || self.language.is_declaration()
             || self.options.in_declare_context)
             && !self.has_active_split()
-            && self.identifier_equals_at(self.pos_index(), "global")
+            && self
+                .identifier_for_index(self.pos_index())
+                .is_some_and(|value| Some(value) == self.global_identifier)
             && self.is_token_after_newlines(self.pos(), TokenType::OpenBrace)
         {
             let mut global_descriptor = descriptor;
@@ -399,9 +445,11 @@ impl Parser {
         if token.token.ty != TokenType::Identifier {
             return false;
         }
-        let token_str = self.get_span_str(token.span);
-        token_str == "global"
-            || self.language.supports_module_declaration() && token_str == "module"
+        self.identifier_for_index(index).is_some_and(|identifier| {
+            Some(identifier) == self.global_identifier
+                || self.language.supports_module_declaration()
+                    && Some(identifier) == self.module_identifier
+        })
     }
 
     /// Check whether a token index starts a declare await using target.
