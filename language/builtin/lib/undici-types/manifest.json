@@ -162,7 +162,8 @@
       "dependencies": [
         "esnext",
         "node"
-      ]
+      ],
+      "latestFrom": "undici-types.v7"
     }
   ]
 }

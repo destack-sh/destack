@@ -10,7 +10,8 @@
       "dependencies": [
         "undici-types"
       ],
-      "declaredSymbols": "node"
+      "declaredSymbols": "node",
+      "latestFrom": "node.v24"
     },
     {
       "name": "node.v18",
