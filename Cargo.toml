@@ -47,6 +47,7 @@ members = [
 	"language/workspace/service",
 	# library
 	"library/napi",
+	"library/wasm",
 	# platform
 	"platform/cli",
 	"platform/daemon",
@@ -97,6 +98,7 @@ destack_workspace_service = { path = "language/workspace/service" }
 
 # library
 destack_napi = { path = "library/napi" }
+destack_wasm = { path = "library/wasm" }
 
 # platform
 destack_cli = { path = "platform/cli" }
