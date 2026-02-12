@@ -122,6 +122,32 @@ where
     })
 }
 
+/// Return whether node has a line postfix boundary star comment annotation.
+fn has_line_postfix_boundary_star_comment<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> bool
+where
+    T: destack_ast::Node,
+    NodeTree: destack_ast::NodeTreeImpl<T>,
+{
+    let Some(annotations) = context.get_annotations(node_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let Annotation::Comment { node, position } = annotation else {
+            return false;
+        };
+        if *position != AnnotationPosition::LinePostfixBoundary {
+            return false;
+        }
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        comment.style == destack_ast::CommentStyle::Star
+    })
+}
+
 /// Return an inline block comment source for an else boundary when safe.
 fn inline_else_boundary_block_comment<'ast>(
     context: &DestackFormatContext<'ast>,
@@ -345,6 +371,12 @@ pub(crate) fn format_if_else_chain<'ast>(
                     let has_line_postfix_slash_on_boundary =
                         has_line_postfix_slash_comment(f.context(), next_if_id)
                             || has_line_postfix_slash_comment(f.context(), *then_expression_id);
+                    let has_line_postfix_star_on_boundary =
+                        has_line_postfix_boundary_star_comment(f.context(), next_if_id)
+                            || has_line_postfix_boundary_star_comment(
+                                f.context(),
+                                *then_expression_id,
+                            );
                     let inline_else_block_comment = inline_else_boundary_block_comment(
                         f.context(),
                         *then_expression_id,
@@ -367,6 +399,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                             write!(f, [space(), text(comment_source.as_str()), space()])?;
                         }
                     } else if !has_line_postfix_slash_on_boundary
+                        && !has_line_postfix_star_on_boundary
                         && !f.context().has_prefix_annotation(*else_expression)
                     {
                         write!(f, [space()])?;

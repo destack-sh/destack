@@ -621,7 +621,8 @@ fn format_single_call_argument_with_group<'ast>(
         && !planner_base_state.has_call_infix_annotations
         && !force_expand_single_long_with_static_arguments
         && !argument_is_lambda_expression(f.context(), argument_id)
-        && !argument_is_function_expression(f.context(), argument_id);
+        && !argument_is_function_expression(f.context(), argument_id)
+        && !argument_is_interpolated_template_literal(f.context(), argument_id);
     if can_use_hugged {
         let used_hugged = format_hugged(
             f,

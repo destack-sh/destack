@@ -258,7 +258,8 @@ pub(super) fn build_call_argument_expansion_profiles(
                 && !argument_is_lambda_expression(context, argument_id)
                 && !argument_is_function_expression(context, argument_id)
                 && !argument_value_is_tree_expression
-                && !argument_is_template_literal(context, argument_id);
+                && (!argument_is_template_literal(context, argument_id)
+                    || argument_is_interpolated_template_literal(context, argument_id));
         let force_expand_single_long_with_static_arguments =
             call_force_expand_single_long_with_static_arguments(
                 context,
