@@ -21,6 +21,10 @@ use crate::{
     WorkspaceModuleEntry, payload_hash_from_bytes,
 };
 
+const TYPESCRIPT_LIB_PREFIX: &str = "lib.";
+const TYPESCRIPT_LIB_SUFFIX: &str = ".d.ts";
+const TYPESCRIPT_IMPLICIT_HOST_LIBS: &[&str] = &["dom", "dom.iterable", "scripthost"];
+
 /// Unique identifier for Programs.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -676,6 +680,64 @@ impl Program {
         self.linter.clone()
     }
 
+    /// Build effective profile compiler options for one module.
+    fn profile_compiler_options_for_module(
+        &self,
+        package: &Package,
+        module: &Module,
+    ) -> (DsConfigCompilerOptions, Option<TsConfigOptions>) {
+        // start from package compiler options when dsconfig exists
+        let mut compiler_options = package
+            .dsconfig
+            .as_ref()
+            .map(|dsconfig| dsconfig.options.compiler.clone())
+            .unwrap_or_default();
+
+        // only use tsconfig when no package dsconfig exists
+        let tsconfig_options = if package.dsconfig.is_none() {
+            self.with_tsconfig_options(module, |options| options.clone())
+        } else {
+            None
+        };
+
+        // use tsconfig defaults when dsconfig is absent
+        if let Some(tsconfig_options) = tsconfig_options.as_ref() {
+            Self::apply_tsconfig_profile_overrides(&mut compiler_options, tsconfig_options);
+        }
+
+        (compiler_options, tsconfig_options)
+    }
+
+    /// Apply tsconfig settings that affect profile and resolution behavior.
+    fn apply_tsconfig_profile_overrides(
+        compiler_options: &mut DsConfigCompilerOptions,
+        tsconfig_options: &TsConfigOptions,
+    ) {
+        let ts_compiler_options = &tsconfig_options.compiler;
+
+        compiler_options.base_url = ts_compiler_options.base_url.clone();
+        compiler_options.paths = ts_compiler_options.paths.as_ref().map(|paths| {
+            let mut mapped_paths = crate::DsPathAliases::default();
+            for (key, values) in paths {
+                mapped_paths.insert(key.clone(), values.clone());
+            }
+            mapped_paths
+        });
+        compiler_options.module = ts_compiler_options.module;
+        compiler_options.es_target = ts_compiler_options.es_target;
+        compiler_options.allow_js = ts_compiler_options.allow_js;
+        compiler_options.check_js = ts_compiler_options.check_js;
+        compiler_options.skip_lib_check = ts_compiler_options.skip_lib_check;
+
+        if !ts_compiler_options.lib.is_empty() {
+            compiler_options.lib = Self::normalize_tsconfig_lib_names(&ts_compiler_options.lib);
+        }
+
+        if !ts_compiler_options.types.is_empty() {
+            compiler_options.types = ts_compiler_options.types.clone();
+        }
+    }
+
     /// Get the profile id for a module with the default profile selection.
     pub fn default_profile_id_for_module(&self, module_id: ModuleId) -> ProfileId {
         // get package for module
@@ -684,12 +746,9 @@ impl Program {
         let package = self.packages.get(module.package_id);
         let package = package.read();
 
-        // get compiler options from package dsconfig
-        let compiler_options = package
-            .dsconfig
-            .as_ref()
-            .map(|dsconfig| dsconfig.options.compiler.clone())
-            .unwrap_or_default();
+        // derive profile compiler options from dsconfig or tsconfig
+        let (compiler_options, tsconfig_options) =
+            self.profile_compiler_options_for_module(&package, &module);
 
         // get target and profile config from package dsconfig
         let (target, profile_config) = if let Some(dsconfig) = package.dsconfig.as_ref() {
@@ -715,7 +774,13 @@ impl Program {
             (self.fallback_target_for_module(&module), None)
         };
 
-        let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
+        let key = Self::profile_key_for_target(
+            &target,
+            &compiler_options,
+            profile_config,
+            tsconfig_options.as_ref(),
+        );
+
         self.profiles.get_or_create(key)
     }
 
@@ -803,12 +868,8 @@ impl Program {
             .cloned()
             .or_else(|| Target::implicit_for_name(&target_id.name))?;
 
-        let compiler_options = package
-            .dsconfig
-            .as_ref()
-            .map(|dsconfig| dsconfig.options.compiler.clone())
-            .unwrap_or_default();
-
+        let (compiler_options, tsconfig_options) =
+            self.profile_compiler_options_for_module(&package, &module);
         let profile_config = package.dsconfig.as_ref().and_then(|dsconfig| {
             target
                 .profile
@@ -817,7 +878,13 @@ impl Program {
                 .and_then(|name| dsconfig.options.profiles.get(name))
         });
 
-        let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
+        let key = Self::profile_key_for_target(
+            &target,
+            &compiler_options,
+            profile_config,
+            tsconfig_options.as_ref(),
+        );
+
         Some(self.profiles.get_or_create(key))
     }
 
@@ -857,11 +924,61 @@ impl Program {
         types
     }
 
+    /// Normalize one tsconfig lib name to builtin lookup form.
+    fn normalize_tsconfig_lib_name(lib: &str) -> String {
+        // normalize casing and whitespace
+        let lower = lib.trim().to_ascii_lowercase();
+        let without_prefix = lower
+            .strip_prefix(TYPESCRIPT_LIB_PREFIX)
+            .unwrap_or(lower.as_str());
+        let normalized = without_prefix
+            .strip_suffix(TYPESCRIPT_LIB_SUFFIX)
+            .unwrap_or(without_prefix);
+
+        normalized.to_string()
+    }
+
+    /// Normalize tsconfig lib names to builtin lookup form.
+    fn normalize_tsconfig_lib_names(libs: &[String]) -> Vec<String> {
+        libs.iter()
+            .map(|lib| Self::normalize_tsconfig_lib_name(lib))
+            .collect()
+    }
+
+    /// Build implicit tsconfig libs when no explicit profile libs are configured.
+    fn default_libs_for_tsconfig(tsconfig_options: &TsConfigOptions) -> Vec<String> {
+        let ts_compiler_options = &tsconfig_options.compiler;
+
+        // tsconfig noLib disables implicit libs
+        if ts_compiler_options.no_lib {
+            return Vec::new();
+        }
+
+        // explicit tsconfig lib entries fully define the base lib set
+        if !ts_compiler_options.lib.is_empty() {
+            return Self::normalize_tsconfig_lib_names(&ts_compiler_options.lib);
+        }
+
+        // use TypeScript default ambient libs first
+        let mut libs = vec![
+            "js".to_string(),
+            ts_compiler_options.es_target.default_lib_name().to_string(),
+        ];
+
+        // add typescript host libs
+        for lib in TYPESCRIPT_IMPLICIT_HOST_LIBS {
+            libs.push((*lib).to_string());
+        }
+
+        libs
+    }
+
     /// Build a profile key for a target.
     fn profile_key_for_target(
         target: &Target,
         compiler_options: &DsConfigCompilerOptions,
         profile_config: Option<&ProfileConfig>,
+        tsconfig_options: Option<&TsConfigOptions>,
     ) -> ProfileKey {
         let compiler_options = Self::compiler_options_for_target(target, compiler_options);
         let output = target.output;
@@ -878,27 +995,33 @@ impl Program {
             .and_then(|profile| profile.debug)
             .unwrap_or(target.debug);
 
-        // pick base lib list with override semantics
-        let base_lib = profile_config
-            .and_then(|profile| profile.lib.as_ref())
-            .cloned()
-            .or_else(|| target.lib.clone())
-            .or_else(|| {
-                if compiler_options.lib.is_empty() {
-                    None
+        // derive fallback target settings once for implicit lib resolution
+        let derived_target = Target {
+            runtime,
+            runtime_version,
+            platform,
+            ..Target::default()
+        };
+
+        // pick one base lib list from config precedence
+        let base_lib =
+            if let Some(profile_lib) = profile_config.and_then(|profile| profile.lib.as_ref()) {
+                profile_lib.clone()
+            } else if let Some(target_lib) = target.lib.as_ref() {
+                target_lib.clone()
+            } else if !compiler_options.lib.is_empty() {
+                compiler_options.lib.clone()
+            } else if let Some(tsconfig_options) = tsconfig_options {
+                if tsconfig_options.compiler.no_lib {
+                    Vec::new()
+                } else if !tsconfig_options.compiler.lib.is_empty() {
+                    Self::normalize_tsconfig_lib_names(&tsconfig_options.compiler.lib)
                 } else {
-                    Some(compiler_options.lib.clone())
+                    Self::default_libs_for_tsconfig(tsconfig_options)
                 }
-            })
-            .unwrap_or_else(|| {
-                let derived_target = Target {
-                    runtime,
-                    runtime_version,
-                    platform,
-                    ..Target::default()
-                };
+            } else {
                 derived_target.derived_lib()
-            });
+            };
 
         // append additive library types from config layers
         let mut libs = base_lib;
@@ -1107,8 +1230,12 @@ mod tests {
             ..ProfileConfig::default()
         };
 
-        let key =
-            Program::profile_key_for_target(&target, &compiler_options, Some(&profile_config));
+        let key = Program::profile_key_for_target(
+            &target,
+            &compiler_options,
+            Some(&profile_config),
+            None,
+        );
 
         assert_eq!(
             key.lib,
@@ -1119,6 +1246,88 @@ mod tests {
                 "node".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn test_profile_key_for_target_uses_tsconfig_default_libs() {
+        let target = Target::js("default");
+        let compiler_options = DsConfigCompilerOptions::default();
+
+        let mut tsconfig_options = TsConfigOptions::default();
+        tsconfig_options.compiler.es_target = crate::EsTarget::Es2022;
+
+        let key = Program::profile_key_for_target(
+            &target,
+            &compiler_options,
+            None,
+            Some(&tsconfig_options),
+        );
+
+        assert!(key.lib.iter().any(|lib| lib == "dom"));
+        assert!(key.lib.iter().any(|lib| lib == "dom.iterable"));
+        assert!(key.lib.iter().any(|lib| lib == "scripthost"));
+        assert!(key.lib.iter().any(|lib| lib == "js"));
+        assert!(key.lib.iter().any(|lib| lib == "es2022"));
+        assert!(!key.lib.iter().any(|lib| lib == "node"));
+    }
+
+    #[test]
+    fn test_profile_key_for_target_honors_tsconfig_no_lib() {
+        let target = Target::js("default");
+        let compiler_options = DsConfigCompilerOptions::default();
+
+        let mut tsconfig_options = TsConfigOptions::default();
+        tsconfig_options.compiler.no_lib = true;
+
+        let key = Program::profile_key_for_target(
+            &target,
+            &compiler_options,
+            None,
+            Some(&tsconfig_options),
+        );
+
+        assert!(key.lib.is_empty());
+    }
+
+    #[test]
+    fn test_profile_key_for_target_normalizes_tsconfig_lib_names() {
+        let target = Target::js("default");
+        let compiler_options = DsConfigCompilerOptions::default();
+
+        let mut tsconfig_options = TsConfigOptions::default();
+        tsconfig_options.compiler.lib = vec!["DOM".to_string(), "lib.ES2022.d.ts".to_string()];
+
+        let key = Program::profile_key_for_target(
+            &target,
+            &compiler_options,
+            None,
+            Some(&tsconfig_options),
+        );
+
+        assert!(key.lib.iter().any(|lib| lib == "dom"));
+        assert!(key.lib.iter().any(|lib| lib == "es2022"));
+        assert!(!key.lib.iter().any(|lib| lib == "DOM"));
+        assert!(!key.lib.iter().any(|lib| lib == "lib.ES2022.d.ts"));
+    }
+
+    #[test]
+    fn test_profile_key_for_target_uses_only_explicit_tsconfig_libs() {
+        let target = Target::js("default");
+        let compiler_options = DsConfigCompilerOptions::default();
+
+        let mut tsconfig_options = TsConfigOptions::default();
+        tsconfig_options.compiler.lib = vec!["ESNext".to_string(), "DOM".to_string()];
+
+        let key = Program::profile_key_for_target(
+            &target,
+            &compiler_options,
+            None,
+            Some(&tsconfig_options),
+        );
+
+        assert!(!key.lib.iter().any(|lib| lib == "node"));
+        assert!(key.lib.iter().any(|lib| lib == "esnext"));
+        assert!(key.lib.iter().any(|lib| lib == "dom"));
     }
 
     #[test]

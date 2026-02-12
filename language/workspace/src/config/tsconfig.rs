@@ -1099,19 +1099,30 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
         // determine if strict mode is enabled
         let strict = json.strict.unwrap_or(false);
 
+        // resolve module resolution first because package json defaults depend on it
+        let module_resolution = json
+            .module_resolution
+            .as_deref()
+            .and_then(ModuleResolution::parse)
+            .unwrap_or_default();
+        let resolve_package_json_default = matches!(
+            module_resolution,
+            ModuleResolution::Node16 | ModuleResolution::NodeNext | ModuleResolution::Bundler
+        );
+
         Self {
             base_url: json.base_url.clone(),
             paths: json.paths.clone(),
-            module_resolution: json
-                .module_resolution
-                .as_deref()
-                .and_then(ModuleResolution::parse)
-                .unwrap_or_default(),
+            module_resolution,
             allow_arbitrary_extensions: json.allow_arbitrary_extensions.unwrap_or(false),
             allow_importing_ts_extensions: json.allow_importing_ts_extensions.unwrap_or(false),
             resolve_json_module: json.resolve_json_module.unwrap_or(false),
-            resolve_package_json_exports: json.resolve_package_json_exports.unwrap_or(true),
-            resolve_package_json_imports: json.resolve_package_json_imports.unwrap_or(true),
+            resolve_package_json_exports: json
+                .resolve_package_json_exports
+                .unwrap_or(resolve_package_json_default),
+            resolve_package_json_imports: json
+                .resolve_package_json_imports
+                .unwrap_or(resolve_package_json_default),
             custom_conditions: json.custom_conditions.clone().unwrap_or_default(),
 
             module: json
@@ -1644,6 +1655,44 @@ mod tests {
         assert_eq!(compiler_options.target, Some("ES2020".to_string()));
         // parent's baseUrl should be inherited (with proper path resolution)
         assert!(compiler_options.base_url.is_some());
+    }
+
+    #[test]
+    fn test_ts_compiler_options_package_json_resolution_defaults_by_module_resolution() {
+        let json = TsCompilerOptionsJson {
+            module_resolution: Some("node".to_string()),
+            ..TsCompilerOptionsJson::default()
+        };
+        let options = TsCompilerOptions::from(&json);
+
+        // node mode defaults package json exports and imports to disabled
+        assert!(!options.resolve_package_json_exports);
+        assert!(!options.resolve_package_json_imports);
+
+        let json = TsCompilerOptionsJson {
+            module_resolution: Some("nodenext".to_string()),
+            ..TsCompilerOptionsJson::default()
+        };
+        let options = TsCompilerOptions::from(&json);
+
+        // nodenext mode defaults package json exports and imports to enabled
+        assert!(options.resolve_package_json_exports);
+        assert!(options.resolve_package_json_imports);
+    }
+
+    #[test]
+    fn test_ts_compiler_options_package_json_resolution_explicit_overrides() {
+        let json = TsCompilerOptionsJson {
+            module_resolution: Some("node".to_string()),
+            resolve_package_json_exports: Some(true),
+            resolve_package_json_imports: Some(true),
+            ..TsCompilerOptionsJson::default()
+        };
+        let options = TsCompilerOptions::from(&json);
+
+        // explicit options override module resolution defaults
+        assert!(options.resolve_package_json_exports);
+        assert!(options.resolve_package_json_imports);
     }
 
     #[test]
