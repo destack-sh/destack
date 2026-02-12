@@ -1,0 +1,78 @@
+[package]
+name = "destack_wasm"
+description = "Destack WebAssembly bindings"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+doctest = false
+
+[features]
+default = ["profile-wasm-core"]
+query = ["destack_workspace/query", "destack_workspace_service/query"]
+parallel = ["destack_compiler/parallel", "destack_workspace_service/parallel"]
+native-codegen = [
+    "destack_compiler/native-codegen",
+    "destack_workspace_service/native-codegen",
+]
+deadlock-detection = [
+    "destack_compiler/deadlock-detection",
+    "destack_workspace_service/deadlock-detection",
+]
+lint = ["destack_compiler/lint", "destack_workspace_service/lint"]
+optimize = ["destack_compiler/optimize", "destack_workspace_service/optimize"]
+format-api = ["dep:destack_ast", "dep:destack_fir", "dep:destack_formatter", "dep:destack_parser"]
+transform-api = ["dep:destack_ast", "dep:destack_fir", "dep:destack_formatter"]
+builtin-full = [
+    "destack_compiler/builtin-full",
+    "destack_workspace/builtin-full",
+    "destack_workspace_service/builtin-full",
+]
+builtin-wasm-core = [
+    "destack_compiler/builtin-wasm-core",
+    "destack_workspace/builtin-wasm-core",
+    "destack_workspace_service/builtin-wasm-core",
+]
+profile-wasm-core = ["builtin-wasm-core"]
+profile-wasm-ide = ["builtin-wasm-core", "query", "lint", "format-api"]
+profile-wasm-run = ["builtin-wasm-core", "optimize", "transform-api"]
+profile-wasm-full = [
+    "query",
+    "parallel",
+    "native-codegen",
+    "deadlock-detection",
+    "lint",
+    "optimize",
+    "format-api",
+    "transform-api",
+    "builtin-full",
+]
+
+[dependencies]
+# language
+destack_ast = { workspace = true, optional = true }
+destack_compiler = { path = "../../language/compiler", default-features = false }
+destack_fir = { workspace = true, optional = true }
+destack_formatter = { workspace = true, optional = true }
+destack_parser = { workspace = true, optional = true }
+destack_resolver = { workspace = true }
+destack_source = { workspace = true }
+destack_workspace = { path = "../../language/workspace", default-features = false }
+destack_workspace_service = { path = "../../language/workspace/service", default-features = false }
+
+# general
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+wasm-bindgen = "0.2.105"
+serde-wasm-bindgen = "0.6.5"
+
+[lints]
+workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--all-features"]

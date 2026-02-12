@@ -1,0 +1,21 @@
+{
+    "name": "@destack-sh/wasm",
+    "version": "0.54.0",
+    "license": "MIT",
+    "type": "module",
+    "main": "./src/index.ts",
+    "scripts": {
+        "build": "CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='-C target-feature=+tail-call' wasm-pack build --target web --release --out-dir ./src/generated --out-name index",
+        "build:ide": "CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='-C target-feature=+tail-call' wasm-pack build --target web --release --out-dir ./src/generated --out-name index -- --features profile-wasm-ide",
+        "build:run": "CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='-C target-feature=+tail-call' wasm-pack build --target web --release --out-dir ./src/generated --out-name index -- --features profile-wasm-run",
+        "build:full": "CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='-C target-feature=+tail-call' wasm-pack build --target web --release --out-dir ./src/generated --out-name index -- --features profile-wasm-full",
+        "size:report": "bun ./scripts/size-report.mjs --build --profile core",
+        "size:report:all": "bun ./scripts/size-report.mjs --build --profiles core,ide,run,full",
+        "test": "bun x tsc --noEmit -p tsconfig.json",
+        "prepublishOnly": "bun run build",
+        "publish:dry": "npm publish --dry-run --access public",
+        "publish:live": "npm publish --access public"
+    },
+    "dependencies": {},
+    "devDependencies": {}
+}
