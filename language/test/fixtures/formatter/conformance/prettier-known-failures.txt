@@ -5,7 +5,6 @@ js/assignment-comments/function.js
 js/assignment-comments/number.js
 js/async/inline-await.js
 js/binary-expressions/comment.js
-js/chain-expression/issue-15785-3.js
 js/class-comment/class-property.js
 js/class-comment/superclass.js
 js/comments-closure-typecast/closure-compiler-type-cast.js
@@ -91,7 +90,6 @@ js/return/comment.js
 js/switch/comments2.js
 js/switch/empty_lines.js
 js/switch/switch.js
-js/template-literals/expressions.js
 js/ternaries/indent.js
 js/test-declarations/jest-each.js
 js/test-declarations/test_declarations.js
@@ -190,7 +188,6 @@ typescript/satisfies-operators/nested-await-and-satisfies.ts
 typescript/satisfies-operators/template-literal.ts
 typescript/satisfies-operators/ternary.ts
 typescript/satisfies-operators/types-comments.ts
-typescript/template-literals/member-expression.ts
 typescript/trailing-comma/type-parameters-vs-arguments.ts
 typescript/tsx/member-expression.tsx
 typescript/tuple/dangling-comments.ts

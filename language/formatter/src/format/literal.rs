@@ -140,7 +140,6 @@ fn format_interpolated_template_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), arguments.len().saturating_add(1));
-    let template_has_newline = f.context().has_newline(template_span);
 
     write!(f, [token("`")])?;
 
@@ -149,10 +148,14 @@ fn format_interpolated_template_literal<'ast>(
         write!(f, [*first_segment])?;
     }
 
+    // preserve multiline template interpolation intent from source
+    let template_has_newline = f.context().has_newline(template_span);
+
     for (argument, segment) in arguments.iter().zip(string_segments) {
         let should_force_inline =
-            !template_has_newline && template_argument_should_force_inline(f.context(), *argument);
-        let should_expand = template_argument_should_expand(f.context(), *argument);
+            template_argument_should_force_inline(f.context(), *argument, template_has_newline);
+        let should_expand =
+            template_argument_should_expand(f.context(), *argument, template_has_newline);
 
         if should_force_inline {
             let expression_id = template_argument_expression_id(f.context(), *argument);
@@ -216,8 +219,25 @@ fn template_argument_expression_id(
 fn template_argument_should_force_inline(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
+    template_has_newline: bool,
 ) -> bool {
     let expression_id = template_argument_expression_id(context, argument_id);
+
+    // keep multiline source interpolations expanded
+    let expression_span = context.get_span(expression_id);
+    let expression_source = context.get_span_str(expression_span);
+    if expression_source.contains(['\n', '\r']) {
+        return false;
+    }
+
+    // avoid inline forcing when boundary annotations need formatter ownership
+    let has_boundary_annotation = context.has_postfix_annotation(expression_id)
+        || context.has_postfix_annotation(argument_id)
+        || context.has_infix_annotation(expression_id)
+        || context.has_infix_annotation(argument_id);
+    let allows_annotation_inline = !has_boundary_annotation;
+
+    // keep trivial inline expressions hugged
     let expression_is_inline_trivial =
         is_trivial_expression(context.tree, context.tree.get(expression_id))
             && !context.has_annotation(expression_id)
@@ -228,13 +248,33 @@ fn template_argument_should_force_inline(
         return true;
     }
 
+    // keep simple reference expressions inline
+    let expression_is_simple_reference = matches!(
+        context.tree.get(expression_id),
+        Expression::Path { .. }
+            | Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::This
+            | Expression::Super
+            | Expression::PrivateIdentifier { .. }
+    ) && allows_annotation_inline
+        && !context.node_has_newline(expression_id)
+        && !context.node_has_newline(argument_id);
+    if expression_is_simple_reference {
+        return true;
+    }
+
+    // keep short single line ternaries inline
     matches!(
         context.tree.get(expression_id),
         Expression::If {
             kind: IfKind::Ternary,
             ..
         }
-    ) && !context.node_has_newline(expression_id)
+    ) && !template_has_newline
+        && allows_annotation_inline
+        && !context.node_has_newline(expression_id)
         && !context.node_has_newline(argument_id)
 }
 
@@ -242,11 +282,25 @@ fn template_argument_should_force_inline(
 fn template_argument_should_expand(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
+    template_has_newline: bool,
 ) -> bool {
     let expression_id = template_argument_expression_id(context, argument_id);
     let expression = context.tree.get(expression_id);
     if is_trivial_expression(context.tree, expression) {
         return false;
+    }
+
+    // preserve multiline template literals with conditional interpolation
+    if template_has_newline
+        && matches!(
+            expression,
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        )
+    {
+        return true;
     }
 
     // prefer inline conditional interpolations unless source already spans lines

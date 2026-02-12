@@ -3,7 +3,6 @@ js/module/arrow/arrow-comments.js
 js/module/arrow/arrow_function.js
 js/module/arrow/curried_indents.js
 js/module/arrow/params.js
-js/module/assignment/assignment.js
 js/module/binding/array-binding-holes.js
 js/module/binding/nested_bindings.js
 js/module/call_expression.js
@@ -658,6 +657,7 @@ prettier/js/template-literals/styled-jsx-with-expressions.js
 prettier/js/template-literals/styled-jsx.js
 prettier/js/template/arrow.js
 prettier/js/template/call.js
+prettier/js/template/comment.js
 prettier/js/template/faulty-locations.js
 prettier/js/template/graphql.js
 prettier/js/template/indent.js

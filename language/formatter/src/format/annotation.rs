@@ -649,6 +649,19 @@ where
                 }
             }
 
+            if render_facts.is_slash_comment && position == AnnotationPosition::LinePrefix {
+                let should_preserve_own_line_indentation = render_facts.slash_starts_on_own_line;
+                if should_preserve_own_line_indentation {
+                    let raw_line =
+                        annotation_raw_line_or_trimmed_source(f.context(), annotation_id);
+                    if !raw_line.trim().is_empty() {
+                        write_annotation_line_with_indentation(f, raw_line.as_str())?;
+                        write!(f, [hard_line_break()])?;
+                        continue;
+                    }
+                }
+            }
+
             if render_facts.is_slash_comment && position == AnnotationPosition::BlockPrefix {
                 let should_preserve_member_chain_prefix_line =
                     node_context.has_member_context && render_facts.slash_starts_on_own_line;
@@ -706,6 +719,7 @@ where
                     && position == AnnotationPosition::LinePostfixBoundary
                     && node_context.has_if_ancestor
                     && !annotation_starts_on_own_line(f.context(), annotation_id)
+                    && defer::annotation_followed_by_else_keyword(f.context(), annotation_id)
             } else {
                 false
             };

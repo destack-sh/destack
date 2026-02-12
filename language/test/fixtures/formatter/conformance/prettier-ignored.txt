@@ -1,127 +1,10 @@
 # entries are relative test names inside the suite root
 # prettier formatter conformance ignored tests
-flow-repo/ambient_declarations/component_namespace.js
-flow-repo/ambient_declarations/components.js.flow
-flow-repo/ambient_declarations/flow-typed/components.js
-flow-repo/ambient_declarations/flow-typed/lib.js
-flow-repo/ambient_declarations/implicit_functions.js
-flow-repo/ambient_declarations/namespace.js
-flow-repo/ambient_declarations/not_ambient.js
-flow-repo/ambient_declarations/regular_component.js
-flow-repo/ambient_declarations/use_component_namespace.js
-flow-repo/ambient_declarations/use_components.js
-flow-repo/ambient_declarations/use_flow_typed.js
-flow-repo/ambient_declarations/use_flow_typed_components.js
-flow-repo/ambient_declarations/use_implicit_functions.js
-flow-repo/ambient_declarations/use_namespace.js
-flow-repo/ambient_declarations/use_variables.js
-flow-repo/ambient_declarations/variables.js.flow
-flow/_errors_/ambient/ambient.js
-flow/_errors_/ambient/ambient.unknown
-flow/_errors_/async-arrow-invalid.js
-flow/_errors_/babel-flow/async-arrow-invalid.js
-flow/_errors_/babel-flow/wrong-arrow-no-parens-jsx.js
-flow/_errors_/function-async.js
-flow/_errors_/import-reflection/valid-flow-default-import.js
-flow/_errors_/import-reflection/valid-ts-default-import.js
-flow/_errors_/invalid_keyword_symbol.js
-flow/_errors_/module-attributes-static.js
-flow/_errors_/newline-before-arrow.js
-flow/_errors_/number.js
-flow/_errors_/spread-with-optional.js
-flow/all/generic.js
-flow/annotation/array_of_functions.js
-flow/array-comments/test.js
-flow/array-union/test.js
-flow/as-const/embedded.js
-flow/as-satisfies-expression/as-const.js
-flow/as-satisfies-expression/as.js
-flow/as-satisfies-expression/assignment.js
-flow/as-satisfies-expression/export_default_as.js
-flow/as-satisfies-expression/long-identifiers.js
-flow/as-satisfies-expression/nested-await-and-as.js
-flow/as-satisfies-expression/return.js
-flow/as-satisfies-expression/satisfies.js
-flow/as-satisfies-expression/ternary.js
-flow/assignments/issue-10846.js
-flow/assignments/issue-10850.js
-flow/assignments/issue-12413.js
-flow/await/await-keywords.js
-flow/break-calls/type_args.js
-flow/class-field/field_declare_modifier.js
-flow/class/heritage-break/member-expression-like.js
-flow/class/heritage-break/type-arguments.js
-flow/comments/arrow.js
-flow/comments/cast.js
-flow/comments/class.js
-flow/comments/functions.js
-flow/comments/functions2.js
-flow/comments/generics.js
-flow/comments/interface.js
-flow/comments/issues.js
-flow/comments/let.js
-flow/comments/normal-comments/11526.js
-flow/comments/object_type_annotation.js
-flow/comments/type_annotations-2.js
-flow/comments/type_annotations-3.js
-flow/comments/type_annotations.js
-flow/comments/union.js
-flow/component/component-declaration.js
-flow/component/component-type-annotation.js
-flow/component/dangling-comments.js
-flow/component/declare-component.js
-flow/component/implicit.js
-flow/conditional-types-comments/comments.js
-flow/conditional-types/comments-in-type-annotation.js
-flow/conditional-types/conditional-types.js
-flow/conditional-types/cursor.js
-flow/conditional-types/infer-type.js
-flow/conditional-types/nested-in-condition.js
-flow/conditional-types/new-ternary-spec.js
-flow/conditional-types/parentheses.js
-flow/conditional-types/parentheses/union.js
-flow/cursor/declare-module-exports.js
-flow/cursor/function-predicate-2.js
-flow/cursor/function-predicate.js
-flow/cursor/function-return-type-and-predicate-2.js
-flow/cursor/function-return-type-and-predicate.js
-flow/cursor/function-return-type.js
-flow/cursor/function-type-parameter-bound.js
-flow/cursor/type-cast-expression.js
-flow/declare-class/indexer.js
-flow/declare-function/export.js
-flow/declare-function/implicit.js
-flow/declare-interface/declare-interface.js
-flow/declare-opaque-type/issue-13848-2.js
-flow/declare-opaque-type/issue-13848.js
-flow/declare-type/declare-type.js
-flow/declare-variable/decare.js
-flow/decorator/comments.js
-flow/decorator/mobx.js
-flow/empty-parameters-with-arrow-function/issue-13817.js
-flow/enums-unknown-members/enum-unknown-members-empty.js
-flow/enums-unknown-members/enum-unknown-members.js
-flow/enums/enum-bigint-explicit.js
-flow/enums/enum-bigint-implicit.js
-flow/enums/enum-boolean-explicit.js
-flow/enums/enum-boolean-implicit.js
-flow/enums/enum-comments.js
-flow/enums/enum-empty.js
-flow/enums/enum-export.js
-flow/enums/enum-name.js
-flow/enums/enum-no-trailing-comma.js
-flow/enums/enum-number-explicit.js
-flow/enums/enum-number-implicit.js
-flow/enums/enum-string-explicit-defaulted.js
-flow/enums/enum-string-explicit-initialized.js
-flow/enums/enum-string-implicit-defaulted.js
-flow/enums/enum-string-implicit-initialized.js
-flow/enums/enum-symbol.js
-flow/exact-object/test.js
-flow/export/type.js
-flow/flow-babel-only/class_with_generics.js
-flow/flow-babel-only/functions.js
-flow/flow-intersection/intersection.js
+#
+# these are long term parked buckets that are intentionally out of scope for this pass
+# for in scope support gaps use prettier-known-failures.txt instead
+
+# flow/flow-repo/* (1169)
 flow/flow-repo/abnormal/break-continue.js
 flow/flow-repo/abnormal/return.js
 flow/flow-repo/abnormal/toplevel_throw.js
@@ -1291,323 +1174,8 @@ flow/flow-repo/while/test.js
 flow/flow-repo/window/window1.js
 flow/flow-repo/window/window2.js
 flow/flow-repo/x/XControllerURIBuilder.js
-flow/function-parentheses/single.js
-flow/function-parentheses/test.js
-flow/function-single-destructuring/array.js
-flow/function-single-destructuring/object-type-in-declare-function.js
-flow/function-single-destructuring/object.js
-flow/function-type-param/extends-bound.js
-flow/function-type-param/issue-5283.js
-flow/function/function-predicate.js
-flow/generic/break.js
-flow/generic/function-default-type-parameters.js
-flow/generic/generic.js
-flow/generic/interface.js
-flow/generic/nullable.js
-flow/generic/single-identifier.js
-flow/generic/trailing.js
-flow/generic/type.js
-flow/generic/union.js
-flow/hook/comments-before-arrow.js
-flow/hook/dangling-comments.js
-flow/hook/declare-hook.js
-flow/hook/hook-declaration.js
-flow/hook/hook-type-annotation.js
-flow/ignore/ignore.js
-flow/ignore/type-cast-expression.js
-flow/implements/implements.js
-flow/import-type-specifier/test.js
-flow/import/import-as-as.js
-flow/import/import-as-as2.js
-flow/import/type-import-as-as.js
-flow/indexed-access/indexed-access.js
-flow/interface-types/break/break.js
-flow/interface-types/interface_types.js
-flow/internal-slot/internal_slot.js
-flow/intersection/intersection.js
-flow/jsx/func_inside_attr.js
-flow/jsx/generic-component.js
-flow/jsx/return_type.js
-flow/keyof/keyof.js
-flow/last-argument-expansion/break.js
-flow/last-argument-expansion/decorated-function.js
-flow/last-argument-expansion/edge_case.js
-flow/literal/multiline.js
-flow/mapped-types/comments.js
-flow/mapped-types/mapped-types.js
-flow/mapped-types/ts-compatibility.js
-flow/match/from-hermes-repo/export.js
-flow/match/from-hermes-repo/expression-empty.js
-flow/match/from-hermes-repo/expression-guards.js
-flow/match/from-hermes-repo/expression.js
-flow/match/from-hermes-repo/pattern-array.js
-flow/match/from-hermes-repo/pattern-core.js
-flow/match/from-hermes-repo/pattern-member.js
-flow/match/from-hermes-repo/pattern-object.js
-flow/match/from-hermes-repo/pattern-or-as.js
-flow/match/from-hermes-repo/regression.js
-flow/match/from-hermes-repo/statement-empty.js
-flow/match/from-hermes-repo/statement-guards.js
-flow/match/from-hermes-repo/statement-sequence-arg.js
-flow/match/from-hermes-repo/statement.js
-flow/match/pattern-instance.js
-flow/maybe/maybe_return.js
-flow/maybe/prettier-ignore.js
-flow/method-chain/18136-flow/18136.js
-flow/method/comment.js
-flow/method/consistent-breaking.js
-flow/method/method.js
-flow/mixins/comments.js
-flow/mixins/type.js
-flow/no-semi/asi/no-semi.js
-flow/no-semi/comments.js
-flow/no-semi/flow-class-properties.js
-flow/no-semi/flow-interfaces.js
-flow/no-semi/no-semi.js
-flow/object-comment/flow_object_comment.js
-flow/object-inexact/comments.js
-flow/object-inexact/test.js
-flow/object-multiline/multiline.js
-flow/object-order/order.js
-flow/object-property-comment/comment.js
-flow/optional-indexed-access/optional-indexed-access.js
-flow/optional-type-name/test.js
-flow/parameter-with-type/param.js
-flow/parenthesis-return-type/optional.js
-flow/private-class-fields/quotes.js
-flow/proto-props/proto_props.js
-flow/quote-props/classes.js
-flow/quote-props/enums.js
-flow/quote-props/objects.js
-flow/quote-props/records.js
-flow/quote-props/with_member_expressions.js
-flow/quote-props/with_numbers.js
-flow/range/declare-export-declaration.js
-flow/range/type-parameter-declaration.js
-flow/records/declaration.js
-flow/records/expression.js
-flow/records/no-line-break-before-expression/expression.js
-flow/return-arrow/in_object_type.js
-flow/return-arrow/issue-1249.js
-flow/return-arrow/parens.js
-flow/template/inline.js
-flow/ternary/arrows.js
-flow/this-annotation/declare_function.js
-flow/this-annotation/function_declaration.js
-flow/this-annotation/function_type.js
-flow/this-annotation/line_break.js
-flow/this-annotation/method.js
-flow/this-annotation/parentheses/only-parameter.js
-flow/this-annotation/union_type.js
-flow/tuple-types/trailing-comma.js
-flow/tuples/comments.js
-flow/tuples/inexact.js
-flow/tuples/labeled.js
-flow/tuples/optional.js
-flow/tuples/variance.js
-flow/type-alias/conditional.js
-flow/type-alias/issue-100857.js
-flow/type-cast/argument-expansion.js
-flow/type-cast/expression.js
-flow/type-cast/statement.js
-flow/type-declarations/declare_export.js
-flow/type-declarations/declare_module.js
-flow/type-declarations/declare_namespace.js
-flow/type-declarations/declare_type.js
-flow/type-declarations/declare_var.js
-flow/type-declarations/long.js
-flow/type-declarations/opaque.js
-flow/type-guards/test.js
-flow/type-parameters/flow-only/10732.js
-flow/type-parameters/flow-only/comments.js
-flow/type-parameters/flow-only/const-type-params.js
-flow/type-parameters/flow-only/empty_generic_break.js
-flow/type-parameters/simple-types.js
-flow/type-parameters/trailing-comma/type-paramters.js
-flow/type-spread/comments.js
-flow/typeapp-call/typeapp_call.js
-flow/typeof/typeof-with-type-arguments.js
-flow/union/comment.js
-flow/union/union.js
-flow/union/within-tuple.js
-flow/union_intersection/test.js
-flow/variance/variance.js
-js/_errors_/discard-binding/invalid-catch-parameter.js
-js/_errors_/discard-binding/invalid-lone-arrow-function-parameter.js
-js/_errors_/discard-binding/invalid-lone-async-arrow-function-parameter.js
-js/_errors_/discard-binding/invalid-parenthesized-binding.js
-js/_errors_/discard-binding/invalid-rest-element-array-pattern.js
-js/_errors_/discard-binding/invalid-rest-element-object-pattern.js
-js/_errors_/discard-binding/invalid-variable-declarator.js
-js/_errors_/explicit-resource-management/invalid-for-await-using-binding-of-of.js
-js/_errors_/explicit-resource-management/invalid-for-using-binding-of-of.js
-js/_errors_/explicit-resource-management/invalid-using-binding-pattern.js
-js/_errors_/no-for-in-init-concise-binary-in.js
-js/_errors_/object/getter-generator.js
-js/_errors_/object/getter-with-parameter.js
-js/_errors_/object/setter-generator.js
-js/_errors_/object/setter-without-parameter.js
-js/_errors_/variable-declarator/invalid-const.js
-js/arrays/numbers-negative-comment-after-minus.js
-js/arrows-bind/arrows-bind.js
-js/arrows/call.js
-js/arrows/comment.js
-js/async-do-expressions/async-do-expressions.js
-js/async/nested.js
-js/babel-plugins/async-do-expressions.js
-js/babel-plugins/deferred-import-evaluation.js
-js/babel-plugins/destructuring-private.js
-js/babel-plugins/do-expressions.js
-js/babel-plugins/function-bind.js
-js/babel-plugins/jsx.js
-js/babel-plugins/module-blocks.js
-js/babel-plugins/module-string-names.js
-js/babel-plugins/partial-application.js
-js/babel-plugins/pipeline-operator-fsharp.js
-js/babel-plugins/pipeline-operator-hack.cjs
-js/babel-plugins/pipeline-operator-minimal.js
-js/babel-plugins/source-phase-imports.js
-js/babel-plugins/v8intrinsic.js
-js/binary-expressions/chain-expression.js
-js/binary-expressions/inline-jsx.js
-js/binary-expressions/jsx_parent.js
-js/bind-expressions/await.js
-js/bind-expressions/bind_parens.js
-js/bind-expressions/long_name_method.js
-js/bind-expressions/method_chain.js
-js/bind-expressions/short_name_method.js
-js/bind-expressions/unary.js
-js/call/first-argument-expansion/issue-2456.js
-js/call/first-argument-expansion/jsx.js
-js/call/first-argument-expansion/test.js
-js/call/no-argument/no-arguments.js
-js/class-extends/complex.js
-js/class-extends/extends.js
-js/classes/member.js
-js/comments-pipeline-own-line/pipeline_own_line.js
-js/comments/flow-types/inline.js
-js/conditional/new-ternary-examples.js
-js/conditional/new-ternary-spec.js
-js/cursor/comments-2.js
-js/cursor/comments-3.js
-js/cursor/cursor-0.js
-js/cursor/cursor-1.js
-js/cursor/cursor-10.js
-js/cursor/cursor-11.js
-js/cursor/cursor-12.js
-js/cursor/cursor-13.js
-js/cursor/cursor-2.js
-js/cursor/cursor-3.js
-js/cursor/cursor-4.js
-js/cursor/cursor-7.js
-js/cursor/cursor-8.js
-js/cursor/cursor-9.js
-js/cursor/file-start-with-comment-2.js
-js/cursor/file-start-with-comment-3.js
-js/cursor/range-0.js
-js/cursor/range-1.js
-js/cursor/range-2.js
-js/cursor/range-3.js
-js/cursor/range-4.js
-js/cursor/range-5.js
-js/cursor/range-6.js
-js/cursor/range-7.js
-js/cursor/range-8.js
-js/cursor/require-pragma/cursor-without-pragma.js
-js/decorators/class-expression/super-class.js
-js/deferred-import-evaluation/dynamic-import-attributes-expression.js
-js/deferred-import-evaluation/dynamic-import.js
-js/deferred-import-evaluation/import-defer-attributes-declaration.js
-js/deferred-import-evaluation/import-defer.js
-js/deferred-import-evaluation/no-default.js
-js/deferred-import-evaluation/no-named.js
-js/destructuring-private-fields/arrow-params.js
-js/destructuring-private-fields/assignment.js
-js/destructuring-private-fields/async-arrow-params.js
-js/destructuring-private-fields/bindings.js
-js/destructuring-private-fields/for-lhs.js
-js/destructuring-private-fields/nested-bindings.js
-js/destructuring-private-fields/valid-multiple-bindings.js
-js/directives/escaped.js
-js/directives/issue-7346.js
-js/discard-binding/array-pattern.js
-js/discard-binding/basic.js
-js/discard-binding/discard-binding-assignment.js
-js/discard-binding/discard-binding-for-lhs.js
-js/discard-binding/object-pattern.js
-js/discard-binding/unary-expression-void.js
-js/do/call-arguments.js
-js/do/do.js
-js/dynamic-import/import-phase.js
-js/empty-paren-comment/empty_paren_comment.js
-js/eol/cursor-1.js
-js/eol/cursor-and-range.js
-js/eol/range-1.js
-js/eol/range-and-cursor-1.js
-js/export-default/export-default-from/export.js
-js/export/empty.js
-js/for/for-in-with-initializer.js
-js/for/parentheses.js
-js/function-single-destructuring/array.js
-js/function-single-destructuring/object.js
-js/function/dangling-comments.js
-js/function/function_expression.js
-js/functional-composition/ramda_pipe.js
-js/identifier/for-of/await.js
-js/identifier/for-of/let.js
-js/identifier/parentheses/const.js
-js/identifier/parentheses/let.js
-js/if/condition-break/boolean-expression.js
-js/if/condition-break/unary-expression.js
-js/if/else.js
-js/if/expr_and_same_line_comments.js
-js/import-attributes/long-sources.js
-js/import/comments.js
-js/import/empty-import/empty-import.js
-js/import/long-module-name/import-defer.js
-js/import/long-module-name/import-source.js
-js/import/multiple_standalones.js
-js/invalid-code/duplicate_bindings.js
-js/label/block-statement-and-regexp.js
-js/last-argument-expansion/break-parent.js
-js/last-argument-expansion/edge_case.js
-js/last-argument-expansion/issue-7518.js
-js/last-argument-expansion/jsx.js
-js/line-suffix-boundary/boundary.js
-js/literal/number.js
-js/method-chain/issue-4125.js
-js/method-chain/pr-7889.js
-js/module-blocks/comments.js
-js/module-blocks/module-blocks.js
-js/module-blocks/quote-props/worker.js
-js/module-blocks/range.js
-js/module-string-names/module-string-names-export.js
-js/multiparser-comments/tagged.js
-js/multiparser-invalid/text.js
-js/new-target/range.js
-js/no-semi-babylon-extensions/no-semi.js
-js/no-semi/no-semi.js
-js/no-semi/with-statement.js
-js/non-strict/octal-number.js
-js/numeric-separators/number.js
-js/objects/escape-sequence-key.js
-js/objects/expand.js
-js/objects/expression.js
-js/optional-chaining-assignment/invalid-destructuring-arr.js
-js/optional-chaining-assignment/invalid-destructuring-obj.js
-js/optional-chaining-assignment/invalid-for-await-of.js
-js/optional-chaining-assignment/invalid-for-in.js
-js/optional-chaining-assignment/invalid-for-of.js
-js/optional-chaining-assignment/invalid-inc-postfix.js
-js/optional-chaining-assignment/invalid-inc-prefix.js
-js/optional-chaining-assignment/valid-complex-case.js
-js/optional-chaining/comments.js
-js/partial-application/test.js
-js/pipeline-operator/block-comments.js
-js/pipeline-operator/fsharp_style_pipeline_operator.js
-js/pipeline-operator/hack_pipeline_operator.js
-js/pipeline-operator/minimal_pipeline_operator.js
-js/quotes/strings.js
+
+# js/range/* (36)
 js/range/array.js
 js/range/boundary-2.js
 js/range/boundary-3.js
@@ -1644,82 +1212,140 @@ js/range/reversed-range.js
 js/range/start-equals-end.js
 js/range/try-catch.js
 js/range/whitespace.js
-js/regex/regexp-modifiers.js
-js/reserved-word/interfaces.js
-js/reserved-word/let.js
-js/rest/trailing-commas.js
-js/sequence-expression/ignore.js
-js/sequence-expression/parenthesized.js
-js/sloppy-mode/function-declaration-in-if.js
-js/sloppy-mode/function-declaration-in-while.js
-js/sloppy-mode/labeled-function-declaration.js
-js/source-phase-imports/import-source-attributes-declaration.js
-js/source-phase-imports/import-source-attributes-expression.js
-js/source-phase-imports/import-source-binding-from.js
-js/source-phase-imports/import-source-binding-source.js
-js/source-phase-imports/import-source-dynamic-import.js
-js/source-phase-imports/import-source.js
-js/source-phase-imports/no-named.js
-js/source-phase-imports/no-namespace.js
-js/strings/non-octal-eight-and-nine.js
-js/strings/strings.js
-js/strings/template-literals.js
-js/switch/comments.js
-js/template-literals/css-prop.js
-js/template-literals/styled-jsx-with-expressions.js
-js/template-literals/styled-jsx.js
-js/ternaries/binary.js
-js/ternaries/nested-in-condition.js
-js/ternaries/nested.js
-js/throw_statement/jsx.js
-js/trailing-comma/jsx.js
-js/trailing-comma/trailing_whitespace.js
-js/try/catch.js
-js/try/try.js
-js/unicode/nbsp-jsx.js
-js/v8_intrinsic/avoid-conflicts-to-pipeline.js
-js/v8_intrinsic/intrinsic_call.js
-js/variable_declarator/multiple.js
-js/with/indent.js
-js/yield/jsx-without-parenthesis.js
-js/yield/jsx.js
-jsx/attr-element/attr-element.js
-jsx/binary-expressions/relational-operators.js
-jsx/cursor/after-last-jsx-text.js
-jsx/cursor/after-tag.js
-jsx/cursor/before-first-jsx-text.js
-jsx/cursor/before-tag.js
-jsx/cursor/in-jsx-text.js
-jsx/cursor/in-tag.js
-jsx/deprecated-jsx-bracket-same-line-option/jsx.js
-jsx/do/do.js
-jsx/embed/css-embed.js
-jsx/escape/escape.js
-jsx/escape/nbsp.js
-jsx/expression-with-types/expression.js
-jsx/fbt/test.js
-jsx/fragment/fragment.js
-jsx/ignore/jsx_ignore.js
-jsx/ignore/spread.js
-jsx/last-line/last_line.js
-jsx/last-line/single_prop_multiline_string.js
-jsx/multiline-assign/test.js
-jsx/namespace/jsx_namespaced_name.js
-jsx/newlines/test.js
-jsx/newlines/windows.js
-jsx/parentheses/argument.js
-jsx/significant-space/comments.js
-jsx/significant-space/test.js
-jsx/single-attribute-per-line/single-attribute-per-line.js
-jsx/split-attrs/test.js
-jsx/spread/attribute.js
-jsx/spread/child.js
-jsx/stateless-arrow-fn/test.js
-jsx/template/styled-components.js
-jsx/text-wrap/issue-16897.js
-jsx/text-wrap/test.js
-misc/require-pragma/js/range-with-pragma.js
-misc/require-pragma/js/range-without-pragma.js
+
+# js/cursor/* (26)
+js/cursor/comments-2.js
+js/cursor/comments-3.js
+js/cursor/cursor-0.js
+js/cursor/cursor-1.js
+js/cursor/cursor-10.js
+js/cursor/cursor-11.js
+js/cursor/cursor-12.js
+js/cursor/cursor-13.js
+js/cursor/cursor-2.js
+js/cursor/cursor-3.js
+js/cursor/cursor-4.js
+js/cursor/cursor-7.js
+js/cursor/cursor-8.js
+js/cursor/cursor-9.js
+js/cursor/file-start-with-comment-2.js
+js/cursor/file-start-with-comment-3.js
+js/cursor/range-0.js
+js/cursor/range-1.js
+js/cursor/range-2.js
+js/cursor/range-3.js
+js/cursor/range-4.js
+js/cursor/range-5.js
+js/cursor/range-6.js
+js/cursor/range-7.js
+js/cursor/range-8.js
+js/cursor/require-pragma/cursor-without-pragma.js
+
+# flow-repo/ambient_declarations/* (16)
+flow-repo/ambient_declarations/component_namespace.js
+flow-repo/ambient_declarations/components.js.flow
+flow-repo/ambient_declarations/flow-typed/components.js
+flow-repo/ambient_declarations/flow-typed/lib.js
+flow-repo/ambient_declarations/implicit_functions.js
+flow-repo/ambient_declarations/namespace.js
+flow-repo/ambient_declarations/not_ambient.js
+flow-repo/ambient_declarations/regular_component.js
+flow-repo/ambient_declarations/use_component_namespace.js
+flow-repo/ambient_declarations/use_components.js
+flow-repo/ambient_declarations/use_flow_typed.js
+flow-repo/ambient_declarations/use_flow_typed_components.js
+flow-repo/ambient_declarations/use_implicit_functions.js
+flow-repo/ambient_declarations/use_namespace.js
+flow-repo/ambient_declarations/use_variables.js
+flow-repo/ambient_declarations/variables.js.flow
+
+# flow/enums/* (16)
+flow/enums/enum-bigint-explicit.js
+flow/enums/enum-bigint-implicit.js
+flow/enums/enum-boolean-explicit.js
+flow/enums/enum-boolean-implicit.js
+flow/enums/enum-comments.js
+flow/enums/enum-empty.js
+flow/enums/enum-export.js
+flow/enums/enum-name.js
+flow/enums/enum-no-trailing-comma.js
+flow/enums/enum-number-explicit.js
+flow/enums/enum-number-implicit.js
+flow/enums/enum-string-explicit-defaulted.js
+flow/enums/enum-string-explicit-initialized.js
+flow/enums/enum-string-implicit-defaulted.js
+flow/enums/enum-string-implicit-initialized.js
+flow/enums/enum-symbol.js
+
+# js/_errors_/* (16)
+js/_errors_/discard-binding/invalid-catch-parameter.js
+js/_errors_/discard-binding/invalid-lone-arrow-function-parameter.js
+js/_errors_/discard-binding/invalid-lone-async-arrow-function-parameter.js
+js/_errors_/discard-binding/invalid-parenthesized-binding.js
+js/_errors_/discard-binding/invalid-rest-element-array-pattern.js
+js/_errors_/discard-binding/invalid-rest-element-object-pattern.js
+js/_errors_/discard-binding/invalid-variable-declarator.js
+js/_errors_/explicit-resource-management/invalid-for-await-using-binding-of-of.js
+js/_errors_/explicit-resource-management/invalid-for-using-binding-of-of.js
+js/_errors_/explicit-resource-management/invalid-using-binding-pattern.js
+js/_errors_/no-for-in-init-concise-binary-in.js
+js/_errors_/object/getter-generator.js
+js/_errors_/object/getter-with-parameter.js
+js/_errors_/object/setter-generator.js
+js/_errors_/object/setter-without-parameter.js
+js/_errors_/variable-declarator/invalid-const.js
+
+# flow/comments/* (15)
+flow/comments/arrow.js
+flow/comments/cast.js
+flow/comments/class.js
+flow/comments/functions.js
+flow/comments/functions2.js
+flow/comments/generics.js
+flow/comments/interface.js
+flow/comments/issues.js
+flow/comments/let.js
+flow/comments/normal-comments/11526.js
+flow/comments/object_type_annotation.js
+flow/comments/type_annotations-2.js
+flow/comments/type_annotations-3.js
+flow/comments/type_annotations.js
+flow/comments/union.js
+
+# flow/match/* (15)
+flow/match/from-hermes-repo/export.js
+flow/match/from-hermes-repo/expression-empty.js
+flow/match/from-hermes-repo/expression-guards.js
+flow/match/from-hermes-repo/expression.js
+flow/match/from-hermes-repo/pattern-array.js
+flow/match/from-hermes-repo/pattern-core.js
+flow/match/from-hermes-repo/pattern-member.js
+flow/match/from-hermes-repo/pattern-object.js
+flow/match/from-hermes-repo/pattern-or-as.js
+flow/match/from-hermes-repo/regression.js
+flow/match/from-hermes-repo/statement-empty.js
+flow/match/from-hermes-repo/statement-guards.js
+flow/match/from-hermes-repo/statement-sequence-arg.js
+flow/match/from-hermes-repo/statement.js
+flow/match/pattern-instance.js
+
+# js/babel-plugins/* (14)
+js/babel-plugins/async-do-expressions.js
+js/babel-plugins/deferred-import-evaluation.js
+js/babel-plugins/destructuring-private.js
+js/babel-plugins/do-expressions.js
+js/babel-plugins/function-bind.js
+js/babel-plugins/jsx.js
+js/babel-plugins/module-blocks.js
+js/babel-plugins/module-string-names.js
+js/babel-plugins/partial-application.js
+js/babel-plugins/pipeline-operator-fsharp.js
+js/babel-plugins/pipeline-operator-hack.cjs
+js/babel-plugins/pipeline-operator-minimal.js
+js/babel-plugins/source-phase-imports.js
+js/babel-plugins/v8intrinsic.js
+
+# typescript/_errors_/* (14)
 typescript/_errors_/babel-ts/abstract.ts
 typescript/_errors_/babel-ts/classAbstractMethodWithImplementation.ts
 typescript/_errors_/babel-ts/declare-accessor.ts
@@ -1734,13 +1360,23 @@ typescript/_errors_/invalid-typescript-decorators/interface.ts
 typescript/_errors_/invalid-typescript-decorators/issue-9102.ts
 typescript/_errors_/mapped-type/mapped-type.ts
 typescript/_errors_/value-of-abstract-property.ts
-typescript/abstract-construct-types/abstract-construct-types.ts
-typescript/ambient/ambient.ts
-typescript/arrow/16067.ts
-typescript/assignment/lone-arg.ts
-typescript/binary-expressions/chain-expression.ts
-typescript/catch-clause/type-annotation.ts
-typescript/chain-expression/member-chain.ts
+
+# flow/_errors_/* (13)
+flow/_errors_/ambient/ambient.js
+flow/_errors_/ambient/ambient.unknown
+flow/_errors_/async-arrow-invalid.js
+flow/_errors_/babel-flow/async-arrow-invalid.js
+flow/_errors_/babel-flow/wrong-arrow-no-parens-jsx.js
+flow/_errors_/function-async.js
+flow/_errors_/import-reflection/valid-flow-default-import.js
+flow/_errors_/import-reflection/valid-ts-default-import.js
+flow/_errors_/invalid_keyword_symbol.js
+flow/_errors_/module-attributes-static.js
+flow/_errors_/newline-before-arrow.js
+flow/_errors_/number.js
+flow/_errors_/spread-with-optional.js
+
+# typescript/cursor/* (10)
 typescript/cursor/array-pattern.ts
 typescript/cursor/arrow-function-type.ts
 typescript/cursor/class-property.ts
@@ -1751,24 +1387,818 @@ typescript/cursor/identifier-3.ts
 typescript/cursor/method-signature.ts
 typescript/cursor/property-signature.ts
 typescript/cursor/rest.ts
-typescript/custom/module/moduleNamespace.ts
-typescript/export/export.ts
-typescript/import-export/empty-import.ts
-typescript/interface/separator.ts
-typescript/intersection/consistent-with-flow/intersection-parens.ts
-typescript/method/semi.ts
-typescript/namespace/invalid-await.ts
-typescript/override-modifiers/override-modifier.ts
-typescript/range/export-assignment.ts
-typescript/range/issue-4926.ts
-typescript/range/issue-7148.ts
-typescript/template-literal-types/template-literal-types.ts
-typescript/template-literals/as-expression.ts
-typescript/ternaries/indent.ts
-typescript/trailing-comma/trailing.ts
-typescript/tsx/optional-chaining.tsx
-typescript/type-parameters-arguments/class-method.ts
+
+# flow/as-satisfies-expression/* (9)
+flow/as-satisfies-expression/as-const.js
+flow/as-satisfies-expression/as.js
+flow/as-satisfies-expression/assignment.js
+flow/as-satisfies-expression/export_default_as.js
+flow/as-satisfies-expression/long-identifiers.js
+flow/as-satisfies-expression/nested-await-and-as.js
+flow/as-satisfies-expression/return.js
+flow/as-satisfies-expression/satisfies.js
+flow/as-satisfies-expression/ternary.js
+
+# flow/generic/* (9)
+flow/generic/break.js
+flow/generic/function-default-type-parameters.js
+flow/generic/generic.js
+flow/generic/interface.js
+flow/generic/nullable.js
+flow/generic/single-identifier.js
+flow/generic/trailing.js
+flow/generic/type.js
+flow/generic/union.js
+
+# flow/conditional-types/* (8)
+flow/conditional-types/comments-in-type-annotation.js
+flow/conditional-types/conditional-types.js
+flow/conditional-types/cursor.js
+flow/conditional-types/infer-type.js
+flow/conditional-types/nested-in-condition.js
+flow/conditional-types/new-ternary-spec.js
+flow/conditional-types/parentheses.js
+flow/conditional-types/parentheses/union.js
+
+# flow/cursor/* (8)
+flow/cursor/declare-module-exports.js
+flow/cursor/function-predicate-2.js
+flow/cursor/function-predicate.js
+flow/cursor/function-return-type-and-predicate-2.js
+flow/cursor/function-return-type-and-predicate.js
+flow/cursor/function-return-type.js
+flow/cursor/function-type-parameter-bound.js
+flow/cursor/type-cast-expression.js
+
+# js/optional-chaining-assignment/* (8)
+js/optional-chaining-assignment/invalid-destructuring-arr.js
+js/optional-chaining-assignment/invalid-destructuring-obj.js
+js/optional-chaining-assignment/invalid-for-await-of.js
+js/optional-chaining-assignment/invalid-for-in.js
+js/optional-chaining-assignment/invalid-for-of.js
+js/optional-chaining-assignment/invalid-inc-postfix.js
+js/optional-chaining-assignment/invalid-inc-prefix.js
+js/optional-chaining-assignment/valid-complex-case.js
+
+# js/source-phase-imports/* (8)
+js/source-phase-imports/import-source-attributes-declaration.js
+js/source-phase-imports/import-source-attributes-expression.js
+js/source-phase-imports/import-source-binding-from.js
+js/source-phase-imports/import-source-binding-source.js
+js/source-phase-imports/import-source-dynamic-import.js
+js/source-phase-imports/import-source.js
+js/source-phase-imports/no-named.js
+js/source-phase-imports/no-namespace.js
+
+# flow/this-annotation/* (7)
+flow/this-annotation/declare_function.js
+flow/this-annotation/function_declaration.js
+flow/this-annotation/function_type.js
+flow/this-annotation/line_break.js
+flow/this-annotation/method.js
+flow/this-annotation/parentheses/only-parameter.js
+flow/this-annotation/union_type.js
+
+# flow/type-declarations/* (7)
+flow/type-declarations/declare_export.js
+flow/type-declarations/declare_module.js
+flow/type-declarations/declare_namespace.js
+flow/type-declarations/declare_type.js
+flow/type-declarations/declare_var.js
+flow/type-declarations/long.js
+flow/type-declarations/opaque.js
+
+# js/destructuring-private-fields/* (7)
+js/destructuring-private-fields/arrow-params.js
+js/destructuring-private-fields/assignment.js
+js/destructuring-private-fields/async-arrow-params.js
+js/destructuring-private-fields/bindings.js
+js/destructuring-private-fields/for-lhs.js
+js/destructuring-private-fields/nested-bindings.js
+js/destructuring-private-fields/valid-multiple-bindings.js
+
+# flow/quote-props/* (6)
+flow/quote-props/classes.js
+flow/quote-props/enums.js
+flow/quote-props/objects.js
+flow/quote-props/records.js
+flow/quote-props/with_member_expressions.js
+flow/quote-props/with_numbers.js
+
+# flow/type-parameters/* (6)
+flow/type-parameters/flow-only/10732.js
+flow/type-parameters/flow-only/comments.js
+flow/type-parameters/flow-only/const-type-params.js
+flow/type-parameters/flow-only/empty_generic_break.js
+flow/type-parameters/simple-types.js
+flow/type-parameters/trailing-comma/type-paramters.js
+
+# js/bind-expressions/* (6)
+js/bind-expressions/await.js
+js/bind-expressions/bind_parens.js
+js/bind-expressions/long_name_method.js
+js/bind-expressions/method_chain.js
+js/bind-expressions/short_name_method.js
+js/bind-expressions/unary.js
+
+# js/deferred-import-evaluation/* (6)
+js/deferred-import-evaluation/dynamic-import-attributes-expression.js
+js/deferred-import-evaluation/dynamic-import.js
+js/deferred-import-evaluation/import-defer-attributes-declaration.js
+js/deferred-import-evaluation/import-defer.js
+js/deferred-import-evaluation/no-default.js
+js/deferred-import-evaluation/no-named.js
+
+# js/discard-binding/* (6)
+js/discard-binding/array-pattern.js
+js/discard-binding/basic.js
+js/discard-binding/discard-binding-assignment.js
+js/discard-binding/discard-binding-for-lhs.js
+js/discard-binding/object-pattern.js
+js/discard-binding/unary-expression-void.js
+
+# jsx/cursor/* (6)
+jsx/cursor/after-last-jsx-text.js
+jsx/cursor/after-tag.js
+jsx/cursor/before-first-jsx-text.js
+jsx/cursor/before-tag.js
+jsx/cursor/in-jsx-text.js
+jsx/cursor/in-tag.js
+
+# flow/component/* (5)
+flow/component/component-declaration.js
+flow/component/component-type-annotation.js
+flow/component/dangling-comments.js
+flow/component/declare-component.js
+flow/component/implicit.js
+
+# flow/hook/* (5)
+flow/hook/comments-before-arrow.js
+flow/hook/dangling-comments.js
+flow/hook/declare-hook.js
+flow/hook/hook-declaration.js
+flow/hook/hook-type-annotation.js
+
+# flow/no-semi/* (5)
+flow/no-semi/asi/no-semi.js
+flow/no-semi/comments.js
+flow/no-semi/flow-class-properties.js
+flow/no-semi/flow-interfaces.js
+flow/no-semi/no-semi.js
+
+# flow/tuples/* (5)
+flow/tuples/comments.js
+flow/tuples/inexact.js
+flow/tuples/labeled.js
+flow/tuples/optional.js
+flow/tuples/variance.js
+
+# js/import/* (5)
+js/import/comments.js
+js/import/empty-import/empty-import.js
+js/import/long-module-name/import-defer.js
+js/import/long-module-name/import-source.js
+js/import/multiple_standalones.js
+
+# js/call/* (4)
+js/call/first-argument-expansion/issue-2456.js
+js/call/first-argument-expansion/jsx.js
+js/call/first-argument-expansion/test.js
+js/call/no-argument/no-arguments.js
+
+# js/eol/* (4)
+js/eol/cursor-1.js
+js/eol/cursor-and-range.js
+js/eol/range-1.js
+js/eol/range-and-cursor-1.js
+
+# js/identifier/* (4)
+js/identifier/for-of/await.js
+js/identifier/for-of/let.js
+js/identifier/parentheses/const.js
+js/identifier/parentheses/let.js
+
+# js/if/* (4)
+js/if/condition-break/boolean-expression.js
+js/if/condition-break/unary-expression.js
+js/if/else.js
+js/if/expr_and_same_line_comments.js
+
+# js/last-argument-expansion/* (4)
+js/last-argument-expansion/break-parent.js
+js/last-argument-expansion/edge_case.js
+js/last-argument-expansion/issue-7518.js
+js/last-argument-expansion/jsx.js
+
+# js/module-blocks/* (4)
+js/module-blocks/comments.js
+js/module-blocks/module-blocks.js
+js/module-blocks/quote-props/worker.js
+js/module-blocks/range.js
+
+# js/pipeline-operator/* (4)
+js/pipeline-operator/block-comments.js
+js/pipeline-operator/fsharp_style_pipeline_operator.js
+js/pipeline-operator/hack_pipeline_operator.js
+js/pipeline-operator/minimal_pipeline_operator.js
+
+# typescript/union/* (4)
 typescript/union/consistent-with-flow/18819.ts
 typescript/union/consistent-with-flow/comment.ts
 typescript/union/consistent-with-flow/single-type.ts
 typescript/union/consistent-with-flow/union-last-comment.ts
+
+# flow/assignments/* (3)
+flow/assignments/issue-10846.js
+flow/assignments/issue-10850.js
+flow/assignments/issue-12413.js
+
+# flow/function-single-destructuring/* (3)
+flow/function-single-destructuring/array.js
+flow/function-single-destructuring/object-type-in-declare-function.js
+flow/function-single-destructuring/object.js
+
+# flow/import/* (3)
+flow/import/import-as-as.js
+flow/import/import-as-as2.js
+flow/import/type-import-as-as.js
+
+# flow/jsx/* (3)
+flow/jsx/func_inside_attr.js
+flow/jsx/generic-component.js
+flow/jsx/return_type.js
+
+# flow/last-argument-expansion/* (3)
+flow/last-argument-expansion/break.js
+flow/last-argument-expansion/decorated-function.js
+flow/last-argument-expansion/edge_case.js
+
+# flow/mapped-types/* (3)
+flow/mapped-types/comments.js
+flow/mapped-types/mapped-types.js
+flow/mapped-types/ts-compatibility.js
+
+# flow/method/* (3)
+flow/method/comment.js
+flow/method/consistent-breaking.js
+flow/method/method.js
+
+# flow/records/* (3)
+flow/records/declaration.js
+flow/records/expression.js
+flow/records/no-line-break-before-expression/expression.js
+
+# flow/return-arrow/* (3)
+flow/return-arrow/in_object_type.js
+flow/return-arrow/issue-1249.js
+flow/return-arrow/parens.js
+
+# flow/type-cast/* (3)
+flow/type-cast/argument-expansion.js
+flow/type-cast/expression.js
+flow/type-cast/statement.js
+
+# flow/union/* (3)
+flow/union/comment.js
+flow/union/union.js
+flow/union/within-tuple.js
+
+# js/binary-expressions/* (3)
+js/binary-expressions/chain-expression.js
+js/binary-expressions/inline-jsx.js
+js/binary-expressions/jsx_parent.js
+
+# js/objects/* (3)
+js/objects/escape-sequence-key.js
+js/objects/expand.js
+js/objects/expression.js
+
+# js/sloppy-mode/* (3)
+js/sloppy-mode/function-declaration-in-if.js
+js/sloppy-mode/function-declaration-in-while.js
+js/sloppy-mode/labeled-function-declaration.js
+
+# js/strings/* (3)
+js/strings/non-octal-eight-and-nine.js
+js/strings/strings.js
+js/strings/template-literals.js
+
+# js/template-literals/* (3)
+js/template-literals/css-prop.js
+js/template-literals/styled-jsx-with-expressions.js
+js/template-literals/styled-jsx.js
+
+# js/ternaries/* (3)
+js/ternaries/binary.js
+js/ternaries/nested-in-condition.js
+js/ternaries/nested.js
+
+# typescript/range/* (3)
+typescript/range/export-assignment.ts
+typescript/range/issue-4926.ts
+typescript/range/issue-7148.ts
+
+# flow/class/* (2)
+flow/class/heritage-break/member-expression-like.js
+flow/class/heritage-break/type-arguments.js
+
+# flow/declare-function/* (2)
+flow/declare-function/export.js
+flow/declare-function/implicit.js
+
+# flow/declare-opaque-type/* (2)
+flow/declare-opaque-type/issue-13848-2.js
+flow/declare-opaque-type/issue-13848.js
+
+# flow/decorator/* (2)
+flow/decorator/comments.js
+flow/decorator/mobx.js
+
+# flow/enums-unknown-members/* (2)
+flow/enums-unknown-members/enum-unknown-members-empty.js
+flow/enums-unknown-members/enum-unknown-members.js
+
+# flow/flow-babel-only/* (2)
+flow/flow-babel-only/class_with_generics.js
+flow/flow-babel-only/functions.js
+
+# flow/function-parentheses/* (2)
+flow/function-parentheses/single.js
+flow/function-parentheses/test.js
+
+# flow/function-type-param/* (2)
+flow/function-type-param/extends-bound.js
+flow/function-type-param/issue-5283.js
+
+# flow/ignore/* (2)
+flow/ignore/ignore.js
+flow/ignore/type-cast-expression.js
+
+# flow/interface-types/* (2)
+flow/interface-types/break/break.js
+flow/interface-types/interface_types.js
+
+# flow/maybe/* (2)
+flow/maybe/maybe_return.js
+flow/maybe/prettier-ignore.js
+
+# flow/mixins/* (2)
+flow/mixins/comments.js
+flow/mixins/type.js
+
+# flow/object-inexact/* (2)
+flow/object-inexact/comments.js
+flow/object-inexact/test.js
+
+# flow/range/* (2)
+flow/range/declare-export-declaration.js
+flow/range/type-parameter-declaration.js
+
+# flow/type-alias/* (2)
+flow/type-alias/conditional.js
+flow/type-alias/issue-100857.js
+
+# js/arrows/* (2)
+js/arrows/call.js
+js/arrows/comment.js
+
+# js/class-extends/* (2)
+js/class-extends/complex.js
+js/class-extends/extends.js
+
+# js/conditional/* (2)
+js/conditional/new-ternary-examples.js
+js/conditional/new-ternary-spec.js
+
+# js/directives/* (2)
+js/directives/escaped.js
+js/directives/issue-7346.js
+
+# js/do/* (2)
+js/do/call-arguments.js
+js/do/do.js
+
+# js/for/* (2)
+js/for/for-in-with-initializer.js
+js/for/parentheses.js
+
+# js/function/* (2)
+js/function/dangling-comments.js
+js/function/function_expression.js
+
+# js/function-single-destructuring/* (2)
+js/function-single-destructuring/array.js
+js/function-single-destructuring/object.js
+
+# js/method-chain/* (2)
+js/method-chain/issue-4125.js
+js/method-chain/pr-7889.js
+
+# js/no-semi/* (2)
+js/no-semi/no-semi.js
+js/no-semi/with-statement.js
+
+# js/reserved-word/* (2)
+js/reserved-word/interfaces.js
+js/reserved-word/let.js
+
+# js/sequence-expression/* (2)
+js/sequence-expression/ignore.js
+js/sequence-expression/parenthesized.js
+
+# js/trailing-comma/* (2)
+js/trailing-comma/jsx.js
+js/trailing-comma/trailing_whitespace.js
+
+# js/try/* (2)
+js/try/catch.js
+js/try/try.js
+
+# js/v8_intrinsic/* (2)
+js/v8_intrinsic/avoid-conflicts-to-pipeline.js
+js/v8_intrinsic/intrinsic_call.js
+
+# js/yield/* (2)
+js/yield/jsx-without-parenthesis.js
+js/yield/jsx.js
+
+# jsx/escape/* (2)
+jsx/escape/escape.js
+jsx/escape/nbsp.js
+
+# jsx/ignore/* (2)
+jsx/ignore/jsx_ignore.js
+jsx/ignore/spread.js
+
+# jsx/last-line/* (2)
+jsx/last-line/last_line.js
+jsx/last-line/single_prop_multiline_string.js
+
+# jsx/newlines/* (2)
+jsx/newlines/test.js
+jsx/newlines/windows.js
+
+# jsx/significant-space/* (2)
+jsx/significant-space/comments.js
+jsx/significant-space/test.js
+
+# jsx/spread/* (2)
+jsx/spread/attribute.js
+jsx/spread/child.js
+
+# jsx/text-wrap/* (2)
+jsx/text-wrap/issue-16897.js
+jsx/text-wrap/test.js
+
+# misc/require-pragma/* (2)
+misc/require-pragma/js/range-with-pragma.js
+misc/require-pragma/js/range-without-pragma.js
+
+# flow/all/* (1)
+flow/all/generic.js
+
+# flow/annotation/* (1)
+flow/annotation/array_of_functions.js
+
+# flow/array-comments/* (1)
+flow/array-comments/test.js
+
+# flow/array-union/* (1)
+flow/array-union/test.js
+
+# flow/as-const/* (1)
+flow/as-const/embedded.js
+
+# flow/await/* (1)
+flow/await/await-keywords.js
+
+# flow/break-calls/* (1)
+flow/break-calls/type_args.js
+
+# flow/class-field/* (1)
+flow/class-field/field_declare_modifier.js
+
+# flow/conditional-types-comments/* (1)
+flow/conditional-types-comments/comments.js
+
+# flow/declare-class/* (1)
+flow/declare-class/indexer.js
+
+# flow/declare-interface/* (1)
+flow/declare-interface/declare-interface.js
+
+# flow/declare-type/* (1)
+flow/declare-type/declare-type.js
+
+# flow/declare-variable/* (1)
+flow/declare-variable/decare.js
+
+# flow/empty-parameters-with-arrow-function/* (1)
+flow/empty-parameters-with-arrow-function/issue-13817.js
+
+# flow/exact-object/* (1)
+flow/exact-object/test.js
+
+# flow/export/* (1)
+flow/export/type.js
+
+# flow/flow-intersection/* (1)
+flow/flow-intersection/intersection.js
+
+# flow/function/* (1)
+flow/function/function-predicate.js
+
+# flow/implements/* (1)
+flow/implements/implements.js
+
+# flow/import-type-specifier/* (1)
+flow/import-type-specifier/test.js
+
+# flow/indexed-access/* (1)
+flow/indexed-access/indexed-access.js
+
+# flow/internal-slot/* (1)
+flow/internal-slot/internal_slot.js
+
+# flow/intersection/* (1)
+flow/intersection/intersection.js
+
+# flow/keyof/* (1)
+flow/keyof/keyof.js
+
+# flow/literal/* (1)
+flow/literal/multiline.js
+
+# flow/method-chain/* (1)
+flow/method-chain/18136-flow/18136.js
+
+# flow/object-comment/* (1)
+flow/object-comment/flow_object_comment.js
+
+# flow/object-multiline/* (1)
+flow/object-multiline/multiline.js
+
+# flow/object-order/* (1)
+flow/object-order/order.js
+
+# flow/object-property-comment/* (1)
+flow/object-property-comment/comment.js
+
+# flow/optional-indexed-access/* (1)
+flow/optional-indexed-access/optional-indexed-access.js
+
+# flow/optional-type-name/* (1)
+flow/optional-type-name/test.js
+
+# flow/parameter-with-type/* (1)
+flow/parameter-with-type/param.js
+
+# flow/parenthesis-return-type/* (1)
+flow/parenthesis-return-type/optional.js
+
+# flow/private-class-fields/* (1)
+flow/private-class-fields/quotes.js
+
+# flow/proto-props/* (1)
+flow/proto-props/proto_props.js
+
+# flow/template/* (1)
+flow/template/inline.js
+
+# flow/ternary/* (1)
+flow/ternary/arrows.js
+
+# flow/tuple-types/* (1)
+flow/tuple-types/trailing-comma.js
+
+# flow/type-guards/* (1)
+flow/type-guards/test.js
+
+# flow/type-spread/* (1)
+flow/type-spread/comments.js
+
+# flow/typeapp-call/* (1)
+flow/typeapp-call/typeapp_call.js
+
+# flow/typeof/* (1)
+flow/typeof/typeof-with-type-arguments.js
+
+# flow/union_intersection/* (1)
+flow/union_intersection/test.js
+
+# flow/variance/* (1)
+flow/variance/variance.js
+
+# js/arrays/* (1)
+js/arrays/numbers-negative-comment-after-minus.js
+
+# js/arrows-bind/* (1)
+js/arrows-bind/arrows-bind.js
+
+# js/async/* (1)
+js/async/nested.js
+
+# js/async-do-expressions/* (1)
+js/async-do-expressions/async-do-expressions.js
+
+# js/classes/* (1)
+js/classes/member.js
+
+# js/comments/* (1)
+js/comments/flow-types/inline.js
+
+# js/comments-pipeline-own-line/* (1)
+js/comments-pipeline-own-line/pipeline_own_line.js
+
+# js/decorators/* (1)
+js/decorators/class-expression/super-class.js
+
+# js/dynamic-import/* (1)
+js/dynamic-import/import-phase.js
+
+# js/empty-paren-comment/* (1)
+js/empty-paren-comment/empty_paren_comment.js
+
+# js/export/* (1)
+js/export/empty.js
+
+# js/export-default/* (1)
+js/export-default/export-default-from/export.js
+
+# js/functional-composition/* (1)
+js/functional-composition/ramda_pipe.js
+
+# js/import-attributes/* (1)
+js/import-attributes/long-sources.js
+
+# js/invalid-code/* (1)
+js/invalid-code/duplicate_bindings.js
+
+# js/label/* (1)
+js/label/block-statement-and-regexp.js
+
+# js/line-suffix-boundary/* (1)
+js/line-suffix-boundary/boundary.js
+
+# js/literal/* (1)
+js/literal/number.js
+
+# js/module-string-names/* (1)
+js/module-string-names/module-string-names-export.js
+
+# js/multiparser-comments/* (1)
+js/multiparser-comments/tagged.js
+
+# js/multiparser-invalid/* (1)
+js/multiparser-invalid/text.js
+
+# js/new-target/* (1)
+js/new-target/range.js
+
+# js/no-semi-babylon-extensions/* (1)
+js/no-semi-babylon-extensions/no-semi.js
+
+# js/non-strict/* (1)
+js/non-strict/octal-number.js
+
+# js/numeric-separators/* (1)
+js/numeric-separators/number.js
+
+# js/optional-chaining/* (1)
+js/optional-chaining/comments.js
+
+# js/partial-application/* (1)
+js/partial-application/test.js
+
+# js/quotes/* (1)
+js/quotes/strings.js
+
+# js/regex/* (1)
+js/regex/regexp-modifiers.js
+
+# js/rest/* (1)
+js/rest/trailing-commas.js
+
+# js/switch/* (1)
+js/switch/comments.js
+
+# js/throw_statement/* (1)
+js/throw_statement/jsx.js
+
+# js/unicode/* (1)
+js/unicode/nbsp-jsx.js
+
+# js/variable_declarator/* (1)
+js/variable_declarator/multiple.js
+
+# js/with/* (1)
+js/with/indent.js
+
+# jsx/attr-element/* (1)
+jsx/attr-element/attr-element.js
+
+# jsx/binary-expressions/* (1)
+jsx/binary-expressions/relational-operators.js
+
+# jsx/deprecated-jsx-bracket-same-line-option/* (1)
+jsx/deprecated-jsx-bracket-same-line-option/jsx.js
+
+# jsx/do/* (1)
+jsx/do/do.js
+
+# jsx/embed/* (1)
+jsx/embed/css-embed.js
+
+# jsx/expression-with-types/* (1)
+jsx/expression-with-types/expression.js
+
+# jsx/fbt/* (1)
+jsx/fbt/test.js
+
+# jsx/fragment/* (1)
+jsx/fragment/fragment.js
+
+# jsx/multiline-assign/* (1)
+jsx/multiline-assign/test.js
+
+# jsx/namespace/* (1)
+jsx/namespace/jsx_namespaced_name.js
+
+# jsx/parentheses/* (1)
+jsx/parentheses/argument.js
+
+# jsx/single-attribute-per-line/* (1)
+jsx/single-attribute-per-line/single-attribute-per-line.js
+
+# jsx/split-attrs/* (1)
+jsx/split-attrs/test.js
+
+# jsx/stateless-arrow-fn/* (1)
+jsx/stateless-arrow-fn/test.js
+
+# jsx/template/* (1)
+jsx/template/styled-components.js
+
+# typescript/abstract-construct-types/* (1)
+typescript/abstract-construct-types/abstract-construct-types.ts
+
+# typescript/ambient/* (1)
+typescript/ambient/ambient.ts
+
+# typescript/arrow/* (1)
+typescript/arrow/16067.ts
+
+# typescript/assignment/* (1)
+typescript/assignment/lone-arg.ts
+
+# typescript/binary-expressions/* (1)
+typescript/binary-expressions/chain-expression.ts
+
+# typescript/catch-clause/* (1)
+typescript/catch-clause/type-annotation.ts
+
+# typescript/chain-expression/* (1)
+typescript/chain-expression/member-chain.ts
+
+# typescript/custom/* (1)
+typescript/custom/module/moduleNamespace.ts
+
+# typescript/export/* (1)
+typescript/export/export.ts
+
+# typescript/import-export/* (1)
+typescript/import-export/empty-import.ts
+
+# typescript/interface/* (1)
+typescript/interface/separator.ts
+
+# typescript/intersection/* (1)
+typescript/intersection/consistent-with-flow/intersection-parens.ts
+
+# typescript/method/* (1)
+typescript/method/semi.ts
+
+# typescript/namespace/* (1)
+typescript/namespace/invalid-await.ts
+
+# typescript/override-modifiers/* (1)
+typescript/override-modifiers/override-modifier.ts
+
+# typescript/template-literal-types/* (1)
+typescript/template-literal-types/template-literal-types.ts
+
+# typescript/template-literals/* (1)
+typescript/template-literals/as-expression.ts
+
+# typescript/ternaries/* (1)
+typescript/ternaries/indent.ts
+
+# typescript/trailing-comma/* (1)
+typescript/trailing-comma/trailing.ts
+
+# typescript/tsx/* (1)
+typescript/tsx/optional-chaining.tsx
+
+# typescript/type-parameters-arguments/* (1)
+typescript/type-parameters-arguments/class-method.ts
+
