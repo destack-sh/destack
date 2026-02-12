@@ -2320,6 +2320,102 @@ value;
         );
     }
 
+    /// Resolve declaration imports with .js specifiers through declaration targets.
+    #[test]
+    fn test_module_graph_declaration_import_js_specifier_dependency() {
+        let test = TestProgram::memory_sequential();
+        let dep_source = r#"
+export type TaskResultPack = { ok: true };
+"#;
+        let main_source = r#"
+import { TaskResultPack } from "./dep.js";
+
+type Wrapped = TaskResultPack;
+"#;
+
+        let dep_module_id = test.add_module("dep.d.ts", dep_source);
+        let main_module_id = test.add_module("main.d.ts", main_source);
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(main_module_id);
+        let key = ModuleGraphKey::new(profile);
+        let graph = test
+            .program
+            .index
+            .module_graphs
+            .get(&key)
+            .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+        let dependencies = graph.dependencies_for(main_module_id);
+
+        // assert dependency edges
+        assert!(
+            dependencies.contains(&dep_module_id),
+            "expected module graph to include dep.d.ts for ./dep.js import"
+        );
+    }
+
+    /// Resolve declaration reexports that rename type-only exports from .js specifiers.
+    #[test]
+    fn test_module_graph_declaration_reexport_type_alias_from_js_specifier() {
+        let test = TestProgram::memory_sequential();
+        let task_source = r#"
+export interface TaskResultPack {
+    ok: true;
+}
+
+export { type TaskResultPack as K };
+"#;
+        let index_source = r#"
+export { K as TaskResultPack } from "./tasks.js";
+"#;
+        let main_source = r#"
+import { TaskResultPack } from "./index.js";
+
+type Wrapped = TaskResultPack;
+"#;
+
+        test.add_module("tasks.d.ts", task_source);
+        test.add_module("index.d.ts", index_source);
+        let main_module_id = test.add_module("main.d.ts", main_source);
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Resolve declaration export-from when the module also imports from the same target.
+    #[test]
+    fn test_module_graph_declaration_export_from_with_sibling_import() {
+        let test = TestProgram::memory_sequential();
+        let tasks_source = r#"
+export interface TaskResult {
+    state: string;
+}
+
+export type TaskResultPack = TaskResult[];
+
+export { type TaskResult as J, type TaskResultPack as K };
+"#;
+        let runner_source = r#"
+import { J as TaskResult } from "./tasks.js";
+
+export { J as TaskResult, K as TaskResultPack } from "./tasks.js";
+"#;
+        let main_source = r#"
+import { TaskResultPack } from "./runner.js";
+
+type Wrapped = TaskResultPack;
+"#;
+
+        test.add_module("tasks.d.ts", tasks_source);
+        test.add_module("runner.d.ts", runner_source);
+        let main_module_id = test.add_module("main.d.ts", main_source);
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
     /// Keep node strict self package behavior for packages without exports.
     #[test]
     fn test_module_graph_self_package_import_without_exports_reports_error() {

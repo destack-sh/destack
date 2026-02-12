@@ -210,6 +210,12 @@ impl Resolver {
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
         tracing::trace!(?path, ?specifier, "resolver.load.package.imports");
+
+        // skip package imports mapping when disabled
+        if !self.options.resolve_package_json_imports {
+            return Ok(None);
+        }
+
         // find the closest package scope to the directory
         let Some(package_id) = self.find_package_json(path, ctx)? else {
             return Ok(None);
@@ -571,6 +577,10 @@ impl Resolver {
         exports: &serde_json::Value,
         ctx: &mut ResolveContext,
     ) -> Result<Option<PathBuf>, ResolveError> {
+        if !self.options.resolve_package_json_exports {
+            return Ok(None);
+        }
+
         let conditions = &self.options.conditions;
 
         // validate exports (cannot mix keys starting with "." and not)

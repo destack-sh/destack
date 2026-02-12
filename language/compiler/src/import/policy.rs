@@ -1,7 +1,12 @@
+use std::path::{Path, PathBuf};
+
 use destack_dir::DependencyKind;
-use destack_resolver::ResolveOptions;
+use destack_resolver::{
+    ResolveOptions, TypeScriptOptionsDiscovery, TypeScriptOptionsLocation,
+    TypeScriptOptionsReferences,
+};
 use destack_source::LanguageType;
-use destack_workspace::ImportEdgeKind;
+use destack_workspace::{ImportEdgeKind, TsCompilerOptions};
 use indexmap::IndexMap;
 
 /// Extension alias order for TypeScript source imports.
@@ -20,11 +25,11 @@ const DEFAULT_IMPORT_EXTENSIONS: &[&str] = &[
 /// Context used when materializing import resolve options.
 #[derive(Debug, Clone, Copy)]
 pub struct ImportResolveContext {
-    /// Dependency kind for the import edge.
+    /// The dependency kind for the import edge.
     pub dependency_kind: DependencyKind,
-    /// Source language of the importing module.
+    /// The source language of the importing module.
     pub source_language_type: Option<LanguageType>,
-    /// Edge semantics for this dependency.
+    /// The edge semantics for this dependency.
     pub edge_kind: ImportEdgeKind,
 }
 
@@ -65,6 +70,98 @@ pub fn materialize_import_resolve_options(
     options
 }
 
+/// Apply TypeScript compiler options to import resolve options for one source module.
+pub fn apply_typescript_import_resolve_policy(
+    options: &mut ResolveOptions,
+    compiler_options: &TsCompilerOptions,
+    source_language_type: Option<LanguageType>,
+    config_file: PathBuf,
+) {
+    // use the source tsconfig for path mapping and project references
+    options.tsconfig = Some(TypeScriptOptionsDiscovery::Manual(
+        TypeScriptOptionsLocation {
+            config_file,
+            references: TypeScriptOptionsReferences::Automatic,
+        },
+    ));
+
+    // mirror package json exports and imports toggles from tsconfig
+    options.resolve_package_json_exports = compiler_options.resolve_package_json_exports;
+    options.resolve_package_json_imports = compiler_options.resolve_package_json_imports;
+
+    // add custom export conditions without duplicates
+    append_missing_conditions(&mut options.conditions, &compiler_options.custom_conditions);
+
+    // align json extension lookup for typescript source files
+    apply_typescript_json_extension_policy(
+        &mut options.extensions,
+        source_language_type,
+        compiler_options.resolve_json_module,
+    );
+}
+
+/// Append condition names when missing.
+fn append_missing_conditions(conditions: &mut Vec<String>, extra_conditions: &[String]) {
+    for condition in extra_conditions {
+        if conditions.iter().any(|existing| existing == condition) {
+            continue;
+        }
+
+        conditions.push(condition.clone());
+    }
+}
+
+/// Apply tsconfig json extension policy for one source language.
+fn apply_typescript_json_extension_policy(
+    extensions: &mut Vec<String>,
+    source_language_type: Option<LanguageType>,
+    resolve_json_module: bool,
+) {
+    // only typescript source resolution is gated by resolveJsonModule
+    if !source_language_type.is_some_and(|language_type| language_type.is_typescript()) {
+        return;
+    }
+
+    // include json extension when tsconfig enables json modules
+    if resolve_json_module {
+        if !extensions.iter().any(|extension| extension == ".json") {
+            extensions.push(".json".to_string());
+        }
+
+        return;
+    }
+
+    // remove json extension when tsconfig disables json modules
+    extensions.retain(|extension| extension != ".json");
+}
+
+/// Resolve a declaration companion path for one JavaScript-like module path.
+pub fn declaration_companion_path_for_module_path(path: &Path) -> Option<PathBuf> {
+    let file_name = path.file_name()?.to_str()?;
+
+    // map js-like extensions through the shared typescript alias policy
+    for (from_extension, aliases) in TYPESCRIPT_EXTENSION_ALIASES {
+        let Some(prefix) = file_name.strip_suffix(from_extension) else {
+            continue;
+        };
+
+        let companion_extension = declaration_companion_extension_for_aliases(aliases)?;
+        let companion_name = format!("{prefix}{companion_extension}");
+
+        return Some(path.with_file_name(companion_name));
+    }
+
+    None
+}
+
+/// Resolve a declaration companion extension for one alias set.
+fn declaration_companion_extension_for_aliases<'a>(aliases: &'a [&'a str]) -> Option<&'a str> {
+    aliases
+        .iter()
+        .copied()
+        .find(|alias| alias.starts_with(".d."))
+}
+
 /// Apply extension policy for import resolution.
 fn apply_import_extension_policy(extensions: &mut Vec<String>) {
     // fill default import extensions when no extensions were configured
@@ -73,6 +170,7 @@ fn apply_import_extension_policy(extensions: &mut Vec<String>) {
             .iter()
             .map(|extension| (*extension).to_string())
             .collect();
+
         return;
     }
 
@@ -157,11 +255,16 @@ fn apply_import_extension_alias_policy(
 
 #[cfg(test)]
 mod tests {
-    use super::{ImportResolveContext, materialize_import_resolve_options};
+    use super::{
+        ImportResolveContext, apply_typescript_import_resolve_policy,
+        declaration_companion_path_for_module_path, materialize_import_resolve_options,
+    };
+    use std::path::{Path, PathBuf};
+
     use destack_dir::DependencyKind;
-    use destack_resolver::ResolveOptions;
+    use destack_resolver::{ResolveOptions, TypeScriptOptionsDiscovery};
     use destack_source::LanguageType;
-    use destack_workspace::ImportEdgeKind;
+    use destack_workspace::{ImportEdgeKind, TsCompilerOptions};
 
     /// Build default import options for value dependencies.
     #[test]
@@ -268,5 +371,91 @@ mod tests {
         let options = materialize_import_resolve_options(&base, context);
 
         assert_eq!(options.conditions, vec!["node", "import"]);
+    }
+
+    /// Apply tsconfig resolver policy for TypeScript source imports.
+    #[test]
+    fn test_apply_typescript_import_resolve_policy_typescript_source() {
+        let mut options = ResolveOptions::blank();
+        options.conditions = vec!["node".to_string()];
+        options.extensions = vec![".ts".to_string(), ".json".to_string()];
+
+        let mut compiler_options = TsCompilerOptions::default();
+        compiler_options.resolve_package_json_exports = false;
+        compiler_options.resolve_package_json_imports = false;
+        compiler_options.resolve_json_module = false;
+        compiler_options.custom_conditions = vec!["development".to_string(), "node".to_string()];
+
+        apply_typescript_import_resolve_policy(
+            &mut options,
+            &compiler_options,
+            Some(LanguageType::TypeScript),
+            PathBuf::from("/tmp/tsconfig.json"),
+        );
+
+        // verify tsconfig path binding for resolver paths lookups
+        assert!(matches!(
+            options.tsconfig,
+            Some(TypeScriptOptionsDiscovery::Manual(ref location))
+                if location.config_file == PathBuf::from("/tmp/tsconfig.json")
+        ));
+
+        // verify package json resolver toggles from tsconfig
+        assert!(!options.resolve_package_json_exports);
+        assert!(!options.resolve_package_json_imports);
+
+        // verify custom condition merge and json extension removal
+        assert_eq!(options.conditions, vec!["node", "development"]);
+        assert_eq!(options.extensions, vec![".ts"]);
+    }
+
+    /// Keep json extension behavior for non TypeScript sources.
+    #[test]
+    fn test_apply_typescript_import_resolve_policy_javascript_source_keeps_json() {
+        let mut options = ResolveOptions::blank();
+        options.extensions = vec![".js".to_string(), ".json".to_string()];
+
+        let mut compiler_options = TsCompilerOptions::default();
+        compiler_options.resolve_json_module = false;
+
+        apply_typescript_import_resolve_policy(
+            &mut options,
+            &compiler_options,
+            Some(LanguageType::JavaScript),
+            PathBuf::from("/tmp/tsconfig.json"),
+        );
+
+        // verify javascript resolution keeps runtime json imports
+        assert_eq!(options.extensions, vec![".js", ".json"]);
+    }
+
+    /// Build declaration companion paths from JavaScript module paths.
+    #[test]
+    fn test_declaration_companion_path_for_module_path_javascript_extensions() {
+        // .js and .jsx map to .d.ts
+        assert_eq!(
+            declaration_companion_path_for_module_path(Path::new("/tmp/mod.js")),
+            Some(PathBuf::from("/tmp/mod.d.ts")),
+        );
+        assert_eq!(
+            declaration_companion_path_for_module_path(Path::new("/tmp/view.jsx")),
+            Some(PathBuf::from("/tmp/view.d.ts")),
+        );
+
+        // module format extensions map to declaration companions
+        assert_eq!(
+            declaration_companion_path_for_module_path(Path::new("/tmp/index.mjs")),
+            Some(PathBuf::from("/tmp/index.d.mts")),
+        );
+        assert_eq!(
+            declaration_companion_path_for_module_path(Path::new("/tmp/index.cjs")),
+            Some(PathBuf::from("/tmp/index.d.cts")),
+        );
+
+        // non JavaScript-like extensions do not map
+        assert_eq!(
+            declaration_companion_path_for_module_path(Path::new("/tmp/mod.ts")),
+            None,
+        );
     }
 }

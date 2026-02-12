@@ -22,6 +22,12 @@ pub struct ResolveOptions {
     /// During condition matching, earlier entries have higher priority and take precedence over later entries.
     pub conditions: Vec<String>,
 
+    /// Whether to resolve package.json exports mappings.
+    pub resolve_package_json_exports: bool,
+
+    /// Whether to resolve package.json imports mappings.
+    pub resolve_package_json_imports: bool,
+
     /// Whether and how to enforce file extensions.
     pub enforce_extension: EnforceExtension,
 
@@ -71,6 +77,8 @@ impl Default for ResolveOptions {
             tsconfig: None,
             alias: vec![],
             conditions: vec![],
+            resolve_package_json_exports: true,
+            resolve_package_json_imports: true,
             enforce_extension: EnforceExtension::Disabled,
             extension_alias: IndexMap::new(),
             extensions: vec![
@@ -106,6 +114,8 @@ impl ResolveOptions {
             tsconfig: None,
             alias: vec![],
             conditions: vec![],
+            resolve_package_json_exports: true,
+            resolve_package_json_imports: true,
             enforce_extension: EnforceExtension::Disabled,
             extension_alias: IndexMap::new(),
             extensions: vec![],
@@ -143,6 +153,18 @@ impl ResolveOptions {
     /// Set the conditions.
     pub fn with_conditions(mut self, conditions: Vec<String>) -> Self {
         self.conditions = conditions;
+        self
+    }
+
+    /// Set package json exports resolution.
+    pub fn with_resolve_package_json_exports(mut self, value: bool) -> Self {
+        self.resolve_package_json_exports = value;
+        self
+    }
+
+    /// Set package json imports resolution.
+    pub fn with_resolve_package_json_imports(mut self, value: bool) -> Self {
+        self.resolve_package_json_imports = value;
         self
     }
 
@@ -229,6 +251,20 @@ impl fmt::Display for ResolveOptions {
         }
         if !self.conditions.is_empty() {
             write!(f, "condition_names:{:?},", self.conditions)?;
+        }
+        if !self.resolve_package_json_exports {
+            write!(
+                f,
+                "resolve_package_json_exports:{:?},",
+                self.resolve_package_json_exports
+            )?;
+        }
+        if !self.resolve_package_json_imports {
+            write!(
+                f,
+                "resolve_package_json_imports:{:?},",
+                self.resolve_package_json_imports
+            )?;
         }
         if self.enforce_extension == EnforceExtension::Enabled {
             write!(f, "enforce_extension:{:?},", self.enforce_extension)?;
