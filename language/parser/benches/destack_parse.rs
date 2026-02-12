@@ -408,7 +408,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
                     parse_without_finish(file.clone())
                 },
                 |mut parser| {
-                    // attach annotations and build indexes
+                    // finalize parser state
                     parser.finish();
                     print_parser_timing_snapshot_once(&parser, "finish-total");
                     black_box(parser);
@@ -418,49 +418,6 @@ fn bench_parse_single(criterion: &mut Criterion) {
         },
     );
 
-    // benchmark path with annotation finish isolated from setup
-    group.bench_with_input(
-        BenchmarkId::new("finish", "annotations"),
-        &file,
-        |bencher, file| {
-            bencher.iter_batched(
-                || {
-                    // parse and prebuild positions so timing isolates annotation attach
-                    let mut parser = parse_without_finish(file.clone());
-                    parser.finish_positions();
-                    parser
-                },
-                |mut parser| {
-                    // attach annotations only
-                    parser.finish_annotations();
-                    print_parser_timing_snapshot_once(&parser, "finish-annotations");
-                    black_box(parser);
-                },
-                BatchSize::PerIteration,
-            );
-        },
-    );
-
-    // benchmark path with position index build isolated from setup
-    group.bench_with_input(
-        BenchmarkId::new("finish", "positions"),
-        &file,
-        |bencher, file| {
-            bencher.iter_batched(
-                || {
-                    // parse up to finish
-                    parse_without_finish(file.clone())
-                },
-                |mut parser| {
-                    // build position index only
-                    parser.finish_positions();
-                    print_parser_timing_snapshot_once(&parser, "finish-positions");
-                    black_box(parser);
-                },
-                BatchSize::PerIteration,
-            );
-        },
-    );
     group.finish();
 }
 

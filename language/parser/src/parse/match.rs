@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, MatchSelector,
-    NodeType, Pattern, TokenType,
+    Block, BlockFormat, Decorator, Expression, Keyword, LocalNodeId, MatchCase, MatchKind,
+    MatchSelector, NodeType, Pattern, TokenType,
 };
 
 impl Parser {
@@ -130,9 +130,12 @@ impl Parser {
     /// ```
     fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<MatchCase>> {
         // decorators before match arms
-        if self.peek_is(TokenType::At) {
-            self.eat_decorators_prefix_maybe()?;
-        }
+        let mut pending_case_decorators: Vec<LocalNodeId<Decorator>> =
+            if self.peek_is(TokenType::At) {
+                self.eat_decorators_prefix_collect_maybe()?
+            } else {
+                Vec::new()
+            };
 
         let start = self.mark();
 
@@ -245,6 +248,12 @@ impl Parser {
                     },
                     self.get_span_from(&start),
                 );
+                if !pending_case_decorators.is_empty() {
+                    self.attach_decorators_to_target(
+                        std::mem::take(&mut pending_case_decorators),
+                        match_case_id.id,
+                    );
+                }
                 return Ok(match_case_id);
             }
             let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
@@ -318,6 +327,12 @@ impl Parser {
                     self.get_span_from(&start),
                 )
             };
+            if !pending_case_decorators.is_empty() {
+                self.attach_decorators_to_target(
+                    std::mem::take(&mut pending_case_decorators),
+                    match_case_id.id,
+                );
+            }
             Ok(match_case_id)
         }
         // block body
@@ -330,6 +345,12 @@ impl Parser {
                 },
                 self.get_span_from(&start),
             );
+            if !pending_case_decorators.is_empty() {
+                self.attach_decorators_to_target(
+                    std::mem::take(&mut pending_case_decorators),
+                    match_case_id.id,
+                );
+            }
             Ok(match_case_id)
         }
         // single expression
@@ -342,6 +363,12 @@ impl Parser {
                 },
                 self.get_span_from(&start),
             );
+            if !pending_case_decorators.is_empty() {
+                self.attach_decorators_to_target(
+                    std::mem::take(&mut pending_case_decorators),
+                    match_case_id.id,
+                );
+            }
             Ok(match_case_id)
         }
     }

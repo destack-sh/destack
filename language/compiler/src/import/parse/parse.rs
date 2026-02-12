@@ -174,18 +174,13 @@ impl Compiler {
                 parser.parse_without_finish()
             };
 
-            // finalize annotations and indexes
+            // finalize annotations
             {
                 let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_FINISH);
 
                 {
                     let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_ANNOTATIONS);
                     parser.finish_annotations();
-                }
-
-                {
-                    let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_POSITIONS);
-                    parser.finish_positions();
                 }
             }
 
