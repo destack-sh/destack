@@ -1,7 +1,8 @@
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
-use destack_ast::{Expression, LocalNodeId, NodeType, PostfixPosition, TokenType};
+use destack_ast::{Expression, LocalNodeId, NodeType, Path, PostfixPosition, TokenType};
+use smallvec::smallvec;
 
 impl Parser {
     pub(super) fn eat_identifier_expression_path(
@@ -9,9 +10,20 @@ impl Parser {
         start: &ParserMark,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _identifier_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_IDENTIFIER);
-        let (path, last_span) = self
-            .eat_path_with_last_span()
-            .for_node_type(NodeType::Expression)?;
+
+        // fast path: single segment identifiers dominate value expressions
+        let next_token_type = self.peek_next_token_type();
+        let (path, last_span) =
+            if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
+                let (segment, segment_span) = self.eat_identifier_with_span()?;
+                let path = Path {
+                    segments: smallvec![segment],
+                };
+                (path, segment_span)
+            } else {
+                self.eat_path_with_last_span()
+                    .for_node_type(NodeType::Expression)?
+            };
 
         // speculatively unwrap postfix static parameterisation with `<` or `<<`
         //  (might also be just a comparison operator)

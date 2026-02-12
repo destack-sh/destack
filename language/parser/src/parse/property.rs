@@ -66,10 +66,8 @@ impl Parser {
         if self.peek_is(TokenType::Spread) {
             let start = self.mark_span();
             self.bump(); // eat spread
-            let value = self.with_options(
-                self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(parser.options),
-            )?;
+            let value =
+                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             let property = Property::Spread {
                 modifiers: None,
                 value,
@@ -339,10 +337,8 @@ impl Parser {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                let return_type = self.with_options(
-                    self.options.nested().in_type().in_before_block(),
-                    |parser| parser.eat_expression(parser.options),
-                )?;
+                let return_type =
+                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -579,10 +575,8 @@ impl Parser {
         if self.peek_is(TokenType::Spread) {
             let start = self.mark_span();
             self.bump(); // eat spread
-            let value = self.with_options(
-                self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(parser.options),
-            )?;
+            let value =
+                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             let member = Member::Embed {
                 modifiers: None,
                 value,
@@ -630,12 +624,11 @@ impl Parser {
             && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
-            let body = self.with_options(
+            let body = self.eat_expression(
                 self.options
                     .not_in_position()
                     .in_statement_position()
                     .not_in_decorator(),
-                |parser| parser.eat_expression(parser.options),
             )?;
             // preserve modifiers for validation (static blocks shouldn't have other modifiers)
             let member = Member::StaticBlock { modifiers, body };
@@ -685,12 +678,11 @@ impl Parser {
             && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
-            let body = self.with_options(
+            let body = self.eat_expression(
                 self.options
                     .not_in_position()
                     .in_statement_position()
                     .not_in_decorator(),
-                |parser| parser.eat_expression(parser.options),
             )?;
             let member = Member::ComptimeBlock { modifiers, body };
             return Ok(self.tree.insert(member, self.get_span_from(&start)));
@@ -946,10 +938,8 @@ impl Parser {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                let return_type = self.with_options(
-                    self.options.nested().in_type().in_before_block(),
-                    |parser| parser.eat_expression(parser.options),
-                )?;
+                let return_type =
+                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -1032,14 +1022,13 @@ impl Parser {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 // member field annotations are always type positions
-                let value = self.with_options(
+                let value = self.eat_expression(
                     self.options
                         .nested()
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression()
                         .in_type(),
-                    |parser| parser.eat_expression(parser.options),
                 )?;
                 (Some(value), Some(self.get_span_from(&type_start)))
             } else {
@@ -1050,10 +1039,8 @@ impl Parser {
             let default = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                let default = self.with_options(
-                    self.options.not_in_position().not_in_sequence_expression(),
-                    |parser| parser.eat_expression(parser.options),
-                )?;
+                let default = self
+                    .eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
                 Some(default)
             } else {
                 None

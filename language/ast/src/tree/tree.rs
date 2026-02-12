@@ -21,6 +21,8 @@ pub struct NodeTree {
     pub(crate) node_type_by_node_id: Vec<NodeType>,
     /// The annotations attached to nodes.
     pub(crate) annotations_by_node_id: FxHashMap<u32, Vec<LocalNodeId<Annotation>>>,
+    /// Whether annotation vectors are already globally sorted by start span.
+    pub(crate) annotations_are_sorted: bool,
     /// The spans of the NodeTree.
     pub source_map: NodeSourceMap,
 
@@ -74,6 +76,7 @@ impl NodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: FxHashMap::default(),
+            annotations_are_sorted: true,
             source_map: NodeSourceMap::with_capacity(capacity),
             expressions: Arena::new(),
             blocks: Arena::new(),
@@ -304,10 +307,17 @@ impl NodeTree {
     #[inline]
     pub fn append_annotation(&mut self, target_id: u32, annotation: LocalNodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
-        self.annotations_by_node_id
-            .entry(target_id)
-            .or_default()
-            .push(annotation);
+
+        let annotation_start = self.source_map.get(annotation.id).start;
+        let target_annotations = self.annotations_by_node_id.entry(target_id).or_default();
+        if let Some(previous_annotation) = target_annotations.last().copied() {
+            let previous_start = self.source_map.get(previous_annotation.id).start;
+            if annotation_start < previous_start {
+                self.annotations_are_sorted = false;
+            }
+        }
+
+        target_annotations.push(annotation);
     }
 
     /// Whether there are any annotations attached to a node.
@@ -370,11 +380,16 @@ impl NodeTree {
     /// Sort all annotations.
     #[inline]
     pub fn sort_annotations(&mut self) {
+        if self.annotations_are_sorted {
+            return;
+        }
+
         self.annotations_by_node_id
             .values_mut()
             .for_each(|annotations| {
                 annotations.sort_by_key(|annotation| self.source_map.get(annotation.id).start)
             });
+        self.annotations_are_sorted = true;
     }
 
     /// Build position index for fast enclosing span lookups.

@@ -63,10 +63,16 @@ impl Parser {
                 if token_type == TokenType::End {
                     break;
                 }
-                let next_token_type = if matches!(
-                    token_type,
-                    TokenType::Newline | TokenType::Dot | TokenType::Maybe
-                ) {
+
+                // normalize newline lookahead once for this iteration
+                let newline_cursor = if token_type == TokenType::Newline {
+                    Some(self.peek_non_newline_cursor())
+                } else {
+                    None
+                };
+                let next_token_type = if let Some(cursor) = newline_cursor {
+                    cursor.token_type
+                } else if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
                     self.peek_next_token_type()
                 } else {
                     TokenType::End
@@ -107,8 +113,8 @@ impl Parser {
 
                 // call parsing flags
                 let has_direct_call = token_type == TokenType::OpenParenthesis;
-                let has_direct_call_after_newlines = token_type == TokenType::Newline
-                    && self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis);
+                let has_direct_call_after_newlines = newline_cursor
+                    .is_some_and(|cursor| cursor.token_type == TokenType::OpenParenthesis);
                 let has_indirect_call =
                     token_type == TokenType::Dot && next_token_type == TokenType::OpenParenthesis;
                 let can_direct_call = (has_direct_call || has_direct_call_after_newlines)
@@ -238,10 +244,10 @@ impl Parser {
                     }
 
                     let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
-                    if token_type == TokenType::Newline
-                        && self.is_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                    if let Some(cursor) = newline_cursor
+                        && cursor.token_type == TokenType::OpenParenthesis
                     {
-                        self.eat_newlines_maybe()?; // eat newlines
+                        self.advance_to(cursor.index);
                     }
                     let position = if token_type == TokenType::Dot {
                         self.bump(); // eat .
@@ -276,7 +282,8 @@ impl Parser {
                 // (like `x?`, `x.?`, `x?.`)
                 else if token_type == TokenType::Maybe
                     || token_type == TokenType::Dot && next_token_type == TokenType::Maybe
-                    || self.optional_chain_starts_after_newlines()
+                    || token_type == TokenType::Newline
+                        && self.optional_chain_starts_after_newlines()
                 {
                     // capture type conditional operands when in type contexts
                     let type_conditional_operands = if self.options.in_type {
@@ -287,7 +294,9 @@ impl Parser {
                     let is_type_conditional = type_conditional_operands.is_some();
 
                     // normalize newlines before checking postfix markers
-                    self.eat_newlines_maybe()?; // eat newlines
+                    if let Some(cursor) = newline_cursor {
+                        self.advance_to(cursor.index);
+                    }
 
                     // classify optional chain and postfix maybe
                     let is_optional_chain_after_maybe = self.is_optional_chain_after_maybe();
@@ -461,13 +470,24 @@ impl Parser {
 
         {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
+            let left_precedence = self.options.left_precedence;
             loop {
                 let token_type = self.peek_token_type();
                 if token_type == TokenType::End {
                     break;
                 }
-                let next_token_type = if token_type == TokenType::Newline {
-                    self.peek_next_token_type()
+
+                // normalize newline lookahead once for this iteration
+                let newline_cursor = if token_type == TokenType::Newline {
+                    Some(self.peek_non_newline_cursor())
+                } else {
+                    None
+                };
+                let newline_count = newline_cursor
+                    .map(|cursor| cursor.skipped_newline_count)
+                    .unwrap_or(0);
+                let next_token_type = if let Some(cursor) = newline_cursor {
+                    cursor.token_type
                 } else {
                     TokenType::End
                 };
@@ -507,37 +527,30 @@ impl Parser {
                 {
                     break;
                 }
+
                 let (right_operator, operator_offset) = {
                     // infix operator on same line with higher precedence
                     if token_type != TokenType::Newline
                         && let Some((operator, operator_offset)) = self.peek_infix_operator_maybe()
-                        && (self.options.left_precedence.is_none()
-                            || self.options.left_precedence.unwrap() < operator.precedence())
+                        && (left_precedence.is_none()
+                            || left_precedence.unwrap() < operator.precedence())
                     {
                         (operator, operator_offset)
                     }
-                    // infix operator on next line with higher precedence
-                    else if token_type == TokenType::Newline
+                    // infix operator after one or more newlines with higher precedence
+                    else if let Some(cursor) = newline_cursor
                         && let Some((operator, operator_offset)) =
-                            self.peek_next_infix_operator_maybe()
-                        && (self.options.left_precedence.is_none()
-                            || self.options.left_precedence.unwrap() < operator.precedence())
-                    {
-                        (operator, operator_offset)
-                    }
-                    // infix operator after multiple newlines
-                    else if token_type == TokenType::Newline
-                        && let Some((operator, operator_offset)) =
-                            self.peek_infix_operator_after_newlines_maybe()
-                        && (!self.options.in_type
+                            self.peek_infix_operator_at_index_maybe(cursor.index, true)
+                        && (newline_count <= 1
+                            || !self.options.in_type
                             || matches!(
                                 operator,
                                 InfixOperator::Binary(
                                     BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
                                 )
                             ))
-                        && (self.options.left_precedence.is_none()
-                            || self.options.left_precedence.unwrap() < operator.precedence())
+                        && (left_precedence.is_none()
+                            || left_precedence.unwrap() < operator.precedence())
                     {
                         (operator, operator_offset)
                     }
@@ -546,8 +559,9 @@ impl Parser {
                         break;
                     }
                 };
-                if token_type == TokenType::Newline {
-                    self.eat_newlines_maybe()?; // eat newlines
+
+                if let Some(cursor) = newline_cursor {
+                    self.advance_to(cursor.index);
                 }
 
                 // capture operator span before eating
