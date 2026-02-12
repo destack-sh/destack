@@ -1,6 +1,6 @@
 use super::*;
 
-// FUGU #Performance: improve VM tensor performance
+// TODO #Performance: improve VM tensor performance
 
 /// Handle tensor.load.
 pub(crate) fn handle_tensor_load(

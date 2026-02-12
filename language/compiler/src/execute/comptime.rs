@@ -233,7 +233,7 @@ impl<'a> ComptimeLowerer<'a> {
         let return_type = self.lower_return_type(expression_id, anchor)?;
 
         // create empty lookup tables for standalone expressions
-        // FUGU #Incomplete: hoist comptime environment into comptime lowering
+        // TODO #Incomplete: hoist comptime environment into comptime lowering
         let functions_by_symbol = HashMap::new();
         let globals_by_symbol = HashMap::new();
         let interface_slots_by_symbol = HashMap::new();

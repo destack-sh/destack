@@ -19,7 +19,7 @@ struct Circle implements Drawable {
     color: int32;
     radius: int32;
 
-    draw(): int32 { 
+    draw(): int32 {
         return this.color;
     }
 }
@@ -164,7 +164,7 @@ function run(): int32 {
 
 /// Lower structural interface parameters with field-only shapes.
 #[test]
-#[ignore] // FUGU #Incomplete: structural interfaces (see other structural interface tests here!)
+#[ignore] // TODO #Incomplete: structural interfaces (see other structural interface tests here!)
 fn test_lower_structural_interface_fields() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -220,7 +220,7 @@ struct Rect implements Rectangle {
     width: int32;
     height: int32;
 
-    area(): int32 { 
+    area(): int32 {
         return this.width * this.height;
     }
 }
@@ -264,12 +264,12 @@ struct Widget implements Shape, Paint {
     width: int32;
     color: int32;
 
-    area(): int32 { 
+    area(): int32 {
         return this.width;
     }
 
-    paint(): int32 { 
-        return this.color; 
+    paint(): int32 {
+        return this.color;
     }
 }
 "#,
@@ -499,8 +499,8 @@ class GreeterImpl implements Greeter {
         return;
     }
 
-    greet(): int32 { 
-        return this.value + 1; 
+    greet(): int32 {
+        return this.value + 1;
     }
 }
 

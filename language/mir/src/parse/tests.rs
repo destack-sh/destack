@@ -180,7 +180,7 @@ block0:
     );
 }
 
-// FUGU: streamline MIR text syntax
+// TODO #Cleanup: streamline MIR text syntax
 //  (array from [T; N] to T[N], call.indirect should be vx(..) : with colon, see related -> usage)
 
 #[test]

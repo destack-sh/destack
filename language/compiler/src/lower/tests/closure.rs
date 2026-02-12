@@ -477,7 +477,7 @@ function applyDouble(input: int32): int32 {
 /// Verify nested named functions capture from multiple scopes.
 #[test]
 #[ignore]
-// FUGU #Broken: nested named function captures are not resolved yet
+// TODO #Broken: nested named function captures are not resolved yet
 fn test_lower_nested_named_function_captures() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(

@@ -836,7 +836,7 @@ impl Program {
     }
 
     /// Pick a fallback target based on the module language type.
-    /// FUGU #Cleanup: should we have fallback profiles at all? or only explicitly (sometimes?)?
+    /// TODO #Cleanup: should we have fallback profiles at all? or only explicitly (sometimes?)?
     fn fallback_target_for_module(&self, module: &Module) -> Target {
         if module.language_type.is_destack() {
             Target::native("default")
