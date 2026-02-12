@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Declaration, DeclarationDescriptor, EnumField, EnumKind, Generics, Heritage, Keyword,
-    LiteralType, LocalNodeId, Member, Name, NodeType, TemplateLiteral, TokenType,
+    Declaration, DeclarationDescriptor, Decorator, EnumField, EnumKind, Generics, Heritage,
+    Keyword, LiteralType, LocalNodeId, Member, Name, NodeType, TemplateLiteral, TokenType,
 };
 use destack_source::Span;
 
@@ -113,6 +113,7 @@ impl Parser {
         // eat everything
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
+        let mut pending_enum_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
         while self.has_more_tokens() {
             // stop on closing brace
             if self.peek_is(TokenType::CloseBrace) {
@@ -124,11 +125,18 @@ impl Parser {
             }
             // consume decorator prefixes
             else if self.peek_is(TokenType::At) {
-                self.eat_decorators_prefix_maybe()?;
+                let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
+                pending_enum_decorators.append(&mut decorators);
             }
             // enum field
             else if self.peek_enum_field_is() {
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
+                if !pending_enum_decorators.is_empty() {
+                    self.attach_decorators_to_target(
+                        std::mem::take(&mut pending_enum_decorators),
+                        field.id,
+                    );
+                }
                 fields.push(field);
             }
             // eat members
@@ -138,6 +146,12 @@ impl Parser {
                         parser.try_eat_member(TokenType::Newline)
                     })
                     .for_node_type(NodeType::Member)?;
+                if !pending_enum_decorators.is_empty() {
+                    self.attach_decorators_to_target(
+                        std::mem::take(&mut pending_enum_decorators),
+                        member_id.id,
+                    );
+                }
                 members.push(member_id);
             }
         }

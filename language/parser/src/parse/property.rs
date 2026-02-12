@@ -1,9 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property, Timing, TokenType,
+    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, Decorator,
+    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property,
+    Timing, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -498,6 +499,7 @@ impl Parser {
     pub fn eat_properties(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         // eat everything
         let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
+        let mut pending_property_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
         while self.has_more_tokens() {
             // stop on closing brace
             if self.peek_is(TokenType::CloseBrace) || self.peek_is(TokenType::End) {
@@ -505,7 +507,8 @@ impl Parser {
             }
             // consume decorator prefixes in type literal properties
             else if self.options.in_type && self.peek_is(TokenType::At) {
-                self.eat_decorators_prefix_maybe()?;
+                let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
+                pending_property_decorators.append(&mut decorators);
                 continue;
             }
             // consume any stop
@@ -517,6 +520,12 @@ impl Parser {
             else {
                 match self.try_eat_property(TokenType::Newline) {
                     Ok(property_id) => {
+                        if !pending_property_decorators.is_empty() {
+                            self.attach_decorators_to_target(
+                                std::mem::take(&mut pending_property_decorators),
+                                property_id.id,
+                            );
+                        }
                         properties.push(property_id);
                     }
                     Err(_) => continue, // keep eating other properties
@@ -1103,6 +1112,7 @@ impl Parser {
         allow_comma_separators: bool,
     ) -> ParseResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
+        let mut pending_member_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
         while self.has_more_tokens() {
             // stop on closing brace
             if self.peek_is(TokenType::CloseBrace) || self.peek_is(TokenType::End) {
@@ -1119,13 +1129,20 @@ impl Parser {
             }
             // consume decorator prefixes
             else if self.peek_is(TokenType::At) {
-                self.eat_decorators_prefix_maybe()?;
+                let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
+                pending_member_decorators.append(&mut decorators);
                 continue;
             }
             // keep eating members
             else {
                 match self.try_eat_member(TokenType::Newline) {
                     Ok(member_id) => {
+                        if !pending_member_decorators.is_empty() {
+                            self.attach_decorators_to_target(
+                                std::mem::take(&mut pending_member_decorators),
+                                member_id.id,
+                            );
+                        }
                         members.push(member_id);
                     }
                     Err(_) => continue, // keep eating other members

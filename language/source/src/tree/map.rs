@@ -1,5 +1,6 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::sync::RwLock;
 
 use super::interval::IntervalTree;
 use crate::Span;
@@ -32,7 +33,7 @@ pub enum NodeSpanType {
 }
 
 /// Side index of spans into a NodeTree.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NodeSourceMap {
     /// Enclosing spans of all nodes, indexed by global node id.
     enclosing_spans: Vec<Span>,
@@ -47,8 +48,22 @@ pub struct NodeSourceMap {
     /// Extra side spans for non-main/type spans (sparse).
     side_spans: FxHashMap<(u32, NodeSpanType), Span>,
     /// Interval tree for O(log n + k) enclosing span queries.
-    /// Built via `build_position_index()` after parsing completes.
-    interval_tree: Option<IntervalTree>,
+    /// Built lazily on first lookup and invalidated on enclosing span mutations.
+    interval_tree: RwLock<Option<IntervalTree>>,
+}
+
+impl Clone for NodeSourceMap {
+    fn clone(&self) -> Self {
+        Self {
+            enclosing_spans: self.enclosing_spans.clone(),
+            main_spans: self.main_spans.clone(),
+            has_main_span: self.has_main_span.clone(),
+            type_spans: self.type_spans.clone(),
+            has_type_span: self.has_type_span.clone(),
+            side_spans: self.side_spans.clone(),
+            interval_tree: RwLock::new(None),
+        }
+    }
 }
 
 // serde representation for NodeSourceMap
@@ -143,7 +158,7 @@ impl<'de> Deserialize<'de> for NodeSourceMap {
             type_spans,
             has_type_span,
             side_spans: data.side_spans,
-            interval_tree: None,
+            interval_tree: RwLock::new(None),
         })
     }
 }
@@ -180,7 +195,40 @@ impl NodeSourceMap {
             type_spans: Vec::with_capacity(capacity),
             has_type_span: Vec::with_capacity(capacity),
             side_spans: FxHashMap::default(),
-            interval_tree: None,
+            interval_tree: RwLock::new(None),
+        }
+    }
+
+    /// Invalidate cached position index after enclosing span mutations.
+    #[inline]
+    fn invalidate_position_index(&mut self) {
+        let interval_tree = match self.interval_tree.get_mut() {
+            Ok(interval_tree) => interval_tree,
+            Err(error) => error.into_inner(),
+        };
+        *interval_tree = None;
+    }
+
+    /// Ensure the interval tree exists for enclosing span lookups.
+    #[inline]
+    fn ensure_position_index(&self) {
+        {
+            let interval_tree = match self.interval_tree.read() {
+                Ok(interval_tree) => interval_tree,
+                Err(error) => error.into_inner(),
+            };
+            if interval_tree.is_some() {
+                return;
+            }
+        }
+
+        let tree = IntervalTree::build_from_spans(&self.enclosing_spans);
+        let mut interval_tree = match self.interval_tree.write() {
+            Ok(interval_tree) => interval_tree,
+            Err(error) => error.into_inner(),
+        };
+        if interval_tree.is_none() {
+            *interval_tree = Some(tree);
         }
     }
 
@@ -192,12 +240,14 @@ impl NodeSourceMap {
         self.has_main_span.push(false);
         self.type_spans.push(empty_span());
         self.has_type_span.push(false);
+        self.invalidate_position_index();
     }
 
     /// Set the span for a node.
     #[inline]
     pub fn set(&mut self, node_id: u32, span: Span) {
         self.enclosing_spans[node_id as usize] = span;
+        self.invalidate_position_index();
     }
 
     /// Prune spans from the map (used during parse backtracking).
@@ -209,12 +259,13 @@ impl NodeSourceMap {
         self.type_spans.truncate(from_idx as usize);
         self.has_type_span.truncate(from_idx as usize);
         self.side_spans.retain(|&(id, _), _| id < from_idx);
+        self.invalidate_position_index();
     }
 
     /// Build interval tree for fast enclosing span lookups.
-    /// Call this after parsing is complete.
+    /// You do not need to call this explicitly: lookups build it lazily.
     pub fn build_position_index(&mut self) {
-        self.interval_tree = Some(IntervalTree::build_from_spans(&self.enclosing_spans));
+        self.ensure_position_index();
     }
 
     /// Set a side span for a node.
@@ -306,35 +357,38 @@ impl NodeSourceMap {
     /// Get all enclosing spans containing the given range.
     ///
     /// Uses interval tree for O(log n + k) lookup where k is the number of enclosing spans.
-    /// Falls back to linear scan if interval tree hasn't been built.
     pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
-        match &self.interval_tree {
-            Some(tree) => {
-                let file_id = self
-                    .enclosing_spans
-                    .first()
-                    .map(|s| s.file)
-                    .unwrap_or(crate::FileId(0));
-                tree.query_containing(start, end_inclusive)
-                    .into_iter()
-                    .map(|(span_start, span_end, node_id, length)| {
-                        let distance =
-                            start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
-                        EnclosingSpan {
-                            idx: node_id,
-                            distance,
-                            length,
-                            span: Span {
-                                file: file_id,
-                                start: span_start,
-                                end: span_end,
-                            },
-                        }
-                    })
-                    .collect()
-            }
-            None => self.get_enclosing_spans_linear(start, end_inclusive),
-        }
+        self.ensure_position_index();
+
+        let file_id = self
+            .enclosing_spans
+            .first()
+            .map(|span| span.file)
+            .unwrap_or(crate::FileId(0));
+        let interval_tree = match self.interval_tree.read() {
+            Ok(interval_tree) => interval_tree,
+            Err(error) => error.into_inner(),
+        };
+        let tree = interval_tree
+            .as_ref()
+            .expect("position index must exist after ensure_position_index");
+
+        tree.query_containing(start, end_inclusive)
+            .into_iter()
+            .map(|(span_start, span_end, node_id, length)| {
+                let distance = start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
+                EnclosingSpan {
+                    idx: node_id,
+                    distance,
+                    length,
+                    span: Span {
+                        file: file_id,
+                        start: span_start,
+                        end: span_end,
+                    },
+                }
+            })
+            .collect()
     }
 
     /// Visit all enclosing spans containing the given range.
@@ -344,63 +398,37 @@ impl NodeSourceMap {
         end_inclusive: u32,
         mut visit: impl FnMut(EnclosingSpan),
     ) {
+        self.ensure_position_index();
+
         let file_id = self
             .enclosing_spans
             .first()
             .map(|span| span.file)
             .unwrap_or(crate::FileId(0));
-        match &self.interval_tree {
-            Some(tree) => {
-                tree.visit_containing(
-                    start,
-                    end_inclusive,
-                    |span_start, span_end, node_id, length| {
-                        let distance =
-                            start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
-                        visit(EnclosingSpan {
-                            idx: node_id,
-                            distance,
-                            length,
-                            span: Span {
-                                file: file_id,
-                                start: span_start,
-                                end: span_end,
-                            },
-                        });
-                    },
-                );
-            }
-            None => {
-                for (i, span) in self.enclosing_spans.iter().enumerate() {
-                    if span.contains(start) && span.contains(end_inclusive) {
-                        let distance =
-                            start.abs_diff(span.start) + span.end.abs_diff(end_inclusive);
-                        visit(EnclosingSpan {
-                            idx: i as u32,
-                            distance,
-                            length: span.end.saturating_sub(span.start),
-                            span: *span,
-                        });
-                    }
-                }
-            }
-        }
-    }
+        let interval_tree = match self.interval_tree.read() {
+            Ok(interval_tree) => interval_tree,
+            Err(error) => error.into_inner(),
+        };
+        let tree = interval_tree
+            .as_ref()
+            .expect("position index must exist after ensure_position_index");
 
-    /// Get all enclosing spans containing the given range using a linear scan.
-    fn get_enclosing_spans_linear(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
-        let mut spans = Vec::new();
-        for (i, span) in self.enclosing_spans.iter().enumerate() {
-            if span.contains(start) && span.contains(end_inclusive) {
-                let distance = start.abs_diff(span.start) + span.end.abs_diff(end_inclusive);
-                spans.push(EnclosingSpan {
-                    idx: i as u32,
+        tree.visit_containing(
+            start,
+            end_inclusive,
+            |span_start, span_end, node_id, length| {
+                let distance = start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
+                visit(EnclosingSpan {
+                    idx: node_id,
                     distance,
-                    length: span.end.saturating_sub(span.start),
-                    span: *span,
+                    length,
+                    span: Span {
+                        file: file_id,
+                        start: span_start,
+                        end: span_end,
+                    },
                 });
-            }
-        }
-        spans
+            },
+        );
     }
 }

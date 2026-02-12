@@ -1,5 +1,5 @@
 use destack_ast::{
-    Block, BlockFormat, Expression, Keyword, LetKind, LocalNodeId, NodeType, TokenType,
+    Block, BlockFormat, Decorator, Expression, Keyword, LetKind, LocalNodeId, NodeType, TokenType,
     YieldCardinality,
 };
 
@@ -257,6 +257,7 @@ impl Parser {
         let result = (|| {
             let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
             let mut pending_tail_expression: Option<LocalNodeId<Expression>> = None;
+            let mut pending_statement_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
 
             loop {
                 let token_type = self.peek_token_type();
@@ -274,9 +275,10 @@ impl Parser {
                     continue;
                 }
 
-                // consume decorator prefixes
+                // consume decorator prefixes for the next statement item
                 if token_type == TokenType::At {
-                    self.eat_decorators_prefix_maybe()?;
+                    let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
+                    pending_statement_decorators.append(&mut decorators);
                     continue;
                 }
 
@@ -303,6 +305,14 @@ impl Parser {
                             (error_id, true)
                         }
                     };
+
+                // attach any pending decorators to this statement item
+                if !pending_statement_decorators.is_empty() {
+                    self.attach_decorators_to_target(
+                        std::mem::take(&mut pending_statement_decorators),
+                        expression_id.id,
+                    );
+                }
 
                 // keep at most one tail candidate, emit statements directly
                 if is_statement {

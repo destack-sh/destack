@@ -53,14 +53,6 @@ pub struct TokenStreamMark {
     pub(super) tokens_len: usize,
     /// The number of side tokens captured in the mark.
     pub(super) side_tokens_len: usize,
-    /// The number of annotation tokens captured in the mark.
-    pub(super) annotation_tokens_len: usize,
-    /// The number of annotation line indices captured in the mark.
-    pub(super) annotation_line_indices_len: usize,
-    /// The annotation line index at mark time.
-    pub(super) annotation_line_index: u32,
-    /// The next line start offset used by annotation line tracking.
-    pub(super) annotation_next_line_start: u32,
     /// The first mutable next non newline index at mark time.
     pub(super) pending_non_newline_start: usize,
     /// The next non newline tail values from pending_non_newline_start onward.
@@ -73,12 +65,6 @@ pub struct TokenStreamMark {
     pub(super) bracket_stack: Vec<usize>,
     /// Whether side trivia since the last semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
-    /// Whether comment annotation tokens were seen at mark time.
-    pub(super) has_comment_annotation_tokens: bool,
-    /// Whether blank annotation tokens were seen at mark time.
-    pub(super) has_blank_annotation_tokens: bool,
-    /// Whether the previous semantic token at mark time was a newline.
-    pub(super) previous_semantic_is_newline: bool,
 }
 
 /// Lazy token stream that drives the lexer on demand.
@@ -90,10 +76,6 @@ pub struct TokenStream {
     tokens: Vec<TokenSpan>,
     /// The side tokens produced so far.
     side_tokens: Vec<TokenSpan>,
-    /// The tokens used for annotation attachment in source order without whitespace.
-    annotation_tokens: Vec<TokenSpan>,
-    /// The line index for every annotation token.
-    annotation_line_indices: Vec<u32>,
     /// The cached next non newline token indexes.
     next_non_newline: Vec<u32>,
     /// The cached matching pair indexes for delimiters.
@@ -114,16 +96,6 @@ pub struct TokenStream {
     bracket_stack: Vec<usize>,
     /// Whether side trivia since the previous semantic token had a line terminator.
     pending_line_terminator_before_next: bool,
-    /// Whether comment annotation tokens were seen.
-    has_comment_annotation_tokens: bool,
-    /// Whether blank annotation tokens were seen.
-    has_blank_annotation_tokens: bool,
-    /// Whether the previous semantic token was a newline.
-    previous_semantic_is_newline: bool,
-    /// The current annotation line index.
-    annotation_line_index: u32,
-    /// The next file offset where annotation line index increments.
-    annotation_next_line_start: u32,
     /// Whether EOF has been reached.
     is_finished: bool,
     /// The cached EOF token, when available.
@@ -140,22 +112,12 @@ impl TokenStream {
         // allocate buffers using the same heuristic as the lexer
         let tokens = Vec::with_capacity(estimated_tokens * 3 / 5);
         let side_tokens = Vec::with_capacity(estimated_tokens * 2 / 5);
-        let annotation_tokens = Vec::with_capacity(estimated_tokens);
-        let annotation_line_indices = Vec::with_capacity(estimated_tokens);
-
-        // track annotation line indices incrementally
-        let mut annotation_next_line_start = u32::MAX;
-        if let Some(line_starts) = file.line_start_offsets.as_ref() {
-            annotation_next_line_start = line_starts.get(1).copied().unwrap_or(u32::MAX);
-        }
 
         // build the stream
         Self {
             lexer: Lexer::new(file, language),
             tokens,
             side_tokens,
-            annotation_tokens,
-            annotation_line_indices,
             next_non_newline: Vec::new(),
             matching_pairs: Vec::new(),
             token_keywords: Vec::new(),
@@ -166,11 +128,6 @@ impl TokenStream {
             brace_stack: Vec::new(),
             bracket_stack: Vec::new(),
             pending_line_terminator_before_next: false,
-            has_comment_annotation_tokens: false,
-            has_blank_annotation_tokens: false,
-            previous_semantic_is_newline: false,
-            annotation_line_index: 0,
-            annotation_next_line_start,
             is_finished: false,
             eof_token: None,
         }
@@ -186,18 +143,6 @@ impl TokenStream {
     #[inline]
     pub fn side_tokens(&self) -> &[TokenSpan] {
         &self.side_tokens
-    }
-
-    /// Return annotation tokens in source order without whitespace.
-    #[inline]
-    pub fn annotation_tokens(&self) -> &[TokenSpan] {
-        &self.annotation_tokens
-    }
-
-    /// Return line indices for annotation tokens.
-    #[inline]
-    pub fn annotation_line_indices(&self) -> &[u32] {
-        &self.annotation_line_indices
     }
 
     /// Return true once EOF has been reached.
@@ -243,19 +188,12 @@ impl TokenStream {
             lexer: self.lexer.snapshot(),
             tokens_len: self.tokens.len(),
             side_tokens_len: self.side_tokens.len(),
-            annotation_tokens_len: self.annotation_tokens.len(),
-            annotation_line_indices_len: self.annotation_line_indices.len(),
-            annotation_line_index: self.annotation_line_index,
-            annotation_next_line_start: self.annotation_next_line_start,
             pending_non_newline_start,
             next_non_newline_tail: self.next_non_newline[pending_non_newline_start..].to_vec(),
             paren_stack: self.paren_stack.clone(),
             brace_stack: self.brace_stack.clone(),
             bracket_stack: self.bracket_stack.clone(),
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
-            has_comment_annotation_tokens: self.has_comment_annotation_tokens,
-            has_blank_annotation_tokens: self.has_blank_annotation_tokens,
-            previous_semantic_is_newline: self.previous_semantic_is_newline,
         }
     }
 
@@ -265,19 +203,12 @@ impl TokenStream {
             lexer,
             tokens_len,
             side_tokens_len,
-            annotation_tokens_len,
-            annotation_line_indices_len,
-            annotation_line_index,
-            annotation_next_line_start,
             pending_non_newline_start,
             next_non_newline_tail,
             paren_stack,
             brace_stack,
             bracket_stack,
             pending_line_terminator_before_next,
-            has_comment_annotation_tokens,
-            has_blank_annotation_tokens,
-            previous_semantic_is_newline,
         } = mark;
 
         // restore lexer state and truncate token buffers
@@ -289,14 +220,6 @@ impl TokenStream {
             self.lexer.side_tokens.truncate(side_tokens_len);
         }
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
-        self.has_comment_annotation_tokens = has_comment_annotation_tokens;
-        self.has_blank_annotation_tokens = has_blank_annotation_tokens;
-        self.previous_semantic_is_newline = previous_semantic_is_newline;
-        self.annotation_tokens.truncate(annotation_tokens_len);
-        self.annotation_line_indices
-            .truncate(annotation_line_indices_len);
-        self.annotation_line_index = annotation_line_index;
-        self.annotation_next_line_start = annotation_next_line_start;
 
         // fast path: no semantic token changes, caches are still valid
         if !semantic_tokens_changed {
@@ -423,33 +346,8 @@ impl TokenStream {
         self.brace_stack.clear();
         self.bracket_stack.clear();
         self.pending_line_terminator_before_next = false;
-        self.has_comment_annotation_tokens = false;
-        self.has_blank_annotation_tokens = false;
-        self.previous_semantic_is_newline = false;
-        self.annotation_tokens.clear();
-        self.annotation_line_indices.clear();
-        self.annotation_line_index = 0;
-        self.annotation_next_line_start = self
-            .lexer
-            .file
-            .line_start_offsets
-            .as_ref()
-            .and_then(|starts| starts.get(1).copied())
-            .unwrap_or(u32::MAX);
 
         (tokens, side_tokens)
-    }
-
-    /// Return whether comment annotation tokens were seen.
-    #[inline]
-    pub fn has_comment_annotation_tokens(&self) -> bool {
-        self.has_comment_annotation_tokens
-    }
-
-    /// Return whether blank annotation tokens were seen.
-    #[inline]
-    pub fn has_blank_annotation_tokens(&self) -> bool {
-        self.has_blank_annotation_tokens
     }
 
     /// Return whether trivia before a semantic token index had a line terminator.
@@ -590,8 +488,6 @@ impl TokenStream {
             },
         };
 
-        self.push_annotation_token(token_span);
-
         if is_semantic(token.ty) {
             self.push_semantic_token(token_span);
         } else {
@@ -604,41 +500,9 @@ impl TokenStream {
         }
     }
 
-    /// Push a token into the annotation cache when it is not whitespace.
-    #[inline]
-    fn push_annotation_token(&mut self, token_span: TokenSpan) {
-        if token_span.token.ty == TokenType::Whitespace {
-            return;
-        }
-
-        while token_span.span.start >= self.annotation_next_line_start {
-            self.annotation_line_index += 1;
-            self.annotation_next_line_start = self
-                .lexer
-                .file
-                .line_start_offsets
-                .as_ref()
-                .and_then(|starts| starts.get(self.annotation_line_index as usize + 1).copied())
-                .unwrap_or(u32::MAX);
-        }
-
-        self.annotation_tokens.push(token_span);
-        self.annotation_line_indices
-            .push(self.annotation_line_index);
-    }
-
     /// Push a side token and update side-token-driven stream flags.
     #[inline]
     fn push_side_token(&mut self, token_span: TokenSpan) {
-        if matches!(
-            token_span.token.ty,
-            TokenType::LineComment
-                | TokenType::BlockComment
-                | TokenType::DocLineComment
-                | TokenType::DocBlockComment
-        ) {
-            self.has_comment_annotation_tokens = true;
-        }
         self.side_tokens.push(token_span);
         if self.side_token_has_line_terminator(token_span) {
             self.pending_line_terminator_before_next = true;
@@ -665,16 +529,6 @@ impl TokenStream {
         self.line_terminators_before
             .push(has_line_terminator_before);
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
-
-        // track blank lines from semantic newline runs
-        if token_span.token.ty == TokenType::Newline {
-            if self.previous_semantic_is_newline {
-                self.has_blank_annotation_tokens = true;
-            }
-            self.previous_semantic_is_newline = true;
-        } else {
-            self.previous_semantic_is_newline = false;
-        }
 
         // update lexer context for regex and tree rules
         self.lexer.track_semantic_token(token_span);

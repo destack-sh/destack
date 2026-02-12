@@ -8,15 +8,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use super::expression::lookahead::ParenthesizedGroupShape;
 use crate::{TokenStream, TokenStreamMark, is_semantic};
 use destack_ast::{
-    BlockFormat, Decorator, Expression, Keyword, LocalNodeId, NodeTree, NodeType, StringId, Token,
-    TokenSpan, TokenType,
+    BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeType, StringId, Token, TokenSpan,
+    TokenType,
 };
 use destack_base::LocalStringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
 };
 
-use crate::parse::timing::{ParserTimingScope, ParserTimings, tags};
+use crate::parse::timing::{ParserTimingScope, ParserTimings};
 use crate::{ParseError, ParseResult};
 
 /// Cached string ids for type literal identifiers.
@@ -596,8 +596,6 @@ pub struct Parser {
     is_finished: bool,
     /// Expression recursion depth for periodic stack growth checks.
     pub(crate) expression_stack_depth: u32,
-    /// Whether the position index is built.
-    pub(crate) positions_built: bool,
     /// Whether tokens were fully lexed before parsing.
     pub(crate) tokens_prelexed: bool,
     /// The parser options.
@@ -614,10 +612,6 @@ pub struct Parser {
     pub diagnostics: DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParseError>,
-    /// Scratch storage for annotation tokens to avoid repeated allocations.
-    pub(crate) annotation_tokens: Vec<TokenSpan>,
-    /// Scratch storage for annotation line indices to avoid repeated allocations.
-    pub(crate) annotation_line_indices: Vec<u32>,
     /// Scratch storage for statement wrappers keyed by expression id.
     pub(crate) annotation_statement_wrappers: Vec<Option<u32>>,
     /// Whether statement wrapper mappings are precise for the current tree.
@@ -663,7 +657,6 @@ impl Parser {
         let estimated_tokens = file.text().len() / 6;
         let estimated_nodes = estimated_tokens / 3;
         let file_id = file.id;
-        let token_capacity = estimated_tokens * 2;
         let mut strings = LocalStringPool::new();
         let type_literal_identifiers = TypeLiteralIdentifiers::new(&mut strings);
         let global_identifier = Some(strings.intern("global"));
@@ -678,7 +671,6 @@ impl Parser {
             split_token_consumed: false,
             is_finished: false,
             expression_stack_depth: 0,
-            positions_built: false,
             tokens_prelexed: false,
             options: ParserOptions::default(),
             language,
@@ -686,8 +678,6 @@ impl Parser {
             strings,
             diagnostics: DiagnosticCollector::new(),
             errors: Vec::new(),
-            annotation_tokens: Vec::with_capacity(token_capacity),
-            annotation_line_indices: Vec::with_capacity(token_capacity),
             annotation_statement_wrappers: Vec::with_capacity(estimated_nodes),
             annotation_statement_wrappers_precise: true,
             timings: timings_enabled_from_env().then(|| Rc::new(ParserTimings::default())),
@@ -738,13 +728,15 @@ impl Parser {
     }
 
     /// Get the span of all side annotations from a tree.
-    /// Uses Decorator spans since these exist before Annotation nodes are created.
     #[inline]
     pub fn compute_side_span_from_tree(tree: &NodeTree) -> MultiSpan {
-        let decorator_spans = tree.get_spans_for(NodeType::Decorator);
-        MultiSpan::new(decorator_spans)
-    }
+        // annotation nodes are the canonical side spans
+        let mut spans = tree.get_spans_for(NodeType::Annotation);
 
+        // keep raw decorator spans that have not been attached yet
+        spans.extend(tree.get_spans_for(NodeType::Decorator));
+        MultiSpan::new(spans)
+    }
     /// Reset the parser.
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
@@ -763,7 +755,6 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             *speculation_stats = ParserSpeculationStats::default();
         }
-        self.positions_built = false;
     }
 
     /// Start a parser timing scope.
@@ -857,24 +848,6 @@ impl Parser {
         self.token_stream.tokens()
     }
 
-    /// Return the current side tokens.
-    #[inline]
-    pub(crate) fn side_tokens(&self) -> &[TokenSpan] {
-        self.token_stream.side_tokens()
-    }
-
-    /// Return annotation tokens in source order without whitespace.
-    #[inline]
-    pub(crate) fn annotation_tokens(&self) -> &[TokenSpan] {
-        self.token_stream.annotation_tokens()
-    }
-
-    /// Return line indices for annotation tokens.
-    #[inline]
-    pub(crate) fn annotation_line_indices(&self) -> &[u32] {
-        self.token_stream.annotation_line_indices()
-    }
-
     /// Ensure a token exists at the given index.
     #[inline]
     pub(crate) fn ensure_token(&mut self, index: usize) {
@@ -917,18 +890,6 @@ impl Parser {
     #[inline]
     pub(crate) fn lex_to_end(&mut self) {
         self.token_stream.lex_to_end();
-    }
-
-    /// Return true when comment annotation tokens were observed.
-    #[inline]
-    pub(crate) fn has_comment_annotation_tokens(&self) -> bool {
-        self.token_stream.has_comment_annotation_tokens()
-    }
-
-    /// Return true when blank annotation tokens were observed.
-    #[inline]
-    pub(crate) fn has_blank_annotation_tokens(&self) -> bool {
-        self.token_stream.has_blank_annotation_tokens()
     }
 
     /// Return the next non newline token index from a start index.
@@ -1146,74 +1107,45 @@ impl Parser {
 
         // parse the root block body with recovery
         let start = self.mark_span();
-        let mut expressions = self.with_recovery(
+        let expressions = self.with_recovery(
             &start,
             |parser| parser.eat_block_body(BlockFormat::Implicit),
             Vec::new(),
             TokenType::End,
         );
 
-        // insert a stub expression if there are no expressions but there are annotations
-        // (this ensures annotations have something to attach to, e.g. in comment-only files)
-        self.lex_to_end();
-        if expressions.is_empty() && self.has_comment_annotation_tokens() {
-            let stub = self.tree.insert(Expression::Stub, self.file_span());
-            expressions.push(stub);
-        }
-
         self.print_speculation_stats_if_enabled();
 
         expressions
     }
 
-    /// Return true when annotations should be attached.
-    pub(crate) fn should_attach_annotations(&mut self) -> bool {
-        self.lex_to_end();
-        if self.has_comment_annotation_tokens() {
-            return true;
-        }
-        if self.has_blank_annotation_tokens() {
-            return true;
-        }
-
-        !self.tree.get_nodes::<Decorator>().is_empty()
-    }
-
-    /// Get a span covering the entire file.
-    fn file_span(&self) -> Span {
-        Span::new(self.file_id, 0, self.file.len)
-    }
-
     /// Finish parsing. You don't need to call this manually if using Parser::parse().
     pub fn finish(&mut self) {
         if !self.is_finished {
+            // parse time attachment is complete before finish
             self.finish_annotations();
-            self.finish_positions();
             self.is_finished = true;
         }
     }
 
-    /// Attach annotation nodes after parsing.
+    /// Finalize parse time annotations.
+    ///
+    /// Annotation ownership is resolved during parsing, and finish normalizes stable annotation order.
     pub fn finish_annotations(&mut self) {
         if self.is_finished {
             return;
         }
-        self.attach_annotations();
-    }
 
+        self.tree.sort_annotations();
+    }
     /// Build the position index after parsing.
+    ///
+    /// Position indexes are now built lazily by source map lookups, so this is a compatibility no op.
     pub fn finish_positions(&mut self) {
         if self.is_finished {
             return;
         }
-        if self.positions_built {
-            return;
-        }
-        let _timing = self.timing_scope(tags::PARSE_POSITIONS_BUILD);
-        self.tree.build_position_index();
-        self.positions_built = true;
     }
-
     /// Get the current position in the tokens.
     #[inline]
     pub fn pos(&self) -> u32 {
