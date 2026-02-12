@@ -296,7 +296,7 @@ export interface WorkspaceAnalyzeOutcome {
 }
 
 export interface WasmCapabilities {
-    profile: string;
+    preset: string;
     query: boolean;
     lint: boolean;
     optimize: boolean;
@@ -306,7 +306,7 @@ export interface WasmCapabilities {
     nativeCodegen: boolean;
     deadlockDetection: boolean;
     builtinFull: boolean;
-    builtinWasmCore: boolean;
+    builtinCore: boolean;
 }
 
 type GeneratedModule = {

@@ -290,11 +290,14 @@ pub fn default_run_options() -> RunOptions {
 /// Run a program synchronously.
 #[napi(js_name = "runSync")]
 pub fn run_sync(input: RunInput, options: Option<RunOptions>) -> napi::Result<RunResult> {
+    // normalize inputs
     let options = options.unwrap_or_default();
     let cwd = PathBuf::from(&options.cwd);
     let roots = run_roots_from_options(&options, &cwd);
     let daemon_root = roots.first().cloned().unwrap_or_else(|| cwd.clone());
     let compiler_options = options.compiler.clone();
+
+    // build command payload and options
     let command_input = command_input_from_run_input(input, &cwd)?;
     let command_options = common_command_options_from_run_options(&options, command_input)?;
     let command_payload = daemon::CommandPayload::Run(daemon::CommandRunOptions {
@@ -303,15 +306,18 @@ pub fn run_sync(input: RunInput, options: Option<RunOptions>) -> napi::Result<Ru
         run_mode: options.mode.into(),
     });
 
+    // execute command with daemon
     let session = Arc::new(workspace::Session::new(daemon_root.clone()));
     let daemon = daemon::Daemon::with_options(session, compiler_options.into());
     let response = daemon
         .run_command(&daemon_root, &command_options, &command_payload)
         .map_err(napi_error_from_run)?;
 
+    // map daemon response
     run_result_from_command_response(response)
 }
 
+/// Build workspace roots for a run request.
 fn run_roots_from_options(options: &RunOptions, cwd: &Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
@@ -320,7 +326,9 @@ fn run_roots_from_options(options: &RunOptions, cwd: &Path) -> Vec<PathBuf> {
     }
 }
 
+/// Map a run input payload to daemon command input.
 fn command_input_from_run_input(input: RunInput, cwd: &Path) -> napi::Result<daemon::CommandInput> {
+    // file input
     match input.kind {
         RunInputKind::File => {
             let path = input
@@ -334,6 +342,7 @@ fn command_input_from_run_input(input: RunInput, cwd: &Path) -> napi::Result<dae
             };
             Ok(daemon::CommandInput::File { path })
         }
+        // inline input
         RunInputKind::Inline => {
             let name = input.name.unwrap_or_else(|| "<eval>.ds".to_string());
             let content = input
@@ -346,6 +355,7 @@ fn command_input_from_run_input(input: RunInput, cwd: &Path) -> napi::Result<dae
                 file_type,
             })
         }
+        // stdin input
         RunInputKind::Stdin => {
             let name = input.name.unwrap_or_else(|| "<stdin>.ds".to_string());
             let content = input
@@ -361,6 +371,7 @@ fn command_input_from_run_input(input: RunInput, cwd: &Path) -> napi::Result<dae
     }
 }
 
+/// Resolve a file type from explicit options or input name.
 fn run_input_file_type_from_name(name: &str, file_type: Option<FileType>) -> source::FileType {
     if let Some(file_type) = file_type {
         return file_type.into();
@@ -369,16 +380,22 @@ fn run_input_file_type_from_name(name: &str, file_type: Option<FileType>) -> sou
     source::FileType::from_path(Path::new(name)).unwrap_or(source::FileType::Destack)
 }
 
+/// Build shared daemon command options from run options.
 fn common_command_options_from_run_options(
     options: &RunOptions,
     input: daemon::CommandInput,
 ) -> napi::Result<daemon::CommonCommandOptions> {
+    // decode json override payloads
     let target_overrides = parse_target_overrides_json(options.target_overrides_json.as_deref())?;
     let runtime_overrides =
         parse_runtime_overrides_json(options.runtime_overrides_json.as_deref())?;
+
+    // map path and profile options
     let cache_dir = options.cache_dir.as_ref().map(PathBuf::from);
     let config_path = options.config_path.as_ref().map(PathBuf::from);
     let profile = options.profile.clone();
+
+    // map env and config overrides
     let env = options
         .env
         .iter()
@@ -393,6 +410,7 @@ fn common_command_options_from_run_options(
         .map(run_config_override_to_core)
         .collect::<napi::Result<Vec<_>>>()?;
 
+    // assemble daemon options
     Ok(daemon::CommonCommandOptions {
         inputs: vec![input],
         allow_dsconfig_fallback: options.allow_dsconfig_fallback,
@@ -410,6 +428,7 @@ fn common_command_options_from_run_options(
     })
 }
 
+/// Decode a config override payload from JSON.
 fn run_config_override_to_core(
     override_entry: &RunConfigOverride,
 ) -> napi::Result<daemon::ConfigOverride> {
@@ -425,6 +444,7 @@ fn run_config_override_to_core(
     })
 }
 
+/// Parse JSON target overrides payload when provided.
 fn parse_target_overrides_json(
     input: Option<&str>,
 ) -> napi::Result<Option<daemon::CommandTargetOverrides>> {
@@ -437,6 +457,7 @@ fn parse_target_overrides_json(
         .transpose()
 }
 
+/// Parse JSON runtime overrides payload when provided.
 fn parse_runtime_overrides_json(
     input: Option<&str>,
 ) -> napi::Result<Option<workspace::DsConfigRuntimeOptionsJson>> {
@@ -449,9 +470,11 @@ fn parse_runtime_overrides_json(
         .transpose()
 }
 
+/// Map a daemon command result into the public run result payload.
 fn run_result_from_command_response(
     response: daemon::DaemonCommandResult,
 ) -> napi::Result<RunResult> {
+    // collect diagnostics and payload
     let diagnostics = run_diagnostics_from_collection(&response.diagnostics);
     let payload = response
         .data
@@ -459,9 +482,11 @@ fn run_result_from_command_response(
         .map(run_payload_from_value)
         .transpose()?;
 
+    // compute diagnostic summary flags
     let has_errors = diagnostics_have_errors(&diagnostics);
     let has_warnings = diagnostics_have_warnings(&diagnostics);
 
+    // assemble response
     Ok(RunResult {
         success: response.success,
         exit_code: response.exit_code,
@@ -482,10 +507,12 @@ fn run_result_from_command_response(
     })
 }
 
+/// Clone diagnostics into binding payloads.
 fn run_diagnostics_from_collection(diagnostics: &[source::Diagnostic]) -> Vec<Diagnostic> {
     diagnostics.iter().cloned().map(Into::into).collect()
 }
 
+/// Convert a daemon output chunk into the binding payload.
 fn run_output_chunk_binding(chunk: daemon::DaemonCommandOutputChunk) -> RunOutputChunk {
     RunOutputChunk {
         stream: chunk.stream.into(),
@@ -493,6 +520,7 @@ fn run_output_chunk_binding(chunk: daemon::DaemonCommandOutputChunk) -> RunOutpu
     }
 }
 
+/// Decode a structured run payload from command response JSON.
 fn run_payload_from_value(payload: &serde_json::Value) -> napi::Result<RunPayload> {
     let payload_result = serde_json::from_value::<daemon::CommandRunPayload>(payload.clone());
 
@@ -518,6 +546,7 @@ fn run_payload_from_value(payload: &serde_json::Value) -> napi::Result<RunPayloa
     })
 }
 
+/// Convert command stats into the binding payload.
 fn run_stats_binding(stats: &daemon::DaemonCommandStats) -> RunStats {
     RunStats {
         elapsed_ms: saturating_u32_from_u64(stats.elapsed_ms),
@@ -549,6 +578,7 @@ fn run_stats_binding(stats: &daemon::DaemonCommandStats) -> RunStats {
     }
 }
 
+/// Convert `usize` values into a saturating `u32`.
 fn saturating_u32_from_usize(value: usize) -> u32 {
     if value > u32::MAX as usize {
         u32::MAX
@@ -557,6 +587,7 @@ fn saturating_u32_from_usize(value: usize) -> u32 {
     }
 }
 
+/// Convert `u64` values into a saturating `u32`.
 fn saturating_u32_from_u64(value: u64) -> u32 {
     if value > u64::from(u32::MAX) {
         u32::MAX
@@ -565,6 +596,7 @@ fn saturating_u32_from_u64(value: u64) -> u32 {
     }
 }
 
+/// Convert run errors into NAPI errors.
 fn napi_error_from_run(error: impl std::fmt::Display) -> Error {
     Error::from_reason(error.to_string())
 }

@@ -13,14 +13,38 @@ doctest = false
 
 [dependencies]
 # language
-destack_compiler = { workspace = true }
+destack_compiler = { path = "../../compiler", default-features = false }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { workspace = true }
+destack_workspace = { path = "..", default-features = false }
 
 # general
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
+
+[features]
+default = ["full"]
+query = ["destack_workspace/query"]
+parallel = ["destack_compiler/parallel"]
+native-codegen = ["destack_compiler/native-codegen"]
+deadlock-detection = ["destack_compiler/deadlock-detection"]
+lint = ["destack_compiler/lint"]
+optimize = ["destack_compiler/optimize"]
+builtin-full = ["destack_compiler/builtin-full", "destack_workspace/builtin-full"]
+builtin-core = [
+    "destack_compiler/builtin-core",
+    "destack_workspace/builtin-core",
+]
+full = [
+    "query",
+    "parallel",
+    "native-codegen",
+    "deadlock-detection",
+    "lint",
+    "optimize",
+    "builtin-full",
+]
+core = ["builtin-core"]
 
 [lints]
 workspace = true

@@ -1,3 +1,4 @@
+#[cfg(feature = "native-codegen")]
 mod cranelift;
 mod error;
 mod js;

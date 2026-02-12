@@ -122,7 +122,7 @@ pub struct ExtensionAliasEntry {
     pub aliases: Vec<String>,
 }
 
-// -- Resolve Options --
+// resolve options
 
 /// Resolution options for module resolution.
 #[napi(object)]
@@ -412,7 +412,7 @@ pub fn default_resolve_options() -> ResolveOptions {
     resolver::ResolveOptions::default().into()
 }
 
-// -- Resolution Result --
+// resolution result
 
 /// The result of a successful module resolution.
 #[napi(object)]
@@ -443,6 +443,7 @@ pub fn resolve_sync(
     from: String,
     options: Option<ResolveOptions>,
 ) -> napi::Result<Resolution> {
+    // normalize inputs and resolver context
     let options = options.unwrap_or_default();
     let cwd = resolve_cwd_from_options(&options)?;
     let from_path = resolve_from_path(&from, &cwd);
@@ -451,13 +452,16 @@ pub fn resolve_sync(
     let session = workspace::Session::new(cwd);
     let resolver = resolver::Resolver::from_session(&session, core_options);
 
+    // resolve and map errors with context
     let resolution = resolver
         .resolve(&from_directory, &specifier)
         .map_err(|error| napi_error_from_resolve(error, &specifier, &from_directory))?;
 
+    // assemble response
     Ok(resolution.into())
 }
 
+/// Resolve the current working directory from options.
 fn resolve_cwd_from_options(options: &ResolveOptions) -> napi::Result<PathBuf> {
     if let Some(cwd) = options.cwd.as_ref() {
         return Ok(PathBuf::from(cwd));
@@ -468,6 +472,7 @@ fn resolve_cwd_from_options(options: &ResolveOptions) -> napi::Result<PathBuf> {
     })
 }
 
+/// Resolve the absolute input path for the `from` location.
 fn resolve_from_path(from: &str, cwd: &Path) -> PathBuf {
     let from_path = PathBuf::from(from);
     if from_path.is_absolute() {
@@ -477,7 +482,9 @@ fn resolve_from_path(from: &str, cwd: &Path) -> PathBuf {
     }
 }
 
+/// Normalize the `from` location into a directory.
 fn resolve_from_directory(from_path: &Path) -> PathBuf {
+    // treat existing files as parent directory contexts
     if from_path
         .metadata()
         .map(|metadata| metadata.is_file())
@@ -489,6 +496,7 @@ fn resolve_from_directory(from_path: &Path) -> PathBuf {
             .unwrap_or_else(|| from_path.to_path_buf());
     }
 
+    // also treat extension-like paths as file contexts
     if from_path.extension().is_some() {
         return from_path
             .parent()
@@ -499,6 +507,7 @@ fn resolve_from_directory(from_path: &Path) -> PathBuf {
     from_path.to_path_buf()
 }
 
+/// Convert resolve errors into NAPI errors.
 fn napi_error_from_resolve(error: resolver::ResolveError, specifier: &str, from: &Path) -> Error {
     Error::from_reason(format!(
         "failed to resolve '{specifier}' from '{}': {error}",

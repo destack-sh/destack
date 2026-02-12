@@ -70,9 +70,11 @@ pub fn transform_sync(
     content: String,
     options: Option<TransformOptions>,
 ) -> napi::Result<TransformResult> {
+    // normalize inputs
     let options = options.unwrap_or_default();
     let path = PathBuf::from(path);
 
+    // build workspace service
     let cwd = PathBuf::from(&options.cwd);
     let roots = transform_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
@@ -80,6 +82,7 @@ pub fn transform_sync(
         workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_transform)?;
 
+    // update and analyze the module
     service
         .update_virtual_file(&path, content)
         .map_err(napi_error_from_transform)?;
@@ -87,15 +90,18 @@ pub fn transform_sync(
         .ensure_analyzed_for_path(&path)
         .map_err(napi_error_from_transform)?;
 
+    // format transformed output
     let code = service
         .with_program_for_path(&path, |program, compiler| {
             transform_module_code(&path, &program, &compiler, options.target)
         })
         .map_err(Error::from_reason)?;
 
+    // assemble response
     Ok(TransformResult { code })
 }
 
+/// Build workspace roots for a transform request.
 fn transform_roots_from_options(options: &TransformOptions, cwd: &Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
@@ -104,12 +110,14 @@ fn transform_roots_from_options(options: &TransformOptions, cwd: &Path) -> Vec<P
     }
 }
 
+/// Transform a module into formatted output code.
 fn transform_module_code(
     path: &Path,
     program: &workspace::Program,
     compiler: &compiler::Compiler,
     target: TransformTarget,
 ) -> Result<String, String> {
+    // resolve and unbind the module
     let module_id = compiler
         .resolve_path_to_module(&path.to_path_buf())
         .map_err(|error| format!("failed to resolve module for '{}': {error}", path.display()))?;
@@ -119,6 +127,7 @@ fn transform_module_code(
     let module = module.read();
     let unbound = compiler.unbind_module(&module, profile_id);
 
+    // build synthetic output file context
     let file_type = transform_target_file_type(target);
     let file_name = path
         .file_name()
@@ -133,6 +142,7 @@ fn transform_module_code(
         String::new(),
     );
 
+    // create formatter context for unbound trees
     let strings = unbound.strings.into_immutable();
     let empty_tokens = Vec::new();
     let empty_side_tokens = Vec::new();
@@ -150,6 +160,7 @@ fn transform_module_code(
         },
     );
 
+    // format each root and join chunks
     let mut chunks = Vec::new();
     for root_id in &unbound.roots {
         let formatted = destack_fir::format!(context.clone(), [root_id])
@@ -163,6 +174,7 @@ fn transform_module_code(
     Ok(chunks.join("\n\n"))
 }
 
+/// Map a transform target to the output file type.
 fn transform_target_file_type(target: TransformTarget) -> source::FileType {
     match target {
         TransformTarget::TypeScript => source::FileType::TypeScript,
@@ -170,6 +182,7 @@ fn transform_target_file_type(target: TransformTarget) -> source::FileType {
     }
 }
 
+/// Convert transform errors into NAPI errors.
 fn napi_error_from_transform(error: impl std::fmt::Display) -> Error {
     Error::from_reason(error.to_string())
 }

@@ -13,13 +13,15 @@ Integrated packages for building full-stack applications with Destack.
 | `web` | Web platform utilities |
 | `test` | Testing utilities |
 | `napi` | N-API bindings exposing Rust toolchain to JS |
+| `wasm` | WebAssembly bindings exposing Rust toolchain to browser JS |
 
 ## Commands
 
 ```sh
-just library/napi   # build napi bindings
-just library/test   # run tests
-just library/fmt    # format code
-just library/lint   # lint code
+just library/napi        # build napi bindings
+just library/wasm        # build wasm bindings
+just library/wasm-size   # canonical wasm size analysis with preset defaults
+just library/test        # run tests
+just library/fmt         # format code
+just library/lint        # lint code
 ```
-

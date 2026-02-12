@@ -30,9 +30,19 @@ pub const STACK_PER_RECURSION: usize = 1024 * 1024;
 ///     })
 /// }
 /// ```
+#[cfg(not(target_arch = "wasm32"))]
 #[inline]
 pub fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
     stacker::maybe_grow(STACK_RED_ZONE, STACK_PER_RECURSION, f)
+}
+
+/// Execute a recursive operation without stack growth on wasm targets.
+///
+/// wasm currently does not support stack growth through `stacker`.
+#[cfg(target_arch = "wasm32")]
+#[inline]
+pub fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
+    f()
 }
 
 /// A macro to wrap function bodies with stack growth protection.

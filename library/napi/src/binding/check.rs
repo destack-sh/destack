@@ -58,9 +58,11 @@ pub fn check_sync(
     content: String,
     options: Option<CheckOptions>,
 ) -> napi::Result<CheckResult> {
+    // normalize inputs
     let options = options.unwrap_or_default();
     let path = PathBuf::from(path);
 
+    // build workspace service
     let cwd = PathBuf::from(&options.cwd);
     let roots = check_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
@@ -68,11 +70,13 @@ pub fn check_sync(
         workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_check)?;
 
+    // collect diagnostics from the virtual update
     let update_result = service
         .update_virtual_file(&path, content)
         .map_err(napi_error_from_check)?;
     let diagnostics = check_diagnostics_from_workspace_result(update_result);
 
+    // assemble response
     Ok(CheckResult {
         diagnostic_count: diagnostics.len() as u32,
         has_errors: diagnostics_have_errors(&diagnostics),
@@ -81,6 +85,7 @@ pub fn check_sync(
     })
 }
 
+/// Build workspace roots for a check request.
 fn check_roots_from_options(options: &CheckOptions, cwd: &Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
@@ -89,6 +94,7 @@ fn check_roots_from_options(options: &CheckOptions, cwd: &Path) -> Vec<PathBuf> 
     }
 }
 
+/// Collect diagnostics from workspace update records.
 fn check_diagnostics_from_workspace_result(
     result: workspace_service::WorkspaceServiceResult,
 ) -> Vec<Diagnostic> {
@@ -100,6 +106,7 @@ fn check_diagnostics_from_workspace_result(
         .collect()
 }
 
+/// Convert check errors into NAPI errors.
 fn napi_error_from_check(error: impl std::fmt::Display) -> Error {
     Error::from_reason(error.to_string())
 }

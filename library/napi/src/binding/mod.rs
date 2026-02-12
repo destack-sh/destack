@@ -27,5 +27,3 @@ pub use service::*;
 pub use source::*;
 pub use transform::*;
 pub use workspace::*;
-
-// FUGU: update napi

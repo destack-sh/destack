@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+#[cfg(not(feature = "parallel"))]
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[cfg(feature = "parallel")]
 use crossbeam_deque::{Injector, Steal};
 use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
@@ -18,8 +21,11 @@ struct TaskIndex {
 /// Queue of compiler tasks with dependency tracking.
 pub struct TaskQueue {
     tasks: Mutex<TaskIndex>,
-    /// Ready queue (concurrent FIFO).
+    /// Ready queue.
+    #[cfg(feature = "parallel")]
     ready: Injector<TaskId>,
+    #[cfg(not(feature = "parallel"))]
+    ready: Mutex<VecDeque<TaskId>>,
     /// Dependency tracking: when task X completes, wake these waiting tasks.
     waiters: DashMap<TaskId, Vec<TaskId>>,
     /// Number of tasks currently being processed.
@@ -51,7 +57,10 @@ impl TaskQueue {
     pub fn new() -> Self {
         Self {
             tasks: Mutex::new(TaskIndex::default()),
+            #[cfg(feature = "parallel")]
             ready: Injector::new(),
+            #[cfg(not(feature = "parallel"))]
+            ready: Mutex::new(VecDeque::new()),
             waiters: DashMap::new(),
             active_count: AtomicUsize::new(0),
             work_available: (Mutex::new(()), Condvar::new()),
@@ -73,19 +82,26 @@ impl TaskQueue {
         drop(tasks);
 
         // add to ready queue and notify workers
-        self.ready.push(task_id);
-        self.notify_workers();
+        self.push_ready(task_id);
         (task_id, true)
     }
 
     /// Pop a task from the ready queue.
     pub(super) fn pop_ready(&self) -> Option<TaskId> {
-        loop {
-            match self.ready.steal() {
-                Steal::Success(task_id) => return Some(task_id),
-                Steal::Empty => return None,
-                Steal::Retry => continue,
+        #[cfg(feature = "parallel")]
+        {
+            loop {
+                match self.ready.steal() {
+                    Steal::Success(task_id) => return Some(task_id),
+                    Steal::Empty => return None,
+                    Steal::Retry => continue,
+                }
             }
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
+            self.ready.lock().pop_front()
         }
     }
 
@@ -172,7 +188,11 @@ impl TaskQueue {
 
     /// Push a task back to the ready queue.
     pub(super) fn push_ready(&self, task_id: TaskId) {
+        #[cfg(feature = "parallel")]
         self.ready.push(task_id);
+
+        #[cfg(not(feature = "parallel"))]
+        self.ready.lock().push_back(task_id);
         self.notify_workers();
     }
 
@@ -219,7 +239,7 @@ impl TaskQueue {
 
     /// Check if all work is done (no ready tasks and no active workers).
     pub(super) fn is_done(&self) -> bool {
-        self.ready.is_empty() && self.active_count.load(Ordering::SeqCst) == 0
+        self.is_ready_empty() && self.active_count.load(Ordering::SeqCst) == 0
     }
 
     /// Wait for work to become available or for all work to be done.
@@ -235,7 +255,7 @@ impl TaskQueue {
                 return false;
             }
             // check if work is available in ready queue
-            if !self.ready.is_empty() {
+            if !self.is_ready_empty() {
                 return true;
             }
             // wait for notification (handles spurious wakeups via loop)
@@ -249,5 +269,18 @@ impl TaskQueue {
         let (lock, condvar) = &self.work_available;
         let _guard = lock.lock();
         condvar.notify_all();
+    }
+
+    /// Return whether the ready queue has any pending tasks.
+    fn is_ready_empty(&self) -> bool {
+        #[cfg(feature = "parallel")]
+        {
+            self.ready.is_empty()
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
+            self.ready.lock().is_empty()
+        }
     }
 }

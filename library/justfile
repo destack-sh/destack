@@ -8,15 +8,33 @@ napi:
     cargo build --release -p destack_napi
     cd napi && bun run build
 
+# build wasm bindings
+wasm:
+    RUSTFLAGS='-C target-feature=+tail-call' cargo build --release -p destack_wasm --target wasm32-wasip2
+
+# canonical wasm size analysis command
+wasm-size:
+    cd wasm && bun ./scripts/size-report.mjs --build --preset core --top 20 --retained-top 20 --crate-top 12 --mono-top 8 --symbols
+
+# canonical wasm size analysis command without rebuilding
+wasm-size-no-build:
+    cd wasm && bun ./scripts/size-report.mjs --no-build --preset core --top 20 --retained-top 20 --crate-top 12 --mono-top 8 --symbols
+
+# analyze one preset with canonical size report settings
+wasm-size-preset preset="core":
+    cd wasm && bun ./scripts/size-report.mjs --build --preset {{preset}} --top 20 --retained-top 20 --crate-top 12 --mono-top 8 --symbols
+
 # check
 check:
     cargo clippy --release -p destack_napi
+    cargo check --release -p destack_wasm --target wasm32-wasip2
     bun x tsc --noEmit -p napi/tsconfig.json
     bun run biome lint .
 
 # test
 test:
     cargo test --release --all-targets -p destack_napi
+    cargo test --release --all-targets -p destack_wasm
     bun test
 
 # format code

@@ -517,9 +517,11 @@ pub fn lint_sync(
     content: String,
     options: Option<LinterRequestOptions>,
 ) -> napi::Result<LinterResult> {
+    // normalize inputs
     let options = options.unwrap_or_default();
     let path = PathBuf::from(path);
 
+    // build workspace service with linter session options
     let cwd = PathBuf::from(&options.cwd);
     let roots = lint_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd).with_linter(options.linter.into()));
@@ -527,19 +529,24 @@ pub fn lint_sync(
         workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_lint)?;
 
+    // collect update diagnostics
     let update_result = service
         .update_virtual_file(&path, content)
         .map_err(napi_error_from_lint)?;
     let mut diagnostics = lint_diagnostics_from_workspace_result(update_result);
 
+    // collect module lint diagnostics
     let lint_diagnostics = service
         .with_program_for_path(&path, |program, compiler| {
             lint_module_diagnostics(&path, &program, &compiler)
         })
         .map_err(Error::from_reason)?;
     diagnostics.extend(lint_diagnostics);
+
+    // dedupe repeated diagnostics
     diagnostics = dedupe_lint_diagnostics(diagnostics);
 
+    // assemble response
     Ok(LinterResult {
         diagnostic_count: diagnostics.len() as u32,
         has_errors: diagnostics_have_errors(&diagnostics),
@@ -548,6 +555,7 @@ pub fn lint_sync(
     })
 }
 
+/// Build workspace roots for a lint request.
 fn lint_roots_from_options(options: &LinterRequestOptions, cwd: &Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
@@ -556,26 +564,31 @@ fn lint_roots_from_options(options: &LinterRequestOptions, cwd: &Path) -> Vec<Pa
     }
 }
 
+/// Run linter compilation for the module owning a path.
 fn lint_module_diagnostics(
     path: &Path,
     program: &workspace::Program,
     compiler: &compiler::Compiler,
 ) -> Result<Vec<Diagnostic>, String> {
+    // resolve module and profile ids
     let module_id = compiler
         .resolve_path_to_module(&path.to_path_buf())
         .map_err(|error| format!("failed to resolve module for '{}': {error}", path.display()))?;
     let profile_id = program.default_profile_id_for_module(module_id);
 
+    // enqueue lint task and compile
     let _ = program.diagnostics.drain();
     let module = compiler.module_stamp(module_id);
     let profile = compiler.profile_stamp(profile_id);
     compiler.enqueue(compiler::LintTask::LintModule { module, profile });
     compiler.compile();
 
+    // collect diagnostics
     let diagnostics = program.diagnostics.collect();
     Ok(diagnostics.iter().into_iter().map(Into::into).collect())
 }
 
+/// Collect diagnostics from workspace update records.
 fn lint_diagnostics_from_workspace_result(
     result: workspace_service::WorkspaceServiceResult,
 ) -> Vec<Diagnostic> {
@@ -587,6 +600,7 @@ fn lint_diagnostics_from_workspace_result(
         .collect()
 }
 
+/// Remove duplicate diagnostics by stable location and message keys.
 fn dedupe_lint_diagnostics(diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
     let mut seen = HashSet::new();
     let mut deduped = Vec::new();
@@ -608,6 +622,7 @@ fn dedupe_lint_diagnostics(diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
     deduped
 }
 
+/// Convert `usize` values into a saturating `u32`.
 fn saturating_u32_from_usize(value: usize) -> u32 {
     if value > u32::MAX as usize {
         u32::MAX
@@ -616,6 +631,7 @@ fn saturating_u32_from_usize(value: usize) -> u32 {
     }
 }
 
+/// Convert lint errors into NAPI errors.
 fn napi_error_from_lint(error: impl std::fmt::Display) -> Error {
     Error::from_reason(error.to_string())
 }

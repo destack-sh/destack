@@ -64,9 +64,11 @@ pub fn format_sync(
     content: String,
     options: Option<FormatOptions>,
 ) -> napi::Result<FormatResult> {
+    // normalize inputs
     let options = options.unwrap_or_default();
     let path = PathBuf::from(path);
 
+    // derive source metadata
     let file_type = format_file_type(&path)?;
     let language = source::LanguageType::from(file_type);
     let file_name = path
@@ -74,6 +76,7 @@ pub fn format_sync(
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "<format>".to_string());
 
+    // build parser input file
     let file = source::File::from_text(
         source::FileId::new(0),
         file_name,
@@ -84,6 +87,7 @@ pub fn format_sync(
     );
     let file = Arc::new(file);
 
+    // parse source into ast and tokens
     let mut parser = parser::Parser::lex_file(file.clone(), language);
     let expressions: Vec<ast::LocalNodeId<ast::Expression>> = parser.parse();
     if !parser.errors.is_empty() {
@@ -94,11 +98,13 @@ pub fn format_sync(
         )));
     }
 
+    // collect parser artifacts
     let side_span: source::MultiSpan = parser.compute_side_span();
     let (tokens, side_tokens) = parser.take_tokens();
     let tree = parser.tree;
     let strings = parser.strings.into_immutable();
 
+    // format and print output
     let format_options = formatter::DestackFormatOptions::default()
         .with_line_ending(options.line_ending.into())
         .with_indent_style(options.indent_style.into())
@@ -125,11 +131,13 @@ pub fn format_sync(
         Error::from_reason(format!("failed to print '{}': {error}", path.display()))
     })?;
 
+    // assemble response
     Ok(FormatResult {
         code: printed.as_str().to_string(),
     })
 }
 
+/// Resolve a supported file type for formatting.
 fn format_file_type(path: &Path) -> napi::Result<source::FileType> {
     let file_type = source::FileType::from_path(path).ok_or_else(|| {
         Error::from_reason(format!(

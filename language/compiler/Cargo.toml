@@ -15,38 +15,38 @@ doctest = false
 # language
 destack_ast = { workspace = true }
 destack_base = { workspace = true }
-destack_builtin = { workspace = true }
+destack_builtin = { path = "../builtin", default-features = false }
 destack_compiler_macros = { workspace = true }
-destack_codegen_native = { workspace = true }
+destack_codegen_native = { workspace = true, optional = true }
 destack_codegen_js = { workspace = true }
 destack_codegen_lib = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
-destack_linter = { workspace = true }
+destack_linter = { workspace = true, optional = true }
 destack_vm = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { workspace = true }
+destack_workspace = { path = "../workspace", default-features = false }
 
 # general
-crossbeam-deque = { workspace = true }
+crossbeam-deque = { workspace = true, optional = true }
 dashmap = { workspace = true }
 filetime = { workspace = true }
-fs2 = { workspace = true }
 indexmap = { workspace = true }
-parking_lot = { workspace = true, features = ["deadlock_detection"] }
-rayon = { workspace = true }
+parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-serde_yaml_ng = { workspace = true }
 smallvec = { workspace = true }
-toml = { workspace = true }
 target-lexicon = { workspace = true }
 base64 = { workspace = true }
 tracing = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+serde_yaml_ng = { workspace = true }
+toml = { workspace = true }
 
 [dev-dependencies]
 destack_formatter = { workspace = true }
@@ -56,6 +56,23 @@ clap = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]
+default = ["full"]
+parallel = ["dep:crossbeam-deque"]
+native-codegen = ["dep:destack_codegen_native"]
+deadlock-detection = ["parking_lot/deadlock_detection"]
+lint = ["dep:destack_linter"]
+optimize = []
+builtin-full = ["destack_builtin/full", "destack_workspace/builtin-full"]
+builtin-core = ["destack_builtin/core", "destack_workspace/builtin-core"]
+full = [
+    "parallel",
+    "native-codegen",
+    "deadlock-detection",
+    "lint",
+    "optimize",
+    "builtin-full",
+]
+core = ["builtin-core"]
 bench = []
 
 [[bench]]

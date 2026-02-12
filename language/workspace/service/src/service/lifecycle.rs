@@ -3,7 +3,12 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use dashmap::mapref::entry::Entry;
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, TaskOutcome};
+#[cfg(feature = "query")]
+use destack_compiler::AnalyzeTask;
+#[cfg(feature = "query")]
+use destack_compiler::TaskOutcome;
+use destack_compiler::{Compiler, CompilerOptions};
+#[cfg(feature = "query")]
 use destack_source::FileId;
 use destack_workspace::{Program, Session};
 
@@ -128,6 +133,7 @@ impl WorkspaceService {
     }
 
     /// Resolve the workspace handle for a path.
+    #[cfg(feature = "query")]
     pub(crate) fn handle_for_path(
         &self,
         path: &Path,
@@ -205,11 +211,13 @@ impl WorkspaceService {
     }
 
     /// Return the session backing this service.
+    #[cfg(feature = "query")]
     pub(crate) fn session_ref(&self) -> &Session {
         self.session.as_ref()
     }
 
     /// Resolve a root path for a workspace handle.
+    #[cfg(feature = "query")]
     pub(crate) fn root_for_handle(
         &self,
         handle: WorkspaceHandleId,
@@ -221,11 +229,13 @@ impl WorkspaceService {
     }
 
     /// Resolve or create a program for a workspace root.
+    #[cfg(feature = "query")]
     pub(crate) fn program_for_root(&self, root: &Path) -> Arc<Program> {
         self.session.get_or_create_program(root.to_path_buf())
     }
 
     /// Validate module semantics for file scoped queries.
+    #[cfg(feature = "query")]
     pub(crate) fn validate_semantic_query_module(
         &self,
         program: &Program,

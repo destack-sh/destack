@@ -1,6 +1,4 @@
-use std::num::NonZero;
 use std::sync::Arc;
-use std::thread;
 
 use dashmap::DashMap;
 
@@ -15,6 +13,13 @@ use crate::{
     TaskResultCollector, TaskStatus, TaskWarning,
 };
 
+use super::parallel::default_workers as resolve_default_workers;
+
+/// Get the default number of worker threads.
+pub fn default_workers() -> u16 {
+    resolve_default_workers()
+}
+
 /// How unresolved imports should be handled during resolve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResolveMode {
@@ -22,13 +27,6 @@ pub enum ResolveMode {
     Strict,
     /// Emit warnings for unresolved imports and continue.
     Lenient,
-}
-
-/// Get the default number of worker threads (available parallelism, or 1 if unknown).
-pub fn default_workers() -> u16 {
-    thread::available_parallelism()
-        .unwrap_or(NonZero::new(1).unwrap())
-        .get() as u16
 }
 
 /// The options for compiling a Workspace.
@@ -101,7 +99,7 @@ impl Default for CompilerOptions {
     fn default() -> Self {
         Self {
             diagnostic: DiagnosticOptions::default(),
-            workers: default_workers(),
+            workers: resolve_default_workers(),
 
             follow_imports: true,
             import_resolve: destack_resolver::ResolveOptions::default(),
