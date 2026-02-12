@@ -35,7 +35,7 @@ fn statement_expression_needs_semicolon(
 /// Format `with { ... }` arguments for import and export statements.
 fn format_dependency_with_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    arguments: &Vec<LocalNodeId<Argument>>,
+    arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     // source newlines inside `with` should expand the collection
     let should_expand_with_arguments =
@@ -56,7 +56,7 @@ fn format_import_expression<'ast>(
     kind: DependencyKind,
     target: &ImportTarget,
     items: &[LocalNodeId<DependencyItem>],
-    arguments: Option<&Vec<LocalNodeId<Argument>>>,
+    arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let organize = f.context().options.organize_imports.is_enabled();
@@ -203,7 +203,7 @@ fn format_export_expression<'ast>(
     kind: DependencyKind,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
-    arguments: Option<&Vec<LocalNodeId<Argument>>>,
+    arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let organize = f.context().options.organize_imports.is_enabled();
@@ -710,7 +710,7 @@ pub(super) fn format_statement_expression<'ast>(
             let _timing = f
                 .context()
                 .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_IMPORT);
-            format_import_expression(f, *source, *kind, target, items, arguments.as_ref())?;
+            format_import_expression(f, *source, *kind, target, items, arguments.as_deref())?;
         }
 
         // export
@@ -723,7 +723,7 @@ pub(super) fn format_statement_expression<'ast>(
             let _timing = f
                 .context()
                 .timing_scope(tags::FORMAT_EXPRESSION_STATEMENT_EXPORT);
-            format_export_expression(f, *kind, *target, items, arguments.as_ref())?;
+            format_export_expression(f, *kind, *target, items, arguments.as_deref())?;
         }
 
         // export as namespace

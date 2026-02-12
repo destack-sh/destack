@@ -25,6 +25,14 @@ Each AST node type has formatting rules in `format/`.
 The rules build up a FIR document describing the layout.
 The printer handles line breaking.
 
+## Module Layout Rules
+
+Formatter modules are grouped by reuse scope, not only by syntax kind.
+Top-level files in `format/` handle cross-domain formatting units that are reused by declaration and expression and statement paths.
+Examples are `operator.rs`, `where.rs`, `block.rs`, `imports.rs`, and `signature.rs`.
+Expression-specific policy and layout heuristics live under `format/expression/` and its submodules.
+Submodule splits are optional and should only happen when they improve correctness or performance or readability.
+
 ```ds
 extension for Expression {
     formatNode(nodeId: LocalNodeId<Expression>, f: Formatter): FormatResult<void> {

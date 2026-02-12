@@ -1,15 +1,11 @@
 js/module/array/binding_pattern.js
-js/module/array/empty_lines.js
 js/module/arrow/arrow-comments.js
 js/module/arrow/arrow_function.js
-js/module/arrow/arrow_nested.js
-js/module/arrow/call.js
 js/module/arrow/curried_indents.js
 js/module/arrow/params.js
 js/module/assignment/assignment.js
 js/module/binding/array-binding-holes.js
 js/module/binding/nested_bindings.js
-js/module/binding/object_binding.js
 js/module/call_expression.js
 js/module/comments.js
 js/module/declarations/variable_declaration.js
@@ -20,7 +16,6 @@ js/module/decorators/class_simple.js
 js/module/decorators/class_simple_call_decorator.js
 js/module/decorators/expression.js
 js/module/export/class_clause.js
-js/module/export/variable_declaration.js
 js/module/expression/binary_range_expression.js
 js/module/expression/logical_expression.js
 js/module/expression/member-chain/multi_line.js
@@ -28,17 +23,12 @@ js/module/expression/nested_conditional_expression/nested_conditional_expression
 js/module/expression/static_member_expression.js
 js/module/function/function_comments.js
 js/module/import/bare_import.js
-js/module/import/bracket-spacing/import_bracket_spacing.js
 js/module/import/default_import.js
 js/module/import/import_call.js
 js/module/import/named_import_clause.js
 js/module/import/namespace_import.js
 js/module/import/trailing-commas/es5/import_trailing_commas.js
 js/module/import/trailing-commas/none/import_trailing_commas.js
-js/module/interpreter-with-trailing-spaces.js
-js/module/interpreter.js
-js/module/interpreter_with_empty_line.js
-js/module/no-semi/class.js
 js/module/no-semi/no-semi.js
 js/module/no-semi/semicolons_range.js
 js/module/number/number_with_space.js
@@ -48,9 +38,7 @@ js/module/parentheses/parentheses.js
 js/module/parentheses/range_parentheses_binary.js
 js/module/range/range_parenthesis_after_semicol.js
 js/module/range/range_parenthesis_after_semicol_1.js
-js/module/script.js
 js/module/statement/do_while.js
-js/module/statement/for_loop.js
 js/module/statement/if_else.js
 js/module/statement/switch.js
 js/module/statement/switch_comment.js
@@ -59,10 +47,8 @@ js/module/string/quotePreserve/string.js
 js/module/string/quoteSingle/string.js
 js/module/suppression.js
 js/module/template/template.js
-js/script/script.js
 js/script/script_with_bom.js
 js/script/with.js
-jsx/arrow_function.jsx
 jsx/attributes.jsx
 jsx/bracket_same_line/bracket_same_line.jsx
 jsx/comments.jsx
@@ -102,6 +88,7 @@ prettier/js/arrows/currying-3.js
 prettier/js/arrows/currying-4.js
 prettier/js/arrows/currying.js
 prettier/js/arrows/issue-1389-curry.js
+prettier/js/arrows/long-call-no-args.js
 prettier/js/arrows/long-contents.js
 prettier/js/arrows/newline-before-arrow/newline-before-arrow.js
 prettier/js/arrows/parens.js
@@ -117,6 +104,7 @@ prettier/js/assignment/call-with-template.js
 prettier/js/assignment/chain-two-segments.js
 prettier/js/assignment/chain.js
 prettier/js/assignment/destructuring-heuristic.js
+prettier/js/assignment/destructuring.js
 prettier/js/assignment/discussion-15196.js
 prettier/js/assignment/issue-10218.js
 prettier/js/assignment/issue-1419.js
@@ -125,6 +113,7 @@ prettier/js/assignment/issue-1966.js
 prettier/js/assignment/issue-2184.js
 prettier/js/assignment/issue-2482-1.js
 prettier/js/assignment/issue-2482-2.js
+prettier/js/assignment/issue-2540.js
 prettier/js/assignment/issue-3819.js
 prettier/js/assignment/issue-4094.js
 prettier/js/assignment/issue-5610.js
@@ -140,7 +129,6 @@ prettier/js/async/await-parse.js
 prettier/js/async/conditional-expression.js
 prettier/js/async/inline-await.js
 prettier/js/async/nested.js
-prettier/js/async/nested2.js
 prettier/js/babel-plugins/async-do-expressions.js
 prettier/js/babel-plugins/bigint.js
 prettier/js/babel-plugins/class-properties.js
@@ -148,12 +136,9 @@ prettier/js/babel-plugins/decimal.js
 prettier/js/babel-plugins/deferred-import-evaluation.js
 prettier/js/babel-plugins/destructuring-private.js
 prettier/js/babel-plugins/do-expressions.js
-prettier/js/babel-plugins/dynamic-import.js
 prettier/js/babel-plugins/export-default-from.js
 prettier/js/babel-plugins/function-bind.js
-prettier/js/babel-plugins/import-assertions-dynamic.js
 prettier/js/babel-plugins/import-assertions-static.js
-prettier/js/babel-plugins/import-attributes-dynamic.js
 prettier/js/babel-plugins/import-reflection.js
 prettier/js/babel-plugins/jsx.js
 prettier/js/babel-plugins/module-blocks.js
@@ -199,6 +184,7 @@ prettier/js/break-calls/react.js
 prettier/js/break-calls/reduce.js
 prettier/js/call/first-argument-expansion/expression-2nd-arg.js
 prettier/js/call/first-argument-expansion/issue-13237.js
+prettier/js/call/first-argument-expansion/issue-14454.js
 prettier/js/call/first-argument-expansion/issue-2456.js
 prettier/js/call/first-argument-expansion/issue-4401.js
 prettier/js/call/first-argument-expansion/issue-5172.js
@@ -213,6 +199,7 @@ prettier/js/chain-expression/issue-15916.js
 prettier/js/chain-expression/member-expression.js
 prettier/js/chain-expression/new-expression.js
 prettier/js/chain-expression/tagged-template-literals.js
+prettier/js/chain-expression/test-3.js
 prettier/js/chain-expression/test-4.js
 prettier/js/chain-expression/test.js
 prettier/js/class-comment/class-property.js
@@ -293,6 +280,7 @@ prettier/js/comments/tuple-and-record.js
 prettier/js/comments/variable_declarator.js
 prettier/js/comments/while.js
 prettier/js/conditional/comments.js
+prettier/js/conditional/new-expression.js
 prettier/js/conditional/new-ternary-examples.js
 prettier/js/conditional/new-ternary-spec.js
 prettier/js/conditional/no-confusing-arrow.js
@@ -353,10 +341,8 @@ prettier/js/directives/no-newline.js
 prettier/js/directives/test.js
 prettier/js/do/call-arguments.js
 prettier/js/do/do.js
-prettier/js/dynamic-import/assertions.js
 prettier/js/dynamic-import/import-phase.js
 prettier/js/dynamic-import/template-literal.js
-prettier/js/dynamic-import/test.js
 prettier/js/empty-paren-comment/class-property.js
 prettier/js/empty-paren-comment/empty_paren_comment.js
 prettier/js/empty-statement/body.js
@@ -383,7 +369,6 @@ prettier/js/export-default/export-default-from/export.js
 prettier/js/export-default/function_tostring.js
 prettier/js/export-star/export-star-as-string.js
 prettier/js/export-star/export-star-as-string2.js
-prettier/js/export/blank-line-between-specifiers.js
 prettier/js/export/empty.js
 prettier/js/export/same-local-and-exported.js
 prettier/js/for-of/async-identifier.js
@@ -405,6 +390,7 @@ prettier/js/functional-composition/functional_compose.js
 prettier/js/functional-composition/pipe-function-calls.js
 prettier/js/functional-composition/ramda_compose.js
 prettier/js/functional-composition/ramda_pipe.js
+prettier/js/functional-composition/redux_connect.js
 prettier/js/functional-composition/reselect_createselector.js
 prettier/js/generator/async.js
 prettier/js/identifier/for-of/await.js
@@ -428,11 +414,9 @@ prettier/js/ignore/issue-14404.js
 prettier/js/ignore/issue-9335.js
 prettier/js/ignore/issue-9877.js
 prettier/js/ignore/semi/directive.js
-prettier/js/import-assertions/bracket-spacing/dynamic-import.js
 prettier/js/import-assertions/bracket-spacing/empty.js
 prettier/js/import-assertions/bracket-spacing/re-export.js
 prettier/js/import-assertions/bracket-spacing/static-import.js
-prettier/js/import-assertions/dynamic-import.js
 prettier/js/import-assertions/empty.js
 prettier/js/import-assertions/multi-types.js
 prettier/js/import-assertions/non-type.js
@@ -440,8 +424,6 @@ prettier/js/import-assertions/not-import-assertions.js
 prettier/js/import-assertions/re-export.js
 prettier/js/import-assertions/static-import.js
 prettier/js/import-assertions/without-from.js
-prettier/js/import-attributes/bracket-spacing/dynamic-import.js
-prettier/js/import-attributes/dynamic-import.js
 prettier/js/import-attributes/empty.js
 prettier/js/import-attributes/keyword-detect.js
 prettier/js/import-attributes/long-sources.js
@@ -473,6 +455,7 @@ prettier/js/last-argument-expansion/function-expression.js
 prettier/js/last-argument-expansion/issue-10708.js
 prettier/js/last-argument-expansion/issue-7518.js
 prettier/js/last-argument-expansion/jsx.js
+prettier/js/last-argument-expansion/number-only-array.js
 prettier/js/last-argument-expansion/object.js
 prettier/js/last-argument-expansion/overflow.js
 prettier/js/line-suffix-boundary/boundary.js
@@ -485,6 +468,7 @@ prettier/js/member/expand.js
 prettier/js/member/logical.js
 prettier/js/method-chain/assignment-lhs.js
 prettier/js/method-chain/bracket_0-1.js
+prettier/js/method-chain/bracket_0.js
 prettier/js/method-chain/break-last-call.js
 prettier/js/method-chain/break-last-member.js
 prettier/js/method-chain/comment.js
@@ -504,7 +488,6 @@ prettier/js/method-chain/logical.js
 prettier/js/method-chain/multiple-members.js
 prettier/js/method-chain/pr-7889.js
 prettier/js/method-chain/print-width-120/issue-7884.js
-prettier/js/method-chain/square_0.js
 prettier/js/method-chain/test.js
 prettier/js/method-chain/tuple-and-record.js
 prettier/js/module-blocks/comments.js
@@ -522,6 +505,8 @@ prettier/js/multiparser-css/issue-2636.js
 prettier/js/multiparser-css/issue-2883.js
 prettier/js/multiparser-css/issue-5697.js
 prettier/js/multiparser-css/issue-5961.js
+prettier/js/multiparser-css/issue-6259.js
+prettier/js/multiparser-css/issue-8352.js
 prettier/js/multiparser-css/issue-9072.js
 prettier/js/multiparser-css/styled-components-multiple-expressions.js
 prettier/js/multiparser-css/styled-components.js
@@ -544,7 +529,6 @@ prettier/js/new-target/range.js
 prettier/js/newline/backslash_2028.js
 prettier/js/newline/backslash_2029.js
 prettier/js/no-semi-babylon-extensions/no-semi.js
-prettier/js/no-semi/class.js
 prettier/js/no-semi/issue2006.js
 prettier/js/no-semi/no-semi.js
 prettier/js/non-strict/octal-number.js
@@ -582,6 +566,7 @@ prettier/js/preserve-line/argument-list.js
 prettier/js/preserve-line/comments.js
 prettier/js/preserve-line/member-chain.js
 prettier/js/preserve-line/parameter-list.js
+prettier/js/private-in/private-in.js
 prettier/js/quote-props/classes.js
 prettier/js/quote-props/numeric-separator.js
 prettier/js/quote-props/objects.js
@@ -633,6 +618,7 @@ prettier/js/record/syntax.js
 prettier/js/regex/regexp-modifiers.js
 prettier/js/regex/test.js
 prettier/js/require-amd/named-amd-module.js
+prettier/js/require-amd/non-amd-define.js
 prettier/js/require-amd/require.js
 prettier/js/require/require.js
 prettier/js/reserved-word/interfaces.js
@@ -665,6 +651,7 @@ prettier/js/switch/empty_lines.js
 prettier/js/switch/empty_switch.js
 prettier/js/switch/switch.js
 prettier/js/template-align/indent.js
+prettier/js/template-literals/binary-exporessions.js
 prettier/js/template-literals/css-prop.js
 prettier/js/template-literals/expressions.js
 prettier/js/template-literals/indention.js
@@ -804,7 +791,6 @@ prettier/typescript/assignment/issue-10850.ts
 prettier/typescript/assignment/issue-12413.ts
 prettier/typescript/assignment/issue-2322.ts
 prettier/typescript/assignment/issue-2482.ts
-prettier/typescript/assignment/issue-2485.ts
 prettier/typescript/assignment/issue-5370.ts
 prettier/typescript/assignment/issue-6783.ts
 prettier/typescript/assignment/issue-8619.ts
@@ -856,6 +842,7 @@ prettier/typescript/comments/method_types.ts
 prettier/typescript/comments/methods.ts
 prettier/typescript/comments/ts-parameter-proerty.ts
 prettier/typescript/comments/type-parameters.ts
+prettier/typescript/comments/type_literals.ts
 prettier/typescript/comments/types.ts
 prettier/typescript/comments/union.ts
 prettier/typescript/compiler/castOfAwait.ts
@@ -901,7 +888,6 @@ prettier/typescript/conformance/types/functions/TSFunctionTypeNoUnnecessaryParen
 prettier/typescript/conformance/types/functions/functionImplementationErrors.ts
 prettier/typescript/conformance/types/functions/functionImplementations.ts
 prettier/typescript/conformance/types/functions/functionOverloadErrorsSyntax.ts
-prettier/typescript/conformance/types/functions/parameterInitializersForwardReferencing.ts
 prettier/typescript/conformance/types/importEqualsDeclaration/importEqualsDeclaration.ts
 prettier/typescript/conformance/types/lastTypeNode/lastTypeNode.ts
 prettier/typescript/conformance/types/moduleDeclaration/kind-detection.ts
@@ -933,7 +919,6 @@ prettier/typescript/cursor/identifier-3.ts
 prettier/typescript/cursor/method-signature.ts
 prettier/typescript/cursor/property-signature.ts
 prettier/typescript/cursor/rest.ts
-prettier/typescript/custom/abstract/abstractNewlineHandling.ts
 prettier/typescript/custom/abstract/abstractProperties.ts
 prettier/typescript/custom/modifiers/minustoken.ts
 prettier/typescript/custom/module/moduleNamespace.ts
@@ -978,7 +963,6 @@ prettier/typescript/import-export/empty-import.ts
 prettier/typescript/import-require/import_require.ts
 prettier/typescript/import-require/type-imports.ts
 prettier/typescript/infer-extends/basic.ts
-prettier/typescript/instantiation-expression/binary-expr.ts
 prettier/typescript/instantiation-expression/inferface-asi.ts
 prettier/typescript/instantiation-expression/logical-expr.ts
 prettier/typescript/instantiation-expression/property-access.ts
@@ -999,8 +983,8 @@ prettier/typescript/keywords/keywords.ts
 prettier/typescript/keywords/module.ts
 prettier/typescript/last-argument-expansion/break.ts
 prettier/typescript/last-argument-expansion/decorated-function.tsx
-prettier/typescript/last-argument-expansion/edge_case.ts
 prettier/typescript/last-argument-expansion/forward-ref.tsx
+prettier/typescript/literal/multiline.ts
 prettier/typescript/mapped-type/break-mode/break-mode.ts
 prettier/typescript/mapped-type/intersection.ts
 prettier/typescript/mapped-type/issue-11098.ts
@@ -1062,7 +1046,6 @@ prettier/typescript/tuple/dangling-comments.ts
 prettier/typescript/tuple/trailing-comma-for-empty-tuples.ts
 prettier/typescript/tuple/tuple.ts
 prettier/typescript/type-alias/conditional.ts
-prettier/typescript/type-alias/issue-100857.ts
 prettier/typescript/type-alias/issue-9874.ts
 prettier/typescript/type-arguments-bit-shift-left-like/1.ts
 prettier/typescript/type-arguments-bit-shift-left-like/4.ts
@@ -1078,6 +1061,7 @@ prettier/typescript/typeparams/line-breaking-after-extends-2.ts
 prettier/typescript/typeparams/line-breaking-after-extends.ts
 prettier/typescript/typeparams/long-function-arg.ts
 prettier/typescript/typeparams/print-width-120/issue-7542.tsx
+prettier/typescript/typeparams/tagged-template-expression.ts
 prettier/typescript/typeparams/trailing-comma/type-paramters.ts
 prettier/typescript/union/comments.ts
 prettier/typescript/union/inlining.ts
@@ -1092,24 +1076,21 @@ ts/assignment/assignment.ts
 ts/assignment/assignment_comments.ts
 ts/assignment/type_assertion_assignment.ts
 ts/call_expression.ts
+ts/class/assignment_layout.ts
 ts/class/constructor_parameter.ts
 ts/declaration/declare_function.ts
+ts/declaration/global_declaration.ts
 ts/declaration/interface.ts
 ts/declaration/variable_declaration.ts
+ts/declare.ts
 ts/decoartors.ts
 ts/decorators/class_members.ts
 ts/expression/bracket-spacing/expression_bracket_spacing.ts
 ts/expression/type_assertion_expression.ts
 ts/expression/type_expression.ts
 ts/expression/type_member.ts
-ts/function/parameters/line_width_100/function_parameters.ts
-ts/function/parameters/line_width_120/function_parameters.ts
-ts/function/trailing_commas/es5/function_trailing_commas.ts
-ts/function/trailing_commas/none/function_trailing_commas.ts
 ts/module/external_module_reference.ts
-ts/no-semi/class.ts
-ts/parenthesis.ts
-ts/type/conditional.ts
+ts/no-semi/statements.ts
 ts/type/intersection_type.ts
+ts/type/mapped_type.ts
 ts/type/union_type.ts
-tsx/arrow/issue-2736.tsx

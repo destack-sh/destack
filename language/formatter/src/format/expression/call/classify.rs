@@ -3,7 +3,7 @@ use destack_ast::TemplateLiteral;
 
 /// Store shared argument simplicity checks for call and chain classifiers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in super::super) struct ArgumentSimplicityOptions {
+pub(crate) struct ArgumentSimplicityOptions {
     /// Reject any annotations on the argument node.
     pub reject_any_argument_annotation: bool,
     /// Reject non-blank annotations on the argument node.
@@ -31,7 +31,7 @@ fn expression_is_lambda_declaration(
 }
 
 /// Return whether an argument satisfies shared call and chain simplicity constraints.
-pub(in super::super) fn argument_is_simple_with_options(
+pub(crate) fn argument_is_simple_with_options(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
     options: ArgumentSimplicityOptions,
@@ -58,7 +58,7 @@ pub(in super::super) fn argument_is_simple_with_options(
 }
 
 /// Return whether an expression appears in call-like argument position.
-pub(in super::super) fn is_call_like_argument(
+pub(crate) fn is_call_like_argument(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -84,7 +84,7 @@ pub(in super::super) fn is_call_like_argument(
 }
 
 /// Check whether an expression is the value of a tree/JSX attribute argument.
-pub(in super::super) fn is_tree_attribute_expression(
+pub(crate) fn is_tree_attribute_expression(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -110,7 +110,7 @@ pub(in super::super) fn is_tree_attribute_expression(
 }
 
 /// Return whether a static argument should stay inline in a path.
-pub(in super::super) fn is_simple_static_argument(
+pub(crate) fn is_simple_static_argument(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -127,7 +127,7 @@ pub(in super::super) fn is_simple_static_argument(
 }
 
 /// Return whether an argument is a string or template literal.
-pub(in super::super) fn argument_is_string_like(
+pub(crate) fn argument_is_string_like(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -141,7 +141,7 @@ pub(in super::super) fn argument_is_string_like(
 }
 
 /// Return whether an argument is an interpolated template literal.
-pub(in super::super) fn argument_is_interpolated_template_literal(
+pub(crate) fn argument_is_interpolated_template_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -157,7 +157,7 @@ pub(in super::super) fn argument_is_interpolated_template_literal(
 }
 
 /// Return whether an argument is a collection literal.
-pub(in super::super) fn argument_is_collection_literal(
+pub(crate) fn argument_is_collection_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -166,7 +166,7 @@ pub(in super::super) fn argument_is_collection_literal(
 }
 
 /// Return whether an argument is a reference style expression.
-pub(in super::super) fn argument_is_reference_like(
+pub(crate) fn argument_is_reference_like(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -188,7 +188,7 @@ pub(in super::super) fn argument_is_reference_like(
 }
 
 /// Return whether a callee ends in a test style member name.
-pub(in super::super) fn call_callee_has_test_like_member_name(
+pub(crate) fn call_callee_has_test_like_member_name(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -242,7 +242,7 @@ pub(in super::super) fn call_callee_has_test_like_member_name(
 }
 
 /// Return whether a call should keep leading string arguments with callback tails.
-pub(in super::super) fn call_should_force_hug_test_like_callback(
+pub(crate) fn call_should_force_hug_test_like_callback(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
@@ -265,7 +265,7 @@ pub(in super::super) fn call_should_force_hug_test_like_callback(
 }
 
 /// Return whether call arguments span multiple lines in source.
-pub(in super::super) fn call_arguments_are_multiline_in_source(
+pub(crate) fn call_arguments_are_multiline_in_source(
     context: &DestackFormatContext<'_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -283,7 +283,7 @@ pub(in super::super) fn call_arguments_are_multiline_in_source(
 }
 
 /// Return whether source text between two arguments contains an explicit blank line.
-pub(in super::super) fn call_arguments_preserve_blank_line_between(
+pub(crate) fn call_arguments_preserve_blank_line_between(
     context: &DestackFormatContext<'_>,
     left_argument_id: LocalNodeId<Argument>,
     right_argument_id: LocalNodeId<Argument>,
@@ -321,7 +321,7 @@ pub(in super::super) fn call_arguments_preserve_blank_line_between(
 }
 
 /// Return whether a call has a non-blank block infix annotation.
-pub(in super::super) fn call_has_non_blank_infix_annotation(
+pub(crate) fn call_has_non_blank_infix_annotation(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -329,7 +329,7 @@ pub(in super::super) fn call_has_non_blank_infix_annotation(
 }
 
 /// Return whether an argument has a non-blank annotation.
-pub(in super::super) fn argument_has_non_blank_annotation(
+pub(crate) fn argument_has_non_blank_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -337,7 +337,7 @@ pub(in super::super) fn argument_has_non_blank_annotation(
 }
 
 /// Return whether an argument has multiline non-blank prefix annotations.
-pub(in super::super) fn argument_has_multiline_prefix_annotation(
+pub(crate) fn argument_has_multiline_prefix_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -351,7 +351,7 @@ pub(in super::super) fn argument_has_multiline_prefix_annotation(
 }
 
 /// Return whether an argument has prefix annotations that start before the argument span.
-pub(in super::super) fn argument_has_leading_prefix_annotation_outside_span(
+pub(crate) fn argument_has_leading_prefix_annotation_outside_span(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -381,7 +381,7 @@ pub(in super::super) fn argument_has_leading_prefix_annotation_outside_span(
 }
 
 /// Return whether an argument has any slash style comment annotation.
-pub(in super::super) fn argument_has_line_comment_annotation(
+pub(crate) fn argument_has_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -391,7 +391,7 @@ pub(in super::super) fn argument_has_line_comment_annotation(
 }
 
 /// Return whether an argument has slash comments in prefix annotation positions.
-pub(in super::super) fn argument_has_prefix_line_comment_annotation(
+pub(crate) fn argument_has_prefix_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -401,7 +401,7 @@ pub(in super::super) fn argument_has_prefix_line_comment_annotation(
 }
 
 /// Return whether a call-like expression has static type arguments.
-pub(in super::super) fn call_has_static_arguments(
+pub(crate) fn call_has_static_arguments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -419,7 +419,7 @@ pub(in super::super) fn call_has_static_arguments(
 }
 
 /// Return whether a call or new expression callee is a cast or satisfies expression.
-pub(in super::super) fn call_like_has_type_binary_callee(
+pub(crate) fn call_like_has_type_binary_callee(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -439,7 +439,7 @@ pub(in super::super) fn call_like_has_type_binary_callee(
 }
 
 /// Return whether call arguments are a leading callback with a simple tail.
-pub(in super::super) fn call_has_leading_block_callback_with_simple_tail(
+pub(crate) fn call_has_leading_block_callback_with_simple_tail(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],

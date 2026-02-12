@@ -33,6 +33,446 @@ fn leading_union_has_ancestor_block_prefix_annotation(
     false
 }
 
+/// Return whether one binary operator is logical.
+#[inline]
+fn is_logical_binary_operator(operator: BinaryOperator) -> bool {
+    matches!(
+        operator,
+        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
+    )
+}
+
+/// Return whether mixed logical precedence should parenthesize the right expression.
+#[inline]
+fn is_mixed_logical_precedence_pair(
+    left_operator: BinaryOperator,
+    right_operator: BinaryOperator,
+) -> bool {
+    matches!(left_operator, BinaryOperator::Or | BinaryOperator::Coalesce)
+        && left_operator != right_operator
+        && matches!(
+            right_operator,
+            BinaryOperator::And | BinaryOperator::Coalesce
+        )
+}
+
+/// Return whether a source operator break should be preserved.
+#[inline]
+fn preserve_source_operator_break(
+    operator: BinaryOperator,
+    has_source_operator_break: bool,
+) -> bool {
+    !is_logical_binary_operator(operator) && has_source_operator_break
+}
+
+/// Return whether a logical operand prefers trailing-operator layout.
+#[inline]
+fn operand_prefers_trailing_logical_operator(
+    context: &DestackFormatContext<'_>,
+    operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+) -> bool {
+    is_logical_binary_operator(operator) && context.has_prefix_annotation(operand_expression)
+}
+
+/// Write one separating space after the left operand when no postfix trivia exists.
+fn write_space_after_binary_left_if_needed<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if f.context().has_postfix_annotation(left) {
+        return Ok(());
+    }
+
+    write!(f, [space()])
+}
+
+/// Try formatting `??` using trailing-operator layout.
+fn try_format_trailing_coalesce<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    left: LocalNodeId<Expression>,
+    operator: BinaryOperator,
+    right: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    if operator != BinaryOperator::Coalesce
+        || !should_use_trailing_coalesce(f.context(), node_id, left)
+    {
+        return Ok(false);
+    }
+
+    write!(
+        f,
+        [group(&format_args![
+            left,
+            indent(&format_with(|f| {
+                write_space_after_binary_left_if_needed(f, left)?;
+                write!(f, [operator, soft_line_break_or_space(), right])
+            }))
+        ])]
+    )?;
+
+    Ok(true)
+}
+
+/// Try formatting logical operators with a trailing source line comment between operands.
+fn try_format_logical_line_comment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: LocalNodeId<Expression>,
+    operator: BinaryOperator,
+    right: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    if !is_logical_binary_operator(operator) {
+        return Ok(false);
+    }
+
+    let Some(line_comment) = line_comment_between_expressions(f.context(), left, right) else {
+        return Ok(false);
+    };
+
+    let right_without_prefix = format_with(|f| {
+        let right_directive = directive_for_node(f.context(), right);
+        format_expression(f, right, f.context().tree.get(right), right_directive)?;
+        if !matches!(
+            right_directive,
+            Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Postfix { .. },
+            })
+        ) {
+            write!(f, [f.context().any_infix_or_postfix_annotations(right)])?;
+        }
+        Ok(())
+    });
+
+    write!(
+        f,
+        [group(&format_args![
+            left,
+            format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+            operator,
+            space(),
+            text(line_comment.as_str()),
+            indent(&format_args![hard_line_break(), right_without_prefix])
+        ])]
+    )?;
+
+    Ok(true)
+}
+
+/// Try formatting mixed logical precedence pairs with explicit right parentheses.
+fn try_format_mixed_logical_precedence<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: LocalNodeId<Expression>,
+    operator: BinaryOperator,
+    right: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    let Expression::Binary {
+        operator: right_operator,
+        ..
+    } = f.context().tree.get(right)
+    else {
+        return Ok(false);
+    };
+    if !is_mixed_logical_precedence_pair(operator, *right_operator) {
+        return Ok(false);
+    }
+
+    write!(
+        f,
+        [group(&format_args![
+            left,
+            format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+            operator,
+            space(),
+            token("("),
+            right,
+            token(")")
+        ])]
+    )?;
+
+    Ok(true)
+}
+
+/// Try formatting logical expressions with parenthesized-tail policies.
+fn try_format_logical_parenthesized_cases<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    left: LocalNodeId<Expression>,
+    operator: BinaryOperator,
+    right: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    if !is_logical_binary_operator(operator) {
+        return Ok(false);
+    }
+
+    // parenthesized multiline left tail with short `&&` right side
+    let left_span = f.context().get_span(left);
+    let left_source = f.context().get_span_str(left_span);
+    let left_has_multiline_parenthesized_tail =
+        f.context().has_newline(left_span) && left_source.trim_end().ends_with(')');
+    let right_expression = f.context().tree.get(right);
+    let right_is_inline_trivial =
+        expression_is_trivial_inline_without_annotations(f.context(), right);
+    let right_has_prefix = f.context().has_prefix_annotation(right);
+    if left_has_multiline_parenthesized_tail
+        && right_is_inline_trivial
+        && !right_has_prefix
+        && operator == BinaryOperator::And
+    {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+                operator,
+                indent(&format_args![hard_line_break(), right])
+            ])]
+        )?;
+        return Ok(true);
+    }
+
+    // prefix-commented left parentheses keep trailing logical operators
+    let left_prefers_trailing_operator = matches!(
+        f.context().tree.get(left),
+        Expression::Parenthesized { expression }
+            if (f.context().has_prefix_annotation(left)
+                || f.context().has_prefix_annotation(*expression))
+                && f.context().node_has_newline(left)
+    );
+    if left_prefers_trailing_operator && right_is_inline_trivial {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+                operator,
+                space(),
+                right
+            ])]
+        )?;
+        return Ok(true);
+    }
+
+    // keep tree rhs inline when within assignment-like width budget
+    let is_parenthesized_tree = matches!(
+        right_expression,
+        Expression::Parenthesized { expression }
+            if matches!(f.context().tree.get(*expression), Expression::TreeExpression { .. })
+    );
+    if !is_parenthesized_tree {
+        return Ok(false);
+    }
+
+    let line_width = usize::from(f.context().options.line_width);
+    let remaining_width =
+        assignment_like_remaining_width(f.context(), node_id).unwrap_or(line_width);
+    let left_len = expression_source_len(f.context(), left);
+    let operator_len = binary_operator_len(&operator);
+    let inline_len = left_len
+        .saturating_add(operator_len)
+        .saturating_add(BINARY_OPERATOR_PADDING_WIDTH);
+    if inline_len > remaining_width {
+        return Ok(false);
+    }
+
+    write!(
+        f,
+        [group(&format_args![
+            left,
+            space(),
+            operator,
+            space(),
+            right
+        ])]
+    )?;
+
+    Ok(true)
+}
+
+/// Store leading-pipe union render policy flags.
+#[derive(Clone, Copy)]
+struct LeadingPipeUnionLayoutPolicy {
+    should_indent_operands: bool,
+    prefer_space_before_first_pipe: bool,
+}
+
+/// Build leading-pipe union render policy from current annotation context.
+fn leading_pipe_union_layout_policy(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> LeadingPipeUnionLayoutPolicy {
+    let has_block_prefix_ancestor =
+        leading_union_has_ancestor_block_prefix_annotation(context, node_id);
+
+    LeadingPipeUnionLayoutPolicy {
+        should_indent_operands: !context.has_prefix_annotation(node_id)
+            && !has_block_prefix_ancestor,
+        prefer_space_before_first_pipe: has_block_prefix_ancestor,
+    }
+}
+
+/// Format one leading-pipe union operand without prefix annotations.
+fn format_leading_pipe_operand_without_prefix<'ast>(
+    operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+) -> impl Format<DestackFormatContext<'ast>> {
+    format_with(move |f| {
+        let operand_expression =
+            normalize_type_binary_operand_expression(f.context(), operand_expression, operator);
+        let directive = directive_for_node(f.context(), operand_expression);
+        format_expression(
+            f,
+            operand_expression,
+            f.context().tree.get(operand_expression),
+            directive,
+        )?;
+        if !matches!(
+            directive,
+            Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Postfix { .. },
+            })
+        ) {
+            write!(
+                f,
+                [f.context()
+                    .any_infix_or_postfix_annotations(operand_expression)]
+            )?;
+        }
+        Ok(())
+    })
+}
+
+/// Write the first operand of a leading-pipe union.
+fn write_first_leading_pipe_union_operand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    policy: LeadingPipeUnionLayoutPolicy,
+    expression: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if policy.should_indent_operands {
+        write!(
+            f,
+            [indent(&format_with(|f| {
+                if policy.prefer_space_before_first_pipe {
+                    write!(f, [token("|"), space(), expression])
+                } else {
+                    write!(
+                        f,
+                        [soft_line_break_or_space(), token("|"), space(), expression]
+                    )
+                }
+            }))]
+        )?;
+        return Ok(());
+    }
+
+    if policy.prefer_space_before_first_pipe {
+        write!(f, [token("|"), space(), expression])
+    } else {
+        write!(
+            f,
+            [soft_line_break_or_space(), token("|"), space(), expression]
+        )
+    }
+}
+
+/// Write one non-first operand in a leading-pipe union.
+fn write_trailing_leading_pipe_union_operand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    operator: BinaryOperator,
+    policy: LeadingPipeUnionLayoutPolicy,
+    prev_expression: Option<LocalNodeId<Expression>>,
+    operand_expression: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let has_postfix = prev_expression
+        .is_some_and(|expression_id| f.context().has_postfix_annotation(expression_id));
+    let between_line_comment = prev_expression.and_then(|expression_id| {
+        line_comment_between_expressions(f.context(), expression_id, operand_expression)
+    });
+    let operand_without_prefix =
+        format_leading_pipe_operand_without_prefix(operator, operand_expression);
+
+    if policy.should_indent_operands {
+        write!(
+            f,
+            [indent(&format_with(|f| {
+                if !has_postfix {
+                    write!(f, [soft_line_break_or_space()])?;
+                }
+                if let Some(line_comment) = between_line_comment.as_ref() {
+                    write!(
+                        f,
+                        [
+                            text(line_comment.as_str()),
+                            hard_line_break(),
+                            token("|"),
+                            space(),
+                            operand_without_prefix
+                        ]
+                    )
+                } else {
+                    write!(f, [token("|"), space(), operand_without_prefix])
+                }
+            }))]
+        )?;
+        return Ok(());
+    }
+
+    if !has_postfix {
+        write!(f, [soft_line_break_or_space()])?;
+    }
+    if let Some(line_comment) = between_line_comment.as_ref() {
+        write!(
+            f,
+            [
+                text(line_comment.as_str()),
+                hard_line_break(),
+                token("|"),
+                space(),
+                operand_without_prefix
+            ]
+        )
+    } else {
+        write!(f, [token("|"), space(), operand_without_prefix])
+    }
+}
+
+/// Format leading-pipe union operands with shared annotation and comment policy.
+fn format_leading_pipe_union<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    operator: BinaryOperator,
+    operands: &BinaryOperands,
+) -> FormatResult<()> {
+    let policy = leading_pipe_union_layout_policy(f.context(), node_id);
+
+    write!(
+        f,
+        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let mut prev_expression: Option<LocalNodeId<Expression>> = None;
+            for (index, operand) in operands.iter().enumerate() {
+                if index == 0 {
+                    write_first_leading_pipe_union_operand(f, policy, operand.expression)?;
+                } else {
+                    write_trailing_leading_pipe_union_operand(
+                        f,
+                        operator,
+                        policy,
+                        prev_expression,
+                        operand.expression,
+                    )?;
+                }
+
+                prev_expression = Some(operand.expression);
+            }
+
+            Ok(())
+        }))
+        .should_expand(true)]
+    )
+}
+
 /// Format a binary expression with all operator-specific layout policies.
 pub(super) fn format_binary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -49,194 +489,13 @@ pub(super) fn format_binary_expression<'ast>(
     let is_type_intersection = in_type_context && *operator == BinaryOperator::ElementwiseAnd;
     let is_type_union = in_type_context && *operator == BinaryOperator::ElementwiseOr;
 
-    // trailing coalesce
-    if *operator == BinaryOperator::Coalesce
-        && should_use_trailing_coalesce(f.context(), node_id, left)
+    // specialized logical and coalesce layout paths
+    if try_format_trailing_coalesce(f, node_id, left, *operator, right)?
+        || try_format_logical_line_comment(f, left, *operator, right)?
+        || try_format_mixed_logical_precedence(f, left, *operator, right)?
+        || try_format_logical_parenthesized_cases(f, node_id, left, *operator, right)?
     {
-        let has_postfix = f.context().has_postfix_annotation(left);
-        write!(
-            f,
-            [group(&format_args![
-                left,
-                indent(&format_with(|f| {
-                    if !has_postfix {
-                        write!(f, [space()])?;
-                    }
-                    write!(f, [operator, soft_line_break_or_space(), right])
-                }))
-            ])]
-        )?;
         return Ok(());
-    }
-
-    // operator trailing line comment
-    if matches!(
-        operator,
-        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
-    ) && let Some(line_comment) = line_comment_between_expressions(f.context(), left, right)
-    {
-        let has_postfix = f.context().has_postfix_annotation(left);
-        let right_without_prefix = format_with(|f| {
-            let right_directive = directive_for_node(f.context(), right);
-            format_expression(f, right, f.context().tree.get(right), right_directive)?;
-            if !matches!(
-                right_directive,
-                Some(FormatterDirective {
-                    kind: FormatterDirectiveKind::IgnoreFormat,
-                    position: FormatterDirectivePosition::Postfix { .. },
-                })
-            ) {
-                write!(f, [f.context().any_infix_or_postfix_annotations(right)])?;
-            }
-            Ok(())
-        });
-        write!(
-            f,
-            [group(&format_args![
-                left,
-                format_with(|f| {
-                    if !has_postfix {
-                        write!(f, [space()])?;
-                    }
-                    Ok(())
-                }),
-                operator,
-                space(),
-                text(line_comment.as_str()),
-                indent(&format_args![hard_line_break(), right_without_prefix])
-            ])]
-        )?;
-        return Ok(());
-    }
-
-    // mixed logical precedence
-    if matches!(operator, BinaryOperator::Or | BinaryOperator::Coalesce)
-        && let Expression::Binary {
-            operator: right_operator,
-            ..
-        } = f.context().tree.get(right)
-        && *right_operator != *operator
-        && matches!(
-            right_operator,
-            BinaryOperator::And | BinaryOperator::Coalesce
-        )
-    {
-        let has_postfix = f.context().has_postfix_annotation(left);
-        write!(
-            f,
-            [group(&format_args![
-                left,
-                format_with(|f| {
-                    if !has_postfix {
-                        write!(f, [space()])?;
-                    }
-                    Ok(())
-                }),
-                operator,
-                space(),
-                token("("),
-                right,
-                token(")")
-            ])]
-        )?;
-        return Ok(());
-    }
-
-    // logical operands with parenthesized trees
-    if matches!(
-        operator,
-        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
-    ) {
-        let left_span = f.context().get_span(left);
-        let left_source = f.context().get_span_str(left_span);
-        let left_has_multiline_parenthesized_tail =
-            f.context().has_newline(left_span) && left_source.trim_end().ends_with(')');
-        let right_expression = f.context().tree.get(right);
-        let right_is_inline_trivial =
-            expression_is_trivial_inline_without_annotations(f.context(), right);
-        let right_has_prefix = f.context().has_prefix_annotation(right);
-        if left_has_multiline_parenthesized_tail
-            && right_is_inline_trivial
-            && !right_has_prefix
-            && *operator == BinaryOperator::And
-        {
-            let has_postfix = f.context().has_postfix_annotation(left);
-            write!(
-                f,
-                [group(&format_args![
-                    left,
-                    format_with(|f| {
-                        if !has_postfix {
-                            write!(f, [space()])?;
-                        }
-                        Ok(())
-                    }),
-                    operator,
-                    indent(&format_args![hard_line_break(), right])
-                ])]
-            )?;
-            return Ok(());
-        }
-
-        let left_prefers_trailing_operator = matches!(
-            f.context().tree.get(left),
-            Expression::Parenthesized { expression }
-                if (f.context().has_prefix_annotation(left)
-                    || f.context().has_prefix_annotation(*expression))
-                    && f.context().node_has_newline(left)
-        );
-        if left_prefers_trailing_operator
-            && expression_is_trivial_inline_without_annotations(f.context(), right)
-        {
-            let has_postfix = f.context().has_postfix_annotation(left);
-            write!(
-                f,
-                [group(&format_args![
-                    left,
-                    format_with(|f| {
-                        if !has_postfix {
-                            write!(f, [space()])?;
-                        }
-                        Ok(())
-                    }),
-                    operator,
-                    space(),
-                    right
-                ])]
-            )?;
-            return Ok(());
-        }
-
-        let is_parenthesized_tree = matches!(
-            right_expression,
-            Expression::Parenthesized { expression }
-                if matches!(f.context().tree.get(*expression), Expression::TreeExpression { .. })
-        );
-
-        if is_parenthesized_tree {
-            let line_width = usize::from(f.context().options.line_width);
-            let remaining_width =
-                assignment_like_remaining_width(f.context(), node_id).unwrap_or(line_width);
-            let left_len = expression_source_len(f.context(), left);
-            let operator_len = binary_operator_len(operator);
-            let inline_len = left_len
-                .saturating_add(operator_len)
-                .saturating_add(BINARY_OPERATOR_PADDING_WIDTH);
-
-            if inline_len <= remaining_width {
-                write!(
-                    f,
-                    [group(&format_args![
-                        left,
-                        space(),
-                        operator,
-                        space(),
-                        right
-                    ])]
-                )?;
-                return Ok(());
-            }
-        }
     }
 
     // flatten operands
@@ -313,138 +572,7 @@ pub(super) fn format_binary_expression<'ast>(
 
     // leading pipe unions
     if is_type_union && union_source_has_leading_pipe(f.context(), node_id) {
-        let has_block_prefix_ancestor =
-            leading_union_has_ancestor_block_prefix_annotation(f.context(), node_id);
-        let should_indent_leading_pipe_operands =
-            !f.context().has_prefix_annotation(node_id) && !has_block_prefix_ancestor;
-        let prefer_space_before_first_leading_pipe = has_block_prefix_ancestor;
-        write!(
-            f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                let mut prev_expression: Option<LocalNodeId<Expression>> = None;
-                for (index, operand) in operands.iter().enumerate() {
-                    if index == 0 {
-                        if should_indent_leading_pipe_operands {
-                            write!(
-                                f,
-                                [indent(&format_with(|f| {
-                                    if prefer_space_before_first_leading_pipe {
-                                        write!(f, [token("|"), space(), operand.expression])
-                                    } else {
-                                        write!(
-                                            f,
-                                            [
-                                                soft_line_break_or_space(),
-                                                token("|"),
-                                                space(),
-                                                operand.expression
-                                            ]
-                                        )
-                                    }
-                                }))]
-                            )?;
-                        } else if prefer_space_before_first_leading_pipe {
-                            write!(f, [token("|"), space(), operand.expression])?;
-                        } else {
-                            write!(
-                                f,
-                                [
-                                    soft_line_break_or_space(),
-                                    token("|"),
-                                    space(),
-                                    operand.expression
-                                ]
-                            )?;
-                        }
-                    } else {
-                        let has_postfix = prev_expression.is_some_and(|expression_id| {
-                            f.context().has_postfix_annotation(expression_id)
-                        });
-                        let between_line_comment = prev_expression.and_then(|expression_id| {
-                            line_comment_between_expressions(
-                                f.context(),
-                                expression_id,
-                                operand.expression,
-                            )
-                        });
-                        let operand_without_prefix = format_with(|f| {
-                            let operand_expression = normalize_type_binary_operand_expression(
-                                f.context(),
-                                operand.expression,
-                                *operator,
-                            );
-                            let directive = directive_for_node(f.context(), operand_expression);
-                            format_expression(
-                                f,
-                                operand_expression,
-                                f.context().tree.get(operand_expression),
-                                directive,
-                            )?;
-                            if !matches!(
-                                directive,
-                                Some(FormatterDirective {
-                                    kind: FormatterDirectiveKind::IgnoreFormat,
-                                    position: FormatterDirectivePosition::Postfix { .. },
-                                })
-                            ) {
-                                write!(
-                                    f,
-                                    [f.context()
-                                        .any_infix_or_postfix_annotations(operand_expression)]
-                                )?;
-                            }
-                            Ok(())
-                        });
-                        if should_indent_leading_pipe_operands {
-                            write!(
-                                f,
-                                [indent(&format_with(|f| {
-                                    if !has_postfix {
-                                        write!(f, [soft_line_break_or_space()])?;
-                                    }
-                                    if let Some(line_comment) = between_line_comment.as_ref() {
-                                        write!(
-                                            f,
-                                            [
-                                                text(line_comment.as_str()),
-                                                hard_line_break(),
-                                                token("|"),
-                                                space(),
-                                                operand_without_prefix
-                                            ]
-                                        )
-                                    } else {
-                                        write!(f, [token("|"), space(), operand_without_prefix])
-                                    }
-                                }))]
-                            )?;
-                        } else {
-                            if !has_postfix {
-                                write!(f, [soft_line_break_or_space()])?;
-                            }
-                            if let Some(line_comment) = between_line_comment.as_ref() {
-                                write!(
-                                    f,
-                                    [
-                                        text(line_comment.as_str()),
-                                        hard_line_break(),
-                                        token("|"),
-                                        space(),
-                                        operand_without_prefix
-                                    ]
-                                )?;
-                            } else {
-                                write!(f, [token("|"), space(), operand_without_prefix])?;
-                            }
-                        }
-                    }
-                    prev_expression = Some(operand.expression);
-                }
-
-                Ok(())
-            }))
-            .should_expand(true)]
-        )?;
+        format_leading_pipe_union(f, node_id, *operator, &operands)?;
         return Ok(());
     }
 
@@ -603,6 +731,7 @@ pub(super) fn format_binary_expression<'ast>(
     }
 
     // default flattened binary formatting
+    // default flattened binary formatting path
     let binary_parent_is_parenthesized =
         f.context()
             .get_parent(node_id)
@@ -617,7 +746,9 @@ pub(super) fn format_binary_expression<'ast>(
         f,
         [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
             let mut prev_expression: Option<LocalNodeId<Expression>> = None;
+            // emit each flattened operand with operator-aware spacing
             for operand in &operands {
+                // non-head operands write their leading operator
                 if let Some(op) = operand.operator {
                     let has_postfix =
                         prev_expression.is_some_and(|e| f.context().has_postfix_annotation(e));
@@ -629,16 +760,18 @@ pub(super) fn format_binary_expression<'ast>(
                                 operand.expression,
                             )
                         });
+                    let preserve_source_operator_break =
+                        preserve_source_operator_break(op, has_source_operator_break);
                     let previous_has_prefix_annotation =
                         prev_expression.is_some_and(|expression_id| {
                             expression_has_leading_prefix_comment(f.context(), expression_id)
                         });
                     let operand_prefers_trailing_operator =
-                        matches!(
+                        operand_prefers_trailing_logical_operator(
+                            f.context(),
                             op,
-                            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
-                        ) && (f.context().has_prefix_annotation(operand.expression)
-                            || f.context().node_has_newline(operand.expression));
+                            operand.expression,
+                        );
                     if operand_prefers_trailing_operator {
                         if !has_postfix {
                             write!(f, [space()])?;
@@ -675,7 +808,7 @@ pub(super) fn format_binary_expression<'ast>(
                             [indent(&format_with(
                                 |f: &mut DestackFormatter<'ast, '_>| {
                                     if !has_postfix {
-                                        if has_source_operator_break {
+                                        if preserve_source_operator_break {
                                             write!(f, [hard_line_break()])?;
                                         } else {
                                             write!(f, [soft_line_break_or_space()])?;
@@ -691,6 +824,7 @@ pub(super) fn format_binary_expression<'ast>(
                             ))]
                         )?;
                     }
+                // head operand keeps existing grouping rules
                 } else {
                     let first_operand_has_prefix_annotation =
                         f.context().has_prefix_annotation(operand.expression);

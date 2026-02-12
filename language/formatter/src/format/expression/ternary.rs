@@ -368,99 +368,204 @@ pub(super) fn ternary_branch_is_tree_like(
     )
 }
 
-/// Format a ternary expression with Prettier-style breaking.
-/// Nested ternaries get progressive indentation when they break.
-pub(super) fn format_ternary(
-    f: &mut DestackFormatter<'_, '_>,
-    node_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let (branches, final_else) = collect_ternary_chain(tree, node_id);
-    let (question_comments, colon_comments) = collect_statement_ternary_boundary_prefix_comments(
-        f.context(),
-        node_id,
-        &branches,
-        final_else,
-    );
-    let colon_line_comments =
-        collect_ternary_colon_line_comments(f.context(), &branches, final_else);
+/// Return whether ternary formatting can use compact tree separators.
+fn ternary_should_use_compact_tree_layout(
+    context: &DestackFormatContext<'_>,
+    branches: &[(LocalNodeId<Expression>, LocalNodeId<Expression>)],
+    final_else: Option<LocalNodeId<Expression>>,
+    question_comments: &[Vec<String>],
+    colon_comments: &[Vec<String>],
+) -> bool {
     let has_separator_comments = question_comments
         .iter()
         .any(|comments| !comments.is_empty())
         || colon_comments.iter().any(|comments| !comments.is_empty());
-    let use_compact_tree_layout = !has_separator_comments
+
+    !has_separator_comments
         && (branches
             .iter()
-            .any(|(_, then_expr)| ternary_branch_is_tree_like(f.context(), *then_expr))
-            || final_else.is_some_and(|final_else_id| {
-                ternary_branch_is_tree_like(f.context(), final_else_id)
-            }));
+            .any(|(_, then_expr)| ternary_branch_is_tree_like(context, *then_expr))
+            || final_else
+                .is_some_and(|final_else_id| ternary_branch_is_tree_like(context, final_else_id)))
+}
 
-    if branches.len() == 1 {
-        // simple ternary
-        let (condition, then_expr) = branches[0];
-        let first_else_start = ternary_else_start_for_branch(f.context(), &branches, final_else, 0);
-        let then_has_boundary_comment_before_colon = ternary_then_has_boundary_comment_before_colon(
-            f.context(),
-            then_expr,
-            first_else_start,
-        );
-        if use_compact_tree_layout {
-            write!(
-                f,
-                [group(&format_args![
-                    condition,
-                    space(),
-                    token("?"),
-                    space(),
-                    format_with(|f| {
-                        if let Some(comments) = question_comments.first() {
-                            write_ternary_separator_comments(f, comments)?;
-                        }
-                        Ok(())
-                    }),
-                    then_expr,
-                    format_with(|f| {
-                        if !then_has_boundary_comment_before_colon {
-                            write!(f, [space()])?;
-                        }
-                        Ok(())
-                    }),
-                    token(":"),
-                    space(),
-                    format_with(|f| {
-                        if let Some(comments) = colon_comments.first() {
-                            write_ternary_separator_comments(f, comments)?;
-                        }
-                        if let Some(comments) = colon_line_comments.first() {
-                            write_ternary_colon_line_comments(f, comments)?;
-                            if !comments.is_empty() {
-                                write!(f, [hard_line_break()])?;
-                            }
-                        }
-                        Ok(())
-                    }),
-                    final_else
-                ])]
-            )?;
-        } else {
-            write!(
-                f,
-                [group(&format_args![
-                    condition,
-                    indent(&format_args![
+/// Write question-mark separator comments for one ternary branch.
+fn write_ternary_question_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    question_comments: &[Vec<String>],
+    branch_index: usize,
+) -> FormatResult<()> {
+    if let Some(comments) = question_comments.get(branch_index) {
+        write_ternary_separator_comments(f, comments)?;
+    }
+
+    Ok(())
+}
+
+/// Write colon separator comments for one ternary branch.
+fn write_ternary_colon_comments_at_index<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    colon_comments: &[Vec<String>],
+    colon_line_comments: &[Vec<String>],
+    branch_index: usize,
+) -> FormatResult<()> {
+    if let Some(comments) = colon_comments.get(branch_index) {
+        write_ternary_separator_comments(f, comments)?;
+    }
+
+    if let Some(comments) = colon_line_comments.get(branch_index) {
+        write_ternary_colon_line_comments(f, comments)?;
+        if !comments.is_empty() {
+            write!(f, [hard_line_break()])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Format one single-branch ternary body including `?` and `:` separators.
+fn format_single_ternary_branch<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    condition: LocalNodeId<Expression>,
+    then_expr: LocalNodeId<Expression>,
+    final_else: Option<LocalNodeId<Expression>>,
+    use_compact_tree_layout: bool,
+    then_has_boundary_comment_before_colon: bool,
+    question_comments: &[Vec<String>],
+    colon_comments: &[Vec<String>],
+    colon_line_comments: &[Vec<String>],
+) -> FormatResult<()> {
+    // compact single-branch tree ternary
+    if use_compact_tree_layout {
+        write!(
+            f,
+            [group(&format_args![
+                condition,
+                space(),
+                token("?"),
+                space(),
+                format_with(|f| write_ternary_question_comments(f, question_comments, 0)),
+                then_expr,
+                format_with(|f| {
+                    if !then_has_boundary_comment_before_colon {
+                        write!(f, [space()])?;
+                    }
+                    Ok(())
+                }),
+                token(":"),
+                space(),
+                format_with(|f| {
+                    write_ternary_colon_comments_at_index(f, colon_comments, colon_line_comments, 0)
+                }),
+                final_else
+            ])]
+        )?;
+        return Ok(());
+    }
+
+    // expanded single-branch ternary
+    write!(
+        f,
+        [group(&format_args![
+            condition,
+            indent(&format_args![
+                soft_line_break_or_space(),
+                token("?"),
+                space(),
+                format_with(|f| write_ternary_question_comments(f, question_comments, 0)),
+                then_expr,
+                format_with(|f| {
+                    if then_has_boundary_comment_before_colon {
+                        write!(f, [soft_line_break()])?;
+                    } else {
+                        write!(f, [soft_line_break_or_space()])?;
+                    }
+                    Ok(())
+                }),
+                token(":"),
+                space(),
+                format_with(|f| {
+                    write_ternary_colon_comments_at_index(f, colon_comments, colon_line_comments, 0)
+                }),
+                indent(&format_args![final_else])
+            ]),
+        ])]
+    )?;
+
+    Ok(())
+}
+
+/// Format nested ternary branches with shared separator and indentation policy.
+fn format_nested_ternary_branches<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    branches: &[(LocalNodeId<Expression>, LocalNodeId<Expression>)],
+    final_else: Option<LocalNodeId<Expression>>,
+    use_compact_tree_layout: bool,
+    question_comments: &[Vec<String>],
+    colon_comments: &[Vec<String>],
+    colon_line_comments: &[Vec<String>],
+) -> FormatResult<()> {
+    write!(
+        f,
+        [group(&format_with(|f| {
+            // write each branch using shared separator comment policy
+            for (branch_index, (condition, then_expr)) in branches.iter().enumerate() {
+                let branch_else_start =
+                    ternary_else_start_for_branch(f.context(), branches, final_else, branch_index);
+                let branch_then_has_boundary_comment_before_colon =
+                    ternary_then_has_boundary_comment_before_colon(
+                        f.context(),
+                        *then_expr,
+                        branch_else_start,
+                    );
+                write!(f, [condition])?;
+
+                // compact nested ternary branch
+                if use_compact_tree_layout {
+                    write!(
+                        f,
+                        [
+                            space(),
+                            token("?"),
+                            space(),
+                            format_with(|f| {
+                                write_ternary_question_comments(f, question_comments, branch_index)
+                            }),
+                            then_expr,
+                            format_with(|f| {
+                                if !branch_then_has_boundary_comment_before_colon {
+                                    write!(f, [space()])?;
+                                }
+                                Ok(())
+                            }),
+                            token(":"),
+                            space(),
+                            format_with(|f| {
+                                write_ternary_colon_comments_at_index(
+                                    f,
+                                    colon_comments,
+                                    colon_line_comments,
+                                    branch_index,
+                                )
+                            }),
+                        ]
+                    )?;
+                    continue;
+                }
+
+                // expanded nested ternary branch
+                write!(
+                    f,
+                    [indent(&format_args![
                         soft_line_break_or_space(),
                         token("?"),
                         space(),
                         format_with(|f| {
-                            if let Some(comments) = question_comments.first() {
-                                write_ternary_separator_comments(f, comments)?;
-                            }
-                            Ok(())
+                            write_ternary_question_comments(f, question_comments, branch_index)
                         }),
                         then_expr,
                         format_with(|f| {
-                            if then_has_boundary_comment_before_colon {
+                            if branch_then_has_boundary_comment_before_colon {
                                 write!(f, [soft_line_break()])?;
                             } else {
                                 write!(f, [soft_line_break_or_space()])?;
@@ -470,122 +575,89 @@ pub(super) fn format_ternary(
                         token(":"),
                         space(),
                         format_with(|f| {
-                            if let Some(comments) = colon_comments.first() {
-                                write_ternary_separator_comments(f, comments)?;
-                            }
-                            if let Some(comments) = colon_line_comments.first() {
-                                write_ternary_colon_line_comments(f, comments)?;
-                                if !comments.is_empty() {
-                                    write!(f, [hard_line_break()])?;
-                                }
-                            }
-                            Ok(())
+                            write_ternary_colon_comments_at_index(
+                                f,
+                                colon_comments,
+                                colon_line_comments,
+                                branch_index,
+                            )
                         }),
-                        indent(&format_args![final_else])
-                    ]),
-                ])]
-            )?;
-        }
-    } else {
-        // nested ternary chain: all branches at same indent level
-        write!(
+                    ])]
+                )?;
+            }
+
+            write!(f, [final_else])
+        }))]
+    )?;
+
+    Ok(())
+}
+
+/// Format a ternary expression with Prettier-style breaking.
+/// Nested ternaries get progressive indentation when they break.
+pub(super) fn format_ternary(
+    f: &mut DestackFormatter<'_, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    // collect flattened ternary branches
+    let (branches, final_else) = collect_ternary_chain(tree, node_id);
+
+    // collect separator comments for `?` and `:` boundaries
+    let (question_comments, colon_comments) = collect_statement_ternary_boundary_prefix_comments(
+        f.context(),
+        node_id,
+        &branches,
+        final_else,
+    );
+    let colon_line_comments =
+        collect_ternary_colon_line_comments(f.context(), &branches, final_else);
+
+    // decide compact vs expanded separator policy
+    let use_compact_tree_layout = ternary_should_use_compact_tree_layout(
+        f.context(),
+        &branches,
+        final_else,
+        &question_comments,
+        &colon_comments,
+    );
+
+    // format one-branch ternary
+    if branches.len() == 1 {
+        let (condition, then_expr) = branches[0];
+        let first_else_start = ternary_else_start_for_branch(f.context(), &branches, final_else, 0);
+        let then_has_boundary_comment_before_colon = ternary_then_has_boundary_comment_before_colon(
+            f.context(),
+            then_expr,
+            first_else_start,
+        );
+        format_single_ternary_branch(
             f,
-            [group(&format_with(|f| {
-                for (branch_index, (condition, then_expr)) in branches.iter().enumerate() {
-                    let branch_else_start = ternary_else_start_for_branch(
-                        f.context(),
-                        &branches,
-                        final_else,
-                        branch_index,
-                    );
-                    let branch_then_has_boundary_comment_before_colon =
-                        ternary_then_has_boundary_comment_before_colon(
-                            f.context(),
-                            *then_expr,
-                            branch_else_start,
-                        );
-                    write!(f, [condition])?;
-                    if use_compact_tree_layout {
-                        write!(
-                            f,
-                            [
-                                space(),
-                                token("?"),
-                                space(),
-                                format_with(|f| {
-                                    if let Some(comments) = question_comments.get(branch_index) {
-                                        write_ternary_separator_comments(f, comments)?;
-                                    }
-                                    Ok(())
-                                }),
-                                then_expr,
-                                format_with(|f| {
-                                    if !branch_then_has_boundary_comment_before_colon {
-                                        write!(f, [space()])?;
-                                    }
-                                    Ok(())
-                                }),
-                                token(":"),
-                                space(),
-                                format_with(|f| {
-                                    if let Some(comments) = colon_comments.get(branch_index) {
-                                        write_ternary_separator_comments(f, comments)?;
-                                    }
-                                    if let Some(comments) = colon_line_comments.get(branch_index) {
-                                        write_ternary_colon_line_comments(f, comments)?;
-                                        if !comments.is_empty() {
-                                            write!(f, [hard_line_break()])?;
-                                        }
-                                    }
-                                    Ok(())
-                                }),
-                            ]
-                        )?;
-                    } else {
-                        write!(
-                            f,
-                            [indent(&format_args![
-                                soft_line_break_or_space(),
-                                token("?"),
-                                space(),
-                                format_with(|f| {
-                                    if let Some(comments) = question_comments.get(branch_index) {
-                                        write_ternary_separator_comments(f, comments)?;
-                                    }
-                                    Ok(())
-                                }),
-                                then_expr,
-                                format_with(|f| {
-                                    if branch_then_has_boundary_comment_before_colon {
-                                        write!(f, [soft_line_break()])?;
-                                    } else {
-                                        write!(f, [soft_line_break_or_space()])?;
-                                    }
-                                    Ok(())
-                                }),
-                                token(":"),
-                                space(),
-                                format_with(|f| {
-                                    if let Some(comments) = colon_comments.get(branch_index) {
-                                        write_ternary_separator_comments(f, comments)?;
-                                    }
-                                    if let Some(comments) = colon_line_comments.get(branch_index) {
-                                        write_ternary_colon_line_comments(f, comments)?;
-                                        if !comments.is_empty() {
-                                            write!(f, [hard_line_break()])?;
-                                        }
-                                    }
-                                    Ok(())
-                                }),
-                            ])]
-                        )?;
-                    }
-                }
-                write!(f, [final_else])
-            }))]
+            condition,
+            then_expr,
+            final_else,
+            use_compact_tree_layout,
+            then_has_boundary_comment_before_colon,
+            &question_comments,
+            &colon_comments,
+            &colon_line_comments,
+        )?;
+    }
+    // format nested ternary chains
+    else {
+        format_nested_ternary_branches(
+            f,
+            &branches,
+            final_else,
+            use_compact_tree_layout,
+            &question_comments,
+            &colon_comments,
+            &colon_line_comments,
         )?;
     }
 
+    // statement-position ternaries keep explicit terminators
     if ternary_requires_terminator(f.context(), node_id) {
         write!(f, [token(";")])?;
     }

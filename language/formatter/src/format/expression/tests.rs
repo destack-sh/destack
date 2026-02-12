@@ -456,7 +456,7 @@ fn test_format_member_call_chain_breaks() {
 fn test_format_member_call_chain_breaks_with_maybe_and_index() {
     assert_format!(
         "call().followed()?.by()[0]?.many()?.calls()",
-        "call()\n\t.followed()\n\t?.by()\n\t[0]\n\t?.many()\n\t?.calls()",
+        "call()\n\t.followed()\n\t?.by()[0]\n\t?.many()\n\t?.calls()",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );
@@ -476,7 +476,7 @@ fn test_format_path_member_call_chain_breaks() {
 fn test_format_index_member_chain_breaks() {
     assert_format!(
         "identifier1.identifier2.identifier3[indexA].identifier4[indexB]?.[indexC][indexD]",
-        "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC]\n\t[indexD]",
+        "identifier1\n\t.identifier2\n\t.identifier3[indexA]\n\t.identifier4[indexB]\n\t?.[indexC][indexD]",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );

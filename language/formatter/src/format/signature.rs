@@ -293,7 +293,7 @@ pub(crate) fn signature_parameters_should_expand(
 /// Write a dynamic parameter list with shared expansion controls.
 pub(crate) fn write_signature_dynamic_parameter_list(
     f: &mut DestackFormatter<'_, '_>,
-    parameters: &Vec<LocalNodeId<Parameter>>,
+    parameters: &[LocalNodeId<Parameter>],
     should_expand: bool,
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {

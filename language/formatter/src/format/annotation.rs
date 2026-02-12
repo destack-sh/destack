@@ -1070,8 +1070,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
         let tree = f.context().tree;
         let expression_span = f.context().get_span(self.expression);
         let expression_source = f.context().get_span_str(expression_span);
-        let expression_contains_inline_comment =
-            expression_source.contains("//") || expression_source.contains("/*");
+        let expression_contains_inline_comment = f.context().has_comment(expression_span);
         if expression_contains_inline_comment {
             write!(f, [token("@"), text(expression_source.trim())])?;
             return Ok(());
