@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use destack_fir::format::FormatResult;
 
 use crate::argument::list_like;
@@ -194,6 +196,29 @@ fn should_expand_parameter_object_pattern(
         })
 }
 
+/// Return object-pattern fields to render, normalizing out parser elision artifacts.
+fn object_pattern_render_fields<'a>(
+    tree: &NodeTree,
+    fields: &'a [LocalNodeId<PatternField>],
+) -> Cow<'a, [LocalNodeId<PatternField>]> {
+    let has_elision = fields
+        .iter()
+        .copied()
+        .any(|field_id| matches!(tree.get(field_id), PatternField::Elision));
+
+    if !has_elision {
+        return Cow::Borrowed(fields);
+    }
+
+    Cow::Owned(
+        fields
+            .iter()
+            .copied()
+            .filter(|field_id| !matches!(tree.get(*field_id), PatternField::Elision))
+            .collect(),
+    )
+}
+
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
@@ -266,16 +291,21 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 write!(f, [list])?;
             }
             Pattern::Object { fields } => {
-                let mut list = list_like("{", "}", ",", fields);
+                let render_fields = object_pattern_render_fields(f.context().tree, fields);
+                let mut list = list_like("{", "}", ",", render_fields.as_ref());
                 list.as_collection().include_space();
                 let has_newline = pattern_has_multiline_source(f.context(), node_id);
-                let has_nested_fields = fields
+                let has_nested_fields = render_fields
                     .iter()
                     .copied()
                     .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations = collection_nodes_have_annotations(f.context(), fields);
-                let should_expand_for_parameter =
-                    should_expand_parameter_object_pattern(f.context(), node_id, fields);
+                let has_field_annotations =
+                    collection_nodes_have_annotations(f.context(), render_fields.as_ref());
+                let should_expand_for_parameter = should_expand_parameter_object_pattern(
+                    f.context(),
+                    node_id,
+                    render_fields.as_ref(),
+                );
                 let should_expand_for_comments = CollectionBreakScore {
                     has_newline_in_source: has_newline,
                     has_item_annotations: has_field_annotations,
@@ -289,7 +319,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 {
                     list.as_collection().should_expand(true);
                 }
-                if fields.last().is_some_and(|field_id| {
+                if render_fields.last().is_some_and(|field_id| {
                     matches!(f.context().tree.get(*field_id), PatternField::Spread { .. })
                 }) {
                     list.disallow_trailing_separator();
@@ -298,16 +328,21 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
             Pattern::TaggedObject { ty, fields } => {
                 write!(f, [ty, space()])?;
-                let mut list = list_like("{", "}", ",", fields);
+                let render_fields = object_pattern_render_fields(f.context().tree, fields);
+                let mut list = list_like("{", "}", ",", render_fields.as_ref());
                 list.as_collection().include_space();
                 let has_newline = pattern_has_multiline_source(f.context(), node_id);
-                let has_nested_fields = fields
+                let has_nested_fields = render_fields
                     .iter()
                     .copied()
                     .any(|field_id| pattern_field_prefers_multiline(f.context().tree, field_id));
-                let has_field_annotations = collection_nodes_have_annotations(f.context(), fields);
-                let should_expand_for_parameter =
-                    should_expand_parameter_object_pattern(f.context(), node_id, fields);
+                let has_field_annotations =
+                    collection_nodes_have_annotations(f.context(), render_fields.as_ref());
+                let should_expand_for_parameter = should_expand_parameter_object_pattern(
+                    f.context(),
+                    node_id,
+                    render_fields.as_ref(),
+                );
                 let should_expand_for_comments = CollectionBreakScore {
                     has_newline_in_source: has_newline,
                     has_item_annotations: has_field_annotations,
@@ -321,7 +356,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 {
                     list.as_collection().should_expand(true);
                 }
-                if fields.last().is_some_and(|field_id| {
+                if render_fields.last().is_some_and(|field_id| {
                     matches!(f.context().tree.get(*field_id), PatternField::Spread { .. })
                 }) {
                     list.disallow_trailing_separator();

@@ -136,11 +136,11 @@ while (i < 10 && running) {
 
 Do-while loops put `while` on the same line as the closing brace.
 
-```ds
+```ts:main.ts
 do{process()}while(condition)
 ```
 
-```ds expected
+```ts expected
 do {
     process()
 } while (condition)

@@ -212,6 +212,13 @@ fn annotation_follows_opening_delimiter<'ast>(
         Some('(' | '[' | '{' | '<')
     )
 }
+/// Return whether an annotation directly follows a separator in source.
+fn annotation_follows_separator<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    previous_non_whitespace_before_annotation(context, annotation_id) == Some(',')
+}
 
 /// Return whether an annotation starts on a line with only leading whitespace.
 pub(super) fn annotation_starts_on_own_line<'ast>(
@@ -395,6 +402,8 @@ struct AnnotationRenderFacts {
     /// Whether annotation follows an opening delimiter.
     follows_opening_delimiter: bool,
     /// Whether annotation precedes a separator.
+    /// Whether annotation follows a separator.
+    follows_separator: bool,
     precedes_separator: bool,
     /// First non-whitespace character after the annotation.
     next_character: Option<char>,
@@ -425,6 +434,7 @@ fn annotation_render_facts(
         is_star_comment,
         slash_starts_on_own_line,
         follows_colon: annotation_follows_colon(context, annotation_id),
+        follows_separator: annotation_follows_separator(context, annotation_id),
         follows_opening_delimiter: annotation_follows_opening_delimiter(context, annotation_id),
         precedes_separator: annotation_precedes_separator(context, annotation_id),
         next_character: next_non_whitespace_after_annotation(context, annotation_id),
@@ -583,8 +593,7 @@ where
             let is_inline_delimited_block_postfix_star_comment = position
                 == AnnotationPosition::BlockPostfix
                 && render_facts.is_star_comment
-                && render_facts.follows_opening_delimiter
-                && render_facts.precedes_separator;
+                && render_facts.next_character == Some(',');
             let inline_block_comment_follows_opening_delimiter =
                 is_inline_block_star_comment && render_facts.follows_opening_delimiter;
 
@@ -821,7 +830,9 @@ where
                     }
                 }
                 AnnotationPosition::LinePostfixBoundary => {
-                    if !(render_facts.is_star_comment && render_facts.precedes_separator) {
+                    let should_keep_inline_star_boundary_comment = render_facts.is_star_comment
+                        && (render_facts.precedes_separator || render_facts.follows_separator);
+                    if !should_keep_inline_star_boundary_comment {
                         write!(f, [soft_line_break()])?;
                     }
                 }

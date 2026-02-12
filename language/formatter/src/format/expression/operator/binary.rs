@@ -56,6 +56,17 @@ fn is_mixed_logical_precedence_pair(
         )
 }
 
+/// Return whether a mixed logical precedence pair should preserve right grouping for comments.
+#[inline]
+fn should_preserve_mixed_logical_grouping_for_comments(
+    context: &DestackFormatContext<'_>,
+    left: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
+) -> bool {
+    let right_span = context.get_span(right);
+    span_has_comment(context, right_span) || has_comment_between_expressions(context, left, right)
+}
+
 /// Return whether a source operator break should be preserved.
 #[inline]
 fn preserve_source_operator_break(
@@ -178,6 +189,10 @@ fn try_format_mixed_logical_precedence<'ast>(
         return Ok(false);
     }
 
+    if !should_preserve_mixed_logical_grouping_for_comments(f.context(), left, right) {
+        return Ok(false);
+    }
+
     write!(
         f,
         [group(&format_args![
@@ -206,7 +221,6 @@ fn try_format_logical_parenthesized_cases<'ast>(
         return Ok(false);
     }
 
-    // parenthesized multiline left tail with short `&&` right side
     let left_span = f.context().get_span(left);
     let left_source = f.context().get_span_str(left_span);
     let left_has_multiline_parenthesized_tail =
@@ -215,6 +229,8 @@ fn try_format_logical_parenthesized_cases<'ast>(
     let right_is_inline_trivial =
         expression_is_trivial_inline_without_annotations(f.context(), right);
     let right_has_prefix = f.context().has_prefix_annotation(right);
+
+    // parenthesized multiline left tail with short `&&` right side
     if left_has_multiline_parenthesized_tail
         && right_is_inline_trivial
         && !right_has_prefix
@@ -236,9 +252,8 @@ fn try_format_logical_parenthesized_cases<'ast>(
     let left_prefers_trailing_operator = matches!(
         f.context().tree.get(left),
         Expression::Parenthesized { expression }
-            if (f.context().has_prefix_annotation(left)
-                || f.context().has_prefix_annotation(*expression))
-                && f.context().node_has_newline(left)
+            if f.context().has_prefix_annotation(left)
+                || f.context().has_prefix_annotation(*expression)
     );
     if left_prefers_trailing_operator && right_is_inline_trivial {
         write!(
@@ -519,11 +534,7 @@ pub(super) fn format_binary_expression<'ast>(
             let [left_operand, right_operand] = window else {
                 return true;
             };
-            !has_newline_between_expressions(
-                f.context(),
-                left_operand.expression,
-                right_operand.expression,
-            ) && line_comment_between_expressions(
+            line_comment_between_expressions(
                 f.context(),
                 left_operand.expression,
                 right_operand.expression,
@@ -766,6 +777,13 @@ pub(super) fn format_binary_expression<'ast>(
                         prev_expression.is_some_and(|expression_id| {
                             expression_has_leading_prefix_comment(f.context(), expression_id)
                         });
+                    let previous_is_parenthesized_multiline =
+                        prev_expression.is_some_and(|expression_id| {
+                            matches!(
+                                f.context().tree.get(expression_id),
+                                Expression::Parenthesized { .. }
+                            ) && f.context().node_has_newline(expression_id)
+                        });
                     let operand_prefers_trailing_operator =
                         operand_prefers_trailing_logical_operator(
                             f.context(),
@@ -810,6 +828,10 @@ pub(super) fn format_binary_expression<'ast>(
                                     if !has_postfix {
                                         if preserve_source_operator_break {
                                             write!(f, [hard_line_break()])?;
+                                        } else if previous_is_parenthesized_multiline
+                                            && is_logical_binary_operator(op)
+                                        {
+                                            write!(f, [space()])?;
                                         } else {
                                             write!(f, [soft_line_break_or_space()])?;
                                         }

@@ -53,6 +53,31 @@ pub(crate) fn constructor_parameters_should_expand(
             .any(|parameter_id| parameter_has_modifier(context, *parameter_id))
 }
 
+/// Return whether this parameter has any slash comment annotation.
+fn parameter_has_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    if !context.has_annotation(parameter_id) {
+        return false;
+    }
+
+    context
+        .with_annotations(parameter_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let Annotation::Comment { node, .. } =
+                    context.tree.get::<Annotation>(*annotation_id)
+                else {
+                    return false;
+                };
+
+                let comment = context.tree.get::<Comment>(*node);
+                comment.style == CommentStyle::Slash
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Return whether a single parameter should keep compact outer parentheses.
 pub(crate) fn single_parameter_should_hug(
     context: &DestackFormatContext<'_>,
@@ -281,12 +306,17 @@ pub(crate) fn signature_parameters_should_expand(
             .any(|parameter_id| parameter_should_force_expand_in_signature(context, parameter_id));
     let should_break_constructor_parameters =
         constructor_parameters_should_expand(context, mode, parameters);
+    let should_expand_for_parameter_line_comments = parameters
+        .iter()
+        .copied()
+        .any(|parameter_id| parameter_has_line_comment_annotation(context, parameter_id));
     let should_expand_single_for_multiline_return_type = parameters.len() == 1
         && !parameter_is_variadic(context, parameters[0])
         && signature_return_type_is_multiline(context, return_type);
 
     should_expand_parameter_shapes
         || should_break_constructor_parameters
+        || should_expand_for_parameter_line_comments
         || should_expand_single_for_multiline_return_type
 }
 

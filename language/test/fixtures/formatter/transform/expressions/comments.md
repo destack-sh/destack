@@ -50,29 +50,29 @@ const x = /* pre-A */ A /* A comment */ && B /* B comment */;
 
 Objects with internal comments expand to multiple lines.
 
-```ds
-{ /* key */ a: 1, /* another */ b: 2 }
+```ts:main.ts
+({ /* key */ a: 1, /* another */ b: 2 })
 ```
 
 The formatter expands the object when it contains comments.
 
-```ds expected
-{
+```ts expected
+({
     /* key */ a: 1,
     /* another */ b: 2,
-};
+});
 ```
 
 ### comment in computed object key
 
 Comments before computed keys also expand objects to multiple lines.
 
-```ds
-{ /* key */ [k]: value }
+```ts:main.ts
+({ /* key */ [k]: value })
 ```
 
-```ds expected
-{ /* key */ [k]: value };
+```ts expected
+({ /* key */ [k]: value });
 ```
 
 ### comment in function body

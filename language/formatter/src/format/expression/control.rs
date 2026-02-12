@@ -178,9 +178,95 @@ fn inline_else_boundary_block_comment<'ast>(
     let between_span = Span::new(then_span.file, then_span.end, else_span.start);
     let between_source = context.get_span_str(between_span);
     let comment_index = between_source.find(comment_source)?;
+    let before_comment = &between_source[..comment_index];
+    if before_comment
+        .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+        .any(|token| token == "else")
+    {
+        return None;
+    }
     let comment_is_on_new_line = between_source[..comment_index].contains('\n');
 
     Some((comment_source.to_string(), comment_is_on_new_line))
+}
+
+/// Return whether expression annotations include a block prefix annotation.
+fn expression_has_block_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        matches!(
+            context.tree.get::<Annotation>(annotation_id),
+            Annotation::Blank {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } | Annotation::Doc {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } | Annotation::Comment {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } | Annotation::Decorator {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether expression annotations include a line prefix annotation.
+fn expression_has_line_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        matches!(
+            context.tree.get::<Annotation>(annotation_id),
+            Annotation::Blank {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            } | Annotation::Doc {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            } | Annotation::Comment {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            } | Annotation::Decorator {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether an if branch should include a space after the condition head.
+fn if_branch_head_requires_space(
+    context: &DestackFormatContext<'_>,
+    then_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let then_is_empty_statement = matches!(
+        context.tree.get(then_expression_id),
+        Expression::Block(block_id) if is_empty_statement_block(context, *block_id)
+    );
+
+    if expression_has_block_prefix_annotation(context, then_expression_id) {
+        return false;
+    }
+
+    if expression_has_line_prefix_annotation(context, then_expression_id) {
+        return true;
+    }
+
+    !then_is_empty_statement
 }
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
@@ -200,10 +286,8 @@ pub(crate) fn format_if_else_chain<'ast>(
                 then_expression: then_expression_id,
                 else_expression: else_expression_id,
             } => {
-                let then_is_empty_statement = matches!(
-                    f.context().tree.get(*then_expression_id),
-                    Expression::Block(block_id) if is_empty_statement_block(f.context(), *block_id)
-                );
+                let then_requires_head_space =
+                    if_branch_head_requires_space(f.context(), *then_expression_id);
 
                 // if <condition>
                 match condition {
@@ -212,7 +296,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                             f,
                             [Keyword::If, space(), token("("), *condition, token(")")]
                         )?;
-                        if !then_is_empty_statement {
+                        if then_requires_head_space {
                             write!(f, [space()])?;
                         }
                     }
@@ -229,7 +313,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                         }
                         write!(f, [space()])?;
                         format_declarator(f, f.context().tree, *declarator)?;
-                        if !then_is_empty_statement {
+                        if then_requires_head_space {
                             write!(f, [space()])?;
                         }
                     }

@@ -487,6 +487,7 @@ pub(super) fn call_arguments_use_single_callback_argument_inline(
 
     let argument_id = dynamic_arguments[0];
     !argument_has_callback_blocking_comment_annotation(context, argument_id)
+        && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
         && (argument_is_lambda_expression(context, argument_id)
             || argument_is_function_expression(context, argument_id))
 }

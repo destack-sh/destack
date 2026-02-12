@@ -15,7 +15,6 @@ enum DeclaratorLayout {
     Inline,
     BreakAfterOperator,
     ValueExpanded,
-    ValueExpandedStrict,
     HeaderExpanded,
     Indented,
 }
@@ -35,8 +34,6 @@ struct DeclaratorLayoutInputs {
     value_has_existing_operator_break: bool,
     value_handles_its_own_breaking: bool,
     value_has_prefix_annotation: bool,
-    preserve_source_rhs_break: bool,
-    preserve_source_operator_break: bool,
     prefer_static_argument_operator_break: bool,
     value_is_chain: bool,
     has_single_chain_call: bool,
@@ -48,10 +45,12 @@ struct DeclaratorLayoutInputs {
     value_is_declaration: bool,
     value_is_await_expression: bool,
     value_has_multiline_chain_body: bool,
-    value_is_binary: bool,
+    value_is_sequence: bool,
+    value_has_line_comment_between_operands: bool,
     value_is_call_like: bool,
     value_has_newline: bool,
     pattern_has_newline: bool,
+    pattern_has_default_assignment: bool,
     pattern_has_comments_or_annotations: bool,
     value_is_parenthesized: bool,
 }
@@ -99,11 +98,10 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
 
     // chain and binary values that already own their line breaking
     if inputs.value_handles_its_own_breaking {
+        // self-breaking rhs policy: avoid source-preserving break heuristics, they cause idempotence flips
         let value_prefers_operator_break = !inputs.value_is_lambda
             && !inputs.value_is_declaration
             && (inputs.value_has_prefix_annotation
-                || inputs.preserve_source_rhs_break
-                || inputs.preserve_source_operator_break
                 || inputs.prefer_static_argument_operator_break
                 || (inputs.value_is_chain
                     && inputs.value_is_long
@@ -116,32 +114,24 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
             && !inputs.value_is_await_expression
             && !inputs.value_has_multiline_chain_body)
             || inputs.value_has_prefix_annotation
-            || inputs.preserve_source_operator_break
             || inputs.prefer_static_argument_operator_break
             || inputs.has_significant_between_comment;
 
         if inputs.pattern_breakable {
-            let should_try_operator_break_before_header_expand = inputs.value_is_long
-                && (inputs.value_is_binary
-                    || inputs.value_is_chain
-                    || inputs.value_is_call_like
-                    || inputs.value_is_lambda);
-            if inputs.value_has_prefix_annotation
-                || inputs.has_significant_between_comment
-                || should_try_operator_break_before_header_expand
-            {
-                return if !inputs.inline_declarator_fits {
-                    DeclaratorLayout::BreakAfterOperator
-                } else {
-                    DeclaratorLayout::Inline
-                };
+            if inputs.value_has_prefix_annotation || inputs.has_significant_between_comment {
+                return DeclaratorLayout::BreakAfterOperator;
             }
 
-            return if !inputs.inline_declarator_fits {
-                DeclaratorLayout::HeaderExpanded
-            } else {
-                DeclaratorLayout::Inline
-            };
+            let should_break_after_operator_for_long_rhs = !inputs.inline_declarator_fits
+                && !inputs.pattern_has_newline
+                && ((inputs.value_is_call_like && inputs.pattern_has_default_assignment)
+                    || inputs.value_is_sequence
+                    || inputs.value_has_line_comment_between_operands);
+            if should_break_after_operator_for_long_rhs {
+                return DeclaratorLayout::BreakAfterOperator;
+            }
+
+            return DeclaratorLayout::Inline;
         }
 
         if value_prefers_operator_break {
@@ -149,18 +139,16 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
                 return DeclaratorLayout::BreakAfterOperator;
             }
 
-            return if inputs.inline_declarator_fits {
-                DeclaratorLayout::Inline
-            } else {
-                DeclaratorLayout::BreakAfterOperator
-            };
+            return DeclaratorLayout::Inline;
         }
 
-        return if inputs.inline_declarator_fits {
-            DeclaratorLayout::Inline
-        } else {
-            DeclaratorLayout::ValueExpandedStrict
-        };
+        let should_break_after_operator_for_long_rhs = !inputs.inline_declarator_fits
+            && (inputs.value_is_sequence || inputs.value_has_line_comment_between_operands);
+        if should_break_after_operator_for_long_rhs {
+            return DeclaratorLayout::BreakAfterOperator;
+        }
+
+        return DeclaratorLayout::Inline;
     }
 
     // fallback matrix for non self-breaking values
@@ -485,6 +473,8 @@ pub(super) fn format_declarator<'ast>(
         .unwrap_or(0);
     let value_has_newline = f.context().has_newline(value_span);
     let pattern_has_newline = f.context().has_newline(pattern_span);
+    let pattern_source = f.context().get_span_str(pattern_span);
+    let pattern_has_default_assignment = pattern_source.contains('=');
     let pattern_has_comments_or_annotations =
         f.context().has_annotation(*pattern) || span_has_comment(f.context(), pattern_span);
     let value_is_parenthesized = matches!(value_expr, Expression::Parenthesized { .. });
@@ -495,6 +485,12 @@ pub(super) fn format_declarator<'ast>(
     let value_has_between_comment =
         between_span.is_some_and(|span| span_has_comment(f.context(), span));
     let value_has_internal_comment = span_has_comment(f.context(), value_span);
+    let value_has_line_comment_between_operands = match value_inner_expr {
+        Expression::Binary { left, right, .. } => {
+            line_comment_between_expressions(f.context(), *left, *right).is_some()
+        }
+        _ => false,
+    };
     let value_binary_operand_count = match value_inner_expr {
         Expression::Binary { operator, .. } => {
             flattened_binary_operand_count(tree, value_inner_id, *operator)
@@ -540,20 +536,6 @@ pub(super) fn format_declarator<'ast>(
                 token("="),
                 space(),
                 fits_expanded(&group(value_id).should_expand(should_force_expand_value)),
-            ]
-        )
-    });
-
-    // expand inline without a fits boundary for chains and binaries
-    let format_value_expanded_strict = format_with(|f| {
-        write!(
-            f,
-            [
-                header,
-                space(),
-                token("="),
-                space(),
-                group(value_id).should_expand(should_force_expand_value),
             ]
         )
     });
@@ -637,7 +619,6 @@ pub(super) fn format_declarator<'ast>(
     );
     let value_is_leading_pipe_type_union = is_type_context(f.context(), value_inner_id)
         && union_source_has_leading_pipe(f.context(), value_inner_id);
-    let source_rhs_has_newline = value_has_newline && allow_source_operator_break_preservation;
     let source_operator_has_newline =
         value_has_existing_operator_break && allow_source_operator_break_preservation;
     let static_argument_operator_break_candidate = value_is_call_like
@@ -649,10 +630,6 @@ pub(super) fn format_declarator<'ast>(
         && estimated_inline_declarator_len >= line_width.saturating_sub(leading_prefix_len);
     let prefer_static_argument_operator_break =
         static_argument_operator_break_candidate && (source_operator_has_newline || value_is_long);
-    let preserve_source_rhs_break =
-        source_rhs_has_newline && (value_is_binary || value_is_sequence);
-    let preserve_source_operator_break =
-        source_operator_has_newline && (value_is_chain || value_is_binary || value_is_sequence);
     let has_significant_between_comment = value_has_between_comment
         && (value_is_long
             || estimated_inline_declarator_len.saturating_add(between_source_len)
@@ -676,8 +653,6 @@ pub(super) fn format_declarator<'ast>(
         value_has_existing_operator_break,
         value_handles_its_own_breaking,
         value_has_prefix_annotation,
-        preserve_source_rhs_break,
-        preserve_source_operator_break,
         prefer_static_argument_operator_break,
         value_is_chain,
         has_single_chain_call,
@@ -689,10 +664,12 @@ pub(super) fn format_declarator<'ast>(
         value_is_declaration,
         value_is_await_expression,
         value_has_multiline_chain_body,
-        value_is_binary,
+        value_is_sequence,
+        value_has_line_comment_between_operands,
         value_is_call_like,
         value_has_newline,
         pattern_has_newline,
+        pattern_has_default_assignment,
         pattern_has_comments_or_annotations,
         value_is_parenthesized,
     });
@@ -703,7 +680,6 @@ pub(super) fn format_declarator<'ast>(
             write!(f, [format_break_after_operator_for_binary])?
         }
         DeclaratorLayout::ValueExpanded => write!(f, [format_value_expanded])?,
-        DeclaratorLayout::ValueExpandedStrict => write!(f, [format_value_expanded_strict])?,
         DeclaratorLayout::HeaderExpanded => write!(f, [format_header_expanded])?,
         DeclaratorLayout::Indented => write!(f, [format_indented])?,
     }

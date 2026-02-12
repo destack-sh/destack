@@ -90,6 +90,10 @@ pub(super) fn collect_parenthesized_boundary_comments(
         return Vec::new();
     }
 
+    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
+        return Vec::new();
+    }
+
     let parenthesized_span = context.get_span(parenthesized_id);
     let inner_span = context.get_span(inner_expression_id);
     if parenthesized_span.file != inner_span.file || inner_span.end >= parenthesized_span.end {
@@ -198,6 +202,11 @@ pub(super) fn should_unwrap_parenthesized_member_object(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    // keep nested grouping in type contexts stable across repeated formatting
+    if is_type_context(context, parenthesized_id) {
+        return false;
+    }
+
     if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
         return false;
     }
