@@ -28,12 +28,11 @@ impl Parser {
         }
 
         // parse the first argument as the import target
-        let target_expression = self.with_options(
+        let target_expression = self.eat_expression(
             self.options
                 .nested()
                 .not_in_position()
                 .not_in_sequence_expression(),
-            |parser| parser.eat_expression(parser.options),
         )?;
 
         // keep static string targets as interned strings
@@ -98,7 +97,7 @@ impl Parser {
     /// ```
     pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_IMPORT);
-        let start = self.mark();
+        let start = self.mark_span();
 
         // keyword
         self.eat_keyword(Keyword::Import)?;
@@ -372,7 +371,7 @@ impl Parser {
     /// export = foo
     /// ```
     pub fn eat_export(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         self.eat_keyword(Keyword::Export)?;
 
@@ -385,10 +384,8 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            let value = self.with_options(
-                self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(parser.options),
-            )?;
+            let value =
+                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             let item = self.tree.insert(
                 DependencyItem {
                     mode: DependencyMode::Default,
@@ -425,10 +422,8 @@ impl Parser {
         // export =
         else if self.peek_is(TokenType::Assign) {
             self.bump(); // eat assign
-            let value = self.with_options(
-                self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(parser.options),
-            )?;
+            let value =
+                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             let item = self.tree.insert(
                 DependencyItem {
                     mode: DependencyMode::Namespace,
@@ -623,7 +618,7 @@ impl Parser {
         if self.peek_is(TokenType::Identifier)
             && (self.peek_next_is(TokenType::Comma) || self.is_next_keyword(Keyword::From))
         {
-            let start = self.mark();
+            let start = self.mark_span();
             let (alias, alias_span) = self.eat_identifier_with_span()?;
             if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma (leave from)
@@ -642,7 +637,7 @@ impl Parser {
 
         // `* as foo` (can follow a default import)
         if self.peek_is(TokenType::Multiply) && self.is_next_keyword(Keyword::As) {
-            let start = self.mark();
+            let start = self.mark_span();
             self.bump(); // eat *
             self.bump(); // eat as
             let (alias, alias_span) = if self.peek_is(TokenType::Literal) {
@@ -700,7 +695,7 @@ impl Parser {
         allow_type_modifier: bool,
         allow_literal_alias: bool,
     ) -> ParseResult<LocalNodeId<DependencyItem>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // kind
         let kind = if self.should_parse_dependency_type_modifier() {

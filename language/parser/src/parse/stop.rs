@@ -658,17 +658,18 @@ impl Parser {
     /// Skip any newlines at and after a position and check if there's a specific token after.
     #[inline]
     pub fn is_token_after_newlines(&mut self, pos: u32, target_token: TokenType) -> bool {
-        let mut pos = pos as usize;
-        self.ensure_token(pos);
-        if let Some(token) = self.tokens().get(pos)
-            && token.token.ty != TokenType::Newline
+        let mut start = pos as usize;
+        self.ensure_token(start);
+        if self
+            .tokens()
+            .get(start)
+            .is_some_and(|token| token.token.ty != TokenType::Newline)
         {
-            pos = pos.saturating_add(1);
+            start = start.saturating_add(1);
         }
-        let next = self.next_non_newline_index_from_stream(pos);
-        self.tokens()
-            .get(next)
-            .is_some_and(|token| token.token.ty == target_token)
+
+        let cursor = self.non_newline_cursor_from(start);
+        cursor.token_type == target_token
     }
 
     /// Skip any newlines at and after a position and check if there's a specific token after.
@@ -677,28 +678,27 @@ impl Parser {
         pos: u32,
         target_token: TokenType,
     ) -> ParseResult<u32> {
-        let mut pos = pos as usize;
-        self.ensure_token(pos);
-        if let Some(token) = self.tokens().get(pos)
-            && token.token.ty != TokenType::Newline
-        {
-            pos = pos.saturating_add(1);
-        }
-        let next = self.next_non_newline_index_from_stream(pos);
+        let mut start = pos as usize;
+        self.ensure_token(start);
         if self
             .tokens()
-            .get(next)
-            .is_some_and(|token| token.token.ty == target_token)
+            .get(start)
+            .is_some_and(|token| token.token.ty != TokenType::Newline)
         {
-            if next == 0 {
+            start = start.saturating_add(1);
+        }
+
+        let cursor = self.non_newline_cursor_from(start);
+        if cursor.token_type == target_token {
+            if cursor.index == 0 {
                 Ok(0)
             } else {
-                Ok((next - 1) as u32)
+                Ok((cursor.index - 1) as u32)
             }
         } else {
             let span = self
                 .tokens()
-                .get(next)
+                .get(cursor.index)
                 .map(|token| token.span)
                 .unwrap_or(self.eof_span());
             Err(ParseError::expected(span, target_token))

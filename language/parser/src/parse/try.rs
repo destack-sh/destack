@@ -32,7 +32,7 @@ impl Parser {
     ///
     /// The parser accepts `try <expr>` without catch/finally, but Analyze rejects it.
     pub fn eat_try(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
         self.eat_keyword(Keyword::Try)?;
 
         // try block
@@ -76,9 +76,8 @@ impl Parser {
                         let catch_ty = if self.peek_colon_is() {
                             self.bump(); // eat :
                             self.eat_newlines_maybe()?;
-                            let catch_ty = self.with_options(
+                            let catch_ty = self.eat_expression(
                                 self.options.not_in_position().in_type().in_before_block(),
-                                |parser| parser.eat_expression(parser.options),
                             )?;
                             self.eat_newlines_maybe()?;
                             Some(catch_ty)
@@ -99,9 +98,8 @@ impl Parser {
                         let catch_ty = if self.peek_colon_is() {
                             self.bump(); // eat :
                             self.eat_newlines_maybe()?;
-                            let catch_ty = self.with_options(
+                            let catch_ty = self.eat_expression(
                                 self.options.not_in_position().in_type().in_before_block(),
-                                |parser| parser.eat_expression(parser.options),
                             )?;
                             self.eat_newlines_maybe()?;
                             Some(catch_ty)

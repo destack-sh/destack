@@ -21,7 +21,7 @@ impl Parser {
         receiver_id: LocalNodeId<Expression>,
         position: PostfixPosition,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
         let receiver_span = self.tree.get_span(receiver_id);
 
         // open bracket
@@ -85,7 +85,7 @@ impl Parser {
     /// new Foo<T>()
     /// ```
     pub fn eat_new(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // keyword
         self.eat_keyword(Keyword::New)?;
@@ -136,7 +136,7 @@ impl Parser {
     /// delete foo['result']
     /// ```
     pub fn eat_delete(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // keyword
         self.eat_keyword(Keyword::Delete)?;
@@ -169,7 +169,7 @@ impl Parser {
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         position: PostfixPosition,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
         let receiver_span = self.tree.get_span(receiver_id);
 
         // static arguments (may be empty)

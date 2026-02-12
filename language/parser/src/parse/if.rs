@@ -6,7 +6,7 @@ use destack_ast::{
 impl Parser {
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // empty statement in JS/TS
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
@@ -80,7 +80,7 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_if(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // NOTE #Architecture: ternary if is parsed in expression parser, not in eat_if
 

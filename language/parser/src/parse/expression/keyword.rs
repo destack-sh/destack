@@ -53,7 +53,7 @@ impl Parser {
 
         // async function ...
         if next_token_type == TokenType::Identifier
-            && self.keyword_for_index(self.index_for_next()) == Some(Keyword::Function)
+            && self.keyword_for_index_maybe_fast(self.index_for_next()) == Some(Keyword::Function)
         {
             return true;
         }
@@ -150,11 +150,8 @@ impl Parser {
             return Err(ParseError::unexpected(identifier_token.span));
         }
 
-        // match the member name from cached interned identifiers when available
-        let matches_member_name = self
-            .identifier_for_index(identifier_index)
-            .is_some_and(|identifier| self.strings.get(identifier) == member_name)
-            || self.get_span_str(identifier_token.span) == member_name;
+        // compare directly against source text to avoid interning in hot lookahead
+        let matches_member_name = self.identifier_equals_at(identifier_index, member_name);
         if matches_member_name {
             Ok(true)
         } else {
@@ -167,7 +164,7 @@ impl Parser {
     fn can_start_await_using(&mut self) -> bool {
         let await_index = self.pos_index();
         let using_index = self.next_non_newline_index_from(await_index + 1);
-        self.keyword_for_index(using_index) == Some(Keyword::Using)
+        self.keyword_for_index_maybe_fast(using_index) == Some(Keyword::Using)
     }
 
     /// Try to parse common statement keywords without the full keyword dispatch table.
@@ -178,6 +175,10 @@ impl Parser {
         next_token_type: TokenType,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         let descriptor = DeclarationDescriptor::default();
+        let next_raw_token_type = next_token_type;
+        let next_cursor = self.non_newline_cursor_from(self.pos_index().saturating_add(1));
+        let next_token_type = next_cursor.token_type;
+        let next_has_line_break = next_cursor.has_line_break_before;
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
 
         match keyword {
@@ -190,14 +191,13 @@ impl Parser {
                 let function_id = self.eat_function(start, descriptor, false, false)?;
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
-            Keyword::Class if is_declaration_start || next_token_type == TokenType::Newline => {
+            Keyword::Class if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let struct_id = self.eat_struct_or_class(start, descriptor, false)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             Keyword::Struct
-                if self.language.is_destack()
-                    && (is_declaration_start || next_token_type == TokenType::Newline) =>
+                if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let struct_id = self.eat_struct_or_class(start, descriptor, false)?;
@@ -208,7 +208,7 @@ impl Parser {
                 let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
             }
-            Keyword::Interface if is_declaration_start || next_token_type == TokenType::Newline => {
+            Keyword::Interface if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
                 Ok(Some(
@@ -217,8 +217,11 @@ impl Parser {
             }
             Keyword::Namespace
                 if is_declaration_start
+                    && !next_has_line_break
                     && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(self.keyword_for_index(self.index_for_next())) =>
+                    && !is_type_relation_keyword(
+                        self.keyword_for_index_maybe_fast(self.index_for_next()),
+                    ) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -234,8 +237,11 @@ impl Parser {
                 ))
             }
             Keyword::Type if !self.options.in_new_receiver => {
+                if next_has_line_break {
+                    return Ok(None);
+                }
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(self.index_for_next())
                 } else {
                     None
                 };
@@ -271,7 +277,7 @@ impl Parser {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 Ok(Some(self.eat_type(start, descriptor)?))
             }
-            Keyword::Import if next_token_type == TokenType::OpenParenthesis => {
+            Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
@@ -369,7 +375,7 @@ impl Parser {
             }
             Keyword::Const => {
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(self.index_for_next())
                 } else {
                     None
                 };
@@ -411,8 +417,10 @@ impl Parser {
                     Ok(Some(self.eat_await()?))
                 }
             }
-            Keyword::Async if next_token_type == TokenType::Identifier => {
-                if self.keyword_for_index(self.index_for_next()) != Some(Keyword::Function) {
+            Keyword::Async if next_raw_token_type == TokenType::Identifier => {
+                if self.keyword_for_index_maybe_fast(self.index_for_next())
+                    != Some(Keyword::Function)
+                {
                     return Ok(None);
                 }
 
@@ -428,7 +436,6 @@ impl Parser {
     pub(crate) fn try_eat_statement_keyword_expression_fast(
         &mut self,
         start: &ParserMark,
-        allow_fallback_keyword_parse: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.statement_keyword_fast_calls += 1;
@@ -448,7 +455,7 @@ impl Parser {
         }
 
         // only route commonly statement led keywords through the direct parser
-        let Some(keyword) = self.keyword_for_index(self.pos_index()) else {
+        let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) else {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.statement_keyword_fast_keyword_rejects += 1;
             }
@@ -508,11 +515,6 @@ impl Parser {
             speculation_stats.statement_keyword_fast_direct_misses += 1;
         }
 
-        // stop after the direct dispatch path when fallback parsing is disabled
-        if !allow_fallback_keyword_parse {
-            return Ok(None);
-        }
-
         // parse through the existing keyword machinery with a neutral descriptor
         let descriptor = DeclarationDescriptor::default();
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
@@ -551,7 +553,9 @@ impl Parser {
             Keyword::Namespace
                 if is_declaration_start
                     && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(self.keyword_for_index(self.index_for_next())) =>
+                    && !is_type_relation_keyword(
+                        self.keyword_for_index_maybe_fast(self.index_for_next()),
+                    ) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -590,7 +594,7 @@ impl Parser {
             Keyword::Const => {
                 // look ahead for const enum
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(self.index_for_next())
                 } else {
                     None
                 };
@@ -611,7 +615,7 @@ impl Parser {
             Keyword::Newtype => {
                 // look ahead for newtype interface
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(self.index_for_next())
                 } else {
                     None
                 };
@@ -924,7 +928,7 @@ impl Parser {
                 }
 
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(self.index_for_next())
                 } else {
                     None
                 };

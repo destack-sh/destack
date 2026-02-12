@@ -706,7 +706,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
         if self.has_active_split() {
-            let mark = self.mark();
+            let mark = self.mark_rewind();
             self.eat_newlines_maybe()?;
             if self.peek_is(TokenType::LessThan) {
                 return Ok(Some(self.eat_static_parameters()?));

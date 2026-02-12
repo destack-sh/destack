@@ -50,14 +50,11 @@ impl Parser {
             return false;
         }
 
-        let Some(identifier) = self.identifier_for_index(self.pos_index()) else {
-            return false;
-        };
-        if Some(identifier) == self.global_identifier {
+        if self.is_global_identifier_at(self.pos_index()) {
             return true;
         }
 
-        self.language.supports_module_declaration() && Some(identifier) == self.module_identifier
+        self.is_module_identifier_at(self.pos_index())
     }
 
     /// Check whether a `{` in statement position should be parsed as an object literal.
@@ -226,18 +223,14 @@ impl Parser {
             keyword,
             Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
         );
-        let identifier = if split_active {
-            None
-        } else {
-            self.identifier_for_index(pos)
-        };
         let is_global_identifier = !is_modifier_keyword
             && can_start_global_or_module_declaration
-            && identifier.is_some_and(|value| Some(value) == self.global_identifier);
+            && !split_active
+            && self.is_global_identifier_at(pos);
         let is_module_identifier = !is_modifier_keyword
             && can_start_global_or_module_declaration
-            && self.language.supports_module_declaration()
-            && identifier.is_some_and(|value| Some(value) == self.module_identifier);
+            && !split_active
+            && self.is_module_identifier_at(pos);
 
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
             return Ok(DescriptorHead::Descriptor(descriptor));
@@ -267,11 +260,8 @@ impl Parser {
 
             // export dependencies handled by export statement parsing
             let next_keyword = self.peek_any_keyword().ok();
-            let has_module_identifier_declaration = self.language.supports_module_declaration()
-                && !self.has_active_split()
-                && self
-                    .identifier_for_index(self.pos_index())
-                    .is_some_and(|value| Some(value) == self.module_identifier);
+            let has_module_identifier_declaration =
+                !self.has_active_split() && self.is_module_identifier_at(self.pos_index());
             let has_declaration_keyword = next_keyword.is_some_and(is_declaration_keyword)
                 || has_module_identifier_declaration;
 
@@ -409,9 +399,7 @@ impl Parser {
             || self.language.is_declaration()
             || self.options.in_declare_context)
             && !self.has_active_split()
-            && self
-                .identifier_for_index(self.pos_index())
-                .is_some_and(|value| Some(value) == self.global_identifier)
+            && self.is_global_identifier_at(self.pos_index())
             && self.is_token_after_newlines(self.pos(), TokenType::OpenBrace)
         {
             let mut global_descriptor = descriptor;
@@ -445,11 +433,7 @@ impl Parser {
         if token.token.ty != TokenType::Identifier {
             return false;
         }
-        self.identifier_for_index(index).is_some_and(|identifier| {
-            Some(identifier) == self.global_identifier
-                || self.language.supports_module_declaration()
-                    && Some(identifier) == self.module_identifier
-        })
+        self.is_global_identifier_at(index) || self.is_module_identifier_at(index)
     }
 
     /// Check whether a token index starts a declare await using target.

@@ -3,8 +3,8 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Argument, BinaryOperator, Declaration, Expression, FunctionKind, IfCondition, IfKind,
-    InfixOperator, LocalNodeId, PostfixPosition, TokenType, TypeBinaryOperator, TypeUnaryOperator,
-    UnaryOperator,
+    InfixOperator, LiteralType, LocalNodeId, PostfixPosition, TokenType, TypeBinaryOperator,
+    TypeUnaryOperator, UnaryOperator,
 };
 
 impl Parser {
@@ -59,38 +59,44 @@ impl Parser {
             }
             // eat all regular postfix operators
             loop {
-                let token_type = self.peek_token_type();
+                let cursor = self.scanner_cursor();
+                let token_type = cursor.token_type;
                 if token_type == TokenType::End {
                     break;
                 }
 
-                // normalize newline lookahead once for this iteration
-                let newline_cursor = if token_type == TokenType::Newline {
-                    Some(self.peek_non_newline_cursor())
-                } else {
-                    None
-                };
-                let next_token_type = if let Some(cursor) = newline_cursor {
-                    cursor.token_type
-                } else if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
-                    self.peek_next_token_type()
+                let cursor_index = cursor.index;
+                let has_pending_newline_tokens = cursor.index != self.pos_index();
+                let has_line_break_before = cursor.has_line_break_before;
+                let next_token_type = if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
+                    self.token_type_at(cursor_index.saturating_add(1))
                 } else {
                     TokenType::End
                 };
+                let dot_member_target = if token_type == TokenType::Dot {
+                    self.peek_dot_member_target(cursor_index)
+                } else {
+                    None
+                };
+
+                // most postfix operators are not allowed across newline tokens
+                if has_pending_newline_tokens
+                    && !matches!(
+                        token_type,
+                        TokenType::OpenParenthesis | TokenType::Dot | TokenType::Maybe
+                    )
+                {
+                    break;
+                }
 
                 // stop before ternary or switch case boundary so postfix parsing does not consume ':'
                 if (self.options.in_ternary_condition || self.options.in_match_case)
-                    && (token_type == TokenType::Colon
-                        || token_type == TokenType::Newline && next_token_type == TokenType::Colon)
+                    && token_type == TokenType::Colon
                 {
                     break;
                 }
                 // stop before static boundary so postfix parsing does not consume '>'
-                if self.options.in_static
-                    && (token_type == TokenType::GreaterThan
-                        || token_type == TokenType::Newline
-                            && next_token_type == TokenType::GreaterThan)
-                {
+                if self.options.in_static && token_type == TokenType::GreaterThan {
                     break;
                 }
 
@@ -112,9 +118,10 @@ impl Parser {
                 }
 
                 // call parsing flags
-                let has_direct_call = token_type == TokenType::OpenParenthesis;
-                let has_direct_call_after_newlines = newline_cursor
-                    .is_some_and(|cursor| cursor.token_type == TokenType::OpenParenthesis);
+                let has_direct_call =
+                    token_type == TokenType::OpenParenthesis && !has_line_break_before;
+                let has_direct_call_after_newlines =
+                    token_type == TokenType::OpenParenthesis && has_line_break_before;
                 let has_indirect_call =
                     token_type == TokenType::Dot && next_token_type == TokenType::OpenParenthesis;
                 let can_direct_call = (has_direct_call || has_direct_call_after_newlines)
@@ -181,35 +188,45 @@ impl Parser {
                         self.get_span_from(start),
                     );
                 }
-                // private member (also works across newline)
-                else if let Some(distance) = self.peek_private_member_maybe()? {
-                    self.bump_by(distance - 1); // keep the identifier
-                    let (name, name_span) = self.eat_identifier_with_span()?;
-                    // speculatively unwrap postfix static parameterisation with `<`
-                    //  (might also be just a comparison operator)
-                    let static_arguments = self.eat_static_arguments_in_expression(false);
-                    left_expression_id = self.tree.insert(
-                        Expression::PrivateMember {
-                            left: left_expression_id,
-                            name,
-                            static_arguments,
-                        },
-                        self.get_span_from(start),
-                    );
-                    self.tree.set_main_span(left_expression_id, name_span);
-                }
-                // member (also works across newline)
-                else if let Some(distance) = self.peek_member_name_maybe() {
-                    self.bump_by(distance - 1); // keep the identifier
+                // dot member and private member dispatch via scanner cursor
+                else if let Some((member_index, is_private_member)) = dot_member_target {
+                    let member_distance = member_index
+                        .saturating_sub(self.pos_index())
+                        .saturating_add(1);
+                    let member_distance = u8::try_from(member_distance).unwrap_or(u8::MAX);
+
+                    if has_pending_newline_tokens {
+                        self.advance_to(cursor_index);
+                    }
+                    self.bump(); // eat .
+                    if self.pos_index() != member_index {
+                        self.advance_to(member_index);
+                    }
+
+                    if is_private_member {
+                        self.bump(); // eat #
+                        let (name, name_span) = self.eat_identifier_with_span()?;
+                        let static_arguments = self.eat_static_arguments_in_expression(false);
+                        left_expression_id = self.tree.insert(
+                            Expression::PrivateMember {
+                                left: left_expression_id,
+                                name,
+                                static_arguments,
+                            },
+                            self.get_span_from(start),
+                        );
+                        self.tree.set_main_span(left_expression_id, name_span);
+                        continue;
+                    }
 
                     // decimal integer literals need a separator before member access
-                    if self.invalid_decimal_integer_member_access(left_expression_id, distance) {
+                    if self
+                        .invalid_decimal_integer_member_access(left_expression_id, member_distance)
+                    {
                         return Err(ParseError::unexpected(self.prev().expect("peeked").span));
                     }
 
                     let (name, name_span) = self.eat_member_name_with_span()?;
-                    // speculatively unwrap postfix static parameterisation with `<`
-                    //  (might also be just a comparison operator)
                     let static_arguments = self.eat_static_arguments_in_expression(false);
                     left_expression_id = self.tree.insert(
                         Expression::Member {
@@ -220,12 +237,16 @@ impl Parser {
                         self.get_span_from(start),
                     );
                     self.tree.set_main_span(left_expression_id, name_span);
+                    continue;
                 }
                 // index (like `[]`)
                 else if token_type == TokenType::OpenBracket
                     && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                     || token_type == TokenType::Dot && next_token_type == TokenType::OpenBracket
                 {
+                    if has_pending_newline_tokens {
+                        self.advance_to(cursor_index);
+                    }
                     let position = if token_type == TokenType::Dot {
                         self.bump(); // eat .
                         PostfixPosition::Indirect
@@ -244,10 +265,8 @@ impl Parser {
                     }
 
                     let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
-                    if let Some(cursor) = newline_cursor
-                        && cursor.token_type == TokenType::OpenParenthesis
-                    {
-                        self.advance_to(cursor.index);
+                    if has_pending_newline_tokens {
+                        self.advance_to(cursor_index);
                     }
                     let position = if token_type == TokenType::Dot {
                         self.bump(); // eat .
@@ -282,9 +301,10 @@ impl Parser {
                 // (like `x?`, `x.?`, `x?.`)
                 else if token_type == TokenType::Maybe
                     || token_type == TokenType::Dot && next_token_type == TokenType::Maybe
-                    || token_type == TokenType::Newline
-                        && self.optional_chain_starts_after_newlines()
                 {
+                    if has_pending_newline_tokens {
+                        self.advance_to(cursor_index);
+                    }
                     // capture type conditional operands when in type contexts
                     let type_conditional_operands = if self.options.in_type {
                         self.split_type_conditional_operands(left_expression_id)
@@ -292,11 +312,6 @@ impl Parser {
                         None
                     };
                     let is_type_conditional = type_conditional_operands.is_some();
-
-                    // normalize newlines before checking postfix markers
-                    if let Some(cursor) = newline_cursor {
-                        self.advance_to(cursor.index);
-                    }
 
                     // classify optional chain and postfix maybe
                     let is_optional_chain_after_maybe = self.is_optional_chain_after_maybe();
@@ -472,96 +487,72 @@ impl Parser {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
             let left_precedence = self.options.left_precedence;
             loop {
-                let token_type = self.peek_token_type();
+                let cursor = self.scanner_cursor();
+                let token_type = cursor.token_type;
                 if token_type == TokenType::End {
                     break;
                 }
 
-                // normalize newline lookahead once for this iteration
-                let newline_cursor = if token_type == TokenType::Newline {
-                    Some(self.peek_non_newline_cursor())
-                } else {
-                    None
-                };
-                let newline_count = newline_cursor
-                    .map(|cursor| cursor.skipped_newline_count)
-                    .unwrap_or(0);
-                let next_token_type = if let Some(cursor) = newline_cursor {
-                    cursor.token_type
-                } else {
-                    TokenType::End
-                };
+                let cursor_index = cursor.index;
+                let newline_count = cursor.skipped_newline_count;
+                let has_line_break_before = cursor.has_line_break_before;
 
                 // new receivers stop before type argument delimiters at top-level receiver scope
                 if self.options.in_new_receiver
                     && !self.options.in_parenthesis
-                    && (token_type == TokenType::LessThan
-                        || token_type == TokenType::ShiftLeft
-                        || token_type == TokenType::Newline
-                            && (next_token_type == TokenType::LessThan
-                                || next_token_type == TokenType::ShiftLeft))
+                    && (token_type == TokenType::LessThan || token_type == TokenType::ShiftLeft)
                 {
                     break;
                 }
                 // stop before conditional boundaries so infix lookahead does not lex past `?`
-                if token_type == TokenType::Maybe
-                    || token_type == TokenType::Newline && next_token_type == TokenType::Maybe
-                {
+                if token_type == TokenType::Maybe {
                     break;
                 }
                 // stop before ternary or match case boundary so infix lookahead does not lex past `:`
                 if (self.options.in_ternary_condition || self.options.in_match_case)
-                    && (token_type == TokenType::Colon
-                        || token_type == TokenType::Newline && next_token_type == TokenType::Colon)
+                    && token_type == TokenType::Colon
                 {
                     break;
                 }
-                // statement expressions do not continue across newlines
-                if left_is_statement && token_type == TokenType::Newline {
+                // statement expressions do not continue across line breaks
+                if left_is_statement && has_line_break_before {
                     break;
                 }
-                // type expressions stop before tree literals on a new line
+                // type expressions stop before tree literals after a line break
                 if self.options.in_type
-                    && token_type == TokenType::Newline
-                    && self.can_start_tree_literal_after_newline()
+                    && has_line_break_before
+                    && self.can_start_tree_literal_after_line_break()
                 {
                     break;
                 }
 
-                let (right_operator, operator_offset) = {
-                    // infix operator on same line with higher precedence
-                    if token_type != TokenType::Newline
-                        && let Some((operator, operator_offset)) = self.peek_infix_operator_maybe()
-                        && (left_precedence.is_none()
-                            || left_precedence.unwrap() < operator.precedence())
-                    {
-                        (operator, operator_offset)
-                    }
-                    // infix operator after one or more newlines with higher precedence
-                    else if let Some(cursor) = newline_cursor
-                        && let Some((operator, operator_offset)) =
-                            self.peek_infix_operator_at_index_maybe(cursor.index, true)
-                        && (newline_count <= 1
-                            || !self.options.in_type
-                            || matches!(
-                                operator,
-                                InfixOperator::Binary(
-                                    BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                                )
-                            ))
-                        && (left_precedence.is_none()
-                            || left_precedence.unwrap() < operator.precedence())
-                    {
-                        (operator, operator_offset)
-                    }
-                    // no infix operator with higher precedence
-                    else {
-                        break;
-                    }
+                let Some((right_operator, operator_offset)) =
+                    self.peek_infix_operator_at_index_maybe(cursor_index, has_line_break_before)
+                else {
+                    break;
                 };
 
-                if let Some(cursor) = newline_cursor {
-                    self.advance_to(cursor.index);
+                if has_line_break_before
+                    && newline_count > 1
+                    && self.options.in_type
+                    && !matches!(
+                        right_operator,
+                        InfixOperator::Binary(
+                            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                        )
+                    )
+                {
+                    break;
+                }
+
+                if let Some(left_precedence) = left_precedence
+                    && left_precedence >= right_operator.precedence()
+                {
+                    break;
+                }
+
+                if cursor_index != self.pos_index() {
+                    self.advance_to(cursor_index);
                 }
 
                 // capture operator span before eating
@@ -634,12 +625,14 @@ impl Parser {
 
         // value ternary after infix to keep lowest precedence
         // NOTE #Cleanup: having multiple ternary parse locations feels icky (but non-trivial to "fix")
+        let ternary_cursor = self.peek_cursor();
         if !self.options.in_type
             && self.options.left_precedence.is_none()
-            && (self.peek_is(TokenType::Maybe)
-                || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Maybe))
+            && ternary_cursor.token_type == TokenType::Maybe
         {
-            self.eat_newlines_maybe()?;
+            if ternary_cursor.index != self.pos_index() {
+                self.advance_to(ternary_cursor.index);
+            }
             self.bump(); // eat ?
             self.eat_newlines_maybe()?;
             let then_options = self
@@ -665,25 +658,21 @@ impl Parser {
         }
 
         // sequence expression (comma operator) in JS/TS
+        let sequence_cursor = self.peek_cursor();
         if !self.options.in_type
             && self.options.left_precedence.is_none()
             && self.options.allow_sequence_expression
             && (self.language.is_typescript() || self.language.is_javascript())
-            && (self.peek_is(TokenType::Comma)
-                || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Comma))
+            && sequence_cursor.token_type == TokenType::Comma
         {
             let mut expressions = vec![left_expression_id];
             loop {
-                if self.peek_is(TokenType::Newline) {
-                    let has_comma_after_newlines =
-                        self.is_token_after_newlines(self.pos(), TokenType::Comma);
-                    if !has_comma_after_newlines {
-                        break;
-                    }
-                    self.eat_newlines_maybe()?;
-                }
-                if !self.peek_is(TokenType::Comma) {
+                let comma_cursor = self.peek_cursor();
+                if comma_cursor.token_type != TokenType::Comma {
                     break;
+                }
+                if comma_cursor.index != self.pos_index() {
+                    self.advance_to(comma_cursor.index);
                 }
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
@@ -698,10 +687,11 @@ impl Parser {
         }
 
         // type conditional expression
-        if self.options.in_type
-            && (self.peek_is(TokenType::Maybe)
-                || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Maybe))
-        {
+        let type_conditional_cursor = self.peek_cursor();
+        if self.options.in_type && type_conditional_cursor.token_type == TokenType::Maybe {
+            if type_conditional_cursor.index != self.pos_index() {
+                self.advance_to(type_conditional_cursor.index);
+            }
             // avoid consuming nested conditional tokens in the right side
             let conditional_operands = self.split_type_conditional_operands(left_expression_id);
             if self.options.in_type_conditional_right && conditional_operands.is_none() {
@@ -709,8 +699,6 @@ impl Parser {
             }
             let optional_tuple_pos = if self.peek_is(TokenType::Maybe) {
                 Some(self.pos())
-            } else if self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Maybe) {
-                Some(self.pos().saturating_add(1))
             } else {
                 None
             };
@@ -752,6 +740,37 @@ impl Parser {
         }
 
         Ok(left_expression_id)
+    }
+
+    /// Return a valid dot-member target after `.` from a scanner cursor index.
+    #[inline]
+    fn peek_dot_member_target(&mut self, dot_index: usize) -> Option<(usize, bool)> {
+        let member_index = self.next_non_newline_index_from(dot_index.saturating_add(1));
+        let member_token_type = self.token_type_at(member_index);
+
+        // private member: .#name
+        if member_token_type == TokenType::Hash {
+            let identifier_index = member_index.saturating_add(1);
+            let has_identifier = self.token_type_at(identifier_index) == TokenType::Identifier;
+            let has_adjacent_hash_identifier =
+                has_identifier && self.tokens_are_adjacent(member_index, identifier_index);
+            if has_adjacent_hash_identifier {
+                return Some((member_index, true));
+            }
+            return None;
+        }
+
+        // static member: .name or .true / .false
+        let is_member_name = member_token_type == TokenType::Identifier
+            || member_token_type == TokenType::Literal
+                && self.token_ref_at(member_index).is_some_and(|token| {
+                    matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+                });
+        if is_member_name {
+            return Some((member_index, false));
+        }
+
+        None
     }
     /// Check whether the current token sequence can start postfix static arguments.
     fn can_start_postfix_static_arguments(

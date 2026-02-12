@@ -97,13 +97,13 @@ impl Parser {
     /// Eat a single where clause.
     fn eat_where_clause(&mut self) -> ParseResult<LocalNodeId<WhereClause>> {
         // span start
-        let start = self.mark();
+        let start = self.mark_span();
 
         // left name
         let (left, left_span) = self.eat_identifier_with_span()?;
 
         // constraint type
-        let type_start = self.mark();
+        let type_start = self.mark_span();
         self.eat_token(TokenType::Colon)?;
         let right = self.eat_expression(self.options.in_type())?;
         let clause = self

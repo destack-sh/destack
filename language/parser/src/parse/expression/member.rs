@@ -1,88 +1,9 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{Expression, Keyword, LiteralType, LocalNodeId, TokenSpan, TokenType};
+use destack_ast::{Expression, Keyword, LiteralType, LocalNodeId, TokenType};
 use destack_base::StringId;
 
 impl Parser {
-    /// Convert a computed token distance to `u8`.
-    #[inline]
-    fn member_distance(distance: usize) -> u8 {
-        u8::try_from(distance).unwrap_or(u8::MAX)
-    }
-
-    /// Return true when the token at an absolute index has the requested type.
-    #[inline]
-    fn token_type_at_index_is(&mut self, index: usize, token_type: TokenType) -> bool {
-        self.ensure_token(index);
-        self.tokens()
-            .get(index)
-            .is_some_and(|token| token.token.ty == token_type)
-    }
-
-    pub(super) fn token_is_member_name(token: &TokenSpan) -> bool {
-        token.token.ty == TokenType::Identifier
-            || matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
-    }
-
-    /// Return true when the token at an absolute index is a valid member name.
-    #[inline]
-    fn token_is_member_name_at_index(&mut self, index: usize) -> bool {
-        self.ensure_token(index);
-        self.tokens()
-            .get(index)
-            .is_some_and(Self::token_is_member_name)
-    }
-
-    /// Return the member distance for `.<name>` from an offset relative to `base`.
-    #[inline]
-    fn peek_member_distance_from_offset(&mut self, base: usize, start_offset: usize) -> Option<u8> {
-        // require `.`
-        let dot_index = base + start_offset;
-        if !self.token_type_at_index_is(dot_index, TokenType::Dot) {
-            return None;
-        }
-
-        // allow newlines after `.`
-        let name_index = self.first_non_newline_index_from(dot_index.saturating_add(1));
-        if !self.token_is_member_name_at_index(name_index) {
-            return None;
-        }
-
-        let distance = name_index.saturating_sub(base).saturating_add(1);
-        Some(Self::member_distance(distance))
-    }
-
-    /// Return the private-member distance for `.#name` from an offset relative to `base`.
-    #[inline]
-    fn peek_private_member_distance_from_offset(
-        &mut self,
-        base: usize,
-        start_offset: usize,
-    ) -> ParseResult<Option<u8>> {
-        // require `.`
-        let dot_index = base + start_offset;
-        if !self.token_type_at_index_is(dot_index, TokenType::Dot) {
-            return Ok(None);
-        }
-
-        // allow newlines after `.`
-        let hash_index = self.first_non_newline_index_from(dot_index.saturating_add(1));
-        if !self.token_type_at_index_is(hash_index, TokenType::Hash) {
-            return Ok(None);
-        }
-
-        // require `#` + identifier with no trivia between them
-        let identifier_index = hash_index + 1;
-        if !self.token_type_at_index_is(identifier_index, TokenType::Identifier) {
-            return Ok(None);
-        }
-        self.check_tokens_are_adjacent(hash_index, identifier_index)?;
-
-        // include all prefix tokens plus `#` + identifier
-        let distance = identifier_index.saturating_sub(base).saturating_add(1);
-        Ok(Some(Self::member_distance(distance)))
-    }
-
     /// Return true when a decimal integer uses member access without a separator.
     #[inline]
     pub(super) fn invalid_decimal_integer_member_access(
@@ -152,29 +73,6 @@ impl Parser {
         }
     }
 
-    /// Peek a member access with an IdentifierName compatible token.
-    /// Returns the total distance to eat (including the newlines, dot, and token).
-    #[inline]
-    pub(super) fn peek_member_name_maybe(&mut self) -> Option<u8> {
-        let base = self.pos_index();
-
-        // direct case: `.name` or `.\nname`
-        if let Some(distance) = self.peek_member_distance_from_offset(base, 0) {
-            return Some(distance);
-        }
-
-        // continuation case: `\n.name` or `\n.\nname`
-        let cursor = self.peek_non_newline_cursor();
-        if cursor.skipped_newline_count > 0
-            && let Some(distance) =
-                self.peek_member_distance_from_offset(base, cursor.skipped_newline_count)
-        {
-            return Some(distance);
-        }
-
-        None
-    }
-
     /// Check whether `?.` starts an optional chaining segment.
     #[inline]
     pub(super) fn is_optional_chain_after_maybe(&mut self) -> bool {
@@ -198,22 +96,6 @@ impl Parser {
         )
     }
 
-    /// Return true when optional chaining starts after one or more newlines.
-    #[inline]
-    pub(super) fn optional_chain_starts_after_newlines(&mut self) -> bool {
-        let cursor = self.peek_non_newline_cursor();
-        if cursor.skipped_newline_count == 0 {
-            return false;
-        }
-
-        if cursor.token_type == TokenType::Maybe {
-            return true;
-        }
-
-        cursor.token_type == TokenType::Dot
-            && self.token_type_at(cursor.index.saturating_add(1)) == TokenType::Maybe
-    }
-
     /// Check whether `asserts` starts a type predicate.
     #[inline]
     pub(super) fn can_start_type_predicate_asserts(&mut self) -> bool {
@@ -229,31 +111,9 @@ impl Parser {
         self.token_type_at(next_index) == TokenType::Identifier
     }
 
-    /// Peek a private member access using `.#`.
-    #[inline]
-    pub(super) fn peek_private_member_maybe(&mut self) -> ParseResult<Option<u8>> {
-        let base = self.pos_index();
-
-        // direct case: `.#name` or `.\n#name`
-        if let Some(distance) = self.peek_private_member_distance_from_offset(base, 0)? {
-            return Ok(Some(distance));
-        }
-
-        // continuation case: `\n.#name` or `\n.\n#name`
-        let cursor = self.peek_non_newline_cursor();
-        if cursor.skipped_newline_count > 0
-            && let Some(distance) =
-                self.peek_private_member_distance_from_offset(base, cursor.skipped_newline_count)?
-        {
-            return Ok(Some(distance));
-        }
-
-        Ok(None)
-    }
-
     /// Eat an expression that might be parenthesized.
     pub fn eat_expression_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
         if self.peek_is(TokenType::OpenParenthesis) {
             self.bump(); // eat open parenthesis
             self.eat_newlines_maybe()?;

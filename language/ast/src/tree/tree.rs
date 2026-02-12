@@ -10,6 +10,60 @@ use crate::{
     Member, Node, NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
 };
 
+/// Snapshot of NodeTree allocation lengths for speculative parser restores.
+/// NOTE #Cleanup: can we somehow do something better than ast::NodeTreeMark?
+#[derive(Debug, Copy, Clone)]
+pub struct NodeTreeMark {
+    /// The global node id cursor.
+    next_global_id: u32,
+    /// The expression arena length.
+    expressions_len: usize,
+    /// The block arena length.
+    blocks_len: usize,
+    /// The declaration arena length.
+    declarations_len: usize,
+    /// The property arena length.
+    properties_len: usize,
+    /// The member arena length.
+    members_len: usize,
+    /// The enum field arena length.
+    enum_fields_len: usize,
+    /// The where clause arena length.
+    where_clauses_len: usize,
+    /// The dependency item arena length.
+    dependency_items_len: usize,
+    /// The parameter arena length.
+    parameters_len: usize,
+    /// The argument arena length.
+    arguments_len: usize,
+    /// The match case arena length.
+    match_cases_len: usize,
+    /// The pattern arena length.
+    patterns_len: usize,
+    /// The pattern field arena length.
+    pattern_fields_len: usize,
+    /// The declarator arena length.
+    declarators_len: usize,
+    /// The annotation arena length.
+    annotations_len: usize,
+    /// The blank arena length.
+    blanks_len: usize,
+    /// The doc arena length.
+    docs_len: usize,
+    /// The comment arena length.
+    comments_len: usize,
+    /// The decorator arena length.
+    decorators_len: usize,
+}
+
+impl NodeTreeMark {
+    /// Get the next global node id captured by this mark.
+    #[inline]
+    pub fn next_global_id(self) -> u32 {
+        self.next_global_id
+    }
+}
+
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct NodeTree {
@@ -75,28 +129,31 @@ impl NodeTree {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
-            annotations_by_node_id: FxHashMap::default(),
+            annotations_by_node_id: FxHashMap::with_capacity_and_hasher(
+                capacity / 8,
+                Default::default(),
+            ),
             annotations_are_sorted: true,
             source_map: NodeSourceMap::with_capacity(capacity),
-            expressions: Arena::new(),
-            blocks: Arena::new(),
-            declarations: Arena::new(),
-            properties: Arena::new(),
-            members: Arena::new(),
-            enum_fields: Arena::new(),
-            where_clauses: Arena::new(),
-            dependency_items: Arena::new(),
-            parameters: Arena::new(),
-            arguments: Arena::new(),
-            match_cases: Arena::new(),
-            patterns: Arena::new(),
-            pattern_fields: Arena::new(),
-            declarators: Arena::new(),
-            annotations: Arena::new(),
-            blanks: Arena::new(),
-            docs: Arena::new(),
-            comments: Arena::new(),
-            decorators: Arena::new(),
+            expressions: Arena::with(capacity),
+            blocks: Arena::with(capacity / 8),
+            declarations: Arena::with(capacity / 8),
+            properties: Arena::with(capacity / 4),
+            members: Arena::with(capacity / 8),
+            enum_fields: Arena::with(capacity / 16),
+            where_clauses: Arena::with(capacity / 16),
+            dependency_items: Arena::with(capacity / 16),
+            parameters: Arena::with(capacity / 8),
+            arguments: Arena::with(capacity / 4),
+            match_cases: Arena::with(capacity / 16),
+            patterns: Arena::with(capacity / 8),
+            pattern_fields: Arena::with(capacity / 8),
+            declarators: Arena::with(capacity / 8),
+            annotations: Arena::with(capacity / 16),
+            blanks: Arena::with(capacity / 16),
+            docs: Arena::with(capacity / 16),
+            comments: Arena::with(capacity / 16),
+            decorators: Arena::with(capacity / 16),
         }
     }
 
@@ -137,6 +194,74 @@ impl NodeTree {
         // reset spans & next_id
         self.source_map.prune_from(from_idx);
         self.next_global_id = from_idx;
+    }
+
+    /// Snapshot tree allocation lengths for speculative parser restores.
+    #[inline]
+    pub fn mark(&self) -> NodeTreeMark {
+        NodeTreeMark {
+            next_global_id: self.next_global_id,
+            expressions_len: self.expressions.len(),
+            blocks_len: self.blocks.len(),
+            declarations_len: self.declarations.len(),
+            properties_len: self.properties.len(),
+            members_len: self.members.len(),
+            enum_fields_len: self.enum_fields.len(),
+            where_clauses_len: self.where_clauses.len(),
+            dependency_items_len: self.dependency_items.len(),
+            parameters_len: self.parameters.len(),
+            arguments_len: self.arguments.len(),
+            match_cases_len: self.match_cases.len(),
+            patterns_len: self.patterns.len(),
+            pattern_fields_len: self.pattern_fields.len(),
+            declarators_len: self.declarators.len(),
+            annotations_len: self.annotations.len(),
+            blanks_len: self.blanks.len(),
+            docs_len: self.docs.len(),
+            comments_len: self.comments.len(),
+            decorators_len: self.decorators.len(),
+        }
+    }
+
+    /// Restore tree allocation lengths from a speculative mark.
+    #[inline]
+    pub fn restore_to_mark(&mut self, mark: NodeTreeMark) {
+        self.node_type_by_node_id
+            .truncate(mark.next_global_id as usize);
+        self.local_id_by_node_id
+            .truncate(mark.next_global_id as usize);
+        self.source_map.prune_from(mark.next_global_id);
+        self.next_global_id = mark.next_global_id;
+
+        self.expressions.truncate(mark.expressions_len);
+        self.blocks.truncate(mark.blocks_len);
+        self.declarations.truncate(mark.declarations_len);
+        self.properties.truncate(mark.properties_len);
+        self.members.truncate(mark.members_len);
+        self.enum_fields.truncate(mark.enum_fields_len);
+        self.where_clauses.truncate(mark.where_clauses_len);
+        self.dependency_items.truncate(mark.dependency_items_len);
+        self.parameters.truncate(mark.parameters_len);
+        self.arguments.truncate(mark.arguments_len);
+        self.match_cases.truncate(mark.match_cases_len);
+        self.patterns.truncate(mark.patterns_len);
+        self.pattern_fields.truncate(mark.pattern_fields_len);
+        self.declarators.truncate(mark.declarators_len);
+        self.annotations.truncate(mark.annotations_len);
+        self.blanks.truncate(mark.blanks_len);
+        self.docs.truncate(mark.docs_len);
+        self.comments.truncate(mark.comments_len);
+        self.decorators.truncate(mark.decorators_len);
+
+        // drop annotation links that point outside the restored node range
+        self.annotations_by_node_id
+            .retain(|target_id, annotation_ids| {
+                if *target_id >= mark.next_global_id {
+                    return false;
+                }
+                annotation_ids.retain(|annotation_id| annotation_id.id < mark.next_global_id);
+                !annotation_ids.is_empty()
+            });
     }
 
     /// Get the type of an untyped node id.
@@ -308,16 +433,11 @@ impl NodeTree {
     pub fn append_annotation(&mut self, target_id: u32, annotation: LocalNodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
 
-        let annotation_start = self.source_map.get(annotation.id).start;
-        let target_annotations = self.annotations_by_node_id.entry(target_id).or_default();
-        if let Some(previous_annotation) = target_annotations.last().copied() {
-            let previous_start = self.source_map.get(previous_annotation.id).start;
-            if annotation_start < previous_start {
-                self.annotations_are_sorted = false;
-            }
-        }
-
-        target_annotations.push(annotation);
+        // parse order appends annotations in source order for each target
+        self.annotations_by_node_id
+            .entry(target_id)
+            .or_default()
+            .push(annotation);
     }
 
     /// Whether there are any annotations attached to a node.
@@ -380,15 +500,7 @@ impl NodeTree {
     /// Sort all annotations.
     #[inline]
     pub fn sort_annotations(&mut self) {
-        if self.annotations_are_sorted {
-            return;
-        }
-
-        self.annotations_by_node_id
-            .values_mut()
-            .for_each(|annotations| {
-                annotations.sort_by_key(|annotation| self.source_map.get(annotation.id).start)
-            });
+        // parse path keeps per-target annotation order stable
         self.annotations_are_sorted = true;
     }
 

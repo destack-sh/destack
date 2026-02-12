@@ -12,48 +12,44 @@ use destack_ast::{
 const STACK_GROW_CHECK_INTERVAL: u32 = 64;
 
 impl Parser {
+    #[inline]
     pub fn eat_expression(
         &mut self,
         options: ParserOptions,
     ) -> ParseResult<LocalNodeId<Expression>> {
         if self.options == options {
-            return self.eat_expression_with_statement_keyword_fast(options.in_statement_position);
+            return self.eat_expression_inner_with_stack_guard();
         }
 
         let old_options = self.options;
         self.options = options;
-        let result = self.eat_expression_with_statement_keyword_fast(options.in_statement_position);
+        let result = self.eat_expression_inner_with_stack_guard();
         self.options = old_options;
         result
     }
 
     /// Eat an expression in the current parser options.
     fn eat_expression_in_current_options(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        self.eat_expression_with_statement_keyword_fast(self.options.in_statement_position)
+        self.eat_expression_inner_with_stack_guard()
     }
 
     /// Eat an expression after statement keyword dispatch already ran in the caller.
     pub(crate) fn eat_expression_without_statement_keyword_fast(
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        self.eat_expression_with_statement_keyword_fast(false)
+        self.eat_expression_inner_with_stack_guard()
     }
 
-    /// Eat an expression with optional statement keyword fast dispatch.
-    fn eat_expression_with_statement_keyword_fast(
-        &mut self,
-        allow_statement_keyword_fast: bool,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    /// Eat an expression with stack growth checks.
+    fn eat_expression_inner_with_stack_guard(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
         let depth = self.expression_stack_depth;
         self.expression_stack_depth = depth.saturating_add(1);
         let should_check_stack = depth % STACK_GROW_CHECK_INTERVAL == 0;
         let result = if should_check_stack {
-            destack_base::ensure_sufficient_stack(|| {
-                self.eat_expression_inner_with_statement_keyword_fast(allow_statement_keyword_fast)
-            })
+            destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
         } else {
-            self.eat_expression_inner_with_statement_keyword_fast(allow_statement_keyword_fast)
+            self.eat_expression_inner()
         };
         self.expression_stack_depth = depth;
         result
@@ -85,7 +81,7 @@ impl Parser {
         if has_active_split {
             self.peek_any_keyword().ok()
         } else {
-            self.keyword_for_index(self.pos_index())
+            self.keyword_for_index_maybe_fast(self.pos_index())
         }
     }
 
@@ -151,7 +147,7 @@ impl Parser {
             return Ok(None);
         }
 
-        if self.keyword_for_index(pos_index).is_some() {
+        if self.keyword_for_index_maybe_fast(pos_index).is_some() {
             return Ok(None);
         }
 
@@ -169,23 +165,17 @@ impl Parser {
             next_token_type,
             TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
         );
-        if can_start_global_declaration
-            && self
-                .identifier_for_index(pos_index)
-                .is_some_and(|identifier| Some(identifier) == self.global_identifier)
-        {
+        if can_start_global_declaration && self.is_global_identifier_at(pos_index) {
             return Ok(None);
         }
         let is_module_declaration_start = if self.language.supports_module_declaration()
             && DECLARATION_START_TOKENS.contains(&next_token_type)
-            && self
-                .identifier_for_index(pos_index)
-                .is_some_and(|identifier| Some(identifier) == self.module_identifier)
+            && self.is_module_identifier_at(pos_index)
         {
             let is_module_name_start =
                 matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
             let next_keyword = if next_token_type == TokenType::Identifier {
-                self.keyword_for_index(self.index_for_next())
+                self.keyword_for_index_maybe_fast(self.index_for_next())
             } else {
                 None
             };
@@ -203,21 +193,98 @@ impl Parser {
         Ok(Some(expression_id))
     }
 
+    /// Try to parse a plain identifier path in type positions.
+    fn try_eat_plain_type_identifier_expression_fast(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        // only run this fast path in plain type positions
+        if !self.options.in_type
+            || self.options.in_typeof_query
+            || self.options.in_decorator
+            || self.options.in_match_case
+        {
+            return Ok(None);
+        }
+
+        // require a plain identifier token
+        if !self.peek_is(TokenType::Identifier) || self.has_active_split() {
+            return Ok(None);
+        }
+
+        // contextual type literals still use the existing type literal parser
+        if self.should_try_contextual_type_literal() {
+            return Ok(None);
+        }
+
+        // type keywords and contextual declarations still use the existing keyword parser
+        let keyword = self.keyword_for_index_maybe_fast(self.pos_index());
+        if matches!(
+            keyword,
+            Some(
+                Keyword::Typeof
+                    | Keyword::Keyof
+                    | Keyword::Infer
+                    | Keyword::Asserts
+                    | Keyword::Readonly
+                    | Keyword::This
+                    | Keyword::New
+                    | Keyword::Type
+                    | Keyword::Newtype
+                    | Keyword::Namespace
+                    | Keyword::Interface
+                    | Keyword::Class
+                    | Keyword::Struct
+                    | Keyword::Enum
+                    | Keyword::Function
+                    | Keyword::Async
+                    | Keyword::Await
+                    | Keyword::Import
+                    | Keyword::Extension
+            )
+        ) {
+            return Ok(None);
+        }
+
+        let identifier_expression_id = self.eat_identifier_expression_path(start)?;
+        let expression_id = self.eat_expression_continuation(start, identifier_expression_id)?;
+
+        Ok(Some(expression_id))
+    }
+
     /// Return true when the current identifier text matches a contextual type literal.
     #[inline]
     fn is_contextual_type_literal_identifier(&mut self) -> bool {
-        let Some(token) = self.token_at(self.pos_index()) else {
-            return false;
-        };
-
-        if token.token.ty != TokenType::Identifier {
+        if !self.peek_is(TokenType::Identifier) {
             return false;
         }
 
-        let identifier = self.file.span_str(token.span);
+        let Some(identifier) = self.identifier_for_index(self.pos_index()) else {
+            return false;
+        };
+        let type_identifiers = &self.type_literal_identifiers;
+
         matches!(
             identifier,
-            "undefined" | "unknown" | "object" | "null" | "any" | "never"
+            id if id == type_identifiers.undefined
+                || id == type_identifiers.unknown
+                || id == type_identifiers.object
+                || id == type_identifiers.null_
+                || id == type_identifiers.any
+                || id == type_identifiers.never
+                || id == type_identifiers.boolean
+                || id == type_identifiers.void
+                || id == type_identifiers.character
+                || id == type_identifiers.string
+                || id == type_identifiers.bigint
+                || id == type_identifiers.number
+                || id == type_identifiers.int
+                || id == type_identifiers.isize
+                || id == type_identifiers.uint
+                || id == type_identifiers.usize
+                || id == type_identifiers.float
+                || id == type_identifiers.symbol
+                || id == type_identifiers.unique
         )
     }
 
@@ -226,6 +293,11 @@ impl Parser {
     fn should_try_contextual_type_literal(&mut self) -> bool {
         if self.options.in_type || self.options.in_static {
             return true;
+        }
+
+        // contextual type literals in value positions are a destack only extension
+        if !self.language.is_destack() {
+            return false;
         }
 
         self.is_contextual_type_literal_identifier()
@@ -334,11 +406,8 @@ impl Parser {
         Ok(Some(expression_id))
     }
 
-    /// Eat an expression body without stack growth with optional statement keyword fast dispatch.
-    fn eat_expression_inner_with_statement_keyword_fast(
-        &mut self,
-        allow_statement_keyword_fast: bool,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    /// Eat an expression body without stack growth checks.
+    fn eat_expression_inner(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // consume decorator prefixes before parsing the next expression
         if !self.options.in_decorator && self.peek_is(TokenType::At) {
             self.eat_decorators_prefix_maybe()?;
@@ -358,7 +427,7 @@ impl Parser {
             let label_target_token = self.token_at(label_target_index);
             let label_target_keyword = label_target_token
                 .filter(|token| token.token.ty == TokenType::Identifier)
-                .and_then(|_| self.keyword_for_index(label_target_index));
+                .and_then(|_| self.keyword_for_index_maybe_fast(label_target_index));
             // label targets that are always expressions
             let is_labelled_expression = matches!(
                 label_target_keyword,
@@ -417,19 +486,13 @@ impl Parser {
             }
         }
 
-        // fast path keyword led statements before descriptor parsing
-        if allow_statement_keyword_fast
-            && let Some(statement_keyword_expression_id) =
-                self.try_eat_statement_keyword_expression_fast(&start, true)?
+        // fast path for plain identifier type expressions
+        if self.options.in_type
+            && self.peek_is(TokenType::Identifier)
+            && let Some(identifier_expression_id) =
+                self.try_eat_plain_type_identifier_expression_fast(&start)?
         {
-            let expression = self.tree.get(statement_keyword_expression_id);
-            let is_terminal_statement = matches!(expression, Expression::Statement(_))
-                || expression.is_top_level_statement();
-            if is_terminal_statement {
-                return Ok(statement_keyword_expression_id);
-            }
-
-            return self.eat_expression_continuation(&start, statement_keyword_expression_id);
+            return Ok(identifier_expression_id);
         }
 
         // fast path for plain identifier value expressions
@@ -441,28 +504,17 @@ impl Parser {
             return Ok(identifier_expression_id);
         }
         // ------------------------------------------------------------
-        // Modifiers
-        // ------------------------------------------------------------
-        //
-
-        let descriptor = if self.should_parse_declaration_descriptor() {
-            match self.eat_declaration_descriptor(&start)? {
-                DescriptorHead::Descriptor(descriptor) => descriptor,
-                DescriptorHead::Expression(expression_id) => return Ok(expression_id),
-            }
-        } else {
-            DeclarationDescriptor::default()
-        };
-
-        //
-        // ------------------------------------------------------------
         // Main expression
         // ------------------------------------------------------------
         //
 
         let left_expression_id: LocalNodeId<Expression> = {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
-            let token_type = self.peek_token_type();
+            let token_type = if self.tokens_prelexed && !self.has_active_split() {
+                self.peek_token_type_prelexed_fast()
+            } else {
+                self.peek_token_type()
+            };
 
             //
             // ------------------------------------------------------------
@@ -473,9 +525,23 @@ impl Parser {
             // identifier paths and keyword expressions
             match token_type {
                 TokenType::Identifier => {
+                    // declaration descriptor parsing only matters for identifier starts
+                    let descriptor = if self.should_parse_declaration_descriptor() {
+                        match self.eat_declaration_descriptor(&start)? {
+                            DescriptorHead::Descriptor(descriptor) => descriptor,
+                            DescriptorHead::Expression(expression_id) => return Ok(expression_id),
+                        }
+                    } else {
+                        DeclarationDescriptor::default()
+                    };
+
                     // identifier context setup
                     let pos_index = self.pos_index();
-                    let next_token_type = self.peek_next_token_type();
+                    let next_token_type = if self.tokens_prelexed && !self.has_active_split() {
+                        self.peek_next_token_type_prelexed_fast()
+                    } else {
+                        self.peek_next_token_type()
+                    };
                     let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
                     let has_active_split = self.has_active_split();
                     let module_identifier_matches = !has_active_split
@@ -483,14 +549,12 @@ impl Parser {
                         && !self.options.in_type
                         && is_declaration_start
                         && self.language.supports_module_declaration()
-                        && self
-                            .identifier_for_index(pos_index)
-                            .is_some_and(|identifier| Some(identifier) == self.module_identifier);
+                        && self.is_module_identifier_at(pos_index);
                     let is_module_declaration_start = if module_identifier_matches {
                         let is_module_name_start =
                             matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
                         let next_keyword = if next_token_type == TokenType::Identifier {
-                            self.keyword_for_index(self.index_for_next())
+                            self.keyword_for_index_maybe_fast(self.index_for_next())
                         } else {
                             None
                         };
@@ -498,6 +562,7 @@ impl Parser {
                     } else {
                         false
                     };
+
                     let mut primary_expression_id = None;
 
                     // shorthand lambda function value
@@ -754,7 +819,7 @@ impl Parser {
                                     if has_arrow_follow {
                                         let lambda_id = self.eat_function(
                                             &start,
-                                            descriptor.clone(),
+                                            DeclarationDescriptor::default(),
                                             false,
                                             false,
                                         )?;
@@ -802,7 +867,7 @@ impl Parser {
                                         let speculative_start_idx = self.tree.next_id();
                                         if let Ok(lambda_id) = self.eat_function(
                                             &start,
-                                            descriptor.clone(),
+                                            DeclarationDescriptor::default(),
                                             false,
                                             false,
                                         ) {
@@ -836,7 +901,7 @@ impl Parser {
                                     } else {
                                         let lambda_id = self.eat_function(
                                             &start,
-                                            descriptor.clone(),
+                                            DeclarationDescriptor::default(),
                                             false,
                                             false,
                                         )?;
@@ -1077,7 +1142,12 @@ impl Parser {
                     else if token_type == TokenType::LessThan
                         && self.can_start_generic_arrow_expression()
                     {
-                        let function_id = self.eat_function(&start, descriptor, false, false)?;
+                        let function_id = self.eat_function(
+                            &start,
+                            DeclarationDescriptor::default(),
+                            false,
+                            false,
+                        )?;
                         self.tree.insert(
                             Expression::Declaration(function_id),
                             self.get_span_from(&start),

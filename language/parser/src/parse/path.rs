@@ -56,7 +56,7 @@ impl Parser {
 
     /// Eat a path and get its span.
     pub fn eat_path_with_span(&mut self) -> ParseResult<(Path, Span)> {
-        let start = self.mark();
+        let start = self.mark_span();
         let path = self.eat_path()?;
         let span = self.get_span_from(&start);
         Ok((path, span))

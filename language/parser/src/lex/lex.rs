@@ -109,6 +109,24 @@ pub fn is_semantic(token_type: TokenType) -> bool {
     )
 }
 
+/// Return true when the character is a line terminator.
+#[inline]
+fn is_line_terminator_char(c: char) -> bool {
+    matches!(c, '\n' | '\r' | '\u{0085}' | '\u{2028}' | '\u{2029}')
+}
+
+/// Return true when a byte can continue an ascii identifier.
+#[inline]
+fn is_ascii_identifier_continue_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
+}
+
+/// Return true when a byte is non-newline ascii whitespace.
+#[inline]
+fn is_ascii_non_newline_whitespace_byte(byte: u8) -> bool {
+    matches!(byte, b' ' | b'\t' | 0x0B | 0x0C)
+}
+
 impl Lexer {
     /// Lex the input string into semantic tokens, side tokens, and the end-of-sequence Token.
     /// Semantic tokens are identifiers, keywords, literals, operators.
@@ -229,6 +247,8 @@ impl Lexer {
 
     /// Parses a token from the input string.
     pub(super) fn advance(&mut self) -> Token {
+        self.last_side_token_had_line_terminator = false;
+
         // if we're in tree content mode, try to eat tree text
         if self.in_tree_content()
             && let Some(token) = self.try_eat_tree_text()
@@ -245,7 +265,11 @@ impl Lexer {
         let (token_type, literal) = match first_char {
             // whitespace
             c if is_whitespace(c) => {
-                if c == '\n' {
+                if is_line_terminator_char(c) {
+                    // normalize CRLF and CR newlines as one newline token
+                    if c == '\r' && self.peek() == '\n' {
+                        self.eat();
+                    }
                     (TokenType::Newline, None)
                 } else {
                     (self.eat_whitespace(), None)
@@ -264,6 +288,7 @@ impl Lexer {
                         let fourth_is_slash = bytes.get(2).copied() == Some(b'/');
                         let is_doc_line = third_is_slash && !fourth_is_slash;
                         self.eat_until(b'\n');
+                        self.last_side_token_had_line_terminator = true;
                         if is_doc_line {
                             (TokenType::DocLineComment, None)
                         } else {
@@ -280,11 +305,12 @@ impl Lexer {
                         // consume the initial '*'
                         self.eat();
                         // doc block comments do not nest
-                        let is_terminated = if is_doc_block {
+                        let (is_terminated, has_line_terminator) = if is_doc_block {
                             self.eat_doc_block_comment()
                         } else {
                             self.eat_block_comment()
                         };
+                        self.last_side_token_had_line_terminator = has_line_terminator;
                         // unterminated comment is an error
                         if !is_terminated {
                             (TokenType::Unknown, None)
@@ -400,6 +426,7 @@ impl Lexer {
                 if is_hashbang {
                     self.eat(); // eat !
                     self.eat_until(b'\n');
+                    self.last_side_token_had_line_terminator = true;
                     (TokenType::LineComment, None)
                 } else {
                     (TokenType::Hash, None)
@@ -1093,10 +1120,43 @@ impl Lexer {
         ))
     }
 
+    /// Eat ascii identifier continuation bytes.
+    #[inline]
+    fn eat_ascii_identifier_continue(&mut self) {
+        let bytes = self.as_str().as_bytes();
+        let mut index = 0usize;
+        while index < bytes.len() && is_ascii_identifier_continue_byte(bytes[index]) {
+            index += 1;
+        }
+
+        if index > 0 {
+            self.advance_ascii_bytes(index, bytes[index - 1]);
+        }
+    }
+
+    /// Eat non-newline ascii whitespace bytes.
+    #[inline]
+    fn eat_ascii_non_newline_whitespace(&mut self) {
+        let bytes = self.as_str().as_bytes();
+        let mut index = 0usize;
+        while index < bytes.len() && is_ascii_non_newline_whitespace_byte(bytes[index]) {
+            index += 1;
+        }
+
+        if index > 0 {
+            self.advance_ascii_bytes(index, bytes[index - 1]);
+        }
+    }
+
     /// Parses a whitespace sequence (excluding first character).
     fn eat_whitespace(&mut self) -> TokenType {
         debug_assert!(is_whitespace(self.prev()));
-        self.eat_while(is_whitespace);
+
+        // fast path: consume contiguous ascii spaces and tabs in bulk
+        self.eat_ascii_non_newline_whitespace();
+
+        // fallback: consume remaining unicode whitespace that is not a line terminator
+        self.eat_while(|c| is_whitespace(c) && !is_line_terminator_char(c));
         TokenType::Whitespace
     }
 
@@ -1105,8 +1165,30 @@ impl Lexer {
     fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<LiteralType>) {
         debug_assert!(is_identifier_start(first_char));
         let start_pos = self.pos;
-        // consume continuation characters until an unknown character is met
-        self.eat_while(is_identifier_continue);
+
+        // fast path: ascii identifier tails dominate JS/TS sources
+        if first_char.is_ascii() {
+            // consume mixed ascii and unicode identifier tails without char by char ascii scans
+            loop {
+                self.eat_ascii_identifier_continue();
+
+                if self.is_end() {
+                    break;
+                }
+
+                let current = self.peek();
+                if !current.is_ascii() && is_identifier_continue(current) {
+                    self.eat();
+                    continue;
+                }
+
+                break;
+            }
+        } else {
+            // fallback: full unicode continuation scan
+            self.eat_while(is_identifier_continue);
+        }
+
         // check for unicode escapes mid-identifier (e.g., `AB\u{43}`)
         // only consume escapes that decode to identifier continuations
         if self.peek() == '\\'
@@ -1796,41 +1878,69 @@ impl Lexer {
 
     /// Parse a doc block comment body without nesting support.
     /// Assume the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
-    /// Return true if the comment was properly terminated, false if EOF was reached.
-    pub(crate) fn eat_doc_block_comment(&mut self) -> bool {
+    /// Return whether the comment was terminated and whether it contained a line terminator.
+    pub(crate) fn eat_doc_block_comment(&mut self) -> (bool, bool) {
+        let mut has_line_terminator = false;
+
         // scan until the first closing delimiter
         while !self.is_end() {
             let bytes = self.as_str().as_bytes();
             if bytes.len() >= 2 && bytes[0] == b'*' && bytes[1] == b'/' {
-                // consume '*/'
+                // consume "*/"
                 self.eat();
                 self.eat();
-                return true;
+                return (true, has_line_terminator);
             }
+
+            let first_byte = bytes[0];
+            if first_byte == b'\n' || first_byte == b'\r' {
+                has_line_terminator = true;
+            } else if first_byte == 0xE2
+                && bytes.len() >= 3
+                && bytes[1] == 0x80
+                && (bytes[2] == 0xA8 || bytes[2] == 0xA9)
+            {
+                has_line_terminator = true;
+            }
+
             // consume a single character and continue
             let _ = self.eat();
         }
 
         // reached EOF without closing comment
-        false
+        (false, has_line_terminator)
     }
 
     /// Parse a block comment body.
     /// Assumes the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
-    /// Returns true if the comment was properly terminated, false if EOF was reached.
-    pub(crate) fn eat_block_comment(&mut self) -> bool {
+    /// Returns whether the comment was terminated and whether it contained a line terminator.
+    pub(crate) fn eat_block_comment(&mut self) -> (bool, bool) {
+        let mut has_line_terminator = false;
+
         // stop at the first closing delimiter
         while !self.is_end() {
             let bytes = self.as_str().as_bytes();
             if bytes.len() >= 2 && bytes[0] == b'*' && bytes[1] == b'/' {
                 self.eat();
                 self.eat();
-                return true;
+                return (true, has_line_terminator);
             }
+
+            let first_byte = bytes[0];
+            if first_byte == b'\n' || first_byte == b'\r' {
+                has_line_terminator = true;
+            } else if first_byte == 0xE2
+                && bytes.len() >= 3
+                && bytes[1] == 0x80
+                && (bytes[2] == 0xA8 || bytes[2] == 0xA9)
+            {
+                has_line_terminator = true;
+            }
+
             let _ = self.eat();
         }
 
-        false
+        (false, has_line_terminator)
     }
 
     /// Return true when a tree closing tag starts after trivia.

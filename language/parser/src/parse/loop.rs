@@ -20,7 +20,7 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_loop(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // keyword
         self.eat_keyword(Keyword::Loop)?;
@@ -60,7 +60,7 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_for(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // keyword
         self.eat_keyword(Keyword::For)?;
@@ -229,13 +229,12 @@ impl Parser {
 
             if declaration_kind.is_none() {
                 // for each without declarations keeps expression heads as expression patterns
-                let start = self.mark();
-                let expression = self.with_options(
+                let start = self.mark_span();
+                let expression = self.eat_expression(
                     self.options
                         .not_in_position()
                         .in_for_each()
                         .in_before_block(),
-                    |parser| parser.eat_expression(parser.options),
                 )?;
 
                 let pattern = self.tree.insert(
@@ -294,7 +293,7 @@ impl Parser {
     /// do console.log("test"); while (true)
     /// ```
     pub fn eat_while(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // do-while loop
         if self.is_keyword(Keyword::Do) {

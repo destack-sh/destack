@@ -40,7 +40,7 @@ impl Parser {
         // tree literal lexing can mutate token stream state during lookahead
         let needs_snapshot = self.allow_tree_literals() && !self.options.in_type;
         let lookahead_result = if needs_snapshot {
-            let lookahead_mark = self.mark();
+            let lookahead_mark = self.mark_rewind();
             let lookahead_result = self.lookahead_parenthesized_group_shape_inner();
             self.rewind(lookahead_mark);
             lookahead_result

@@ -2,39 +2,34 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-// NOTE #Performance: tune Arena capacity/chunk size (usage side)
-
 /// The default capacity of the arena.
 const DEFAULT_CAPACITY: usize = 512;
-/// The default chunk size of the arena.
-const DEFAULT_CHUNK_SIZE: usize = 512;
 
-/// Arena for storing elements and element-like things.
-/// Uses slab allocation to provide stable references.
+/// Arena for storing elements and element like things.
 #[derive(Clone)]
 pub struct Arena<T> {
-    /// The chunks in the arena.
-    pub(super) chunks: Vec<Vec<T>>,
-    /// Bit shift for chunk size (chunk_size = 1 << chunk_shift).
-    chunk_shift: u32,
-    /// Bit mask for indexing within chunk (chunk_size - 1).
-    chunk_mask: usize,
-    /// Remaining capacity in the current chunk (avoids checking len each allocation).
-    current_chunk_remaining: usize,
+    /// The stored elements.
+    pub(super) items: Vec<T>,
 }
 
-// serde representation for Arena
-#[derive(Serialize, Deserialize)]
-struct ArenaData<T> {
-    chunk_shift: u32,
-    chunks: Vec<Vec<T>>,
+// backward compatible serde input shape
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ArenaData<T> {
+    Chunked {
+        chunk_shift: u32,
+        chunks: Vec<Vec<T>>,
+    },
+    Flat {
+        items: Vec<T>,
+    },
 }
 
-// serde view for Arena
+// backward compatible serde output shape
 #[derive(Serialize)]
 struct ArenaDataRef<'a, T> {
     chunk_shift: u32,
-    chunks: &'a [Vec<T>],
+    chunks: Vec<&'a [T]>,
 }
 
 impl<T> Serialize for Arena<T>
@@ -45,9 +40,14 @@ where
     where
         S: Serializer,
     {
+        let chunks = if self.items.is_empty() {
+            Vec::new()
+        } else {
+            vec![self.items.as_slice()]
+        };
         let data = ArenaDataRef {
-            chunk_shift: self.chunk_shift,
-            chunks: &self.chunks,
+            chunk_shift: 0,
+            chunks,
         };
         data.serialize(serializer)
     }
@@ -63,29 +63,23 @@ where
     {
         let data = ArenaData::<T>::deserialize(deserializer)?;
 
-        // rebuild chunk metadata
-        let chunk_size = (1usize)
-            .checked_shl(data.chunk_shift)
-            .ok_or_else(|| serde::de::Error::custom("arena chunk shift overflow"))?;
-        let chunk_mask = chunk_size - 1;
-        let current_chunk_remaining = match data.chunks.last() {
-            Some(last) => {
-                if last.len() > chunk_size {
-                    return Err(serde::de::Error::custom(
-                        "arena chunk length exceeds chunk size",
-                    ));
+        let items = match data {
+            ArenaData::Flat { items } => items,
+            ArenaData::Chunked {
+                chunk_shift,
+                chunks,
+            } => {
+                let _ = chunk_shift;
+                let total_len = chunks.iter().map(Vec::len).sum();
+                let mut items = Vec::with_capacity(total_len);
+                for mut chunk in chunks {
+                    items.append(&mut chunk);
                 }
-                chunk_size - last.len()
+                items
             }
-            None => 0,
         };
 
-        Ok(Self {
-            chunks: data.chunks,
-            chunk_shift: data.chunk_shift,
-            chunk_mask,
-            current_chunk_remaining,
-        })
+        Ok(Self { items })
     }
 }
 
@@ -94,10 +88,7 @@ where
     T: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Arena")
-            .field("len", &self.len())
-            .field("chunk_size", &(1usize << self.chunk_shift))
-            .finish()
+        f.debug_struct("Arena").field("len", &self.len()).finish()
     }
 }
 
@@ -111,109 +102,74 @@ impl<T> Arena<T> {
     /// Create a new empty Arena.
     #[inline]
     pub fn new() -> Self {
-        Self::with(DEFAULT_CAPACITY, DEFAULT_CHUNK_SIZE)
+        Self::with(DEFAULT_CAPACITY)
     }
 
     /// Create a new Arena with the given capacity.
-    ///
-    /// `chunk_size` must be a power of 2.
     #[inline]
-    pub fn with(_capacity: usize, chunk_size: usize) -> Self {
-        debug_assert!(
-            chunk_size.is_power_of_two(),
-            "chunk_size must be power of 2"
-        );
-        let chunk_shift = chunk_size.trailing_zeros();
+    pub fn with(capacity: usize) -> Self {
         Self {
-            chunks: Vec::new(),
-            chunk_shift,
-            chunk_mask: chunk_size - 1,
-            current_chunk_remaining: 0,
+            items: Vec::with_capacity(capacity),
         }
     }
 
     /// Allocate a new element in the tree.
     #[inline]
     pub fn allocate(&mut self, element: T) -> u32 {
-        // fast path: current chunk has space
-        if self.current_chunk_remaining > 0 {
-            self.current_chunk_remaining -= 1;
-            let chunk_index = self.chunks.len() - 1;
-            let last_chunk = &mut self.chunks[chunk_index];
-            let item_index = last_chunk.len();
-            last_chunk.push(element);
-            return ((chunk_index << self.chunk_shift) + item_index) as u32;
-        }
-
-        // slow path: need a new chunk
-        let chunk_size = self.chunk_mask + 1;
-        self.chunks.push(Vec::with_capacity(chunk_size));
-        self.current_chunk_remaining = self.chunk_mask; // chunk_size - 1
-
-        let chunk_index = self.chunks.len() - 1;
-        let last_chunk = &mut self.chunks[chunk_index];
-        last_chunk.push(element);
-
-        (chunk_index << self.chunk_shift) as u32
+        let index = self.items.len() as u32;
+        self.items.push(element);
+        index
     }
 
     /// Get an immutable reference to the element with the given local id.
     #[inline]
     pub fn get(&self, local_id: u32) -> &T {
-        let (chunk_idx, item_idx) = self.index_of(local_id);
-        &self.chunks[chunk_idx][item_idx]
+        &self.items[local_id as usize]
     }
 
     /// Get a mutable reference to the element with the given local id.
     #[inline]
     pub fn get_mut(&mut self, local_id: u32) -> &mut T {
-        let (chunk_idx, item_idx) = self.index_of(local_id);
-        &mut self.chunks[chunk_idx][item_idx]
+        &mut self.items[local_id as usize]
     }
 
     /// Reserve capacity for at least `n` additional elements.
     #[inline]
     pub fn reserve(&mut self, n: usize) {
-        let needed_chunks = (n + self.chunk_mask) >> self.chunk_shift;
-        self.chunks.reserve(needed_chunks);
+        self.items.reserve(n);
+    }
+
+    /// Truncate the arena to `len` elements.
+    #[inline]
+    pub fn truncate(&mut self, len: usize) {
+        self.items.truncate(len);
     }
 
     /// Get an iterator over the elements.
     #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
-            chunks: self.chunks.iter(),
-            current_chunk: None,
+            inner: self.items.iter(),
         }
     }
 
     /// Returns the total number of elements in the arena.
     #[inline]
     pub fn len(&self) -> usize {
-        if self.chunks.is_empty() {
-            return 0;
-        }
-        ((self.chunks.len() - 1) << self.chunk_shift) + self.chunks.last().unwrap().len()
+        self.items.len()
     }
 
     /// Returns true if the arena is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    #[inline]
-    fn index_of(&self, local_id: u32) -> (usize, usize) {
-        let id = local_id as usize;
-        (id >> self.chunk_shift, id & self.chunk_mask)
+        self.items.is_empty()
     }
 }
 
 /// Iterator over elements in the Arena.
 #[derive(Debug)]
 pub struct Iter<'a, T> {
-    chunks: std::slice::Iter<'a, Vec<T>>,
-    current_chunk: Option<std::slice::Iter<'a, T>>,
+    inner: std::slice::Iter<'a, T>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
@@ -221,13 +177,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(item) = self.current_chunk.as_mut().and_then(|iter| iter.next()) {
-                return Some(item);
-            }
-            let next_chunk = self.chunks.next()?;
-            self.current_chunk = Some(next_chunk.iter());
-        }
+        self.inner.next()
     }
 }
 

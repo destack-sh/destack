@@ -102,15 +102,9 @@ impl Parser {
 
         let index = self.pos_index();
         let has_active_split = self.has_active_split();
-        let expected = match string {
-            "global" => self.global_identifier,
-            "module" => self.module_identifier,
-            "_" => Some(self.underscore_identifier),
-            _ => None,
-        };
-
-        if !has_active_split && let Some(expected) = expected {
-            return self.identifier_for_index(index) == Some(expected);
+        // avoid interning for common literal identifier checks
+        if !has_active_split && matches!(string, "global" | "module" | "_") {
+            return self.identifier_equals_at(index, string);
         }
 
         let Some(token) = self.token_at(index) else {
@@ -627,12 +621,11 @@ impl Parser {
             }
             // expression
             else {
-                let key = self.with_options(
+                let key = self.eat_expression(
                     self.options
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression(),
-                    |parser| parser.eat_expression(parser.options),
                 )?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok(Key::Expression(key))
@@ -655,7 +648,7 @@ impl Parser {
 
     /// Eat a name or a dynamic key, returning both the key and its span.
     pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, destack_source::Span)> {
-        let start = self.mark();
+        let start = self.mark_span();
         // private hash key
         if self.peek_private_hash_key_is() {
             self.bump(); // eat #
@@ -696,12 +689,11 @@ impl Parser {
             }
             // expression
             else {
-                let key = self.with_options(
+                let key = self.eat_expression(
                     self.options
                         .not_in_position()
                         .not_in_left_precedence()
                         .not_in_sequence_expression(),
-                    |parser| parser.eat_expression(parser.options),
                 )?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok((Key::Expression(key), self.get_span_from(&start)))

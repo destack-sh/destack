@@ -16,7 +16,7 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Decorator>>> {
         let mut decorators = Vec::new();
         while self.peek_is(TokenType::At) {
-            let start = self.mark();
+            let start = self.mark_span();
             let decorator = self.with_recovery(
                 &start,
                 |parser| parser.eat_decorator().map(Some),
@@ -36,7 +36,7 @@ impl Parser {
 
     /// Eat one decorator expression.
     fn eat_decorator(&mut self) -> ParseResult<LocalNodeId<Decorator>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // eat @ marker
         self.eat_token(TokenType::At)?;
