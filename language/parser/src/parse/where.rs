@@ -100,7 +100,7 @@ impl Parser {
         // constraint type
         let type_start = self.mark();
         self.eat_token(TokenType::Colon)?;
-        let right = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+        let right = self.eat_expression(self.options.in_type())?;
         let clause = self
             .tree
             .insert(WhereClause { left, right }, self.get_span_from(&start));

@@ -1,7 +1,9 @@
 use core::fmt;
 use std::fmt::Debug;
+use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::expression::lookahead::ParenthesizedGroupShape;
 use crate::{TokenStream, TokenStreamMark, is_semantic};
@@ -69,8 +71,8 @@ impl TypeLiteralIdentifiers {
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
-#[derive(Debug, Copy, Clone, Default)]
-pub(crate) struct ParserOptions {
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+pub struct ParserOptions {
     /// Whether we're parsing inside a static argument (`<...>`).
     /// Disallows certain infix operations in static arguments to avoid ambiguity with <>.
     pub in_static: bool = false,
@@ -158,6 +160,55 @@ pub(crate) struct ParserOptions {
 pub struct ParserSettings {
     /// Whether ambiguous tree literal syntax is disallowed.
     pub disallow_ambiguous_tree_literal: bool,
+}
+
+/// Counters for speculative parser dispatch and rollback behavior.
+#[derive(Debug, Copy, Clone, Default)]
+pub struct ParserSpeculationStats {
+    /// The number of `with_options` scope switches.
+    pub with_options_calls: u64,
+    /// The number of parser rewinds.
+    pub rewind_calls: u64,
+    /// The number of parser restores with tree rollback.
+    pub restore_calls: u64,
+    /// The number of statement keyword fast-path calls.
+    pub statement_keyword_fast_calls: u64,
+    /// The number of statement keyword fast-path prefilter rejections.
+    pub statement_keyword_fast_prefilter_rejects: u64,
+    /// The number of statement keyword fast-path keyword rejections.
+    pub statement_keyword_fast_keyword_rejects: u64,
+    /// The number of direct statement keyword hits.
+    pub statement_keyword_fast_direct_hits: u64,
+    /// The number of direct statement keyword misses.
+    pub statement_keyword_fast_direct_misses: u64,
+    /// The number of fallback keyword parser hits.
+    pub statement_keyword_fast_fallback_hits: u64,
+    /// The number of fallback keyword parser misses.
+    pub statement_keyword_fast_fallback_misses: u64,
+    /// The number of parenthesized expression fast-path calls.
+    pub parenthesized_expression_fast_calls: u64,
+    /// The number of parenthesized expression fast-path hits.
+    pub parenthesized_expression_fast_hits: u64,
+    /// The number of parenthesized expression fast-path misses.
+    pub parenthesized_expression_fast_misses: u64,
+    /// The number of simple parenthesized lambda fast-path calls.
+    pub simple_parenthesized_lambda_calls: u64,
+    /// The number of simple parenthesized lambda fast-path hits.
+    pub simple_parenthesized_lambda_hits: u64,
+    /// The number of simple parenthesized lambda fast-path misses.
+    pub simple_parenthesized_lambda_misses: u64,
+    /// The number of simple identifier lambda fast-path calls.
+    pub simple_identifier_lambda_calls: u64,
+    /// The number of simple identifier lambda fast-path hits.
+    pub simple_identifier_lambda_hits: u64,
+    /// The number of simple identifier lambda fast-path misses.
+    pub simple_identifier_lambda_misses: u64,
+    /// The number of async keyword speculative attempts.
+    pub async_keyword_speculative_attempts: u64,
+    /// The number of async keyword speculative successes.
+    pub async_keyword_speculative_successes: u64,
+    /// The number of async keyword speculative rollbacks.
+    pub async_keyword_speculative_rollbacks: u64,
 }
 
 #[allow(unused)]
@@ -547,6 +598,8 @@ pub struct Parser {
     pub(crate) expression_stack_depth: u32,
     /// Whether the position index is built.
     pub(crate) positions_built: bool,
+    /// Whether tokens were fully lexed before parsing.
+    pub(crate) tokens_prelexed: bool,
     /// The parser options.
     pub(crate) options: ParserOptions,
 
@@ -565,8 +618,12 @@ pub struct Parser {
     pub(crate) annotation_tokens: Vec<TokenSpan>,
     /// Scratch storage for annotation line indices to avoid repeated allocations.
     pub(crate) annotation_line_indices: Vec<u32>,
+    /// Scratch storage for statement wrappers keyed by expression id.
+    pub(crate) annotation_statement_wrappers: Vec<Option<u32>>,
     /// Optional parser timing collector.
     pub(crate) timings: Option<Rc<ParserTimings>>,
+    /// Optional speculation and dispatch counter collector.
+    pub(crate) speculation_stats: Option<ParserSpeculationStats>,
     /// Cached identifier lookup for identifier tokens.
     pub(crate) token_identifiers: Vec<Option<StringId>>,
     /// Cached-state bits for identifier lookup entries.
@@ -620,6 +677,7 @@ impl Parser {
             is_finished: false,
             expression_stack_depth: 0,
             positions_built: false,
+            tokens_prelexed: false,
             options: ParserOptions::default(),
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
@@ -628,7 +686,10 @@ impl Parser {
             errors: Vec::new(),
             annotation_tokens: Vec::with_capacity(token_capacity),
             annotation_line_indices: Vec::with_capacity(token_capacity),
+            annotation_statement_wrappers: Vec::with_capacity(estimated_nodes),
             timings: timings_enabled_from_env().then(|| Rc::new(ParserTimings::default())),
+            speculation_stats: speculation_stats_enabled_from_env()
+                .then(ParserSpeculationStats::default),
             token_identifiers: Vec::with_capacity(estimated_tokens),
             token_identifiers_cached: Vec::with_capacity(estimated_tokens),
             parenthesized_group_shapes: Vec::with_capacity(estimated_tokens),
@@ -692,7 +753,12 @@ impl Parser {
                 && self.language.is_typescript(),
             ..ParserOptions::default()
         };
+        self.tokens_prelexed = false;
         self.errors.clear();
+        self.annotation_statement_wrappers.clear();
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            *speculation_stats = ParserSpeculationStats::default();
+        }
         self.positions_built = false;
     }
 
@@ -701,12 +767,84 @@ impl Parser {
         &self,
         tag: crate::parse::timing::ParserTimingTag,
     ) -> ParserTimingScope {
-        ParserTimingScope::new(self.timings.clone(), tag)
+        let Some(timings) = self.timings.as_ref() else {
+            return ParserTimingScope::disabled();
+        };
+        let timings_ptr = NonNull::from(timings.as_ref());
+        ParserTimingScope::new(Some(timings_ptr), tag)
     }
 
     /// Snapshot timing entries recorded by the parser.
     pub fn timing_snapshot(&self) -> Option<Vec<crate::parse::timing::ParserTimingEntry>> {
         self.timings.as_ref().map(|timings| timings.snapshot())
+    }
+
+    /// Snapshot speculative parser dispatch counters.
+    pub fn speculation_snapshot(&self) -> Option<ParserSpeculationStats> {
+        self.speculation_stats
+    }
+
+    /// Print speculation stats once when enabled through environment variables.
+    fn print_speculation_stats_if_enabled(&self) {
+        if !speculation_stats_print_enabled_from_env() {
+            return;
+        }
+
+        let Some(stats) = self.speculation_stats else {
+            return;
+        };
+
+        if SPECULATION_STATS_PRINTED.swap(true, Ordering::Relaxed) {
+            return;
+        }
+
+        // header
+        eprintln!("parser speculation stats");
+
+        // parser state churn
+        eprintln!(
+            "  state churn: with_options={} rewind={} restore={}",
+            stats.with_options_calls, stats.rewind_calls, stats.restore_calls
+        );
+
+        // statement keyword fast path
+        eprintln!(
+            "  statement fast: calls={} prefilter_reject={} keyword_reject={} direct_hit={} direct_miss={} fallback_hit={} fallback_miss={}",
+            stats.statement_keyword_fast_calls,
+            stats.statement_keyword_fast_prefilter_rejects,
+            stats.statement_keyword_fast_keyword_rejects,
+            stats.statement_keyword_fast_direct_hits,
+            stats.statement_keyword_fast_direct_misses,
+            stats.statement_keyword_fast_fallback_hits,
+            stats.statement_keyword_fast_fallback_misses
+        );
+
+        // parenthesized expression disambiguation
+        eprintln!(
+            "  parenthesized fast: calls={} hit={} miss={}",
+            stats.parenthesized_expression_fast_calls,
+            stats.parenthesized_expression_fast_hits,
+            stats.parenthesized_expression_fast_misses
+        );
+
+        // lambda disambiguation
+        eprintln!(
+            "  lambda fast: parenthesized calls={} hit={} miss={} identifier calls={} hit={} miss={}",
+            stats.simple_parenthesized_lambda_calls,
+            stats.simple_parenthesized_lambda_hits,
+            stats.simple_parenthesized_lambda_misses,
+            stats.simple_identifier_lambda_calls,
+            stats.simple_identifier_lambda_hits,
+            stats.simple_identifier_lambda_misses
+        );
+
+        // async speculative parsing
+        eprintln!(
+            "  async speculative: attempts={} success={} rollback={}",
+            stats.async_keyword_speculative_attempts,
+            stats.async_keyword_speculative_successes,
+            stats.async_keyword_speculative_rollbacks
+        );
     }
 
     /// Return the current semantic tokens.
@@ -735,20 +873,32 @@ impl Parser {
     /// Ensure a token exists at the given index and return it.
     #[inline]
     pub(crate) fn token_at(&mut self, index: usize) -> Option<TokenSpan> {
-        self.token_stream.token(index)
+        if self.tokens_prelexed {
+            self.tokens().get(index).copied()
+        } else {
+            self.token_stream.token(index)
+        }
+    }
+
+    /// Ensure a token exists unless pre-lex mode guarantees the full token slice.
+    #[inline]
+    fn ensure_token_if_needed(&mut self, index: usize) {
+        if !self.tokens_prelexed {
+            self.token_stream.ensure_token(index);
+        }
     }
 
     /// Ensure a token exists at the given index and return a reference.
     #[inline]
     pub(crate) fn token_ref_at(&mut self, index: usize) -> Option<&TokenSpan> {
-        self.token_stream.ensure_token(index);
+        self.ensure_token_if_needed(index);
         self.tokens().get(index)
     }
 
     /// Look up the token type at a given index.
     #[inline]
     pub(crate) fn token_type_at(&mut self, index: usize) -> TokenType {
-        self.token_stream.ensure_token(index);
+        self.ensure_token_if_needed(index);
         self.tokens()
             .get(index)
             .map(|token| token.token.ty)
@@ -816,7 +966,7 @@ impl Parser {
     /// Look up a pre-interned identifier at a token index.
     #[inline]
     pub(crate) fn identifier_for_index(&mut self, index: usize) -> Option<StringId> {
-        self.token_stream.ensure_token(index);
+        self.ensure_token_if_needed(index);
 
         if self.token_identifiers.len() <= index {
             self.token_identifiers.resize(index + 1, None);
@@ -842,7 +992,7 @@ impl Parser {
     /// Return true when the identifier token at index matches the expected string.
     #[inline]
     pub(crate) fn identifier_equals_at(&mut self, index: usize, expected: &str) -> bool {
-        self.token_stream.ensure_token(index);
+        self.ensure_token_if_needed(index);
         self.tokens().get(index).is_some_and(|token| {
             token.token.ty == TokenType::Identifier && self.file.span_str(token.span) == expected
         })
@@ -874,6 +1024,16 @@ impl Parser {
         }
     }
 
+    /// Get the token index used by peek_next_next_next.
+    #[inline]
+    pub(crate) fn index_for_next_next_next(&self) -> usize {
+        if self.has_active_split() {
+            self.pos + 2
+        } else {
+            self.pos + 3
+        }
+    }
+
     /// Ensure token caches align with the current token stream after a rewind.
     fn reset_token_caches_after_rewind(&mut self) {
         self.truncate_token_caches();
@@ -897,6 +1057,9 @@ impl Parser {
         // pre-lex non-tree-literal sources to reduce ensure_token overhead in hot parse loops
         if !self.token_stream.allow_tree_literals() {
             self.token_stream.lex_to_end();
+            self.tokens_prelexed = true;
+        } else {
+            self.tokens_prelexed = false;
         }
 
         // parse the root block body with recovery
@@ -915,6 +1078,8 @@ impl Parser {
             let stub = self.tree.insert(Expression::Stub, self.file_span());
             expressions.push(stub);
         }
+
+        self.print_speculation_stats_if_enabled();
 
         expressions
     }
@@ -981,6 +1146,9 @@ impl Parser {
         options: ParserOptions,
         func: impl FnOnce(&mut Self) -> ParseResult<T>,
     ) -> ParseResult<T> {
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.with_options_calls += 1;
+        }
         let old_options = self.options;
         self.options = options;
         let result = func(self);
@@ -1041,6 +1209,9 @@ impl Parser {
 
     /// Rewind the position to the given mark and remove any nodes created since.
     pub fn rewind(&mut self, mark: ParserMark) {
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.rewind_calls += 1;
+        }
         self.pos = mark.pos;
         self.split_token = mark.split_token;
         self.split_token_consumed = mark.split_token_consumed;
@@ -1052,6 +1223,9 @@ impl Parser {
 
     /// Rewind the position to the given mark and remove any nodes created since.
     pub fn restore(&mut self, mark: ParserMark, idx: u32) {
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.restore_calls += 1;
+        }
         self.pos = mark.pos;
         self.split_token = mark.split_token;
         self.split_token_consumed = mark.split_token_consumed;
@@ -1136,13 +1310,14 @@ impl Parser {
     #[inline]
     pub fn peek(&mut self) -> ParseResult<&TokenSpan> {
         // return split token if present and not yet consumed
-        if let Some(ref split) = self.split_token
-            && !self.split_token_consumed
-        {
-            return Ok(split);
+        if self.has_active_split() {
+            return Ok(self
+                .split_token
+                .as_ref()
+                .expect("active split token should exist"));
         }
 
-        self.token_stream.ensure_token(self.pos);
+        self.ensure_token_if_needed(self.pos);
         self.tokens()
             .get(self.pos)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1157,7 +1332,7 @@ impl Parser {
             return split.token.ty;
         }
 
-        self.token_stream.ensure_token(self.pos);
+        self.ensure_token_if_needed(self.pos);
         self.tokens()
             .get(self.pos)
             .map(|token| token.token.ty)
@@ -1170,7 +1345,7 @@ impl Parser {
         let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
         let offset = if has_active_split { 0 } else { 1 };
 
-        self.token_stream.ensure_token(self.pos + offset);
+        self.ensure_token_if_needed(self.pos + offset);
         self.tokens()
             .get(self.pos + offset)
             .map(|token| token.token.ty)
@@ -1197,6 +1372,26 @@ impl Parser {
         self.peek_next_token_type() == token_type
     }
 
+    /// Return true when the next next token matches the given type.
+    #[inline]
+    pub fn peek_next_next_is(&mut self, token_type: TokenType) -> bool {
+        debug_assert!(
+            is_semantic(token_type),
+            "peek_next_next_is requires semantic token type"
+        );
+        self.token_type_at(self.index_for_next_next()) == token_type
+    }
+
+    /// Return true when the next next next token matches the given type.
+    #[inline]
+    pub fn peek_next_next_next_is(&mut self, token_type: TokenType) -> bool {
+        debug_assert!(
+            is_semantic(token_type),
+            "peek_next_next_next_is requires semantic token type"
+        );
+        self.token_type_at(self.index_for_next_next_next()) == token_type
+    }
+
     /// Return true when more tokens remain before End.
     #[inline]
     pub fn has_more_tokens(&mut self) -> bool {
@@ -1210,7 +1405,7 @@ impl Parser {
         let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
         let offset = if has_active_split { 0 } else { 1 };
 
-        self.token_stream.ensure_token(self.pos + offset);
+        self.ensure_token_if_needed(self.pos + offset);
         self.tokens()
             .get(self.pos + offset)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1223,7 +1418,7 @@ impl Parser {
         let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
         let offset = if has_active_split { 1 } else { 2 };
 
-        self.token_stream.ensure_token(self.pos + offset);
+        self.ensure_token_if_needed(self.pos + offset);
         self.tokens()
             .get(self.pos + offset)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1236,7 +1431,7 @@ impl Parser {
         let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
         let offset = if has_active_split { 2 } else { 3 };
 
-        self.token_stream.ensure_token(self.pos + offset);
+        self.ensure_token_if_needed(self.pos + offset);
         self.tokens()
             .get(self.pos + offset)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1246,14 +1441,15 @@ impl Parser {
     #[inline]
     pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
         // if there's an active split token, consume it and return reference
-        if let Some(ref split) = self.split_token
-            && !self.split_token_consumed
-        {
+        if self.has_active_split() {
             self.split_token_consumed = true;
-            return Ok(split);
+            return Ok(self
+                .split_token
+                .as_ref()
+                .expect("active split token should exist"));
         }
         // normal case: consume from token stream
-        self.token_stream.ensure_token(self.pos);
+        self.ensure_token_if_needed(self.pos);
         if self.pos < self.tokens().len() {
             let pos = self.pos;
             self.pos += 1;
@@ -1276,7 +1472,7 @@ impl Parser {
             return;
         }
 
-        self.token_stream.ensure_token(self.pos);
+        self.ensure_token_if_needed(self.pos);
         debug_assert!(self.pos < self.tokens().len(), "bump past end of tokens");
         self.pos += 1;
     }
@@ -1285,8 +1481,7 @@ impl Parser {
     #[inline]
     pub fn bump_by(&mut self, distance: u8) {
         debug_assert!(!self.is_finished, "parser is already finished");
-        self.token_stream
-            .ensure_token(self.pos + (distance as usize));
+        self.ensure_token_if_needed(self.pos + (distance as usize));
         debug_assert!(
             self.pos + (distance as usize) < self.tokens().len(),
             "bump past end of tokens"
@@ -1298,7 +1493,7 @@ impl Parser {
     #[inline]
     pub(crate) fn advance_to(&mut self, pos: usize) {
         debug_assert!(!self.is_finished, "parser is already finished");
-        self.token_stream.ensure_token(pos);
+        self.ensure_token_if_needed(pos);
         debug_assert!(pos <= self.tokens().len(), "advance past end of tokens");
         self.pos = pos;
     }
@@ -1735,6 +1930,8 @@ impl Parser {
     }
 }
 
+static SPECULATION_STATS_PRINTED: AtomicBool = AtomicBool::new(false);
+
 fn timings_enabled_from_env() -> bool {
     std::env::var("DESTACK_PARSER_TIMINGS")
         .ok()
@@ -1749,6 +1946,33 @@ fn timings_enabled_from_env() -> bool {
         .unwrap_or(false)
 }
 
+fn speculation_stats_enabled_from_env() -> bool {
+    std::env::var("DESTACK_PARSER_SPECULATION_STATS")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .or_else(|| {
+            std::env::var("DESTACK_PARSER_DISPATCH_STATS")
+                .ok()
+                .and_then(|value| value.parse::<u8>().ok())
+                .map(|value| value > 0)
+        })
+        .unwrap_or(false)
+}
+
+fn speculation_stats_print_enabled_from_env() -> bool {
+    std::env::var("DESTACK_PARSER_SPECULATION_PRINT")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .or_else(|| {
+            std::env::var("DESTACK_PARSER_DISPATCH_PRINT")
+                .ok()
+                .and_then(|value| value.parse::<u8>().ok())
+                .map(|value| value > 0)
+        })
+        .unwrap_or(false)
+}
 #[derive(Debug, Clone)]
 pub struct ParserMark {
     /// The token position.

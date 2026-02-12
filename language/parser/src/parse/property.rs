@@ -67,7 +67,7 @@ impl Parser {
             self.bump(); // eat spread
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let property = Property::Spread {
                 modifiers: None,
@@ -224,7 +224,7 @@ impl Parser {
         if modifiers
             .as_ref()
             .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
-            && self.peek_token(TokenType::Not).is_ok()
+            && self.peek_is(TokenType::Not)
         {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
@@ -334,13 +334,13 @@ impl Parser {
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
             // return type
-            let (return_type, return_type_span) = if self.peek_colon().is_ok() {
+            let (return_type, return_type_span) = if self.peek_colon_is() {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let return_type = self.with_options(
                     self.options.nested().in_type().in_before_block(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
@@ -363,7 +363,7 @@ impl Parser {
                     .in_statement_position()
                     .not_in_decorator()
                     .with_generator(is_generator);
-                Some(self.with_options(options, |parser| parser.eat_expression())?)
+                Some(self.eat_expression(options)?)
             } else {
                 None
             };
@@ -423,7 +423,7 @@ impl Parser {
             let (value, type_span): (
                 Option<LocalNodeId<Expression>>,
                 Option<destack_source::Span>,
-            ) = if self.peek_colon().is_ok() {
+            ) = if self.peek_colon_is() {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
@@ -438,7 +438,7 @@ impl Parser {
                 if self.options.in_variant || self.options.in_type {
                     type_options = type_options.in_type();
                 }
-                let value = self.with_options(type_options, |parser| parser.eat_expression())?;
+                let value = self.eat_expression(type_options)?;
                 (Some(value), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -457,8 +457,7 @@ impl Parser {
                 } else {
                     self.options.not_in_position().not_in_sequence_expression()
                 };
-                let default =
-                    self.with_options(default_options, |parser| parser.eat_expression())?;
+                let default = self.eat_expression(default_options)?;
                 Some(default)
             } else {
                 None
@@ -573,7 +572,7 @@ impl Parser {
             self.bump(); // eat spread
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let member = Member::Embed {
                 modifiers: None,
@@ -627,7 +626,7 @@ impl Parser {
                     .not_in_position()
                     .in_statement_position()
                     .not_in_decorator(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             // preserve modifiers for validation (static blocks shouldn't have other modifiers)
             let member = Member::StaticBlock { modifiers, body };
@@ -645,17 +644,17 @@ impl Parser {
             let where_clauses = self.eat_where_maybe()?;
 
             // optional type bound: `: Bound`
-            let ty = if self.peek_colon().is_ok() {
+            let ty = if self.peek_colon_is() {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                Some(self.with_options(self.options.in_type(), |parser| parser.eat_expression())?)
+                Some(self.eat_expression(self.options.in_type())?)
             } else {
                 None
             };
             // optional value: `= Type`
             let value = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
-                Some(self.with_options(self.options.in_type(), |parser| parser.eat_expression())?)
+                Some(self.eat_expression(self.options.in_type())?)
             } else {
                 None
             };
@@ -682,7 +681,7 @@ impl Parser {
                     .not_in_position()
                     .in_statement_position()
                     .not_in_decorator(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let member = Member::ComptimeBlock { modifiers, body };
             return Ok(self.tree.insert(member, self.get_span_from(&start)));
@@ -839,7 +838,7 @@ impl Parser {
         if modifiers
             .as_ref()
             .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
-            && self.peek_token(TokenType::Not).is_ok()
+            && self.peek_is(TokenType::Not)
         {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
@@ -934,13 +933,13 @@ impl Parser {
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
             // return type
-            let (return_type, return_type_span) = if self.peek_colon().is_ok() {
+            let (return_type, return_type_span) = if self.peek_colon_is() {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let return_type = self.with_options(
                     self.options.nested().in_type().in_before_block(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
@@ -963,7 +962,7 @@ impl Parser {
                     .in_statement_position()
                     .not_in_decorator()
                     .with_generator(is_generator);
-                Some(self.with_options(options, |parser| parser.eat_expression())?)
+                Some(self.eat_expression(options)?)
             } else {
                 None
             };
@@ -1019,7 +1018,7 @@ impl Parser {
         // field
         else {
             // value (type annotation)
-            let (value, type_span) = if self.peek_colon().is_ok() {
+            let (value, type_span) = if self.peek_colon_is() {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
@@ -1031,7 +1030,7 @@ impl Parser {
                         .not_in_left_precedence()
                         .not_in_sequence_expression()
                         .in_type(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
                 (Some(value), Some(self.get_span_from(&type_start)))
             } else {
@@ -1044,7 +1043,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 let default = self.with_options(
                     self.options.not_in_position().not_in_sequence_expression(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
                 Some(default)
             } else {

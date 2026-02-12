@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::ptr::NonNull;
 use std::time::{Duration, Instant};
 
 /// Static timing tag for parser instrumentation.
@@ -26,8 +26,10 @@ impl ParserTimingTag {
 pub struct ParserTimingEntry {
     /// The timing tag name.
     pub name: &'static str,
-    /// The total duration recorded for this tag.
+    /// The inclusive duration recorded for this tag.
     pub duration: Duration,
+    /// The self duration recorded for this tag.
+    pub self_duration: Duration,
     /// The number of samples recorded.
     pub count: usize,
 }
@@ -36,19 +38,46 @@ pub struct ParserTimingEntry {
 #[derive(Debug, Default)]
 pub struct ParserTimings {
     entries: RefCell<HashMap<&'static str, ParserTimingEntry>>,
+    scope_stack: RefCell<Vec<Duration>>,
 }
 
 impl ParserTimings {
     /// Record a timing sample.
     pub fn record(&self, tag: ParserTimingTag, duration: Duration) {
+        self.record_scoped(tag, duration, duration);
+    }
+
+    /// Record a timing sample with explicit inclusive and self durations.
+    fn record_scoped(&self, tag: ParserTimingTag, duration: Duration, self_duration: Duration) {
         let mut entries = self.entries.borrow_mut();
         let entry = entries.entry(tag.name()).or_insert(ParserTimingEntry {
             name: tag.name(),
             duration: Duration::new(0, 0),
+            self_duration: Duration::new(0, 0),
             count: 0,
         });
         entry.duration += duration;
+        entry.self_duration += self_duration;
         entry.count += 1;
+    }
+
+    /// Enter a timed scope.
+    fn enter_scope(&self) {
+        let mut scope_stack = self.scope_stack.borrow_mut();
+        scope_stack.push(Duration::new(0, 0));
+    }
+
+    /// Exit a timed scope and attribute elapsed time.
+    fn leave_scope(&self, tag: ParserTimingTag, elapsed: Duration) {
+        let mut scope_stack = self.scope_stack.borrow_mut();
+        let child_duration = scope_stack.pop().unwrap_or_default();
+        if let Some(parent_child_duration) = scope_stack.last_mut() {
+            *parent_child_duration += elapsed;
+        }
+        drop(scope_stack);
+
+        let self_duration = elapsed.saturating_sub(child_duration);
+        self.record_scoped(tag, elapsed, self_duration);
     }
 
     /// Snapshot current timing entries.
@@ -63,14 +92,31 @@ impl ParserTimings {
 /// Scoped timing guard that records elapsed time on drop.
 #[derive(Debug)]
 pub struct ParserTimingScope {
-    timings: Option<Rc<ParserTimings>>,
+    timings: Option<NonNull<ParserTimings>>,
     name: &'static str,
     started_at: Option<Instant>,
 }
 
 impl ParserTimingScope {
+    /// Create a disabled timing scope.
+    #[inline]
+    pub const fn disabled() -> Self {
+        Self {
+            timings: None,
+            name: "",
+            started_at: None,
+        }
+    }
+
     /// Start a timing scope if timings are enabled.
-    pub fn new(timings: Option<Rc<ParserTimings>>, tag: ParserTimingTag) -> Self {
+    #[inline]
+    pub fn new(timings: Option<NonNull<ParserTimings>>, tag: ParserTimingTag) -> Self {
+        if let Some(timings_ptr) = timings {
+            // pointer originates from parser-owned Rc and stays valid for parser lifetime
+            unsafe {
+                timings_ptr.as_ref().enter_scope();
+            }
+        }
         let started_at = timings.is_some().then(Instant::now);
         Self {
             timings,
@@ -81,15 +127,22 @@ impl ParserTimingScope {
 }
 
 impl Drop for ParserTimingScope {
+    #[inline]
     fn drop(&mut self) {
         let Some(started_at) = self.started_at else {
             return;
         };
-        let Some(timings) = self.timings.as_ref() else {
+        let Some(timings) = self.timings else {
             return;
         };
         let elapsed = started_at.elapsed();
-        timings.record(ParserTimingTag::new(self.name), elapsed);
+
+        // pointer originates from parser-owned Rc and stays valid for parser lifetime
+        unsafe {
+            timings
+                .as_ref()
+                .leave_scope(ParserTimingTag::new(self.name), elapsed);
+        }
     }
 }
 

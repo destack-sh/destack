@@ -485,7 +485,7 @@ impl Parser {
                     type_options = type_options.in_type_conditional_right();
                 }
                 let ty = self
-                    .with_options(type_options, |parser| parser.eat_expression())
+                    .eat_expression(type_options)
                     .for_node_type(NodeType::Parameter)?;
                 (Some(ty), Some(self.get_span_from(&type_start)))
             } else {
@@ -514,7 +514,7 @@ impl Parser {
                         .forbid_await()
                 };
                 let value = self
-                    .with_options(value_options, |parser| parser.eat_expression())
+                    .eat_expression(value_options)
                     .for_node_type(NodeType::Parameter)?;
 
                 // named with default
@@ -595,14 +595,10 @@ impl Parser {
     /// Eat either a parameter pattern or a parameter name.
     fn eat_parameter_pattern_or_name(&mut self) -> ParseResult<ParameterPatternOrName> {
         // pattern
-        if self
-            .peek_token_in(&[
-                TokenType::OpenParenthesis,
-                TokenType::OpenBracket,
-                TokenType::OpenBrace,
-            ])
-            .is_ok()
-            || self.peek_identifier_str("_").is_ok()
+        if matches!(
+            self.peek_token_type(),
+            TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::OpenBrace
+        ) || self.peek_identifier_str_is("_")
         {
             let pattern =
                 self.with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
@@ -835,8 +831,7 @@ impl Parser {
         let has_labeled_tuple_head = self.options.in_type
             && self.peek_is(TokenType::Identifier)
             && (self.peek_next_is(TokenType::Colon)
-                || self.peek_next_is(TokenType::Maybe)
-                    && self.peek_next_next_token(TokenType::Colon).is_ok());
+                || self.peek_next_is(TokenType::Maybe) && self.peek_next_next_is(TokenType::Colon));
 
         // spread argument
         if self.peek_is(TokenType::Spread) {
@@ -847,7 +842,7 @@ impl Parser {
                 && self.peek_is(TokenType::Identifier)
                 && (self.peek_next_is(TokenType::Colon)
                     || self.peek_next_is(TokenType::Maybe)
-                        && self.peek_next_next_token(TokenType::Colon).is_ok());
+                        && self.peek_next_next_is(TokenType::Colon));
 
             // spread label and value
             let (label, label_span, value) = if has_spread_labeled_tuple_head {
@@ -869,7 +864,7 @@ impl Parser {
                 if self.options.in_arrow_return_type {
                     value_options = value_options.not_in_arrow_return_type();
                 }
-                let value = self.with_options(value_options, |parser| parser.eat_expression())?;
+                let value = self.eat_expression(value_options)?;
                 (Some(label), Some(label_span), value)
             } else {
                 // spread positional value
@@ -877,7 +872,7 @@ impl Parser {
                 if self.options.in_arrow_return_type {
                     value_options = value_options.not_in_arrow_return_type();
                 }
-                let value = self.with_options(value_options, |parser| parser.eat_expression())?;
+                let value = self.eat_expression(value_options)?;
                 (None, None, value)
             };
 
@@ -916,7 +911,7 @@ impl Parser {
             if self.options.in_arrow_return_type {
                 value_options = value_options.not_in_arrow_return_type();
             }
-            let value = self.with_options(value_options, |parser| parser.eat_expression())?;
+            let value = self.eat_expression(value_options)?;
 
             // build labeled argument
             let argument_id = self.tree.insert(
@@ -936,7 +931,7 @@ impl Parser {
         if self.options.in_arrow_return_type {
             value_options = value_options.not_in_arrow_return_type();
         }
-        let mut value = self.with_options(value_options, |parser| parser.eat_expression())?;
+        let mut value = self.eat_expression(value_options)?;
 
         // tuple optional marker after positional element
         if self.options.in_type && self.peek_is(TokenType::Maybe) {
@@ -988,7 +983,7 @@ impl Parser {
     pub fn eat_tree_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark_span();
         // named argument (name: value)
-        if self.peek_name().is_ok() && self.peek_next_is(TokenType::Colon) {
+        if self.peek_name_is() && self.peek_next_is(TokenType::Colon) {
             let (name, name_span) = self
                 .eat_name_with_span()
                 .for_node_type(NodeType::Argument)?;
@@ -997,7 +992,7 @@ impl Parser {
             // value
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let argument_id = self.tree.insert(
                 Argument::Named {
@@ -1015,7 +1010,7 @@ impl Parser {
             self.bump(); // eat spread
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let argument_id = self.tree.insert(
                 Argument::Spread {
@@ -1058,7 +1053,7 @@ impl Parser {
                         .not_in_tree_literal()
                         .not_in_ternary_condition()
                         .not_in_left_precedence(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBrace)?;
@@ -1079,7 +1074,7 @@ impl Parser {
                     .not_in_tree_literal()
                     .not_in_ternary_condition()
                     .not_in_left_precedence(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
 
             self.eat_newlines_maybe()?;
@@ -1115,7 +1110,7 @@ impl Parser {
             }
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             let argument_id = self.tree.insert(
                 Argument::Positional {
@@ -1144,7 +1139,7 @@ impl Parser {
         if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
             let value = self.with_options(self.options.in_statement_position(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression(parser.options)
             })?;
             let argument_id = self.tree.insert(
                 Argument::Spread {
@@ -1168,7 +1163,7 @@ impl Parser {
                     .not_in_ternary_condition()
                     .not_in_left_precedence()
                     .not_in_sequence_expression(),
-                |parser| parser.eat_expression(),
+                |parser| parser.eat_expression(parser.options),
             )?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
@@ -1200,14 +1195,14 @@ impl Parser {
                             .not_in_tree_literal()
                             .not_in_ternary_condition()
                             .not_in_left_precedence(),
-                        |parser| parser.eat_expression(),
+                        |parser| parser.eat_expression(parser.options),
                     )?;
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::CloseBrace)?;
                     value
                 }
                 // string literal attribute
-                else if self.peek_string_literal().is_ok() {
+                else if self.peek_string_literal_is() {
                     let (string, span) = self.eat_string_literal_with_span()?;
                     self.tree.insert(
                         Expression::ScalarLiteral(ScalarLiteral::String(string)),
@@ -1276,8 +1271,7 @@ impl Parser {
     fn starts_labeled_tuple_head(&mut self) -> bool {
         self.peek_is(TokenType::Identifier)
             && (self.peek_next_is(TokenType::Colon)
-                || self.peek_next_is(TokenType::Maybe)
-                    && self.peek_next_next_token(TokenType::Colon).is_ok())
+                || self.peek_next_is(TokenType::Maybe) && self.peek_next_next_is(TokenType::Colon))
     }
 
     /// Eat top-level static type arguments.
@@ -1399,9 +1393,11 @@ impl Parser {
         }
 
         // regular dynamic arguments
-        let dynamic_arguments = self.with_options(self.options.nested(), |parser| {
-            parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
-        })?;
+        let old_options = self.options;
+        self.options = self.options.nested();
+        let dynamic_arguments = self.eat_positional_arguments_body(TokenType::CloseParenthesis);
+        self.options = old_options;
+        let dynamic_arguments = dynamic_arguments?;
 
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;

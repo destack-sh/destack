@@ -100,7 +100,7 @@ impl Parser {
             let initialization_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.with_options(clause_options, |parser| parser.eat_expression())?)
+                Some(self.eat_expression(clause_options)?)
             };
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::Semicolon)?;
@@ -110,7 +110,7 @@ impl Parser {
             let condition_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
-                Some(self.with_options(clause_options, |parser| parser.eat_expression())?)
+                Some(self.eat_expression(clause_options)?)
             };
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::Semicolon)?;
@@ -120,7 +120,7 @@ impl Parser {
             let increment_id = if self.peek_is(TokenType::CloseParenthesis) {
                 None
             } else {
-                Some(self.with_options(clause_options, |parser| parser.eat_expression())?)
+                Some(self.eat_expression(clause_options)?)
             };
 
             // close parenthesis
@@ -174,7 +174,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
             let iterator_id = self
                 .with_options(self.options.nested().in_before_block(), |parser| {
-                    parser.eat_expression()
+                    parser.eat_expression(parser.options)
                 })?;
 
             if in_parenthesis {
@@ -235,7 +235,7 @@ impl Parser {
                         .not_in_position()
                         .in_for_each()
                         .in_before_block(),
-                    |parser| parser.eat_expression(),
+                    |parser| parser.eat_expression(parser.options),
                 )?;
 
                 let pattern = self.tree.insert(

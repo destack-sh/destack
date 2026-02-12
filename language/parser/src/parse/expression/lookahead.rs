@@ -37,10 +37,16 @@ impl Parser {
             }
         }
 
-        // snapshot parser state before speculative lookahead
-        let lookahead_mark = self.mark();
-        let lookahead_result = self.lookahead_parenthesized_group_shape_inner();
-        self.rewind(lookahead_mark);
+        // tree literal lexing can mutate token stream state during lookahead
+        let needs_snapshot = self.token_stream.allow_tree_literals() && !self.options.in_type;
+        let lookahead_result = if needs_snapshot {
+            let lookahead_mark = self.mark();
+            let lookahead_result = self.lookahead_parenthesized_group_shape_inner();
+            self.rewind(lookahead_mark);
+            lookahead_result
+        } else {
+            self.lookahead_parenthesized_group_shape_inner()
+        };
 
         // lookahead disambiguation should never surface parse errors directly
         let group_shape = match lookahead_result {
@@ -72,12 +78,33 @@ impl Parser {
 
         // locate the closing parenthesis and follow token
         let open_pos = self.pos();
-        let close_pos = self.find_matching_close(
-            Some(open_pos),
-            TokenType::OpenParenthesis,
-            TokenType::CloseParenthesis,
-        )?;
-        let follow_index = self.next_non_newline_index_from(close_pos as usize + 1);
+        let close_pos = if !self.has_active_split()
+            && self
+                .token_ref_at(open_pos as usize)
+                .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
+        {
+            if let Some(close_index) = self.token_stream.matching_pair(open_pos as usize) {
+                close_index as u32
+            } else {
+                self.find_matching_close(
+                    Some(open_pos),
+                    TokenType::OpenParenthesis,
+                    TokenType::CloseParenthesis,
+                )?
+            }
+        } else {
+            self.find_matching_close(
+                Some(open_pos),
+                TokenType::OpenParenthesis,
+                TokenType::CloseParenthesis,
+            )?
+        };
+        let follow_start_index = close_pos as usize + 1;
+        let follow_index = if self.token_type_at(follow_start_index) == TokenType::Newline {
+            self.next_non_newline_index_from(follow_start_index + 1)
+        } else {
+            follow_start_index
+        };
         let follow_token_type = self.token_ref_at(follow_index).map(|token| token.token.ty);
         let has_arrow_follow = matches!(
             follow_token_type,

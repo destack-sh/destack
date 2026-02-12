@@ -43,7 +43,7 @@ impl Parser {
         // name and static parameters
         let (static_parameters, name, name_span) =
             // named extension
-            if self.peek_name().is_ok() && !self.is_keyword(Keyword::For) {
+            if self.peek_name_is() && !self.is_keyword(Keyword::For) {
                 let (name, span) = self.eat_name_with_span()?;
                 let static_parameters = self.eat_static_parameters_maybe()?;
                 (static_parameters, Some(name), Some(span))
@@ -63,7 +63,7 @@ impl Parser {
         let target_start = self.mark();
         let target_type = self.with_options(
             self.options.nested().in_super_type().in_before_block(),
-            |parser| parser.eat_expression(),
+            |parser| parser.eat_expression(parser.options),
         )?;
 
         // record the full type span for the target type

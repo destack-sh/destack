@@ -188,6 +188,8 @@ struct FileRunStat {
     output_bytes: usize,
     skipped_by_file_ignore: bool,
     parse: Duration,
+    parse_main: Duration,
+    parse_finish: Duration,
     format: Duration,
     print: Duration,
     total: Duration,
@@ -199,6 +201,8 @@ struct FileRunStat {
 #[derive(Debug, Clone)]
 struct BenchRunStats {
     parse: Duration,
+    parse_main: Duration,
+    parse_finish: Duration,
     format: Duration,
     print: Duration,
     work_total: Duration,
@@ -227,6 +231,8 @@ struct FileAggregate {
     source_bytes: usize,
     output_bytes_total: usize,
     parse_total: Duration,
+    parse_main_total: Duration,
+    parse_finish_total: Duration,
     format_total: Duration,
     print_total: Duration,
     total: Duration,
@@ -258,6 +264,8 @@ struct BenchSummary {
     stddev_ms: f64,
     coefficient_of_variation: f64,
     mean_parse: Duration,
+    mean_parse_main: Duration,
+    mean_parse_finish: Duration,
     mean_format: Duration,
     mean_print: Duration,
     mean_work: Duration,
@@ -602,6 +610,8 @@ fn run_single_benchmark(
     if files.is_empty() {
         return Ok(BenchRunStats {
             parse: Duration::ZERO,
+            parse_main: Duration::ZERO,
+            parse_finish: Duration::ZERO,
             format: Duration::ZERO,
             print: Duration::ZERO,
             work_total: Duration::ZERO,
@@ -697,6 +707,8 @@ fn run_single_benchmark(
 /// Aggregate per-file run statistics into one run summary.
 fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> BenchRunStats {
     let mut parse_total = Duration::ZERO;
+    let mut parse_main_total = Duration::ZERO;
+    let mut parse_finish_total = Duration::ZERO;
     let mut format_total = Duration::ZERO;
     let mut print_total = Duration::ZERO;
     let mut run_total = Duration::ZERO;
@@ -715,6 +727,8 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
     let mut counter_totals = HashMap::<&'static str, usize>::new();
     for file_stat in &file_stats {
         parse_total += file_stat.parse;
+        parse_main_total += file_stat.parse_main;
+        parse_finish_total += file_stat.parse_finish;
         format_total += file_stat.format;
         print_total += file_stat.print;
         run_total += file_stat.total;
@@ -790,6 +804,8 @@ fn aggregate_run_stats(file_stats: Vec<FileRunStat>, wall_total: Duration) -> Be
 
     BenchRunStats {
         parse: parse_total,
+        parse_main: parse_main_total,
+        parse_finish: parse_finish_total,
         format: format_total,
         print: print_total,
         work_total: run_total,
@@ -832,8 +848,14 @@ fn benchmark_file(
     ));
     let language = LanguageType::from(corpus_file.file_type);
     let mut parser = DestackParser::lex_file(file.clone(), language);
-    let expressions: Vec<LocalNodeId<Expression>> = parser.parse();
+    let parse_main_started_at = Instant::now();
+    let expressions: Vec<LocalNodeId<Expression>> = parser.parse_without_finish();
+    let parse_main = parse_main_started_at.elapsed();
+
+    let parse_finish_started_at = Instant::now();
     parser.finish();
+    let parse_finish = parse_finish_started_at.elapsed();
+
     let parser_timings = if timings_enabled {
         parser.timing_snapshot().unwrap_or_default()
     } else {
@@ -927,6 +949,8 @@ fn benchmark_file(
         output_bytes,
         skipped_by_file_ignore,
         parse,
+        parse_main,
+        parse_finish,
         format,
         print,
         total,
@@ -974,10 +998,14 @@ fn summarize(
     };
 
     let parse_total: Duration = runs.iter().map(|run| run.parse).sum();
+    let parse_main_total: Duration = runs.iter().map(|run| run.parse_main).sum();
+    let parse_finish_total: Duration = runs.iter().map(|run| run.parse_finish).sum();
     let format_total: Duration = runs.iter().map(|run| run.format).sum();
     let print_total: Duration = runs.iter().map(|run| run.print).sum();
     let work_total: Duration = runs.iter().map(|run| run.work_total).sum();
     let mean_parse = parse_total / measured_runs as u32;
+    let mean_parse_main = parse_main_total / measured_runs as u32;
+    let mean_parse_finish = parse_finish_total / measured_runs as u32;
     let mean_format = format_total / measured_runs as u32;
     let mean_print = print_total / measured_runs as u32;
     let mean_work = work_total / measured_runs as u32;
@@ -1107,6 +1135,8 @@ fn summarize(
         stddev_ms,
         coefficient_of_variation,
         mean_parse,
+        mean_parse_main,
+        mean_parse_finish,
         mean_format,
         mean_print,
         mean_work,
@@ -1143,6 +1173,8 @@ fn summarize_files(runs: &[BenchRunStats], top: usize) -> Vec<FileAggregate> {
             source_bytes: file.source_bytes,
             output_bytes_total: 0,
             parse_total: Duration::ZERO,
+            parse_main_total: Duration::ZERO,
+            parse_finish_total: Duration::ZERO,
             format_total: Duration::ZERO,
             print_total: Duration::ZERO,
             total: Duration::ZERO,
@@ -1155,6 +1187,8 @@ fn summarize_files(runs: &[BenchRunStats], top: usize) -> Vec<FileAggregate> {
             entry.runs += 1;
             entry.output_bytes_total = entry.output_bytes_total.saturating_add(file.output_bytes);
             entry.parse_total += file.parse;
+            entry.parse_main_total += file.parse_main;
+            entry.parse_finish_total += file.parse_finish;
             entry.format_total += file.format;
             entry.print_total += file.print;
             entry.total += file.total;
@@ -1251,9 +1285,11 @@ fn print_table(summary: &BenchSummary, color: bool) {
         reset = style.reset
     );
     println!(
-        "  {bold}{:<5} {:>10} {:>10} {:>10} {:>10} {:>9} {:>10} {:>10}{reset}",
+        "  {bold}{:<5} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>9} {:>10} {:>10}{reset}",
         "run",
         "parse",
+        "p.main",
+        "p.finish",
         "format",
         "print",
         "total",
@@ -1265,7 +1301,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
     );
     println!(
         "  {dim}{}{reset}",
-        "-".repeat(87),
+        "-".repeat(111),
         dim = style.dim,
         reset = style.reset
     );
@@ -1277,9 +1313,11 @@ fn print_table(summary: &BenchSummary, color: bool) {
         let run_format_lines_per_second =
             run.formatted_lines as f64 / run.format.as_secs_f64().max(0.000_001);
         println!(
-            "  {:<5} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>10} {:>10}",
+            "  {:<5} {:>10} {:>10} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>10} {:>10}",
             index + 1,
             format_duration(run.parse),
+            format_duration(run.parse_main),
+            format_duration(run.parse_finish),
             format_duration(run.format),
             format_duration(run.print),
             format_duration(run.total),
@@ -1398,9 +1436,11 @@ fn print_table(summary: &BenchSummary, color: bool) {
             reset = style.reset
         );
         println!(
-            "  {bold}{:<name_width$} {:>10} {:>10} {:>10} {:>10} {:>9} {:>8} {:>8} {:<16}{reset}",
+            "  {bold}{:<name_width$} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>9} {:>8} {:>8} {:<16}{reset}",
             "file",
             "parse",
+            "p.main",
+            "p.finish",
             "format",
             "print",
             "total",
@@ -1414,7 +1454,7 @@ fn print_table(summary: &BenchSummary, color: bool) {
         );
         println!(
             "  {dim}{}{reset}",
-            "-".repeat(HOT_FILE_NAME_WIDTH + 102),
+            "-".repeat(HOT_FILE_NAME_WIDTH + 126),
             dim = style.dim,
             reset = style.reset
         );
@@ -1422,6 +1462,8 @@ fn print_table(summary: &BenchSummary, color: bool) {
         for file in &summary.top_files {
             let runs = file.runs.max(1) as u32;
             let parse = file.parse_total / runs;
+            let parse_main = file.parse_main_total / runs;
+            let parse_finish = file.parse_finish_total / runs;
             let format = file.format_total / runs;
             let print = file.print_total / runs;
             let total = file.total / runs;
@@ -1437,9 +1479,11 @@ fn print_table(summary: &BenchSummary, color: bool) {
             let name = truncate_middle(relative.as_str(), HOT_FILE_NAME_WIDTH);
 
             println!(
-                "  {cyan}{:<name_width$}{reset} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>8} {:>8} {heat}{:<16}{reset}",
+                "  {cyan}{:<name_width$}{reset} {:>10} {:>10} {:>10} {:>10} {:>10} {heat}{:>10}{reset} {:>8} {:>8} {:>8} {heat}{:<16}{reset}",
                 name,
                 format_duration(parse),
+                format_duration(parse_main),
+                format_duration(parse_finish),
                 format_duration(format),
                 format_duration(print),
                 format_duration(total),
@@ -1551,6 +1595,14 @@ fn print_table(summary: &BenchSummary, color: bool) {
     let parse_ratio = summary.mean_parse.as_secs_f64() / phase_total.as_secs_f64().max(0.000_001);
     let format_ratio = summary.mean_format.as_secs_f64() / phase_total.as_secs_f64().max(0.000_001);
     let print_ratio = summary.mean_print.as_secs_f64() / phase_total.as_secs_f64().max(0.000_001);
+    let parse_breakdown_total = summary.mean_parse.as_secs_f64().max(0.000_001);
+    let parse_main_ratio = summary.mean_parse_main.as_secs_f64() / parse_breakdown_total;
+    let parse_finish_ratio = summary.mean_parse_finish.as_secs_f64() / parse_breakdown_total;
+    let parse_other = duration_saturating_sub(
+        summary.mean_parse,
+        summary.mean_parse_main + summary.mean_parse_finish,
+    );
+    let parse_other_ratio = parse_other.as_secs_f64() / parse_breakdown_total;
     let workers = summary.workers.max(1);
     let effective_parallelism =
         phase_total.as_secs_f64() / summary.mean.as_secs_f64().max(0.000_001);
@@ -1602,6 +1654,21 @@ fn print_table(summary: &BenchSummary, color: bool) {
         "  parse stage wall:  {:>10} ({:>6})",
         format_duration(parse_wall_est),
         format_percent(parse_ratio)
+    );
+    println!(
+        "  parser main cpu:   {:>10} ({:>6})",
+        format_duration(summary.mean_parse_main),
+        format_percent(parse_main_ratio)
+    );
+    println!(
+        "  parser finish cpu: {:>10} ({:>6})",
+        format_duration(summary.mean_parse_finish),
+        format_percent(parse_finish_ratio)
+    );
+    println!(
+        "  parse other cpu:   {:>10} ({:>6})",
+        format_duration(parse_other),
+        format_percent(parse_other_ratio)
     );
     println!(
         "  format stage wall: {:>10} ({:>6})",
@@ -1727,8 +1794,13 @@ fn print_table(summary: &BenchSummary, color: bool) {
 
 /// Print csv benchmark output.
 fn print_csv(summary: &BenchSummary) {
+    let parse_other = duration_saturating_sub(
+        summary.mean_parse,
+        summary.mean_parse_main + summary.mean_parse_finish,
+    );
+
     println!(
-        "root,mode,files,formatted_files_per_run,skipped_files_per_run,warmup_runs,measured_runs,source_lines_per_run,formatted_lines_per_run,skipped_lines_per_run,source_bytes_per_run,formatted_bytes_per_run,skipped_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,formatted_lines_per_sec,parse_lines_per_sec,format_cpu_lines_per_sec,format_work_cpu_lines_per_sec,print_lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
+        "root,mode,files,formatted_files_per_run,skipped_files_per_run,warmup_runs,measured_runs,source_lines_per_run,formatted_lines_per_run,skipped_lines_per_run,source_bytes_per_run,formatted_bytes_per_run,skipped_bytes_per_run,output_bytes_per_run,min_ms,mean_ms,median_ms,p95_ms,max_ms,stddev_ms,cv_pct,parse_mean_ms,parse_main_mean_ms,parse_finish_mean_ms,parse_other_mean_ms,format_mean_ms,print_mean_ms,files_per_sec,lines_per_sec,formatted_lines_per_sec,parse_lines_per_sec,format_cpu_lines_per_sec,format_work_cpu_lines_per_sec,print_lines_per_sec,input_mib_per_sec,output_mib_per_sec,span_text_hits,span_text_misses,span_newline_hits,span_newline_misses,span_comment_hits,span_comment_misses,annotation_hits,annotation_misses,sink"
     );
     let summary_row = vec![
         format!("\"{}\"", summary.root.display()),
@@ -1753,6 +1825,9 @@ fn print_csv(summary: &BenchSummary) {
         format!("{:.3}", summary.stddev_ms),
         format!("{:.3}", summary.coefficient_of_variation * 100.0),
         format!("{:.3}", duration_ms(summary.mean_parse)),
+        format!("{:.3}", duration_ms(summary.mean_parse_main)),
+        format!("{:.3}", duration_ms(summary.mean_parse_finish)),
+        format!("{:.3}", duration_ms(parse_other)),
         format!("{:.3}", duration_ms(summary.mean_format)),
         format!("{:.3}", duration_ms(summary.mean_print)),
         format!("{:.3}", summary.files_per_second),
@@ -1778,9 +1853,10 @@ fn print_csv(summary: &BenchSummary) {
 
     println!();
     println!(
-        "run,total_ms,work_ms,parse_ms,format_ms,print_ms,source_lines,formatted_lines,skipped_lines,lines_per_sec,format_cpu_lines_per_sec,format_work_cpu_lines_per_sec"
+        "run,total_ms,work_ms,parse_ms,parse_main_ms,parse_finish_ms,parse_other_ms,format_ms,print_ms,source_lines,formatted_lines,skipped_lines,lines_per_sec,format_cpu_lines_per_sec,format_work_cpu_lines_per_sec"
     );
     for (index, run) in summary.runs.iter().enumerate() {
+        let parse_other = duration_saturating_sub(run.parse, run.parse_main + run.parse_finish);
         let run_lines_per_second = run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001);
         let run_format_lines_per_second =
             run.source_lines as f64 / run.format.as_secs_f64().max(0.000_001);
@@ -1793,6 +1869,9 @@ fn print_csv(summary: &BenchSummary) {
                 format!("{:.3}", duration_ms(run.total)),
                 format!("{:.3}", duration_ms(run.work_total)),
                 format!("{:.3}", duration_ms(run.parse)),
+                format!("{:.3}", duration_ms(run.parse_main)),
+                format!("{:.3}", duration_ms(run.parse_finish)),
+                format!("{:.3}", duration_ms(parse_other)),
                 format!("{:.3}", duration_ms(run.format)),
                 format!("{:.3}", duration_ms(run.print)),
                 run.source_lines.to_string(),
@@ -1807,18 +1886,26 @@ fn print_csv(summary: &BenchSummary) {
     }
 
     println!();
-    println!("file,parse_ms,format_ms,print_ms,total_ms,share_pct,source_lines,source_bytes");
+    println!(
+        "file,parse_ms,parse_main_ms,parse_finish_ms,parse_other_ms,format_ms,print_ms,total_ms,share_pct,source_lines,source_bytes"
+    );
     for file in &summary.top_files {
         let runs = file.runs.max(1) as u32;
         let parse = file.parse_total / runs;
+        let parse_main = file.parse_main_total / runs;
+        let parse_finish = file.parse_finish_total / runs;
+        let parse_other = duration_saturating_sub(parse, parse_main + parse_finish);
         let format = file.format_total / runs;
         let print = file.print_total / runs;
         let total = file.total / runs;
         let share = total.as_secs_f64() / summary.mean_work.as_secs_f64().max(0.000_001);
         println!(
-            "\"{}\",{:.3},{:.3},{:.3},{:.3},{:.3},{},{}",
+            "\"{}\",{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{:.3},{},{}",
             file.path.display(),
             duration_ms(parse),
+            duration_ms(parse_main),
+            duration_ms(parse_finish),
+            duration_ms(parse_other),
             duration_ms(format),
             duration_ms(print),
             duration_ms(total),
@@ -1861,10 +1948,14 @@ fn print_json(summary: &BenchSummary) {
         .runs
         .iter()
         .map(|run| {
+            let parse_other = duration_saturating_sub(run.parse, run.parse_main + run.parse_finish);
             json!({
                 "total_ms": duration_ms(run.total),
                 "work_ms": duration_ms(run.work_total),
                 "parse_ms": duration_ms(run.parse),
+                "parse_main_ms": duration_ms(run.parse_main),
+                "parse_finish_ms": duration_ms(run.parse_finish),
+                "parse_other_ms": duration_ms(parse_other),
                 "format_ms": duration_ms(run.format),
                 "print_ms": duration_ms(run.print),
                 "lines_per_sec": run.source_lines as f64 / run.total.as_secs_f64().max(0.000_001),
@@ -1882,12 +1973,20 @@ fn print_json(summary: &BenchSummary) {
         })
         .collect::<Vec<_>>();
 
+    let parse_other = duration_saturating_sub(
+        summary.mean_parse,
+        summary.mean_parse_main + summary.mean_parse_finish,
+    );
+
     let top_files = summary
         .top_files
         .iter()
         .map(|file| {
             let runs = file.runs.max(1) as u32;
             let parse = file.parse_total / runs;
+            let parse_main = file.parse_main_total / runs;
+            let parse_finish = file.parse_finish_total / runs;
+            let parse_other = duration_saturating_sub(parse, parse_main + parse_finish);
             let format = file.format_total / runs;
             let print = file.print_total / runs;
             let total = file.total / runs;
@@ -1899,6 +1998,9 @@ fn print_json(summary: &BenchSummary) {
                 "source_bytes": file.source_bytes,
                 "output_bytes_per_run": file.output_bytes_total / file.runs.max(1),
                 "parse_ms": duration_ms(parse),
+                "parse_main_ms": duration_ms(parse_main),
+                "parse_finish_ms": duration_ms(parse_finish),
+                "parse_other_ms": duration_ms(parse_other),
                 "format_ms": duration_ms(format),
                 "print_ms": duration_ms(print),
                 "total_ms": duration_ms(total),
@@ -1963,6 +2065,9 @@ fn print_json(summary: &BenchSummary) {
         },
         "phase_mean_ms": {
             "parse": duration_ms(summary.mean_parse),
+            "parse_main": duration_ms(summary.mean_parse_main),
+            "parse_finish": duration_ms(summary.mean_parse_finish),
+            "parse_other": duration_ms(parse_other),
             "format": duration_ms(summary.mean_format),
             "print": duration_ms(summary.mean_print),
         },
@@ -2194,6 +2299,11 @@ fn format_duration(duration: Duration) -> String {
 /// Return milliseconds for a duration.
 fn duration_ms(duration: Duration) -> f64 {
     duration.as_secs_f64() * 1000.0
+}
+
+/// Subtract durations with a floor at zero.
+fn duration_saturating_sub(value: Duration, subtrahend: Duration) -> Duration {
+    value.checked_sub(subtrahend).unwrap_or(Duration::ZERO)
 }
 
 /// Format a ratio as a percentage string.

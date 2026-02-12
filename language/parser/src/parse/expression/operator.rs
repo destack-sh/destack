@@ -12,6 +12,22 @@ use destack_ast::{
 };
 
 impl Parser {
+    /// Return the current token span or EOF span when unavailable.
+    #[inline]
+    fn current_span_or_eof(&mut self) -> destack_source::Span {
+        self.peek()
+            .map(|token| token.span)
+            .unwrap_or(self.eof_span())
+    }
+
+    /// Return the next token span or EOF span when unavailable.
+    #[inline]
+    fn next_span_or_eof(&mut self) -> destack_source::Span {
+        self.peek_next()
+            .map(|token| token.span)
+            .unwrap_or(self.eof_span())
+    }
+
     /// Recover a shift operator from adjacent `>` tokens split by type-close scanning.
     fn recover_split_shift_operator(
         &self,
@@ -127,30 +143,36 @@ impl Parser {
 
     /// Peek a unary prefix operator.
     #[inline]
-    pub fn peek_unary_prefix_operator(&mut self) -> ParseResult<UnaryOperator> {
-        let token = *self.peek()?;
+    pub fn peek_unary_prefix_operator_maybe(&mut self) -> Option<UnaryOperator> {
+        let token = *self.peek().ok()?;
         if token.token.ty == TokenType::Identifier && !self.options.in_type {
             let token_str = self.get_span_str(token.span);
             if let Ok(keyword) = Keyword::from_str(token_str)
                 && let Some(operator) = UnaryOperator::from_prefix_keyword(keyword)
             {
-                return Ok(operator);
+                return Some(operator);
             }
         }
-        let operator = UnaryOperator::from_prefix_token(token.token.ty)
-            .ok_or(ParseError::unexpected(token.span))?;
+        let operator = UnaryOperator::from_prefix_token(token.token.ty)?;
 
         // dereference (*x) is not valid in JS/TS compatibility mode
         if operator == UnaryOperator::Dereference && !self.language.is_destack() {
-            return Err(ParseError::unexpected(token.span));
+            return None;
         }
 
         // spread (...x) is not a valid standalone expression in JS/TS
         if operator == UnaryOperator::Spread && !self.language.is_destack() {
-            return Err(ParseError::unexpected(token.span));
+            return None;
         }
 
-        Ok(operator)
+        Some(operator)
+    }
+
+    /// Peek a unary prefix operator.
+    #[inline]
+    pub fn peek_unary_prefix_operator(&mut self) -> ParseResult<UnaryOperator> {
+        self.peek_unary_prefix_operator_maybe()
+            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
     }
 
     /// Peek a unary postfix operator.
@@ -160,24 +182,36 @@ impl Parser {
         UnaryOperator::from_postfix_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
     }
 
+    /// Peek a type unary prefix operator.
+    #[inline]
+    pub fn peek_type_unary_prefix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
+        let token = *self.peek().ok()?;
+        let token_str = self.get_span_str(token.span);
+        TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)
+    }
+
     /// Peek a type unary operator.
     #[inline]
     pub fn peek_type_unary_prefix_operator(&mut self) -> ParseResult<TypeUnaryOperator> {
-        let token = *self.peek()?;
+        self.peek_type_unary_prefix_operator_maybe()
+            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
+    }
+
+    /// Peek a type unary postfix operator.
+    #[inline]
+    pub fn peek_type_unary_postfix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
+        let token = *self.peek().ok()?;
+        let next_token = *self.peek_next().ok()?;
         let token_str = self.get_span_str(token.span);
-        TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)
-            .ok_or(ParseError::unexpected(token.span))
+        let next_token_str = self.get_span_str(next_token.span);
+        TypeUnaryOperator::from_postfix_token(token_str, next_token_str, token.token.ty)
     }
 
     /// Peek a type unary postfix operator.
     #[inline]
     pub fn peek_type_unary_postfix_operator(&mut self) -> ParseResult<TypeUnaryOperator> {
-        let token = *self.peek()?;
-        let next_token = *self.peek_next()?;
-        let token_str = self.get_span_str(token.span);
-        let next_token_str = self.get_span_str(next_token.span);
-        TypeUnaryOperator::from_postfix_token(token_str, next_token_str, token.token.ty)
-            .ok_or(ParseError::unexpected(token.span))
+        self.peek_type_unary_postfix_operator_maybe()
+            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
     }
 
     /// Peek a next type unary operator.
@@ -201,6 +235,12 @@ impl Parser {
     pub fn peek_next_assign_operator(&mut self) -> ParseResult<AssignOperator> {
         let token = *self.peek_next()?;
         AssignOperator::from_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
+    }
+
+    /// Return true when the next token is an assignment operator.
+    #[inline]
+    pub fn peek_next_assign_operator_is(&mut self) -> bool {
+        AssignOperator::from_token(self.peek_next_token_type()).is_some()
     }
 
     /// Return true when a token index could be an infix or assign operator.
@@ -232,8 +272,8 @@ impl Parser {
 
     /// Peek an infix operator.
     #[inline]
-    pub fn peek_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
-        let token = *self.peek()?;
+    pub fn peek_infix_operator_maybe(&mut self) -> Option<(InfixOperator, u8)> {
+        let token = *self.peek().ok()?;
         let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
             (
                 self.peek_next().ok().copied(),
@@ -250,12 +290,20 @@ impl Parser {
             next_next_token.as_ref(),
             false,
         )
+        .ok()
+    }
+
+    /// Peek an infix operator.
+    #[inline]
+    pub fn peek_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
+        self.peek_infix_operator_maybe()
+            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
     }
 
     /// Peek a next infix operator.
     #[inline]
-    pub fn peek_next_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
-        let token = *self.peek_next()?;
+    pub fn peek_next_infix_operator_maybe(&mut self) -> Option<(InfixOperator, u8)> {
+        let token = *self.peek_next().ok()?;
         let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
             (
                 self.peek_next_next().ok().copied(),
@@ -272,26 +320,29 @@ impl Parser {
             next_next_token.as_ref(),
             true,
         )
+        .ok()
+    }
+
+    /// Peek a next infix operator.
+    #[inline]
+    pub fn peek_next_infix_operator(&mut self) -> ParseResult<(InfixOperator, u8)> {
+        self.peek_next_infix_operator_maybe()
+            .ok_or(ParseError::unexpected(self.next_span_or_eof()))
     }
 
     /// Peek an infix operator after any newlines.
     #[inline]
-    pub fn peek_infix_operator_after_newlines(&mut self) -> ParseResult<(InfixOperator, u8)> {
+    pub fn peek_infix_operator_after_newlines_maybe(&mut self) -> Option<(InfixOperator, u8)> {
         let mut pos = self.pos() as usize;
         loop {
             self.token_stream.ensure_token(pos + 1);
-            let Some(token) = self.tokens().get(pos + 1) else {
-                break;
-            };
+            let token = self.tokens().get(pos + 1)?;
             if token.token.ty != TokenType::Newline {
                 break;
             }
             pos += 1;
         }
-        let eof_span = self.eof_span();
-        let token = *self
-            .token_ref_at(pos + 1)
-            .ok_or(ParseError::unexpected(eof_span))?;
+        let token = *self.token_ref_at(pos + 1)?;
         let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
             (self.token_at(pos + 2), self.token_at(pos + 3))
         } else {
@@ -305,6 +356,14 @@ impl Parser {
             next_next_token.as_ref(),
             true,
         )
+        .ok()
+    }
+
+    /// Peek an infix operator after any newlines.
+    #[inline]
+    pub fn peek_infix_operator_after_newlines(&mut self) -> ParseResult<(InfixOperator, u8)> {
+        self.peek_infix_operator_after_newlines_maybe()
+            .ok_or(ParseError::unexpected(self.current_span_or_eof()))
     }
     /// Make an expression from an infix operator.
     #[inline]

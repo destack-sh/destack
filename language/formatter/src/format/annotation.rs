@@ -1637,7 +1637,7 @@ mod tests {
         assert_format!(
             "/* Pre-X comment */const X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
             "/* Pre-X comment */ const X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_with_line_width(200)
         );
     }
@@ -1706,7 +1706,7 @@ mod tests {
         assert_format!(
             "foo(/* first */ a, /* second */ b)",
             "foo(/* first */ a, /* second */ b)",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -1721,7 +1721,7 @@ mod tests {
     /* second */ 2,
     /* third */ 3,
 ]",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -1735,7 +1735,7 @@ mod tests {
     /* key */ a: 1,
     /* another */ b: 2,
 }",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -1780,7 +1780,7 @@ mod tests {
         assert_format!(
             "() /**/ => 1",
             "() /**/ => 1",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -1791,7 +1791,7 @@ mod tests {
         assert_format!(
             "/*#__PURE__*/factory()",
             "/*#__PURE__*/ factory()",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }
@@ -1810,7 +1810,7 @@ mod tests {
 
     2,
 ]",
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
     }

@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{env, fs};
 
 /// Return whether a file type is supported by the parser bench.
@@ -30,12 +31,92 @@ fn parser_bench_worker_count() -> usize {
     physical_cores.max(1)
 }
 
+static PARSER_TIMINGS_PRINTED: AtomicBool = AtomicBool::new(false);
+
+/// Return whether parser timing snapshots should be printed.
+fn parser_timing_print_enabled_from_env() -> bool {
+    env::var("DESTACK_PARSE_PRINT_TIMINGS")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .or_else(|| {
+            env::var("DESTACK_PARSER_TIMINGS_PRINT")
+                .ok()
+                .and_then(|value| value.parse::<u8>().ok())
+                .map(|value| value > 0)
+        })
+        .unwrap_or(false)
+}
+
+/// Print one parser timing snapshot with flat and inclusive time.
+fn print_parser_timing_snapshot_once(parser: &Parser, label: &str) {
+    if !parser_timing_print_enabled_from_env() {
+        return;
+    }
+
+    if PARSER_TIMINGS_PRINTED.swap(true, Ordering::Relaxed) {
+        return;
+    }
+
+    let Some(mut entries) = parser.timing_snapshot() else {
+        return;
+    };
+    if entries.is_empty() {
+        return;
+    }
+
+    entries.sort_by(|left, right| {
+        right
+            .self_duration
+            .cmp(&left.self_duration)
+            .then(right.duration.cmp(&left.duration))
+            .then(left.name.cmp(right.name))
+    });
+
+    let total_self_seconds: f64 = entries
+        .iter()
+        .map(|entry| entry.self_duration.as_secs_f64())
+        .sum();
+    let total_inclusive_seconds: f64 = entries
+        .iter()
+        .map(|entry| entry.duration.as_secs_f64())
+        .sum();
+
+    eprintln!("parser timing snapshot: {label}");
+    eprintln!(
+        "  total self: {:>9.3} ms  total inclusive: {:>9.3} ms",
+        total_self_seconds * 1000.0,
+        total_inclusive_seconds * 1000.0
+    );
+    eprintln!("  self %      self ms   incl ms    count  tag");
+
+    for entry in entries {
+        let self_seconds = entry.self_duration.as_secs_f64();
+        let inclusive_seconds = entry.duration.as_secs_f64();
+        let self_share = if total_self_seconds > 0.0 {
+            100.0 * self_seconds / total_self_seconds
+        } else {
+            0.0
+        };
+
+        eprintln!(
+            "  {:>6.2}%  {:>10.3} {:>9.3}  {:>7}  {}",
+            self_share,
+            self_seconds * 1000.0,
+            inclusive_seconds * 1000.0,
+            entry.count,
+            entry.name,
+        );
+    }
+}
+
 /// Parse one file and run full parser finalization.
 fn parse_with_finish(file: Arc<File>) -> Parser {
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file, language_type);
     parser.parse_without_finish();
     parser.finish();
+    print_parser_timing_snapshot_once(&parser, "parse+finish");
     parser
 }
 
@@ -287,6 +368,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 let parser = parse_without_finish(file.clone());
+                print_parser_timing_snapshot_once(&parser, "parse-main-only");
                 black_box(parser);
             });
         },
@@ -328,13 +410,57 @@ fn bench_parse_single(criterion: &mut Criterion) {
                 |mut parser| {
                     // attach annotations and build indexes
                     parser.finish();
+                    print_parser_timing_snapshot_once(&parser, "finish-total");
                     black_box(parser);
                 },
-                BatchSize::SmallInput,
+                BatchSize::PerIteration,
             );
         },
     );
 
+    // benchmark path with annotation finish isolated from setup
+    group.bench_with_input(
+        BenchmarkId::new("finish", "annotations"),
+        &file,
+        |bencher, file| {
+            bencher.iter_batched(
+                || {
+                    // parse and prebuild positions so timing isolates annotation attach
+                    let mut parser = parse_without_finish(file.clone());
+                    parser.finish_positions();
+                    parser
+                },
+                |mut parser| {
+                    // attach annotations only
+                    parser.finish_annotations();
+                    print_parser_timing_snapshot_once(&parser, "finish-annotations");
+                    black_box(parser);
+                },
+                BatchSize::PerIteration,
+            );
+        },
+    );
+
+    // benchmark path with position index build isolated from setup
+    group.bench_with_input(
+        BenchmarkId::new("finish", "positions"),
+        &file,
+        |bencher, file| {
+            bencher.iter_batched(
+                || {
+                    // parse up to finish
+                    parse_without_finish(file.clone())
+                },
+                |mut parser| {
+                    // build position index only
+                    parser.finish_positions();
+                    print_parser_timing_snapshot_once(&parser, "finish-positions");
+                    black_box(parser);
+                },
+                BatchSize::PerIteration,
+            );
+        },
+    );
     group.finish();
 }
 

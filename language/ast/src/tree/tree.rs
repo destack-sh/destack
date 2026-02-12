@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use destack_source::{NodeSourceMap, NodeSpanType, Span};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -20,7 +20,7 @@ pub struct NodeTree {
     /// The types of all nodes. Index is the global node id.
     pub(crate) node_type_by_node_id: Vec<NodeType>,
     /// The annotations attached to nodes.
-    pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
+    pub(crate) annotations_by_node_id: FxHashMap<u32, Vec<LocalNodeId<Annotation>>>,
     /// The spans of the NodeTree.
     pub source_map: NodeSourceMap,
 
@@ -73,7 +73,7 @@ impl NodeTree {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
-            annotations_by_node_id: HashMap::new(),
+            annotations_by_node_id: FxHashMap::default(),
             source_map: NodeSourceMap::with_capacity(capacity),
             expressions: Arena::new(),
             blocks: Arena::new(),
@@ -363,7 +363,7 @@ impl NodeTree {
 
     /// Get all annotations.
     #[inline]
-    pub fn get_all_annotations(&self) -> &HashMap<u32, Vec<LocalNodeId<Annotation>>> {
+    pub fn get_all_annotations(&self) -> &FxHashMap<u32, Vec<LocalNodeId<Annotation>>> {
         &self.annotations_by_node_id
     }
 

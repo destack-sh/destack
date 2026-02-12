@@ -56,6 +56,10 @@ pub(super) struct LexerOptions {
     pub(super) prev_semantic_token: Option<TokenSpan>,
     /// The third-to-last semantic token (excludes whitespace, comments, and newlines).
     pub(super) prev_prev_semantic_token: Option<TokenSpan>,
+    /// Stack marking whether an open parenthesis started a control statement header.
+    pub(super) control_header_parenthesis_stack: Vec<bool>,
+    /// Whether the last semantic close parenthesis ended a control header.
+    pub(super) last_close_parenthesis_ends_control_header: bool,
     /// Whether tree literal lexing is allowed in the current context.
     pub(super) allow_tree_literals: bool,
 }

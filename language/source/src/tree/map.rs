@@ -1,9 +1,13 @@
-use std::collections::HashMap;
-
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::interval::IntervalTree;
 use crate::Span;
+
+#[inline]
+fn empty_span() -> Span {
+    Span::empty(crate::FileId(0))
+}
 
 /// The type of node search to perform.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -32,8 +36,16 @@ pub enum NodeSpanType {
 pub struct NodeSourceMap {
     /// Enclosing spans of all nodes, indexed by global node id.
     enclosing_spans: Vec<Span>,
-    /// Extra side spans for nodes that have them (sparse).
-    side_spans: HashMap<(u32, NodeSpanType), Span>,
+    /// Main spans, indexed by global node id.
+    main_spans: Vec<Span>,
+    /// Whether a main span exists for each node.
+    has_main_span: Vec<bool>,
+    /// Type spans, indexed by global node id.
+    type_spans: Vec<Span>,
+    /// Whether a type span exists for each node.
+    has_type_span: Vec<bool>,
+    /// Extra side spans for non-main/type spans (sparse).
+    side_spans: FxHashMap<(u32, NodeSpanType), Span>,
     /// Interval tree for O(log n + k) enclosing span queries.
     /// Built via `build_position_index()` after parsing completes.
     interval_tree: Option<IntervalTree>,
@@ -43,14 +55,21 @@ pub struct NodeSourceMap {
 #[derive(Serialize, Deserialize)]
 struct NodeSourceMapData {
     enclosing_spans: Vec<Span>,
-    side_spans: HashMap<(u32, NodeSpanType), Span>,
+    #[serde(default)]
+    main_spans: Vec<Option<Span>>,
+    #[serde(default)]
+    type_spans: Vec<Option<Span>>,
+    #[serde(default)]
+    side_spans: FxHashMap<(u32, NodeSpanType), Span>,
 }
 
 // serde view for NodeSourceMap
 #[derive(Serialize)]
 struct NodeSourceMapRef<'a> {
     enclosing_spans: &'a [Span],
-    side_spans: &'a HashMap<(u32, NodeSpanType), Span>,
+    main_spans: Vec<Option<Span>>,
+    type_spans: Vec<Option<Span>>,
+    side_spans: &'a FxHashMap<(u32, NodeSpanType), Span>,
 }
 
 impl Serialize for NodeSourceMap {
@@ -58,8 +77,28 @@ impl Serialize for NodeSourceMap {
     where
         S: Serializer,
     {
+        let mut main_spans = Vec::with_capacity(self.enclosing_spans.len());
+        let mut type_spans = Vec::with_capacity(self.enclosing_spans.len());
+        for index in 0..self.enclosing_spans.len() {
+            let main_span = if self.has_main_span[index] {
+                Some(self.main_spans[index])
+            } else {
+                None
+            };
+            main_spans.push(main_span);
+
+            let type_span = if self.has_type_span[index] {
+                Some(self.type_spans[index])
+            } else {
+                None
+            };
+            type_spans.push(type_span);
+        }
+
         let data = NodeSourceMapRef {
             enclosing_spans: &self.enclosing_spans,
+            main_spans,
+            type_spans,
             side_spans: &self.side_spans,
         };
         data.serialize(serializer)
@@ -72,8 +111,37 @@ impl<'de> Deserialize<'de> for NodeSourceMap {
         D: Deserializer<'de>,
     {
         let data = NodeSourceMapData::deserialize(deserializer)?;
+        let enclosing_len = data.enclosing_spans.len();
+        let mut main_spans = Vec::with_capacity(enclosing_len);
+        let mut has_main_span = Vec::with_capacity(enclosing_len);
+        for index in 0..enclosing_len {
+            if let Some(span) = data.main_spans.get(index).copied().flatten() {
+                main_spans.push(span);
+                has_main_span.push(true);
+            } else {
+                main_spans.push(empty_span());
+                has_main_span.push(false);
+            }
+        }
+
+        let mut type_spans = Vec::with_capacity(enclosing_len);
+        let mut has_type_span = Vec::with_capacity(enclosing_len);
+        for index in 0..enclosing_len {
+            if let Some(span) = data.type_spans.get(index).copied().flatten() {
+                type_spans.push(span);
+                has_type_span.push(true);
+            } else {
+                type_spans.push(empty_span());
+                has_type_span.push(false);
+            }
+        }
+
         Ok(Self {
             enclosing_spans: data.enclosing_spans,
+            main_spans,
+            has_main_span,
+            type_spans,
+            has_type_span,
             side_spans: data.side_spans,
             interval_tree: None,
         })
@@ -107,7 +175,11 @@ impl NodeSourceMap {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             enclosing_spans: Vec::with_capacity(capacity),
-            side_spans: HashMap::new(),
+            main_spans: Vec::with_capacity(capacity),
+            has_main_span: Vec::with_capacity(capacity),
+            type_spans: Vec::with_capacity(capacity),
+            has_type_span: Vec::with_capacity(capacity),
+            side_spans: FxHashMap::default(),
             interval_tree: None,
         }
     }
@@ -116,6 +188,10 @@ impl NodeSourceMap {
     #[inline]
     pub fn append(&mut self, span: Span) {
         self.enclosing_spans.push(span);
+        self.main_spans.push(empty_span());
+        self.has_main_span.push(false);
+        self.type_spans.push(empty_span());
+        self.has_type_span.push(false);
     }
 
     /// Set the span for a node.
@@ -128,31 +204,65 @@ impl NodeSourceMap {
     #[inline]
     pub fn prune_from(&mut self, from_idx: u32) {
         self.enclosing_spans.truncate(from_idx as usize);
+        self.main_spans.truncate(from_idx as usize);
+        self.has_main_span.truncate(from_idx as usize);
+        self.type_spans.truncate(from_idx as usize);
+        self.has_type_span.truncate(from_idx as usize);
         self.side_spans.retain(|&(id, _), _| id < from_idx);
     }
 
     /// Build interval tree for fast enclosing span lookups.
     /// Call this after parsing is complete.
     pub fn build_position_index(&mut self) {
-        let intervals: Vec<(u32, u32, u32)> = self
-            .enclosing_spans
-            .iter()
-            .enumerate()
-            .map(|(i, span)| (span.start, span.end, i as u32))
-            .collect();
-        self.interval_tree = Some(IntervalTree::build(intervals));
+        self.interval_tree = Some(IntervalTree::build_from_spans(&self.enclosing_spans));
     }
 
     /// Set a side span for a node.
     #[inline]
     pub fn set_side(&mut self, node_id: u32, span_type: NodeSpanType, span: Span) {
-        self.side_spans.insert((node_id, span_type), span);
+        let index = node_id as usize;
+        match span_type {
+            NodeSpanType::Main => {
+                if index >= self.main_spans.len() {
+                    self.main_spans.resize(index + 1, empty_span());
+                    self.has_main_span.resize(index + 1, false);
+                }
+                self.main_spans[index] = span;
+                self.has_main_span[index] = true;
+            }
+            NodeSpanType::Type => {
+                if index >= self.type_spans.len() {
+                    self.type_spans.resize(index + 1, empty_span());
+                    self.has_type_span.resize(index + 1, false);
+                }
+                self.type_spans[index] = span;
+                self.has_type_span[index] = true;
+            }
+            _ => {
+                self.side_spans.insert((node_id, span_type), span);
+            }
+        }
     }
 
     /// Get a side span for a node, if it has one.
     #[inline]
     pub fn get_side(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
-        self.side_spans.get(&(node_id, span_type)).copied()
+        let index = node_id as usize;
+        match span_type {
+            NodeSpanType::Main => self
+                .has_main_span
+                .get(index)
+                .copied()
+                .unwrap_or(false)
+                .then(|| self.main_spans[index]),
+            NodeSpanType::Type => self
+                .has_type_span
+                .get(index)
+                .copied()
+                .unwrap_or(false)
+                .then(|| self.type_spans[index]),
+            _ => self.side_spans.get(&(node_id, span_type)).copied(),
+        }
     }
 
     /// Get a side span or the enclosing span if no side span is set.

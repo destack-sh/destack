@@ -186,10 +186,45 @@ impl Lexer {
 
         // update semantic token history (excludes newlines)
         if token_span.token.ty != TokenType::Newline {
+            // remember control header grouping for close-parenthesis regex disambiguation
+            if token_span.token.ty == TokenType::OpenParenthesis {
+                let starts_control_header = self
+                    .options
+                    .last_semantic_token
+                    .as_ref()
+                    .is_some_and(|token| self.token_is_control_header_keyword(token));
+                self.options
+                    .control_header_parenthesis_stack
+                    .push(starts_control_header);
+            } else if token_span.token.ty == TokenType::CloseParenthesis {
+                self.options.last_close_parenthesis_ends_control_header = self
+                    .options
+                    .control_header_parenthesis_stack
+                    .pop()
+                    .unwrap_or(false);
+            } else {
+                self.options.last_close_parenthesis_ends_control_header = false;
+            }
+
             self.options.prev_prev_semantic_token = self.options.prev_semantic_token;
             self.options.prev_semantic_token = self.options.last_semantic_token;
             self.options.last_semantic_token = Some(token_span);
         }
+    }
+
+    /// Return true when an identifier token is a control header keyword.
+    fn token_is_control_header_keyword(&self, token: &TokenSpan) -> bool {
+        if token.token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        let Ok(keyword) = Keyword::from_str(self.get_span_str(token.span)) else {
+            return false;
+        };
+        matches!(
+            keyword,
+            Keyword::If | Keyword::While | Keyword::For | Keyword::With
+        )
     }
 
     /// Parses a token from the input string.
@@ -2036,59 +2071,7 @@ impl Lexer {
             return false;
         }
 
-        let mut depth = 0i32;
-        let mut matching_open_index: Option<usize> = None;
-
-        // find the matching opening parenthesis for the trailing `)`
-        for index in (0..self.tokens.len()).rev() {
-            let token = self.tokens[index];
-            if token.token.ty == TokenType::Newline {
-                continue;
-            }
-
-            if token.token.ty == TokenType::CloseParenthesis {
-                depth += 1;
-                continue;
-            }
-
-            if token.token.ty == TokenType::OpenParenthesis {
-                depth -= 1;
-                if depth == 0 {
-                    matching_open_index = Some(index);
-                    break;
-                }
-            }
-        }
-
-        let Some(matching_open_index) = matching_open_index else {
-            return false;
-        };
-
-        // look at the token before the matched `(`
-        let mut previous_keyword_token: Option<TokenSpan> = None;
-        for index in (0..matching_open_index).rev() {
-            let token = self.tokens[index];
-            if token.token.ty == TokenType::Newline {
-                continue;
-            }
-            previous_keyword_token = Some(token);
-            break;
-        }
-
-        let Some(previous_keyword_token) = previous_keyword_token else {
-            return false;
-        };
-        if previous_keyword_token.token.ty != TokenType::Identifier {
-            return false;
-        }
-
-        let Ok(keyword) = Keyword::from_str(self.get_span_str(previous_keyword_token.span)) else {
-            return false;
-        };
-        matches!(
-            keyword,
-            Keyword::If | Keyword::While | Keyword::For | Keyword::With
-        )
+        self.options.last_close_parenthesis_ends_control_header
     }
 
     /// Check whether a newline can terminate a statement before a tree literal.

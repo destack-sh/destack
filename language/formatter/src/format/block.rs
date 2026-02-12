@@ -783,7 +783,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_expression(),
+            |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_tab()
         );
     }

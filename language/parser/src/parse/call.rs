@@ -50,7 +50,7 @@ impl Parser {
         } else {
             self.options.nested()
         };
-        let index = self.with_options(index_options, |parser| parser.eat_expression())?;
+        let index = self.eat_expression(index_options)?;
 
         self.eat_newlines_maybe()?;
         // close bracket
@@ -93,7 +93,7 @@ impl Parser {
         // receiver
         let left = self
             .with_options(self.options.not_in_position().in_new_receiver(), |parser| {
-                parser.eat_expression()
+                parser.eat_expression(parser.options)
             })?;
 
         // hoist static arguments parsed on the receiver
@@ -143,7 +143,7 @@ impl Parser {
 
         // value
         let value = self.with_options(self.options.not_in_position(), |parser| {
-            parser.eat_expression()
+            parser.eat_expression(parser.options)
         })?;
 
         // delete
@@ -288,7 +288,7 @@ mod tests {
         // foo<T>(1, 2)
         let mut test = TestParser::new("foo<T>(1, 2)");
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         // foo<T>(1, 2)
         assert_node!(parser.tree, expression_id, Expression::Call { position, left, static_arguments: Some(static_arguments), dynamic_arguments } => {
@@ -316,7 +316,7 @@ mod tests {
         // new Foo (without parentheses, valid JS)
         let mut test = TestParser::new("new Foo");
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
             // Foo
@@ -333,7 +333,7 @@ mod tests {
         // new Foo() (with empty parentheses)
         let mut test = TestParser::new("new Foo()");
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
             // Foo
@@ -350,7 +350,7 @@ mod tests {
         // new Foo(1, 2)
         let mut test = TestParser::new("new Foo(1, 2)");
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
             // Foo
@@ -369,7 +369,7 @@ mod tests {
             destack_source::LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
@@ -387,7 +387,7 @@ mod tests {
         let mut test =
             TestParser::new_with_options("new A<T>", destack_source::LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "A");
@@ -405,7 +405,7 @@ mod tests {
         let mut test =
             TestParser::new_with_options("new A < T", destack_source::LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::LessThan);
@@ -423,7 +423,7 @@ mod tests {
         let mut test =
             TestParser::new_with_options("new A < B > C", destack_source::LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -447,7 +447,7 @@ mod tests {
             destack_source::LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments, dynamic_arguments } => {
             assert_expression_path!(parser, parser.tree.get(*left), "type");
@@ -468,7 +468,7 @@ mod tests {
             destack_source::LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let expression_id = parser.eat_expression().unwrap();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::New { left, static_arguments: Some(static_arguments), dynamic_arguments } => {
             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
