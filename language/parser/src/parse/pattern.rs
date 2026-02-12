@@ -50,7 +50,7 @@ impl Parser {
         // ------------------------------------------------------------
         let pattern_id = {
             // wildcard
-            if self.peek_identifier_str_is("_") {
+            if self.language.is_destack() && self.peek_identifier_str_is("_") {
                 self.bump(); // eat wildcard
                 self.tree
                     .insert(Pattern::Wildcard, self.get_span_from(&start))
@@ -627,6 +627,17 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
+    }
+
+    #[test]
+    fn test_parse_pattern_underscore_identifier_typescript() {
+        // _ in TypeScript patterns is a normal binding name
+        let mut test = TestParser::new_with_options("_", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+        assert_node!(parser.tree, pattern_id, Pattern::Binding { mutability: None, name, pattern: None } => {
+            assert_string!(parser, *name, "_");
+        });
     }
 
     #[test]

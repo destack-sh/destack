@@ -598,7 +598,7 @@ impl Parser {
         if matches!(
             self.peek_token_type(),
             TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::OpenBrace
-        ) || self.peek_identifier_str_is("_")
+        ) || self.language.is_destack() && self.peek_identifier_str_is("_")
         {
             let pattern =
                 self.with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
@@ -1570,6 +1570,19 @@ mod tests {
         assert_node!(parser.tree, parameter_id, Parameter::Pattern { modifiers: Some(modifiers), pattern, .. } => {
             assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
             assert_node!(parser.tree, *pattern, Pattern::Array { .. } => {});
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_underscore_name_typescript() {
+        // _ in TypeScript parameters is a normal name
+        let mut test = TestParser::new_with_options("_", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: _, name, ty, default } => {
+            assert_string!(parser, *name, "_");
+            assert!(ty.is_none());
+            assert!(default.is_none());
         });
     }
 
