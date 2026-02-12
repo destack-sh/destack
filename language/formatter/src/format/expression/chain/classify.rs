@@ -653,30 +653,39 @@ pub(crate) fn is_simple_chain_operation(
     }
 }
 
+/// Return the source span between one member receiver and property token.
+fn member_receiver_property_gap_span(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> Option<Span> {
+    match context.tree.get(node_id) {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+            let property_span = context.tree.get_main_span(node_id)?;
+            let left_span = context.get_span(*left);
+            let left_anchor_end = expression_trivia_anchor_end(context, *left);
+
+            // guard malformed spans
+            if property_span.start <= left_anchor_end {
+                return None;
+            }
+
+            Some(Span::new(
+                left_span.file,
+                left_anchor_end,
+                property_span.start,
+            ))
+        }
+        _ => None,
+    }
+}
+
 /// Check if a member access has an intervening comment between receiver and property.
 pub(crate) fn member_has_intervening_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    match context.tree.get(node_id) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            let Some(property_span) = context.tree.get_main_span(node_id) else {
-                return false;
-            };
-            let left_span = context.get_span(*left);
-            let left_anchor_end = expression_trivia_anchor_end(context, *left);
-
-            // guard against malformed spans
-            if property_span.start <= left_anchor_end {
-                return false;
-            }
-
-            let span = Span::new(left_span.file, left_anchor_end, property_span.start);
-            let between = context.get_span_str(span);
-            between.contains("/*") || between.contains("//")
-        }
-        _ => false,
-    }
+    member_receiver_property_gap_span(context, node_id)
+        .is_some_and(|span| span_has_comment(context, span))
 }
 
 /// Check if a member access has a newline or comment between its receiver and property.
@@ -684,43 +693,18 @@ pub(crate) fn member_has_intervening_break_or_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    match context.tree.get(node_id) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            let Some(property_span) = context.tree.get_main_span(node_id) else {
-                return false;
-            };
-            let left_span = context.get_span(*left);
-            let left_anchor_end = expression_trivia_anchor_end(context, *left);
-
-            // guard against malformed spans
-            if property_span.start <= left_anchor_end {
-                return false;
-            }
-
-            let span = Span::new(left_span.file, left_anchor_end, property_span.start);
-            let between = context.get_span_str(span);
-
-            let has_between_comment_or_break = between.contains('\n')
-                || between.contains('\r')
-                || between.contains("/*")
-                || between.contains("//");
-            if has_between_comment_or_break {
-                return true;
-            }
-
-            false
-        }
-        Expression::Path { .. } => {
-            let span = context.get_span(node_id);
-            let between = context.get_span_str(span);
-
-            between.contains('\n')
-                || between.contains('\r')
-                || between.contains("/*")
-                || between.contains("//")
-        }
-        _ => false,
+    // member and private member: inspect the trivia gap between receiver and property
+    if let Some(span) = member_receiver_property_gap_span(context, node_id) {
+        return context.has_newline(span) || span_has_comment(context, span);
     }
+
+    // path chains: inspect the full path span
+    if matches!(context.tree.get(node_id), Expression::Path { .. }) {
+        let span = context.get_span(node_id);
+        return context.has_newline(span) || span_has_comment(context, span);
+    }
+
+    false
 }
 
 /// Return an expression end anchor used for chain trivia checks.
@@ -800,9 +784,7 @@ pub(crate) fn chain_has_parent_intervening_break_or_comment(
     }
     let parent_gap_end = parent_main_span.start;
 
-    let between = context.get_span_str(Span::new(node_span.file, node_anchor_end, parent_gap_end));
-    between.contains('\n')
-        || between.contains('\r')
-        || between.contains("/*")
-        || between.contains("//")
+    let between_span = Span::new(node_span.file, node_anchor_end, parent_gap_end);
+
+    context.has_newline(between_span) || span_has_comment(context, between_span)
 }

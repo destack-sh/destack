@@ -176,12 +176,11 @@ fn parenthesized_has_leading_inner_pattern(
     }
 
     let leading_span = Span::new(parenthesized_span.file, leading_start, inner_span.start);
-    let leading_source = context.get_span_str(leading_span);
-    if include_newline && leading_source.contains('\n') {
+    if include_newline && context.has_newline(leading_span) {
         return true;
     }
 
-    leading_source.contains("/*") || leading_source.contains("//")
+    span_has_comment(context, leading_span)
 }
 
 /// Return whether source for a member expression includes optional chaining syntax.

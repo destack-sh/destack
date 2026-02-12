@@ -163,7 +163,7 @@ pub(crate) fn format_struct_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     ty: &Option<LocalNodeId<Expression>>,
-    properties_ids: &Vec<LocalNodeId<Property>>,
+    properties_ids: &[LocalNodeId<Property>],
 ) -> FormatResult<()> {
     if let Some(ty) = ty {
         write!(f, [ty, space()])?;

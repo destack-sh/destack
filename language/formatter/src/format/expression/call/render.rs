@@ -4,7 +4,7 @@ use crate::timing::tags;
 use destack_fir::write;
 
 /// Collect deferred callee boundary comments for empty call argument lists.
-pub(in super::super) fn collect_deferred_empty_call_boundary_comments(
+pub(crate) fn collect_deferred_empty_call_boundary_comments(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> (Option<String>, Option<String>, Option<String>) {
@@ -84,7 +84,7 @@ pub(in super::super) fn collect_deferred_empty_call_boundary_comments(
 }
 
 /// Collect callee chain expression ids where boundary comments may be attached.
-pub(in super::super) fn callee_expression_chain_ids(
+pub(crate) fn callee_expression_chain_ids(
     context: &DestackFormatContext<'_>,
     left_id: LocalNodeId<Expression>,
 ) -> Vec<LocalNodeId<Expression>> {
@@ -110,7 +110,7 @@ pub(in super::super) fn callee_expression_chain_ids(
 }
 
 /// Return the enclosing empty call expression for a callee expression chain.
-pub(in super::super) fn enclosing_empty_call_id_for_callee_expression(
+pub(crate) fn enclosing_empty_call_id_for_callee_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
@@ -170,7 +170,7 @@ pub(in super::super) fn enclosing_empty_call_id_for_callee_expression(
 }
 
 /// Return whether an annotation is deferred to call rendering for empty call boundaries.
-pub(in super::super) fn is_deferred_empty_call_boundary_annotation(
+pub(crate) fn is_deferred_empty_call_boundary_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     annotation_id: LocalNodeId<Annotation>,
@@ -212,7 +212,7 @@ pub(in super::super) fn is_deferred_empty_call_boundary_annotation(
 }
 
 /// Return whether an expression participates in a deferred empty call boundary comment chain.
-pub(in super::super) fn expression_is_in_deferred_empty_call_boundary_chain(
+pub(crate) fn expression_is_in_deferred_empty_call_boundary_chain(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -229,7 +229,7 @@ pub(in super::super) fn expression_is_in_deferred_empty_call_boundary_chain(
 }
 
 /// Format call dynamic arguments while honoring deferred callee boundary comments.
-pub(in super::super) fn format_call_dynamic_arguments_with_deferred_comments<'ast>(
+pub(crate) fn format_call_dynamic_arguments_with_deferred_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
@@ -266,7 +266,7 @@ pub(in super::super) fn format_call_dynamic_arguments_with_deferred_comments<'as
 
 /// Format a call expression.
 #[inline]
-pub(in super::super) fn format_call_expression<'ast>(
+pub(crate) fn format_call_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -296,7 +296,7 @@ pub(in super::super) fn format_call_expression<'ast>(
 
 /// Format an instantiation expression.
 #[inline]
-pub(in super::super) fn format_instantiation_expression<'ast>(
+pub(crate) fn format_instantiation_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {

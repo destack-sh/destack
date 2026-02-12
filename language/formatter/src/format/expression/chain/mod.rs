@@ -5,6 +5,9 @@ mod r#break;
 mod classify;
 mod format;
 mod length;
+mod line_group;
+mod normalize;
+mod policy;
 
 pub(crate) use self::base::*;
 pub(crate) use self::r#break::*;

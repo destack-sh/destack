@@ -431,6 +431,167 @@ pub(super) fn is_huggable_expression(
     }
 }
 
+/// Store arrow-specific layout facts for hugged argument formatting.
+#[derive(Clone, Copy, Default)]
+struct HuggedArrowLayoutSignals {
+    is_arrow_function: bool,
+    arrow_force_expand: bool,
+    arrow_trailing_line_break_if_breaks: bool,
+    arrow_trailing_comma_if_breaks: bool,
+}
+
+/// Collect arrow-specific layout signals for one hugged argument value.
+fn collect_hugged_arrow_layout_signals(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+    config: &HugOptions,
+) -> HuggedArrowLayoutSignals {
+    if !config.allow_arrow_functions {
+        return HuggedArrowLayoutSignals::default();
+    }
+
+    let tree = context.tree;
+    let arrow_declaration_id = match tree.get(value_id) {
+        Expression::Declaration(declaration_id) => match tree.get(*declaration_id) {
+            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda => {
+                Some(*declaration_id)
+            }
+            _ => None,
+        },
+        _ => None,
+    };
+
+    let Some(declaration_id) = arrow_declaration_id else {
+        return HuggedArrowLayoutSignals::default();
+    };
+
+    let (arrow_body_is_block, arrow_body_is_tree, arrow_body_is_lambda) =
+        if let Declaration::Function {
+            body: Some(body_id),
+            ..
+        } = tree.get(declaration_id)
+        {
+            let body_id = transparent_inner_expression(context, *body_id);
+            let body_expr = tree.get(body_id);
+            let is_block = matches!(body_expr, Expression::Block(_));
+            let is_tree = matches!(body_expr, Expression::TreeExpression { .. });
+            let is_lambda = matches!(
+                body_expr,
+                Expression::Declaration(nested_declaration_id)
+                    if matches!(
+                        tree.get(*nested_declaration_id),
+                        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+                    )
+            );
+            (is_block, is_tree, is_lambda)
+        } else {
+            (false, false, false)
+        };
+
+    let arrow_force_expand = lambda_expression_should_break(context, declaration_id)
+        || expression_source_len(context, value_id) > usize::from(context.options.line_width);
+    let arrow_trailing_line_break_if_breaks =
+        !arrow_body_is_block && !arrow_body_is_tree && !arrow_body_is_lambda;
+    let arrow_trailing_comma_if_breaks =
+        arrow_trailing_line_break_if_breaks && !arrow_body_is_lambda;
+
+    HuggedArrowLayoutSignals {
+        is_arrow_function: true,
+        arrow_force_expand,
+        arrow_trailing_line_break_if_breaks,
+        arrow_trailing_comma_if_breaks,
+    }
+}
+
+/// Choose between inline and hugged candidate docs for one single hugged argument.
+fn choose_hugged_argument_layout<'ast, InlineDoc, HuggedDoc>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+    value_id: LocalNodeId<Expression>,
+    config: &HugOptions,
+    force_expand: bool,
+    signals: HuggedArrowLayoutSignals,
+    inline_format: InlineDoc,
+    hugged_format: HuggedDoc,
+) -> FormatResult<()>
+where
+    InlineDoc: Format<DestackFormatContext<'ast>>,
+    HuggedDoc: Format<DestackFormatContext<'ast>>,
+{
+    // forced expansion always selects hugged output
+    if force_expand {
+        hugged_format.format(f)?;
+        return Ok(());
+    }
+
+    // compute inline overflow bounds once
+    let line_width = usize::from(f.context().options.line_width);
+    let value_span = f.context().get_span(value_id);
+    let (inline_compact_value_len, inline_source_value_len) =
+        span_inline_char_bounds(f.context(), value_span);
+    let inline_compact_candidate_len = config
+        .open
+        .len()
+        .saturating_add(config.close.len())
+        .saturating_add(inline_compact_value_len)
+        .saturating_add(usize::from(config.force_trailing));
+    let inline_source_candidate_len = config
+        .open
+        .len()
+        .saturating_add(config.close.len())
+        .saturating_add(inline_source_value_len)
+        .saturating_add(usize::from(config.force_trailing));
+
+    // fast inline path for non-arrow simple cases
+    let can_use_inline_fast_path = !f.context().has_annotation(argument_id)
+        && !f.context().has_annotation(value_id)
+        && !signals.is_arrow_function
+        && inline_source_candidate_len <= line_width;
+    if can_use_inline_fast_path {
+        f.context()
+            .increment_counter("profile.jsx.hug.inline.fast_path", 1);
+        inline_format.format(f)?;
+        return Ok(());
+    }
+
+    // fast inline path for arrow values that do not force expand
+    let can_use_arrow_inline_fast_path = !f.context().has_annotation(argument_id)
+        && !f.context().has_annotation(value_id)
+        && signals.is_arrow_function
+        && !signals.arrow_force_expand
+        && inline_source_candidate_len <= line_width;
+    if can_use_arrow_inline_fast_path {
+        f.context()
+            .increment_counter("profile.jsx.hug.inline.arrow_fast_path", 1);
+        inline_format.format(f)?;
+        return Ok(());
+    }
+
+    // overflow guard picks hugged output without probing
+    if inline_compact_candidate_len > line_width {
+        f.context()
+            .increment_counter("profile.jsx.hug.skip_probe_overflow", 1);
+        hugged_format.format(f)?;
+        return Ok(());
+    }
+
+    // deterministic fallback path
+    let is_annotated =
+        f.context().has_annotation(argument_id) || f.context().has_annotation(value_id);
+    let should_hug = is_annotated || signals.arrow_force_expand;
+    if should_hug {
+        f.context()
+            .increment_counter("profile.jsx.hug.deterministic.hug", 1);
+        hugged_format.format(f)?;
+    } else {
+        f.context()
+            .increment_counter("profile.jsx.hug.deterministic.inline", 1);
+        inline_format.format(f)?;
+    }
+
+    Ok(())
+}
+
 /// Format a single-element argument list with hugging for expandable elements.
 ///
 /// When a single object/array (or arrow function for calls) is the only argument,
@@ -448,76 +609,34 @@ pub(super) fn format_hugged<'ast>(
         return Ok(false);
     }
 
+    // resolve and normalize the single argument value
     let argument_id = arguments[0];
-    let tree = f.context().tree;
-
-    let Some(value_id) = get_argument_value(tree, argument_id) else {
+    let Some(value_id) = get_argument_value(f.context().tree, argument_id) else {
         return Ok(false);
     };
     let value_id = transparent_inner_expression(f.context(), value_id);
 
-    if !is_huggable_expression(tree, value_id, &config) {
+    // guard non-huggable value kinds
+    if !is_huggable_expression(f.context().tree, value_id, &config) {
         return Ok(false);
     }
 
-    // multiline object and array inputs usually want regular expanded delimiters
+    // multiline object and array values prefer regular expanded delimiters
     if !force_expand
         && f.context().node_has_newline(value_id)
         && matches!(
-            tree.get(value_id),
+            f.context().tree.get(value_id),
             Expression::ObjectExpression { .. } | Expression::ArrayExpression { .. }
         )
     {
         return Ok(false);
     }
 
-    let arrow_declaration_id = match tree.get(value_id) {
-        Expression::Declaration(declaration_id) => match tree.get(*declaration_id) {
-            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda => {
-                Some(*declaration_id)
-            }
-            _ => None,
-        },
-        _ => None,
-    };
-    let is_arrow_function = arrow_declaration_id.is_some();
-    let (arrow_body_is_block, arrow_body_is_tree, arrow_body_is_lambda) = arrow_declaration_id
-        .and_then(|declaration_id| {
-            let Declaration::Function {
-                body: Some(body_id),
-                ..
-            } = tree.get(declaration_id)
-            else {
-                return None;
-            };
-
-            let body_id = transparent_inner_expression(f.context(), *body_id);
-            let body_expr = tree.get(body_id);
-            let is_block = matches!(body_expr, Expression::Block(_));
-            let is_tree = matches!(body_expr, Expression::TreeExpression { .. });
-            let is_lambda = matches!(
-                body_expr,
-                Expression::Declaration(nested_declaration_id)
-                    if matches!(
-                        tree.get(*nested_declaration_id),
-                        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
-                    )
-            );
-            Some((is_block, is_tree, is_lambda))
-        })
-        .unwrap_or((false, false, false));
-    let arrow_force_expand = arrow_declaration_id
-        .is_some_and(|declaration_id| lambda_expression_should_break(f.context(), declaration_id))
-        || (is_arrow_function
-            && expression_source_len(f.context(), value_id)
-                > usize::from(f.context().options.line_width));
-    let arrow_trailing_line_break_if_breaks =
-        is_arrow_function && !arrow_body_is_block && !arrow_body_is_tree && !arrow_body_is_lambda;
-    let arrow_trailing_comma_if_breaks =
-        arrow_trailing_line_break_if_breaks && !arrow_body_is_lambda;
+    // collect arrow-specific layout facts once
+    let signals = collect_hugged_arrow_layout_signals(f.context(), value_id, &config);
     let trailing_if_breaks = config.trailing_if_breaks;
 
-    // inline: keep everything on one line
+    // build inline candidate doc
     let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let inline_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write!(f, [token(config.open), argument_id])?;
@@ -534,22 +653,26 @@ pub(super) fn format_hugged<'ast>(
         }
     });
 
-    // hugged: argument expands but delimiters hug
+    // build hugged candidate doc
     let hugged_format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        // argument annotations
         if config.handle_annotations {
-            if is_arrow_function {
+            if signals.is_arrow_function {
                 write!(f, [f.context().block_prefix_annotations(argument_id)])?;
             } else {
                 write!(f, [f.context().any_prefix_annotations(argument_id)])?;
             }
         }
 
-        if arrow_force_expand {
+        // force expansion when arrow policy requires it
+        if signals.arrow_force_expand {
             write!(f, [expand_parent()])?;
         }
 
+        // opening delimiter
         write!(f, [token(config.open)])?;
 
+        // value payload
         match f.context().tree.get(value_id) {
             Expression::ObjectExpression { ty, properties } => {
                 if let Some(ty) = ty {
@@ -575,7 +698,7 @@ pub(super) fn format_hugged<'ast>(
                             ]
                         )
                     }))
-                    .should_expand(true),]
+                    .should_expand(true)]
                 )?;
             }
             Expression::ArrayExpression { elements } => {
@@ -603,7 +726,6 @@ pub(super) fn format_hugged<'ast>(
                 )?;
             }
             Expression::Declaration(declaration_id) if config.allow_arrow_functions => {
-                // arrow function: format normally, handles its own expansion
                 if let Some(group_id) = group_id {
                     write!(
                         f,
@@ -621,9 +743,10 @@ pub(super) fn format_hugged<'ast>(
             }
         }
 
+        // trailing comma behavior
         if config.force_trailing {
             write!(f, [token(",")])?;
-        } else if arrow_trailing_comma_if_breaks || trailing_if_breaks {
+        } else if signals.arrow_trailing_comma_if_breaks || trailing_if_breaks {
             let comma = token(",");
             let trailing_comma = if let Some(group_id) = group_id {
                 if_group_breaks(&comma).with_group_id(Some(group_id))
@@ -633,7 +756,8 @@ pub(super) fn format_hugged<'ast>(
             write!(f, [trailing_comma])?;
         }
 
-        if arrow_trailing_line_break_if_breaks {
+        // trailing line break behavior for arrow values
+        if signals.arrow_trailing_line_break_if_breaks {
             let line_break = hard_line_break();
             let break_doc = if let Some(group_id) = group_id {
                 if_group_breaks(&line_break).with_group_id(Some(group_id))
@@ -643,8 +767,10 @@ pub(super) fn format_hugged<'ast>(
             write!(f, [break_doc])?;
         }
 
+        // closing delimiter
         write!(f, [token(config.close)])?;
 
+        // trailing annotations
         if config.handle_annotations {
             write!(
                 f,
@@ -660,7 +786,7 @@ pub(super) fn format_hugged<'ast>(
                 f,
                 [group(&hugged_format_inner)
                     .with_id(group_id)
-                    .should_expand(arrow_force_expand)]
+                    .should_expand(signals.arrow_force_expand)]
             )?;
         } else {
             write!(f, [hugged_format_inner])?;
@@ -668,241 +794,187 @@ pub(super) fn format_hugged<'ast>(
         Ok(())
     });
 
-    if force_expand {
-        hugged_format.format(f)?;
-    } else {
-        let line_width = usize::from(f.context().options.line_width);
-        let value_span = f.context().get_span(value_id);
-        let (inline_compact_value_len, inline_source_value_len) =
-            span_inline_char_bounds(f.context(), value_span);
-        let inline_compact_candidate_len = config
-            .open
-            .len()
-            .saturating_add(config.close.len())
-            .saturating_add(inline_compact_value_len)
-            .saturating_add(usize::from(config.force_trailing));
-        let inline_source_candidate_len = config
-            .open
-            .len()
-            .saturating_add(config.close.len())
-            .saturating_add(inline_source_value_len)
-            .saturating_add(usize::from(config.force_trailing));
-        let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
-        let can_use_inline_fast_path = !f.context().has_annotation(argument_id)
-            && !f.context().has_annotation(value_id)
-            && !is_arrow_function
-            && inline_source_candidate_len <= line_width;
-        if can_use_inline_fast_path {
-            f.context()
-                .increment_counter("profile.jsx.hug.inline.fast_path", 1);
-            inline_format.format(f)?;
-            return Ok(true);
-        }
-
-        let can_use_arrow_inline_fast_path = !f.context().has_annotation(argument_id)
-            && !f.context().has_annotation(value_id)
-            && is_arrow_function
-            && !arrow_force_expand
-            && inline_source_candidate_len <= line_width;
-        if can_use_arrow_inline_fast_path {
-            f.context()
-                .increment_counter("profile.jsx.hug.inline.arrow_fast_path", 1);
-            inline_format.format(f)?;
-            return Ok(true);
-        }
-
-        if should_skip_probe_for_overflow {
-            f.context()
-                .increment_counter("profile.jsx.hug.skip_probe_overflow", 1);
-            hugged_format.format(f)?;
-            return Ok(true);
-        }
-
-        let is_annotated =
-            f.context().has_annotation(argument_id) || f.context().has_annotation(value_id);
-        let should_hug = is_annotated || arrow_force_expand;
-        if should_hug {
-            f.context()
-                .increment_counter("profile.jsx.hug.deterministic.hug", 1);
-            hugged_format.format(f)?;
-        } else {
-            f.context()
-                .increment_counter("profile.jsx.hug.deterministic.inline", 1);
-            inline_format.format(f)?;
-        }
-    }
+    // choose final candidate
+    choose_hugged_argument_layout(
+        f,
+        argument_id,
+        value_id,
+        &config,
+        force_expand,
+        signals,
+        inline_format,
+        hugged_format,
+    )?;
 
     Ok(true)
 }
 
-/// Format a tree/JSX attribute value with hugging for objects/arrays.
-pub(super) fn format_tree_attribute_value<'ast>(
+/// Format one tree attribute by choosing between inline and hugged docs.
+fn format_tree_attribute_inline_or_hugged<'ast, InlineDoc, HuggedDoc>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
+    inline_format: InlineDoc,
+    hugged_format: HuggedDoc,
+) -> FormatResult<()>
+where
+    InlineDoc: Format<DestackFormatContext<'ast>>,
+    HuggedDoc: Format<DestackFormatContext<'ast>>,
+{
+    // evaluate inline overflow bounds
+    let line_width = usize::from(f.context().options.line_width);
+    let value_span = f.context().get_span(value_id);
+    let (inline_compact_value_len, inline_source_value_len) =
+        span_inline_char_bounds(f.context(), value_span);
+    let inline_compact_candidate_len = 3usize.saturating_add(inline_compact_value_len);
+    let inline_source_candidate_len = 3usize.saturating_add(inline_source_value_len);
+
+    // inline fast path for unannotated short values
+    let can_use_inline_fast_path =
+        !f.context().has_annotation(value_id) && inline_source_candidate_len <= line_width;
+    if can_use_inline_fast_path {
+        f.context()
+            .increment_counter("profile.jsx.attribute.inline.fast_path", 1);
+        inline_format.format(f)?;
+        return Ok(());
+    }
+
+    // overflow guard picks hugged output
+    if inline_compact_candidate_len > line_width {
+        f.context()
+            .increment_counter("profile.jsx.attribute.skip_probe_overflow", 1);
+        hugged_format.format(f)?;
+        return Ok(());
+    }
+
+    // deterministic fallback
+    if f.context().has_annotation(value_id) {
+        f.context()
+            .increment_counter("profile.jsx.attribute.deterministic.hug", 1);
+        hugged_format.format(f)?;
+    } else {
+        f.context()
+            .increment_counter("profile.jsx.attribute.deterministic.inline", 1);
+        inline_format.format(f)?;
+    }
+
+    Ok(())
+}
+
+/// Format a tree attribute object value using inline-or-hugged selection.
+fn format_tree_attribute_object_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+    ty: Option<LocalNodeId<Expression>>,
+    properties: Vec<LocalNodeId<Property>>,
 ) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let value_expr = tree.get(value_id);
+    let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(f, [token("="), token("{"), value_id, token("}")])
+    });
 
-    match value_expr {
-        Expression::ObjectExpression { ty, properties } => {
-            let ty = *ty;
-            let properties = properties.clone();
-
-            // inline: ={value} all on one line
-            let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [token("="), token("{"), value_id, token("}")])
-            });
-
-            // hugged: ={{ with expanded object contents then }}
-            let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(
-                    f,
-                    [
-                        token("="),
-                        token("{"),
-                        format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                            if let Some(ty) = ty {
-                                write!(f, [ty, space()])?;
-                            }
-                            write!(
-                                f,
-                                [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                                    write!(
-                                        f,
-                                        [
-                                            token("{"),
-                                            block_indent(&format_with(
-                                                |f: &mut DestackFormatter<'ast, '_>| {
-                                                    f.join_with(&format_args![
-                                                        token(","),
-                                                        soft_line_break_or_space()
-                                                    ])
-                                                    .entries(&properties)
-                                                    .finish()?;
-                                                    write!(f, [if_group_breaks(&token(","))])
-                                                }
-                                            )),
-                                            token("}")
-                                        ]
-                                    )
-                                }))
-                                .should_expand(true)]
-                            )
-                        }),
-                        token("}")
-                    ]
-                )
-            });
-
-            let line_width = usize::from(f.context().options.line_width);
-            let value_span = f.context().get_span(value_id);
-            let (inline_compact_value_len, inline_source_value_len) =
-                span_inline_char_bounds(f.context(), value_span);
-            let inline_compact_candidate_len = 3usize.saturating_add(inline_compact_value_len);
-            let inline_source_candidate_len = 3usize.saturating_add(inline_source_value_len);
-            let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
-            let can_use_inline_fast_path =
-                !f.context().has_annotation(value_id) && inline_source_candidate_len <= line_width;
-            if can_use_inline_fast_path {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.inline.fast_path", 1);
-                inline_format.format(f)?;
-                return Ok(());
-            }
-
-            if should_skip_probe_for_overflow {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.skip_probe_overflow", 1);
-                hugged_format.format(f)?;
-                return Ok(());
-            }
-
-            if f.context().has_annotation(value_id) {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.deterministic.hug", 1);
-                hugged_format.format(f)?;
-            } else {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.deterministic.inline", 1);
-                inline_format.format(f)?;
-            }
-        }
-        Expression::ArrayExpression { elements } => {
-            let elements = elements.clone();
-
-            // inline: ={value} all on one line
-            let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [token("="), token("{"), value_id, token("}")])
-            });
-
-            // hugged: ={[ with expanded array contents then ]}
-            let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(
-                    f,
-                    [
-                        token("="),
-                        token("{"),
-                        group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(
+            f,
+            [
+                token("="),
+                token("{"),
+                format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    if let Some(ty) = ty {
+                        write!(f, [ty, space()])?;
+                    }
+                    write!(
+                        f,
+                        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
                             write!(
                                 f,
                                 [
-                                    token("["),
+                                    token("{"),
                                     block_indent(&format_with(
                                         |f: &mut DestackFormatter<'ast, '_>| {
                                             f.join_with(&format_args![
                                                 token(","),
                                                 soft_line_break_or_space()
                                             ])
-                                            .entries(&elements)
+                                            .entries(&properties)
                                             .finish()?;
                                             write!(f, [if_group_breaks(&token(","))])
                                         }
                                     )),
-                                    token("]")
+                                    token("}")
                                 ]
                             )
                         }))
-                        .should_expand(true),
-                        token("}")
-                    ]
-                )
-            });
+                        .should_expand(true)]
+                    )
+                }),
+                token("}")
+            ]
+        )
+    });
 
-            let line_width = usize::from(f.context().options.line_width);
-            let value_span = f.context().get_span(value_id);
-            let (inline_compact_value_len, inline_source_value_len) =
-                span_inline_char_bounds(f.context(), value_span);
-            let inline_compact_candidate_len = 3usize.saturating_add(inline_compact_value_len);
-            let inline_source_candidate_len = 3usize.saturating_add(inline_source_value_len);
-            let should_skip_probe_for_overflow = inline_compact_candidate_len > line_width;
-            let can_use_inline_fast_path =
-                !f.context().has_annotation(value_id) && inline_source_candidate_len <= line_width;
-            if can_use_inline_fast_path {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.inline.fast_path", 1);
-                inline_format.format(f)?;
-                return Ok(());
-            }
+    format_tree_attribute_inline_or_hugged(f, value_id, inline_format, hugged_format)
+}
 
-            if should_skip_probe_for_overflow {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.skip_probe_overflow", 1);
-                hugged_format.format(f)?;
-                return Ok(());
-            }
+/// Format a tree attribute array value using inline-or-hugged selection.
+fn format_tree_attribute_array_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+    elements: Vec<LocalNodeId<Argument>>,
+) -> FormatResult<()> {
+    let inline_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(f, [token("="), token("{"), value_id, token("}")])
+    });
 
-            if f.context().has_annotation(value_id) {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.deterministic.hug", 1);
-                hugged_format.format(f)?;
-            } else {
-                f.context()
-                    .increment_counter("profile.jsx.attribute.deterministic.inline", 1);
-                inline_format.format(f)?;
-            }
+    let hugged_format = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(
+            f,
+            [
+                token("="),
+                token("{"),
+                group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write!(
+                        f,
+                        [
+                            token("["),
+                            block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                                f.join_with(&format_args![token(","), soft_line_break_or_space()])
+                                    .entries(&elements)
+                                    .finish()?;
+                                write!(f, [if_group_breaks(&token(","))])
+                            })),
+                            token("]")
+                        ]
+                    )
+                }))
+                .should_expand(true),
+                token("}")
+            ]
+        )
+    });
+
+    format_tree_attribute_inline_or_hugged(f, value_id, inline_format, hugged_format)
+}
+
+/// Format a tree/JSX attribute value with hugging for objects and arrays.
+pub(super) fn format_tree_attribute_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    // tree attribute layout
+    let tree = f.context().tree;
+
+    match tree.get(value_id) {
+        // object attribute value
+        Expression::ObjectExpression { ty, properties } => {
+            format_tree_attribute_object_value(f, value_id, *ty, properties.clone())?;
         }
+
+        // array attribute value
+        Expression::ArrayExpression { elements } => {
+            format_tree_attribute_array_value(f, value_id, elements.clone())?;
+        }
+
+        // non-huggable values use regular braced formatting
         _ => {
-            // regular format for non-huggable values
             write!(f, [token("="), token("{"), value_id, token("}")])?;
         }
     }
@@ -1219,19 +1291,6 @@ pub(super) fn argument_is_template_literal(
         matches!(
             context.tree.get(value_id),
             Expression::TemplateExpression { .. }
-        )
-    })
-}
-
-/// Check whether an argument is a tree or jsx expression.
-pub(super) fn argument_is_tree_expression(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
-        matches!(
-            context.tree.get(value_id),
-            Expression::TreeExpression { .. }
         )
     })
 }

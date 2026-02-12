@@ -4,7 +4,7 @@ use destack_fir::write;
 /// Format static type arguments without multiline trailing commas.
 pub(super) fn format_static_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    static_arguments: &Vec<LocalNodeId<Argument>>,
+    static_arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     if should_hug_static_argument_list(f.context(), static_arguments) {
         write!(f, [token("<")])?;

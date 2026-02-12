@@ -15,7 +15,7 @@ use destack_fir::format::{FormatError, GroupId, text};
 use destack_fir::prelude::*;
 use destack_source::Span;
 use destack_workspace::TrailingComma;
-use smallvec::{SmallVec, smallvec};
+use smallvec::SmallVec;
 
 use self::binary::*;
 use self::call::*;
