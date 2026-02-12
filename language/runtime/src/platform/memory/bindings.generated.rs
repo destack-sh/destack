@@ -13,7 +13,6 @@ use crate::platform::memory::{
     MemoryRange, MemoryRangeVm, ProtectedMemoryRange, ProtectedMemoryRangeVm,
 };
 use crate::platform::{PlatformError, RuntimeStatus, abi as platform_abi};
-#[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

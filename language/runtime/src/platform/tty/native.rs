@@ -1,1 +1,1 @@
-pub use crate::platform::tty::host::*;
+pub(crate) use crate::platform::tty::host::*;

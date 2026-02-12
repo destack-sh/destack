@@ -2,6 +2,7 @@
 #[path = "unix/mod.rs"]
 mod unix;
 #[cfg(unix)]
+#[allow(unused_imports)]
 pub(crate) use unix::*;
 
 #[cfg(windows)]

@@ -4,7 +4,6 @@
 #![allow(clippy::clone_on_copy)]
 #![allow(clippy::type_complexity)]
 
-use crate::binding;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
@@ -12,8 +11,7 @@ use crate::platform::bindings::{
 };
 use crate::platform::{NativeStringRef, PlatformError, RuntimeStatus, abi as platform_abi};
 use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
-#[cfg(feature = "replay")]
-use crate::vm_binding_set;
+use crate::{binding, vm_binding_set};
 use destack_vm as vm;
 use destack_vm::Isolate;
 

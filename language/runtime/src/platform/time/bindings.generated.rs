@@ -12,7 +12,6 @@ use crate::platform::bindings::{
 use crate::platform::time::{ClockId, ClockInfo, ClockInfoVm, SleepClock};
 use crate::platform::{PlatformError, RuntimeStatus, abi as platform_abi};
 use crate::replay::TimeEventKind;
-#[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

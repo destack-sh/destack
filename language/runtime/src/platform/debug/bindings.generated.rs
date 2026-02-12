@@ -15,7 +15,6 @@ use crate::platform::debug::{
 use crate::platform::{
     NativeArray, NativeStringRef, PlatformError, RuntimeStatus, VmArray, abi as platform_abi,
 };
-#[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

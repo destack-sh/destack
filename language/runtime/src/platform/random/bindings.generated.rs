@@ -18,7 +18,6 @@ use crate::platform::{
 };
 use crate::random::RandomStreamId;
 use crate::replay::RandomEventKind;
-#[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

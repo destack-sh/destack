@@ -20,7 +20,7 @@ use crate::runtime::RuntimeCallContext;
 ///
 /// # Replay
 /// External, recordable.
-pub unsafe fn destack_console_log(
+pub(crate) unsafe fn destack_console_log(
     _context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -45,7 +45,7 @@ pub unsafe fn destack_console_log(
 ///
 /// # Replay
 /// External, recordable.
-pub unsafe fn destack_console_info(
+pub(crate) unsafe fn destack_console_info(
     _context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -70,7 +70,7 @@ pub unsafe fn destack_console_info(
 ///
 /// # Replay
 /// External, recordable.
-pub unsafe fn destack_console_warn(
+pub(crate) unsafe fn destack_console_warn(
     _context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {
@@ -95,7 +95,7 @@ pub unsafe fn destack_console_warn(
 ///
 /// # Replay
 /// External, recordable.
-pub unsafe fn destack_console_error(
+pub(crate) unsafe fn destack_console_error(
     _context: &RuntimeCallContext,
     value: NativeStringRef,
 ) -> RuntimeResult<()> {

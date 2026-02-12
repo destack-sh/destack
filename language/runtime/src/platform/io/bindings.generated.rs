@@ -11,13 +11,14 @@ use crate::platform::bindings::{
 };
 use crate::platform::io::{
     CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
-    CompletionOperationVm, EventToken, PollBackend, PollEvent, PollEventVm, PollInterest,
-    UringFeatures, UringFeaturesVm, UringParameters, UringParametersVm,
+    CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest,
+    DescriptorRequestVm, DescriptorResult, DescriptorResultReplayRecord, DescriptorResultVm,
+    EventToken, PollBackend, PollEvent, PollEventVm, PollInterest, UringFeatures, UringFeaturesVm,
+    UringParameters, UringParametersVm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
 };
-#[cfg(feature = "replay")]
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -420,6 +421,101 @@ fn encode_destack_io_completion_wait_result(
     result: RuntimeResult<VmArray<CompletionEventVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.io.control.fcntl.
+#[inline]
+fn decode_destack_io_control_fcntl_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::ResourceId,
+    DescriptorControlCommand,
+    u64,
+    DescriptorControlFlags,
+)> {
+    // ignore unused context
+    let _ = context;
+
+    let handle_value = arg_value(args, 0, "handle", "ResourceId")?;
+    let handle_inner = decode_uint64(handle_value, "handle_inner", "ResourceId")?;
+    let handle = resource::ResourceId(handle_inner);
+    let command_value = arg_value(args, 1, "command", "DescriptorControlCommand")?;
+    let command_inner = decode_uint32(command_value, "command_inner", "DescriptorControlCommand")?;
+    let command = DescriptorControlCommand(command_inner);
+    let argument_value = arg_value(args, 2, "argument", "uint64")?;
+    let argument = decode_uint64(argument_value, "argument", "uint64")?;
+    let flags_value = arg_value(args, 3, "flags", "DescriptorControlFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "DescriptorControlFlags")?;
+    let flags = DescriptorControlFlags(flags_inner);
+    Ok((handle, command, argument, flags))
+}
+
+/// Encode the result for destack.io.control.fcntl.
+#[inline]
+fn encode_destack_io_control_fcntl_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<i64>,
+) -> RuntimeResult<vm::Value> {
+    // ignore unused context
+    let _ = context;
+
+    result.map(|value| vm::Value::int(value, 64))
+}
+
+/// Decode arguments for destack.io.control.ioctl.
+#[inline]
+fn decode_destack_io_control_ioctl_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::ResourceId, DescriptorRequestVm)> {
+    let handle_value = arg_value(args, 0, "handle", "ResourceId")?;
+    let handle_inner = decode_uint64(handle_value, "handle_inner", "ResourceId")?;
+    let handle = resource::ResourceId(handle_inner);
+    let request_value = arg_value(args, 1, "request", "DescriptorRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "DescriptorRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let request_code = decode_uint64(slots[0], "request_code", "code")?;
+        let request_input = decode_slice::<u8>(context, slots[1], "request_input", "input")?;
+        let request_output_size = decode_uint32(slots[2], "request_output_size", "outputSize")?;
+        let request_flags = decode_uint32(slots[3], "request_flags", "flags")?;
+        DescriptorRequestVm {
+            code: request_code,
+            input: request_input,
+            output_size: request_output_size,
+            flags: request_flags,
+        }
+    };
+    Ok((handle, request))
+}
+
+/// Encode the result for destack.io.control.ioctl.
+#[inline]
+fn encode_destack_io_control_ioctl_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<DescriptorResultVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.return_value, 64);
+        let field_1 = value.output.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
 }
 
 /// Decode arguments for destack.io.event.attach.
@@ -1018,6 +1114,20 @@ struct IoCompletionWaitReplay {
     pub result: Result<Vec<CompletionEvent>, PlatformError>,
 }
 
+/// Replay payload for destack.io.control.fcntl.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoControlFcntlReplay {
+    /// Replay result payload.
+    pub result: Result<i64, PlatformError>,
+}
+
+/// Replay payload for destack.io.control.ioctl.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoControlIoctlReplay {
+    /// Replay result payload.
+    pub result: Result<DescriptorResultReplayRecord, PlatformError>,
+}
+
 /// Replay payload for destack.io.event.attach.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoEventAttachReplay {
@@ -1217,6 +1327,30 @@ pub const IO_COMPLETION_WAIT: BindingDescriptor =
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.completion"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.io.control.fcntl.
+pub const IO_CONTROL_FCNTL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.control.fcntl",
+        "export function controlFcntl(handle: ResourceId, command: DescriptorControlCommand, argument: uint64, flags: DescriptorControlFlags): Result<int64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.control"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    );
+
+/// Binding descriptor for destack.io.control.ioctl.
+pub const IO_CONTROL_IOCTL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.control.ioctl",
+        "export function controlIoctl(handle: ResourceId, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.control"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
     );
@@ -1429,6 +1563,8 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     IO_COMPLETION_SUBMIT,
     IO_COMPLETION_SUBMIT_BATCH,
     IO_COMPLETION_WAIT,
+    IO_CONTROL_FCNTL,
+    IO_CONTROL_IOCTL,
     IO_EVENT_ATTACH,
     IO_EVENT_CLOSE,
     IO_EVENT_OPEN,
@@ -1486,6 +1622,16 @@ pub const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             IO_COMPLETION_WAIT,
             "destack.io.completion.wait",
             destack_io_completion_wait as *const (),
+        ),
+        NativeBinding::new(
+            IO_CONTROL_FCNTL,
+            "destack.io.control.fcntl",
+            destack_io_control_fcntl as *const (),
+        ),
+        NativeBinding::new(
+            IO_CONTROL_IOCTL,
+            "destack.io.control.ioctl",
+            destack_io_control_ioctl as *const (),
         ),
         NativeBinding::new(
             IO_EVENT_ATTACH,
@@ -2040,6 +2186,158 @@ fn destack_io_completion_wait_replay(
                         value_native_values.push(value_native_item_native);
                     }
                     let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_control_fcntl_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut i64,
+    handle: resource::ResourceId,
+    command: DescriptorControlCommand,
+    argument: u64,
+    flags: DescriptorControlFlags,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &command, &argument, &flags);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_CONTROL_FCNTL,
+        context.replay_payload_for(IO_CONTROL_FCNTL)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_control_fcntl(
+                    context, out, handle, command, argument, flags,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_control_fcntl(
+                    context, out, handle, command, argument, flags,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = IoControlFcntlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoControlFcntlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_control_ioctl_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut DescriptorResult,
+    handle: resource::ResourceId,
+    request: DescriptorRequest,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &request);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_CONTROL_IOCTL,
+        context.replay_payload_for(IO_CONTROL_IOCTL)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_control_ioctl(context, out, handle, request)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_control_ioctl(context, out, handle, request)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_return_value = result_value.return_value;
+                let result_recorded_output_raw = unsafe { result_value.output.as_slice()? };
+                let mut result_recorded_output =
+                    Vec::with_capacity(result_recorded_output_raw.len());
+                for result_recorded_output_item_value in result_recorded_output_raw {
+                    let result_recorded_output_item = *result_recorded_output_item_value;
+                    let result_recorded_output_item_recorded = result_recorded_output_item;
+                    result_recorded_output.push(result_recorded_output_item_recorded);
+                }
+                let result_recorded = DescriptorResultReplayRecord {
+                    return_value: result_recorded_return_value,
+                    output: result_recorded_output,
+                };
+                let payload = IoControlIoctlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoControlIoctlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_return_value = value.return_value;
+                    let mut value_native_output_values = Vec::with_capacity(value.output.len());
+                    for value_native_output_item in value.output {
+                        let value_native_output_item_native = value_native_output_item;
+                        value_native_output_values.push(value_native_output_item_native);
+                    }
+                    let value_native_output = context.store_slice(value_native_output_values);
+                    let value_native = DescriptorResult {
+                        return_value: value_native_return_value,
+                        output: value_native_output,
+                    };
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3141,6 +3439,42 @@ pub unsafe extern "C" fn destack_io_completion_wait(
     })
 }
 
+#[unsafe(export_name = "destack.io.control.fcntl")]
+pub unsafe extern "C" fn destack_io_control_fcntl(
+    out: *mut i64,
+    handle: resource::ResourceId,
+    command: DescriptorControlCommand,
+    argument: u64,
+    flags: DescriptorControlFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &command, &argument, &flags);
+
+        let world = context.check_and_resolve_world(IO_CONTROL_FCNTL)?;
+        destack_io_control_fcntl_replay(context, world, out, handle, command, argument, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.io.control.ioctl")]
+pub unsafe extern "C" fn destack_io_control_ioctl(
+    out: *mut DescriptorResult,
+    handle: resource::ResourceId,
+    request: DescriptorRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &request);
+
+        let world = context.check_and_resolve_world(IO_CONTROL_IOCTL)?;
+        destack_io_control_ioctl_replay(context, world, out, handle, request)
+    })
+}
+
 #[unsafe(export_name = "destack.io.event.attach")]
 pub unsafe extern "C" fn destack_io_event_attach(
     token: EventToken,
@@ -3871,6 +4205,137 @@ fn destack_io_completion_wait_vm_replay(
             },
         );
     let result = encode_destack_io_completion_wait_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_control_fcntl_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::ResourceId,
+    command: DescriptorControlCommand,
+    argument: u64,
+    flags: DescriptorControlFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_CONTROL_FCNTL,
+            runtime.replay_payload_for(IO_CONTROL_FCNTL)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_io_control_fcntl(
+                    runtime, context, handle, command, argument, flags,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_control_fcntl(
+                    runtime, context, handle, command, argument, flags,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: i64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = IoControlFcntlReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoControlFcntlReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_control_fcntl_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_control_ioctl_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::ResourceId,
+    request: DescriptorRequestVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_CONTROL_IOCTL,
+            runtime.replay_payload_for(IO_CONTROL_IOCTL)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_control_ioctl(runtime, context, handle, request)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_control_ioctl(
+                    runtime, context, handle, request,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: DescriptorResultVm = value.clone();
+                    let result_recorded_return_value = result_value.return_value;
+                    let result_recorded_output = result_value.output.read_bytes(context)?;
+                    let result_recorded = DescriptorResultReplayRecord {
+                        return_value: result_recorded_return_value,
+                        output: result_recorded_output,
+                    };
+                    let payload = IoControlIoctlReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoControlIoctlReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_return_value = value.return_value;
+                        let vm_result_output =
+                            VmSlice::from_bytes(context, value.output.as_slice());
+                        let vm_result = DescriptorResultVm {
+                            return_value: vm_result_return_value,
+                            output: vm_result_output,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_control_ioctl_result(context, result)?;
     Ok(result)
 }
 
@@ -5074,6 +5539,35 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 .map_err(Into::into)
             }
         );
+    }
+    {
+        binding!(registry, isolate, IO_CONTROL_FCNTL, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, command, argument, flags) =
+                    decode_destack_io_control_fcntl_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(IO_CONTROL_FCNTL)?;
+                destack_io_control_fcntl_vm_replay(
+                    runtime, context, world, handle, command, argument, flags,
+                )
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_CONTROL_IOCTL, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, request) = decode_destack_io_control_ioctl_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(IO_CONTROL_IOCTL)?;
+                destack_io_control_ioctl_vm_replay(runtime, context, world, handle, request)
+            })
+            .map_err(Into::into)
+        });
     }
     {
         binding!(registry, isolate, IO_EVENT_ATTACH, move |context, args| {
