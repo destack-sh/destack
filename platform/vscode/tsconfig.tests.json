@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es2020",
+        "outDir": "out-tests",
+        "lib": ["es2020"],
+        "sourceMap": true,
+        "rootDir": "typescript",
+        "strict": true,
+        "noEmit": false,
+        "noImplicitAny": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "types": ["node", "mocha", "vscode"]
+    },
+    "include": ["typescript/tests-host/**/*.ts"]
+}

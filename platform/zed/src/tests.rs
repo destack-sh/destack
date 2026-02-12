@@ -20,6 +20,7 @@ const QUERY_RUNNABLES: &str = include_str!("../languages/destack/runnables.scm")
 const QUERY_TEXTOBJECTS: &str = include_str!("../languages/destack/textobjects.scm");
 const EXTENSION_TOML: &str = include_str!("../extension.toml");
 const LANGUAGE_CONFIG_TOML: &str = include_str!("../languages/destack/config.toml");
+const ROOT_VERSION: &str = include_str!("../../../version.txt");
 
 fn collect_query_captures(source: &str, query_source: &str) -> Vec<(String, String)> {
     let mut parser = Parser::new();
@@ -113,10 +114,36 @@ fn test_extension_manifest_registers_multilanguage_lsp() {
 }
 
 #[test]
+fn test_extension_manifest_declares_listing_sections() {
+    assert!(EXTENSION_TOML.contains(r#"languages = ["languages/destack"]"#));
+    assert!(EXTENSION_TOML.contains("[language_servers.destack-lsp]"));
+    assert!(EXTENSION_TOML.contains("[grammars.destack]"));
+}
+
+#[test]
+fn test_extension_manifest_declares_capability_probe() {
+    assert!(EXTENSION_TOML.contains("[[capabilities]]"));
+    assert!(EXTENSION_TOML.contains(r#"kind = "process:exec""#));
+    assert!(EXTENSION_TOML.contains(r#"args = ["--version"]"#));
+}
+
+#[test]
+fn test_extension_manifest_declares_author_identity() {
+    assert!(EXTENSION_TOML.contains(r#"authors = ["Florian Cäsar <florian@symbol.industries>"]"#));
+}
+
+#[test]
 fn test_extension_manifest_uses_destack_grammar_source() {
     assert!(EXTENSION_TOML.contains(r#"[grammars.destack]"#));
     assert!(EXTENSION_TOML.contains(r#"repository = "https://github.com/destack-sh/destack""#));
     assert!(EXTENSION_TOML.contains(r#"path = "language/grammar/destack/destack""#));
+}
+
+#[test]
+fn test_extension_manifest_version_matches_repo_version() {
+    let version = ROOT_VERSION.trim();
+    let needle = format!(r#"version = "{version}""#);
+    assert!(EXTENSION_TOML.contains(&needle));
 }
 
 #[test]
@@ -192,6 +219,28 @@ fn test_resolve_command_args_keeps_custom_command_arguments() {
 }
 
 #[test]
+fn test_resolve_command_args_injects_lsp_for_dsc_command() {
+    let args = DestackExtension::resolve_command_args(
+        "/usr/local/bin/dsc",
+        Some(vec!["--stdio".to_string()]),
+        Vec::new(),
+    );
+
+    assert_eq!(args, vec!["lsp", "--stdio"]);
+}
+
+#[test]
+fn test_resolve_command_args_keeps_existing_lsp_subcommand() {
+    let args = DestackExtension::resolve_command_args(
+        "/usr/local/bin/destack",
+        Some(vec!["lsp".to_string(), "--stdio".to_string()]),
+        Vec::new(),
+    );
+
+    assert_eq!(args, vec!["lsp", "--stdio"]);
+}
+
+#[test]
 fn test_highlights_export_struct_keywords() {
     let source = "export struct Whatever {\n    value: int32,\n}\n";
     let captures = collect_highlight_captures(source);
@@ -209,6 +258,24 @@ fn test_highlights_variable_width_numeric_types() {
     assert!(has_capture(&captures, "type.builtin", "int128"));
     assert!(has_capture(&captures, "type.builtin", "uint17"));
     assert!(has_capture(&captures, "type.builtin", "float256"));
+}
+
+#[test]
+fn test_highlights_comptime_and_extension_where_keywords() {
+    let source = r#"
+class Foo<T> {
+  comptime const N: number = T * 8;
+  type Buffer = int8[N];
+}
+
+extension for Foo where Foo: Copy {}
+"#;
+    let captures = collect_highlight_captures(source);
+
+    assert!(has_keyword_capture(&captures, "comptime"));
+    assert!(has_keyword_capture(&captures, "type"));
+    assert!(has_keyword_capture(&captures, "extension"));
+    assert!(has_keyword_capture(&captures, "where"));
 }
 
 #[test]
@@ -258,6 +325,30 @@ const result = try {
     let captures = collect_highlight_captures(source);
 
     assert!(has_capture(&captures, "punctuation.special", "@"));
+    assert!(has_keyword_capture(&captures, "try"));
+    assert!(has_keyword_capture(&captures, "catch"));
+    assert!(has_keyword_capture(&captures, "match"));
+}
+
+#[test]
+fn test_highlights_flexible_annotations_on_multiple_targets() {
+    let source = r#"
+@route("/api")
+export struct ApiResult {
+  value: int32,
+}
+
+try {
+  @step
+  value;
+} catch match error {
+  _ => @fallback(error),
+};
+"#;
+    let captures = collect_highlight_captures(source);
+
+    assert!(has_keyword_capture(&captures, "export"));
+    assert!(has_keyword_capture(&captures, "struct"));
     assert!(has_keyword_capture(&captures, "try"));
     assert!(has_keyword_capture(&captures, "catch"));
     assert!(has_keyword_capture(&captures, "match"));

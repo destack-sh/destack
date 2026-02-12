@@ -22,6 +22,24 @@ cargo test --release
 Install it in Zed with `Install Dev Extension` and select `platform/zed`.
 Start Zed from a terminal with `zed --foreground` to inspect extension logs.
 
+## Local Binary Path
+
+When developing across multiple worktrees, set a shared Destack binary path in Zed settings.
+This avoids requiring `target/debug/destack` or `target/release/destack` in every worktree.
+
+```json
+{
+  "lsp": {
+    "destack-lsp": {
+      "binary": {
+        "path": "/absolute/path/to/destack",
+        "arguments": ["lsp"]
+      }
+    }
+  }
+}
+```
+
 ## LSP Coverage
 
 The extension registers `destack-lsp` for these Zed languages:

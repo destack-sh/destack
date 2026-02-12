@@ -43,6 +43,7 @@ clean:
 # run all tests
 test:
     cargo test --release --all-targets {{ packages }}
+    just test-lsp-stdio
     just test-vscode
     just test-zed
 
@@ -59,11 +60,30 @@ schema := "generate-schema"
 test-vscode:
     cd vscode && bun run test:grammar
 
+# test vscode extension host smoke suite
+test-vscode-host:
+    cd vscode && bun run test:host
+
+# test out of process lsp stdio smoke flow
+test-lsp-stdio:
+    cargo build -p destack_cli
+    cargo test -p destack_platform_test --test lsp_stdio
+
 # test zed extension and shared tree sitter overlays
 test-zed:
     cd zed && cargo test --release
     cd zed && cargo build --target wasm32-wasip2 --release
     node ../language/grammar/scripts/check-overlay.mjs
+
+# test the core ide integration surface
+test-ide:
+    just test-lsp-stdio
+    just test-vscode
+    just test-vscode-host
+    just test-zed
+
+# backward compatibility alias
+alias test-editor := test-ide
 
 
 # --- release ---
