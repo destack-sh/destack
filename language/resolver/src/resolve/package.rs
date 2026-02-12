@@ -399,6 +399,9 @@ impl Resolver {
             return Ok(None);
         };
 
+        // prefer package scope browser field when self package matches
+        let mut browser_field_path = path.to_path_buf();
+
         // check if the package name matches the specifier (self-reference)
         if let Some(subpath) = config
             .content
@@ -444,10 +447,12 @@ impl Resolver {
                     return self.resolve_esm_match(specifier, &types_path, ctx);
                 }
             }
+
+            browser_field_path = package_url;
         }
 
         // fallback to browser field
-        self.load_browser_field(path, Some(specifier), config, ctx)
+        self.load_browser_field(&browser_field_path, Some(specifier), config, ctx)
     }
 
     /// Resolve an ESM match by loading as file or directory.

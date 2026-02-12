@@ -3420,11 +3420,6 @@ export type { MyType };
 export { type MyType, myValue };
 ```
 
-### Module Resolution
-
-Destack uses the same module resolution as TypeScript/Node.
-Destack also follows `tsconfig.json` configuration (incl. re-mapping).
-
 ### Data Imports
 
 Destack supports importing non-code files with automatic type inference.

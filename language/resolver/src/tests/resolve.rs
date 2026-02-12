@@ -920,6 +920,76 @@ fn test_resolve_fully_specified_paths() {
     }
 }
 
+/// Keep Node strict mode for package-name self imports without exports.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_self_package_name_without_exports_is_not_resolved_in_node_strict() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        (
+            "/repo/package.json",
+            r#"{"name":"pkg","main":"./src/main.js"}"#,
+        ),
+        ("/repo/src/main.js", ""),
+        ("/repo/src/feature.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let resolution = resolver.resolve("/repo/src", "pkg");
+    assert_eq!(
+        resolution,
+        Err(ResolveError::NotFound {
+            specifier: "pkg".into()
+        })
+    );
+}
+
+/// Keep Node strict mode for package-name self subpath imports without exports.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_self_package_subpath_without_exports_is_not_resolved_in_node_strict() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/package.json", r#"{"name":"pkg"}"#),
+        ("/repo/lib/util.js", ""),
+        ("/repo/src/feature.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let resolution = resolver.resolve("/repo/src", "pkg/lib/util.js");
+    assert_eq!(
+        resolution,
+        Err(ResolveError::NotFound {
+            specifier: "pkg/lib/util.js".into()
+        })
+    );
+}
+
+/// Reject self package fallback when exports are present and root is not exported.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_self_package_name_with_exports_does_not_fallback_to_main() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        (
+            "/repo/package.json",
+            r#"{"name":"pkg","main":"./src/main.js","exports":{"./feature":"./src/feature.js"}}"#,
+        ),
+        ("/repo/src/main.js", ""),
+        ("/repo/src/feature.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let resolution = resolver.resolve("/repo/src", "pkg");
+    assert!(matches!(
+        resolution,
+        Err(ResolveError::PackagePathNotExported { .. })
+    ));
+}
+
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows {
     use crate::{ResolveOptions, Resolver};

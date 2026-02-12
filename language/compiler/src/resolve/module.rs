@@ -2320,6 +2320,92 @@ value;
         );
     }
 
+    /// Keep node strict self package behavior for packages without exports.
+    #[test]
+    fn test_module_graph_self_package_import_without_exports_reports_error() {
+        let test = TestProgram::memory_sequential();
+
+        // build absolute test paths so package discovery can locate package.json
+        let root = std::env::current_dir().expect("failed to read current directory");
+        let package_json_path = root.join("package.json");
+        let consumer_path = root.join("src/consumer.ts");
+
+        // configure package metadata without exports
+        test.add_file(
+            &package_json_path.to_string_lossy(),
+            r#"{ "name": "pkg", "main": "./src/index.ts" }"#,
+        );
+
+        // import package self name from package source
+        let consumer_module_id = test.add_module(
+            &consumer_path.to_string_lossy(),
+            r#"
+import { value } from "pkg";
+
+value;
+"#,
+        );
+
+        // resolve module and assert strict self import failure
+        test.resolve_module(consumer_module_id);
+        test.compile();
+        test.check_has_diagnostic("ER200");
+    }
+
+    /// Build module graph edges for self package imports with exports.
+    #[test]
+    fn test_module_graph_self_package_import_with_exports_dependency() {
+        let test = TestProgram::memory_sequential();
+
+        // build absolute test paths so package discovery can locate package.json
+        let root = std::env::current_dir().expect("failed to read current directory");
+        let package_json_path = root.join("package.json");
+        let package_entry_path = root.join("src/index.ts");
+        let consumer_path = root.join("src/consumer.ts");
+
+        // configure package metadata with explicit exports root
+        test.add_file(
+            &package_json_path.to_string_lossy(),
+            r#"{ "name": "pkg", "main": "./src/main.ts", "exports": { ".": "./src/index.ts" } }"#,
+        );
+
+        // define exported entry module and consumer
+        let package_entry_module_id = test.add_module(
+            &package_entry_path.to_string_lossy(),
+            r#"
+export const value = 1;
+"#,
+        );
+        let consumer_module_id = test.add_module(
+            &consumer_path.to_string_lossy(),
+            r#"
+import { value } from "pkg";
+
+value;
+"#,
+        );
+
+        // resolve graph and ensure dependency targets exports root
+        test.resolve_module(consumer_module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(consumer_module_id);
+        let key = ModuleGraphKey::new(profile);
+        let graph = test
+            .program
+            .index
+            .module_graphs
+            .get(&key)
+            .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+        let dependencies = graph.dependencies_for(consumer_module_id);
+
+        // assert dependency edges
+        assert!(
+            dependencies.contains(&package_entry_module_id),
+            "expected module graph to include src/index.ts for exported self import"
+        );
+    }
+
     /// Build module graph edges for namespace exports.
     #[test]
     fn test_module_graph_namespace_export_dependency() {
