@@ -82,6 +82,7 @@ pub(super) fn format_assign_expression<'ast>(
     // binaries, chains, and nested lambda tails handle their own breaking
     let right_is_binary = matches!(inner_right_expr, Expression::Binary { .. });
     let right_is_sequence = matches!(inner_right_expr, Expression::SequenceExpression { .. });
+    let right_is_assign = matches!(inner_right_expr, Expression::Assign { .. });
     let right_is_chain_root = is_chain_root(f.context().tree, inner_right_id);
     let right_is_chain =
         is_expression_chain(f.context().tree, inner_right_id) || right_is_chain_root;
@@ -90,13 +91,13 @@ pub(super) fn format_assign_expression<'ast>(
     let right_is_lambda = is_lambda_expression(f.context(), inner_right_id);
     let right_handles_its_own_breaking = right_is_binary
         || right_is_sequence
+        || right_is_assign
         || right_is_chain
         || right_is_chain_tail_lambda
         || right_is_lambda;
     let right_has_prefix_annotation = f.context().has_prefix_annotation(right);
+    let left_has_newline = f.context().node_has_newline(left);
     let right_has_newline = f.context().node_has_newline(right);
-    let right_has_existing_operator_break =
-        has_newline_between_expressions(f.context(), left, right);
     let right_has_between_comment = has_comment_between_expressions(f.context(), left, right);
 
     // string literals are atomic: never break at `=`
@@ -106,7 +107,8 @@ pub(super) fn format_assign_expression<'ast>(
     );
 
     // estimate remaining inline width for rhs
-    let left_source_len = expression_source_len(f.context(), left);
+    let left_source_len =
+        source_min_inline_char_len(f.context().get_span_str(f.context().get_span(left)));
     let operator_len = assign_operator_len(operator);
     let inline_overhead = left_source_len
         .saturating_add(operator_len)
@@ -116,6 +118,10 @@ pub(super) fn format_assign_expression<'ast>(
     let right_annotation_len = expression_prefix_annotation_source_len(f.context(), right);
     let right_source_len = right_source_len.saturating_add(right_annotation_len);
     let right_is_long = right_source_len > remaining_width;
+    let right_span = f.context().get_span(inner_right_id);
+    let right_compact_source_len = source_min_inline_char_len(f.context().get_span_str(right_span))
+        .saturating_add(right_annotation_len);
+    let right_is_compact_long = right_compact_source_len > remaining_width;
 
     // prefer breaking after `=` for long binary rhs values
     let right_is_long_binary = if right_is_binary {
@@ -229,23 +235,34 @@ pub(super) fn format_assign_expression<'ast>(
     }
 
     if right_handles_its_own_breaking {
-        let right_prefers_operator_break = if right_is_chain {
+        let right_prefers_operator_break = if right_is_assign {
+            // nested assignment chains: break by stable shape signals only
+            !right_is_lambda
+                && (right_is_compact_long
+                    || right_has_prefix_annotation
+                    || right_has_between_comment)
+        } else if right_is_chain {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
                     || right_has_prefix_annotation
-                    || (!right_has_newline && right_is_long)
+                    || (right_is_long
+                        && (remaining_width == 0 || left_has_newline || !right_has_newline))
+                    || right_has_between_comment)
+        }
+        // binary rhs values should not depend on source-only break signals, to keep idempotence stable
+        else if right_is_binary {
+            !right_is_lambda
+                && (right_is_chain_tail_lambda
+                    || right_has_prefix_annotation
+                    || right_has_between_comment)
+                && (right_is_compact_long
+                    || right_has_prefix_annotation
                     || right_has_between_comment)
         } else {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
                     || right_has_prefix_annotation
-                    || right_has_newline
-                    || right_has_existing_operator_break
-                    || right_has_between_comment)
-                && (right_is_long
-                    || right_has_prefix_annotation
-                    || right_has_newline
-                    || right_has_existing_operator_break
+                    || right_is_compact_long
                     || right_has_between_comment)
         };
 
@@ -291,8 +308,15 @@ pub(super) fn format_assign_expression<'ast>(
             format_inline.format(f)?;
         }
     } else {
-        let left_has_newline = f.context().node_has_newline(left);
         let left_inner_id = transparent_inner_expression(f.context(), left);
+        let left_is_assignment_chain = matches!(
+            f.context().tree.get(left_inner_id),
+            Expression::Assign { .. }
+        );
+        let left_source_has_assignment_operator = f
+            .context()
+            .get_span_str(f.context().get_span(left))
+            .contains('=');
         let left_is_expanded_object_target = matches!(
             f.context().tree.get(left_inner_id),
             Expression::ObjectExpression { properties, .. }
@@ -306,8 +330,24 @@ pub(super) fn format_assign_expression<'ast>(
         let right_is_inline_atomic =
             expression_is_trivial_inline_without_annotations(f.context(), inner_right_id)
                 && right_source_len <= remaining_width;
+        let should_force_break_for_assignment_left_chain = (left_is_assignment_chain
+            || left_source_has_assignment_operator)
+            && right_is_compact_long
+            && !right_is_short_object;
+        let should_force_break_for_multiline_left =
+            left_has_newline && !right_is_short_object && !right_is_inline_atomic;
 
-        if (left_has_newline || left_is_expanded_object_target)
+        if should_force_break_for_assignment_left_chain || should_force_break_for_multiline_left {
+            write!(
+                f,
+                [group(&format_args![
+                    left,
+                    space_before_operator,
+                    operator,
+                    indent(&format_args![hard_line_break(), dedent(&right)])
+                ])]
+            )?;
+        } else if (left_has_newline || left_is_expanded_object_target)
             && (right_is_short_object || right_is_inline_atomic)
         {
             write!(f, [left, space_before_operator, operator, space(), right])?;

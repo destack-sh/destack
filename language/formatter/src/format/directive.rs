@@ -23,7 +23,7 @@ pub enum FormatterDirectiveKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormatterDirectivePosition {
     /// The directive appears before the node.
-    Prefix,
+    Prefix { comment_span: Span },
     /// The directive appears after the node.
     Postfix { comment_span: Span },
 }
@@ -62,6 +62,7 @@ where
         return None;
     }
 
+    let node_span = context.get_span(node_id);
     let annotations = context.get_annotations(node_id).unwrap_or_default();
 
     // use only prefix directives for ignore behavior
@@ -73,8 +74,8 @@ where
         };
         let comment = context.tree.get::<Comment>(*node);
         let content = context.strings.get(comment.string);
-        let span = context.get_span(*node);
-        let raw_comment = context.get_span_str(span);
+        let comment_span = context.get_span(*node);
+        let raw_comment = context.get_span_str(comment_span);
         let Some(token) =
             parse_directive_token(content).or_else(|| parse_directive_token_from_raw(raw_comment))
         else {
@@ -92,16 +93,19 @@ where
 
         match position {
             AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix => {
+                if comment_span.end > node_span.start {
+                    continue;
+                }
+
                 return Some(FormatterDirective {
                     kind,
-                    position: FormatterDirectivePosition::Prefix,
+                    position: FormatterDirectivePosition::Prefix { comment_span },
                 });
             }
             _ => {}
         }
     }
 
-    let node_span = context.get_span(node_id);
     let comment_tokens = context.comment_tokens();
     let mut last_prefix_token: Option<TokenSpan> = None;
     for token in comment_tokens {
@@ -127,8 +131,8 @@ where
             (between, newlines)
         };
         if between.trim().is_empty() && newlines <= 1 {
-            let token = parse_directive_token_from_raw(raw);
-            let kind = match token {
+            let directive_token = parse_directive_token_from_raw(raw);
+            let kind = match directive_token {
                 Some(FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart) => {
                     Some(FormatterDirectiveKind::IgnoreFormat)
                 }
@@ -137,7 +141,9 @@ where
             if let Some(kind) = kind {
                 return Some(FormatterDirective {
                     kind,
-                    position: FormatterDirectivePosition::Prefix,
+                    position: FormatterDirectivePosition::Prefix {
+                        comment_span: token.span,
+                    },
                 });
             }
         }
@@ -177,6 +183,9 @@ where
         let comment = context.tree.get::<Comment>(*node);
         let content = context.strings.get(comment.string);
         let start_span = context.get_span(*node);
+        if start_span.end > node_span.start {
+            continue;
+        }
         let raw_comment = context.get_span_str(start_span);
         let token =
             parse_directive_token(content).or_else(|| parse_directive_token_from_raw(raw_comment));
@@ -425,7 +434,7 @@ pub fn write_ignored_span<'ast>(
     Ok(())
 }
 
-/// Extract the source for an ignored node, removing its leading indentation.
+/// Extract the source for an ignored node.
 pub fn ignored_node_source<T: Node>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
@@ -436,10 +445,12 @@ where
 {
     let span = context.get_span(node_id);
     let end = match directive.position {
-        FormatterDirectivePosition::Prefix => span.end,
+        FormatterDirectivePosition::Prefix { .. } => span.end,
         FormatterDirectivePosition::Postfix { comment_span } => comment_span.end.max(span.end),
     };
-    ignored_span_source(context, Span::new(span.file, span.start, end))
+    context
+        .get_span_str(Span::new(span.file, span.start, end))
+        .to_owned()
 }
 
 /// Find the matching ignore range end comment following a start offset.

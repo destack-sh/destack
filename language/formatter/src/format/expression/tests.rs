@@ -1194,3 +1194,69 @@ fn test_format_await_maybe_sugar() {
         DestackFormatOptions::default()
     );
 }
+
+#[test]
+fn test_format_call_argument_function_parameter_line_comment_is_idempotent() {
+    let source = "exportDefaultWhatever(function (\n  aaaaaaaaaaaString,  //\n  bbbbbbbbbbbString,\n  cccccccccccString,\n) {\n  return null;\n}, \"xyz\")";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+
+    let (first_test, first_expression) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .unwrap();
+    let first_output = first_test.format(&first_expression, options.clone());
+
+    let (second_test, second_expression) =
+        TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .unwrap();
+    let second_output = second_test.format(&second_expression, options);
+
+    assert_eq!(first_output, second_output);
+}
+
+#[test]
+fn test_format_assignment_chain_with_member_call_is_idempotent() {
+    let source = "bifornCringerMoshedPerplexSawder =\n  askTrovenaBeenaDependsRowans =\n  glimseGlyphsHazardNoopsTieTie =\n  x =\n  averredBathersBoxroomBuggyNurl =\n  anodyneCondosMal(sdsadsa,dasdas,asd(()=>sdf)).ateOverateRetinol =\n  annularCooeedSplicesWalksWayWay =\n    kochabCooieGameOnOboleUnweave;";
+    let options = DestackFormatOptions::default_with_line_width(80);
+
+    let (first_test, first_expression) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .unwrap();
+    let first_output = first_test.format(&first_expression, options.clone());
+
+    let (second_test, second_expression) =
+        TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .unwrap();
+    let second_output = second_test.format(&second_expression, options);
+
+    assert_eq!(first_output, second_output);
+}
+
+#[test]
+fn test_format_assignment_chain_in_call_argument_is_idempotent() {
+    let source = "call(\n  function() {\n    return 1;\n  },\n  askTrovenaBeenaDependsRowans = glimseGlyphsHazardNoopsTieTie = 200_000_000_000n\n)";
+    let options = DestackFormatOptions::default_with_line_width(80);
+
+    let (first_test, first_expression) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .unwrap();
+    let first_output = first_test.format(&first_expression, options.clone());
+
+    let (second_test, second_expression) =
+        TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .unwrap();
+    let second_output = second_test.format(&second_expression, options);
+
+    assert_eq!(first_output, second_output);
+}

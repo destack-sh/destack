@@ -3,6 +3,20 @@ use super::profile::*;
 use crate::timing::tags;
 use destack_fir::write;
 
+/// Return whether a comment token lies within an empty call argument region.
+fn comment_is_within_empty_call_argument_region(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    left_id: LocalNodeId<Expression>,
+    comment_id: LocalNodeId<destack_ast::Comment>,
+) -> bool {
+    let call_span = context.get_span(call_node_id);
+    let left_span = context.get_span(left_id);
+    let comment_span = context.get_span(comment_id);
+
+    comment_span.start >= left_span.end && comment_span.end <= call_span.end
+}
+
 /// Collect deferred callee boundary comments for empty call argument lists.
 pub(crate) fn collect_deferred_empty_call_boundary_comments(
     context: &DestackFormatContext<'_>,
@@ -39,6 +53,14 @@ pub(crate) fn collect_deferred_empty_call_boundary_comments(
                 else {
                     continue;
                 };
+
+                let comment_is_in_empty_call_argument_region =
+                    comment_is_within_empty_call_argument_region(
+                        context,
+                        call_node_id,
+                        left,
+                        *comment_id,
+                    );
                 let comment = context.tree.get::<destack_ast::Comment>(*comment_id);
                 let annotation_span = context.get_span::<Annotation>(*annotation_id);
                 let annotation_source = context.get_span_str(annotation_span).trim().to_string();
@@ -50,6 +72,7 @@ pub(crate) fn collect_deferred_empty_call_boundary_comments(
                     && *annotation_position == AnnotationPosition::BlockPostfix
                     && previous_character == Some('(')
                     && next_character == Some(')')
+                    && comment_is_in_empty_call_argument_region
                 {
                     inline_argument_comment = Some(annotation_source);
                 } else if comment.style == destack_ast::CommentStyle::Slash
@@ -61,6 +84,7 @@ pub(crate) fn collect_deferred_empty_call_boundary_comments(
                     )
                     && previous_character == Some('(')
                     && next_character == Some(')')
+                    && comment_is_in_empty_call_argument_region
                 {
                     line_argument_comment = Some(annotation_source);
                 } else if comment.style == destack_ast::CommentStyle::Slash
@@ -176,13 +200,21 @@ pub(crate) fn is_deferred_empty_call_boundary_annotation(
     annotation_id: LocalNodeId<Annotation>,
     annotation_position: AnnotationPosition,
 ) -> bool {
-    if enclosing_empty_call_id_for_callee_expression(context, expression_id).is_none() {
+    let Some(call_id) = enclosing_empty_call_id_for_callee_expression(context, expression_id)
+    else {
         return false;
-    }
+    };
 
     let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
         return false;
     };
+    let call_left_id = match context.tree.get(call_id) {
+        Expression::Call { left, .. } | Expression::New { left, .. } => *left,
+        _ => return false,
+    };
+    let comment_is_in_empty_call_argument_region =
+        comment_is_within_empty_call_argument_region(context, call_id, call_left_id, *node);
+
     let comment = context.tree.get::<destack_ast::Comment>(*node);
     let previous_character = previous_non_whitespace_before_annotation(context, annotation_id);
     let next_character = next_non_whitespace_after_annotation(context, annotation_id);
@@ -194,7 +226,9 @@ pub(crate) fn is_deferred_empty_call_boundary_annotation(
                 | AnnotationPosition::LinePostfixBoundary
                 | AnnotationPosition::BlockPostfix
         )
-        && ((previous_character == Some('(') && next_character == Some(')'))
+        && ((previous_character == Some('(')
+            && next_character == Some(')')
+            && comment_is_in_empty_call_argument_region)
             || next_character == Some('?'))
     {
         return true;
@@ -207,7 +241,9 @@ pub(crate) fn is_deferred_empty_call_boundary_annotation(
                 | AnnotationPosition::LinePostfixBoundary
                 | AnnotationPosition::BlockPostfix
         )
-        && (previous_character == Some('(') && next_character == Some(')')
+        && ((previous_character == Some('(')
+            && next_character == Some(')')
+            && comment_is_in_empty_call_argument_region)
             || next_character == Some('?'))
 }
 

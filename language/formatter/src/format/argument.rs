@@ -879,68 +879,6 @@ fn argument_has_blank_prefix_annotation_before_separator(
     })
 }
 
-/// Return whether this argument is the last dynamic argument in a call or new expression.
-fn argument_is_last_in_call_or_new(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(argument_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
-    match expression {
-        Expression::Call {
-            dynamic_arguments, ..
-        }
-        | Expression::New {
-            dynamic_arguments, ..
-        } => dynamic_arguments
-            .last()
-            .is_some_and(|last| *last == argument_id),
-        _ => false,
-    }
-}
-
-/// Return whether this argument should emit a trailing comma before postfix annotations.
-fn argument_should_emit_trailing_comma(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    context.current_argument_group_id.is_some()
-        && context.options.trailing_comma == TrailingComma::All
-        && argument_is_last_in_call_or_new(context, argument_id)
-        && argument_has_trailing_line_comment_annotation(context, argument_id)
-}
-
-/// Return whether this argument has trailing slash comments at the argument boundary.
-fn argument_has_trailing_line_comment_annotation(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Some(annotations) = context.get_annotations(argument_id) else {
-        return false;
-    };
-    let argument_span = context.get_span(argument_id);
-
-    annotations.iter().any(|annotation_id| {
-        let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(*annotation_id)
-        else {
-            return false;
-        };
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
-        if comment.style != CommentStyle::Slash {
-            return false;
-        }
-
-        let annotation_span = context.get_span::<Annotation>(*annotation_id);
-        annotation_span.start >= argument_span.end
-    })
-}
-
 /// Return whether a lambda argument has an inline prefix comment that must break.
 fn argument_prefix_lambda_comment_needs_forced_break(
     context: &DestackFormatContext<'_>,
@@ -1127,11 +1065,6 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 }
             }
-        }
-
-        // preserve JS/TS trailing comma placement before trailing line comments
-        if argument_should_emit_trailing_comma(f.context(), node_id) {
-            write!(f, [if_group_breaks(&token(","))])?;
         }
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

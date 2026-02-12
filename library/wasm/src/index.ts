@@ -241,11 +241,7 @@ export interface WorkspaceWatchEvent {
     kind: "created" | "modified" | "deleted" | "renamed" | "overflow";
 }
 
-export type WorkspaceServiceRescanReason =
-    | "startup"
-    | "overflow"
-    | "manual"
-    | "update";
+export type WorkspaceServiceRescanReason = "startup" | "overflow" | "manual" | "update";
 
 export interface WorkspaceModuleId {
     packageId: string;
@@ -390,11 +386,7 @@ export function defaultResolveOptions(): ResolveOptions {
     return requireGenerated().defaultResolveOptions();
 }
 
-export function resolveSync(
-    specifier: string,
-    from: string,
-    options?: ResolveOptions,
-): Resolution {
+export function resolveSync(specifier: string, from: string, options?: ResolveOptions): Resolution {
     return requireGenerated().resolveSync(specifier, from, options);
 }
 
@@ -402,11 +394,7 @@ export function defaultFormatOptions(): FormatOptions {
     return requireGenerated().defaultFormatOptions();
 }
 
-export function formatSync(
-    path: string,
-    content: string,
-    options?: FormatOptions,
-): FormatResult {
+export function formatSync(path: string, content: string, options?: FormatOptions): FormatResult {
     return requireGenerated().formatSync(path, content, options);
 }
 
@@ -414,11 +402,7 @@ export function defaultCheckOptions(): CheckOptions {
     return requireGenerated().defaultCheckOptions();
 }
 
-export function checkSync(
-    path: string,
-    content: string,
-    options?: CheckOptions,
-): CheckResult {
+export function checkSync(path: string, content: string, options?: CheckOptions): CheckResult {
     return requireGenerated().checkSync(path, content, options);
 }
 
@@ -426,11 +410,7 @@ export function defaultParseOptions(): ParseOptions {
     return requireGenerated().defaultParseOptions();
 }
 
-export function parseSync(
-    path: string,
-    content: string,
-    options?: ParseOptions,
-): ParseResult {
+export function parseSync(path: string, content: string, options?: ParseOptions): ParseResult {
     return requireGenerated().parseSync(path, content, options);
 }
 
@@ -497,7 +477,10 @@ export class WorkspaceService {
         return this.inner.updateVirtualFile(path, content);
     }
 
-    public applyVirtualUpdate(path: string, update: WorkspaceVirtualUpdate): WorkspaceServiceResult {
+    public applyVirtualUpdate(
+        path: string,
+        update: WorkspaceVirtualUpdate,
+    ): WorkspaceServiceResult {
         return this.inner.applyVirtualUpdate(path, update);
     }
 

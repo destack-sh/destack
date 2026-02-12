@@ -38,7 +38,49 @@ fn call_argument_comments_force_expanded_layout(
         || comment_profile.has_prefix_line_comment_annotations
         || has_deferred_boundary_prefix_annotations
 }
+/// Return whether trailing collection comments should force list expansion.
+fn call_argument_trailing_collection_comment_force_expand(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    trailing_collection_argument: bool,
+    has_line_comment_annotations: bool,
+) -> bool {
+    if dynamic_arguments.len() <= 1 || !trailing_collection_argument {
+        return false;
+    }
 
+    let Some(last_argument_id) = dynamic_arguments.last().copied() else {
+        return false;
+    };
+
+    let has_last_line_comment_annotation = has_line_comment_annotations
+        && argument_has_line_comment_annotation(context, last_argument_id);
+    let last_argument_span = context.get_span(last_argument_id);
+    let has_last_source_comment = context.has_comment(last_argument_span);
+
+    has_last_line_comment_annotation || has_last_source_comment
+}
+
+/// Return whether the trailing collection argument has non blank comment signals.
+fn trailing_collection_argument_has_comment_signal(
+    context: &DestackFormatContext<'_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    let Some(last_argument_id) = dynamic_arguments.last().copied() else {
+        return false;
+    };
+
+    if !argument_is_collection_literal(context, last_argument_id) {
+        return false;
+    }
+
+    if context.has_non_blank_annotation(last_argument_id) {
+        return true;
+    }
+
+    let last_argument_value_id = argument_value_id(context.tree, last_argument_id);
+    context.has_non_blank_annotation(last_argument_value_id)
+}
 /// Build call argument comment profile only when annotations require it.
 fn resolve_call_argument_comment_profile(
     context: &DestackFormatContext<'_>,
@@ -139,9 +181,15 @@ fn decide_post_hugged_call_argument_layout(
             context.timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_PROFILE);
         resolve_regular_call_argument_expansion_profile(context, call_node_id, dynamic_arguments)
     };
-    let force_expand = expansion_profile.force_expand;
     let has_call_infix_annotations = expansion_profile.has_call_infix_annotations;
     let trailing_collection_argument = expansion_profile.trailing_collection_argument;
+    let force_expand = expansion_profile.force_expand
+        || call_argument_trailing_collection_comment_force_expand(
+            context,
+            dynamic_arguments,
+            trailing_collection_argument,
+            has_line_comment_annotations,
+        );
 
     // hug-last candidates can still end in default list rendering
     let can_consider_hug_last_argument = can_consider_hug_last_call_arguments(
@@ -234,13 +282,8 @@ fn format_default_call_argument_list<'ast>(
     } else {
         false
     };
-    let last_argument_has_line_comment = if has_line_comment_annotations {
-        dynamic_arguments.last().is_some_and(|argument_id| {
-            argument_has_line_comment_annotation(f.context(), *argument_id)
-        })
-    } else {
-        false
-    };
+    let trailing_collection_has_comment_signal =
+        trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
     let single_callback_without_leading_prefix = if is_single_argument {
         single_argument_id.is_some_and(|argument_id| {
             (argument_is_lambda_expression(f.context(), argument_id)
@@ -250,10 +293,12 @@ fn format_default_call_argument_list<'ast>(
     } else {
         false
     };
+
     let can_use_plain_default_fast_path = !f.context().has_ignore_directive_markers()
         && dynamic_arguments.len() > 1
         && !has_any_argument_annotation
         && !has_line_comment_annotations
+        && !trailing_collection_has_comment_signal
         && !is_single_argument;
 
     let _timing = f
@@ -285,7 +330,7 @@ fn format_default_call_argument_list<'ast>(
     {
         list.disallow_trailing_separator();
     }
-    if last_argument_has_line_comment || single_callback_without_leading_prefix {
+    if trailing_collection_has_comment_signal || single_callback_without_leading_prefix {
         list.disallow_trailing_separator();
     }
 
@@ -298,7 +343,10 @@ fn format_comment_expanded_call_argument_list<'ast>(
     dynamic_arguments: &[LocalNodeId<Argument>],
     comment_profile: &CallArgumentCommentProfile,
 ) -> FormatResult<()> {
-    let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All;
+    let has_trailing_collection_with_source_comment =
+        trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
+    let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All
+        && !has_trailing_collection_with_source_comment;
     let deferred_boundary_prefix_annotations = comment_profile
         .deferred_boundary_prefix_annotations
         .as_ref();
@@ -419,16 +467,32 @@ pub(crate) fn format_call_arguments<'ast>(
 
 /// Return whether call arguments can use the no-annotation multi-argument fast path.
 fn call_arguments_use_no_annotation_multi_argument_fast_path(
+    context: &DestackFormatContext<'_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
     layout_class: CachedCallArgumentLayoutClass,
     planner_base_state: CallArgumentPlannerBaseState,
 ) -> bool {
-    dynamic_arguments.len() > 1
-        && call_argument_layout_class_is_simple_multi_unannotated(layout_class)
-        && planner_base_state
-            .argument_shape
-            .all_single_line_and_unannotated
-        && !planner_base_state.argument_shape.is_multiline_in_source
+    if dynamic_arguments.len() <= 1 {
+        return false;
+    }
+
+    if !call_argument_layout_class_is_simple_multi_unannotated(layout_class) {
+        return false;
+    }
+
+    if !planner_base_state
+        .argument_shape
+        .all_single_line_and_unannotated
+        || planner_base_state.argument_shape.is_multiline_in_source
+    {
+        return false;
+    }
+
+    if !layout_class.trailing_collection_argument {
+        return true;
+    }
+
+    !trailing_collection_argument_has_comment_signal(context, dynamic_arguments)
 }
 
 /// Format call arguments with the no-annotation multi-argument fast path.
@@ -550,7 +614,10 @@ fn format_single_call_argument_with_group<'ast>(
     // keep single collection arguments on hugged path when allowed
     let force_hugged_expand =
         call_should_force_hugged_expand(force_expand_single_collection_for_type_binary_callee);
+    let has_hug_blocking_comment_annotation =
+        argument_has_callback_blocking_comment_annotation(f.context(), argument_id);
     let can_use_hugged = !argument_has_multiline_prefix_annotation(f.context(), argument_id)
+        && !has_hug_blocking_comment_annotation
         && !planner_base_state.has_call_infix_annotations
         && !force_expand_single_long_with_static_arguments
         && !argument_is_lambda_expression(f.context(), argument_id)
@@ -633,6 +700,7 @@ fn format_call_arguments_with_group<'ast>(
     // keep compact, no-annotation lists on a cheap inline or grouped path
     let use_no_annotation_multi_argument_fast_path =
         call_arguments_use_no_annotation_multi_argument_fast_path(
+            f.context(),
             dynamic_arguments,
             layout_class,
             planner_base_state,

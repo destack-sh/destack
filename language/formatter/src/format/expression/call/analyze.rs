@@ -132,8 +132,17 @@ pub(super) fn collect_single_call_argument_facts(
             .argument_annotation_profile(argument_id)
             .has_line_comment;
     let trailing_collection_argument = argument_is_collection_literal(context, argument_id);
+    let has_collection_source_comment = if trailing_collection_argument {
+        let argument_span = context.get_span(argument_id);
+        context.has_comment(argument_span)
+    } else {
+        false
+    };
 
-    (has_line_comment_annotations, trailing_collection_argument)
+    (
+        has_line_comment_annotations || has_collection_source_comment,
+        trailing_collection_argument,
+    )
 }
 
 /// Return whether one argument has callback-blocking line or multiline prefix annotations.

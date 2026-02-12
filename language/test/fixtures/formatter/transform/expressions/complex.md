@@ -821,8 +821,7 @@ const ok = a && b || c && d || e && f
 ```
 
 ```ds expected
-const ok = a && b || (c && d) || (e
-    && f);
+const ok = a && b || c && d || e && f;
 ```
 
 ### nullish chain

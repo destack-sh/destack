@@ -365,7 +365,22 @@ pub(super) fn format_primary_expression<'ast>(
             // try hugged format for single object/array elements
             if !format_hugged(f, elements_ids, HugOptions::ARRAY, None, false)? {
                 if array_has_sparse_holes(f.context(), elements_ids) {
-                    format_sparse_array_literal(f, elements_ids)?;
+                    let span = f.context().get_span(node_id);
+                    let has_newline_in_source = f.context().has_newline(span);
+                    let has_sparse_annotations = f.context().has_infix_annotation(node_id)
+                        || collection_nodes_have_annotations(f.context(), elements_ids);
+
+                    if has_newline_in_source || has_sparse_annotations {
+                        write!(
+                            f,
+                            [list_like("[", "]", ",", elements_ids)
+                                .as_collection()
+                                .should_expand(has_newline_in_source)]
+                        )?;
+                    } else {
+                        format_sparse_array_literal(f, elements_ids)?;
+                    }
+
                     return Ok(true);
                 }
 

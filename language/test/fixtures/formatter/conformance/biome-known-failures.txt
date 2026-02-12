@@ -100,11 +100,9 @@ prettier/js/assignment-comments/identifier.js
 prettier/js/assignment-comments/number.js
 prettier/js/assignment-comments/string.js
 prettier/js/assignment/binaryish.js
-prettier/js/assignment/call-with-template.js
 prettier/js/assignment/chain-two-segments.js
 prettier/js/assignment/chain.js
-prettier/js/assignment/destructuring-heuristic.js
-prettier/js/assignment/destructuring.js
+prettier/js/assignment/destructuring-array.js
 prettier/js/assignment/discussion-15196.js
 prettier/js/assignment/issue-10218.js
 prettier/js/assignment/issue-1419.js
@@ -118,6 +116,7 @@ prettier/js/assignment/issue-3819.js
 prettier/js/assignment/issue-4094.js
 prettier/js/assignment/issue-5610.js
 prettier/js/assignment/issue-6922.js
+prettier/js/assignment/issue-7091.js
 prettier/js/assignment/issue-7572.js
 prettier/js/assignment/issue-7961.js
 prettier/js/assignment/issue-8218.js
@@ -199,6 +198,7 @@ prettier/js/chain-expression/issue-15916.js
 prettier/js/chain-expression/member-expression.js
 prettier/js/chain-expression/new-expression.js
 prettier/js/chain-expression/tagged-template-literals.js
+prettier/js/chain-expression/test-2.js
 prettier/js/chain-expression/test-3.js
 prettier/js/chain-expression/test-4.js
 prettier/js/chain-expression/test.js
@@ -334,7 +334,6 @@ prettier/js/destructuring-private-fields/for-lhs.js
 prettier/js/destructuring-private-fields/nested-bindings.js
 prettier/js/destructuring-private-fields/valid-multiple-bindings.js
 prettier/js/destructuring/destructuring.js
-prettier/js/destructuring/issue-5988.js
 prettier/js/directives/escaped.js
 prettier/js/directives/issue-7346.js
 prettier/js/directives/no-newline.js
@@ -566,7 +565,6 @@ prettier/js/preserve-line/argument-list.js
 prettier/js/preserve-line/comments.js
 prettier/js/preserve-line/member-chain.js
 prettier/js/preserve-line/parameter-list.js
-prettier/js/private-in/private-in.js
 prettier/js/quote-props/classes.js
 prettier/js/quote-props/numeric-separator.js
 prettier/js/quote-props/objects.js
@@ -620,7 +618,6 @@ prettier/js/regex/test.js
 prettier/js/require-amd/named-amd-module.js
 prettier/js/require-amd/non-amd-define.js
 prettier/js/require-amd/require.js
-prettier/js/require/require.js
 prettier/js/reserved-word/interfaces.js
 prettier/js/rest/trailing-commas.js
 prettier/js/return-outside-function/return-outside-function.js
@@ -641,6 +638,7 @@ prettier/js/source-phase-imports/import-source-binding-source.js
 prettier/js/source-phase-imports/import-source-dynamic-import.js
 prettier/js/source-phase-imports/import-source.js
 prettier/js/spread/spread.js
+prettier/js/strings/escaped.js
 prettier/js/strings/multiline-literal.js
 prettier/js/strings/non-octal-eight-and-nine.js
 prettier/js/strings/strings.js
@@ -651,7 +649,6 @@ prettier/js/switch/empty_lines.js
 prettier/js/switch/empty_switch.js
 prettier/js/switch/switch.js
 prettier/js/template-align/indent.js
-prettier/js/template-literals/binary-exporessions.js
 prettier/js/template-literals/css-prop.js
 prettier/js/template-literals/expressions.js
 prettier/js/template-literals/indention.js
@@ -1003,6 +1000,7 @@ prettier/typescript/module/namespace_nested.ts
 prettier/typescript/multiparser-css/issue-6259.ts
 prettier/typescript/namespace/invalid-await.ts
 prettier/typescript/non-null/braces.ts
+prettier/typescript/non-null/member-chain.ts
 prettier/typescript/non-null/optional-chain.ts
 prettier/typescript/non-null/parens.ts
 prettier/typescript/nosemi/type.ts

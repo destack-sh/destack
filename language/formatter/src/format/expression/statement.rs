@@ -383,6 +383,80 @@ fn format_using_expression<'ast>(
     Ok(())
 }
 
+/// Return whether block annotations include a block prefix annotation.
+fn block_has_block_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    block_id: LocalNodeId<Block>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(block_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        matches!(
+            context.tree.get::<Annotation>(annotation_id),
+            Annotation::Blank {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } | Annotation::Doc {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } | Annotation::Comment {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } | Annotation::Decorator {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether block annotations include a line prefix annotation.
+fn block_has_line_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    block_id: LocalNodeId<Block>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(block_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        matches!(
+            context.tree.get::<Annotation>(annotation_id),
+            Annotation::Blank {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            } | Annotation::Doc {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            } | Annotation::Comment {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            } | Annotation::Decorator {
+                position: AnnotationPosition::LinePrefix,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether a control-flow statement body should be preceded by a space.
+fn statement_body_requires_head_space(
+    context: &DestackFormatContext<'_>,
+    body: LocalNodeId<Block>,
+) -> bool {
+    if block_has_block_prefix_annotation(context, body) {
+        return false;
+    }
+
+    if block_has_line_prefix_annotation(context, body) {
+        return true;
+    }
+
+    !is_empty_statement_block(context, body)
+}
+
 /// Format a `while` or `do while` expression.
 fn format_while_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -393,21 +467,19 @@ fn format_while_expression<'ast>(
     match kind {
         // while (<condition>) <body>
         WhileKind::While => {
-            let body_is_empty_statement = is_empty_statement_block(f.context(), body);
             write!(
                 f,
                 [Keyword::While, space(), token("("), condition, token(")")]
             )?;
-            if !body_is_empty_statement {
+            if statement_body_requires_head_space(f.context(), body) {
                 write!(f, [space()])?;
             }
             format_statement_body_block(f, body)?;
         }
         // do <body> while (<condition>)
         WhileKind::DoWhile => {
-            let body_is_empty_statement = is_empty_statement_block(f.context(), body);
             write!(f, [Keyword::Do])?;
-            if !body_is_empty_statement {
+            if statement_body_requires_head_space(f.context(), body) {
                 write!(f, [space()])?;
             }
             format_statement_body_block(f, body)?;
@@ -506,7 +578,7 @@ fn format_for_each_expression<'ast>(
 
     // iterator + body
     write!(f, [space(), keyword, space(), iterator, token(")")])?;
-    if !is_empty_statement_block(f.context(), body) {
+    if statement_body_requires_head_space(f.context(), body) {
         write!(f, [space()])?;
     }
     format_statement_body_block(f, body)?;
@@ -538,7 +610,7 @@ fn format_for_expression<'ast>(
             token(")")
         ]
     )?;
-    if !is_empty_statement_block(f.context(), body) {
+    if statement_body_requires_head_space(f.context(), body) {
         write!(f, [space()])?;
     }
     format_statement_body_block(f, body)
@@ -550,7 +622,7 @@ fn format_loop_expression<'ast>(
     body: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     write!(f, [Keyword::Loop])?;
-    if !is_empty_statement_block(f.context(), body) {
+    if statement_body_requires_head_space(f.context(), body) {
         write!(f, [space()])?;
     }
     format_statement_body_block(f, body)

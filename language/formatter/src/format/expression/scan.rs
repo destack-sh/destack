@@ -1,5 +1,7 @@
 use super::*;
+use crate::directive::is_ignore_directive_comment;
 use crate::scan::previous_non_whitespace_before_span as previous_non_whitespace_before_source_span;
+use destack_ast::Comment;
 
 /// Return a compact lower bound for one-line width from source text.
 #[inline]
@@ -143,6 +145,41 @@ pub(super) fn expression_has_prefix_comment_annotation(
         .unwrap_or(false)
 }
 
+/// Return whether an expression has a prefix ignore-directive comment annotation.
+pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .with_annotations(expression_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let Annotation::Comment { position, node } =
+                    context.tree.get::<Annotation>(*annotation_id)
+                else {
+                    return false;
+                };
+
+                if !matches!(
+                    position,
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) {
+                    return false;
+                }
+
+                let comment = context.tree.get::<Comment>(*node);
+                let comment_source = context.strings.get(comment.string);
+                if is_ignore_directive_comment(comment_source) {
+                    return true;
+                }
+
+                let comment_span = context.get_span::<Comment>(*node);
+                let raw_comment = context.get_span_str(comment_span);
+                is_ignore_directive_comment(raw_comment)
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Return whether an expression has a leading prefix comment in its left spine.
 pub(super) fn expression_has_leading_prefix_comment(
     context: &DestackFormatContext<'_>,
@@ -222,6 +259,7 @@ pub(super) fn should_hoist_parenthesized_inner_cast_prefix_comments(
         }
     ) && parenthesized_has_leading_inner_trivia(context, node_id, inner_id)
         && expression_has_prefix_comment_annotation(context, inner_id)
+        && !expression_has_prefix_ignore_directive_comment_annotation(context, inner_id)
 }
 
 /// Decide whether a sequence expression needs parentheses in its parent context.
