@@ -87,7 +87,7 @@ export const value: string = "ok";
 > Package types entries resolve type-only imports for bare specifiers.
 
 ```ts:main.ts
-import type { User } from "spec";
+import type { User } from "@spec/runner";
 
 const value: User = { name: "Ada" };
 value.name satisfies string;
@@ -101,7 +101,7 @@ export interface User {
 
 ```json:package.json
 {
-  "name": "spec",
+  "name": "@spec/runner",
   "types": "./types.d.ts"
 }
 ```
@@ -111,7 +111,7 @@ export interface User {
 > Package exports map types entries for subpath imports.
 
 ```ts:main.ts
-import { value } from "spec/feature";
+import { value } from "@spec/runner/feature";
 
 value satisfies number;
 ```
@@ -122,7 +122,7 @@ export const value: number;
 
 ```json:package.json
 {
-  "name": "spec",
+  "name": "@spec/runner",
   "exports": {
     "./feature": {
       "types": "./feature.d.ts",
@@ -139,7 +139,7 @@ export const value: number;
 > Bare self package imports require explicit `exports` and do not fallback to `main`.
 
 ```ts:main.ts
-import { value } from "spec";
+import { value } from "@spec/runner";
 ```
 
 ```ts:index.ts
@@ -148,12 +148,12 @@ export const value = 1;
 
 ```json:package.json
 {
-  "name": "spec",
+  "name": "@spec/runner",
   "main": "./index.ts"
 }
 ```
 
-- contains: unresolved module 'spec'
+- contains: unresolved module '@spec/runner'
 
 ### rejects self package subpath import without exports
 
@@ -169,7 +169,7 @@ export const feature = "ok";
 
 ```json:package.json
 {
-  "name": "spec"
+  "name": "@spec/runner"
 }
 ```
 
@@ -180,7 +180,7 @@ export const feature = "ok";
 > Packages with exports resolve self package root imports through `exports`.
 
 ```ts:main.ts
-import { value } from "spec";
+import { value } from "@spec/runner";
 
 value satisfies number;
 ```
@@ -195,7 +195,7 @@ export const value = 1;
 
 ```json:package.json
 {
-  "name": "spec",
+  "name": "@spec/runner",
   "main": "./index.ts",
   "exports": {
     ".": "./public.ts"
@@ -221,7 +221,7 @@ export const feature = 1;
 
 ```json:package.json
 {
-  "name": "spec",
+  "name": "@spec/runner",
   "main": "./index.ts",
   "exports": {
     "./feature": "./feature.ts"
@@ -230,3 +230,128 @@ export const feature = 1;
 ```
 
 - contains: unresolved module 'spec'
+
+### resolves package exports types through declaration companion reexports
+
+> Package exports `types` entries should resolve declaration reexports that point to `.js` specifiers.
+
+```ts:main.d.ts
+import { TaskResultPack as TaskResultPack$1 } from "@spec/runner";
+
+export interface Wrapper {
+    pack: TaskResultPack$1;
+}
+```
+
+```ts:dist/index.d.ts
+export { K as TaskResultPack } from "./tasks.js";
+```
+
+```ts:dist/tasks.d.ts
+export interface TaskResult {
+    state: string;
+}
+
+export type TaskResultPack = TaskResult[];
+
+export { type TaskResultPack as K };
+```
+
+```json:package.json
+{
+  "name": "@spec/runner",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
+```
+
+### prefer package exports over same-package module augmentation shadowing
+
+> Module resolution should keep real package exports even when a same-package augmentation declares the same specifier.
+
+```ts:main.d.ts
+import "./augment.d.ts";
+import { TaskResultPack } from "@spec/runner";
+
+export interface Wrapper {
+    pack: TaskResultPack;
+}
+```
+
+```ts:augment.d.ts
+declare module "@spec/runner" {
+    interface TaskMeta {
+        benchmark?: boolean;
+    }
+}
+```
+
+```ts:node_modules/@spec/runner/dist/index.d.ts
+export interface TaskResultPack {
+    ok: true;
+}
+```
+
+```js:node_modules/@spec/runner/dist/index.js
+module.exports = {};
+```
+
+```json:node_modules/@spec/runner/package.json
+{
+  "name": "@spec/runner",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
+```
+
+### resolves symbols from merged module augmentations
+
+> Resolution should include symbols contributed by same-specifier module augmentations together with package exports.
+
+```ts:main.d.ts
+import "./augment_expect.d.ts";
+import { ExpectPollOptions, ExpectStatic } from "@spec/expect";
+
+export interface Wrapper {
+    poll: ExpectPollOptions;
+    expect: ExpectStatic;
+}
+```
+
+```ts:augment_expect.d.ts
+declare module "@spec/expect" {
+    interface ExpectPollOptions {
+        timeout?: number;
+    }
+}
+```
+
+```ts:node_modules/@spec/expect/dist/index.d.ts
+export interface ExpectStatic {
+    matcher: string;
+}
+```
+
+```js:node_modules/@spec/expect/dist/index.js
+module.exports = {};
+```
+
+```json:node_modules/@spec/expect/package.json
+{
+  "name": "@spec/expect",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
+```

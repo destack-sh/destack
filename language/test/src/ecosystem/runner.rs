@@ -1965,11 +1965,15 @@ fn auto_fetch_missing_checkouts(
     // install dependencies when selected phases need module resolution
     let should_install_dependencies = phases.iter().any(|phase| *phase != EcosystemPhase::Parse);
 
+    // collect selected manifests and missing checkout paths
+    let mut selected = Vec::new();
     let mut missing = Vec::new();
     for manifest in manifests {
         if !manifest_matches_filter(manifest, phases, filter) {
             continue;
         }
+
+        selected.push(manifest);
 
         let package_dir = checkouts_dir.join(&manifest.package.name);
         if !package_dir.exists() {
@@ -1977,61 +1981,70 @@ fn auto_fetch_missing_checkouts(
         }
     }
 
-    if missing.is_empty() {
-        return HashMap::new();
-    }
-
-    println!();
-    println!(
-        "auto-fetching {} missing ecosystem checkouts",
-        missing.len()
-    );
-
     let mut failures = HashMap::new();
-    for manifest in missing {
-        print!(
-            "  {}@{} ... ",
-            manifest.package.name, manifest.package.git_ref
+
+    // fetch missing checkouts first
+    if !missing.is_empty() {
+        println!();
+        println!(
+            "auto-fetching {} missing ecosystem checkouts",
+            missing.len()
         );
-        let fetch_result = fetch_package(
-            manifest,
-            checkouts_dir,
-            FetchOptions {
-                refresh: false,
-                install: false,
-            },
-        );
-        match fetch_result {
-            Ok(package_dir) => {
-                let package_patches_dir = patches_dir.join(&manifest.package.name);
-                match ensure_patches_applied(&package_patches_dir, &package_dir) {
-                    Ok(()) => {
-                        if should_install_dependencies {
-                            match ensure_package_dependencies_installed(&package_dir) {
-                                Ok(()) => println!("ok"),
-                                Err(error) => {
-                                    println!("FAILED: install failed: {error}");
-                                    failures.insert(manifest.package.name.clone(), error);
-                                }
-                            }
-                        } else {
+
+        for manifest in missing {
+            print!(
+                "  {}@{} ... ",
+                manifest.package.name, manifest.package.git_ref
+            );
+            let fetch_result = fetch_package(
+                manifest,
+                checkouts_dir,
+                FetchOptions {
+                    refresh: false,
+                    install: false,
+                },
+            );
+            match fetch_result {
+                Ok(package_dir) => {
+                    let package_patches_dir = patches_dir.join(&manifest.package.name);
+                    match ensure_patches_applied(&package_patches_dir, &package_dir) {
+                        Ok(()) => {
                             println!("ok");
                         }
-                    }
-                    Err(error) => {
-                        println!("FAILED: patch apply failed: {error}");
-                        failures.insert(manifest.package.name.clone(), error);
+                        Err(error) => {
+                            println!("FAILED: patch apply failed: {error}");
+                            failures.insert(manifest.package.name.clone(), error);
+                        }
                     }
                 }
+                Err(error) => {
+                    println!("FAILED: {error}");
+                    failures.insert(manifest.package.name.clone(), error);
+                }
             }
-            Err(error) => {
-                println!("FAILED: {error}");
+        }
+
+        println!();
+    }
+
+    // install dependencies for selected packages in compiler phases
+    if should_install_dependencies {
+        for manifest in selected {
+            if failures.contains_key(&manifest.package.name) {
+                continue;
+            }
+
+            let package_dir = checkouts_dir.join(&manifest.package.name);
+            if !package_dir.exists() {
+                continue;
+            }
+
+            if let Err(error) = ensure_package_dependencies_installed(&package_dir) {
                 failures.insert(manifest.package.name.clone(), error);
             }
         }
     }
 
-    println!();
     failures
 }
 /// Return whether one manifest can produce a selected case for the current filter.
