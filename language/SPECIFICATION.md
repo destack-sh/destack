@@ -1,28 +1,23 @@
 # Destack Language Specification
 
-The Destack language is a spiritual "TypeScript++" for building optimal, correct, integrated software systems across the _full_ stack.
-This document describes the syntax and semantics of **`.ds` files**.
-`.ts` and `.tsx` files are fully supported as modern strict ESM modules.
-`.js` and `.jsx` files parse as strict modules and reject TS-only syntax by default.
-See `INTEROPERABILITY.md` for the full file type matrix and exclusions.
+> **The Destack language is a spiritual "TypeScript++" for building optimal, correct, integrated software systems across the _full_ stack.**
+> 
+> This document describes the syntax and semantics of **`.ds` files**, how JS/TS features work, and what exactly the ++ parts are and how they interact with the rest of the language.
+> However, this document is a reference and _not_ a complete or formal language or runtime specification, and is not intended to be.
+> Unless otherwise specified, we follow TypeScript semantics.
 
-## Targets And Capabilities
-
-Destack targets native runtimes and existing JS hosts.
-Native runtime targets include macOS, Linux, Windows, iOS, Android, FreeBSD, OpenBSD, NetBSD, DragonFly, and WASI.
-JS host targets include Node, Bun, Deno, and browsers.
-Platform capabilities are explicit and checked at compile time.
-The `@require` decorator declares which capabilities a declaration depends on.
+See [DESIGN](DESIGN.md) for the high-level design principles and objectives.
+See [INTEROPERABILITY](INTEROPERABILITY.md) for the full file type matrix and exclusions.
 
 ## Literals
 
-Destack supports all JavaScript/TypeScript literals with some additions.
+Destack supports all JS/TS literals, as well as some additions.
 
 ### Numeric Literals
 
-Numeric literals work just like in JavaScript / TypeScript:
+Numeric literals work just like in JS/TS:
 
-```
+```ds
 42                   // integer (inferred precision)
 42n                  // bigint (TypeScript)
 3.14                 // float (inferred as float64)
@@ -36,31 +31,30 @@ Numeric literals work just like in JavaScript / TypeScript:
 
 String literals work exactly like in TypeScript, with the addition that single-quoted literals are recommended for single-character "strings" (Rust-style):
 
-```
+```ds
 "hello"              // double-quoted string
 'a'                  // character (single Unicode codepoint)
 ```
 
 ### Template Literals
 
-Template literals support interpolation and can use tags, just like in JavaScript / TypeScript:
+Template literals support interpolation and can use tags, just like in JS/TS:
 
-```
+```ds
 `hello`                           // simple template
 `hello ${name}`                   // interpolated template
 `${a} + ${b} = ${a + b}`          // multiple interpolations
 sql`SELECT * FROM users`          // tagged template
-html`<div>${content}</div>`       // another tagged template
+html`<div>${content}</div>`       // tagged template
 ```
 
-Tagged templates call a function with the string parts and interpolated values, enabling DSLs for SQL, HTML, CSS, GraphQL, and more.
-Tagged template expressions evaluate to the tag function return type.
+Tagged templates call a function with the string parts and interpolated values, enabling DSLs for SQL, HTML, CSS, GraphQL, and more (just like in JS/TS).
 
 ### Regex Literals
 
-Regex literals work exactly like JavaScript/TypeScript:
+Regex literals work exactly like JS/TS:
 
-```
+```ds
 /pattern/            // regex
 /\d+/g               // regex with flags
 /hello\s+world/i     // case insensitive
@@ -70,36 +64,35 @@ Regex literals work exactly like JavaScript/TypeScript:
 
 Array and object literals work like TypeScript:
 
-```
+```ds
 [1, 2, 3];             // array
 { a: 1, b: 2 };        // anonymous object literal
 ```
 
-Destack adds tuple and typed struct literals:
+Destack adds tuples:
 
-```
+```ds
 (1, 2, 3);             // tuple
-Point { x: 1, y: 2 };  // typed struct literal
+();                    // empty tuple
 ```
 
 ### Range Literals
 
 Destack supports range literals for iteration and slicing:
 
-```
+```ds
 1..10                // exclusive range [1, 10)
 1..=10               // inclusive range [1, 10]
 start..end           // variable ranges
 ```
-Range expressions evaluate to `Range<T>` or `RangeInclusive<T>` values based on the inclusive flag.
+
+Range expressions evaluate to `Range<T>` or `RangeInclusive<T>` values (depending on the inclusive flag).
 
 ### Tree Literals
 
-Tree literals use TSX syntax for hierarchical data structures.
-Destack is fully TSX-compatible: copy-paste from `.tsx` files just works.
-Unlike TSX which is specific to React, Destack's tree literals work with any tree-shaped data:
+Tree literals generalize TSX-like XML "trees" for hierarchical data structures beyond a specific "jsxSource".
 
-```
+```ds
 <Entity id={1}>
     <Child name="foo" />
     <Child name="bar" />
@@ -116,16 +109,6 @@ Unlike TSX which is specific to React, Destack's tree literals work with any tre
 </Level>
 ```
 
-Expression containers `{expr}` inside tree literals follow TSX semantics: they contain a single expression.
-For multi-statement blocks, use `do { }`:
-
-```
-<Component
-    simple={computeValue()}
-    complex={do { let x = prepare(); transform(x) }}
-/>
-```
-
 The tree literal syntax is customizable via traits, so your domain types can define how they're constructed from tree syntax.
 
 ## Types
@@ -136,153 +119,10 @@ It supports static parameterisation of values and other advanced type features.
 Declaration modules can declare values without providing implementations.
 Nominal declarations introduce both type and value bindings, including in declaration modules.
 
-### Inference
-
-Destack prefers explicit types at public boundaries.
-Public boundaries include exported declarations and public members.
-Exported bindings may use local surface inference when their type is determined from local syntax
-without relying on _inferred_ types from other modules.
-Inference is local and never relies on whole program analysis.
-
-#### Explicit Typing
-
-Most non local constructs must be explicitly typed unless surface inference applies.
-
-- Non lambda functions, methods, and constructors must annotate dynamic parameters.
-
-```
-export function sum(left: int32, right: int32): int32 {
-    left + right
-}
-```
-
-- Non lambda functions, methods, and constructors must annotate return types unless surface
-  inference applies for an export.
-
-```
-export function version(): string {
-    "v1"
-}
-```
-
-- Public fields and properties must declare types.
-
-```
-export struct User {
-    name: string
-    age: uint32
-}
-```
-
-- Function types in type declarations must annotate parameters and return types.
-
-#### Public boundaries and surface inference
-
-Exported bindings may omit explicit annotations when their types can be inferred from local syntax,
-including inferred return types and locally resolved references.
-Other modules consume the published export types without re-inferring the defining module.
-Inference cycles across modules are forbidden: if an exported binding participates in a cycle,
-it must be explicitly annotated to break the cycle.
-
-Binding examples:
-
-```
-export const version = "v1";        // ok, inferred from local literal
-export let counter = 0;             // ok, inferred and widened locally
-export function add(a: int, b: int) { // ok, return type inferred locally
-    a + b
-}
-export const shared = other.value;  // ok when no inference cycle is formed
-```
-
-```
-export interface Parser {
-    parse(input: string): uint32
-}
-```
-
-#### Implicit Typing
-
-Inference is allowed when the surface is local or contextual.
-
-- Static parameters may specify types but are not required.
-
-```
-function identity<T>(value: T): T {
-    value
-}
-
-function compute<Flag: boolean>(data: uint8[]): uint8[] {
-    data
-}
-```
-
-- Lambdas may omit parameter and return types when a contextual type is available.
-
-```
-const handler: (value: string) => uint32 = (value) => value.length;
-```
-
-- Local bindings may infer types from their initializer.
-
-```
-let count = 0;
-const label = "ready";
-```
-
-#### Widening, freshness, and const contexts
-
-Widening and freshness follow TypeScript terminology and behavior.
-
-- Literal expressions start as fresh literal types.
-- Fresh literal types become regular literal types when they escape their defining expression.
-- `let` and `var` bindings without a constraining contextual type use widened types such as `number`, `string`, and `boolean`.
-- `const` bindings keep literal types for scalar literals but do not implicitly freeze object and array members.
-- Object and array literals widen their members by default even in `const` bindings.
-- Const contexts and const assertions suppress widening and produce readonly object and tuple shapes.
-- Contextual typing can prevent widening by constraining the expression before widening occurs.
-- Apparent types must not be computed by substituting constraint types into unrelated references.
-
-#### Binding mutability
-
-`const` bindings are immutable and cannot be reassigned.
-Imports are immutable in the importing module.
-Immutable bindings do not implicitly freeze object or array members.
-
-Examples:
-
-```ds
-const value = 1;
-value = 2;
-```
-
-```ds
-const state = { count: 0 };
-state.count = 1;
-```
-
-Examples:
-
-```ds
-let a = 1;
-a satisfies number;
-
-const b = 1;
-b satisfies 1;
-
-const c = { value: 1 };
-c.value satisfies number;
-
-const d = { value: 1 } as const;
-d.value satisfies 1;
-```
-
-- Object literal fields may omit annotations when the binding is typed or uses `satisfies`.
-
-```
-const options: Options = { retries: 3, verbose: false };
-const settings = { retries: 3, verbose: false } satisfies Settings;
-```
+**TSC, inference and TypeScript pain**: 
+Destack tries very hard to be TSC faithful and support the full modern TS feature set. 
+Out of necessity and some strong opinions, Destack is stricter in some places, and we want modern TS code to _just work_.
+Further, Destack is a completely different from-scratch compiler architecture, and there are some unavoidable differences in inference ordering and capabilities.
 
 ### Primitives
 
@@ -291,7 +131,7 @@ Destack adds precise numeric types while keeping the originals as aliases.
 
 #### Special Types
 
-All special types work like in TypeScript, with Destack extending the receiver-aware `this` type.
+The "special" types work like in TypeScript, with Destack extending the receiver-aware `this` type.
 
 - `void` - empty type (no value)
 - `null` - explicit zero/unset value
@@ -301,37 +141,32 @@ All special types work like in TypeScript, with Destack extending the receiver-a
 - `unknown` - explicit top type
 - `this` - receiver type (see below)
 
-#### The `this` Type
+#### This
 
 Destack supports TypeScript's polymorphic `this` type for instance members, and extends it to static type positions.
 `this` is only valid in type positions and resolves based on the surrounding declaration:
-
 - In instance members, `this` resolves to the concrete receiver type.
 - In static type positions (like static members or static arguments), `this` resolves to the containing type itself.
 
 #### Booleans
 
-Booleans work unchanged.
+Booleans work unchanged, though Destack requires all boolean values to be actual booleans (explicit casts are required, like in ESLint's `no-implicit-coercion`)
 
-#### Numerics
+#### Numbers
 
-TypeScript uses `number` for all numerics, which Destack aliases to `float64`.
-
-Destack further adds more precise integer types:
-- `int8`, `int16`, `int32`, `int64`, `int128` (signed)
-- `uint8`, `uint16`, `uint32`, `uint64`, `uint128` (unsigned)
+TypeScript uses just `number` for all numerics, which is an IEEE 64-bit `float64`.
+Destack further adds more precise integer types, including for arbitrary width (inspired by Zig):
+- `int8`, `int16`, `int32`, `int64`, `int128`, and any `int<width>` like `int17` (signed)
+- `uint8`, `uint16`, `uint32`, `uint64`, `uint128`, and any `uint<width>` like `uint17` (unsigned)
 - `isize`, `usize` - pointer-sized integers
-- `int` / `uint` - default integer width for the current compiler configuration (default 32-bit)
-- Arbitrary width integers: `int3`, `uint17`, etc.
+- `int` / `uint` - default integer width for the current compiler configuration
 
 Destack also supports specifying `float` explicitly:
-- `float32`, `float64`, and arbitrary widths like `float16` and `float128`
-- `float` - default float width for the current compiler configuration (default 64-bit)
+- `float32`, `float64`
+- `float` - default float width for the current compiler configuration
 - `number` - JS-compatible numeric supertype that accepts precise ints/floats
 
-Unlike TypeScript's single `number` type, Destack's precise integers behave like real machine integers:
-they have defined overflow semantics (wrapping, saturating, or trapping), proper bitwise operations.
-(Of course, when transpiled to )
+Destack's precise integers behave like real machine integers with defined overflow semantics (wrapping, saturating, or trapping), proper bitwise operations.
 
 Assignments from `number` to a precise numeric type (`int32`, `float64`, and so on) require an explicit conversion:
  - Explicit float to integer casts are checked at runtime.
@@ -346,99 +181,72 @@ In addition `string`, Destack supports a single `character`:
 - `string` - UTF-8 string (same as TypeScript)
 - `character` - single Unicode codepoint
 
-Character and string are distinct types.
-No implicit widening between them is performed.
+Character and string are distinct types, and characters are not implicitly assignable to strings.
 
 #### Template Literal Types
 
-Template literal types use the same backtick syntax in type positions.
-Spans inside `${...}` are type expressions that must be stringifiable.
-
-Stringifiable span types include:
+Template literal types use the same backtick syntax in type positions, like in TypeScript.
+Spans inside `${...}` are type expressions that must be stringifiable:
 - `string`, `number`, `bigint`, `boolean`, `null`, `undefined`, `any`
 - Template literal types and unions of stringifiable types
 
-Assignability rules:
+Template literal type assignability matches TypeScript's rules:
 - A string literal is assignable to a template literal type when it matches the literal parts and each span constraint.
 - A template literal type is assignable to `string`.
 - Spans of `never` accept no strings, so template literals containing `never` are uninhabited.
 
-Literal span matching:
-- `${null}` only matches `"null"`.
-- `${undefined}` only matches `"undefined"`.
-- `symbol` is not stringifiable and cannot appear in template literal spans.
-
-Conditional inference:
-- Template literal types participate in conditional `infer` by splitting the string left to right on literal parts.
-- Template literal `infer` only matches when the checked type is a string literal or template literal type.
-- `string` and `unknown` do not match template literal patterns and fall back to the else branch.
-- `any` yields the union of both branches, matching TypeScript's conditional behavior.
-
-Numeric span matching:
-- `number` spans match TypeScript numeric strings: decimal forms with optional sign, fractional part, and exponent, plus hex/binary/octal literals without a sign.
-- `NaN` and `Infinity` are not matched by `${number}`.
-- Whitespace is not allowed in numeric string forms.
-- `bigint` spans match bigint literal strings with optional leading `-` and optional hex/binary/octal prefix; whitespace and `+` are not allowed.
-- TS++ numeric primitives (`int32`, `uint64`, `float32`, and so on) use the same matching rules with the appropriate range checks and integer enforcement.
-- When `infer` binds numeric spans, only canonical numeric strings infer literal types; non-canonical numeric strings infer the primitive type instead.
-
 ### Type Aliases and Newtypes
 
-Type aliases work like TypeScript, with Destack adding `newtype` for nominal (distinct) types:
+Type aliases are transparent wrappers to another type like in TypeScript.
+Destack also adds a `newtype` for proper nominal types:
 
-```
-type Point = { x: float32, y: float32 };   // structural (TypeScript)
-newtype UserId = int64;                     // nominal (distinct type)
+```ds
+type Point = { x: float32, y: float32 };    // structural (TypeScript)
+newtype SpecialPoint = Point;                     // nominal (distinct type)
 ```
 
-A `newtype` creates a distinct type—`UserId` and `OrderId` won't mix even if both are `int64`.
-Newtypes are nominal and share the runtime representation of their wrapped type.
+A `newtype` creates a distinct type that structurally assignable types are not assignable to. 
+`UserId` and `OrderId` won't mix even if both are `int64`.
 Newtypes can wrap scalars, tuples, or objects:
 
-```
+```ds
 newtype UserId = int64;                    // wraps scalar
 newtype Point = (float32, float32);        // wraps tuple
 newtype Config = { debug: boolean };       // wraps object
 ```
 
 Construction syntax matches the underlying type:
-
-```
+```ds
 const id = UserId(42);                     // scalar: Name(value)
 const p = Point(1.0, 2.0);                 // tuple: Name(elements...)
 const c = Config { debug: true };          // struct: Name { fields... }
 ```
 
-Pattern matching also works with newtype constructors.
-Patterns must use the newtype name as the tag.
-The inner pattern matches the underlying representation.
-Object newtypes use tagged object patterns (for example, `Config { debug }`).
-Untagged object patterns do not match newtypes.
-
-```
+Pattern matching / unwrapping also works with newtype constructors:
+```ds
 match (id) {
     UserId(0) => "system"
     UserId(n) => `user ${n}`
 }
 ```
 
-Newtypes can have methods via extensions (see Extensions below).
+All nominal types, including newtypes, can receive methods via `extension`s (see Extensions below).
 The same mechanism works for all types: structs, enums, newtypes, even foreign types and builtin primitives like `int32` or `Date`.
 
 ### Unions and Intersections
 
 Structural combinator types work like in TypeScript:
 
-```
+```ds
 int32 | string | null      // union
 A & B                      // intersection
 ```
 
 #### Discriminated Unions
 
-Destack supports TypeScript-style discriminated unions directly:
+Destack supports TypeScript-style discriminated unions:
 
-```
+```ds
 type Result<T, E> =
     | { kind: 'ok', value: T }
     | { kind: 'err', error: E }
@@ -450,200 +258,65 @@ function divide(a: int, b: int): Result<int, string> {
         { kind: 'ok', value: a / b }
     }
 }
-
-// or use the newtype Result
-function divide(a: int, b: int): Result<int, string> {
-    if (b == 0) {
-        Result.err("division by zero")
-    } else {
-        Result.ok(a / b)
-    }
-}
-
-const result = divide(10, 2);
-if (result.kind == 'ok') {
-    print(`result: ${result.value}`);
-} else {
-    print(`error: ${result.error}`);
-}
 ```
-
-This is standard TypeScript and works unchanged in Destack.
-
-#### Discriminant Tag Interning
-
-Discriminant literals are interned to integer tags at compile time for native targets.
-Supported literal kinds:
-- string
-- number
-- bigint
-- boolean
-- null
-- undefined
-- unique symbol
-
-NaN is not a valid discriminant literal.
--0 and 0 are treated as the same discriminant literal.
-Tags are assigned deterministically within a compilation.
-Each discriminated union emits a tag value table with literal values in tag order.
-Reading a discriminant field loads the literal value from that table.
-Duplicate discriminant values are a type error.
-Tag values are not stable across different compilations or compiler versions.
-Code should never serialize or persist tag integers.
-
-#### Result Types
-
-For richer `Result` types with methods, use nominal structs and newtypes:
-
-```
-struct Ok<T> { kind: 'ok' = 'ok', value: T }
-struct Err<E> { kind: 'err' = 'err', error: E }
-newtype Result<T, E> = Ok<T> | Err<E>
-```
-
-Since `Result` is a nominal type, it can be extended with methods:
-
-```
-extension<T, E> for Result<T, E> {
-    static ok(value: T): Result<T, E> { Result(Ok { value }) }
-    static err(error: E): Result<T, E> { Result(Err { error }) }
-
-    map<U>(f: (T) => U): Result<U, E> {
-        match (this) {
-            Ok { value } => Result.ok(f(value))
-            Err _ => this
-        }
-    }
-
-    unwrap(): T {
-        match (this) {
-            Ok { value } => value
-            Err { error } => throw error
-        }
-    }
-}
-```
-
-Usage:
-
-```
-function divide(a: int, b: int): Result<int, string> {
-    if (b == 0) {
-        Result.err("division by zero")
-    } else {
-        Result.ok(a / b)
-    }
-}
-
-// Method chaining
-divide(10, 2).map(x => x * 2).unwrap()
-
-// Pattern matching (newtype unwraps automatically)
-match (divide(10, 2)) {
-    Ok { value } => print(`result: ${value}`)
-    Err { error } => print(`error: ${error}`)
-}
-```
-
-Both approaches are compatible.
-Newtypes share the underlying runtime representation, so you can still use structural matching like `{ kind: 'ok', value }` if preferred.
 
 ### Arrays and Tuples
 
-Destack supports dynamic arrays, fixed-size arrays, and explicit tuple syntax:
-
-```
+Destack supports dynamic arrays, of course, but also statically-sized arrays:
+```ds
 int32[]                    // dynamic array
+readonly int32[]           // readonly dynamic array
 int32[N]                   // fixed-size array
-readonly int32[]           // readonly array
-(int32, boolean)           // tuple
-(x: int32, y: int32)       // named tuple
-readonly (int32, boolean)  // readonly tuple
+readonly int32[]           // readonly fixed-size array
 ```
 
-`T[N]` has two meanings in Destack: indexed access and fixed-size arrays.
-The compiler resolves this with explicit rules so behavior is predictable:
+Supporting fixed sized arrays with this clean syntax is very nice, but unfortunately overloads T[N] with TypeScript's type indexing. 
+So, `T[N]` has two meanings in Destack: indexed access and fixed-size arrays.
+This can get annoying, but, fortunately, it is _usually_ unambiguous:
 - In `.ts` and `.d.ts`, `T[N]` always uses TypeScript indexed-access semantics.
-- In `.ds`, classification happens after substitution and static argument materialization.
 - If `N` is type-space, `T[N]` is indexed access.
 - If `N` is value-space and resolves to a static integer expression, `T[N]` is a fixed-size array.
-- If `N` is ambiguous (in `.ds`), use `as comptime` to force fixed-size array interpretation.
-- `T[N as comptime]` requires `N` to resolve as a static integer expression.
+- If `N` is ambiguous (in `.ds`), we require `as comptime` to force fixed-size array interpretation.
 
-In TypeScript files, numeric index forms stay indexed-access types.
-```ts
-// .ts
-type Element<T> = T[number]; // indexed access
-```
+Destack's rules for arrays (and tuples) center around correctness and performance.
+As with most other design decisions, if you're writing modern TypeScript, this will work fine.
+Relatedly, Destack does _not_ support holes in arrays (we parse them, but reject at analyze time).
+Array access is bounds checked and `array[n]` into `T[]` returns `T` directly.
 
-In Destack files, type-parameter keys also use indexed-access semantics.
 ```ds
-// .ds
-type Field<T, K: keyof T> = T[K]; // indexed access
+const arrayDynamic: number[] = [1, 2, 3];
+arrayDynamic[0] satisfies number;
+arrayDymamic[3]; // ERROR at runtime
+
+const arrayFixed: number[3] = [1, 2, 3];
+arrayFixed[0] satisfies number;
+arrayFixed[3]; // ERROR at compile time
 ```
 
-In Destack files, comptime value parameters produce fixed-size arrays.
-```ds
-// .ds
-struct Block<comptime Lanes: number> {
-    type Row = float32[Lanes]; // fixed-size array
-}
-```
-
-When intent is ambiguous, `as comptime` forces fixed-size-array interpretation.
-```ds
-// .ds
-type Row<T, comptime N: number> = T[N as comptime]; // force fixed-size array interpretation
-```
-
-The rules for arrays and tuples center around correctness and performance:
-- Array literals are dense and do not permit holes.
-- Index access `a[i]` returns the element type and is bounds checked.
-- Bounds check failures follow the `boundsChecks` and `checkFailure` policies.
-- `noUncheckedIndexedAccess` only affects index signatures, not arrays or tuples.
-- Mutable arrays are assignable to readonly arrays.
-- Readonly arrays are not assignable to mutable arrays.
-- Readonly tuples are also not assignable to mutable tuples.
-- Fixed-size arrays are assignable to dynamic arrays when their element types are compatible.
-- Tuples are fixed-length value types and are assignable to arrays when their element types are compatible.
+Fixed-size arrays are assignable to dynamic arrays when their element types are compatible.
+Tuples are fixed-length value types and are assignable to arrays when their element types are compatible.
 
 ### References and Values
 
-By default, a plain `T` follows the semantics of its type.
-Structs and primitives are values.
-Classes and structural object types are managed references.
-Anonymous object literals are structural object types and follow reference semantics.
-Type aliases inherit the semantics of their underlying type.
+Like in TypeScript, a plain `T` follows the default semantics of its type: objects are GC-managed references, primitives are copied values.
 Ownership is orthogonal to identity semantics, which are determined by the base type.
 Ownership modifiers change storage and lifetime but do not change whether a type has identity.
 This keeps `struct` value semantics and `class` identity semantics consistent across all ownership modes.
 Destack additionally supports explicit ownership control:
 
-```
+```ds
 T            // type default (value or managed reference)
 &T           // borrow (mutable, exclusive reference)
 &readonly T  // borrow (read only reference)
 ^T           // owning handle (move-only)
 ^readonly T  // owning handle (move-only, readonly)
 ```
-Raw pointers are separate from ownership modifiers:
-```
+
+Raw pointers are also supported:
+```ds
 *T           // raw pointer (mutable, unsafe)
 *readonly T  // raw pointer (readonly, unsafe)
 ```
-
-**Borrow semantics:**
-- `&T` and `&readonly T` are safe borrows verified by the borrow check pass.
-- Assigning through `&readonly T` is invalid, mutation requires `&T`.
-- Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
-- `&expr` takes the address of an addressable place.
-- When `expr` is not addressable, the compiler spills it to a temporary local and borrows that temporary.
-- A borrow ends when the reference value is no longer live.
-- Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
-- Derived borrows carry provenance so dropping any origin invalidates the derived borrows.
-- Dropping or freeing a value while it is borrowed is always an error.
-- In strict mode, conflicting borrows and invalidating stores are errors.
-- In lenient mode, the same situations produce warnings.
 
 **Raw pointers:**
 - `*T` and `*readonly T` are unsafe pointers with no borrow tracking.
@@ -685,7 +358,7 @@ The soundness defaults enforce:
 
 **Use after move:**
 
-```
+```ds
 const node = AstNode { ... };
 consume(^node);    // ownership transferred
 print(node.value); // error: use after ownership transfer
@@ -704,7 +377,7 @@ Using a value after ownership transfer is an error (suppressible to warning).
 The compiler inserts a drop as soon as it can prove the value is no longer needed,
 even if the lexical scope continues.
 
-```
+```ds
 function process() {
     const data = ^LargeData { ... };  // we own this
     doWork(&readonly data);            // borrow it
@@ -712,61 +385,18 @@ function process() {
 }
 ```
 
-**Drop behavior:**
-- `Drop` is a marker interface that opts a type into last use cleanup.
-- Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
-- `using` always calls `Symbol.dispose`, even without `Drop`.
-- Owned values are dropped at their last proven use unless `using` is specified.
-- `using` bindings drop at scope end and cannot be moved.
-- `^T` controls ownership transfer and move semantics.
-- `^readonly T` controls ownership transfer and forbids mutation through the owned handle.
-- `using` controls drop timing and does not imply ownership.
-- Combine `using` with `^T` for deterministic cleanup of owned values.
-- `using` can wrap managed values to enforce scope based cleanup when they implement `Symbol.dispose`.
-
-**Allocation and drop:**
-
-Ownership modifiers determine allocation strategy:
-
-| Modifier | Allocation | Drop Instruction | Semantics |
-|----------|------------|------------------|-----------|
-| `T` | type default | none | value or managed reference |
-| `^T` | owned storage | `raw.drop` | dispose + deallocate |
-| `^readonly T` | owned storage | `raw.drop` | dispose + deallocate |
-| `&T` | none | none | borrows existing memory |
-
-Owned allocations use `raw.alloc` by default.
-The `raw.drop` instruction performs **drop glue**:
-1. Drop owned fields in reverse declaration order (LIFO)
-2. Call `Symbol.dispose` if the type implements `Drop`
-3. Deallocate the memory
-
-The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis.
-Stack allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
-For manual deallocation without dispose (FFI), use `raw.free` directly.
-
-Optimization defaults to module scope for fast builds.
-Target ltoMode selects the optimization scope.
-Thin LTO runs at package scope and Full LTO runs at program scope.
-Auto selects Thin LTO at O4 and disables LTO at lower levels.
-Compilation unit refers to the selected optimization scope when LTO is enabled.
-
-**Address spaces:**
-
-References can target explicit address spaces for native and accelerator memory.
+References can also target explicit address spaces for native and accelerator memory.
 The default is `generic`, which maps to the target's normal memory.
-Non generic address spaces are only valid for borrowed and raw references.
-`constant` references are always immutable.
-Address space changes are explicit and use the `addrspace.cast` intrinsic.
-The VM may provide deterministic host side models for non generic address spaces, and otherwise rejects them with precise diagnostics.
 
 **Nested ownership:**
 
 Ownership is at the usage site, not the definition site.
 Structs can contain `^T` fields regardless of how the struct itself is stored:
 
-```
-struct Container { data: ^Data; }
+```ds
+struct Container { 
+    data: ^Data; // Container.data is owned by Container
+}
 
 const value: Container = ...;          // value semantics container
 const owned: ^Container = ...;         // owned container
@@ -779,24 +409,6 @@ When the container is `^Container`:
 When the container is boxed into managed storage:
 - Drop is nondeterministic (GC finalizer)
 - A warning is emitted in strict mode for `^T` fields in managed types
-
-Strings follow the same ownership spectrum: `string` is GC managed by default,
-`&string` is a borrowed view, and `^string` is explicitly owned.
-Similarly, `Slice` is an explicit view type with a pointer and length.
-Borrowing an array object does not imply a slice view.
-
-Example (slice view):
-
-```
-function sum(values: Slice<int>): int {
-    let total = 0;
-    for (const value of values) total += value;
-    total
-}
-
-const items = [1, 2, 3];
-sum(items.as_slice());
-```
 
 ### Ownership Conversions
 
@@ -817,7 +429,7 @@ Explicit conversions:
 
 Example (implicit borrow):
 
-```
+```ds
 function read(item: &readonly Item): int { item.size() }
 
 const value = Item { size: 10 };
@@ -826,7 +438,7 @@ read(value);
 
 Example (explicit ownership conversion):
 
-```
+```ds
 function consume(value: ^Item) { ... }
 
 const value = Item { size: 10 };
@@ -837,7 +449,7 @@ If you already have `^Item`, pass it directly without `^`.
 
 Example (scope-end drop):
 
-```
+```ds
 using file: ^File = File.open(path);
 file.write("hello");
 ```
@@ -849,7 +461,7 @@ Borrowed returns use lifetime inference and `@lifetime` annotations to track whi
 In strict mode, returning a borrow that may outlive its origin is an error.
 (In lenient mode, the same situation produces a warning).
 
-```
+```ds
 function get(c: &readonly Container): &readonly Item { &readonly c.item }  // ok
 
 function bad(): &readonly Point {
@@ -858,13 +470,7 @@ function bad(): &readonly Point {
 }
 ```
 
-### Borrow Modes
-
-By default, `&T` and `&readonly T` are hints and violations produce warnings.
-Strict mode enforces exclusive `&T` borrows and no escape rules.
-Strict mode enables stronger optimizations like `noalias` on `&T`.
-Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
-Borrow modes do not apply to raw pointers.
+By default, `&T` and `&readonly T` are compiler hints; violations of the aliasing rules produce warnings, not errors.
 
 ### Lifetime Annotations
 
@@ -880,7 +486,7 @@ This is usually inferred automatically:
 When conservative inference is too restrictive, use `@lifetime` to specify exactly
 which parameters the return borrows from:
 
-```
+```ds
 @lifetime("param")          // borrows from single parameter
 @lifetime("a", "b")           // may borrow from a or b
 @lifetime("static")       // borrows from static/global data only (static is a reserved name anyway)
@@ -888,7 +494,7 @@ which parameters the return borrows from:
 
 **Examples:**
 
-```
+```ds
 // only borrows from 'a', caller knows 'b' can be a local
 function first(a: &string, b: &string): @lifetime("a") &string {
     return a;
@@ -918,7 +524,7 @@ function makeTokenizer(source: &string): @lifetime("source") Tokenizer {
 The compiler verifies that the annotation is correct. Returning a value that doesn't
 actually borrow from the declared parameters is a compile error:
 
-```
+```ds
 function wrong(a: &string, b: &string): @lifetime("a") &string {
     return b;  // ERROR: return borrows from 'b', not 'a'
 }
@@ -928,7 +534,7 @@ function wrong(a: &string, b: &string): @lifetime("a") &string {
 
 At call sites, the compiler uses lifetime information to check safety:
 
-```
+```ds
 function caller(x: &string): &string {
     const local = "hello";
     return first(x, &local);  // OK: first only borrows from 'x'
@@ -948,7 +554,7 @@ lifetime parameters on every function signature.
 Functions and methods work exactly like in JS/TS.
 Function calls use positional arguments:
 
-```
+```ds
 function myFunction(a: int, b: int) {
     ...
 }
@@ -964,25 +570,17 @@ Parameters with defaults are optional at the call site.
 Static parameters extend TypeScript-style generics with explicit comptime value parameters.
 Type parameters accept type arguments and use TypeScript-style bounds.
 Comptime value parameters accept static expressions and are constrained by value types.
-Value parameters must be explicitly marked with `comptime` in the static parameter list; type annotations alone do not make a parameter a value parameter.
-
-Static arguments are resolved during Analyze.
-They must be static expressions and cannot require full comptime execution.
-Static arguments may reference other static parameters.
-Value parameter kinds are explicit and never inferred from usage.
+Value parameters must be explicitly marked with `comptime` in the static parameter list; type annotations alone do not make a parameter a value parameter. (See Comptime)
 
 Static value inference is limited and local:
 - Static value arguments may be inferred from literal argument expressions in the current module when no explicit static argument is provided.
 - Inference only uses fully static literal expressions: scalar literals, enum members, tuples, arrays, and objects.
-- Non-static expressions, computed values, and cross-module inference do not participate.
 - Literal array arguments may infer lengths when matching fixed-size array types like `T[N]`.
 - Tuple literal arguments use Destack's tuple syntax `(a, b)` for inference.
-- Enum members may be used only when the parameter type is that enum (or a union including it).
-- Enum members do not implicitly coerce to their backing types.
 
 For example, we can infer the size of an array from a literal argument:
 
-```
+```ds
 type Buffer<comptime N: number> = uint8[N];
 
 declare function make<comptime N: number>(value: uint8[N]): Buffer<N>;
@@ -998,7 +596,7 @@ Static parameterisation for types works like in TypeScript.
 In Destack, static parameters also work for compile-time values via `comptime` value parameters.
 TypeScript syntax with `T extends U` remains supported for type parameters.
 
-```
+```ds
 struct Container<T: any> { // works like T extends any
     value: T
 }
@@ -1010,7 +608,7 @@ function identity<T>(x: T): T {
 
 Value parameters for compile-time constants:
 
-```
+```ds
 function compute<comptime Flag: boolean>(data: uint8[]) {
     if Flag {
         ...
@@ -1024,7 +622,7 @@ compute<true>(); // pass the static argument positionally
 
 Value parameters can drive type construction:
 
-```
+```ds
 type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<4>;
@@ -1035,14 +633,8 @@ value satisfies uint8[4];
 
 Type parameters may be annotated with `in` or `out` to declare variance.
 `out` marks a parameter as covariant and `in` marks a parameter as contravariant.
-Variance annotations are validated against usage, and invalid positions are compile errors.
-Annotations are allowed on type parameters for type aliases, interfaces, classes, and functions.
-Unannotated parameters use inferred variance based on their usage.
-Function and method parameter variance follows `strictFunctionTypes` when enabled.
-Methods and constructors use the same strict variance rules as functions in strict mode.
-Native targets always enforce strict variance for methods to keep vtable and itab calls sound.
 
-```
+```ds
 interface Producer<out T> {
     get(): T;
 }
@@ -1063,7 +655,7 @@ class Box<out T> {
 Destack adds `where` clauses for type constraints beyond TypeScript's inline syntax.
 Each clause is a type constraint of the form `Name: Type`:
 
-```
+```ds
 function process<T>(x: T): T where T: Copy {
     // ...
 }
@@ -1078,38 +670,62 @@ function merge<T, U>(): T where (
 
 ## Comptime
 
-Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **slots** rather than enabling fully arbitrary code generation.
-Slots are typed because Analyze fixes all bindings and types before Execute.
-In practice, this `comptime` behavior and specialisation together with decorators enable most macro-style use cases without the unpredictability and compiler complexity of a "full" macro system.
+It is often useful, especially in statically compiled languages, to denote some expression as evaluatable or evaluated at "compile time".
+There are many ways of doing this (hello `constexpr`), but we find Zig's `comptime` concept to be a natural fit to TypeScript's system (with some modifications). 
+We support `comptime` as a modifier on bindings like `T<comptime N>` to denote that the type `T` is a (value-space) value at compile time, or as an expression form that executes the expression during compilation like `comptime <expression>`.
 
-### Static Execution vs Comptime Execution
+### Static vs Dynamic Comptime
 
-Destack uses two related but separate "evaluate during compile time" mechanisms:
+To keep language (and compiler) semantics sane, there are two different notions of "compile time"; the distinction basically centering around _when_ during compile time a value is evaluated:
+- **Static comptime execution**: Static parameters like `E` and `N` in `type FixedArray<E, comptime N: int> = E[N]` must be known statically _during analysis_, we require static parameters to be evaluatable statically using a powerful but restricted set of expressions.
+- **Dynamic comptime execution**: Comptime _expressions_  like `let precomputedTable = comptime { ... }`, on the other hand, support the full "comptime world" and basically all expressions. These are executed post-analyze in topological order (no cycles) and then patched into the IR.
+ 
 
-- **Static execution** is evaluated during Analyze to produce `StaticExpression` values.
-  This is a restricted subset of expressions that can be folded without executing user code.
-  Static execution is required for static parameters, array sizes, and other type-driven
-  constructs that must be known for analysis (i.e., type checking).
-- **Comptime execution** evaluates `comptime` expressions and blocks during the Execute phase
-  by running MIR in the VM interpreter. The result is substituted back into the program
-  as a constant and any comptime-controlled branches are eliminated.
+### Import Meta
 
-Static execution must not depend on full comptime execution.
-This avoids dependency cycles between type resolution and code evaluation.
+`import.meta` exposes per-profile metadata during static and comptime evaluation.
+The values are fixed for the profile and are not runtime dependent:
 
-### Static If Decorators
+```ds
+/// Metadata about the current module and build configuration.
+export interface ImportMeta {
+    /// The URL of the current module (file:// for local, https:// for remote).
+    readonly url: string,
+    /// The file system path of the current module (only for local files).
+    readonly path: string | undefined,
+    /// Alias of `path`.
+    readonly file: string | undefined,
+    /// Alias of `file`.
+    readonly filename: string | undefined,
+    /// The directory containing the current module (only for local files).
+    readonly dir: string | undefined,
+    /// Alias of `dir`.
+    readonly dirname: string | undefined,
+    /// The output format being compiled.
+    readonly output: Output,
+    /// The target platform (OS) being compiled for.
+    readonly platform: Platform,
+    /// The runtime environment that will execute the code.
+    readonly runtime: Runtime,
+    /// True if this is a debug/development build (from target.debug).
+    readonly debug: boolean,
+    /// True if this is a test build.
+    readonly test: boolean,
+    /// Environment variables (from build configuration).
+    readonly env: ImportMetaEnv,
+}
+```
 
-The `@if(...)` decorator gates declarations and declaration members based on a static expression.
-The condition must evaluate to a boolean using static execution.
-The condition must not depend on static parameters.
-Non-static conditions are a compile-time error.
-When the condition is false, the annotated item is omitted from the symbol table for the active profile.
+### Static Ifs
+
+The `@if(...)` decorator gates declarations and declaration members based on a static comptime expression.
+(The condition must evaluate to a boolean using static execution, and  must not depend on static parameters.)
+When the condition is false, the annotated item is (conceptually) removed from the symbol table for the active profile.
 Multiple `@if` decorators are combined with logical AND.
 The decorator is allowed on module declarations, class and struct members, interface members, and enum fields.
 
-```
-enum Os {
+```ds
+enum OperatingSystem {
     @if(import.meta.platform == "windows")
     Windows,
     @if(import.meta.platform == "macos")
@@ -1117,31 +733,14 @@ enum Os {
 }
 ```
 
-Use `if (comptime ...)` inside bodies for specialization that depends on static parameters.
-
-### Import Meta
-
-`import.meta` exposes per-profile metadata during static and comptime evaluation.
-The values are fixed for the profile and are not runtime dependent.
-`import.meta.output` is one of `js`, `ts`, `wasm`, or `native`.
-`import.meta.runtime` is one of `browser`, `node`, `deno`, `bun`, `worker`, `wasm-js`, `wasm-wasi`, `native-hosted`, `native-freestanding`, or `native-embedded`.
-`import.meta.platform` is one of `web`, `windows`, `macos`, `linux`, `ios`, `android`, `wasi`, `bare-metal`, or `universal`.
-`import.meta.debug` is true in debug builds.
-`import.meta.test` is true in test builds.
-`import.meta.url` is the module URL and is always present.
-`import.meta.path`, `file`, `filename`, `dir`, and `dirname` are file-system paths when available, otherwise `undefined`.
-`import.meta.env` exposes profile-selected environment variables as a string map.
-
 ### Comptime Expressions
 
-The `comptime` keyword wraps an expression or block, forcing compile-time evaluation:
+The `comptime` keyword wraps an expression or block, forcing compile-time evaluation.
+Comptime expressions infer their result type like any other expression, though it is recommended to annotate the type explicitly.
 
-```
-// expression form
+```ds
 const VALUE: int = comptime 1 + 2 + 3;
 const RESULT: int = comptime factorial(10);
-
-// block form
 const TABLE: uint8[] = comptime {
     let t = [];
     for (let i = 0; i < 256; i++) {
@@ -1150,24 +749,18 @@ const TABLE: uint8[] = comptime {
     t
 };
 ```
-Comptime expressions infer their result type like any other expression.
-Explicit annotations are recommended when the resulting type must be stable or obvious.
-Comptime does not change the rules for static expressions, so static parameters still require static expressions.
-Comptime expressions must be statically evaluable, otherwise they are errors.
-
-The result is embedded as a constant in the compiled output.
 
 ### Comptime Blocks
 
 Comptime blocks can appear as struct/class members or at module top-level.
-They run during compilation rather than at runtime.
+Unlike static blocks (inherited naming from TypeScript), comptime blocks run during compilation rather than at initialization time.
 
-#### Member Comptime Blocks
+#### Member-level Comptime Blocks
 
-Comptime blocks inside structs or classes run once per instantiation of the type.
+Comptime blocks inside structs or classes run once per instantiation of the type at compile time.
 They are useful for compile-time assertions on static parameters:
 
-```
+```ds
 struct Buffer<comptime size: uint> {
     comptime {
         assert(size > 0, "buffer size must be positive");
@@ -1185,7 +778,7 @@ They execute after the type's static parameters are resolved but before any inst
 
 Module-level comptime blocks run during module compilation:
 
-```
+```ds
 comptime {
     // validation or initialization logic
     assert(TARGET_ARCH == "x64" || TARGET_ARCH == "arm64");
@@ -1203,37 +796,32 @@ const LOOKUP_TABLE: uint8[256] = comptime {
 
 ### Static Parameters
 
-Static parameters support both type parameters and comptime value parameters.
-Value parameters must be marked with `comptime` in the static parameter list.
-The `comptime` modifier on parameters requires static evaluation during Analyze.
-The `comptime` expression keyword evaluates later during Execute.
+Static parameters support both type parameters and (static) comptime value parameters.
+By default, static parameters like `<T>` are type parameters like in TypeScript, so comptime value parameters must be marked unambiguously with `comptime`.
 
-```
+```ds
 function repeat<comptime N: int>(value: string): string {
     let result = "";
-    for (let i = 0; i < N; i++) { result += value; }
+    @unroll(N)
+    for (let i = 0; i < N; i++) { 
+        result += value; 
+    }
     result
 }
 
 const greeting = repeat<3>("hello ");  // N is comptime
 ```
 
-Static parameters and `comptime` parameters serve similar purposes.
-Use static parameters when the value affects the return type; use `comptime` parameters otherwise.
-
-Static parameters require **static expressions**. They cannot depend on full comptime execution,
-since static parameters are needed for instantiation and type resolution.
-Defaults on static parameters apply when arguments are omitted.
-Static arguments may reference other static parameters as long as the resulting expression remains static.
-
 ### Comptime Dynamic Parameters
 
 Dynamic parameters can also be marked `comptime` to require compile-time-known arguments:
 
-```
+```ds
 function createBuffer(comptime size: int): uint8[] {
-    let buf = [];
-    for (let i = 0; i < size; i++) { buf.push(0); }
+    let buf: uint8[size] = [];
+    for (let i = 0; i < size; i++) { 
+        buf[i] = 0; 
+    }
     buf
 }
 
@@ -1244,289 +832,19 @@ const N = comptime 1024;      // ok: redundant but valid
 createBuffer(N);              // ok: N is comptime-known
 ```
 
-Comptime parameters require **static expressions** as arguments. 
-The call site may evaluate the function body via comptime execution, but the arguments themselves must be known during Analyze.
+This works exactly like static parameters.
 
 ### Comptime Conditions
 
 `if (comptime ...)` evaluates the condition as a static expression.
-Type relations like `T extends U` are valid inside comptime conditions.
-Both branches must type check even when the condition is statically known.
-
-### Comptime Functions
-
-Functions are not explicitly marked as "comptime" or not "comptime".
-Any function can be called at compile time if its body is valid for comptime evaluation:
-
-```
-function factorial(n: int): int {
-    if (n <= 1) { 1 } else { n * factorial(n - 1) }
+There is nothing really special about comptime conditions, they just dead code eliminate like any statically evaluatable expression.
+Type relations like `T extends U` are valid inside comptime conditions, which is quite useful.
+However, both branches must type check even when the condition is statically known (unless statically excluded with `@if`).
 }
-
-// same function, different evaluation contexts
-const COMPILE_TIME = comptime factorial(10);  // must be evaluated at compile time
-const runtime = factorial(userInput);         // may be evaluated at runtime
-```
-
-The call site determines when the function runs, not the function definition.
-A function that performs I/O cannot be called in a comptime context, but can still be called at runtime.
-
-### Comptime Conditionals
-
-When a condition is a comptime expression, the compiler can eliminate dead branches at compile time:
-
-```
-const DEBUG = comptime getEnvFlag("DEBUG");
-
-function log(msg: string) {
-    if (comptime DEBUG) {
-        console.log(msg);
-    }
-}
-```
-
-When `DEBUG` is false, the entire `if` body is removed from the output.
-
-### Comptime vs Static
-
-TypeScript's `static` keyword and Destack's `comptime` keyword are orthogonal concepts:
-
-| Keyword | Meaning | Example |
-|---------|---------|---------|
-| `static` (TS) | Belongs to class, not instance | `static count = 0` |
-| `comptime` (DS) | Evaluated at compile time | `comptime factorial(10)` |
-
-These compose naturally:
-
-```
-class Config {
-    static DEFAULT = 256;                           // TS static, runtime initialization
-    static LOOKUP = comptime generateLookupTable(); // TS static + comptime evaluation
-}
-```
-
-A `static` block runs at class initialization time (runtime). 
-A `comptime` expression runs during compilation (no runtime exists yet). 
-
-`static const` and `comptime const` also serve different roles:
-
-| Member form | Phase | Runtime slot | Typical usage |
-|-------------|-------|--------------|---------------|
-| `static const` | runtime/value | yes | runtime class metadata and constants |
-| `comptime const` | Analyze static evaluation | no | associated compile-time values used by types and static projections |
-
-`static const` initializers cannot depend directly on type-only operators like `T extends U`.
-Use `comptime const` when a value depends on type-level relations or static parameter substitution.
-`static comptime const` is invalid and rejected as redundant because `comptime const` is already static by ownership.
-
-### Comptime Type Conditions
-
-When an `if (comptime ...)` condition is a type relation (`T extends U`):
-1. The condition is evaluated at compile time
-2. The type parameter is **narrowed** inside the true branch
-
-```
-function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
-    if (comptime Context extends EvictableContext<T>) {
-        // Context is narrowed to Context & EvictableContext<T>
-        ctx.onEvict(key);  // valid: onEvict exists on EvictableContext
-    }
-}
-```
-
-The semantics of comptime type conditions matches TypeScript's conditional type semantics: `T extends U ? X : Y`.
-
-| Condition | True Branch | False Branch |
-|-----------|-------------|--------------|
-| `comptime T extends U` | T narrowed to `T & U` | T unchanged |
-| `comptime !(T extends U)` | T unchanged | T unchanged |
-| `comptime T extends U \|\| ...` | T unchanged (complex) | T unchanged |
-| `comptime T extends U && V extends W` | T → `T & U`, V → `V & W` | depends |
-
-Narrowing only applies for simple `T extends U` conditions.
-Complex boolean expressions do not narrow to avoid ambiguity.
-Both branches of a comptime conditional must type check before comptime evaluation:
-
-```
-function example<T>(x: T) {
-    if (comptime T extends Hashable) {
-        x.hash();     // checked with T & Hashable
-    } else {
-        x.toString(); // checked with T
-    }
-}
-```
-
-#### Type<T> at Comptime
-
-Reflection can be used at comptime, and thus `Type` can also be used for comptime conditionals:
-
-```
-function serialize<T>(value: T): string {
-    if (comptime Type<T>.kind == "struct") {
-        // T is known to be a struct
-        return comptime generateStructSerializer<T>();
-    } else if (comptime Type<T>.kind == "array") {
-        return comptime generateArraySerializer<T>();
-    } else {
-        return JSON.stringify(value);
-    }
-}
-```
-
-### Comptime "Slots"
-
-Destack's comptime is designed around the concept of **slots**:
-
-1. **Types are fixed during Analyze**: all bindings, symbols, and types are determined.
-2. **Comptime expressions are slots**: positions where a value will be computed.
-3. **Execute phase fills the slots**: computes values, eliminates dead branches.
-4. **No binding changes**: the symbol table never changes after Analyze.
-
-#### Code Specialization
-
-Comptime cannot generate arbitrary code or perform dynamic evaluation.
-Dynamic evaluation is a runtime feature and is not available during comptime.
-But, we can specialize code statically to cover essentially all relevant use cases via comptime specialization, which is more maintainable and understandable anyway.
-In practice, this isn't its own "feature", but just a nice consequence of other orthogonal features:
-
-1. **Monomorphization**: generic functions become specialized per type argument.
-2. **Loop unrolling**: iteration over comptime known collections (like `Type<T>.fields`) is unrolled.
-3. **Branch elimination**: comptime conditionals select which code survives.
-4. **Inlining**: comptime expressions become constants.
-
-#### Comptime Example: Cache Table
-
-This example demonstrates comptime type conditions for conditional behavior.
-See [Ghostty's cache_table.zig](https://github.com/ghostty-org/ghostty/blob/main/src/datastruct/cache_table.zig) for the original Zig implementation.
-
-```ds
-/// Cache context interface
-interface CacheContext<K> {
-    /// Hash the key to a uint64.
-    hash(key: K): uint64;
-    /// Check if two keys are equal.
-    equal(a: K, b: K): boolean;
-}
-
-/// Cache context interface that supports eviction.
-interface EvictableContext<K, V> extends CacheContext<K> {
-    /// On eviction of a key and value.
-    evicted(key: K, value: V): void;
-}
-
-/// Fixed size arrays from static parameters.
-export struct CacheTableKV<K, V> { 
-    key: K, 
-    value: V 
-}
-
-/// Cache table with static (comptime) parameters.
-export struct CacheTable<
-    K,
-    V,
-    Context: CacheContext<K>,
-    comptime bucketCount: uint16,
-    comptime bucketSize: uint16,
-> {
-    /// Comptime block for compile-time assertions.
-    /// Runs once per instantiation of this generic struct.
-    comptime {
-        assert(
-            (bucketCount & (bucketCount - 1)) == 0,
-            `bucketCount must be power of 2, got ${bucketCount}`
-        );
-    }
-
-    /// Associated type alias for the key-value pair type.
-    type KV = CacheTableKV<K, V>;
-
-    /// KV pairs for the buckets.
-    buckets: KV[bucketSize][bucketCount],
-    /// Lengths of the buckets.
-    lengths: uint8[bucketCount] = comptime [0] * bucketCount,
-    /// Context for the cache.
-    context: Context,
-
-    /// Put a key and value into the cache.
-    put(key: K, value: V): KV | null {
-        const kv = KV { key, value };
-        const idx: uint = this.context.hash(key) % bucketCount;
-
-        if (this.lengths[idx] < bucketSize) {
-            this.buckets[idx][this.lengths[idx]] = kv;
-            this.lengths[idx] += 1;
-            return null;
-        }
-
-        const evicted = rotateIn(&this.buckets[idx], kv);
-
-        // comptime type guard (equivalent to Zig's `@hasDecl`)
-        if (comptime Context extends EvictableContext<K, V>) {
-            // context is narrowed: this.context.evicted() is valid
-            this.context.evicted(evicted.key, evicted.value);
-        }
-
-        evicted
-    }
-
-    /// Get a value from the cache.
-    get(key: K): V | null {
-        const idx: uint = this.context.hash(key) % bucketCount;
-        const len = this.lengths[idx];
-
-        for (let i = len; i > 0; i--) {
-            if (this.context.equal(key, this.buckets[idx][i - 1].key)) {
-                const value = this.buckets[idx][i - 1].value;
-                rotateOnce(this.buckets[idx].slice(i - 1, len - 1));
-                return value;
-            }
-        }
-
-        null
-    }
-
-    /// Clear the cache.
-    clear(): void {
-        // report eviction of all values if the context is evictable
-        if (comptime Context extends EvictableContext<K, V>) {
-            for (const [bucket, length] of zip(this.buckets, this.lengths)) {
-                for (const kv of bucket.slice(0, length)) {
-                    this.context.evicted(kv.key, kv.value);
-                }
-            }
-        }
-
-        this.lengths.fill(0);
-    }
-}
-```
-
-## Interactive Execution
-
-Destack defines an interactive execution profile for REPLs and notebooks.
-
-### REPL Profile
-
-A REPL session evaluates each cell as a synthetic module.
-Each cell module is compiled through the full pipeline and executed in a persistent VM isolate.
-The REPL profile implicitly imports a session prelude that reexports earlier cell exports.
-Top-level bindings are implicitly exported unless configured otherwise.
-The last expression in a cell is captured as the cell result value.
-Top-level await is permitted in the REPL profile.
-
-### Dynamic Evaluation
-
-Dynamic evaluation is a runtime feature and is never available at comptime.
-When allowed by configuration, `eval` and `Function` are available with JS compatible semantics on JS targets.
-On native and VM targets, dynamic evaluation compiles the input into a synthetic module under the dynamic execution policy.
-Dynamic evaluation returns `any` by default and should be narrowed explicitly.
-Dynamic evaluation is gated by a policy in the project configuration and may be disabled entirely in production.
 
 ## Reflection
 
-Destack makes types first-class runtime values, enabling reflection without separate metadata systems or configuration.
-This section specifies the built-in reflection capabilities; the standard library `@destack-sh/schema` extends these with validation utilities.
+Destack supports reflection of `type`s as first-class values, i.e., you can introspect the fields of a type.
 
 ### Type Descriptors
 
@@ -1534,8 +852,11 @@ Every nominal type `T` has a corresponding runtime descriptor value of type `Typ
 For classes and structs, the constructor value doubles as the descriptor, so it is both constructable and reflective.
 Using a type name in value position evaluates to that descriptor value:
 
-```
-struct Point { x: float32, y: float32 }
+```ds
+struct Point { 
+    x: float32; 
+    y: float32; 
+}
 
 const t = Point;              // t: Type<Point>
 const t: Type<Point> = Point; // explicit annotation
@@ -1545,38 +866,18 @@ The `typeOf` function returns a descriptor for a value's type (unlike the runtim
 The type-level `typeof` operator returns the value type of an expression, including constructor signatures and static members for classes and structs:
 The `typeof` operator is type-only, and type aliases are not values in expression position.
 
-```
+```ds
 const p = Point { x: 1, y: 2 };
 const t = typeOf(p);          // Type<Point>
 ```
-
-### Runtime Type Identity
-
-Runtime type identity (RTTI) is demand-driven.
-The compiler only emits RTTI for types that are used at runtime.
-Examples include `typeOf`, `T.is`, `x is T`, `instanceof` for classes, `any`/`unknown`, and runtime reflection.
-Polymorphic classes carry a vtable pointer for dynamic dispatch and RTTI.
-Non-polymorphic classes may omit the vtable pointer and rely on metadata or fat pointers when RTTI is required.
-Structs are pure data unless RTTI is required by usage.
-On JS targets, RTTI-enabled values use a hidden symbol property rather than a global WeakMap, preserving "plain object" semantics.
-Native type tags are `TypeTag` handles that point to `TypeDescriptor` values.
-Classes reach RTTI via vtable slot 0 when present, while thin pointers without tags recover RTTI via GC metadata.
-
-### Runtime Type Guards
-
-Type descriptors expose `T.is(value)` for runtime type checks.
-The `x is T` operator is syntactic sugar for `T.is(x)` when RTTI is required.
-The `instanceof` operator checks class identity and is only defined for class types.
-Constructable signatures do not make a non-class type a valid `instanceof` target.
-For structural or non-class types, use `x is T` instead.
 
 ### Decorator Metadata
 
 Decorator information is accessible at runtime on-demand:
 
-```
+```ds
 @deprecated("use newAPI")
-function myOldMethod() { }
+function myOldMethod() {}
 
 myOldMethod.decorators  // [{ name: "deprecated", args: ["use newAPI"] }]
 ```
@@ -1586,13 +887,13 @@ myOldMethod.decorators  // [{ name: "deprecated", args: ["use newAPI"] }]
 The built-in `Type<T>` interface provides basic reflection.
 The standard library `@destack-sh/schema` extends it for general schema use:
 
-```
-// Built-in (always available with Reflection feature)
+```ds
+// built-in (always available with Reflection feature)
 Point.name        // "Point"
 Point.fields      // [{ name: "x", ... }, { name: "y", ... }]
 Point.is(value)   // type guard
 
-// Standard library (requires import)
+// standard library (requires import)
 import { parse } from "@destack-sh/schema";
 parse(Point, data)      // runtime validation
 Point.parse(data)       // shorthand via extension
@@ -1606,9 +907,9 @@ Declaration forms in Destack match TypeScript, with the addition of richer stati
 
 Interfaces work like TypeScript, with optional default functions and properties:
 
-```
+```ds
 interface Drawable {
-    draw(): void
+    draw(): void;
 
     isVisible(): boolean {
         true  // default implementation
@@ -1616,9 +917,9 @@ interface Drawable {
 }
 
 interface Container<T> extends Iterable<T> {
-    static Empty: this
-    size(): uint64
-    get(index: uint64): T | undefined
+    static Empty: this;
+    size(): uint64;
+    get(index: uint64): T | undefined;
 }
 ```
 
@@ -1627,26 +928,31 @@ interface Container<T> extends Iterable<T> {
 Destack adds **nominal interfaces** using the `newtype interface` syntax.
 Nominal interfaces require explicit ("nominal") `implements` declarations.
 
-```
-// Structural interface (standard TypeScript behavior)
+```ds
+// structural interface (standard TypeScript behavior)
 interface Drawable {
-    draw(): void
+    draw(): void;
 }
 const x: Drawable = { 
-    draw() { } 
+    draw() { };
 };  // OK: structural match
 
-// Nominal interface (requires explicit "nominal" `implements`)
+// nominal interface (requires explicit "nominal" `implements`)
 newtype interface Add<T, R = this> {
-    add(other: T): R
+    add(other: T): R;
 }
 
-struct Vec2 { x: float, y: float }
+struct Vec2 { 
+    x: float; 
+    y: float;
+}
 const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // ERROR: Vec2 doesn't implement Add
 
-// Explicit opt-in required
+// explicit opt-in required
 extension for Vec2 implements Add<Vec2> {
-    add(other: Vec2): Vec2 { Vec2 { x: this.x + other.x, y: this.y + other.y } }
+    add(other: Vec2): Vec2 { 
+        return Vec2 { x: this.x + other.x, y: this.y + other.y };
+    }
 }
 const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // OK: Vec2 implements Add
 ```
@@ -1664,7 +970,7 @@ Extending a nominal interface produces a nominal interface (nominality is inheri
 Classes work like TypeScript.
 Classes are reference types with identity and prototype-based inheritance:
 
-```
+```ds
 class MyClass {
     field: int32;
 
@@ -1674,27 +980,10 @@ class MyClass {
 }
 ```
 
-#### Constructors
+Classes and structs can declare a `constructor` method, just like TypeScript.
+Classes have **identity**: two instances are only `===` if they're the same object (i.e. reference i.e. pointer):
 
-Classes and structs can declare a `constructor` method.
-If no constructor is declared, a default constructor exists.
-The default constructor takes positional arguments in field declaration order and assigns them to fields.
-Constructors cannot return a value.
-A bare `return` is allowed for early exit.
-Constructors must initialize all instance fields before returning.
-Constructor parameters can declare parameter properties with visibility or `readonly` modifiers.
-Parameter properties create instance fields and assign their values from the constructor arguments.
-Parameter properties require identifiers and cannot be rest parameters.
-The `new` expression always invokes the constructor (explicit or default).
-For class types, `new` allocates a managed instance and runs the constructor.
-For struct types, `new` constructs a value and does not imply managed allocation.
-In struct constructors, `this` is the value under construction, not a managed reference.
-Assignments to `this` fields initialize the value payload directly.
-Struct literals directly initialize fields without running constructors.
-
-Classes have **identity**: two instances are only `===` if they're the same object:
-
-```
+```ds
 const a = new MyClass(1);
 const b = new MyClass(1);
 a == b;    // false: different instances (unless Equal implemented)
@@ -1711,7 +1000,7 @@ Structs have no reference identity and no inheritance.
 Structs are data with a name.
 Struct declarations require a name and cannot be anonymous.
 
-```
+```ds
 struct Point {
     x: float32;
     y: float32;
@@ -1737,11 +1026,11 @@ Struct values can be boxed when a reference type is required.
 Structs have no reference identity, so two structs with the same properties are equal by value.
 Structs auto-derive `Equal` (field-by-field comparison) by default:
 
-```
+```ds
 const p1 = Point { x: 1, y: 2 };
 const p2 = Point { x: 1, y: 2 };
 p1 == p2;   // true: same fields = equal (auto-derived Equal)
-p1 === p2;  // error: === requires reference identity, structs have none
+p1 === p2;  // ERROR: === requires reference identity, structs have none
 ```
 
 Since structs have no reference identity, `===` and `!==` are compile errors on struct types.
@@ -1752,21 +1041,21 @@ Use `==` for value comparison.
 Structs are nominal, so they must be explicitly constructed:
 Tooling may lint `new` on structs in favor of `Point { ... }`.
 
-```
+```ds
 let p: Point = Point { x: 1, y: 2 };  // ok: explicit construction
 let p: Point = new Point(1, 2);       // ok: constructor syntax
-let p: Point = { x: 1, y: 2 };        // error: object literal is not Point
+let p: Point = { x: 1, y: 2 };        // ERROR: object literal is not Point
 ```
 
 #### Pattern Matching
 
 Struct patterns require the type name (unlike newtypes which auto-unwrap):
 
-```
+```ds
 match (point) {
     Point { x: 0, y: 0 } => "origin";
     Point { x, y } => `at ${x}, ${y}`;
-    { x, y } => ...;  // error: structural pattern on nominal type
+    { x, y } => ...;  // ERROR: structural pattern on nominal type
 }
 ```
 
@@ -1774,7 +1063,7 @@ match (point) {
 
 Structs can `implements` interfaces but cannot `extends` (use embedding instead):
 
-```
+```ds
 struct Point implements Drawable {
     x: float32;
     y: float32;
@@ -1782,17 +1071,16 @@ struct Point implements Drawable {
     draw(): void { ... }
 }
 
-struct Transform { position: Vec3; rotation: Quat; }
+struct Transform { 
+    position: Vec3; 
+    rotation: Quat; 
+}
+
 struct Player {
     ...Transform;    // embeds Transform's fields (composition)
     health: int;
 }
 ```
-
-At runtime in JS, a struct is a plain object.
-Its nominal type is erased.
-Ownership (`&T`, `^T`) is orthogonal to identity semantics.
-You can explicitly reference or copy either structs or classes.
 
 #### Associated Types
 
@@ -1812,10 +1100,7 @@ struct Container<T> {
 ```
 
 Associated types are inherently static because they belong to the type itself, not to instances.
-Associated types are resolved at compile time based on the type's static parameters.
-Associated types are type only and never exist as runtime values.
-
-Associated types can be accessed via the containing type:
+They can also be accessed via the containing type:
 
 ```
 const item: Container<int>.Item = 42;  // Item resolves to int
@@ -1852,12 +1137,11 @@ extension<T> for Container<T> implements Iterable<T> {
 
 Associated type definitions must satisfy any declared constraint.
 Implementors must provide compatible definitions for every abstract associated type.
-Implementors may override default associated types as long as the new definition satisfies the constraint.
+Implementors may also override default associated types as long as the new definition satisfies the constraint.
 
 ##### Generic Associated Types (GATs)
 
-Associated types can declare their own static parameters.
-These are generic associated types (GATs).
+Associated types can declare their own static parameters, i.e., generic associated types (GATs).
 
 ```ds
 interface Slice<T> {
@@ -1870,9 +1154,9 @@ struct Buffer<T> {
 ```
 
 ```ds
-struct Matrix<comptime rows: uint, comptime cols: uint> {
-    type Row = float64[cols];
-    type View<comptime r: uint> = float64[r][cols];
+struct Matrix<comptime Rows: uint, comptime Cols: uint> {
+    type Row = float64[Cols];
+    type View<comptime R: uint> = float64[R][Cols];
 }
 ```
 
@@ -1880,15 +1164,13 @@ Associated type parameters can include constraints and defaults just like other 
 When a type provides an associated type with parameters, projections must supply those parameters unless defaults are available.
 Implementor associated type parameters must accept all arguments that satisfy the interface constraints.
 Associated type parameters can include comptime static value parameters.
-Implementors must match parameter arity and parameter kinds for associated types.
-Associated type projections must supply required static value arguments.
 
 ##### Associated Type Projections
 
 Associated types are accessed through the containing type using a projection.
 Projection forms are `TypeName.Associated` or `TypeName.Associated<Args>` for generic associated types.
 
-```
+```ds
 type Item = Container<string>.Item;
 type View = Buffer<int>.View<float64>;
 ```
@@ -1896,9 +1178,8 @@ type View = Buffer<int>.View<float64>;
 ##### Associated Comptime Constants
 
 Class-shaped declarations can also declare associated compile-time values with `comptime const`.
-Associated comptime constants are declaration members in static space, not instance fields.
-Associated comptime constants are allowed on classes, structs, interfaces, and extensions implementing interfaces.
-Type aliases cannot declare associated comptime constants.
+Associated comptime constants are declaration members in static space, not instance fields, and are allowed on any class-like type.
+(Yes, this is very annoying to implement correctly.)
 
 ```ds
 interface LogStore<Record> {
@@ -1914,12 +1195,10 @@ class AuditLog implements LogStore<string> {
 `comptime const` initializers must be statically evaluable expressions.
 In classes and structs, associated comptime constants must have initializers.
 In interfaces, associated comptime constants may be abstract (`;`) or defaulted (`= ...`).
-(Implementors must provide definitions for inherited abstract associated comptime constants that satisfy the declared type and constraints from the implemented interface.)
 
 Associated comptime constant projections are allowed in static and type-level contexts.
 Value-level usage is allowed when the projection is fully resolvable during Analyze and can be folded.
 If a value-level projection is not fully resolvable in the current context, we emit an error.
-Projection in value-level expressions does not imply runtime field storage: the owner member remains compile-time only (and thus never emitted as a runtime slot).
 
 ```ds
 class SegmentPlan<Row> {
@@ -1940,17 +1219,17 @@ Inside associated type and associated comptime declarations, `this` refers to th
 ### Enum
 
 Enums conceptually follow TypeScript, but remain strictly nominal types to avoid accidental implicit coercions.
-Enum values do _not_ implicitly coerce to their backing type.
+Correspondingly, enum values do _not_ implicitly coerce to their backing type.
 Explicit casts are required to convert between enums and their backing types.
-The backing type is inferred from member values and is either an integer or string type.
+
 When member values are omitted, the backing type defaults to the configured integer width.
+The backing type is inferred from member values and is either an integer or string type.
+- Integer-backed enums allow constant integer expressions using literals, unary +/-, binary arithmetic or bitwise operators, casts, parentheses, and references to earlier enum members.
+- Integer-backed enums assign implicit values starting at zero, and explicit values advance the next implicit value by one.
+ - String-backed enums require explicit string values for every member.
 
-Enum member values are constant expressions.
-Integer-backed enums allow constant integer expressions using literals, unary +/-, binary arithmetic or bitwise operators, casts, parentheses, and references to earlier enum members.
-Integer-backed enums assign implicit values starting at zero, and explicit values advance the next implicit value by one.
-String-backed enums require explicit string values for every member.
-
-```
+```ds
+// implicitly integer-backed enum
 enum Status {
     Active
     Inactive
@@ -1958,8 +1237,8 @@ enum Status {
 }
 ```
 
-Because enums are effectively newtypes, they can also carry methods and constants:
-```
+Because enums are nominal types - effectively, newtypes wrapping their backing type - they can also carry methods and even static members:
+```ds
 enum Priority {
     Low = 1,
     Medium = 2,
@@ -1987,7 +1266,7 @@ Extensions add methods to existing nominal types without modifying them.
 Unlike TypeScript's prototype extension, Destack extensions are type-safe and scoped.
 Extension visibility depends on where the extension is defined relative to the type.
 
-```
+```ds
 extension for Vector2 {
     magnitude(): float32 {
         (this.x * this.x + this.y * this.y).sqrt()
@@ -2017,7 +1296,7 @@ Extensions require **nominal types**—types with declaration identity:
 
 To extend a structural shape, wrap it in a nominal type:
 
-```
+```ds
 // can NOT extend type aliases or inline types (structural)
 type Point = { x: number, y: number };
 extension for Point { ... }  // error: Point is a type alias
@@ -2047,12 +1326,11 @@ Extension visibility is thus always explicit per scope:
 - Anonymous extensions on foreign types are private utilities for that file.
 - Named extensions can be exported and shared, but must be explicitly imported to use.
 
-
 #### Extending Newtypes and Primitives
 
 The same mechanism works for newtypes and even precise primitives:
 
-```
+```ds
 newtype UserId = int;
 extension for UserId {
     isValid(): boolean { this > 0; }
@@ -2072,13 +1350,13 @@ Since `int32` is a builtin (foreign) type, the anonymous extension is only visib
 
 Extensions can implement interfaces, enabling operator overloading:
 
-```
+```ds
 interface Add<T, U = T> {
     add(other: T): U;
 }
 ```
 
-```
+```ds
 extension for Vector2 implements Add<Vector2> {
     add(other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
@@ -2090,7 +1368,7 @@ extension for Vector2 implements Add<Vector2> {
 
 Multiple overloads for the same operator are supported via multiple interface implementations:
 
-```
+```ds
 extension for Vector2 implements Add<Vector2>, Add<float> {
     add(other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
@@ -2112,7 +1390,7 @@ This keeps overload resolution simple and matches TypeScript's method dispatch s
 
 Extend types from other modules:
 
-```
+```ds
 import { Vector2 } from "somewhere";
 
 // anonymous: only visible in this file (foreign type)
@@ -2130,7 +1408,7 @@ To share extensions on foreign types, use named extensions and import them.
 
 Named extensions can be exported and must be imported where used:
 
-```
+```ds
 // in date-utils.ds
 import { Date } from "builtin";
 
@@ -2141,7 +1419,7 @@ export extension DateUtils for Date implements Add<Date> {
 }
 ```
 
-```
+```ds
 // in app.ds
 import { DateUtils } from "./date-utils.ds";
 
@@ -2158,7 +1436,7 @@ Functions work like TypeScript, with the addition that the last expression is im
 
 Functions are dynamically and statically parameterised pieces of reusable logic, just like in JavaScript (and TypeScript).
 
-```
+```ds
 function greet(name: string): string {
     `Hello, ${name}!`    // implicit return
 }
@@ -2178,7 +1456,7 @@ function process(data: Data) { // implicit void
 
 Async functions work like TypeScript:
 
-```
+```ds
 async function fetchData(url: string): Promise<Response> {
     const response = await fetch(url);
     response
@@ -2189,7 +1467,7 @@ async function fetchData(url: string): Promise<Response> {
 
 Generator functions use `function*` and `yield`:
 
-```
+```ds
 function* range(start: int32, end: int32): Generator<int32> {
     for i in start..end {
         yield i
@@ -2211,7 +1489,7 @@ Return statements inside generator functions must satisfy `TReturn`.
 
 Arrow functions work like TypeScript:
 
-```
+```ds
 (x) => x * 2
 (a: int32, b: int32): int32 => a + b
 (items) => {
@@ -2225,7 +1503,7 @@ Arrow functions work like TypeScript:
 
 Destack supports function overloading without the clumsy type-only declarations:
 
-```
+```ds
 function parse(input: string): int32 {
     parseInt(input)
 }
@@ -2241,12 +1519,8 @@ parse(42)     // calls second
 
 ##### Overload Resolution
 
-Overloads are resolved using **declaration order**: the first matching overload wins.
-This matches TypeScript's overload resolution semantics.
-Overload resolution first filters candidates by applicability, then selects the first applicable candidate.
+Overloads are resolved using **declaration order**: the first matching overload wins (like in TypeScript).
 Applicability includes static parameter inference and validation, including `comptime` value parameters.
-Static parameter failures make a candidate inapplicable rather than changing ranking.
-Earlier inapplicable candidates do not block later candidates.
 Overload order is defined at the declaring module and is forwarded unchanged across exports, reexports, and namespace imports.
 
 The process has two phases:
@@ -2254,7 +1528,7 @@ The process has two phases:
 - Applicability: a candidate is applicable only when its static and dynamic parameters can be satisfied at the call site
 - Selection: among applicable candidates, the first candidate in declaration order wins
 
-```
+```ds
 // Good: specific overloads before general ones
 function format(x: "json"): JsonFormatter;
 function format(x: "xml"): XmlFormatter;
@@ -2265,8 +1539,8 @@ format("xml")     // calls second overload
 format("csv")     // calls third overload
 ```
 
-```
-// Bad: general overload shadows specific ones
+```ds
+// bad: general overload shadows specific ones
 function format(x: string): Formatter;
 function format(x: "json"): JsonFormatter;  // warning: shadowed by first overload
 
@@ -2276,7 +1550,7 @@ format("json")    // calls first overload (not second!)
 The compiler warns when an overload is shadowed by an "earlier" declaration that always matches first.
 For union argument types, the argument must be assignable to a single overload:
 
-```
+```ds
 function handle(x: string): string;
 function handle(x: number): number;
 
@@ -2284,7 +1558,7 @@ const y: string | number = getValue();
 handle(y);  // error: union argument not assignable to any overload
 ```
 
-```
+```ds
 function handle(x: string | number): string | number;
 
 const y: string | number = getValue();
@@ -2306,34 +1580,12 @@ For method calls on unions, the call must be valid for every candidate signature
 
 Dynamic resolution is implemented by reifying the call into `if (receiver is Type)` branches with statically resolved calls in each branch.
 
-##### Dispatch Tables
-
-Classes use vtables for virtual method dispatch.
-VTables are emitted only when virtual dispatch remains after devirtualization.
-VTable slot 0 stores the type tag when RTTI is enabled.
-VTable slot 1 stores the drop glue function.
-Virtual methods follow in declaration order, and overrides reuse the same slot.
-Interface dispatch is separate and uses itabs instead of class vtables.
-Itabs are generated for both struct and class implementations.
-Each itab is specific to a (Type, Interface) pair.
-Interface references are fat pointers carrying an object pointer and an itab pointer.
-Itab slot 0 stores the type tag when RTTI is enabled.
-Itab slots follow interface member declaration order, including fields and methods.
-Interface inheritance flattens base interfaces in extends list order before local members.
-Members inherited with the same name and signature reuse the first slot.
-Fields reuse slots only when their declared types match.
-Conflicting member signatures are errors during analysis.
-Each interface field contributes a field offset slot.
-Each interface method contributes a method target slot.
-Static members are not part of vtables or itabs.
-Static methods and properties lower to direct symbols.
-
 #### Methods
 
 Methods are functions declared inside types (structs, classes, enums, interfaces, extensions).
 They receive `this` as an implicit first parameter:
 
-```
+```ds
 struct Vector2 {
     x: float32
     y: float32
@@ -2355,15 +1607,11 @@ v.magnitude();        // 5.0
 Vector2.zero();       // static call
 ```
 
-Methods can declare an explicit `this` parameter to constrain the receiver type.
-The explicit `this` parameter must be first and does not count toward call arity.
+Methods can declare an explicit `this` parameter to constrain the receiver type; the explicit `this` parameter must be first (and does not count toward call arity).
 Explicit `this` parameters can use reference types (like `&`) to require mutable receivers.
+
 Member methods have an implicit `this` binding derived from the receiver type.
 Non-member functions must declare an explicit `this` parameter to use `this`.
-Lambdas may use contextual `this` from an expected function type.
-Lambdas inside methods capture the lexical `this` unless `@capture` overrides it.
-
-Methods can also be added to any type via extensions, including primitives and foreign types.
 
 #### Closures
 
@@ -2372,7 +1620,7 @@ Captures default to by-value for `const` bindings and by-reference for mutable b
 Use `@capture` to override capture mode for specific bindings.
 Closure calls implicitly carry their captured environment and do not require explicit arguments.
 
-```
+```ds
 const x = 10;
 const add = (y: int32) => x + y;
 add(5);
@@ -2382,7 +1630,7 @@ add(5);
 
 Getters and setters work like TypeScript:
 
-```
+```ds
 class Person {
     #name: string
     
@@ -2400,7 +1648,7 @@ class Person {
 
 Constructors work like TypeScript:
 
-```
+```ds
 class Person {
     name: string;
 
@@ -2414,7 +1662,7 @@ class Person {
 
 Rest parameters and spread operators work like TypeScript:
 
-```
+```ds
 function sum(...numbers: int32[]): int32 {
     numbers.reduce((a, b) => a + b, 0)
 }
@@ -2429,7 +1677,7 @@ sum(...args);
 
 Namespaces work like in TypeScript:
 
-```
+```ds
 namespace math {
     export const PI = 3.14159
     export function sin(x: float64): float64 { /* ... */ }
@@ -2440,11 +1688,13 @@ namespace math {
 
 Visibility modifiers work like TypeScript:
 
-```
-public field: int32
-private field: int32
-protected field: int32
-#field: int32        // shorthand for private
+```ds
+class MyClass {
+    public field: int32;
+    private field: int32;
+    protected field: int32;
+    #field: int32;
+}
 ```
 
 ## Expressions
@@ -2452,7 +1702,7 @@ protected field: int32
 **Everything is an expression** in Destack.
 Blocks, `if`, `match` all return values:
 
-```
+```ds
 const result = if x > 0 { "positive" } else { "negative" };
 const label = match (state) {
     Ready => "go"
@@ -2464,7 +1714,7 @@ const label = match (state) {
 
 Variable bindings work like TypeScript, with Destack adding tuple destructuring syntax:
 
-```
+```ds
 const x = 1;              // immutable
 const x: int32 = 1;       // with type
 let y = 2;                // mutable
@@ -2474,9 +1724,9 @@ const { x, y } = getPoint();
 const (a, _) = getTuple();  // Destack tuple syntax
 ```
 
-Unlike JavaScript/TypeScript, bindings can be re-declared in the same scope with a different type (like Rust):
+Unlike JS/TS, bindings can be re-declared in the same scope with a different type (like Rust):
 
-```
+```ds
 const x = "hello";        // x is string
 const x = x.length;       // x is now int (shadowing)
 ```
@@ -2486,7 +1736,7 @@ const x = x.length;       // x is now int (shadowing)
 Block expressions group multiple statements and return the last expression's value.
 Blocks are enclosed in `{ }` and can optionally have labels:
 
-```
+```ds
 const result = {
     const x = compute();
     const y = transform(x);
@@ -2496,7 +1746,7 @@ const result = {
 
 Labeled blocks allow breaking with values:
 
-```
+```ds
 const value = outer: {
     for i in 0..100 {
         if condition(i) {
@@ -2518,7 +1768,7 @@ const x = if flag { do { compute() } } else { 0 };
 Control flow with `if` works like TypeScript.
 Unlike TypeScript, `if` is an expression that returns a value.
 
-```
+```ds
 // statement form
 if (x > 0) { process(); }
 
@@ -2567,7 +1817,7 @@ if let x: int32 = value {
 Destack adds `match` expressions for exhaustive pattern matching.
 Like `if`, `match` is an expression that returns a value:
 
-```
+```ds
 // match as expression - returns the matched arm's value
 const label = match (state) {
     Ready => "go"
@@ -2617,7 +1867,7 @@ TypeScript's `switch` also works unchanged in syntax, but it is a statement like
 Switch cases fall through by default and require `break` to stop.
 `break` in a `switch` cannot carry a value.
 
-```
+```ds
 switch (value) {
     case 0:
         return "zero"
@@ -2636,7 +1886,7 @@ Destack supports all TypeScript loop forms plus `loop`.
 
 Iterate over iterables with `for...of` (values) or `for...in` (keys), matching TypeScript exactly:
 
-```
+```ds
 for (const item of items) {
     process(item)
 }
@@ -2664,7 +1914,7 @@ for (const [key, value] of map) {
 
 Standard while loops work like TypeScript:
 
-```
+```ds
 while (condition) {
     process()
 }
@@ -2679,7 +1929,7 @@ do {
 
 Infinite loop that can be exited only with `break`:
 
-```
+```ds
 loop {
     const input = readInput();
     if (input == "quit") {
@@ -2695,7 +1945,7 @@ Bare `break` contributes `void` to the loop result type.
 
 TypeScript's traditional for loop also works:
 
-```
+```ds
 for (let i = 0; i < 10; i++) {
     print(i)
 }
@@ -2705,7 +1955,7 @@ for (let i = 0; i < 10; i++) {
 
 All loop forms support labeled breaks and continues:
 
-```
+```ds
 outer: for (const i of 0..10) {
     for (const j of 0..10) {
         if (condition) {
@@ -2727,7 +1977,7 @@ Patterns can appear in `match` arms, `let`/`const` bindings, and function parame
 
 Matches anything and discards the value:
 
-```
+```ds
 _                    // ignore this value
 ```
 
@@ -2735,7 +1985,7 @@ _                    // ignore this value
 
 Captures a value into a variable:
 
-```
+```ds
 x                    // bind to x
 var x                // bind to mutable x
 ```
@@ -2744,7 +1994,7 @@ var x                // bind to mutable x
 
 Matches any non-nullish, Try-unwrapped value and binds it:
 
-```
+```ds
 x!                   // bind only if value is not null or undefined
 ```
 
@@ -2752,7 +2002,7 @@ x!                   // bind only if value is not null or undefined
 
 Matches exact values:
 
-```
+```ds
 42                   // match integer
 "hello"              // match string
 true                 // match boolean
@@ -2762,7 +2012,7 @@ true                 // match boolean
 
 Matches tuple structure:
 
-```
+```ds
 (a, b)               // two-element tuple
 (x, _, z)            // ignore middle element
 (first, ...rest)     // rest pattern
@@ -2772,7 +2022,7 @@ Matches tuple structure:
 
 Matches object/struct properties:
 
-```
+```ds
 { x, y }             // shorthand
 { x: a, y: b }       // rename bindings
 { x, ...rest }       // rest pattern
@@ -2786,7 +2036,7 @@ The tag must resolve to an object type, or the pattern is a type error.
 
 Matches array elements:
 
-```
+```ds
 [a, b, c]            // exact three elements
 [first, ...rest]     // first + rest
 [first, ..., last]   // first and last
@@ -2797,7 +2047,7 @@ Matches array elements:
 
 Matches enum/union variants:
 
-```
+```ds
 Some(x)              // unwrap Some
 Ok(value)            // unwrap Ok
 Result.Err(e)        // qualified path
@@ -2807,7 +2057,7 @@ Result.Err(e)        // qualified path
 
 Matches numeric ranges:
 
-```
+```ds
 1..10                // exclusive range
 1..=10               // inclusive range
 ```
@@ -2816,7 +2066,7 @@ Matches numeric ranges:
 
 Matches any of several patterns:
 
-```
+```ds
 1 | 2 | 3            // match 1, 2, or 3
 "a" | "b"            // match either string
 ```
@@ -2825,12 +2075,12 @@ Matches any of several patterns:
 
 Add conditions to patterns (only in `match`):
 
-```
+```ds
 n if n > 0           // positive numbers only
 x if x.isValid()     // with method call
 ```
 
-### Errors and Exceptions
+### Try, Results and Errors (and Exceptions)
 
 Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics.
 The builtin `Error` interface is the conventional error shape, but any type can be used as `E`.
@@ -2842,7 +2092,7 @@ The `Try<T, E>` interface defines the protocol for `?` and `??`.
 `Try` is nominal, while its branch shape is structural.
 `Try.branch()` must return a `TryBranch<T, E>` compatible shape:
 
-```
+```ds
 type TryBranch<T, E> =
     | { kind: "ok", value: T }
     | { kind: "err", error: E };
@@ -2859,7 +2109,7 @@ Implementations must provide `Try.fromError(error: E): this` for uncaught early 
 
 The `?` operator propagates `Try` errors to the caller:
 
-```
+```ds
 function readConfig(path: string): Result<Config, Error> {
     const text = readFile(path)?    // returns early if Err
     const json = parseJson(text)?   // returns early if Err
@@ -2874,7 +2124,6 @@ The receiver must be a non-nullish `Try` type.
 Unions containing non-`Try` or nullish members are not valid operands for `?`.
 The success type is returned as-is without stripping nullish values.
 The `?` operator unwraps at most one `Try` layer.
-For unions of `Try` types, the success type and error type are both unioned.
 
 The enclosing function must return a compatible `Try` type.
 The error type `E` is unconstrained, but `Error` is the conventional shape.
@@ -2884,7 +2133,7 @@ Non-`Error` error types should emit a lint, not a hard error.
 
 The `??` operator extracts the success value or uses a default:
 
-```
+```ds
 const config = loadConfig() ?? defaultConfig;
 const port = parsePort(input) ?? 8080;
 ```
@@ -2908,7 +2157,7 @@ Evaluation order is fixed and does not depend on union ordering:
 When the left-hand side is a union of `Try` and non-`Try` values, the result unions the unwrapped success types, non-`Try` members, and the fallback.
 Nullish values are removed from both the union and the `Try` success type before the result is formed.
 
-```
+```ds
 const value: Result<User, IOError> | null = loadUser();
 const user = value ?? defaultUser;  // default on null or Err
 ```
@@ -2917,7 +2166,7 @@ const user = value ?? defaultUser;  // default on null or Err
 
 The `try`/`catch` syntax handles exceptions and explicit `Try` propagation:
 
-```
+```ds
 try {
     const config = readConfig("config.json")?;
     process(config);
@@ -2935,7 +2184,7 @@ When a `?` is inside a `try` with a catch, `Try.fromError` is not required.
 Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
 A try expression must include a catch or finally block.
 
-```
+```ds
 try {
     riskyOperationA()?;
 } catch match e {
@@ -2950,7 +2199,7 @@ try {
 `throw` is intended for **unrecoverable errors**: assertion failures, invariant violations, bugs.
 Panics indicate programmer error, not conditions the caller should handle.
 
-```
+```ds
 function unwrap<T>(r: Result<T, Error>): T {
     match (r) {
         Ok { value } => value
@@ -2966,7 +2215,7 @@ function unwrap<T>(r: Result<T, Error>): T {
 `using` declares a resource that will be disposed when the current **lexical scope** exits.
 Destack mirrors JS/TS semantics and syntax, following the TC39 Explicit Resource Management proposal.
 
-```
+```ds
 using file = openFile(path);
 await using conn = openConnection();
 ```
@@ -2977,7 +2226,7 @@ They always have an initializer and are immutable like `const`.
 `await using` is only allowed where `await` is legal.
 `export using` is valid and behaves like `export const`.
 
-```
+```ds
 using a = openA(), b = openB();
 export using cache = openCache();
 ```
@@ -2991,7 +2240,7 @@ Disposal continues even if earlier disposals throw.
 The result is awaited.
 `null` and `undefined` are no-ops.
 
-```
+```ds
 using first = getFirst();
 using second = getSecond();
 ```
@@ -3002,7 +2251,7 @@ using second = getSecond();
 Types implementing `Drop` satisfy `Disposable` implicitly.
 On JS targets, `Drop` lowers to a `[Symbol.dispose]()` wrapper.
 
-```
+```ds
 struct File implements Drop {
     drop(): void { close(this) }
 }
@@ -3014,7 +2263,7 @@ using file: ^File = File.open(path);
 In `for`/`for..of`/`for..in` initializers, a `using` resource is per-iteration and disposed at the end of each iteration.
 The disposal runs on `continue` and `break`, just like normal scope exit.
 
-```
+```ds
 for (using line of readLines(path)) {
     process(line);
 }
@@ -3024,7 +2273,7 @@ for (using line of readLines(path)) {
 Top-level `using` in modules disposes when module evaluation completes.
 This includes completion after top-level `await`.
 
-```
+```ds
 using log = openLog();
 await run();
 ```
@@ -3035,7 +2284,7 @@ In `.ds` files, `^T` values that implement `Drop` are disposed at their last pro
 `using` bindings are not movable, so `^x` from a `using` binding is an error.
 Use `^T` without `using` when you want eager drop.
 
-```
+```ds
 using buffer: ^Buffer = allocate();
 use(&buffer);
 ```
@@ -3053,7 +2302,7 @@ For example, `Vector2` can implement both `Add<Vector2>` and `Add<float>` for ve
 
 Operator interfaces are declared as **nominal interfaces** using `newtype interface`:
 
-```
+```ds
 newtype interface Add<T, R = this> {
     add(other: T): R
 }
@@ -3062,7 +2311,7 @@ newtype interface Add<T, R = this> {
 Because they are nominal, operators only overload when a type explicitly declares `implements` for the operator interface.
 (This prevents accidental conformance from types that happen to have a structurally-compatible method.)
 
-```
+```ds
 // Foo has an `add` method but doesn't implement Add<T>
 struct Foo {
     add(other: Foo): Foo { ... }
@@ -3110,6 +2359,8 @@ Destack adds explicit overflow control for integer types:
 - **Wrapping** (`%`): overflow wraps around (like C unsigned)
 - **Saturating** (`|`): overflow clamps to min/max
 
+### Overflow Control
+
 The standard operators follow the target safety policy (`overflowChecks` or `safetyPreset`).
 When overflow checks are enabled, `+`, `-`, and `*` trap on overflow.
 When overflow checks are disabled, those operators wrap in two's complement.
@@ -3124,10 +2375,9 @@ Runtime checks are configured per target:
 - `divisionChecks`: controls divide and remainder checks
 - `shiftChecks`: controls shift range checks
 - `checkFailure`: controls how check failures are handled (`trap`, `panic`, `abort`)
-Explicit per check settings override the preset.
-The safety preset does not modify `checkFailure`.
+Explicit per-check settings override the preset.
 
-```
+```ds
 const a: uint8 = 250;
 const b: uint8 = 10;
 
@@ -3238,7 +2488,7 @@ When `never` is matched against an `infer` pattern, inference yields `never` for
 Mapped types construct new object types by iterating over keys.
 They follow TypeScript semantics and are primarily used by utility types like `Partial` and `Readonly`.
 
-```
+```ds
 type Flags<T> = { [K in keyof T]: boolean };
 type Optional<T> = { [K in keyof T]?: T[K] };
 type Required<T> = { [K in keyof T]-?: T[K] };
@@ -3248,7 +2498,7 @@ type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
 Key remapping is supported with `as`:
 
-```
+```ds
 type Renamed<T> = { [K in keyof T as "value"]: T[K] };
 ```
 
@@ -3295,13 +2545,13 @@ Module syntax matches JS/TS exactly.
 
 ### Imports
 
-Imports work exactly like JavaScript/TypeScript.
+Imports work exactly like JS/TS.
 
 #### Side-Effect Import
 
 Import a module for its side effects only:
 
-```
+```ds
 import "module";
 ```
 
@@ -3309,7 +2559,7 @@ import "module";
 
 Import specific exports by name:
 
-```
+```ds
 import { foo, bar } from "module";
 ```
 
@@ -3317,7 +2567,7 @@ import { foo, bar } from "module";
 
 Rename an import locally:
 
-```
+```ds
 import { foo as f } from "module";
 ```
 
@@ -3325,7 +2575,7 @@ import { foo as f } from "module";
 
 Import all exports as a namespace object:
 
-```
+```ds
 import * as mod from "module";
 
 mod.foo();
@@ -3336,7 +2586,7 @@ mod.bar;
 
 Import the default export:
 
-```
+```ds
 import Default from "module";
 ```
 
@@ -3344,7 +2594,7 @@ import Default from "module";
 
 Import default and named together:
 
-```
+```ds
 import Default, { foo, bar } from "module";
 ```
 
@@ -3352,20 +2602,20 @@ import Default, { foo, bar } from "module";
 
 Import only types (erased at runtime):
 
-```
+```ds
 import type { MyType } from "module";
 import { type MyType, myValue } from "module";
 ```
 
 ### Exports
 
-Exports work exactly like JavaScript/TypeScript.
+Exports work exactly like JS/TS.
 
 #### Inline Export
 
 Export declarations directly:
 
-```
+```ds
 export const value = 42;
 export function foo() { }
 export struct Point { x: float32, y: float32 }
@@ -3375,7 +2625,7 @@ export struct Point { x: float32, y: float32 }
 
 Export previously declared items:
 
-```
+```ds
 const a = 1;
 const b = 2;
 
@@ -3386,7 +2636,7 @@ export { a, b };
 
 Export with a different name:
 
-```
+```ds
 export { internal as public };
 export { foo as default };     // as default export
 ```
@@ -3395,7 +2645,7 @@ export { foo as default };     // as default export
 
 Export a single default value:
 
-```
+```ds
 export default function handler() { }
 export default class MyClass { }
 export default expression;
@@ -3405,7 +2655,7 @@ export default expression;
 
 Forward exports from other modules:
 
-```
+```ds
 export { foo, bar } from "module";    // specific items
 export * from "module";               // all exports
 export * as ns from "module";         // as namespace
@@ -3415,7 +2665,7 @@ export * as ns from "module";         // as namespace
 
 Export only types (erased at runtime):
 
-```
+```ds
 export type { MyType };
 export { type MyType, myValue };
 ```
@@ -3428,7 +2678,7 @@ Destack supports importing non-code files with automatic type inference.
 
 Data files are parsed and typed structurally:
 
-```
+```ds
 import config from "./config.json";
 
 config.name     // string
@@ -3452,7 +2702,7 @@ Empty arrays infer element type `unknown`.
 
 Text files (`.md`, `.txt`, `.css`, `.html`, `.svg`, etc.) import as `string`:
 
-```
+```ds
 import content from "./README.md";
 // content: string
 ```
@@ -3461,7 +2711,7 @@ import content from "./README.md";
 
 Binary files (images, fonts, wasm, etc.) import as `uint8[]`:
 
-```
+```ds
 import data from "./image.png";
 // data: uint8[]
 ```
@@ -3488,7 +2738,7 @@ Valid loader types:
 
 The same file with different loaders produces different modules:
 
-```
+```ds
 import a from "./data.json";                           // parsed JSON
 import b from "./data.json" with { type: "text" };    // raw string
 // a and b are different modules
@@ -3504,7 +2754,7 @@ All annotations are preserved in the AST and available to tooling.
 
 Decorators generalize TypeScript decorator semantics to enable decorators both as metadata and as transforms on most language constructs: declarations, statements, members, parameters, match arms, and more (not just classes and class members).
 
-```
+```ds
 @memoize                           // decorator: memoize(target)
 @route("/api/users")               // factory: route("/api/users")(target)
 @service.middleware                // member access: service.middleware(target)
@@ -3517,7 +2767,7 @@ The decorator LHS-expression can be any expression (path, member access, call):
 
 Decorators can be applied to most language constructs:
 
-```
+```ds
 // on declarations
 @deprecated("use newAPI")
 function oldAPI() { }
@@ -3568,7 +2818,7 @@ Decorator behavior depends on what the decorator resolves to:
 
 Newtype-based decorators enable compiler hints without runtime overhead:
 
-```
+```ds
 newtype unroll = void;
 newtype inline = void;
 newtype deprecated = string;
@@ -3586,9 +2836,9 @@ function kernel(data: @addrspace("shared") &Point) { }
 
 ### Comments
 
-Standard JavaScript/TypeScript comments:
+Standard JS/TS comments:
 
-```
+```ds
 // line comment
 /* block comment */
 ```
@@ -3597,7 +2847,7 @@ Standard JavaScript/TypeScript comments:
 
 Documentation comments are attached to the following declaration and used for generated docs:
 
-```
+```ds
 /// Line documentation comment.
 /// Can span multiple lines.
 
