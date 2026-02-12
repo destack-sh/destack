@@ -615,9 +615,9 @@ fn decode_destack_io_event_signal_args(
     let token_value = arg_value(args, 0, "token", "EventToken")?;
     let token_inner = decode_uint64(token_value, "token_inner", "EventToken")?;
     let token = EventToken(token_inner);
-    let value_value = arg_value(args, 1, "value", "uint64")?;
-    let value = decode_uint64(value_value, "value", "uint64")?;
-    Ok((token, value))
+    let argument_value_value = arg_value(args, 1, "argument_value", "uint64")?;
+    let argument_value = decode_uint64(argument_value_value, "argument_value", "uint64")?;
+    Ok((token, argument_value))
 }
 
 /// Encode the result for destack.io.event.signal.
@@ -2513,19 +2513,19 @@ fn destack_io_event_signal_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     token: EventToken,
-    value: u64,
+    argument_value: u64,
 ) -> RuntimeResult<()> {
-    let _ = (&token, &value);
+    let _ = (&token, &argument_value);
 
     context.replay().run_binding_with_payload_policy(
         IO_EVENT_SIGNAL,
         context.replay_payload_for(IO_EVENT_SIGNAL)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_io_event_signal(context, token, value)
+                platform_native::destack_io_event_signal(context, token, argument_value)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_io_event_signal(context, token, value)
+                platform_simulated_native::destack_io_event_signal(context, token, argument_value)
             },
         },
         |result| {
@@ -3516,12 +3516,15 @@ pub unsafe extern "C" fn destack_io_event_open(
 }
 
 #[unsafe(export_name = "destack.io.event.signal")]
-pub unsafe extern "C" fn destack_io_event_signal(token: EventToken, value: u64) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_io_event_signal(
+    token: EventToken,
+    argument_value: u64,
+) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&token, &value);
+        let _ = (&token, &argument_value);
 
         let world = context.check_and_resolve_world(IO_EVENT_SIGNAL)?;
-        destack_io_event_signal_replay(context, world, token, value)
+        destack_io_event_signal_replay(context, world, token, argument_value)
     })
 }
 
@@ -4509,7 +4512,7 @@ fn destack_io_event_signal_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     token: EventToken,
-    value: u64,
+    argument_value: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -4519,11 +4522,14 @@ fn destack_io_event_signal_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_io_event_signal(runtime, context, token, value)
+                    platform_vm::destack_io_event_signal(runtime, context, token, argument_value)
                 }
-                RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_io_event_signal(runtime, context, token, value)
-                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_event_signal(
+                    runtime,
+                    context,
+                    token,
+                    argument_value,
+                ),
             },
             |context, result| {
                 let _ = &context;
@@ -5612,11 +5618,11 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(registry, isolate, IO_EVENT_SIGNAL, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (token, value) = decode_destack_io_event_signal_args(context, args)?;
+                let (token, argument_value) = decode_destack_io_event_signal_args(context, args)?;
 
                 // execute binding
                 let world = runtime.check_and_resolve_world(IO_EVENT_SIGNAL)?;
-                destack_io_event_signal_vm_replay(runtime, context, world, token, value)
+                destack_io_event_signal_vm_replay(runtime, context, world, token, argument_value)
             })
             .map_err(Into::into)
         });

@@ -418,10 +418,10 @@ pub(crate) unsafe fn destack_io_event_open(
 pub(crate) unsafe fn destack_io_event_signal(
     context: &RuntimeCallContext,
     token: EventToken,
-    value: u64,
+    argument_value: u64,
 ) -> RuntimeResult<()> {
     context.check_policy(IO_EVENT_SIGNAL)?;
-    let _ = (token, value);
+    let _ = (token, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.signal")).boxed())
 }

@@ -1161,9 +1161,14 @@ fn decode_destack_net_options_set_sock_opt_raw_args(
     let name_value = arg_value(args, 2, "name", "SocketOptionName")?;
     let name_inner = decode_uint32(name_value, "name_inner", "SocketOptionName")?;
     let name = SocketOptionName(name_inner);
-    let value_value = arg_value(args, 3, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
-    Ok((handle, level, name, value))
+    let argument_value_value = arg_value(args, 3, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, level, name, argument_value))
 }
 
 /// Encode the result for destack.net.options.setSockOptRaw.
@@ -1456,9 +1461,14 @@ fn decode_destack_net_raw_packet_receive_args(
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
-    let payload_value = arg_value(args, 1, "payload", "Slice<uint8>")?;
-    let payload = decode_slice::<u8>(context, payload_value, "payload", "Slice<uint8>")?;
-    Ok((handle, payload))
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, argument_payload))
 }
 
 /// Encode the result for destack.net.raw.packetReceive.
@@ -1486,9 +1496,14 @@ fn decode_destack_net_raw_packet_send_args(
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
-    let payload_value = arg_value(args, 1, "payload", "Slice<uint8>")?;
-    let payload = decode_slice::<u8>(context, payload_value, "payload", "Slice<uint8>")?;
-    Ok((handle, payload))
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, argument_payload))
 }
 
 /// Encode the result for destack.net.raw.packetSend.
@@ -8724,20 +8739,30 @@ fn destack_net_options_set_sock_opt_raw_replay(
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &level, &name, &value);
+    let _ = (&handle, &level, &name, &argument_value);
 
     context.replay().run_binding_with_payload_policy(
         NET_OPTIONS_SET_SOCK_OPT_RAW,
         context.replay_payload_for(NET_OPTIONS_SET_SOCK_OPT_RAW)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_set_sock_opt_raw(context, handle, level, name, value)
+                platform_native::destack_net_set_sock_opt_raw(
+                    context,
+                    handle,
+                    level,
+                    name,
+                    argument_value,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_net_set_sock_opt_raw(
-                    context, handle, level, name, value,
+                    context,
+                    handle,
+                    level,
+                    name,
+                    argument_value,
                 )
             },
         },
@@ -9177,19 +9202,24 @@ fn destack_net_raw_packet_receive_replay(
     world: RuntimeWorld,
     out: *mut PacketCaptureRecord,
     handle: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &payload);
+    let _ = (&handle, &argument_payload);
 
     context.replay().run_binding_with_payload_policy(
         NET_RAW_PACKET_RECEIVE,
         context.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_receive(context, out, handle, payload)
+                platform_native::destack_net_packet_receive(context, out, handle, argument_payload)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_receive(context, out, handle, payload)
+                platform_simulated_native::destack_net_packet_receive(
+                    context,
+                    out,
+                    handle,
+                    argument_payload,
+                )
             },
         },
         |result| {
@@ -9257,19 +9287,24 @@ fn destack_net_raw_packet_send_replay(
     world: RuntimeWorld,
     out: *mut u64,
     handle: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &payload);
+    let _ = (&handle, &argument_payload);
 
     context.replay().run_binding_with_payload_policy(
         NET_RAW_PACKET_SEND,
         context.replay_payload_for(NET_RAW_PACKET_SEND)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_packet_send(context, out, handle, payload)
+                platform_native::destack_net_packet_send(context, out, handle, argument_payload)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_net_packet_send(context, out, handle, payload)
+                platform_simulated_native::destack_net_packet_send(
+                    context,
+                    out,
+                    handle,
+                    argument_payload,
+                )
             },
         },
         |result| {
@@ -13950,13 +13985,20 @@ pub unsafe extern "C" fn destack_net_options_set_sock_opt_raw(
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &level, &name, &value);
+        let _ = (&handle, &level, &name, &argument_value);
 
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
-        destack_net_options_set_sock_opt_raw_replay(context, world, handle, level, name, value)
+        destack_net_options_set_sock_opt_raw_replay(
+            context,
+            world,
+            handle,
+            level,
+            name,
+            argument_value,
+        )
     })
 }
 
@@ -14068,16 +14110,16 @@ pub unsafe extern "C" fn destack_net_raw_packet_open(
 pub unsafe extern "C" fn destack_net_raw_packet_receive(
     out: *mut PacketCaptureRecord,
     handle: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &payload);
+        let _ = (&out, &handle, &argument_payload);
 
         let world = context.check_and_resolve_world(NET_RAW_PACKET_RECEIVE)?;
-        destack_net_raw_packet_receive_replay(context, world, out, handle, payload)
+        destack_net_raw_packet_receive_replay(context, world, out, handle, argument_payload)
     })
 }
 
@@ -14085,16 +14127,16 @@ pub unsafe extern "C" fn destack_net_raw_packet_receive(
 pub unsafe extern "C" fn destack_net_raw_packet_send(
     out: *mut u64,
     handle: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &payload);
+        let _ = (&out, &handle, &argument_payload);
 
         let world = context.check_and_resolve_world(NET_RAW_PACKET_SEND)?;
-        destack_net_raw_packet_send_replay(context, world, out, handle, payload)
+        destack_net_raw_packet_send_replay(context, world, out, handle, argument_payload)
     })
 }
 
@@ -16905,7 +16947,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -16915,10 +16957,20 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_net_set_sock_opt_raw(
-                    runtime, context, handle, level, name, value,
+                    runtime,
+                    context,
+                    handle,
+                    level,
+                    name,
+                    argument_value,
                 ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_net_set_sock_opt_raw(
-                    runtime, context, handle, level, name, value,
+                    runtime,
+                    context,
+                    handle,
+                    level,
+                    name,
+                    argument_value,
                 ),
             },
             |context, result| {
@@ -17400,7 +17452,7 @@ fn destack_net_raw_packet_receive_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -17409,11 +17461,17 @@ fn destack_net_raw_packet_receive_vm_replay(
             runtime.replay_payload_for(NET_RAW_PACKET_RECEIVE)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_net_packet_receive(runtime, context, handle, payload)
-                }
+                RuntimeWorld::Host => platform_vm::destack_net_packet_receive(
+                    runtime,
+                    context,
+                    handle,
+                    argument_payload,
+                ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_receive(
-                    runtime, context, handle, payload,
+                    runtime,
+                    context,
+                    handle,
+                    argument_payload,
                 ),
             },
             |context, result| {
@@ -17477,7 +17535,7 @@ fn destack_net_raw_packet_send_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     handle: resource::SocketHandle,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -17487,10 +17545,13 @@ fn destack_net_raw_packet_send_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_net_packet_send(runtime, context, handle, payload)
+                    platform_vm::destack_net_packet_send(runtime, context, handle, argument_payload)
                 }
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_net_packet_send(
-                    runtime, context, handle, payload,
+                    runtime,
+                    context,
+                    handle,
+                    argument_payload,
                 ),
             },
             |context, result| {
@@ -22694,13 +22755,19 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, level, name, value) =
+                    let (handle, level, name, argument_value) =
                         decode_destack_net_options_set_sock_opt_raw_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
                     destack_net_options_set_sock_opt_raw_vm_replay(
-                        runtime, context, world, handle, level, name, value,
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        level,
+                        name,
+                        argument_value,
                     )
                 })
                 .map_err(Into::into)
@@ -22865,13 +22932,17 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, payload) =
+                    let (handle, argument_payload) =
                         decode_destack_net_raw_packet_receive_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_RECEIVE)?;
                     destack_net_raw_packet_receive_vm_replay(
-                        runtime, context, world, handle, payload,
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        argument_payload,
                     )
                 })
                 .map_err(Into::into)
@@ -22886,11 +22957,18 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, payload) = decode_destack_net_raw_packet_send_args(context, args)?;
+                    let (handle, argument_payload) =
+                        decode_destack_net_raw_packet_send_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_SEND)?;
-                    destack_net_raw_packet_send_vm_replay(runtime, context, world, handle, payload)
+                    destack_net_raw_packet_send_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        argument_payload,
+                    )
                 })
                 .map_err(Into::into)
             }

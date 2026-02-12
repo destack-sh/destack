@@ -5345,12 +5345,17 @@ fn decode_destack_fs_xattr_fsetxattr_args(
     let handle = resource::FileHandle(handle_inner);
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
-    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
     let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
     let flags = XattrFlags(flags_inner);
-    Ok((handle, name, value, flags))
+    Ok((handle, name, argument_value, flags))
 }
 
 /// Encode the result for destack.fs.xattr.fsetxattr.
@@ -5377,12 +5382,17 @@ fn decode_destack_fs_xattr_fsetxattr_bytes_args(
     let handle = resource::FileHandle(handle_inner);
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
-    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
     let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
     let flags = XattrFlags(flags_inner);
-    Ok((handle, name, value, flags))
+    Ok((handle, name, argument_value, flags))
 }
 
 /// Encode the result for destack.fs.xattr.fsetxattrBytes.
@@ -6032,12 +6042,17 @@ fn decode_destack_fs_xattr_lsetxattr_args(
     };
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
-    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
     let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
     let flags = XattrFlags(flags_inner);
-    Ok((path, name, value, flags))
+    Ok((path, name, argument_value, flags))
 }
 
 /// Encode the result for destack.fs.xattr.lsetxattr.
@@ -6099,12 +6114,17 @@ fn decode_destack_fs_xattr_lsetxattr_bytes_args(
     };
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
-    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
     let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
     let flags = XattrFlags(flags_inner);
-    Ok((path, name, value, flags))
+    Ok((path, name, argument_value, flags))
 }
 
 /// Encode the result for destack.fs.xattr.lsetxattrBytes.
@@ -6290,12 +6310,17 @@ fn decode_destack_fs_xattr_setxattr_args(
     };
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
-    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
     let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
     let flags = XattrFlags(flags_inner);
-    Ok((path, name, value, flags))
+    Ok((path, name, argument_value, flags))
 }
 
 /// Encode the result for destack.fs.xattr.setxattr.
@@ -6357,12 +6382,17 @@ fn decode_destack_fs_xattr_setxattr_bytes_args(
     };
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
-    let value_value = arg_value(args, 2, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
+    let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
     let flags_value = arg_value(args, 3, "flags", "XattrFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "XattrFlags")?;
     let flags = XattrFlags(flags_inner);
-    Ok((path, name, value, flags))
+    Ok((path, name, argument_value, flags))
 }
 
 /// Encode the result for destack.fs.xattr.setxattrBytes.
@@ -15715,20 +15745,26 @@ fn destack_fs_xattr_fsetxattr_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &name, &value, &flags);
+    let _ = (&handle, &name, &argument_value, &flags);
 
     context.replay().run_binding_with_payload_policy(
         FS_XATTR_FSETXATTR,
         context.replay_payload_for(FS_XATTR_FSETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fsetxattr(context, handle, name, value, flags)
+                platform_native::destack_fs_fsetxattr(context, handle, name, argument_value, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_fsetxattr(context, handle, name, value, flags)
+                platform_simulated_native::destack_fs_fsetxattr(
+                    context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
+                )
             },
         },
         |result| {
@@ -15766,21 +15802,31 @@ fn destack_fs_xattr_fsetxattr_bytes_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &name, &value, &flags);
+    let _ = (&handle, &name, &argument_value, &flags);
 
     context.replay().run_binding_with_payload_policy(
         FS_XATTR_FSETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_FSETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_fsetxattr_bytes(context, handle, name, value, flags)
+                platform_native::destack_fs_fsetxattr_bytes(
+                    context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_fs_fsetxattr_bytes(
-                    context, handle, name, value, flags,
+                    context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
                 )
             },
         },
@@ -16543,20 +16589,26 @@ fn destack_fs_xattr_lsetxattr_replay(
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (&path, &name, &value, &flags);
+    let _ = (&path, &name, &argument_value, &flags);
 
     context.replay().run_binding_with_payload_policy(
         FS_XATTR_LSETXATTR,
         context.replay_payload_for(FS_XATTR_LSETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lsetxattr(context, path, name, value, flags)
+                platform_native::destack_fs_lsetxattr(context, path, name, argument_value, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_lsetxattr(context, path, name, value, flags)
+                platform_simulated_native::destack_fs_lsetxattr(
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                )
             },
         },
         |result| {
@@ -16594,21 +16646,31 @@ fn destack_fs_xattr_lsetxattr_bytes_replay(
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (&path, &name, &value, &flags);
+    let _ = (&path, &name, &argument_value, &flags);
 
     context.replay().run_binding_with_payload_policy(
         FS_XATTR_LSETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_LSETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_lsetxattr_bytes(context, path, name, value, flags)
+                platform_native::destack_fs_lsetxattr_bytes(
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_fs_lsetxattr_bytes(
-                    context, path, name, value, flags,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 )
             },
         },
@@ -16745,20 +16807,26 @@ fn destack_fs_xattr_setxattr_replay(
     world: RuntimeWorld,
     path: OsPath,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (&path, &name, &value, &flags);
+    let _ = (&path, &name, &argument_value, &flags);
 
     context.replay().run_binding_with_payload_policy(
         FS_XATTR_SETXATTR,
         context.replay_payload_for(FS_XATTR_SETXATTR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_setxattr(context, path, name, value, flags)
+                platform_native::destack_fs_setxattr(context, path, name, argument_value, flags)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_fs_setxattr(context, path, name, value, flags)
+                platform_simulated_native::destack_fs_setxattr(
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                )
             },
         },
         |result| {
@@ -16796,21 +16864,31 @@ fn destack_fs_xattr_setxattr_bytes_replay(
     world: RuntimeWorld,
     path: OsPath,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (&path, &name, &value, &flags);
+    let _ = (&path, &name, &argument_value, &flags);
 
     context.replay().run_binding_with_payload_policy(
         FS_XATTR_SETXATTR_BYTES,
         context.replay_payload_for(FS_XATTR_SETXATTR_BYTES)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_setxattr_bytes(context, path, name, value, flags)
+                platform_native::destack_fs_setxattr_bytes(
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_fs_setxattr_bytes(
-                    context, path, name, value, flags,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 )
             },
         },
@@ -18334,14 +18412,14 @@ pub unsafe extern "C" fn destack_fs_xattr_fremovexattr_bytes(
 pub unsafe extern "C" fn destack_fs_xattr_fsetxattr(
     handle: resource::FileHandle,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &name, &value, &flags);
+        let _ = (&handle, &name, &argument_value, &flags);
 
         let world = context.check_and_resolve_world(FS_XATTR_FSETXATTR)?;
-        destack_fs_xattr_fsetxattr_replay(context, world, handle, name, value, flags)
+        destack_fs_xattr_fsetxattr_replay(context, world, handle, name, argument_value, flags)
     })
 }
 
@@ -18349,14 +18427,14 @@ pub unsafe extern "C" fn destack_fs_xattr_fsetxattr(
 pub unsafe extern "C" fn destack_fs_xattr_fsetxattr_bytes(
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &name, &value, &flags);
+        let _ = (&handle, &name, &argument_value, &flags);
 
         let world = context.check_and_resolve_world(FS_XATTR_FSETXATTR_BYTES)?;
-        destack_fs_xattr_fsetxattr_bytes_replay(context, world, handle, name, value, flags)
+        destack_fs_xattr_fsetxattr_bytes_replay(context, world, handle, name, argument_value, flags)
     })
 }
 
@@ -18522,14 +18600,14 @@ pub unsafe extern "C" fn destack_fs_xattr_lremovexattr_bytes(
 pub unsafe extern "C" fn destack_fs_xattr_lsetxattr(
     path: OsPath,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&path, &name, &value, &flags);
+        let _ = (&path, &name, &argument_value, &flags);
 
         let world = context.check_and_resolve_world(FS_XATTR_LSETXATTR)?;
-        destack_fs_xattr_lsetxattr_replay(context, world, path, name, value, flags)
+        destack_fs_xattr_lsetxattr_replay(context, world, path, name, argument_value, flags)
     })
 }
 
@@ -18537,14 +18615,14 @@ pub unsafe extern "C" fn destack_fs_xattr_lsetxattr(
 pub unsafe extern "C" fn destack_fs_xattr_lsetxattr_bytes(
     path: OsPath,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&path, &name, &value, &flags);
+        let _ = (&path, &name, &argument_value, &flags);
 
         let world = context.check_and_resolve_world(FS_XATTR_LSETXATTR_BYTES)?;
-        destack_fs_xattr_lsetxattr_bytes_replay(context, world, path, name, value, flags)
+        destack_fs_xattr_lsetxattr_bytes_replay(context, world, path, name, argument_value, flags)
     })
 }
 
@@ -18578,14 +18656,14 @@ pub unsafe extern "C" fn destack_fs_xattr_removexattr_bytes(
 pub unsafe extern "C" fn destack_fs_xattr_setxattr(
     path: OsPath,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&path, &name, &value, &flags);
+        let _ = (&path, &name, &argument_value, &flags);
 
         let world = context.check_and_resolve_world(FS_XATTR_SETXATTR)?;
-        destack_fs_xattr_setxattr_replay(context, world, path, name, value, flags)
+        destack_fs_xattr_setxattr_replay(context, world, path, name, argument_value, flags)
     })
 }
 
@@ -18593,14 +18671,14 @@ pub unsafe extern "C" fn destack_fs_xattr_setxattr(
 pub unsafe extern "C" fn destack_fs_xattr_setxattr_bytes(
     path: OsPath,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&path, &name, &value, &flags);
+        let _ = (&path, &name, &argument_value, &flags);
 
         let world = context.check_and_resolve_world(FS_XATTR_SETXATTR_BYTES)?;
-        destack_fs_xattr_setxattr_bytes_replay(context, world, path, name, value, flags)
+        destack_fs_xattr_setxattr_bytes_replay(context, world, path, name, argument_value, flags)
     })
 }
 
@@ -25255,7 +25333,7 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: vm::StringHandle,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -25265,11 +25343,21 @@ fn destack_fs_xattr_fsetxattr_vm_replay(
             runtime.replay_payload_for(FS_XATTR_FSETXATTR)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_fsetxattr(runtime, context, handle, name, value, flags)
-                }
+                RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr(
+                    runtime,
+                    context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
+                ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fsetxattr(
-                    runtime, context, handle, name, value, flags,
+                    runtime,
+                    context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
                 ),
             },
             |context, result| {
@@ -25312,7 +25400,7 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
     world: RuntimeWorld,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -25323,10 +25411,20 @@ fn destack_fs_xattr_fsetxattr_bytes_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_fsetxattr_bytes(
-                    runtime, context, handle, name, value, flags,
+                    runtime,
+                    context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
                 ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_fsetxattr_bytes(
-                    runtime, context, handle, name, value, flags,
+                    runtime,
+                    context,
+                    handle,
+                    name,
+                    argument_value,
+                    flags,
                 ),
             },
             |context, result| {
@@ -26043,7 +26141,7 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -26053,11 +26151,21 @@ fn destack_fs_xattr_lsetxattr_vm_replay(
             runtime.replay_payload_for(FS_XATTR_LSETXATTR)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_lsetxattr(runtime, context, path, name, value, flags)
-                }
+                RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr(
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_lsetxattr(
-                    runtime, context, path, name, value, flags,
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 ),
             },
             |context, result| {
@@ -26100,7 +26208,7 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -26111,10 +26219,20 @@ fn destack_fs_xattr_lsetxattr_bytes_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_lsetxattr_bytes(
-                    runtime, context, path, name, value, flags,
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_lsetxattr_bytes(
-                    runtime, context, path, name, value, flags,
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 ),
             },
             |context, result| {
@@ -26267,7 +26385,7 @@ fn destack_fs_xattr_setxattr_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
     name: vm::StringHandle,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -26277,11 +26395,21 @@ fn destack_fs_xattr_setxattr_vm_replay(
             runtime.replay_payload_for(FS_XATTR_SETXATTR)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_fs_setxattr(runtime, context, path, name, value, flags)
-                }
+                RuntimeWorld::Host => platform_vm::destack_fs_setxattr(
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
+                ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_setxattr(
-                    runtime, context, path, name, value, flags,
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 ),
             },
             |context, result| {
@@ -26324,7 +26452,7 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
     world: RuntimeWorld,
     path: OsPathVm,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -26335,10 +26463,20 @@ fn destack_fs_xattr_setxattr_bytes_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_fs_setxattr_bytes(
-                    runtime, context, path, name, value, flags,
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_fs_setxattr_bytes(
-                    runtime, context, path, name, value, flags,
+                    runtime,
+                    context,
+                    path,
+                    name,
+                    argument_value,
+                    flags,
                 ),
             },
             |context, result| {
@@ -27862,13 +28000,19 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, name, value, flags) =
+                    let (handle, name, argument_value, flags) =
                         decode_destack_fs_xattr_fsetxattr_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(FS_XATTR_FSETXATTR)?;
                     destack_fs_xattr_fsetxattr_vm_replay(
-                        runtime, context, world, handle, name, value, flags,
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        name,
+                        argument_value,
+                        flags,
                     )
                 })
                 .map_err(Into::into)
@@ -27883,13 +28027,19 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, name, value, flags) =
+                    let (handle, name, argument_value, flags) =
                         decode_destack_fs_xattr_fsetxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(FS_XATTR_FSETXATTR_BYTES)?;
                     destack_fs_xattr_fsetxattr_bytes_vm_replay(
-                        runtime, context, world, handle, name, value, flags,
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        name,
+                        argument_value,
+                        flags,
                     )
                 })
                 .map_err(Into::into)
@@ -28087,13 +28237,19 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (path, name, value, flags) =
+                    let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_lsetxattr_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(FS_XATTR_LSETXATTR)?;
                     destack_fs_xattr_lsetxattr_vm_replay(
-                        runtime, context, world, path, name, value, flags,
+                        runtime,
+                        context,
+                        world,
+                        path,
+                        name,
+                        argument_value,
+                        flags,
                     )
                 })
                 .map_err(Into::into)
@@ -28108,13 +28264,19 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (path, name, value, flags) =
+                    let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_lsetxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(FS_XATTR_LSETXATTR_BYTES)?;
                     destack_fs_xattr_lsetxattr_bytes_vm_replay(
-                        runtime, context, world, path, name, value, flags,
+                        runtime,
+                        context,
+                        world,
+                        path,
+                        name,
+                        argument_value,
+                        flags,
                     )
                 })
                 .map_err(Into::into)
@@ -28168,13 +28330,19 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (path, name, value, flags) =
+                    let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_setxattr_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(FS_XATTR_SETXATTR)?;
                     destack_fs_xattr_setxattr_vm_replay(
-                        runtime, context, world, path, name, value, flags,
+                        runtime,
+                        context,
+                        world,
+                        path,
+                        name,
+                        argument_value,
+                        flags,
                     )
                 })
                 .map_err(Into::into)
@@ -28189,13 +28357,19 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (path, name, value, flags) =
+                    let (path, name, argument_value, flags) =
                         decode_destack_fs_xattr_setxattr_bytes_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(FS_XATTR_SETXATTR_BYTES)?;
                     destack_fs_xattr_setxattr_bytes_vm_replay(
-                        runtime, context, world, path, name, value, flags,
+                        runtime,
+                        context,
+                        world,
+                        path,
+                        name,
+                        argument_value,
+                        flags,
                     )
                 })
                 .map_err(Into::into)

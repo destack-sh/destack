@@ -17,6 +17,16 @@ pub(crate) fn runtime_domain_bindings_path(domain: &str) -> PathBuf {
     ))
 }
 
+/// Resolve the module path for a runtime domain.
+pub(crate) fn runtime_domain_mod_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/mod.rs"))
+}
+
+/// Resolve the host router path for a runtime domain.
+pub(crate) fn runtime_domain_host_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/host.rs"))
+}
+
 /// Resolve the native binding path for a runtime domain.
 pub(crate) fn runtime_domain_native_path(domain: &str) -> PathBuf {
     language_root().join(format!("runtime/src/platform/{domain}/native.rs"))
@@ -45,6 +55,16 @@ pub(crate) fn runtime_domain_simulated_vm_path(domain: &str) -> PathBuf {
 /// Resolve the simulated module path for a runtime domain.
 pub(crate) fn runtime_domain_simulated_mod_path(domain: &str) -> PathBuf {
     language_root().join(format!("runtime/src/platform/{domain}/simulated/mod.rs"))
+}
+
+/// Resolve the unix host backend shim path for a runtime domain.
+pub(crate) fn runtime_domain_unix_mod_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/unix/mod.rs"))
+}
+
+/// Resolve the windows host backend shim path for a runtime domain.
+pub(crate) fn runtime_domain_windows_mod_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/windows/mod.rs"))
 }
 
 /// Resolve the runtime native binding path for a runtime domain.

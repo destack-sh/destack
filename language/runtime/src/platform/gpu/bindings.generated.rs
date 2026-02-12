@@ -495,9 +495,9 @@ fn decode_destack_gpu_command_copy_buffer_args(
     let dst = resource::GpuBufferHandle(dst_inner);
     let dstoffset_value = arg_value(args, 4, "dstoffset", "uint64")?;
     let dstoffset = decode_uint64(dstoffset_value, "dstoffset", "uint64")?;
-    let bytes_value = arg_value(args, 5, "bytes", "uint64")?;
-    let bytes = decode_uint64(bytes_value, "bytes", "uint64")?;
-    Ok((handle, src, srcoffset, dst, dstoffset, bytes))
+    let argument_bytes_value = arg_value(args, 5, "argument_bytes", "uint64")?;
+    let argument_bytes = decode_uint64(argument_bytes_value, "argument_bytes", "uint64")?;
+    Ok((handle, src, srcoffset, dst, dstoffset, argument_bytes))
 }
 
 /// Encode the result for destack.gpu.command.copyBuffer.
@@ -2008,9 +2008,14 @@ fn decode_destack_gpu_pipeline_shader_create_args(
             entry: options_entry,
         }
     };
-    let bytes_value = arg_value(args, 2, "bytes", "Slice<uint8>")?;
-    let bytes = decode_slice::<u8>(context, bytes_value, "bytes", "Slice<uint8>")?;
-    Ok((device, options, bytes))
+    let argument_bytes_value = arg_value(args, 2, "argument_bytes", "Slice<uint8>")?;
+    let argument_bytes = decode_slice::<u8>(
+        context,
+        argument_bytes_value,
+        "argument_bytes",
+        "Slice<uint8>",
+    )?;
+    Ok((device, options, argument_bytes))
 }
 
 /// Encode the result for destack.gpu.pipeline.shaderCreate.
@@ -2299,9 +2304,14 @@ fn decode_destack_gpu_resource_buffer_write_args(
     let handle = resource::GpuBufferHandle(handle_inner);
     let offset_value = arg_value(args, 1, "offset", "uint64")?;
     let offset = decode_uint64(offset_value, "offset", "uint64")?;
-    let bytes_value = arg_value(args, 2, "bytes", "Slice<uint8>")?;
-    let bytes = decode_slice::<u8>(context, bytes_value, "bytes", "Slice<uint8>")?;
-    Ok((handle, offset, bytes))
+    let argument_bytes_value = arg_value(args, 2, "argument_bytes", "Slice<uint8>")?;
+    let argument_bytes = decode_slice::<u8>(
+        context,
+        argument_bytes_value,
+        "argument_bytes",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, offset, argument_bytes))
 }
 
 /// Encode the result for destack.gpu.resource.bufferWrite.
@@ -4256,9 +4266,9 @@ fn destack_gpu_command_copy_buffer_replay(
     srcoffset: u64,
     dst: resource::GpuBufferHandle,
     dstoffset: u64,
-    bytes: u64,
+    argument_bytes: u64,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &bytes);
+    let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &argument_bytes);
 
     context.replay().run_binding_with_payload_policy(
         GPU_COMMAND_COPY_BUFFER,
@@ -4266,12 +4276,24 @@ fn destack_gpu_command_copy_buffer_replay(
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_gpu_command_copy_buffer(
-                    context, handle, src, srcoffset, dst, dstoffset, bytes,
+                    context,
+                    handle,
+                    src,
+                    srcoffset,
+                    dst,
+                    dstoffset,
+                    argument_bytes,
                 )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_gpu_command_copy_buffer(
-                    context, handle, src, srcoffset, dst, dstoffset, bytes,
+                    context,
+                    handle,
+                    src,
+                    srcoffset,
+                    dst,
+                    dstoffset,
+                    argument_bytes,
                 )
             },
         },
@@ -5718,20 +5740,30 @@ fn destack_gpu_pipeline_shader_create_replay(
     out: *mut resource::GpuShaderHandle,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptions,
-    bytes: NativeSlice<u8>,
+    argument_bytes: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (&device, &options, &bytes);
+    let _ = (&device, &options, &argument_bytes);
 
     context.replay().run_binding_with_payload_policy(
         GPU_PIPELINE_SHADER_CREATE,
         context.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_shader_create(context, out, device, options, bytes)
+                platform_native::destack_gpu_shader_create(
+                    context,
+                    out,
+                    device,
+                    options,
+                    argument_bytes,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_gpu_shader_create(
-                    context, out, device, options, bytes,
+                    context,
+                    out,
+                    device,
+                    options,
+                    argument_bytes,
                 )
             },
         },
@@ -6016,19 +6048,24 @@ fn destack_gpu_resource_buffer_write_replay(
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
-    bytes: NativeSlice<u8>,
+    argument_bytes: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &offset, &bytes);
+    let _ = (&handle, &offset, &argument_bytes);
 
     context.replay().run_binding_with_payload_policy(
         GPU_RESOURCE_BUFFER_WRITE,
         context.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_gpu_buffer_write(context, handle, offset, bytes)
+                platform_native::destack_gpu_buffer_write(context, handle, offset, argument_bytes)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_gpu_buffer_write(context, handle, offset, bytes)
+                platform_simulated_native::destack_gpu_buffer_write(
+                    context,
+                    handle,
+                    offset,
+                    argument_bytes,
+                )
             },
         },
         |result| {
@@ -6521,14 +6558,21 @@ pub unsafe extern "C" fn destack_gpu_command_copy_buffer(
     srcoffset: u64,
     dst: resource::GpuBufferHandle,
     dstoffset: u64,
-    bytes: u64,
+    argument_bytes: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &bytes);
+        let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &argument_bytes);
 
         let world = context.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
         destack_gpu_command_copy_buffer_replay(
-            context, world, handle, src, srcoffset, dst, dstoffset, bytes,
+            context,
+            world,
+            handle,
+            src,
+            srcoffset,
+            dst,
+            dstoffset,
+            argument_bytes,
         )
     })
 }
@@ -6950,16 +6994,23 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_create(
     out: *mut resource::GpuShaderHandle,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptions,
-    bytes: NativeSlice<u8>,
+    argument_bytes: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &device, &options, &bytes);
+        let _ = (&out, &device, &options, &argument_bytes);
 
         let world = context.check_and_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
-        destack_gpu_pipeline_shader_create_replay(context, world, out, device, options, bytes)
+        destack_gpu_pipeline_shader_create_replay(
+            context,
+            world,
+            out,
+            device,
+            options,
+            argument_bytes,
+        )
     })
 }
 
@@ -7076,13 +7127,13 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_read(
 pub unsafe extern "C" fn destack_gpu_resource_buffer_write(
     handle: resource::GpuBufferHandle,
     offset: u64,
-    bytes: NativeSlice<u8>,
+    argument_bytes: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &offset, &bytes);
+        let _ = (&handle, &offset, &argument_bytes);
 
         let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
-        destack_gpu_resource_buffer_write_replay(context, world, handle, offset, bytes)
+        destack_gpu_resource_buffer_write_replay(context, world, handle, offset, argument_bytes)
     })
 }
 
@@ -7933,7 +7984,7 @@ fn destack_gpu_command_copy_buffer_vm_replay(
     srcoffset: u64,
     dst: resource::GpuBufferHandle,
     dstoffset: u64,
-    bytes: u64,
+    argument_bytes: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -7943,10 +7994,24 @@ fn destack_gpu_command_copy_buffer_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_gpu_command_copy_buffer(
-                    runtime, context, handle, src, srcoffset, dst, dstoffset, bytes,
+                    runtime,
+                    context,
+                    handle,
+                    src,
+                    srcoffset,
+                    dst,
+                    dstoffset,
+                    argument_bytes,
                 ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_command_copy_buffer(
-                    runtime, context, handle, src, srcoffset, dst, dstoffset, bytes,
+                    runtime,
+                    context,
+                    handle,
+                    src,
+                    srcoffset,
+                    dst,
+                    dstoffset,
+                    argument_bytes,
                 ),
             },
             |context, result| {
@@ -9453,7 +9518,7 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
     world: RuntimeWorld,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
-    bytes: VmSlice<u8>,
+    argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -9462,11 +9527,19 @@ fn destack_gpu_pipeline_shader_create_vm_replay(
             runtime.replay_payload_for(GPU_PIPELINE_SHADER_CREATE)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_shader_create(runtime, context, device, options, bytes)
-                }
+                RuntimeWorld::Host => platform_vm::destack_gpu_shader_create(
+                    runtime,
+                    context,
+                    device,
+                    options,
+                    argument_bytes,
+                ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_shader_create(
-                    runtime, context, device, options, bytes,
+                    runtime,
+                    context,
+                    device,
+                    options,
+                    argument_bytes,
                 ),
             },
             |context, result| {
@@ -9740,7 +9813,7 @@ fn destack_gpu_resource_buffer_write_vm_replay(
     world: RuntimeWorld,
     handle: resource::GpuBufferHandle,
     offset: u64,
-    bytes: VmSlice<u8>,
+    argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -9749,11 +9822,19 @@ fn destack_gpu_resource_buffer_write_vm_replay(
             runtime.replay_payload_for(GPU_RESOURCE_BUFFER_WRITE)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_gpu_buffer_write(runtime, context, handle, offset, bytes)
-                }
+                RuntimeWorld::Host => platform_vm::destack_gpu_buffer_write(
+                    runtime,
+                    context,
+                    handle,
+                    offset,
+                    argument_bytes,
+                ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_gpu_buffer_write(
-                    runtime, context, handle, offset, bytes,
+                    runtime,
+                    context,
+                    handle,
+                    offset,
+                    argument_bytes,
                 ),
             },
             |context, result| {
@@ -10290,13 +10371,21 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, src, srcoffset, dst, dstoffset, bytes) =
+                    let (handle, src, srcoffset, dst, dstoffset, argument_bytes) =
                         decode_destack_gpu_command_copy_buffer_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
                     destack_gpu_command_copy_buffer_vm_replay(
-                        runtime, context, world, handle, src, srcoffset, dst, dstoffset, bytes,
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        src,
+                        srcoffset,
+                        dst,
+                        dstoffset,
+                        argument_bytes,
                     )
                 })
                 .map_err(Into::into)
@@ -10793,13 +10882,18 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (device, options, bytes) =
+                    let (device, options, argument_bytes) =
                         decode_destack_gpu_pipeline_shader_create_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
                     destack_gpu_pipeline_shader_create_vm_replay(
-                        runtime, context, world, device, options, bytes,
+                        runtime,
+                        context,
+                        world,
+                        device,
+                        options,
+                        argument_bytes,
                     )
                 })
                 .map_err(Into::into)
@@ -10955,13 +11049,18 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, offset, bytes) =
+                    let (handle, offset, argument_bytes) =
                         decode_destack_gpu_resource_buffer_write_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
                     destack_gpu_resource_buffer_write_vm_replay(
-                        runtime, context, world, handle, offset, bytes,
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        offset,
+                        argument_bytes,
                     )
                 })
                 .map_err(Into::into)

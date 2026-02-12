@@ -10,6 +10,8 @@ pub mod console;
 pub mod context;
 /// Cross-domain platform helpers.
 pub(crate) mod core;
+/// Cryptography bindings.
+pub mod crypto;
 /// Debug bindings.
 pub mod debug;
 /// Device bindings.
@@ -58,6 +60,8 @@ pub mod thread;
 pub mod time;
 /// Timer bindings.
 pub mod timer;
+/// TLS bindings.
+pub mod tls;
 /// TTY bindings.
 pub mod tty;
 

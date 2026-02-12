@@ -26,16 +26,18 @@ mod stub;
 use abi::trim_unused_domain_imports;
 pub(crate) use abi::{collect_domain_abi_types, render_abi_types};
 pub(crate) use path::{
-    runtime_domain_abi_types_path, runtime_domain_bindings_path, runtime_domain_native_path,
-    runtime_domain_runtime_mod_path, runtime_domain_runtime_native_path,
-    runtime_domain_runtime_vm_path, runtime_domain_simulated_mod_path,
-    runtime_domain_simulated_native_path, runtime_domain_simulated_vm_path,
-    runtime_domain_unsupported_path, runtime_domain_vm_path, runtime_platform_generated_path,
-    write_domain_bindings,
+    runtime_domain_abi_types_path, runtime_domain_bindings_path, runtime_domain_host_path,
+    runtime_domain_mod_path, runtime_domain_native_path, runtime_domain_runtime_mod_path,
+    runtime_domain_runtime_native_path, runtime_domain_runtime_vm_path,
+    runtime_domain_simulated_mod_path, runtime_domain_simulated_native_path,
+    runtime_domain_simulated_vm_path, runtime_domain_unix_mod_path,
+    runtime_domain_unsupported_path, runtime_domain_vm_path, runtime_domain_windows_mod_path,
+    runtime_platform_generated_path, write_domain_bindings,
 };
 use replay::*;
 pub(crate) use stub::{
-    render_host_stub, render_native_stub, render_runtime_mod_stub, render_runtime_native_stub,
+    render_domain_mod_stub, render_host_router_stub, render_host_stub, render_native_stub,
+    render_os_backend_mod_stub, render_runtime_mod_stub, render_runtime_native_stub,
     render_runtime_vm_stub, render_simulated_mod_stub, render_simulated_native_stub,
     render_simulated_vm_stub, render_vm_stub,
 };
@@ -3858,5 +3860,86 @@ pub(super) fn sanitize_param_name(name: &str, index: usize) -> String {
     if out.chars().next().is_some_and(|ch| ch.is_ascii_digit()) {
         out.insert(0, '_');
     }
+
+    if is_reserved_param_name(out.as_str()) {
+        out = format!("argument_{out}");
+    }
+
     out
+}
+
+/// Return true when a generated parameter name is reserved.
+fn is_reserved_param_name(name: &str) -> bool {
+    matches!(
+        name,
+        "context"
+            | "runtime"
+            | "world"
+            | "out"
+            | "args"
+            | "_args"
+            | "registry"
+            | "isolate"
+            | "result"
+            | "value"
+            | "bytes"
+            | "payload"
+    ) || is_rust_keyword(name)
+}
+
+/// Return true when a generated identifier is a Rust keyword.
+fn is_rust_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "as" | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "Self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "unsafe"
+            | "use"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+            | "abstract"
+            | "become"
+            | "box"
+            | "do"
+            | "final"
+            | "macro"
+            | "override"
+            | "priv"
+            | "typeof"
+            | "unsized"
+            | "virtual"
+            | "yield"
+            | "try"
+    )
 }

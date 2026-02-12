@@ -27,10 +27,10 @@ use crate::runtime::RuntimeCallContext;
 /// External, recordable.
 pub(crate) unsafe fn destack_console_error(
     context: &RuntimeCallContext,
-    value: NativeStringRef,
+    argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = value;
+    let _ = argument_value;
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.console.console.error",
@@ -57,10 +57,10 @@ pub(crate) unsafe fn destack_console_error(
 /// External, recordable.
 pub(crate) unsafe fn destack_console_info(
     context: &RuntimeCallContext,
-    value: NativeStringRef,
+    argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = value;
+    let _ = argument_value;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.info")).boxed())
 }
@@ -84,10 +84,10 @@ pub(crate) unsafe fn destack_console_info(
 /// External, recordable.
 pub(crate) unsafe fn destack_console_log(
     context: &RuntimeCallContext,
-    value: NativeStringRef,
+    argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = value;
+    let _ = argument_value;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.log")).boxed())
 }
@@ -111,10 +111,10 @@ pub(crate) unsafe fn destack_console_log(
 /// External, recordable.
 pub(crate) unsafe fn destack_console_warn(
     context: &RuntimeCallContext,
-    value: NativeStringRef,
+    argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = value;
+    let _ = argument_value;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.warn")).boxed())
 }

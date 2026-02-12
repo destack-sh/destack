@@ -235,9 +235,9 @@ pub(crate) fn destack_process_env_set(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
-    value: vm::StringHandle,
+    argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = (name, value);
+    let _ = (name, argument_value);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.env.set is not available in the VM yet",
     ))
@@ -265,9 +265,9 @@ pub(crate) fn destack_process_env_set_bytes(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (name, value);
+    let _ = (name, argument_value);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.env.setBytes is not available in the VM yet",
     ))

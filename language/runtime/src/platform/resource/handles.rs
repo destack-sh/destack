@@ -156,3 +156,17 @@ define_handle!("The handle for one gpu texture.", GpuTextureHandle);
 define_handle!("The handle for one gpu sampler.", GpuSamplerHandle);
 define_handle!("The handle for one gpu shader module.", GpuShaderHandle);
 define_handle!("The handle for one gpu pipeline.", GpuPipelineHandle);
+define_handle!(
+    "The handle for one cryptographic certificate object.",
+    CryptoCertificateHandle
+);
+define_handle!(
+    "The handle for one cryptographic key object.",
+    CryptoKeyHandle
+);
+define_handle!(
+    "The handle for one cryptographic store object.",
+    CryptoStoreHandle
+);
+define_handle!("The handle for one tls context object.", TlsContextHandle);
+define_handle!("The handle for one tls session object.", TlsSessionHandle);

@@ -892,9 +892,9 @@ pub(crate) fn destack_net_set_sock_opt_raw(
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, level, name, value);
+    let _ = (handle, level, name, argument_value);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.setSockOptRaw",
     ))
@@ -1149,9 +1149,9 @@ pub(crate) fn destack_net_packet_receive(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<PacketCaptureRecordVm> {
-    let _ = (handle, payload);
+    let _ = (handle, argument_payload);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.raw.packetReceive",
     ))
@@ -1179,9 +1179,9 @@ pub(crate) fn destack_net_packet_send(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::SocketHandle,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let _ = (handle, payload);
+    let _ = (handle, argument_payload);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetSend")).boxed())
 }
 

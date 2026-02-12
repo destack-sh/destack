@@ -380,9 +380,9 @@ fn decode_destack_process_env_set_args(
 
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
-    let value_value = arg_value(args, 1, "value", "string")?;
-    let value = decode_string(value_value, "value", "string")?;
-    Ok((name, value))
+    let argument_value_value = arg_value(args, 1, "argument_value", "string")?;
+    let argument_value = decode_string(argument_value_value, "argument_value", "string")?;
+    Ok((name, argument_value))
 }
 
 /// Encode the result for destack.process.env.set.
@@ -405,9 +405,14 @@ fn decode_destack_process_env_set_bytes_args(
 ) -> RuntimeResult<(VmSlice<u8>, VmSlice<u8>)> {
     let name_value = arg_value(args, 0, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
-    let value_value = arg_value(args, 1, "value", "Slice<uint8>")?;
-    let value = decode_slice::<u8>(context, value_value, "value", "Slice<uint8>")?;
-    Ok((name, value))
+    let argument_value_value = arg_value(args, 1, "argument_value", "Slice<uint8>")?;
+    let argument_value = decode_slice::<u8>(
+        context,
+        argument_value_value,
+        "argument_value",
+        "Slice<uint8>",
+    )?;
+    Ok((name, argument_value))
 }
 
 /// Encode the result for destack.process.env.setBytes.
@@ -5054,14 +5059,16 @@ fn destack_process_env_get_bytes_replay(
 fn destack_process_env_set_replay(
     context: &RuntimeCallContext,
     name: NativeStringRef,
-    value: NativeStringRef,
+    argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (&name, &value);
+    let _ = (&name, &argument_value);
 
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_SET,
         context.replay_payload_for(PROCESS_ENV_SET)?,
-        || unsafe { platform_runtime_native::destack_process_env_set(context, name, value) },
+        || unsafe {
+            platform_runtime_native::destack_process_env_set(context, name, argument_value)
+        },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -5095,14 +5102,16 @@ fn destack_process_env_set_replay(
 fn destack_process_env_set_bytes_replay(
     context: &RuntimeCallContext,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (&name, &value);
+    let _ = (&name, &argument_value);
 
     context.replay().run_binding_with_payload_policy(
         PROCESS_ENV_SET_BYTES,
         context.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
-        || unsafe { platform_runtime_native::destack_process_env_set_bytes(context, name, value) },
+        || unsafe {
+            platform_runtime_native::destack_process_env_set_bytes(context, name, argument_value)
+        },
         |result| {
             if let Ok(()) = result {
                 let result_recorded = ();
@@ -8698,26 +8707,26 @@ pub unsafe extern "C" fn destack_process_env_get_bytes(
 #[unsafe(export_name = "destack.process.env.set")]
 pub unsafe extern "C" fn destack_process_env_set(
     name: NativeStringRef,
-    value: NativeStringRef,
+    argument_value: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&name, &value);
+        let _ = (&name, &argument_value);
 
         context.check_policy(PROCESS_ENV_SET)?;
-        destack_process_env_set_replay(context, name, value)
+        destack_process_env_set_replay(context, name, argument_value)
     })
 }
 
 #[unsafe(export_name = "destack.process.env.setBytes")]
 pub unsafe extern "C" fn destack_process_env_set_bytes(
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&name, &value);
+        let _ = (&name, &argument_value);
 
         context.check_policy(PROCESS_ENV_SET_BYTES)?;
-        destack_process_env_set_bytes_replay(context, name, value)
+        destack_process_env_set_bytes_replay(context, name, argument_value)
     })
 }
 
@@ -10227,7 +10236,7 @@ fn destack_process_env_set_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     name: vm::StringHandle,
-    value: vm::StringHandle,
+    argument_value: vm::StringHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -10235,7 +10244,9 @@ fn destack_process_env_set_vm_replay(
             PROCESS_ENV_SET,
             runtime.replay_payload_for(PROCESS_ENV_SET)?,
             context,
-            |context| platform_runtime_vm::destack_process_env_set(runtime, context, name, value),
+            |context| {
+                platform_runtime_vm::destack_process_env_set(runtime, context, name, argument_value)
+            },
             |context, result| {
                 let _ = &context;
                 if let Ok(()) = result {
@@ -10274,7 +10285,7 @@ fn destack_process_env_set_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -10283,7 +10294,12 @@ fn destack_process_env_set_bytes_vm_replay(
             runtime.replay_payload_for(PROCESS_ENV_SET_BYTES)?,
             context,
             |context| {
-                platform_runtime_vm::destack_process_env_set_bytes(runtime, context, name, value)
+                platform_runtime_vm::destack_process_env_set_bytes(
+                    runtime,
+                    context,
+                    name,
+                    argument_value,
+                )
             },
             |context, result| {
                 let _ = &context;
@@ -13982,11 +13998,11 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(registry, isolate, PROCESS_ENV_SET, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (name, value) = decode_destack_process_env_set_args(context, args)?;
+                let (name, argument_value) = decode_destack_process_env_set_args(context, args)?;
 
                 // execute binding
                 runtime.check_policy(PROCESS_ENV_SET)?;
-                destack_process_env_set_vm_replay(runtime, context, name, value)
+                destack_process_env_set_vm_replay(runtime, context, name, argument_value)
             })
             .map_err(Into::into)
         });
@@ -13999,11 +14015,12 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (name, value) = decode_destack_process_env_set_bytes_args(context, args)?;
+                    let (name, argument_value) =
+                        decode_destack_process_env_set_bytes_args(context, args)?;
 
                     // execute binding
                     runtime.check_policy(PROCESS_ENV_SET_BYTES)?;
-                    destack_process_env_set_bytes_vm_replay(runtime, context, name, value)
+                    destack_process_env_set_bytes_vm_replay(runtime, context, name, argument_value)
                 })
                 .map_err(Into::into)
             }

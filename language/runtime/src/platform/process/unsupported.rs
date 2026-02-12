@@ -248,10 +248,10 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 pub(crate) unsafe fn destack_process_env_set(
     context: &RuntimeCallContext,
     name: NativeStringRef,
-    value: NativeStringRef,
+    argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
     context.check_policy(PROCESS_ENV_SET)?;
-    let _ = (name, value);
+    let _ = (name, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.set")).boxed())
 }
@@ -276,10 +276,10 @@ pub(crate) unsafe fn destack_process_env_set(
 pub(crate) unsafe fn destack_process_env_set_bytes(
     context: &RuntimeCallContext,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     context.check_policy(PROCESS_ENV_SET_BYTES)?;
-    let _ = (name, value);
+    let _ = (name, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.setBytes")).boxed())
 }

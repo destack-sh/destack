@@ -127,9 +127,9 @@ pub(crate) fn destack_ipc_message_queue_send(
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, priority, timeoutns, payload);
+    let _ = (handle, priority, timeoutns, argument_payload);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.ipc.message.queueSend is not available in the VM yet",
     ))
@@ -640,10 +640,10 @@ pub(crate) fn destack_ipc_unix_send(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     socket: resource::SocketHandle,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
     handles: VmSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<u64> {
-    let _ = (socket, payload, handles);
+    let _ = (socket, argument_payload, handles);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.ipc.unix.send is not available in the VM yet",
     ))

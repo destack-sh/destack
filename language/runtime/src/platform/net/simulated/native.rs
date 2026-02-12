@@ -943,10 +943,10 @@ pub(crate) unsafe fn destack_net_set_sock_opt_raw(
     handle: resource::SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (handle, level, name, value);
+    let _ = (handle, level, name, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.setSockOptRaw",
@@ -1211,10 +1211,10 @@ pub(crate) unsafe fn destack_net_packet_receive(
     context: &RuntimeCallContext,
     out: *mut PacketCaptureRecord,
     handle: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (out, handle, payload);
+    let _ = (out, handle, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.raw.packetReceive",
@@ -1243,10 +1243,10 @@ pub(crate) unsafe fn destack_net_packet_send(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (out, handle, payload);
+    let _ = (out, handle, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetSend")).boxed())
 }

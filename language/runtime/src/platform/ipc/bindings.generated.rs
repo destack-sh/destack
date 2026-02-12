@@ -223,9 +223,14 @@ fn decode_destack_ipc_message_queue_send_args(
     let priority = decode_uint32(priority_value, "priority", "uint32")?;
     let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
     let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
-    let payload_value = arg_value(args, 3, "payload", "Slice<uint8>")?;
-    let payload = decode_slice::<u8>(context, payload_value, "payload", "Slice<uint8>")?;
-    Ok((handle, priority, timeoutns, payload))
+    let argument_payload_value = arg_value(args, 3, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, priority, timeoutns, argument_payload))
 }
 
 /// Encode the result for destack.ipc.message.queueSend.
@@ -741,8 +746,13 @@ fn decode_destack_ipc_unix_send_args(
     let socket_inner_inner = decode_uint64(socket_value, "socket_inner_inner", "SocketHandle")?;
     let socket_inner = resource::ResourceId(socket_inner_inner);
     let socket = resource::SocketHandle(socket_inner);
-    let payload_value = arg_value(args, 1, "payload", "Slice<uint8>")?;
-    let payload = decode_slice::<u8>(context, payload_value, "payload", "Slice<uint8>")?;
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
     let handles_value = arg_value(args, 2, "handles", "Slice<TransferredHandle>")?;
     let handles = decode_slice::<resource::TransferredHandle>(
         context,
@@ -750,7 +760,7 @@ fn decode_destack_ipc_unix_send_args(
         "handles",
         "Slice<TransferredHandle>",
     )?;
-    Ok((socket, payload, handles))
+    Ok((socket, argument_payload, handles))
 }
 
 /// Encode the result for destack.ipc.unix.send.
@@ -1512,9 +1522,9 @@ fn destack_ipc_message_queue_send_replay(
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &priority, &timeoutns, &payload);
+    let _ = (&handle, &priority, &timeoutns, &argument_payload);
 
     context.replay().run_binding_with_payload_policy(
         IPC_MESSAGE_QUEUE_SEND,
@@ -1522,12 +1532,20 @@ fn destack_ipc_message_queue_send_replay(
         || match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_ipc_message_queue_send(
-                    context, handle, priority, timeoutns, payload,
+                    context,
+                    handle,
+                    priority,
+                    timeoutns,
+                    argument_payload,
                 )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_ipc_message_queue_send(
-                    context, handle, priority, timeoutns, payload,
+                    context,
+                    handle,
+                    priority,
+                    timeoutns,
+                    argument_payload,
                 )
             },
         },
@@ -2558,21 +2576,31 @@ fn destack_ipc_unix_send_replay(
     world: RuntimeWorld,
     out: *mut u64,
     socket: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
     handles: NativeSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (&socket, &payload, &handles);
+    let _ = (&socket, &argument_payload, &handles);
 
     context.replay().run_binding_with_payload_policy(
         IPC_UNIX_SEND,
         context.replay_payload_for(IPC_UNIX_SEND)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_ipc_unix_send(context, out, socket, payload, handles)
+                platform_native::destack_ipc_unix_send(
+                    context,
+                    out,
+                    socket,
+                    argument_payload,
+                    handles,
+                )
             },
             RuntimeWorld::Simulated => unsafe {
                 platform_simulated_native::destack_ipc_unix_send(
-                    context, out, socket, payload, handles,
+                    context,
+                    out,
+                    socket,
+                    argument_payload,
+                    handles,
                 )
             },
         },
@@ -2682,13 +2710,20 @@ pub unsafe extern "C" fn destack_ipc_message_queue_send(
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &priority, &timeoutns, &payload);
+        let _ = (&handle, &priority, &timeoutns, &argument_payload);
 
         let world = context.check_and_resolve_world(IPC_MESSAGE_QUEUE_SEND)?;
-        destack_ipc_message_queue_send_replay(context, world, handle, priority, timeoutns, payload)
+        destack_ipc_message_queue_send_replay(
+            context,
+            world,
+            handle,
+            priority,
+            timeoutns,
+            argument_payload,
+        )
     })
 }
 
@@ -2943,17 +2978,17 @@ pub unsafe extern "C" fn destack_ipc_unix_receive(
 pub unsafe extern "C" fn destack_ipc_unix_send(
     out: *mut u64,
     socket: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
     handles: NativeSlice<resource::TransferredHandle>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &socket, &payload, &handles);
+        let _ = (&out, &socket, &argument_payload, &handles);
 
         let world = context.check_and_resolve_world(IPC_UNIX_SEND)?;
-        destack_ipc_unix_send_replay(context, world, out, socket, payload, handles)
+        destack_ipc_unix_send_replay(context, world, out, socket, argument_payload, handles)
     })
 }
 
@@ -3166,7 +3201,7 @@ fn destack_ipc_message_queue_send_vm_replay(
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -3176,10 +3211,20 @@ fn destack_ipc_message_queue_send_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => platform_vm::destack_ipc_message_queue_send(
-                    runtime, context, handle, priority, timeoutns, payload,
+                    runtime,
+                    context,
+                    handle,
+                    priority,
+                    timeoutns,
+                    argument_payload,
                 ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_message_queue_send(
-                    runtime, context, handle, priority, timeoutns, payload,
+                    runtime,
+                    context,
+                    handle,
+                    priority,
+                    timeoutns,
+                    argument_payload,
                 ),
             },
             |context, result| {
@@ -4224,7 +4269,7 @@ fn destack_ipc_unix_send_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     socket: resource::SocketHandle,
-    payload: VmSlice<u8>,
+    argument_payload: VmSlice<u8>,
     handles: VmSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
@@ -4234,11 +4279,19 @@ fn destack_ipc_unix_send_vm_replay(
             runtime.replay_payload_for(IPC_UNIX_SEND)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => {
-                    platform_vm::destack_ipc_unix_send(runtime, context, socket, payload, handles)
-                }
+                RuntimeWorld::Host => platform_vm::destack_ipc_unix_send(
+                    runtime,
+                    context,
+                    socket,
+                    argument_payload,
+                    handles,
+                ),
                 RuntimeWorld::Simulated => platform_simulated_vm::destack_ipc_unix_send(
-                    runtime, context, socket, payload, handles,
+                    runtime,
+                    context,
+                    socket,
+                    argument_payload,
+                    handles,
                 ),
             },
             |context, result| {
@@ -4355,13 +4408,19 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (handle, priority, timeoutns, payload) =
+                    let (handle, priority, timeoutns, argument_payload) =
                         decode_destack_ipc_message_queue_send_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(IPC_MESSAGE_QUEUE_SEND)?;
                     destack_ipc_message_queue_send_vm_replay(
-                        runtime, context, world, handle, priority, timeoutns, payload,
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        priority,
+                        timeoutns,
+                        argument_payload,
                     )
                 })
                 .map_err(Into::into)
@@ -4670,11 +4729,19 @@ pub fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         binding!(registry, isolate, IPC_UNIX_SEND, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (socket, payload, handles) = decode_destack_ipc_unix_send_args(context, args)?;
+                let (socket, argument_payload, handles) =
+                    decode_destack_ipc_unix_send_args(context, args)?;
 
                 // execute binding
                 let world = runtime.check_and_resolve_world(IPC_UNIX_SEND)?;
-                destack_ipc_unix_send_vm_replay(runtime, context, world, socket, payload, handles)
+                destack_ipc_unix_send_vm_replay(
+                    runtime,
+                    context,
+                    world,
+                    socket,
+                    argument_payload,
+                    handles,
+                )
             })
             .map_err(Into::into)
         });
