@@ -21,6 +21,9 @@ export newtype ProcessFdHandle = ResourceId;
 /// Handle for a scheduled timer.
 export newtype TimerHandle = ResourceId;
 
+/// Handle for a timerfd style descriptor.
+export newtype TimerFdHandle = ResourceId;
+
 /// Handle for a filesystem watcher.
 export newtype WatchHandle = ResourceId;
 

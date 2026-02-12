@@ -5,6 +5,7 @@ mod bindings_generated;
 mod handles;
 pub mod native;
 mod resolve;
+pub(crate) mod runtime;
 mod snapshot;
 mod table;
 pub mod vm;

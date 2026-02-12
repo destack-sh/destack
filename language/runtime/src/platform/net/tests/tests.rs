@@ -8,7 +8,7 @@ use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::fs::PathBytesAbi;
-use crate::platform::fs::{OsPath, OsPathVm, PathEncoding, PathUtf16Abi};
+use crate::platform::fs::{OsPath, OsPathVm, PathEncoding, PathUtf16Abi, core as core_fs};
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, VmValueCodec,
@@ -1063,12 +1063,16 @@ impl<'call> NetHarnessContext<'call> {
                 let status = if is_ipv6_group {
                     let interface_index = interface_address.parse::<u32>().unwrap_or(0);
                     unsafe {
-                        platform_net::destack_net_join_multicast_v6(handle, group, interface_index)
+                        platform_net::destack_net_udp_join_multicast_v6(
+                            handle,
+                            group,
+                            interface_index,
+                        )
                     }
                 } else {
                     let interface_address = NativeStringRef::from(interface_address);
                     unsafe {
-                        platform_net::destack_net_join_multicast_v4(
+                        platform_net::destack_net_udp_join_multicast_v4(
                             handle,
                             group,
                             interface_address,
@@ -1116,12 +1120,16 @@ impl<'call> NetHarnessContext<'call> {
                 let status = if is_ipv6_group {
                     let interface_index = interface_address.parse::<u32>().unwrap_or(0);
                     unsafe {
-                        platform_net::destack_net_leave_multicast_v6(handle, group, interface_index)
+                        platform_net::destack_net_udp_leave_multicast_v6(
+                            handle,
+                            group,
+                            interface_index,
+                        )
                     }
                 } else {
                     let interface_address = NativeStringRef::from(interface_address);
                     unsafe {
-                        platform_net::destack_net_leave_multicast_v4(
+                        platform_net::destack_net_udp_leave_multicast_v4(
                             handle,
                             group,
                             interface_address,
@@ -1148,7 +1156,7 @@ impl<'call> NetHarnessContext<'call> {
             ),
             None => {
                 let status =
-                    unsafe { platform_net::destack_net_set_multicast_loop(handle, enabled) };
+                    unsafe { platform_net::destack_net_udp_set_multicast_loop(handle, enabled) };
                 self.status_result(status, "set multicast loop")
             }
         }
@@ -1165,7 +1173,8 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_set_multicast_ttl(self.call_context, context, handle, ttl)
             }
             None => {
-                let status = unsafe { platform_net::destack_net_set_multicast_ttl(handle, ttl) };
+                let status =
+                    unsafe { platform_net::destack_net_udp_set_multicast_ttl(handle, ttl) };
                 self.status_result(status, "set multicast ttl")
             }
         }
@@ -1467,8 +1476,7 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_uds_listen(self.call_context, context, address, backlog)
             }
             None => {
-                let (path_bytes, path_ref) = path_ref_native(path);
-                let _ = path_bytes;
+                let (_path_storage, path_ref) = path_ref_native(path);
                 let address = uds_path_address_native(path_ref);
                 let mut handle = ListenerHandle(ResourceId(0));
                 let status =
@@ -1493,8 +1501,7 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_uds_listen(self.call_context, context, address, backlog)
             }
             None => {
-                let (path_utf16, path_ref) = path_ref_native_utf16(path);
-                let _ = path_utf16;
+                let (_path_storage, path_ref) = path_ref_native_utf16(path);
                 let address = uds_path_address_native(path_ref);
                 let mut handle = ListenerHandle(ResourceId(0));
                 let status =
@@ -1514,8 +1521,7 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_uds_connect(self.call_context, context, address)
             }
             None => {
-                let (path_bytes, path_ref) = path_ref_native(path);
-                let _ = path_bytes;
+                let (_path_storage, path_ref) = path_ref_native(path);
                 let address = uds_path_address_native(path_ref);
                 let mut handle = SocketHandle(ResourceId(0));
                 let status = unsafe { platform_net::destack_net_uds_connect(&mut handle, address) };
@@ -1538,8 +1544,7 @@ impl<'call> NetHarnessContext<'call> {
                 platform_vm::destack_net_uds_connect(self.call_context, context, address)
             }
             None => {
-                let (path_utf16, path_ref) = path_ref_native_utf16(path);
-                let _ = path_utf16;
+                let (_path_storage, path_ref) = path_ref_native_utf16(path);
                 let address = uds_path_address_native(path_ref);
                 let mut handle = SocketHandle(ResourceId(0));
                 let status = unsafe { platform_net::destack_net_uds_connect(&mut handle, address) };
@@ -2314,50 +2319,51 @@ fn path_ref_native(path: &std::path::Path) -> (Vec<u8>, OsPath) {
     let bytes = path.as_os_str().as_bytes().to_vec();
     let path_ref = OsPath {
         encoding: PathEncoding::Bytes,
-        data: PathBytesAbi(NativeArray {
+        bytes: PathBytesAbi(NativeArray {
             data: bytes.as_ptr() as *mut u8,
             len: bytes.len() as u32,
             capacity: bytes.len() as u32,
         }),
+        utf16: core_fs::empty_path_utf16(),
     };
     (bytes, path_ref)
 }
 
 #[cfg(unix)]
-fn path_ref_native_utf16(path: &std::path::Path) -> (Vec<u8>, OsPath) {
+fn path_ref_native_utf16(path: &std::path::Path) -> (Vec<u16>, OsPath) {
     use std::os::unix::ffi::OsStrExt;
 
     // decode bytes as utf8 for deterministic utf16 test paths
     let bytes = path.as_os_str().as_bytes();
     let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
-    let units: Vec<u16> = text.encode_utf16().collect();
-    let utf16 = utf16_units_to_le_bytes(&units);
+    let mut utf16_units: Vec<u16> = text.encode_utf16().collect();
     let path_ref = OsPath {
         encoding: PathEncoding::Utf16,
-        data: PathUtf16Abi(NativeArray {
-            data: utf16.as_ptr() as *mut u8,
-            len: utf16.len() as u32,
-            capacity: utf16.len() as u32,
+        bytes: core_fs::empty_path_bytes(),
+        utf16: PathUtf16Abi(NativeArray {
+            data: utf16_units.as_mut_ptr(),
+            len: utf16_units.len() as u32,
+            capacity: utf16_units.len() as u32,
         }),
     };
 
-    (utf16, path_ref)
+    (utf16_units, path_ref)
 }
 
 #[cfg(windows)]
-fn path_ref_native(path: &std::path::Path) -> (Vec<u8>, OsPath) {
+fn path_ref_native(path: &std::path::Path) -> (Vec<u16>, OsPath) {
     use std::os::windows::ffi::OsStrExt;
-    let units: Vec<u16> = path.as_os_str().encode_wide().collect();
-    let utf16 = utf16_units_to_le_bytes(&units);
+    let mut utf16_units: Vec<u16> = path.as_os_str().encode_wide().collect();
     let path_ref = OsPath {
         encoding: PathEncoding::Utf16,
-        data: PathUtf16Abi(NativeArray {
-            data: utf16.as_ptr() as *mut u8,
-            len: utf16.len() as u32,
-            capacity: utf16.len() as u32,
+        bytes: core_fs::empty_path_bytes(),
+        utf16: PathUtf16Abi(NativeArray {
+            data: utf16_units.as_mut_ptr(),
+            len: utf16_units.len() as u32,
+            capacity: utf16_units.len() as u32,
         }),
     };
-    (utf16, path_ref)
+    (utf16_units, path_ref)
 }
 
 fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path) -> OsPathVm {
@@ -2368,7 +2374,8 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
         let array = VmArray::from_bytes(context, bytes);
         OsPathVm {
             encoding: PathEncoding::Bytes,
-            data: PathBytesAbi(array),
+            bytes: PathBytesAbi(array),
+            utf16: PathUtf16Abi(empty_vm_array()),
         }
     }
 
@@ -2376,11 +2383,11 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
     {
         use std::os::windows::ffi::OsStrExt;
         let units: Vec<u16> = path.as_os_str().encode_wide().collect();
-        let utf16 = utf16_units_to_le_bytes(&units);
-        let array = VmArray::from_values(context, &utf16).expect("vm utf16 path should encode");
+        let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
         OsPathVm {
             encoding: PathEncoding::Utf16,
-            data: PathUtf16Abi(array),
+            bytes: PathBytesAbi(empty_vm_array()),
+            utf16: PathUtf16Abi(array),
         }
     }
 }
@@ -2396,22 +2403,23 @@ fn path_ref_vm_utf16(
     let bytes = path.as_os_str().as_bytes();
     let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
     let units: Vec<u16> = text.encode_utf16().collect();
-    let utf16 = utf16_units_to_le_bytes(&units);
-    let array = VmArray::from_values(context, &utf16).expect("vm utf16 path should encode");
+    let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
 
     OsPathVm {
         encoding: PathEncoding::Utf16,
-        data: PathUtf16Abi(array),
+        bytes: PathBytesAbi(empty_vm_array()),
+        utf16: PathUtf16Abi(array),
     }
 }
 
-/// Encode UTF-16 code units into little-endian bytes.
-fn utf16_units_to_le_bytes(units: &[u16]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(units.len() * 2);
-    for unit in units {
-        bytes.extend_from_slice(&unit.to_le_bytes());
+/// Build an empty VM array.
+fn empty_vm_array<T>() -> VmArray<T> {
+    VmArray {
+        data: vm::RawPointer::NULL,
+        len: 0,
+        capacity: 0,
+        _marker: std::marker::PhantomData,
     }
-    bytes
 }
 
 /// Build a unix domain socket path address for native calls.

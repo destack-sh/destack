@@ -1337,6 +1337,39 @@
             "policy",
             "access"
           ]
+        },
+        {
+          "description": "Set the matching binding replay payload policy.",
+          "type": "object",
+          "properties": {
+            "payload": {
+              "description": "The selected replay payload mode for matching bindings.",
+              "$ref": "#/$defs/ReplayPayloadModeJson"
+            },
+            "policy": {
+              "type": "string",
+              "const": "setReplay"
+            }
+          },
+          "required": [
+            "policy",
+            "payload"
+          ]
+        }
+      ]
+    },
+    "ReplayPayloadModeJson": {
+      "description": "Replay payload mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Record only the result value.",
+          "type": "string",
+          "const": "resultsonly"
+        },
+        {
+          "description": "Record arguments and results for verification.",
+          "type": "string",
+          "const": "argumentsandresults"
         }
       ]
     },
@@ -2231,21 +2264,6 @@
           ]
         }
       }
-    },
-    "ReplayPayloadModeJson": {
-      "description": "Replay payload mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Record only the result value.",
-          "type": "string",
-          "const": "resultsonly"
-        },
-        {
-          "description": "Record arguments and results for verification.",
-          "type": "string",
-          "const": "argumentsandresults"
-        }
-      ]
     },
     "TimeOptionsJson": {
       "description": "Runtime time options for JSON deserialization.",

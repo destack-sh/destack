@@ -9,5 +9,7 @@ pub use bindings_generated::*;
 mod core;
 #[allow(unused_imports)]
 pub(crate) use core::*;
+mod host;
 pub mod native;
+pub(crate) mod simulated;
 pub mod vm;

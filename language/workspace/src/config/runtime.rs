@@ -360,6 +360,11 @@ pub enum RuntimePolicyEffect {
         /// The selected access mode for matching bindings.
         access: RuntimeAccess,
     },
+    /// Set the matching binding replay payload policy.
+    SetReplay {
+        /// The selected replay payload mode for matching bindings.
+        payload: ReplayPayloadMode,
+    },
 }
 
 /// Control effect payload for runtime rules.
@@ -1105,6 +1110,11 @@ pub enum RuntimePolicyEffectJson {
         /// The selected access mode for matching bindings.
         access: RuntimeAccessJson,
     },
+    /// Set the matching binding replay payload policy.
+    SetReplay {
+        /// The selected replay payload mode for matching bindings.
+        payload: ReplayPayloadModeJson,
+    },
 }
 
 impl From<&RuntimePolicyEffectJson> for RuntimePolicyEffect {
@@ -1115,6 +1125,9 @@ impl From<&RuntimePolicyEffectJson> for RuntimePolicyEffect {
             },
             RuntimePolicyEffectJson::SetAccess { access } => RuntimePolicyEffect::SetAccess {
                 access: RuntimeAccess::from(*access),
+            },
+            RuntimePolicyEffectJson::SetReplay { payload } => RuntimePolicyEffect::SetReplay {
+                payload: ReplayPayloadMode::from(*payload),
             },
         }
     }

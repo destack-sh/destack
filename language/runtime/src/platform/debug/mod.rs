@@ -9,4 +9,5 @@ pub use abi_generated::*;
 pub use bindings_generated::*;
 
 pub mod native;
+pub(crate) mod runtime;
 pub mod vm;

@@ -5,6 +5,7 @@ mod registry;
 mod spec;
 mod vm;
 
+pub use destack_workspace::RuntimeWorld;
 pub use native::{NativeBinding, NativeBindingSet, native_call};
 pub use policy::{BindingPolicy, ExecutionMode, PolicyEngine};
 pub use registry::BindingRegistry;

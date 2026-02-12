@@ -7,5 +7,8 @@ pub use abi_generated::*;
 #[allow(unused_imports, unreachable_pub)]
 pub use bindings_generated::*;
 pub mod core;
+mod host;
 pub mod native;
+pub(crate) mod runtime;
+pub(crate) mod simulated;
 pub mod vm;

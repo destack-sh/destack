@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use destack_vm as vm;
 use destack_vm::Isolate;
@@ -67,6 +68,9 @@ impl BindingRegistry {
     pub fn set_policy(&mut self, policy: BindingPolicy) {
         // store the binding policy
         self.policy = policy;
+
+        // compile policy lookups for currently registered descriptors
+        self.policy.compile_descriptors(&self.descriptors);
     }
 
     /// Get the binding policy for this registry.
@@ -77,6 +81,7 @@ impl BindingRegistry {
     /// Apply runtime options to binding policy.
     pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
         self.policy.apply_runtime_options(options);
+        self.policy.compile_descriptors(&self.descriptors);
     }
 
     /// Set runtime handles for binding calls.
@@ -138,6 +143,7 @@ impl BindingRegistry {
         self.descriptors.push(binding.spec);
         self.native_by_id.insert(binding.spec.id, binding);
         self.native_bindings.push(binding);
+        self.policy.compile_descriptor(binding.spec);
     }
 
     /// Register a VM binding handler with metadata.
@@ -157,7 +163,7 @@ impl BindingRegistry {
         }
 
         // snapshot policy for the installed handler
-        let policy = self.policy.clone();
+        let policy = Arc::new(self.policy.clone());
         let handles = self.runtime_handle.unwrap_or_else(|| {
             panic!(
                 "binding registry missing runtime handles for {}",
@@ -183,6 +189,7 @@ impl BindingRegistry {
         if !has_descriptor {
             self.descriptor_by_id.insert(descriptor.id, descriptor);
             self.descriptors.push(descriptor);
+            self.policy.compile_descriptor(descriptor);
         }
     }
 

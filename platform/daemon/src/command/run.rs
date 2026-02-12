@@ -2,15 +2,12 @@ use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
 use destack_runtime::engine::VmEntry;
-use destack_runtime::platform::{
-    BindingPolicy, ExecutionMode as RuntimeExecutionMode, PlatformContext,
-};
-use destack_runtime::runtime::{Runtime, RuntimeContext};
+use destack_runtime::platform::PlatformContext;
+use destack_runtime::runtime::Runtime;
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    DebugMode, DsConfigRuntimeOptionsJson, GcOptions, Program, RuntimeOptions, Target, TargetId,
-    TrustPolicy,
+    DebugMode, DsConfigRuntimeOptionsJson, Program, Target, TargetId, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
 
@@ -225,13 +222,8 @@ fn run_entry_module(
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let process_args = process_args_for_source(entry_source, args);
     let platform = PlatformContext::new(process_args);
-    let runtime_context = RuntimeContext::new(platform);
-    let mut runtime = Runtime::new(runtime_context);
-    let gc_options = gc_options_for_runtime(&target.runtime_options);
-    runtime.heap.configure_gc(gc_options);
-    runtime
-        .bindings
-        .set_policy(binding_policy_for_target(&target));
+    let mut runtime = Runtime::from_runtime_options(platform, &target.runtime_options)
+        .map_err(|error| format!("{error}"))?;
     runtime.bindings.install_vm_defaults(&mut isolate);
 
     let entry = VmEntry::new(entry_name);
@@ -265,11 +257,6 @@ fn process_args_for_source(source: &CommandInput, args: &[String]) -> Vec<String
     process_args.push(command_input_display_name(source));
     process_args.extend(args.iter().cloned());
     process_args
-}
-
-/// Derive heap GC options from runtime configuration.
-fn gc_options_for_runtime(options: &RuntimeOptions) -> GcOptions {
-    options.gc.clone()
 }
 
 /// Get a display name for the entry source.
@@ -402,13 +389,6 @@ fn isolate_options_for_target(target: &Target) -> IsolateOptions {
     options.execution.mode = execution_mode;
 
     options
-}
-
-/// Create binding policy from target configuration.
-fn binding_policy_for_target(target: &Target) -> BindingPolicy {
-    let mode: RuntimeExecutionMode = target.runtime_options.execution.into();
-
-    BindingPolicy::new(mode)
 }
 
 /// Apply runtime overrides to a target.

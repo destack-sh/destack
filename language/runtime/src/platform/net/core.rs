@@ -610,7 +610,7 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     family: SocketFamily,
     flags: ResolveFlags,
 ) -> RuntimeResult<()> {
-    unsafe { super::os::destack_net_resolve(context, out, host, port, family, flags) }
+    unsafe { super::host::destack_net_resolve(context, out, host, port, family, flags) }
 }
 
 /// Resolve host and port into raw socket addresses.
@@ -633,7 +633,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup_raw(
     out: *mut NativeArray<NativeStringRef>,
     address: SocketAddress,
 ) -> RuntimeResult<()> {
-    unsafe { super::os::destack_net_reverse_lookup(context, out, address) }
+    unsafe { super::host::destack_net_reverse_lookup(context, out, address) }
 }
 
 /// Reverse lookup a raw socket address into hostnames.
@@ -945,7 +945,7 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
     out: *mut KeepAliveConfig,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    unsafe { super::os::destack_net_get_keep_alive(context, out, handle) }
+    unsafe { super::host::destack_net_get_keep_alive(context, out, handle) }
 }
 
 /// Read TCP keepalive settings.
@@ -1399,15 +1399,15 @@ pub(crate) unsafe fn destack_net_get_only_v6(
 pub(crate) fn unix_path_bytes(path: OsPath, label: &str) -> RuntimeResult<Vec<u8>> {
     // decode byte paths directly
     if path.encoding == PathEncoding::Bytes {
-        let bytes = unsafe { path.data.0.as_slice()? };
+        let bytes = unsafe { path.bytes.0.as_slice()? };
 
         return Ok(bytes.to_vec());
     }
 
     // decode utf16 paths and transcode to bytes
-    core_fs::utf16_path_to_utf8_bytes(path.data, label)
+    core_fs::utf16_path_to_utf8_bytes(path.utf16, label)
 }
 
 /// Core networking interface exposed to bindings.
 /// This provides a stable entrypoint that selects the active OS backend.
-pub(crate) use super::os::*;
+pub(crate) use super::host::*;

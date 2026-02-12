@@ -16,6 +16,9 @@ export newtype AllocFlags = uint32;
 /// Sync flags for sync_file_range-style operations.
 export newtype SyncFlags = uint32;
 
+/// Read and write modifier flags for positioned and vectored I/O.
+export newtype ReadWriteFlags = uint32;
+
 /// File permission mode bits.
 export newtype FileMode = uint32;
 
@@ -42,6 +45,9 @@ export newtype StatusFlags = uint32;
 
 /// Device identifier for mknod-style calls.
 export newtype NodeDevice = uint64;
+
+/// Pipe and descriptor splice flags.
+export newtype SpliceFlags = uint32;
 
 /// Seek origin for seek operations.
 export enum SeekWhence {

@@ -62,6 +62,7 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         let context = RuntimeContext::from_runtime_options(platform, options);
         let mut runtime = Self::new(context);
+        runtime.scheduler.configure(options.scheduler.clone());
         runtime.bindings.apply_runtime_options(options);
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
@@ -75,6 +76,7 @@ impl Runtime {
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
         let mut runtime = Self::new(context);
+        runtime.scheduler.configure(options.scheduler.clone());
         runtime.bindings.apply_runtime_options(options);
         if let Some(poller) = poller_for_options(options)? {
             runtime.set_poller(poller);
@@ -117,6 +119,12 @@ impl Runtime {
             if event_count > 0 {
                 progressed = true;
             }
+        }
+
+        // run one gc cycle when pacing says a cycle is due
+        if self.heap.should_collect() {
+            let _stats = self.heap.collect();
+            progressed = true;
         }
 
         // NOTE #Incomplete: wire scheduler runnables into tasks

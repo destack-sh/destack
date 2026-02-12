@@ -114,6 +114,9 @@ impl<'a> DomainWriter<'a> {
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
             output.push_str("    context: &RuntimeCallContext,\n");
+            if entry.scope != crate::model::BindingScope::Runtime {
+                output.push_str("    world: RuntimeWorld,\n");
+            }
             for param in &params {
                 output.push_str(&format!("    {param},\n"));
             }
@@ -141,26 +144,64 @@ impl<'a> DomainWriter<'a> {
                 }
             }
 
-            output.push_str("    context.replay().run_binding(\n");
+            output.push_str("    context.replay().run_binding_with_payload_policy(\n");
             output.push_str(&format!("        {},\n", binding.const_name));
-            if args.is_empty() {
-                output.push_str(&format!(
-                    "        || unsafe {{ platform_native::{}(context) }},\n",
+            output.push_str(&format!(
+                "        context.replay_payload_for({})?,\n",
+                binding.const_name
+            ));
+            let runtime_call = if args.is_empty() {
+                format!(
+                    "unsafe {{ platform_runtime_native::{}(context) }}",
                     implementation_fn_name
-                ));
+                )
             } else {
-                output.push_str(&format!(
-                    "        || unsafe {{ platform_native::{}(context, {}) }},\n",
+                format!(
+                    "unsafe {{ platform_runtime_native::{}(context, {}) }}",
                     implementation_fn_name,
                     args.join(", ")
+                )
+            };
+            let host_call = if args.is_empty() {
+                format!(
+                    "unsafe {{ platform_native::{}(context) }}",
+                    implementation_fn_name
+                )
+            } else {
+                format!(
+                    "unsafe {{ platform_native::{}(context, {}) }}",
+                    implementation_fn_name,
+                    args.join(", ")
+                )
+            };
+            if entry.scope == crate::model::BindingScope::Runtime {
+                output.push_str(&format!("        || {runtime_call},\n"));
+            } else {
+                let simulated_call = if args.is_empty() {
+                    format!(
+                        "unsafe {{ platform_simulated_native::{}(context) }}",
+                        implementation_fn_name
+                    )
+                } else {
+                    format!(
+                        "unsafe {{ platform_simulated_native::{}(context, {}) }}",
+                        implementation_fn_name,
+                        args.join(", ")
+                    )
+                };
+                output.push_str("        || match world {\n");
+                output.push_str(&format!("            RuntimeWorld::Host => {host_call},\n"));
+                output.push_str(&format!(
+                    "            RuntimeWorld::Simulated => {simulated_call},\n"
                 ));
+                output.push_str("        },\n");
             }
             output.push_str("        |result| {\n");
 
             if supports_args {
                 output.push_str("            let record_args = matches!(\n");
                 output.push_str(&format!(
-                    "                context.replay().payload_policy_for({})?,\n",
+                    "                context.replay_payload_for({})?,\n",
                     binding.const_name
                 ));
                 output.push_str("                ReplayPayload::ArgumentsAndResults,\n");
@@ -415,24 +456,51 @@ impl<'a> DomainWriter<'a> {
             output.push_str(&format!("fn {fn_name}(\n"));
             output.push_str("    runtime: &RuntimeCallContext,\n");
             output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
+            if entry.scope != crate::model::BindingScope::Runtime {
+                output.push_str("    world: RuntimeWorld,\n");
+            }
             for param in &params {
                 output.push_str(&format!("    {param},\n"));
             }
             output.push_str(") -> RuntimeResult<vm::Value> {\n");
 
-            output.push_str("    let result = runtime.replay().run_binding_with_context(\n");
+            output.push_str(
+                "    let result = runtime.replay().run_binding_with_context_and_payload_policy(\n",
+            );
             output.push_str(&format!("        {},\n", binding.const_name));
-            output.push_str("        context,\n");
             output.push_str(&format!(
-                "        |context| platform_vm::{}(runtime, context{invoke_args}),\n",
-                implementation_fn_name
+                "        runtime.replay_payload_for({})?,\n",
+                binding.const_name
             ));
+            output.push_str("        context,\n");
+            if entry.scope == crate::model::BindingScope::Runtime {
+                output.push_str(&format!(
+                    "        |context| platform_runtime_vm::{}(runtime, context{invoke_args}),\n",
+                    implementation_fn_name
+                ));
+            } else {
+                let simulated_call = format!(
+                    "platform_simulated_vm::{}(runtime, context{invoke_args})",
+                    implementation_fn_name
+                );
+                output.push_str("        |context| {\n");
+                output.push_str("            match world {\n");
+                output.push_str(&format!(
+                    "                RuntimeWorld::Host => platform_vm::{}(runtime, context{invoke_args}),\n",
+                    implementation_fn_name
+                ));
+                output.push_str(&format!(
+                    "                RuntimeWorld::Simulated => {simulated_call},\n"
+                ));
+                output.push_str("            }\n");
+                output.push_str("        },\n");
+            }
             output.push_str("        |context, result| {\n");
             output.push_str("            let _ = &context;\n");
             if supports_args {
                 output.push_str("            let record_args = matches!(\n");
                 output.push_str(&format!(
-                    "                runtime.replay().payload_policy_for({})?,\n",
+                    "                runtime.replay_payload_for({})?,\n",
                     binding.const_name
                 ));
                 output.push_str("                ReplayPayload::ArgumentsAndResults,\n");
@@ -468,11 +536,10 @@ impl<'a> DomainWriter<'a> {
                 output.push_str("                let result_recorded = ();\n");
             } else {
                 output.push_str("            if let Ok(value) = result {\n");
-                if binding_type_is_copy_for_handle(&entry.return_binding) {
-                    output.push_str("                let result_value = *value;\n");
-                } else {
-                    output.push_str("                let result_value = value.clone();\n");
-                }
+                let vm_result_type = vm_type_for_binding(domain, &entry.return_binding);
+                output.push_str(&format!(
+                    "                let result_value: {vm_result_type} = value.clone();\n"
+                ));
                 for line in render_replay_encode_lines(
                     domain,
                     &entry.return_binding,
@@ -694,7 +761,7 @@ fn collect_replay_type_names(
             fields,
         } => {
             if binding_type_requires_abi(binding_type) {
-                let replay_name = format!("{name}Replay");
+                let replay_name = replay_named_struct_name(name);
                 names.insert(named_type_path(
                     domain,
                     type_domain.as_str(),
@@ -717,4 +784,9 @@ fn collect_replay_type_names(
         }
         _ => {}
     }
+}
+
+/// Build the generated replay struct name for one named ABI struct.
+fn replay_named_struct_name(name: &str) -> String {
+    format!("{name}ReplayRecord")
 }

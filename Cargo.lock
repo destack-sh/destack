@@ -1374,7 +1374,7 @@ version = "0.55.0"
 
 [[package]]
 name = "destack_wasm"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "destack_ast",
  "destack_compiler",
