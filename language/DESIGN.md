@@ -1,12 +1,16 @@
 # Destack Language Design
 
-Destack is "TypeScript++" for building correct, optimal, integrated software systems.
-This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
-(Basically, Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do).
+> **Destack is "TypeScript++" for building correct, optimal, integrated software systems.**
+> 
+> This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
+Basically: Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for whole software systems including high performance ("systems") applications.
 
 Of course, other JS/TS-derived languages with similar features have tried this before, and some are moderately successful (e.g., AssemblyScript, NativeScript (sort of)).
 But they all fall short in interoperability, usefulness and - ultimately - adoption.
 We feel that now is the time to try this again, and have made some different tradeoffs to enable TypeScript to cover many more usage scenarios.
+
+See [SPECIFICATION](SPECIFICATION.md) for the fine-grained language definition.
+See [INTEROPERABILITY](INTEROPERABILITY.md) for the full file type matrix and exclusions.
 
 ## "TypeScript++"
 
@@ -80,7 +84,7 @@ In Destack, everything is an expression.
 The last non-statement expression (no trailing `;`) becomes the value of the expression.
 This enables more ergonomic expressions for complex control flow.
 
-```
+```ds
 const result = if (condition) { 
     computeA() 
 } else if (condition) {
@@ -98,7 +102,7 @@ If let is sugar for matching a value with a pattern in a conditional.
 Bindings from the pattern are scoped to the then branch.
 If let without else yields void.
 
-```
+```ds
 const result = if let Some(value) = maybe {
     value
 } else {
@@ -114,7 +118,7 @@ if let (x, y) = point {
 
 Range literals for iteration and slicing:
 
-```
+```ds
 for (const i of 0..10) { }      // exclusive
 for (const i of 0..=10) { }     // inclusive
 ```
@@ -123,7 +127,7 @@ for (const i of 0..=10) { }     // inclusive
 
 Explicit tuple syntax with parentheses:
 
-```
+```ds
 const point: (int32, int32) = (1, 2);
 const (x, _) = getPoint();
 ```
@@ -138,7 +142,7 @@ Fixed-size arrays use `T[N]` and are distinct from dynamic `T[]`.
 
 Modern `match` with full pattern matching and exhaustiveness checking:
 
-```
+```ds
 match (result) {
     Ok(value) => process(value)
     Err(e) if (e.retryable) => retry()
@@ -156,7 +160,7 @@ The match expression type is the union of its case body types.
 
 Infinite loops with `loop`.
 
-```
+```ds
 loop {
     const input = readInput();
     if (input == "quit") { break }
@@ -169,7 +173,7 @@ loop {
 `using` is explicit resource management, mirroring JS/TS semantics.
 Resources are disposed at lexical scope exit in LIFO order, and `await using` calls the async disposer.
 
-```
+```ds
 using file = openFile(path);
 await using conn = openConnection();
 ```
@@ -178,7 +182,7 @@ await using conn = openConnection();
 
 TSX syntax generalized for any tree-shaped data:
 
-```
+```ds
 <Prompt>
     <System>You are helpful.</System>
     <User>{message}</User>
@@ -193,7 +197,7 @@ This enables domain-specific trees for AI prompts, game entities, UI components,
 
 Destack extends decorators (`@`) to work on many more language constructs: declarations, statements, members, parameters, match arms, and more.
 
-```
+```ds
 @deprecated("use newAPI instead")
 function oldAPI() { }
 
@@ -238,7 +242,7 @@ We still support `throw` and classic JS exceptions for compatibility with existi
 
 The standard library provides `Result<T, E>` as the primary error handling mechanism:
 
-```
+```ds
 function readConfig(path: string): Result<Config, IOError> {
     const text = readFile(path)?    // propagate errors with ?
     const json = parseJson(text)?
@@ -250,7 +254,7 @@ The `?` operator propagates errors ergonomically, similar to Rust.
 When applied to a `Result`, it returns early with the error if present.
 The `??` operator provides a default value instead of propagating:
 
-```
+```ds
 const config = loadConfig() ?? defaultConfig;  // use default on error
 ```
 
@@ -266,7 +270,7 @@ This keeps `Result<T, E> | null` ergonomic without recursive unwrapping.
 `throw` is for **unrecoverable errors**: assertion failures, invariant violations, bugs.
 Unlike exceptions in Java or Python, panics are not meant to be caught and recovered from.
 
-```
+```ds
 function assertPositive(n: int) {
     if (n <= 0) {
         throw new Error("invariant violated: expected positive")
@@ -283,7 +287,7 @@ This enables zero-cost error handling for the common (non-error) path.
 
 The `try`/`catch` syntax handles exceptions and explicit `Try` propagation:
 
-```
+```ds
 try {
     const config = readConfig("config.json")?;
     process(config);
@@ -299,72 +303,26 @@ When a `?` is inside a `try` with a catch, `Try.fromError` is not required.
 Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
 A try expression must include a catch or finally block.
 
-```
+```ds
 try {
-    riskyOperationA()?;
-} catch match e {
+    riskyOperationA()?; // -> Result<void, AError>
+    riskyOperationB()?; // -> Result<void, BError>
+} catch match (e /* AError | BError */) {
     NumericError(x) => Error(@format("bad number: {x}"))
     FormatError => Error(@format("bad format {e}"))
     _ => Error(@format("unknown error: {e}"))
 }
 ```
 
-### Design Rationale
-
-This design is intentional:
-
-1. **Explicit error paths**: Functions that can fail return `Result`. The type system tracks errors.
-2. **Zero-cost happy path**: No exception tables, no stack unwinding machinery for native code.
-3. **Bugs are bugs**: Panics indicate programmer error, not recoverable conditions.
-4. **Target-appropriate semantics**: JS keeps its exception model for compatibility.
-
-The standard library uses `Result` throughout.
-If you need traditional exception semantics, target JS/TS output.
-
-<sub>See [test/fixtures/specification/](test/fixtures/specification/) for specification tests.</sub>
-
-
 ## Types
 
-Destack extends TypeScript's type system with precise primitives.
-It adds nominal types and readable constraints.
-
-### Inference
-
-Destack prefers explicit types at public boundaries.
-Exported bindings may use local surface inference when their types are determined from local syntax.
-Other modules consume exported types without re-inferring the defining module.
-Inference cycles across modules are forbidden unless explicit annotations break the cycle.
-There is no whole program inference or Hindley-Milner style generalization.
-
-Most non local constructs _should_ be explicitly typed:
-- Exported functions, methods, and constructors annotate dynamic parameters.
-- Exported return types may be inferred when local surface inference applies.
-- Public fields and properties declare types.
-- Function types in type declarations annotate parameters and return types.
-
-Local inference is fully supported wherever convenient and unambiguous:
-- Static parameters may include types but are not required.
-- Static parameters default to type parameters unless a value constraint or value default is provided.
-- Lambdas may omit parameter and return types when a contextual type is available.
-- Local bindings may infer types from their initializer.
-- Object literal fields may omit annotations when the binding is typed or uses `satisfies`.
-
-Mutability, widening and freshness follow TypeScript terminology and behavior.
-- Binding mutability defaults to mutable in TypeScript/JavaScript modules and immutable in Destack modules when no explicit mutability is provided.
-- Pattern-level mutability overrides binding-level mutability for that binding.
-- Literal expressions start as fresh literal types.
-- Widening happens at explicit commitment points such as `let` bindings without contextual types.
-- `const` bindings keep literal types for scalar literals but still widen object and array members unless a const context applies.
-- Const contexts and const assertions suppress widening and produce readonly object and tuple shapes.
-- Contextual typing can prevent widening by providing a constraining type at the use site.
-- Exported surfaces follow the same rules as local bindings and do not invent extra widening or narrowing.
+Destack extends TypeScript's type system with precise primitives, nominal types ("newtypes"), ergonomic constraints, and some additional features.
 
 ### Primitives
 
 Precise numeric types beyond TypeScript's `number`:
 
-```
+```ds
 const id: uint64 = 12345;
 const balance: float32 = 100.50;
 ```
@@ -377,7 +335,7 @@ Pointer-sized integers are spelled `isize` and `usize`.
 
 Nominal wrappers that prevent mixing semantically different values:
 
-```
+```ds
 newtype UserId = int64;
 newtype OrderId = int64;
 // UserId and OrderId don't mix, even though both are int64
@@ -399,7 +357,7 @@ Structural object types remain reference types, even when written as type aliase
 Type aliases inherit the semantics of the underlying type.
 Struct declarations require a name and cannot be anonymous.
 
-```
+```ds
 struct Point {
     x: float32;
     y: float32;
@@ -421,7 +379,7 @@ Classes are reference types, so `===` compares identity.
 Ownership modifiers (`^T`, `&T`) describe access and lifetime without changing identity semantics.
 Struct values may still be heap allocated by escape analysis, but the semantics remain value based.
 
-```
+```ds
 const p1 = Point { x: 1, y: 2 };
 const p2 = Point { x: 1, y: 2 };
 p1 == p2;  // true: same data
@@ -436,14 +394,14 @@ e1 == e2;  // false: different instances
 Structs are nominal (like newtypes), so they must be explicitly constructed:
 Prefer `Point { ... }` for structs and reserve `new Point(...)` for compatibility with TS-style call sites.
 
-```
+```ds
 let x: Point = Point { x, y };  // ok
-let x: Point = { x, y };        // error: plain object is not Point
+let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
 For composition, structs use embedding instead of inheritance:
 
-```
+```ds
 struct Transform { position: Vec3; rotation: Quat; }
 struct Player { ...Transform; health: int; }  // embeds Transform's fields
 ```
@@ -452,7 +410,7 @@ struct Player { ...Transform; health: int; }  // embeds Transform's fields
 
 Structs, classes, and interfaces can declare associated type aliases:
 
-```
+```ds
 struct Cache<K, V> {
     type Entry = CacheEntry<K, V>;  // associated type
     entries: Entry[],
@@ -466,7 +424,7 @@ See [Associated Types](SPECIFICATION.md#associated-types) for full details.
 
 `where` clauses for readable generic constraints:
 
-```
+```ds
 function merge<T: int, U>(): T where (
     U: Comparable<T>
 ) { }
@@ -483,7 +441,7 @@ Inspired by Zig, Destack supports compile-time evaluation via the `comptime` key
 Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **slots** rather than enabling fully arbitrary code generation.
 The `comptime` keyword requires that an expression must be evaluated at compile time (otherwise it is a compile error):
 
-```
+```ds
 const LOOKUP_TABLE: uint8[] = comptime {
     let table: uint8[] = [];
     for (let i = 0; i < 256; i++) {
@@ -493,7 +451,7 @@ const LOOKUP_TABLE: uint8[] = comptime {
 };
 ```
 
-```
+```ds
 function factorial(n: int): int {
     if (n <= 1) { 1 } else { n * factorial(n - 1) }
 }
@@ -511,7 +469,7 @@ Dynamic parameters _may_ be marked `comptime` to require compile-time-known argu
 
 Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
 
-```
+```ds
 function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
     if (comptime Context extends EvictableContext<T>) {
         ctx.onEvict(key);  // context is narrowed; branch eliminated if not satisfied
@@ -521,7 +479,7 @@ function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
 
 Comptime blocks can also appear as struct/class members for compile-time assertions:
 
-```
+```ds
 struct Buffer<comptime size: uint> {
     comptime {
         assert(size > 0 && size <= 65536);
@@ -557,8 +515,11 @@ Destack supports `Type` as a first-class values to enable reflection with one we
 
 Every type `T` in Destack has a corresponding runtime value of type `Type<T>`:
 
-```
-struct User { name: string, age: uint }
+```ds
+struct User { 
+    name: string; 
+    age: uint; 
+}
 
 // User in type position: the type
 let u: User = User { name: "Alice", age: 30 };
@@ -571,14 +532,14 @@ UserType.fields                     // [{ name: "name", type: string }, ...]
 
 Types being values enables patterns that require runtime type information:
 
-```
-// Generic factory that knows its type parameter
+```ds
+// generic factory that knows its type parameter
 function create<T>(type: Type<T>, data: object): T {
     return type.create(data);
 }
 const user = create(User, { name: "Alice", age: 30 });
 
-// Runtime type checking
+// runtime type checking
 if (User.is(value)) {
     // value is User
 }
@@ -591,7 +552,7 @@ The `instanceof` operator is reserved for class identity checks.
 
 Decorator information is accessible at runtime:
 
-```
+```ds
 @deprecated("use newAPI")
 function oldAPI() { }
 
@@ -605,7 +566,7 @@ The language provides the reflection primitives; the standard library `@destack-
 1. **Built-in (no imports)**: `Type<T>`, `.name`, `.fields`, `.is()`, decorator access
 2. **Standard library**: `parse()`, `safeParse()`
 
-```
+```ds
 import { parse } from "@destack-sh/schema";
 
 const data = await fetchUser();
@@ -627,18 +588,6 @@ parse(User, data);  // User IS the Type (schema)
 
 <sub>See [test/fixtures/specification/declarations/reflection/](test/fixtures/specification/declarations/reflection/) for specification tests.</sub>
 
-### Runtime Type Identity
-
-Runtime type identity (RTTI) is demand-driven.
-The compiler only emits RTTI for types that are used at runtime.
-Examples include `typeOf`, `T.is`, `x is T`, `instanceof` for classes, `any`/`unknown`, and runtime reflection.
-Polymorphic classes carry a vtable pointer for dynamic dispatch and RTTI.
-Non-polymorphic classes may omit the vtable pointer and rely on metadata or fat pointers when RTTI is required.
-Structs are pure data unless RTTI is required by usage.
-On JS targets, RTTI-enabled values use a hidden symbol property rather than a global WeakMap, preserving "plain object" semantics.
-Native type tags are `TypeTag` handles that point to `TypeDescriptor` values.
-Classes reach RTTI via vtable slot 0 when present, while thin pointers without tags recover RTTI via GC metadata.
-
 ## Dispatch
 
 TypeScript has parametric polymorphism ("generics") but does not support type-based dispatch (by design).
@@ -648,7 +597,7 @@ Destack adds type extensions and real overloading for type-based dispatch and op
 
 Destack introduces extensions to add methods and static constants for any nominal type:
 
-```
+```ds
 extension for Vector2 {
     magnitude(): float32 { (this.x * this.x + this.y * this.y).sqrt() }
 }
@@ -659,12 +608,12 @@ Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cann
 
 To extend a structural shape, wrap it in a nominal type:
 
-```
-// ❌ Can't extend a type alias or inline shape
+```ds
+// ERROR - an't extend a type alias or inline shape
 type Point = { x: number, y: number };
 extension for Point { ... }  // error
 
-// ✅ Use newtype or struct instead
+// works - extend newtype / struct / class / ..
 newtype Point = { x: number, y: number };
 extension for Point { ... }  // ok
 ```
@@ -688,14 +637,14 @@ Extension visibility follows clear rules:
 TypeScript interfaces are structural, i.e., any type with matching shape satisfies the interface.
 Destack adds **nominal interfaces** using the `newtype` modifier on `interface` declarations:
 
-```
-// Structural interface (standard TypeScript behavior)
+```ds
+// structural interface (standard TypeScript behavior)
 interface Drawable {
     draw(): void;
 }
 const x: Drawable = { draw() {} };  // OK: structural match
 
-// Nominal interface (requires explicit `implements`)
+// nominal interface (requires explicit `implements`)
 newtype interface Add<T, R = this> {
     add(other: T): R;
 }
@@ -740,14 +689,13 @@ Extension methods participate in member resolution, too.
 
 ## Ownership
 
-TypeScript does not encode ownership in its type system.
-Reference types are implicitly GC managed, and value types are copied by default.
-Destack adds opt in explicit ownership, enabling a spectrum from TypeScript simplicity to Rust level control.
+TypeScript does not encode "ownership" in its type system: all reference types are implicitly GC managed, and all value types are copied by default.
+Destack adds opt-in explicit ownership for (more) manual memory management.
 
 ### Ownership Modifiers
 
 In addition to the default `T`, there are four other ownership options:
-```
+```ds
 T            // type default (value or managed reference)
 &T           // borrow (read only reference)
 &mut T       // borrow (mutable reference)
@@ -756,224 +704,9 @@ T            // type default (value or managed reference)
 ```
 
 Raw pointers are separate from ownership modifiers:
-```
+```ds
 *T           // raw pointer (unsafe)
 *mut T       // raw pointer (mutable, unsafe)
-```
-**Borrow semantics:**
-- `&T` and `&mut T` are safe borrows verified by the borrow check pass.
-- Assigning through `&T` is invalid, mutation requires `&mut T`.
-- Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
-- `&expr` takes the address of an addressable place.
-- When `expr` is not addressable, the compiler spills it to a temporary local and borrows that temporary.
-- A borrow ends when the reference value is no longer live.
-- Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
-- Derived borrows carry provenance so dropping any origin invalidates the derived borrows.
-- Dropping or freeing a value while it is borrowed is always an error.
-- In strict mode, conflicting borrows and invalidating stores are errors.
-- In lenient mode, the same situations produce warnings.
-
-**Raw pointers:**
-- `*T` and `*mut T` are unsafe pointers with no borrow tracking.
-- Raw pointers may be null or dangling and allow pointer arithmetic.
-- Converting between borrowed references and raw pointers is always explicit.
-- Raw pointers do not imply ownership or drop behavior.
-- `&const T` and `*const T` are accepted but redundant and format as `&T` and `*T`.
-
-### Address Spaces
-
-References can target explicit address spaces for native and accelerated targets.
-The default is `generic`, which maps to the target's normal memory.
-Non generic address spaces are only valid for borrowed and raw references.
-`constant` references are always immutable.
-
-Address spaces are spelled with `addrspace(name)` or `addrspace(7)` on a reference:
-
-```
-ref<raw addrspace(shared) i32>
-ref<raw addrspace(7) mut i32>
-```
-
-Address space changes are explicit (and lower to the `addrspace.cast` intrinsic).
-The VM provides deterministic host side models for non generic address spaces when available.
-
-### Ownership Semantics
-
-When you transfer ownership with `^T`, reusing the original value is an error:
-
-```
-const node = AstNode { ... }
-consume(^node)    // ownership transferred
-print(node.value) // ERROR: use after ownership transfer
-```
-
-`^T` is the owned reference type.
-Passing a `^T` by value transfers ownership to the callee.
-Use `^expr` to convert a value `T` into an owned reference `^T`.
-(If you already have `^T`, pass it directly, no `^expr` needed.)
-
-`^T` values are dropped at their last proven use (non lexical), not just at end of scope:
-
-```
-function process() {
-    const data = ^LargeData { ... }  // we own this
-    doWork(&data)                     // borrow it
-    log("done")                       // data can be dropped before this line
-}
-```
-
-This enables RAII patterns (files close, locks release, resources clean up).
-
-**Drop behavior:**
-- `Drop` is a marker interface that opts a type into last use cleanup.
-- Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
-- `using` always calls `Symbol.dispose`, even without `Drop`.
-- Owned values are dropped at their last proven use unless `using` is specified.
-- `using` bindings drop at scope end and cannot be moved.
-- `^T` controls ownership transfer and move semantics.
-- `using` controls drop timing and does not imply ownership.
-- Combine `using` with `^T` for deterministic cleanup of owned values.
-
-### Allocation and Drop
-
-Ownership modifiers determine how values are allocated and cleaned up:
-
-| Source | Allocation | Cleanup | Semantics |
-|--------|------------|---------|-----------|
-| `T` (plain) | `managed.alloc` | GC | GC handles everything |
-| `^T` (owned) | `raw.alloc` | `raw.drop` | dispose + deallocate |
-| `&T` (borrow) | none | none | points to someone else's memory |
-
-The `raw.drop` operation performs **drop glue**: drop owned fields (reverse declaration order), call `Symbol.dispose` if the type implements `Drop`, then deallocate.
-The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis when the value doesn't escape the function.
-Stack allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
-
-For manual memory without destructors (FFI, low-level code), use `raw.free` directly instead of `raw.drop`.
-
-### Nested Ownership
-
-Ownership is determined at the **usage site**, not the type definition.
-A struct can contain `^T` fields regardless of how the struct itself is used:
-
-```
-struct Container { data: ^Data }
-
-const a: Container = ...           // managed container
-const b: ^Container = ...          // owned container
-```
-
-When the container is owned (`^Container`), drops are **deterministic**: fields drop in reverse declaration order, then the container drops.
-When the container is managed (`Container`), drops are **nondeterministic**: GC finalizers handle owned fields when the container is collected.
-A warning is emitted in strict mode for `^T` fields in managed types.
-
-Strings follow the same ownership spectrum: `string` is GC managed by default,
-`&string` is a borrowed view, and `^string` is explicitly owned.
-`Slice` is an explicit view type with a pointer and length.
-Borrowing an array object does not imply a slice view.
-
-### Ownership Conversions
-
-Ownership conversions are explicit, except for borrows inserted at reference boundaries.
-Implicit ownership conversions only create borrows and never transfer ownership.
-
-Implicit conversions:
-- `T` → `&T` or `&mut T` when a reference type is required and the value is addressable
-- `^T` → `&T` to borrow from an owned value
-- `&mut T` → `&T` to reborrow as shared
-
-Explicit conversions:
-- `T` ↔ `^T` require explicit ownership operators or helper calls (use `^expr` for `T` → `^T`)
-- `&T` → `T` requires `Copy` or an explicit clone
-- `&T` → `^T` requires an explicit clone and ownership transfer
-- `*T` conversions require explicit unsafe operations
-
-Elaborate inserts implicit borrows before other implicit casts.
-
-### Returning References
-
-Functions can return borrowed references (`&T`).
-Borrowed returns use lifetime inference and `@lifetime` annotations to track which inputs they borrow from.
-In strict mode, returning a borrow that may outlive its origin is an error.
-In lenient mode, the same situation produces a warning.
-
-```
-function get(container: &Container): &Item {
-    &container.item  // ok: borrowing from input
-}
-
-function bad(): &Point {
-    const p = Point { x: 1, y: 2 }
-    &p  // WARNING: returning reference to local variable
-}
-```
-
-### Borrow Modes
-
-By default, `&T` and `&mut T` are hints and violations produce warnings.
-Strict mode enforces exclusive `&mut` borrows and no escape rules.
-Strict mode enables stronger optimizations like `noalias` on `&mut`.
-Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
-Borrow modes do not apply to raw pointers.
-
-### Lifetime Annotations
-
-When returning references or aggregates containing references, the compiler needs to know which input parameters the return value borrows from. This is usually inferred:
-
-- Single `&T` parameter → return borrows from it
-- `&self`/`&this` method → return borrows from receiver
-- Multiple `&T` parameters → conservative (borrows from all)
-
-When inference is too conservative, use `@lifetime` to be explicit:
-
-```
-// explicit: only borrows from 'a', not 'b'
-function first(a: &string, b: &string): @lifetime("a") &string {
-    return a;
-}
-
-// may borrow from either
-function pick(a: &string, b: &string): @lifetime("a", "b") &string {
-    if (cond) { return a; }
-    return b;
-}
-
-// static: borrows from static data only
-function constant(): @lifetime("static") &string {
-    return &"hello";
-}
-
-// struct with borrowed field
-function makeTokenizer(source: &string): @lifetime("source") Tokenizer {
-    return Tokenizer { source, pos: 0 };
-}
-```
-
-The compiler verifies annotations—returning something that doesn't borrow from the declared parameters is an error. This avoids Rust-style `<'a>` annotations while still enabling precise borrow tracking where needed.
-
-### Project-Level Control
-
-Configure strictness in `dsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "noImplicitManaged": true,       // require ^T or &T on types and values
-    "noManaged": true,               // forbid GC-managed defaults and allocations
-    "borrowMode": "strict",          // enforce &mut exclusivity rules
-    "noRuntime": true                // forbid runtime features
-  }
-}
-```
-
-### Function-Level Control
-
-Use decorators for per-function restrictions:
-
-```
-@noManaged
-function processFrame(entities: &Entity[]) {
-    // compiler error if any managed value is used or allocated here
-}
 ```
 
 ## Module Imports
@@ -984,7 +717,7 @@ Destack supports importing various file types beyond code modules, following Bun
 
 Data files are parsed at compile time and typed structurally:
 
-```
+```ds
 import config from "./config.json";
 // config: { server: { host: string, port: number }, debug: boolean }
 
@@ -1004,7 +737,7 @@ Types are inferred from the data:
 
 Text files (markdown, CSS, HTML, plain text) import as `string`:
 
-```
+```ds
 import readme from "./README.md";
 // readme: string
 ```
@@ -1013,7 +746,7 @@ import readme from "./README.md";
 
 Binary files (images, fonts, wasm, etc.) import as `uint8[]`:
 
-```
+```ds
 import icon from "./icon.png";
 // icon: uint8[]
 ```
@@ -1022,7 +755,7 @@ import icon from "./icon.png";
 
 Override the default loader with import attributes:
 
-```
+```ds
 import data from "./config.toml" with { type: "json" };  // parse as JSON
 import raw from "./data.json" with { type: "text" };     // import as string
 import bytes from "./file.txt" with { type: "binary" };  // import as uint8[]
@@ -1048,26 +781,6 @@ These patterns rarely appear in production code:
 
 Just as `.tsx` extends `.ts` with JSX syntax (introducing the generic arrow ambiguity), `.ds` extends `.tsx` with Destack features like tuples.
 Index signatures follow TypeScript numeric key coercion rules, including numeric string literals counting as number keys.
-
-### "TypeScript++"
-
-Destack treats TypeScript syntax as a first-class citizen and aims for full `.ts`/`.d.ts` coverage.
-Advanced TS type constructs (conditional types, mapped types, template literal types, import types, etc.) are intended to round-trip and remain visible to tooling:
-- This includes tuple element modifiers, call/construct signatures, index signatures, and `this` parameters
-- Type-level constructs should remain available for reflection, documentation, and compile-time evaluation
-- Cross-target builds should reuse the same front-end IR and only diverge when profile-specific resolution or codegen requires it
-- The `this` parameter is type-only and does not count toward call arity, but still carries normal parameter modifiers (mutability, ownership, etc.).
-- Member methods have an implicit `this` binding derived from the receiver type.
-- Non-member functions must declare an explicit `this` parameter to use `this`.
-- Template literal types follow TypeScript matching and inference rules, with TS++ numeric primitives treated as number-like spans
-- Declaration modules may declare values without providing implementations, mirroring `.d.ts` behavior
-- Nominal declarations introduce both type and value bindings, including in declaration modules
-
-Comptime bridges TS types and Destack semantics:
-- `comptime` can evaluate expressions that depend on `import.meta` profile data.
-- Type relations like `T extends U` can be used as compile-time predicates.
-- The `type` operator provides an explicit way to treat types as values in comptime contexts.
-- `@if` gates declarations and members using static expressions like `import.meta`.
 
 ### What We Don't Support
 

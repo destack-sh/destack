@@ -1,17 +1,18 @@
 # Interoperability
 
 Destack aims for full **modern TypeScript** compatibility.
-Some dynamic JavaScript features are incompatible with ahead-of-time compilation (even when allowing for generous dynamic dispatch and RTTI).
-Dynamic features that interfere with AOT compilation (like dynamic imports/eval or shape modification) are restricted or forbidden in native targets (but still fully supported in JS targets).
+Some dynamic JavaScript features are incompatible with static ahead-of-time compilation, even when allowing for generous dynamic dispatch and RTTI.
+Thus, dynamic features that interfere with AOT compilation like dynamic imports/eval or shape modification are restricted on native targets (but still supported in JS/TS targets).
 Fortunately, most modern TS code already avoids such highly dynamic patterns as a best practice.
 
 ## Restrictions
 
-JavaScript, as originally designed, is a highly dynamic language with dynamic scopes and little typing guarantees.
+JavaScript, as originally designed, is a highly dynamic language with dynamic everything and essentially no typing guarantees.
 Over time, like in many highly dynamic languages, much of the JavaScript community has come around to a restricted, statically typed variant of the language in "modern" TypeScript.
 
-Destack aims to enable native compilation of **modern TypeScript**, _not_ of arbitrary untyped and dynamic JavaScript.
-There are other projects that attempt AOT compilation for JavaScript (with varying degrees of success), and such fully untyped or highly dynamic code is explicitly out of scope and cannot be compiled.
+Destack aims to enable native compilation of **modern TypeScript**.
+We deliberately consider arbitrary untyped and dynamic JavaScript to be out of scope (for analysis and lowering, we can still parse and resolve it, but still).
+There are other projects that attempt AOT compilation for full ECMAScript with varying degrees of success; in general, that use case is very well served by existing JS engines (V8, JSC) or projects that aim to leverage _some_ type information like Static Hermes.
 
 ### Exception Handling
 
@@ -411,7 +412,7 @@ FFI uses the C ABI for interoperability with native libraries.
 **External functions** use `@extern`:
 ```ds
 @extern("C")
-declare function printf(format: &uint8, ...args: unknown[]): int32;
+declare function printf(format: *uint8, ...args: unknown[]): int32;
 ```
 
 Note: Variadic FFI args use `unknown[]` but are passed as raw C values per the calling convention.
@@ -431,7 +432,7 @@ Wrap C error codes in `Result`; for WASM/JS interop, wrap throwing JS functions 
 **C function with error code:**
 ```ds
 @extern("C")
-declare function open(path: &uint8, flags: int32): int32;
+declare function open(path: *uint8, flags: int32): int32;
 
 function openFile(path: string): Result<FileHandle, Error> {
     const fd = open(path.cstr(), O_RDONLY);
