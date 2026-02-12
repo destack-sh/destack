@@ -443,6 +443,71 @@ pub(crate) fn render_simulated_mod_stub() -> String {
     output
 }
 
+/// Render a top-level module stub for a runtime domain.
+pub(crate) fn render_domain_mod_stub(
+    has_world_dispatch: bool,
+    has_runtime_dispatch: bool,
+) -> String {
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#[path = \"abi.generated.rs\"]\n");
+    output.push_str("mod abi_generated;\n");
+    output.push_str("#[path = \"bindings.generated.rs\"]\n");
+    output.push_str("mod bindings_generated;\n\n");
+    output.push_str("#[allow(unused_imports, unreachable_pub)]\n");
+    output.push_str("pub use abi_generated::*;\n");
+    output.push_str("#[allow(unused_imports, unreachable_pub)]\n");
+    output.push_str("pub use bindings_generated::*;\n");
+    if has_world_dispatch {
+        output.push_str("mod host;\n");
+    }
+    output.push_str("pub mod native;\n");
+    if has_runtime_dispatch {
+        output.push_str("pub(crate) mod runtime;\n");
+    }
+    if has_world_dispatch {
+        output.push_str("pub(crate) mod simulated;\n");
+    }
+    output.push_str("pub mod vm;\n");
+    output
+}
+
+/// Render a host router stub for world-dispatched domains.
+pub(crate) fn render_host_router_stub() -> String {
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#[cfg(unix)]\n");
+    output.push_str("#[path = \"unix/mod.rs\"]\n");
+    output.push_str("mod unix;\n");
+    output.push_str("#[cfg(unix)]\n");
+    output.push_str("#[allow(unused_imports)]\n");
+    output.push_str("pub(crate) use unix::*;\n\n");
+    output.push_str("#[cfg(windows)]\n");
+    output.push_str("#[path = \"windows/mod.rs\"]\n");
+    output.push_str("mod windows;\n");
+    output.push_str("#[cfg(windows)]\n");
+    output.push_str("#[allow(unused_imports)]\n");
+    output.push_str("pub(crate) use windows::*;\n\n");
+    output.push_str("#[cfg(not(any(unix, windows)))]\n");
+    output.push_str("#[path = \"unsupported.rs\"]\n");
+    output.push_str("mod unsupported;\n");
+    output.push_str("#[cfg(not(any(unix, windows)))]\n");
+    output.push_str("#[allow(unused_imports)]\n");
+    output.push_str("pub(crate) use unsupported::*;\n");
+    output
+}
+
+/// Render a unix or windows backend shim for world-dispatched domains.
+pub(crate) fn render_os_backend_mod_stub() -> String {
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("#[path = \"../unsupported.rs\"]\n");
+    output.push_str("mod unsupported;\n\n");
+    output.push_str("#[allow(unused_imports)]\n");
+    output.push_str("pub(crate) use unsupported::*;\n");
+    output
+}
+
 /// Render a runtime module re-export stub for a runtime domain.
 pub(crate) fn render_runtime_mod_stub() -> String {
     let mut output = String::new();

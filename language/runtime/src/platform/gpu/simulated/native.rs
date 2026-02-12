@@ -274,10 +274,10 @@ pub(crate) unsafe fn destack_gpu_command_copy_buffer(
     srcoffset: u64,
     dst: resource::GpuBufferHandle,
     dstoffset: u64,
-    bytes: u64,
+    argument_bytes: u64,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (handle, src, srcoffset, dst, dstoffset, bytes);
+    let _ = (handle, src, srcoffset, dst, dstoffset, argument_bytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.copyBuffer",
@@ -1033,10 +1033,10 @@ pub(crate) unsafe fn destack_gpu_shader_create(
     out: *mut resource::GpuShaderHandle,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptions,
-    bytes: NativeSlice<u8>,
+    argument_bytes: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (out, device, options, bytes);
+    let _ = (out, device, options, argument_bytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.pipeline.shaderCreate",
@@ -1254,10 +1254,10 @@ pub(crate) unsafe fn destack_gpu_buffer_write(
     context: &RuntimeCallContext,
     handle: resource::GpuBufferHandle,
     offset: u64,
-    bytes: NativeSlice<u8>,
+    argument_bytes: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (handle, offset, bytes);
+    let _ = (handle, offset, argument_bytes);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.resource.bufferWrite",

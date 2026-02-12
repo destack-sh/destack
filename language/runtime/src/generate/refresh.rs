@@ -54,6 +54,13 @@ pub(crate) fn write_stub_file(path: &Path, generated: &str, refresh_stubs: bool)
     }
 }
 
+/// Write one generated stub file only when the target path is missing.
+pub(crate) fn write_missing_stub_file(path: &Path, generated: &str) {
+    if !path.exists() {
+        write_domain_bindings(path, generated);
+    }
+}
+
 /// Collect function names from one Rust source string.
 fn collect_function_names(source: &str) -> BTreeSet<String> {
     let mut names = BTreeSet::new();

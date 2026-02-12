@@ -11,20 +11,22 @@ use destack_workspace::{
 
 use crate::binding::{
     DomainAbiTypes, collect_domain_abi_types, render_abi_types, render_domain_bindings,
-    render_host_stub, render_native_stub, render_platform_bindings_index, render_runtime_mod_stub,
+    render_domain_mod_stub, render_host_router_stub, render_host_stub, render_native_stub,
+    render_os_backend_mod_stub, render_platform_bindings_index, render_runtime_mod_stub,
     render_runtime_native_stub, render_runtime_vm_stub, render_simulated_mod_stub,
     render_simulated_native_stub, render_simulated_vm_stub, render_vm_stub,
-    runtime_domain_abi_types_path, runtime_domain_bindings_path, runtime_domain_native_path,
-    runtime_domain_runtime_mod_path, runtime_domain_runtime_native_path,
-    runtime_domain_runtime_vm_path, runtime_domain_simulated_mod_path,
-    runtime_domain_simulated_native_path, runtime_domain_simulated_vm_path,
-    runtime_domain_unsupported_path, runtime_domain_vm_path, runtime_platform_generated_path,
-    write_domain_bindings,
+    runtime_domain_abi_types_path, runtime_domain_bindings_path, runtime_domain_host_path,
+    runtime_domain_mod_path, runtime_domain_native_path, runtime_domain_runtime_mod_path,
+    runtime_domain_runtime_native_path, runtime_domain_runtime_vm_path,
+    runtime_domain_simulated_mod_path, runtime_domain_simulated_native_path,
+    runtime_domain_simulated_vm_path, runtime_domain_unix_mod_path,
+    runtime_domain_unsupported_path, runtime_domain_vm_path, runtime_domain_windows_mod_path,
+    runtime_platform_generated_path, write_domain_bindings,
 };
 use crate::catalog::collect_platform_bindings;
 use crate::model::BindingScope;
 use crate::option::parse_generator_options;
-use crate::refresh::write_stub_file;
+use crate::refresh::{write_missing_stub_file, write_stub_file};
 
 /// Compiler state used while generating bindings.
 struct GeneratorContext {
@@ -526,6 +528,11 @@ fn generate_bindings(
             let has_runtime_dispatch = bindings
                 .values()
                 .any(|entry| entry.scope == BindingScope::Runtime);
+
+            let mod_path = runtime_domain_mod_path(domain);
+            let stub = render_domain_mod_stub(has_world_dispatch, has_runtime_dispatch);
+            write_missing_stub_file(&mod_path, &stub);
+
             let generated = render_domain_bindings(domain, bindings);
             let path = runtime_domain_bindings_path(domain);
             write_domain_bindings(&path, &generated);
@@ -539,6 +546,18 @@ fn generate_bindings(
             write_stub_file(&vm_path, &stub, refresh_stubs);
 
             if has_world_dispatch {
+                let host_path = runtime_domain_host_path(domain);
+                let stub = render_host_router_stub();
+                write_missing_stub_file(&host_path, &stub);
+
+                let unix_mod_path = runtime_domain_unix_mod_path(domain);
+                let stub = render_os_backend_mod_stub();
+                write_missing_stub_file(&unix_mod_path, &stub);
+
+                let windows_mod_path = runtime_domain_windows_mod_path(domain);
+                let stub = render_os_backend_mod_stub();
+                write_missing_stub_file(&windows_mod_path, &stub);
+
                 let unsupported_path = runtime_domain_unsupported_path(domain);
                 let stub = render_host_stub(domain, bindings);
                 write_stub_file(&unsupported_path, &stub, refresh_stubs);

@@ -261,9 +261,9 @@ pub(crate) fn destack_gpu_command_copy_buffer(
     srcoffset: u64,
     dst: resource::GpuBufferHandle,
     dstoffset: u64,
-    bytes: u64,
+    argument_bytes: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, src, srcoffset, dst, dstoffset, bytes);
+    let _ = (handle, src, srcoffset, dst, dstoffset, argument_bytes);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.copyBuffer",
     ))
@@ -988,9 +988,9 @@ pub(crate) fn destack_gpu_shader_create(
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::GpuDeviceHandle,
     options: GpuShaderOptionsVm,
-    bytes: VmSlice<u8>,
+    argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<resource::GpuShaderHandle> {
-    let _ = (device, options, bytes);
+    let _ = (device, options, argument_bytes);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.pipeline.shaderCreate",
     ))
@@ -1200,9 +1200,9 @@ pub(crate) fn destack_gpu_buffer_write(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::GpuBufferHandle,
     offset: u64,
-    bytes: VmSlice<u8>,
+    argument_bytes: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, offset, bytes);
+    let _ = (handle, offset, argument_bytes);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.resource.bufferWrite",
     ))

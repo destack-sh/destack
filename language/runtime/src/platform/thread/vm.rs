@@ -114,9 +114,9 @@ pub(crate) fn destack_thread_local_set(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     key: resource::ThreadLocalKey,
-    value: u64,
+    argument_value: u64,
 ) -> RuntimeResult<()> {
-    let _ = (key, value);
+    let _ = (key, argument_value);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.local.set is not available in the VM yet",
     ))

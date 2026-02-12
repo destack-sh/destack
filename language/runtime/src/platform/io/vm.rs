@@ -397,9 +397,9 @@ pub(crate) fn destack_io_event_signal(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     token: EventToken,
-    value: u64,
+    argument_value: u64,
 ) -> RuntimeResult<()> {
-    let _ = (token, value);
+    let _ = (token, argument_value);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.io.event.signal is not available in the VM yet",
     ))

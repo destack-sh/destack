@@ -206,9 +206,9 @@ fn decode_destack_thread_local_set_args(
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "ThreadLocalKey")?;
     let key_inner = resource::ResourceId(key_inner_inner);
     let key = resource::ThreadLocalKey(key_inner);
-    let value_value = arg_value(args, 1, "value", "uint64")?;
-    let value = decode_uint64(value_value, "value", "uint64")?;
-    Ok((key, value))
+    let argument_value_value = arg_value(args, 1, "argument_value", "uint64")?;
+    let argument_value = decode_uint64(argument_value_value, "argument_value", "uint64")?;
+    Ok((key, argument_value))
 }
 
 /// Encode the result for destack.thread.local.set.
@@ -1617,19 +1617,23 @@ pub unsafe extern "C" fn destack_thread_local_get(
 #[unsafe(export_name = "destack.thread.local.set")]
 pub unsafe extern "C" fn destack_thread_local_set(
     key: resource::ThreadLocalKey,
-    value: u64,
+    argument_value: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&key, &value);
+        let _ = (&key, &argument_value);
 
         {
             let world = context.check_and_resolve_world(THREAD_LOCAL_SET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_thread_local_set(context, key, value)
+                    platform_native::destack_thread_local_set(context, key, argument_value)
                 },
                 RuntimeWorld::Simulated => unsafe {
-                    platform_simulated_native::destack_thread_local_set(context, key, value)
+                    platform_simulated_native::destack_thread_local_set(
+                        context,
+                        key,
+                        argument_value,
+                    )
                 },
             }
         }
@@ -2353,17 +2357,23 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(registry, isolate, THREAD_LOCAL_SET, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // decode args
-                let (key, value) = decode_destack_thread_local_set_args(context, args)?;
+                let (key, argument_value) = decode_destack_thread_local_set_args(context, args)?;
 
                 // execute binding
                 let result = {
                     let world = runtime.check_and_resolve_world(THREAD_LOCAL_SET)?;
                     match world {
-                        RuntimeWorld::Host => {
-                            platform_vm::destack_thread_local_set(runtime, context, key, value)
-                        }
+                        RuntimeWorld::Host => platform_vm::destack_thread_local_set(
+                            runtime,
+                            context,
+                            key,
+                            argument_value,
+                        ),
                         RuntimeWorld::Simulated => platform_simulated_vm::destack_thread_local_set(
-                            runtime, context, key, value,
+                            runtime,
+                            context,
+                            key,
+                            argument_value,
                         ),
                     }
                 };

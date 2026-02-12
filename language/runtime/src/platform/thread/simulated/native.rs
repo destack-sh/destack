@@ -113,10 +113,10 @@ pub(crate) unsafe fn destack_thread_local_get(
 pub(crate) unsafe fn destack_thread_local_set(
     context: &RuntimeCallContext,
     key: resource::ThreadLocalKey,
-    value: u64,
+    argument_value: u64,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (key, value);
+    let _ = (key, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.set")).boxed())
 }

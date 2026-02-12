@@ -27,9 +27,9 @@ use destack_vm as vm;
 pub(crate) fn destack_console_error(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
+    argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = value;
+    let _ = argument_value;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.console.console.error",
     ))
@@ -56,9 +56,9 @@ pub(crate) fn destack_console_error(
 pub(crate) fn destack_console_info(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
+    argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = value;
+    let _ = argument_value;
     Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.info")).boxed())
 }
 
@@ -82,9 +82,9 @@ pub(crate) fn destack_console_info(
 pub(crate) fn destack_console_log(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
+    argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = value;
+    let _ = argument_value;
     Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.log")).boxed())
 }
 
@@ -108,8 +108,8 @@ pub(crate) fn destack_console_log(
 pub(crate) fn destack_console_warn(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    value: vm::StringHandle,
+    argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = value;
+    let _ = argument_value;
     Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.warn")).boxed())
 }

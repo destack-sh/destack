@@ -2904,11 +2904,11 @@ pub(crate) unsafe fn destack_fs_fsetxattr(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (handle, name, value, flags);
+    let _ = (handle, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.fsetxattr")).boxed())
 }
@@ -2934,11 +2934,11 @@ pub(crate) unsafe fn destack_fs_fsetxattr_bytes(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (handle, name, value, flags);
+    let _ = (handle, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.fsetxattrBytes",
@@ -3269,11 +3269,11 @@ pub(crate) unsafe fn destack_fs_lsetxattr(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.lsetxattr")).boxed())
 }
@@ -3299,11 +3299,11 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.lsetxattrBytes",
@@ -3391,11 +3391,11 @@ pub(crate) unsafe fn destack_fs_setxattr(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.setxattr")).boxed())
 }
@@ -3421,11 +3421,11 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
     context: &RuntimeCallContext,
     path: OsPath,
     name: NativeSlice<u8>,
-    value: NativeSlice<u8>,
+    argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.setxattrBytes",

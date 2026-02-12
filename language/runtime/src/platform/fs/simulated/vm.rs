@@ -2748,10 +2748,10 @@ pub(crate) fn destack_fs_fsetxattr(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::FileHandle,
     name: vm::StringHandle,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (handle, name, value, flags);
+    let _ = (handle, name, argument_value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.fsetxattr")).boxed())
 }
 
@@ -2777,10 +2777,10 @@ pub(crate) fn destack_fs_fsetxattr_bytes(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::FileHandle,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (handle, name, value, flags);
+    let _ = (handle, name, argument_value, flags);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.fsetxattrBytes",
     ))
@@ -3093,10 +3093,10 @@ pub(crate) fn destack_fs_lsetxattr(
     _context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.lsetxattr")).boxed())
 }
 
@@ -3122,10 +3122,10 @@ pub(crate) fn destack_fs_lsetxattr_bytes(
     _context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.lsetxattrBytes",
     ))
@@ -3211,10 +3211,10 @@ pub(crate) fn destack_fs_setxattr(
     _context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: vm::StringHandle,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.setxattr")).boxed())
 }
 
@@ -3240,10 +3240,10 @@ pub(crate) fn destack_fs_setxattr_bytes(
     _context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
     name: VmSlice<u8>,
-    value: VmSlice<u8>,
+    argument_value: VmSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (path, name, value, flags);
+    let _ = (path, name, argument_value, flags);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.setxattrBytes",
     ))

@@ -133,10 +133,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
     handle: resource::MessageQueueHandle,
     priority: u32,
     timeoutns: u64,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (handle, priority, timeoutns, payload);
+    let _ = (handle, priority, timeoutns, argument_payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.ipc.message.queueSend",
@@ -649,11 +649,11 @@ pub(crate) unsafe fn destack_ipc_unix_send(
     context: &RuntimeCallContext,
     out: *mut u64,
     socket: resource::SocketHandle,
-    payload: NativeSlice<u8>,
+    argument_payload: NativeSlice<u8>,
     handles: NativeSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (out, socket, payload, handles);
+    let _ = (out, socket, argument_payload, handles);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.unix.send")).boxed())
 }
