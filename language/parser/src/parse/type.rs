@@ -815,6 +815,85 @@ impl Parser {
         }
     }
 
+    /// Return true when the current token starts a mapped type head.
+    #[inline]
+    pub(crate) fn can_start_type_mapped_expression(&mut self) -> bool {
+        if !self.peek_is(TokenType::OpenBrace) {
+            return false;
+        }
+
+        let mut look_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
+
+        // optional readonly modifier before `[`
+        let look_token_type = self.token_type_at(look_index);
+        if look_token_type == TokenType::Identifier
+            && self.keyword_for_index(look_index) == Some(Keyword::Readonly)
+        {
+            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+        } else if look_token_type == TokenType::Add || look_token_type == TokenType::Subtract {
+            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+            if self.token_type_at(look_index) != TokenType::Identifier
+                || self.keyword_for_index(look_index) != Some(Keyword::Readonly)
+            {
+                return false;
+            }
+            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+        }
+
+        // mapped types require `[`
+        if self.token_type_at(look_index) != TokenType::OpenBracket {
+            return false;
+        }
+        let open_bracket_index = look_index;
+
+        // mapped keys must start with an identifier and then `in`
+        let name_index = self.next_non_newline_index_from(open_bracket_index.saturating_add(1));
+        if self.token_type_at(name_index) != TokenType::Identifier {
+            return false;
+        }
+        let in_index = self.next_non_newline_index_from(name_index.saturating_add(1));
+        let has_in_keyword = self.token_type_at(in_index) == TokenType::Identifier
+            && self.keyword_for_index(in_index) == Some(Keyword::In);
+        if !has_in_keyword {
+            return false;
+        }
+
+        // find the matching `]` without requiring full stream pairing state
+        let mut bracket_depth = 1usize;
+        look_index = self.next_non_newline_index_from(open_bracket_index.saturating_add(1));
+        while bracket_depth > 0 {
+            let token_type = self.token_type_at(look_index);
+            if token_type == TokenType::End {
+                return false;
+            }
+
+            if token_type == TokenType::OpenBracket {
+                bracket_depth = bracket_depth.saturating_add(1);
+            } else if token_type == TokenType::CloseBracket {
+                bracket_depth = bracket_depth.saturating_sub(1);
+                if bracket_depth == 0 {
+                    break;
+                }
+            }
+
+            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+        }
+
+        // mapped values require a value marker after `]`: `:`, `?:`, `+?:`, `-?:`
+        look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+        if self.token_type_at(look_index) == TokenType::Maybe {
+            look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+        } else if self.token_type_at(look_index) == TokenType::Add
+            || self.token_type_at(look_index) == TokenType::Subtract
+        {
+            let maybe_index = self.next_non_newline_index_from(look_index.saturating_add(1));
+            if self.token_type_at(maybe_index) == TokenType::Maybe {
+                look_index = self.next_non_newline_index_from(maybe_index.saturating_add(1));
+            }
+        }
+
+        self.token_type_at(look_index) == TokenType::Colon
+    }
     /// Eat a type mapped expression.
     pub fn eat_type_mapped_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
@@ -834,13 +913,12 @@ impl Parser {
         self.eat_newlines_maybe()?;
         self.eat_keyword(Keyword::In)?;
         self.eat_newlines_maybe()?;
-        let constraint = self.with_options(
+        let constraint = self.eat_expression(
             self.options
                 .not_in_position()
                 .not_in_left_precedence()
                 .in_type()
                 .in_type_mapped_constraint(),
-            |parser| parser.eat_expression(parser.options),
         )?;
 
         // map key remaps can parse as a type cast in the constraint
@@ -860,12 +938,11 @@ impl Parser {
             self.bump(); // eat as
             self.eat_newlines_maybe()?;
             key_remap = Some(
-                self.with_options(
+                self.eat_expression(
                     self.options
                         .not_in_position()
                         .not_in_left_precedence()
                         .in_type(),
-                    |parser| parser.eat_expression(parser.options),
                 )?,
             );
         }
@@ -882,12 +959,11 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // value type
-        let value = self.with_options(
+        let value = self.eat_expression(
             self.options
                 .not_in_position()
                 .not_in_left_precedence()
                 .in_type(),
-            |parser| parser.eat_expression(parser.options),
         )?;
         self.eat_newlines_maybe()?;
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
@@ -1158,9 +1234,7 @@ impl Parser {
                 // parse the super type expression
                 let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
                 let type_start = self.mark_span();
-                let ty = self.with_options(self.options.in_before_block(), |parser| {
-                    parser.eat_expression(parser.options)
-                })?;
+                let ty = self.eat_expression(self.options.in_before_block())?;
                 let (ty, is_parenthesized) = self.unwrap_parenthesized_super_expression(ty);
                 let is_parenthesized = starts_with_parenthesis || is_parenthesized;
 
@@ -3952,5 +4026,34 @@ mod tests {
                 });
             });
         });
+    }
+
+    /// Parse biome mapped-type conformance fixture in TypeScript mode.
+    #[test]
+    fn test_parse_type_mapped_biome_conformance_fixture_typescript() {
+        let input = r#"type A = { [test in "a" | "b"] }
+ type OptionsFlags<Type> = {
+   [Property in keyof Type]: boolean;
+ };
+ type CreateMutable<Type> = {
+ 	-readonly [Property in keyof Type]: Type[Property];
+ };
+ type Concrete<Type> = {
+   [Property in keyof Type]-?: Type[Property]
+ };
+ type Getters<Type> = {
+     [Property in keyof Type as `get${Capitalize<string & Property>}`]: () => Type[Property]
+ };
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 5);
+        assert!(
+            parser.errors.is_empty(),
+            "expected no parser errors, got {:?}",
+            parser.errors
+        );
     }
 }

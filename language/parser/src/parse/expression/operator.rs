@@ -270,15 +270,16 @@ impl Parser {
         )
     }
 
-    /// Peek an infix operator.
+    /// Peek an infix operator at a semantic token index.
     #[inline]
-    pub fn peek_infix_operator_maybe(&mut self) -> Option<(InfixOperator, u8)> {
-        let token = *self.peek().ok()?;
+    pub(super) fn peek_infix_operator_at_index_maybe(
+        &mut self,
+        index: usize,
+        has_newline: bool,
+    ) -> Option<(InfixOperator, u8)> {
+        let token = *self.token_ref_at(index)?;
         let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
-            (
-                self.peek_next().ok().copied(),
-                self.peek_next_next().ok().copied(),
-            )
+            (self.token_at(index + 1), self.token_at(index + 2))
         } else {
             (None, None)
         };
@@ -288,9 +289,15 @@ impl Parser {
             &token,
             next_token.as_ref(),
             next_next_token.as_ref(),
-            false,
+            has_newline,
         )
         .ok()
+    }
+
+    /// Peek an infix operator.
+    #[inline]
+    pub fn peek_infix_operator_maybe(&mut self) -> Option<(InfixOperator, u8)> {
+        self.peek_infix_operator_at_index_maybe(self.pos_index(), false)
     }
 
     /// Peek an infix operator.
@@ -303,24 +310,7 @@ impl Parser {
     /// Peek a next infix operator.
     #[inline]
     pub fn peek_next_infix_operator_maybe(&mut self) -> Option<(InfixOperator, u8)> {
-        let token = *self.peek_next().ok()?;
-        let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
-            (
-                self.peek_next_next().ok().copied(),
-                self.peek_next_next_next().ok().copied(),
-            )
-        } else {
-            (None, None)
-        };
-        let token_str = self.get_span_str(token.span);
-        self.to_infix_operator(
-            token_str,
-            &token,
-            next_token.as_ref(),
-            next_next_token.as_ref(),
-            true,
-        )
-        .ok()
+        self.peek_infix_operator_at_index_maybe(self.index_for_next(), true)
     }
 
     /// Peek a next infix operator.
@@ -333,30 +323,8 @@ impl Parser {
     /// Peek an infix operator after any newlines.
     #[inline]
     pub fn peek_infix_operator_after_newlines_maybe(&mut self) -> Option<(InfixOperator, u8)> {
-        let mut pos = self.pos() as usize;
-        loop {
-            self.ensure_token(pos + 1);
-            let token = self.tokens().get(pos + 1)?;
-            if token.token.ty != TokenType::Newline {
-                break;
-            }
-            pos += 1;
-        }
-        let token = *self.token_ref_at(pos + 1)?;
-        let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
-            (self.token_at(pos + 2), self.token_at(pos + 3))
-        } else {
-            (None, None)
-        };
-        let token_str = self.get_span_str(token.span);
-        self.to_infix_operator(
-            token_str,
-            &token,
-            next_token.as_ref(),
-            next_next_token.as_ref(),
-            true,
-        )
-        .ok()
+        let cursor = self.non_newline_cursor_from(self.pos_index().saturating_add(1));
+        self.peek_infix_operator_at_index_maybe(cursor.index, true)
     }
 
     /// Peek an infix operator after any newlines.

@@ -638,6 +638,17 @@ pub struct Parser {
     pub(crate) type_literal_identifiers: TypeLiteralIdentifiers,
 }
 
+/// Cursor information for the next non-newline token.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct NonNewlineTokenCursor {
+    /// The non-newline token index in the semantic stream.
+    pub index: usize,
+    /// The non-newline token type at `index`.
+    pub token_type: TokenType,
+    /// The number of leading newline tokens skipped before `index`.
+    pub skipped_newline_count: usize,
+}
+
 impl Debug for Parser {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Parser")
@@ -898,6 +909,43 @@ impl Parser {
         self.token_stream.next_non_newline_index_from(start)
     }
 
+    /// Return the first non-newline token index from a start index.
+    #[inline]
+    pub(crate) fn first_non_newline_index_from(&mut self, start: usize) -> usize {
+        if self.token_type_at(start) != TokenType::Newline {
+            return start;
+        }
+
+        self.next_non_newline_index_from_stream(start)
+    }
+
+    /// Return cursor information for the first non-newline token from a start index.
+    #[inline]
+    pub(crate) fn non_newline_cursor_from(&mut self, start: usize) -> NonNewlineTokenCursor {
+        let index = self.first_non_newline_index_from(start);
+        let token_type = self.token_type_at(index);
+        let skipped_newline_count = index.saturating_sub(start);
+        NonNewlineTokenCursor {
+            index,
+            token_type,
+            skipped_newline_count,
+        }
+    }
+
+    /// Return cursor information for the next non-newline token at the current position.
+    #[inline]
+    pub(crate) fn peek_non_newline_cursor(&mut self) -> NonNewlineTokenCursor {
+        if self.has_active_split() {
+            return NonNewlineTokenCursor {
+                index: self.pos,
+                token_type: self.peek_token_type(),
+                skipped_newline_count: 0,
+            };
+        }
+
+        self.non_newline_cursor_from(self.pos_index())
+    }
+
     /// Return the matching pair index for an opening token index.
     #[inline]
     pub(crate) fn matching_pair(&mut self, index: usize) -> Option<usize> {
@@ -1152,7 +1200,21 @@ impl Parser {
         self.pos as u32
     }
 
-    /// Execute a function with a new parser options.
+    /// Swap parser options and return the previous value.
+    #[inline]
+    pub(crate) fn swap_options(&mut self, options: ParserOptions) -> ParserOptions {
+        let old_options = self.options;
+        self.options = options;
+        old_options
+    }
+
+    /// Restore parser options from a previous swap.
+    #[inline]
+    pub(crate) fn restore_options(&mut self, old_options: ParserOptions) {
+        self.options = old_options;
+    }
+
+    /// Execute a function with new parser options.
     /// The previous options are restored after the function returns.
     #[inline]
     pub(crate) fn with_options<T>(
@@ -1163,10 +1225,14 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.with_options_calls += 1;
         }
-        let old_options = self.options;
-        self.options = options;
+
+        if self.options == options {
+            return func(self);
+        }
+
+        let old_options = self.swap_options(options);
         let result = func(self);
-        self.options = old_options;
+        self.restore_options(old_options);
         result
     }
 

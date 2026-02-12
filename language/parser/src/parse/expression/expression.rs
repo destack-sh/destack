@@ -1031,10 +1031,9 @@ impl Parser {
                     //
                     // array literal
                     else if token_type == TokenType::OpenBracket {
-                        let old_options = self.options;
-                        self.options = self.options.not_in_position();
+                        let old_options = self.swap_options(self.options.not_in_position());
                         let elements = self.eat_array_literal();
-                        self.options = old_options;
+                        self.restore_options(old_options);
                         let elements = elements?;
                         self.tree.insert(
                             Expression::ArrayExpression { elements },
@@ -1046,34 +1045,17 @@ impl Parser {
                         && (!self.options.in_statement_position
                             || self.can_parse_object_literal_in_statement_position())
                     {
-                        // prefer mapped types in type positions
-                        if self.options.in_type {
-                            let speculative_start = self.mark();
-                            let speculative_start_idx = self.tree.next_id();
-                            if let Ok(mapped_id) = self.eat_type_mapped_expression() {
-                                mapped_id
+                        if self.options.in_type && self.can_start_type_mapped_expression() {
+                            self.eat_type_mapped_expression()?
+                        } else {
+                            let object_options = if self.options.in_type {
+                                self.options.not_in_position().in_type()
                             } else {
-                                self.restore(speculative_start, speculative_start_idx);
-                                let old_options = self.options;
-                                self.options = self.options.not_in_position().in_type();
-                                let properties = self.eat_object_literal();
-                                self.options = old_options;
-                                let properties = properties?;
-                                self.tree.insert(
-                                    Expression::ObjectExpression {
-                                        ty: None,
-                                        properties,
-                                    },
-                                    self.get_span_from(&start),
-                                )
-                            }
-                        }
-                        // fall back to object literal
-                        else {
-                            let old_options = self.options;
-                            self.options = self.options.not_in_position();
+                                self.options.not_in_position()
+                            };
+                            let old_options = self.swap_options(object_options);
                             let properties = self.eat_object_literal();
-                            self.options = old_options;
+                            self.restore_options(old_options);
                             let properties = properties?;
                             self.tree.insert(
                                 Expression::ObjectExpression {

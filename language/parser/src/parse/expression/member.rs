@@ -10,26 +10,6 @@ impl Parser {
         u8::try_from(distance).unwrap_or(u8::MAX)
     }
 
-    /// Scan newlines from `base + start_offset` and return `(offset, count)`.
-    #[inline]
-    fn scan_newlines_from(&mut self, base: usize, start_offset: usize) -> (usize, usize) {
-        let mut offset = start_offset;
-        let mut newline_count = 0;
-        loop {
-            self.ensure_token(base + offset);
-            let Some(token) = self.tokens().get(base + offset) else {
-                break;
-            };
-            if token.token.ty != TokenType::Newline {
-                break;
-            }
-            newline_count += 1;
-            offset += 1;
-        }
-
-        (offset, newline_count)
-    }
-
     /// Return true when the token at an absolute index has the requested type.
     #[inline]
     fn token_type_at_index_is(&mut self, index: usize, token_type: TokenType) -> bool {
@@ -57,17 +37,19 @@ impl Parser {
     #[inline]
     fn peek_member_distance_from_offset(&mut self, base: usize, start_offset: usize) -> Option<u8> {
         // require `.`
-        if !self.token_type_at_index_is(base + start_offset, TokenType::Dot) {
+        let dot_index = base + start_offset;
+        if !self.token_type_at_index_is(dot_index, TokenType::Dot) {
             return None;
         }
 
         // allow newlines after `.`
-        let (name_offset, _) = self.scan_newlines_from(base, start_offset + 1);
-        if !self.token_is_member_name_at_index(base + name_offset) {
+        let name_index = self.first_non_newline_index_from(dot_index.saturating_add(1));
+        if !self.token_is_member_name_at_index(name_index) {
             return None;
         }
 
-        Some(Self::member_distance(name_offset + 1))
+        let distance = name_index.saturating_sub(base).saturating_add(1);
+        Some(Self::member_distance(distance))
     }
 
     /// Return the private-member distance for `.#name` from an offset relative to `base`.
@@ -78,13 +60,13 @@ impl Parser {
         start_offset: usize,
     ) -> ParseResult<Option<u8>> {
         // require `.`
-        if !self.token_type_at_index_is(base + start_offset, TokenType::Dot) {
+        let dot_index = base + start_offset;
+        if !self.token_type_at_index_is(dot_index, TokenType::Dot) {
             return Ok(None);
         }
 
         // allow newlines after `.`
-        let (hash_offset, _) = self.scan_newlines_from(base, start_offset + 1);
-        let hash_index = base + hash_offset;
+        let hash_index = self.first_non_newline_index_from(dot_index.saturating_add(1));
         if !self.token_type_at_index_is(hash_index, TokenType::Hash) {
             return Ok(None);
         }
@@ -97,7 +79,7 @@ impl Parser {
         self.check_tokens_are_adjacent(hash_index, identifier_index)?;
 
         // include all prefix tokens plus `#` + identifier
-        let distance = identifier_index - base + 1;
+        let distance = identifier_index.saturating_sub(base).saturating_add(1);
         Ok(Some(Self::member_distance(distance)))
     }
 
@@ -182,9 +164,10 @@ impl Parser {
         }
 
         // continuation case: `\n.name` or `\n.\nname`
-        let (offset, newline_count) = self.scan_newlines_from(base, 0);
-        if newline_count > 0
-            && let Some(distance) = self.peek_member_distance_from_offset(base, offset)
+        let cursor = self.peek_non_newline_cursor();
+        if cursor.skipped_newline_count > 0
+            && let Some(distance) =
+                self.peek_member_distance_from_offset(base, cursor.skipped_newline_count)
         {
             return Some(distance);
         }
@@ -218,25 +201,17 @@ impl Parser {
     /// Return true when optional chaining starts after one or more newlines.
     #[inline]
     pub(super) fn optional_chain_starts_after_newlines(&mut self) -> bool {
-        if !self.peek_is(TokenType::Newline) {
+        let cursor = self.peek_non_newline_cursor();
+        if cursor.skipped_newline_count == 0 {
             return false;
         }
 
-        let next_index = self.next_non_newline_index_from(self.pos_index());
-        self.ensure_token(next_index + 1);
-        let Some(next_token) = self.tokens().get(next_index) else {
-            return false;
-        };
-
-        if next_token.token.ty == TokenType::Maybe {
+        if cursor.token_type == TokenType::Maybe {
             return true;
         }
 
-        next_token.token.ty == TokenType::Dot
-            && self
-                .tokens()
-                .get(next_index + 1)
-                .is_some_and(|token| token.token.ty == TokenType::Maybe)
+        cursor.token_type == TokenType::Dot
+            && self.token_type_at(cursor.index.saturating_add(1)) == TokenType::Maybe
     }
 
     /// Check whether `asserts` starts a type predicate.
@@ -246,25 +221,12 @@ impl Parser {
             return false;
         }
 
-        let mut pos = self.pos() as usize;
-        loop {
-            self.ensure_token(pos + 1);
-            let Some(token) = self.tokens().get(pos + 1) else {
-                break;
-            };
-            if token.token.ty != TokenType::Newline {
-                break;
-            }
-            pos += 1;
-        }
-
-        if self.keyword_for_index(pos + 1) == Some(Keyword::This) {
+        let next_index = self.first_non_newline_index_from(self.pos_index().saturating_add(1));
+        if self.keyword_for_index(next_index) == Some(Keyword::This) {
             return true;
         }
 
-        self.tokens()
-            .get(pos + 1)
-            .is_some_and(|token| token.token.ty == TokenType::Identifier)
+        self.token_type_at(next_index) == TokenType::Identifier
     }
 
     /// Peek a private member access using `.#`.
@@ -278,9 +240,10 @@ impl Parser {
         }
 
         // continuation case: `\n.#name` or `\n.\n#name`
-        let (offset, newline_count) = self.scan_newlines_from(base, 0);
-        if newline_count > 0
-            && let Some(distance) = self.peek_private_member_distance_from_offset(base, offset)?
+        let cursor = self.peek_non_newline_cursor();
+        if cursor.skipped_newline_count > 0
+            && let Some(distance) =
+                self.peek_private_member_distance_from_offset(base, cursor.skipped_newline_count)?
         {
             return Ok(Some(distance));
         }
