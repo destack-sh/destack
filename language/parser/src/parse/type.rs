@@ -539,7 +539,7 @@ impl Parser {
         let mut brace_depth = 0usize;
 
         loop {
-            self.token_stream.ensure_token(index);
+            self.ensure_token(index);
             let Some(token) = self.tokens().get(index) else {
                 break;
             };
@@ -577,7 +577,7 @@ impl Parser {
                         let mut look_bracket_depth = 0usize;
                         let mut look_brace_depth = 0usize;
                         loop {
-                            self.token_stream.ensure_token(look_index);
+                            self.ensure_token(look_index);
                             let Some(look_token) = self.tokens().get(look_index) else {
                                 break;
                             };
@@ -957,21 +957,22 @@ impl Parser {
 
     /// Eat extends types (without the leading keyword).
     pub fn eat_extends_types_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        // allow newlines before extends
-        let mark = self.mark();
-        self.eat_newlines_maybe()?;
-
-        // check for extends keyword before calling underlying implementation
-        if self.is_keyword(Keyword::Extends) {
-            self.bump(); // eat extends
-            self.eat_super_type_list_maybe(
-                &[Keyword::Implements, Keyword::With, Keyword::Where],
-                false,
-            )
-        } else {
-            self.rewind(mark);
-            Ok(None)
+        // look ahead to extends without speculative rewinds
+        let start_index = self.pos_index();
+        let extends_index = self.next_non_newline_index_from(start_index);
+        if self.token_type_at(extends_index) != TokenType::Identifier
+            || self.keyword_for_index(extends_index) != Some(Keyword::Extends)
+        {
+            return Ok(None);
         }
+
+        if extends_index != start_index {
+            self.eat_newlines_maybe()?;
+        }
+
+        // parse extends clause
+        self.bump(); // eat extends
+        self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where], false)
     }
 
     /// Eat extends expressions maybe.
@@ -980,21 +981,22 @@ impl Parser {
     pub fn eat_extends_expressions_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        // allow newlines before extends
-        let mark = self.mark();
-        self.eat_newlines_maybe()?;
-
-        // check for extends keyword before calling underlying implementation
-        if self.is_keyword(Keyword::Extends) {
-            self.bump(); // eat extends
-            self.eat_super_type_list_maybe(
-                &[Keyword::Implements, Keyword::With, Keyword::Where],
-                true,
-            )
-        } else {
-            self.rewind(mark);
-            Ok(None)
+        // look ahead to extends without speculative rewinds
+        let start_index = self.pos_index();
+        let extends_index = self.next_non_newline_index_from(start_index);
+        if self.token_type_at(extends_index) != TokenType::Identifier
+            || self.keyword_for_index(extends_index) != Some(Keyword::Extends)
+        {
+            return Ok(None);
         }
+
+        if extends_index != start_index {
+            self.eat_newlines_maybe()?;
+        }
+
+        // parse extends clause
+        self.bump(); // eat extends
+        self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where], true)
     }
 
     /// Eat implements types maybe.
@@ -1002,18 +1004,22 @@ impl Parser {
     pub fn eat_implements_types_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        // allow newlines before implements
-        let mark = self.mark();
-        self.eat_newlines_maybe()?;
-
-        // check for implements keyword before calling underlying implementation
-        if self.is_keyword(Keyword::Implements) {
-            self.bump(); // eat implements
-            self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where], false)
-        } else {
-            self.rewind(mark);
-            Ok(None)
+        // look ahead to implements without speculative rewinds
+        let start_index = self.pos_index();
+        let implements_index = self.next_non_newline_index_from(start_index);
+        if self.token_type_at(implements_index) != TokenType::Identifier
+            || self.keyword_for_index(implements_index) != Some(Keyword::Implements)
+        {
+            return Ok(None);
         }
+
+        if implements_index != start_index {
+            self.eat_newlines_maybe()?;
+        }
+
+        // parse implements clause
+        self.bump(); // eat implements
+        self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where], false)
     }
 
     /// Eat a super type clause maybe.
@@ -1101,25 +1107,32 @@ impl Parser {
             }
             // stop on newline if the next non-newline token is a terminator
             else if self.peek_is(TokenType::Newline) {
-                let mark = self.mark();
-                self.eat_newlines_maybe()?;
-                if self.is_super_type_clause_terminator(terminators) {
+                let current_index = self.pos_index();
+                let next_index = self.next_non_newline_index_from(current_index);
+                let is_terminator_after_newline = self.token_type_at(next_index)
+                    == TokenType::OpenBrace
+                    || self.token_type_at(next_index) == TokenType::CloseParenthesis
+                    || terminators
+                        .iter()
+                        .any(|terminator| self.keyword_for_index(next_index) == Some(*terminator));
+                if is_terminator_after_newline {
                     // reject trailing commas in heritage clauses
                     if expect_type && !types.is_empty() {
                         return Err(ParseError::unexpected(self.peek()?.span));
                     }
-                    self.rewind(mark);
                     break;
-                } else {
-                    // in ts and js type heritage lists, newline alone is not a separator
-                    if !allow_newline_separator && !expect_type {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    }
-                    if !expect_type {
-                        expect_type = true;
-                    }
-                    continue;
                 }
+
+                self.eat_newlines_maybe()?;
+
+                // in ts and js type heritage lists, newline alone is not a separator
+                if !allow_newline_separator && !expect_type {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+                if !expect_type {
+                    expect_type = true;
+                }
+                continue;
             }
             // consume explicit comma separators
             else if self.peek_is(TokenType::Comma) {

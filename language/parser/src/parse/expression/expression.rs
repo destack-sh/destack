@@ -253,7 +253,7 @@ impl Parser {
 
         // require a known matching close parenthesis
         let open_index = self.pos_index();
-        let Some(close_index) = self.token_stream.matching_pair(open_index) else {
+        let Some(close_index) = self.matching_pair(open_index) else {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.parenthesized_expression_fast_misses += 1;
             }
@@ -732,69 +732,119 @@ impl Parser {
                         {
                             group_expression_id
                         } else {
-                            // look ahead for lambda and tuple cues without committing tokens
-                            let group_shape = self.try_lookahead_parenthesized_group_shape()?;
-                            let ParenthesizedGroupShape {
-                                has_top_level_comma,
-                                has_arrow_follow,
-                                has_colon_follow,
-                                has_top_level_parameter_colon,
-                                is_empty: is_empty_parenthesized_group,
-                            } = group_shape;
-                            let has_parenthesized_parameter_shape = has_top_level_parameter_colon
-                                || has_top_level_comma
-                                || is_empty_parenthesized_group;
-                            let is_colon_lambda_allowed = has_colon_follow
-                                && (self.language.is_destack() || self.language.is_typescript())
-                                && !self.options.in_before_type
-                                && !self.options.in_match_case
-                                && (!self.options.in_type || !has_top_level_comma);
-                            let can_parse_lambda_in_arrow_return =
-                                !self.options.in_arrow_return_type
-                                    || self.options.in_type && has_parenthesized_parameter_shape;
+                            let mut has_top_level_comma = false;
                             let mut lambda_expression_id = None;
 
-                            // parse lambda when we see a likely arrow or colon
-                            if (has_arrow_follow || is_colon_lambda_allowed)
-                                && can_parse_lambda_in_arrow_return
-                            {
-                                // avoid colon lambdas that steal ternary delimiters
-                                if self.options.in_ternary_condition && has_colon_follow {
-                                    let speculative_start = self.mark();
-                                    let speculative_start_idx = self.tree.next_id();
-                                    if let Ok(lambda_id) =
-                                        self.eat_function(&start, descriptor, false, false)
+                            // parse direct arrow lambdas without deep group lookahead
+                            if !self.options.in_arrow_return_type {
+                                let open_index = self.pos_index();
+                                if let Some(close_index) = self.matching_pair(open_index) {
+                                    let follow_start_index = close_index + 1;
+                                    let follow_index = if self.token_type_at(follow_start_index)
+                                        == TokenType::Newline
                                     {
-                                        let has_ternary_delimiter = self.peek_is(TokenType::Colon)
-                                            || self.is_token_after_newlines(
-                                                self.pos(),
-                                                TokenType::Colon,
-                                            );
-                                        let should_accept = match self.tree.get(lambda_id) {
-                                            Declaration::Function { body, .. } => {
-                                                (body.is_some() || self.options.in_type)
-                                                    && has_ternary_delimiter
+                                        self.next_non_newline_index_from(follow_start_index + 1)
+                                    } else {
+                                        follow_start_index
+                                    };
+                                    let has_arrow_follow = matches!(
+                                        self.token_type_at(follow_index),
+                                        TokenType::Arrow | TokenType::ArrowWide
+                                    );
+                                    if has_arrow_follow {
+                                        let lambda_id = self.eat_function(
+                                            &start,
+                                            descriptor.clone(),
+                                            false,
+                                            false,
+                                        )?;
+                                        lambda_expression_id = Some(self.tree.insert(
+                                            Expression::Declaration(lambda_id),
+                                            self.get_span_from(&start),
+                                        ));
+                                    }
+                                }
+                            }
+
+                            // look ahead for colon lambdas and tuple cues when needed
+                            if lambda_expression_id.is_none() {
+                                let group_shape = self.try_lookahead_parenthesized_group_shape()?;
+                                let ParenthesizedGroupShape {
+                                    has_top_level_comma: looked_has_top_level_comma,
+                                    has_arrow_follow,
+                                    has_colon_follow,
+                                    has_top_level_parameter_colon,
+                                    is_empty: is_empty_parenthesized_group,
+                                } = group_shape;
+                                has_top_level_comma = looked_has_top_level_comma;
+                                let has_parenthesized_parameter_shape =
+                                    has_top_level_parameter_colon
+                                        || has_top_level_comma
+                                        || is_empty_parenthesized_group;
+                                let is_colon_lambda_allowed = has_colon_follow
+                                    && (self.language.is_destack()
+                                        || self.language.is_typescript())
+                                    && !self.options.in_before_type
+                                    && !self.options.in_match_case
+                                    && (!self.options.in_type || !has_top_level_comma);
+                                let can_parse_lambda_in_arrow_return = !self
+                                    .options
+                                    .in_arrow_return_type
+                                    || self.options.in_type && has_parenthesized_parameter_shape;
+
+                                // parse lambda when we see a likely arrow or colon
+                                if (has_arrow_follow || is_colon_lambda_allowed)
+                                    && can_parse_lambda_in_arrow_return
+                                {
+                                    // avoid colon lambdas that steal ternary delimiters
+                                    if self.options.in_ternary_condition && has_colon_follow {
+                                        let speculative_start = self.mark();
+                                        let speculative_start_idx = self.tree.next_id();
+                                        if let Ok(lambda_id) = self.eat_function(
+                                            &start,
+                                            descriptor.clone(),
+                                            false,
+                                            false,
+                                        ) {
+                                            let has_ternary_delimiter = self
+                                                .peek_is(TokenType::Colon)
+                                                || self.is_token_after_newlines(
+                                                    self.pos(),
+                                                    TokenType::Colon,
+                                                );
+                                            let should_accept = match self.tree.get(lambda_id) {
+                                                Declaration::Function { body, .. } => {
+                                                    (body.is_some() || self.options.in_type)
+                                                        && has_ternary_delimiter
+                                                }
+                                                _ => has_ternary_delimiter,
+                                            };
+                                            if should_accept {
+                                                lambda_expression_id = Some(self.tree.insert(
+                                                    Expression::Declaration(lambda_id),
+                                                    self.get_span_from(&start),
+                                                ));
+                                            } else {
+                                                self.restore(
+                                                    speculative_start,
+                                                    speculative_start_idx,
+                                                );
                                             }
-                                            _ => has_ternary_delimiter,
-                                        };
-                                        if should_accept {
-                                            lambda_expression_id = Some(self.tree.insert(
-                                                Expression::Declaration(lambda_id),
-                                                self.get_span_from(&start),
-                                            ));
                                         } else {
                                             self.restore(speculative_start, speculative_start_idx);
                                         }
                                     } else {
-                                        self.restore(speculative_start, speculative_start_idx);
+                                        let lambda_id = self.eat_function(
+                                            &start,
+                                            descriptor.clone(),
+                                            false,
+                                            false,
+                                        )?;
+                                        lambda_expression_id = Some(self.tree.insert(
+                                            Expression::Declaration(lambda_id),
+                                            self.get_span_from(&start),
+                                        ));
                                     }
-                                } else {
-                                    let lambda_id =
-                                        self.eat_function(&start, descriptor, false, false)?;
-                                    lambda_expression_id = Some(self.tree.insert(
-                                        Expression::Declaration(lambda_id),
-                                        self.get_span_from(&start),
-                                    ));
                                 }
                             }
 

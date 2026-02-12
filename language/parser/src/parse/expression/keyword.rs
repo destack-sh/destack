@@ -142,7 +142,7 @@ impl Parser {
         } else {
             dot_index + 1
         };
-        self.token_stream.ensure_token(identifier_index);
+        self.ensure_token(identifier_index);
         let Some(identifier_token) = self.tokens().get(identifier_index).copied() else {
             return Err(ParseError::unexpected(self.peek()?.span));
         };

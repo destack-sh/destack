@@ -66,10 +66,8 @@ impl Parser {
             return;
         }
 
-        let statement_id = self.tree.insert(
-            Expression::Statement(expression_id),
-            self.tree.get_span(expression_id),
-        );
+        let statement_id =
+            self.wrap_statement_expression(expression_id, self.tree.get_span(expression_id));
         statements.push(statement_id);
     }
 
@@ -380,10 +378,8 @@ impl Parser {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
-            let expression_id = self.tree.insert(
-                Expression::Statement(expression_id),
-                self.get_span_from(start),
-            );
+            let expression_id =
+                self.wrap_statement_expression(expression_id, self.get_span_from(start));
             return Ok((expression_id, true));
         }
 

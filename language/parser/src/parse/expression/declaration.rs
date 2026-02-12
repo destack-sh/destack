@@ -78,7 +78,7 @@ impl Parser {
             Ok(pos) => pos,
             Err(_) => return false,
         };
-        self.token_stream.ensure_token(open_pos as usize + 1);
+        self.ensure_token(open_pos as usize + 1);
         let Some(next_token) = self.tokens().get(open_pos as usize + 1) else {
             return false;
         };
@@ -104,7 +104,7 @@ impl Parser {
                 Ok(pos) => pos,
                 Err(_) => return false,
             };
-            self.token_stream.ensure_token(after_close_pos as usize + 1);
+            self.ensure_token(after_close_pos as usize + 1);
             let Some(after_close) = self.tokens().get(after_close_pos as usize + 1) else {
                 return false;
             };
@@ -136,7 +136,7 @@ impl Parser {
                 Ok(pos) => pos,
                 Err(_) => return false,
             };
-            self.token_stream.ensure_token(key_pos as usize + 1);
+            self.ensure_token(key_pos as usize + 1);
             let Some(after_key) = self.tokens().get(key_pos as usize + 1) else {
                 return false;
             };
@@ -346,7 +346,7 @@ impl Parser {
                 let after_abstract = direct_index + 1;
                 let target_index = self.next_non_newline_index_from(after_abstract);
                 if target_index > after_abstract && self.is_declare_target_at(target_index) {
-                    self.token_stream.ensure_token(after_abstract);
+                    self.ensure_token(after_abstract);
                     self.tokens().get(after_abstract).map(|token| token.span)
                 } else {
                     None
@@ -360,7 +360,7 @@ impl Parser {
                         .get(name_index)
                         .is_some_and(|token| token.token.ty == TokenType::Identifier)
                 {
-                    self.token_stream.ensure_token(after_type);
+                    self.ensure_token(after_type);
                     self.tokens().get(after_type).map(|token| token.span)
                 } else {
                     None
@@ -438,7 +438,7 @@ impl Parser {
 
     /// Check whether a token index starts a declare identifier target.
     pub(super) fn is_declare_identifier_at(&mut self, index: usize) -> bool {
-        self.token_stream.ensure_token(index);
+        self.ensure_token(index);
         let Some(token) = self.tokens().get(index) else {
             return false;
         };
@@ -459,7 +459,7 @@ impl Parser {
         }
         let mut after = index + 1;
         loop {
-            self.token_stream.ensure_token(after);
+            self.ensure_token(after);
             let Some(token) = self.tokens().get(after) else {
                 break;
             };

@@ -67,7 +67,7 @@ impl Parser {
         }
 
         // ensure the token exists for probing
-        self.token_stream.ensure_token(next);
+        self.ensure_token(next);
         if next >= self.tokens().len() {
             return false;
         }
@@ -144,7 +144,7 @@ impl Parser {
 
         // check for a trailing while keyword
         let after_close_index = after_close as usize + 1;
-        self.token_stream.ensure_token(after_close_index);
+        self.ensure_token(after_close_index);
         let Some(after_token) = self.tokens().get(after_close_index) else {
             return false;
         };

@@ -224,7 +224,7 @@ impl Parser {
     pub fn find_token(&mut self, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = self.pos() as usize;
         loop {
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             let Some(token) = self.tokens().get(pos) else {
                 break;
             };
@@ -241,7 +241,7 @@ impl Parser {
     pub fn find_token_after(&mut self, pos: u32, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = pos as usize;
         loop {
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             let Some(token) = self.tokens().get(pos) else {
                 break;
             };
@@ -284,7 +284,7 @@ impl Parser {
         // we should start at the open token (unless we have a split token)
         #[cfg(debug_assertions)]
         if !has_split_open {
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             let first_token = self
                 .token_ref_at(pos)
                 .map(|token| token.token.ty)
@@ -303,12 +303,12 @@ impl Parser {
                 TokenType::OpenBracket => Some(TokenType::CloseBracket),
                 _ => None,
             };
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             if expected_close == Some(close_token)
                 && self
                     .token_ref_at(pos)
                     .is_some_and(|token| token.token.ty == open_token)
-                && let Some(matching) = self.token_stream.matching_pair(pos)
+                && let Some(matching) = self.matching_pair(pos)
             {
                 return Ok(matching as u32);
             }
@@ -316,7 +316,7 @@ impl Parser {
 
         // seek until we find the matching close token
         loop {
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             let Some(token) = self.tokens().get(pos) else {
                 break;
             };
@@ -351,14 +351,13 @@ impl Parser {
         let mut last_non_whitespace_index: Option<usize> = None;
         let mut last_semantic_index: Option<usize> = None;
         let mut prev_semantic_index: Option<usize> = None;
-        let tree_literals_allowed = self.language.supports_jsx()
-            && self.token_stream.allow_tree_literals()
-            && !self.options.in_type;
+        let tree_literals_allowed =
+            self.language.supports_jsx() && self.allow_tree_literals() && !self.options.in_type;
 
         // we should start at the expected open token
         #[cfg(debug_assertions)]
         {
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             let first_token = self
                 .token_ref_at(pos)
                 .map(|token| token.token.ty)
@@ -384,7 +383,7 @@ impl Parser {
                     let can_start_tree =
                         self.with_pos(pos, |parser| parser.can_start_tree_literal());
                     if can_start_tree {
-                        self.token_stream.enter_tree_opening_tag();
+                        self.enter_tree_opening_tag();
                     }
                 }
             }
@@ -421,7 +420,7 @@ impl Parser {
         let mut depth = 0;
         let mut pos = self.pos() as usize;
         loop {
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             let Some(token) = self.tokens().get(pos) else {
                 break;
             };
@@ -464,9 +463,8 @@ impl Parser {
         let mut last_non_whitespace_index: Option<usize> = None;
         let mut last_semantic_index: Option<usize> = None;
         let mut prev_semantic_index: Option<usize> = None;
-        let tree_literals_allowed = self.language.supports_jsx()
-            && self.token_stream.allow_tree_literals()
-            && !self.options.in_type;
+        let tree_literals_allowed =
+            self.language.supports_jsx() && self.allow_tree_literals() && !self.options.in_type;
 
         // scan the parenthesis contents
         while pos <= close_pos {
@@ -486,7 +484,7 @@ impl Parser {
                     let can_start_tree =
                         self.with_pos(pos, |parser| parser.can_start_tree_literal());
                     if can_start_tree {
-                        self.token_stream.enter_tree_opening_tag();
+                        self.enter_tree_opening_tag();
                     }
                 }
             }
@@ -632,13 +630,13 @@ impl Parser {
     #[inline]
     pub fn skip_newlines(&mut self, pos: u32) -> ParseResult<u32> {
         let pos = pos as usize;
-        self.token_stream.ensure_token(pos);
+        self.ensure_token(pos);
         let len = self.tokens().len();
         if pos >= len {
             return Ok(pos as u32);
         }
 
-        let next = self.token_stream.next_non_newline_index_from(pos);
+        let next = self.next_non_newline_index_from_stream(pos);
         if next == pos {
             return Ok(pos as u32);
         }
@@ -654,20 +652,20 @@ impl Parser {
     /// Find the next token index that is not a newline.
     #[inline]
     pub fn next_non_newline_index_from(&mut self, start: usize) -> usize {
-        self.token_stream.next_non_newline_index_from(start)
+        self.next_non_newline_index_from_stream(start)
     }
 
     /// Skip any newlines at and after a position and check if there's a specific token after.
     #[inline]
     pub fn is_token_after_newlines(&mut self, pos: u32, target_token: TokenType) -> bool {
         let mut pos = pos as usize;
-        self.token_stream.ensure_token(pos);
+        self.ensure_token(pos);
         if let Some(token) = self.tokens().get(pos)
             && token.token.ty != TokenType::Newline
         {
             pos = pos.saturating_add(1);
         }
-        let next = self.token_stream.next_non_newline_index_from(pos);
+        let next = self.next_non_newline_index_from_stream(pos);
         self.tokens()
             .get(next)
             .is_some_and(|token| token.token.ty == target_token)
@@ -680,13 +678,13 @@ impl Parser {
         target_token: TokenType,
     ) -> ParseResult<u32> {
         let mut pos = pos as usize;
-        self.token_stream.ensure_token(pos);
+        self.ensure_token(pos);
         if let Some(token) = self.tokens().get(pos)
             && token.token.ty != TokenType::Newline
         {
             pos = pos.saturating_add(1);
         }
-        let next = self.token_stream.next_non_newline_index_from(pos);
+        let next = self.next_non_newline_index_from_stream(pos);
         if self
             .tokens()
             .get(next)
