@@ -19,6 +19,10 @@ struct EcosystemOptions {
     #[arg(long)]
     refresh: bool,
 
+    /// Install package dependencies after fetch.
+    #[arg(long)]
+    install: bool,
+
     /// Select one or more phases.
     #[arg(long, value_enum, value_name = "PHASE")]
     phase: Vec<EcosystemPhase>,
@@ -51,6 +55,7 @@ fn main() -> ExitCode {
     if options.fetch {
         return fetch_all_packages(FetchOptions {
             refresh: options.refresh,
+            install: options.install,
         });
     }
 

@@ -131,3 +131,102 @@ export const value: number;
   }
 }
 ```
+
+## package self references
+
+### rejects self package bare import without exports
+
+> Bare self package imports require explicit `exports` and do not fallback to `main`.
+
+```ts:main.ts
+import { value } from "spec";
+```
+
+```ts:index.ts
+export const value = 1;
+```
+
+```json:package.json
+{
+  "name": "spec",
+  "main": "./index.ts"
+}
+```
+
+- contains: unresolved module 'spec'
+
+### rejects self package subpath import without exports
+
+> Subpath self imports require explicit `exports` mappings.
+
+```ts:main.ts
+import { feature } from "spec/feature";
+```
+
+```ts:feature.ts
+export const feature = "ok";
+```
+
+```json:package.json
+{
+  "name": "spec"
+}
+```
+
+- contains: unresolved module 'spec/feature'
+
+### resolves self package bare import through exports when present
+
+> Packages with exports resolve self package root imports through `exports`.
+
+```ts:main.ts
+import { value } from "spec";
+
+value satisfies number;
+```
+
+```ts:index.ts
+export const value = 0;
+```
+
+```ts:public.ts
+export const value = 1;
+```
+
+```json:package.json
+{
+  "name": "spec",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./public.ts"
+  }
+}
+```
+
+### does not fallback to package main when exports are present
+
+> Packages with exports keep exports constraints and do not fallback to package main for root imports.
+
+```ts:main.ts
+import "spec";
+```
+
+```ts:index.ts
+export const value = 1;
+```
+
+```ts:feature.ts
+export const feature = 1;
+```
+
+```json:package.json
+{
+  "name": "spec",
+  "main": "./index.ts",
+  "exports": {
+    "./feature": "./feature.ts"
+  }
+}
+```
+
+- contains: unresolved module 'spec'

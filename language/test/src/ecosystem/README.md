@@ -173,6 +173,7 @@ zod-analyze # language difference
 
 Use these commands to fetch and run the suite.
 Missing package checkouts are auto-fetched during normal runs.
+Resolve, analyze, and lower runs also install dependencies for freshly fetched packages.
 Use explicit fetch to prewarm local state.
 
 ```bash

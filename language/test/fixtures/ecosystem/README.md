@@ -15,8 +15,9 @@ The fixture tree uses the following layout.
 
 ## Running
 
-Fetch package checkouts before running ecosystem tests.
+Fetch package checkouts and install dependencies before running ecosystem tests.
 Missing checkouts are also fetched automatically by the ecosystem runner.
+Resolve, analyze, and lower phases install dependencies for newly fetched checkouts.
 
 ```bash
 just language/ecosystem-fetch
