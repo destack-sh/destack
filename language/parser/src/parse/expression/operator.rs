@@ -335,7 +335,7 @@ impl Parser {
     pub fn peek_infix_operator_after_newlines_maybe(&mut self) -> Option<(InfixOperator, u8)> {
         let mut pos = self.pos() as usize;
         loop {
-            self.token_stream.ensure_token(pos + 1);
+            self.ensure_token(pos + 1);
             let token = self.tokens().get(pos + 1)?;
             if token.token.ty != TokenType::Newline {
                 break;

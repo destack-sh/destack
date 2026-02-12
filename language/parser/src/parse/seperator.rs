@@ -83,7 +83,7 @@ impl Parser {
         }
 
         let pos = self.pos_index();
-        self.token_stream.ensure_token(pos);
+        self.ensure_token(pos);
         if !self
             .tokens()
             .get(pos)
@@ -92,7 +92,7 @@ impl Parser {
             return Ok(());
         }
 
-        let next = self.token_stream.next_non_newline_index_from(pos);
+        let next = self.next_non_newline_index_from_stream(pos);
         self.advance_to(next);
         Ok(())
     }

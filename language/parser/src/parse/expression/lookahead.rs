@@ -25,7 +25,7 @@ impl Parser {
         // skip cache when split-token state can change current-token semantics
         if !self.has_active_split() {
             let lookahead_index = self.pos_index();
-            self.token_stream.ensure_token(lookahead_index);
+            self.ensure_token(lookahead_index);
 
             if self
                 .parenthesized_group_shapes_cached
@@ -38,7 +38,7 @@ impl Parser {
         }
 
         // tree literal lexing can mutate token stream state during lookahead
-        let needs_snapshot = self.token_stream.allow_tree_literals() && !self.options.in_type;
+        let needs_snapshot = self.allow_tree_literals() && !self.options.in_type;
         let lookahead_result = if needs_snapshot {
             let lookahead_mark = self.mark();
             let lookahead_result = self.lookahead_parenthesized_group_shape_inner();
@@ -83,7 +83,7 @@ impl Parser {
                 .token_ref_at(open_pos as usize)
                 .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
         {
-            if let Some(close_index) = self.token_stream.matching_pair(open_pos as usize) {
+            if let Some(close_index) = self.matching_pair(open_pos as usize) {
                 close_index as u32
             } else {
                 self.find_matching_close(
@@ -159,7 +159,7 @@ impl Parser {
         let close_index = close_pos as usize;
 
         while token_index < close_index {
-            self.token_stream.ensure_token(token_index);
+            self.ensure_token(token_index);
             let Some(token) = self.tokens().get(token_index) else {
                 break;
             };
@@ -178,7 +178,7 @@ impl Parser {
                     token_type,
                     TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
                 )
-                && let Some(close_index_for_token) = self.token_stream.matching_pair(token_index)
+                && let Some(close_index_for_token) = self.matching_pair(token_index)
                 && close_index_for_token > token_index
                 && close_index_for_token < close_index
             {

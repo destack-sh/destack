@@ -16,31 +16,42 @@ impl Parser {
         let first = self.eat_identifier()?;
         segments.push(first);
 
-        // zero or more `.identifier` (ignoring newlines)
-        while self.has_more_tokens() {
-            // dot followed by identifier
-            if self.peek_is(TokenType::Dot)
-                && let Ok(after_dot) = self.peek_next()
-                && after_dot.token.ty == TokenType::Identifier
-            {
-                self.eat_token(TokenType::Dot)?;
-                let seg = self.eat_identifier()?;
-                segments.push(seg);
-            }
-            // newline followed by dot
-            else if self.peek_is(TokenType::Newline)
-                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
-            {
-                self.eat_newlines_maybe()?;
-            }
-            // end of path
-            else {
-                break;
-            }
+        // single segment fast path
+        let next_token_type = self.peek_token_type();
+        if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
+            return Ok(Path { segments });
         }
 
-        let path = Path { segments };
-        Ok(path)
+        // zero or more `.identifier` (ignoring newlines)
+        loop {
+            let token_type = self.peek_token_type();
+
+            // dot followed by identifier
+            if token_type == TokenType::Dot {
+                if self.peek_next_token_type() != TokenType::Identifier {
+                    break;
+                }
+
+                self.bump(); // eat dot
+                let segment = self.eat_identifier()?;
+                segments.push(segment);
+                continue;
+            }
+
+            // newline followed by dot
+            if token_type == TokenType::Newline {
+                let next_index = self.next_non_newline_index_from(self.pos_index());
+                if self.token_type_at(next_index) == TokenType::Dot {
+                    self.eat_newlines_maybe()?;
+                    continue;
+                }
+            }
+
+            // end of path
+            break;
+        }
+
+        Ok(Path { segments })
     }
 
     /// Eat a path and get its span.
@@ -61,33 +72,43 @@ impl Parser {
         segments.push(first);
         let mut last_span = first_span;
 
-        // zero or more `.identifier` (ignoring newlines)
-        while self.has_more_tokens() {
-            // dot followed by identifier
-            if self.peek_is(TokenType::Dot)
-                && let Ok(after_dot) = self.peek_next()
-                && after_dot.token.ty == TokenType::Identifier
-            {
-                self.eat_token(TokenType::Dot)?;
-                let (seg, seg_span) = self.eat_identifier_with_span()?;
-                segments.push(seg);
-                last_span = seg_span;
-            }
-            // newline followed by dot
-            else if self.peek_is(TokenType::Newline)
-                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
-            {
-                self.eat_newlines_maybe()?;
-            }
-            // end of path
-            else {
-                break;
-            }
+        // single segment fast path
+        let next_token_type = self.peek_token_type();
+        if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
+            return Ok((Path { segments }, last_span));
         }
 
-        // build the path
-        let path = Path { segments };
-        Ok((path, last_span))
+        // zero or more `.identifier` (ignoring newlines)
+        loop {
+            let token_type = self.peek_token_type();
+
+            // dot followed by identifier
+            if token_type == TokenType::Dot {
+                if self.peek_next_token_type() != TokenType::Identifier {
+                    break;
+                }
+
+                self.bump(); // eat dot
+                let (segment, segment_span) = self.eat_identifier_with_span()?;
+                segments.push(segment);
+                last_span = segment_span;
+                continue;
+            }
+
+            // newline followed by dot
+            if token_type == TokenType::Newline {
+                let next_index = self.next_non_newline_index_from(self.pos_index());
+                if self.token_type_at(next_index) == TokenType::Dot {
+                    self.eat_newlines_maybe()?;
+                    continue;
+                }
+            }
+
+            // end of path
+            break;
+        }
+
+        Ok((Path { segments }, last_span))
     }
 
     /// Eat a tree literal path.
@@ -99,31 +120,42 @@ impl Parser {
         let first = self.eat_tree_literal_identifier()?;
         segments.push(first);
 
-        // zero or more `.identifier` (ignoring newlines)
-        while self.has_more_tokens() {
-            // dot followed by identifier
-            if self.peek_is(TokenType::Dot)
-                && let Ok(after_dot) = self.peek_next()
-                && after_dot.token.ty == TokenType::Identifier
-            {
-                self.eat_token(TokenType::Dot)?;
-                let seg = self.eat_tree_literal_identifier()?;
-                segments.push(seg);
-            }
-            // newline followed by dot
-            else if self.peek_is(TokenType::Newline)
-                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
-            {
-                self.eat_newlines_maybe()?;
-            }
-            // end of path
-            else {
-                break;
-            }
+        // single segment fast path
+        let next_token_type = self.peek_token_type();
+        if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
+            return Ok(Path { segments });
         }
 
-        let path = Path { segments };
-        Ok(path)
+        // zero or more `.identifier` (ignoring newlines)
+        loop {
+            let token_type = self.peek_token_type();
+
+            // dot followed by identifier
+            if token_type == TokenType::Dot {
+                if self.peek_next_token_type() != TokenType::Identifier {
+                    break;
+                }
+
+                self.bump(); // eat dot
+                let segment = self.eat_tree_literal_identifier()?;
+                segments.push(segment);
+                continue;
+            }
+
+            // newline followed by dot
+            if token_type == TokenType::Newline {
+                let next_index = self.next_non_newline_index_from(self.pos_index());
+                if self.token_type_at(next_index) == TokenType::Dot {
+                    self.eat_newlines_maybe()?;
+                    continue;
+                }
+            }
+
+            // end of path
+            break;
+        }
+
+        Ok(Path { segments })
     }
 
     /// Eat a tree literal path and return the span of its last segment.
@@ -136,32 +168,43 @@ impl Parser {
         segments.push(first);
         let mut last_span = first_span;
 
-        // zero or more `.identifier` (ignoring newlines)
-        while self.has_more_tokens() {
-            // dot followed by identifier
-            if self.peek_is(TokenType::Dot)
-                && let Ok(after_dot) = self.peek_next()
-                && after_dot.token.ty == TokenType::Identifier
-            {
-                self.eat_token(TokenType::Dot)?;
-                let (seg, seg_span) = self.eat_tree_literal_identifier_with_span()?;
-                segments.push(seg);
-                last_span = seg_span;
-            }
-            // newline followed by dot
-            else if self.peek_is(TokenType::Newline)
-                && self.is_token_after_newlines(self.pos(), TokenType::Dot)
-            {
-                self.eat_newlines_maybe()?;
-            }
-            // end of path
-            else {
-                break;
-            }
+        // single segment fast path
+        let next_token_type = self.peek_token_type();
+        if next_token_type != TokenType::Dot && next_token_type != TokenType::Newline {
+            return Ok((Path { segments }, last_span));
         }
 
-        let path = Path { segments };
-        Ok((path, last_span))
+        // zero or more `.identifier` (ignoring newlines)
+        loop {
+            let token_type = self.peek_token_type();
+
+            // dot followed by identifier
+            if token_type == TokenType::Dot {
+                if self.peek_next_token_type() != TokenType::Identifier {
+                    break;
+                }
+
+                self.bump(); // eat dot
+                let (segment, segment_span) = self.eat_tree_literal_identifier_with_span()?;
+                segments.push(segment);
+                last_span = segment_span;
+                continue;
+            }
+
+            // newline followed by dot
+            if token_type == TokenType::Newline {
+                let next_index = self.next_non_newline_index_from(self.pos_index());
+                if self.token_type_at(next_index) == TokenType::Dot {
+                    self.eat_newlines_maybe()?;
+                    continue;
+                }
+            }
+
+            // end of path
+            break;
+        }
+
+        Ok((Path { segments }, last_span))
     }
 }
 

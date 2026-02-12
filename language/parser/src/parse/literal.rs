@@ -30,7 +30,7 @@ impl Parser {
         }
 
         let pos = self.pos_index();
-        let next = self.token_stream.next_non_newline_index_from(pos + 1);
+        let next = self.next_non_newline_index_from_stream(pos + 1);
         let Some(next_token) = self.token_ref_at(next).copied() else {
             return false;
         };
@@ -45,7 +45,7 @@ impl Parser {
         }
 
         if next_token.token.ty == TokenType::Identifier {
-            let after_identifier = self.token_stream.next_non_newline_index_from(next + 1);
+            let after_identifier = self.next_non_newline_index_from_stream(next + 1);
             if self
                 .token_ref_at(after_identifier)
                 .is_some_and(|token| token.token.ty == TokenType::Comma)
@@ -868,7 +868,7 @@ impl Parser {
         let has_multiline_identifier = if self.peek_next_is(TokenType::Newline) {
             let mut pos = self.pos() as usize;
             loop {
-                self.token_stream.ensure_token(pos + 1);
+                self.ensure_token(pos + 1);
                 let Some(token) = self.tokens().get(pos + 1) else {
                     break;
                 };
@@ -900,7 +900,7 @@ impl Parser {
         let mut pos = self.pos() as usize;
         let mut close_pos = None;
         loop {
-            self.token_stream.ensure_token(pos);
+            self.ensure_token(pos);
             let Some(token) = self.tokens().get(pos) else {
                 break;
             };
@@ -961,7 +961,7 @@ impl Parser {
         let after_close_pos = {
             let mut pos = close_pos as usize;
             loop {
-                self.token_stream.ensure_token(pos + 1);
+                self.ensure_token(pos + 1);
                 let Some(token) = self.tokens().get(pos + 1) else {
                     break;
                 };
@@ -974,7 +974,7 @@ impl Parser {
         };
 
         // require `(` after the type parameters
-        self.token_stream.ensure_token(after_close_pos as usize + 1);
+        self.ensure_token(after_close_pos as usize + 1);
         let Some(after_close) = self.tokens().get(after_close_pos as usize + 1) else {
             return false;
         };
@@ -995,7 +995,7 @@ impl Parser {
         let after_parenthesis_pos = {
             let mut pos = parenthesis_close as usize;
             loop {
-                self.token_stream.ensure_token(pos + 1);
+                self.ensure_token(pos + 1);
                 let Some(token) = self.tokens().get(pos + 1) else {
                     break;
                 };
@@ -1008,8 +1008,7 @@ impl Parser {
         };
 
         // require `:` or `=>` after the parameters
-        self.token_stream
-            .ensure_token(after_parenthesis_pos as usize + 1);
+        self.ensure_token(after_parenthesis_pos as usize + 1);
         let Some(after_parenthesis) = self.tokens().get(after_parenthesis_pos as usize + 1) else {
             return false;
         };
@@ -1030,16 +1029,14 @@ impl Parser {
             let unexpected_span = self.peek()?.span;
 
             // prime opening tag mode for tree literal lookahead
-            if !self.token_stream.in_tree_literal()
-                || self.token_stream.in_tree_attribute_expression()
-            {
-                self.token_stream.enter_tree_opening_tag();
+            if !self.in_tree_literal() || self.in_tree_attribute_expression() {
+                self.enter_tree_opening_tag();
             }
 
             // skip newlines after `<`
             let mut pos = self.pos_index();
             loop {
-                self.token_stream.ensure_token(pos + 1);
+                self.ensure_token(pos + 1);
                 let Some(token) = self.tokens().get(pos + 1) else {
                     break;
                 };
@@ -1054,7 +1051,7 @@ impl Parser {
                 .token_ref_at(pos + 1)
                 .ok_or(ParseError::unexpected(unexpected_span))?;
             // closing tags should only appear inside tree content
-            if next.token.ty == TokenType::Divide && !self.token_stream.in_tree_literal() {
+            if next.token.ty == TokenType::Divide && !self.in_tree_literal() {
                 return Err(ParseError::unexpected(unexpected_span));
             }
             if !matches!(
@@ -1068,7 +1065,7 @@ impl Parser {
             if next.token.ty == TokenType::Identifier {
                 let mut comma_pos = pos + 1;
                 loop {
-                    self.token_stream.ensure_token(comma_pos + 1);
+                    self.ensure_token(comma_pos + 1);
                     let Some(token) = self.tokens().get(comma_pos + 1) else {
                         break;
                     };
@@ -1138,11 +1135,11 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
-        if !self.token_stream.in_tree_literal()
-            || self.token_stream.in_tree_attribute_expression()
+        if !self.in_tree_literal()
+            || self.in_tree_attribute_expression()
             || !self.options.in_tree_literal
         {
-            self.token_stream.enter_tree_opening_tag();
+            self.enter_tree_opening_tag();
         }
         self.eat_newlines_maybe()?;
 

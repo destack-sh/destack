@@ -22,7 +22,7 @@ impl Parser {
         // skip newlines after the modifier keyword
         let mut pos = self.pos() as usize;
         loop {
-            self.token_stream.ensure_token(pos + 1);
+            self.ensure_token(pos + 1);
             let Some(token) = self.tokens().get(pos + 1) else {
                 break;
             };

@@ -86,7 +86,7 @@ impl Parser {
         }
 
         // ensure all tokens are lexed before annotation collection
-        self.token_stream.lex_to_end();
+        self.lex_to_end();
 
         // build the index for fast node lookups before attaching annotations
         if !self.positions_built {
@@ -95,12 +95,15 @@ impl Parser {
             self.positions_built = true;
         }
 
-        // collect tokens in source order, excluding whitespace
+        // copy precomputed annotation tokens from the lexer stream
         let mut tokens = std::mem::take(&mut self.annotation_tokens);
         let mut line_indices = std::mem::take(&mut self.annotation_line_indices);
         {
             let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_COLLECT);
-            self.collect_annotation_tokens(&mut tokens, &mut line_indices);
+            tokens.clear();
+            line_indices.clear();
+            tokens.extend_from_slice(self.annotation_tokens());
+            line_indices.extend_from_slice(self.annotation_line_indices());
         }
         if tokens.is_empty() {
             self.annotation_tokens = tokens;
@@ -108,10 +111,11 @@ impl Parser {
             return;
         }
 
-        // precompute statement wrappers for expression promotion
-        {
+        // rebuild statement wrappers only after speculative parse restores
+        if !self.annotation_statement_wrappers_precise {
             let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_WRAPPERS);
             self.collect_statement_wrappers();
+            self.annotation_statement_wrappers_precise = true;
         }
         let statement_wrappers = std::mem::take(&mut self.annotation_statement_wrappers);
 
@@ -137,6 +141,7 @@ impl Parser {
     }
 
     /// Collect semantic and side tokens without whitespace in source order.
+    #[allow(dead_code)]
     fn collect_annotation_tokens(&self, tokens: &mut Vec<TokenSpan>, line_indices: &mut Vec<u32>) {
         tokens.clear();
         line_indices.clear();
@@ -161,7 +166,7 @@ impl Parser {
         };
 
         // fast path when side tokens only contain whitespace
-        if !self.token_stream.has_comment_annotation_tokens() {
+        if !self.has_comment_annotation_tokens() {
             for token in self.tokens() {
                 if token.token.ty == TokenType::Whitespace {
                     continue;
@@ -881,6 +886,8 @@ impl Parser {
             }
             node_id += 1;
         }
+
+        self.annotation_statement_wrappers_precise = true;
     }
 
     /// Make and attach an annotation group.

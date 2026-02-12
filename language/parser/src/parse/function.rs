@@ -134,7 +134,7 @@ impl Parser {
         let mut angle_depth = 0usize;
 
         for token_index in open_index + 1..close_index {
-            self.token_stream.ensure_token(token_index);
+            self.ensure_token(token_index);
             let token_type = self.tokens().get(token_index)?.token.ty;
             if token_type == TokenType::Newline {
                 continue;
@@ -254,7 +254,7 @@ impl Parser {
 
         // require a precomputed matching close
         let open_index = self.pos_index();
-        let Some(close_index) = self.token_stream.matching_pair(open_index) else {
+        let Some(close_index) = self.matching_pair(open_index) else {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.simple_parenthesized_lambda_misses += 1;
             }

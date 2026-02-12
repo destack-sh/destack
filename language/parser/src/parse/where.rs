@@ -16,15 +16,20 @@ impl Parser {
     /// where Foo.Bar: Baz
     /// ```
     pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<WhereClause>>>> {
-        // allow newlines before where
-        let mark = self.mark();
-        self.eat_newlines_maybe()?;
-        if self.is_keyword(Keyword::Where) {
-            Ok(Some(self.eat_where()?))
-        } else {
-            self.rewind(mark);
-            Ok(None)
+        // look ahead to where without speculative rewinds
+        let start_index = self.pos_index();
+        let where_index = self.next_non_newline_index_from(start_index);
+        if self.token_type_at(where_index) != TokenType::Identifier
+            || self.keyword_for_index(where_index) != Some(Keyword::Where)
+        {
+            return Ok(None);
         }
+
+        if where_index != start_index {
+            self.eat_newlines_maybe()?;
+        }
+
+        Ok(Some(self.eat_where()?))
     }
 
     /// Eat a where context declaration.

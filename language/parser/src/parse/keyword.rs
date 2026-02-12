@@ -43,7 +43,7 @@ impl Parser {
     #[inline]
     pub fn is_keyword_after_newlines(&mut self, keyword: Keyword) -> bool {
         let pos = self.pos_index();
-        self.token_stream.ensure_token(pos);
+        self.ensure_token(pos);
         let pos = if self
             .tokens()
             .get(pos)
@@ -51,7 +51,7 @@ impl Parser {
         {
             pos
         } else {
-            self.token_stream.next_non_newline_index_from(pos)
+            self.next_non_newline_index_from_stream(pos)
         };
 
         self.keyword_is_at(pos, keyword)
@@ -116,7 +116,7 @@ impl Parser {
     #[inline]
     pub fn peek_keyword_after_newlines(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
         let pos = self.pos_index();
-        self.token_stream.ensure_token(pos);
+        self.ensure_token(pos);
         let pos = if self
             .tokens()
             .get(pos)
@@ -124,7 +124,7 @@ impl Parser {
         {
             pos
         } else {
-            self.token_stream.next_non_newline_index_from(pos)
+            self.next_non_newline_index_from_stream(pos)
         };
         let matches_keyword = self.is_keyword_after_newlines(keyword);
         let eof_span = self.eof_span();

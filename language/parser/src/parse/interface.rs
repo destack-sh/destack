@@ -57,8 +57,8 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_INTERFACE);
         // disable tree literals while parsing typescript interfaces
         let allow_tree_literals = if self.language.is_typescript() {
-            let allow_tree_literals = self.token_stream.allow_tree_literals();
-            self.token_stream.set_allow_tree_literals(false);
+            let allow_tree_literals = self.allow_tree_literals();
+            self.set_allow_tree_literals(false);
             Some(allow_tree_literals)
         } else {
             None
@@ -137,8 +137,7 @@ impl Parser {
         })();
 
         if let Some(allow_tree_literals) = allow_tree_literals {
-            self.token_stream
-                .set_allow_tree_literals(allow_tree_literals);
+            self.set_allow_tree_literals(allow_tree_literals);
         }
 
         result

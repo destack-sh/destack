@@ -16,7 +16,7 @@ impl Parser {
         let mut offset = start_offset;
         let mut newline_count = 0;
         loop {
-            self.token_stream.ensure_token(base + offset);
+            self.ensure_token(base + offset);
             let Some(token) = self.tokens().get(base + offset) else {
                 break;
             };
@@ -33,7 +33,7 @@ impl Parser {
     /// Return true when the token at an absolute index has the requested type.
     #[inline]
     fn token_type_at_index_is(&mut self, index: usize, token_type: TokenType) -> bool {
-        self.token_stream.ensure_token(index);
+        self.ensure_token(index);
         self.tokens()
             .get(index)
             .is_some_and(|token| token.token.ty == token_type)
@@ -47,7 +47,7 @@ impl Parser {
     /// Return true when the token at an absolute index is a valid member name.
     #[inline]
     fn token_is_member_name_at_index(&mut self, index: usize) -> bool {
-        self.token_stream.ensure_token(index);
+        self.ensure_token(index);
         self.tokens()
             .get(index)
             .is_some_and(Self::token_is_member_name)
@@ -223,7 +223,7 @@ impl Parser {
         }
 
         let next_index = self.next_non_newline_index_from(self.pos_index());
-        self.token_stream.ensure_token(next_index + 1);
+        self.ensure_token(next_index + 1);
         let Some(next_token) = self.tokens().get(next_index) else {
             return false;
         };
@@ -248,7 +248,7 @@ impl Parser {
 
         let mut pos = self.pos() as usize;
         loop {
-            self.token_stream.ensure_token(pos + 1);
+            self.ensure_token(pos + 1);
             let Some(token) = self.tokens().get(pos + 1) else {
                 break;
             };
