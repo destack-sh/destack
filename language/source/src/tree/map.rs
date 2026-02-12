@@ -1,6 +1,7 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::interval::IntervalTree;
 use crate::Span;
@@ -50,6 +51,8 @@ pub struct NodeSourceMap {
     /// Interval tree for O(log n + k) enclosing span queries.
     /// Built lazily on first lookup and invalidated on enclosing span mutations.
     interval_tree: RwLock<Option<IntervalTree>>,
+    /// Whether the interval tree cache is currently built.
+    interval_tree_ready: AtomicBool,
 }
 
 impl Clone for NodeSourceMap {
@@ -62,6 +65,7 @@ impl Clone for NodeSourceMap {
             has_type_span: self.has_type_span.clone(),
             side_spans: self.side_spans.clone(),
             interval_tree: RwLock::new(None),
+            interval_tree_ready: AtomicBool::new(false),
         }
     }
 }
@@ -159,6 +163,7 @@ impl<'de> Deserialize<'de> for NodeSourceMap {
             has_type_span,
             side_spans: data.side_spans,
             interval_tree: RwLock::new(None),
+            interval_tree_ready: AtomicBool::new(false),
         })
     }
 }
@@ -196,28 +201,39 @@ impl NodeSourceMap {
             has_type_span: Vec::with_capacity(capacity),
             side_spans: FxHashMap::default(),
             interval_tree: RwLock::new(None),
+            interval_tree_ready: AtomicBool::new(false),
         }
     }
 
     /// Invalidate cached position index after enclosing span mutations.
     #[inline]
     fn invalidate_position_index(&mut self) {
+        if !self.interval_tree_ready.load(Ordering::Relaxed) {
+            return;
+        }
+
         let interval_tree = match self.interval_tree.get_mut() {
             Ok(interval_tree) => interval_tree,
             Err(error) => error.into_inner(),
         };
         *interval_tree = None;
+        self.interval_tree_ready.store(false, Ordering::Relaxed);
     }
 
     /// Ensure the interval tree exists for enclosing span lookups.
     #[inline]
     fn ensure_position_index(&self) {
+        if self.interval_tree_ready.load(Ordering::Relaxed) {
+            return;
+        }
+
         {
             let interval_tree = match self.interval_tree.read() {
                 Ok(interval_tree) => interval_tree,
                 Err(error) => error.into_inner(),
             };
             if interval_tree.is_some() {
+                self.interval_tree_ready.store(true, Ordering::Relaxed);
                 return;
             }
         }
@@ -230,6 +246,8 @@ impl NodeSourceMap {
         if interval_tree.is_none() {
             *interval_tree = Some(tree);
         }
+
+        self.interval_tree_ready.store(true, Ordering::Relaxed);
     }
 
     /// Append a span to the map.

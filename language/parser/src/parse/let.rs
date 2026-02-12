@@ -254,8 +254,7 @@ impl Parser {
                 let is_mutability_keyword =
                     matches!(keyword, Some(Keyword::Var | Keyword::Const | Keyword::Let))
                         || self.language.is_destack() && keyword == Some(Keyword::Readonly);
-                let is_underscore_identifier =
-                    self.identifier_for_index(self.pos_index()) == Some(self.underscore_identifier);
+                let is_underscore_identifier = self.identifier_equals_at(self.pos_index(), "_");
                 let allow_underscore_binding =
                     self.language.is_javascript() || self.language.is_typescript();
                 if !is_mutability_keyword

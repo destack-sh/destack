@@ -175,7 +175,7 @@ impl Parser {
 
     /// Eat a single enum field and return it as a UnionField node id.
     fn eat_enum_field(&mut self) -> ParseResult<LocalNodeId<EnumField>> {
-        let start = self.mark();
+        let start = self.mark_span();
         let (name, name_span) = self
             .eat_enum_field_name_with_span()
             .for_node_type(NodeType::EnumField)?;
@@ -183,10 +183,8 @@ impl Parser {
         // optional `= <expr>` value
         let value = if self.peek_is(TokenType::Assign) {
             self.eat_token(TokenType::Assign)?;
-            let value = self.with_options(
-                self.options.not_in_position().not_in_sequence_expression(),
-                |parser| parser.eat_expression(parser.options),
-            )?;
+            let value =
+                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
             Some(value)
         } else {
             None
@@ -204,7 +202,7 @@ impl Parser {
     /// Eat an enum field name, including computed string/number names.
     fn eat_enum_field_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         if self.peek_is(TokenType::OpenBracket) {
-            let start = self.mark();
+            let start = self.mark_span();
             self.bump(); // eat open bracket
             self.eat_newlines_maybe()?;
 

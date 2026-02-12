@@ -36,7 +36,7 @@ impl Parser {
             return self.peek_tree_literal().is_ok();
         }
 
-        let mark = self.mark();
+        let mark = self.mark_rewind();
         let require_disambiguator = self.options.disallow_ambiguous_tree_literal;
         let is_disambiguated_generic =
             self.peek_generic_arrow_after_type_parameters(require_disambiguator);
@@ -48,25 +48,21 @@ impl Parser {
         self.peek_tree_literal().is_ok()
     }
 
-    /// Return true when a newline is followed by a tree literal start.
-    pub(super) fn can_start_tree_literal_after_newline(&mut self) -> bool {
+    /// Return true when a line break is followed by a tree literal start.
+    pub(super) fn can_start_tree_literal_after_line_break(&mut self) -> bool {
         // require jsx support
         if !self.language.supports_jsx() {
             return false;
         }
 
-        // require a leading newline token
-        if !self.peek_is(TokenType::Newline) {
-            return false;
-        }
-
-        // locate the next non newline token
-        let next = self.next_non_newline_index_from(self.pos_index());
-        if next == self.pos_index() {
+        // require a line break before the next semantic token
+        let cursor = self.peek_cursor();
+        if !cursor.has_line_break_before {
             return false;
         }
 
         // ensure the token exists for probing
+        let next = cursor.index;
         self.ensure_token(next);
         if next >= self.tokens().len() {
             return false;
@@ -85,7 +81,7 @@ impl Parser {
     /// Return true when `<Identifier <<` starts tree static arguments.
     pub(super) fn has_shift_left_tree_static_arguments(&mut self) -> bool {
         // snapshot parser state for lookahead
-        let mark = self.mark();
+        let mark = self.mark_rewind();
 
         // probe for `<Identifier <<` without consuming tokens
         let has_shift_left = (|| {

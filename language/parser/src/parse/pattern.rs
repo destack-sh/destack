@@ -9,7 +9,7 @@ use destack_ast::{
 impl Parser {
     /// Eat a pattern that might be paranthesized (skip the parenthesis if present).
     pub fn eat_pattern_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
-        let start = self.mark();
+        let start = self.mark_span();
         if self.peek_is(TokenType::OpenParenthesis) {
             self.bump(); // eat open parenthesis
             self.eat_newlines_maybe()?;
@@ -40,7 +40,7 @@ impl Parser {
     /// ```
     pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
         let _timing = self.timing_scope(tags::PARSE_PATTERN);
-        let start = self.mark();
+        let start = self.mark_span();
 
         // mutability
         let mutability = self.eat_mutability_maybe()?;
@@ -356,7 +356,7 @@ impl Parser {
             }
 
             // parse one field
-            let field_start = self.mark();
+            let field_start = self.mark_span();
             let mut name_span = None;
             let has_object_literal_alias_head =
                 is_object_pattern && self.peek_object_pattern_alias_head();
@@ -384,9 +384,8 @@ impl Parser {
                 {
                     let mutability = self.eat_mutability_maybe()?;
                     self.eat_token(TokenType::OpenBracket)?;
-                    let key = self.with_options(
+                    let key = self.eat_expression(
                         self.options.not_in_position().not_in_sequence_expression(),
-                        |parser| parser.eat_expression(parser.options),
                     )?;
                     self.eat_token(TokenType::CloseBracket)?;
                     self.eat_newlines_maybe()?;
@@ -535,10 +534,8 @@ impl Parser {
         }
 
         self.bump(); // eat assign
-        let default = self.with_options(
-            self.options.not_in_position().not_in_sequence_expression(),
-            |parser| parser.eat_expression(parser.options),
-        )?;
+        let default =
+            self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
         Ok(Some(default))
     }
 

@@ -60,11 +60,9 @@ impl Parser {
         self.eat_keyword(Keyword::For)?;
 
         // target type
-        let target_start = self.mark();
-        let target_type = self.with_options(
-            self.options.nested().in_super_type().in_before_block(),
-            |parser| parser.eat_expression(parser.options),
-        )?;
+        let target_start = self.mark_span();
+        let target_type =
+            self.eat_expression(self.options.nested().in_super_type().in_before_block())?;
 
         // record the full type span for the target type
         self.tree.set_side_span(

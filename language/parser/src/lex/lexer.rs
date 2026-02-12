@@ -88,6 +88,8 @@ pub struct Lexer {
     pub(super) language: LanguageType,
     /// Whether an `@` token was seen.
     pub(super) has_at: bool,
+    /// Whether the most recent side token contained a line terminator.
+    pub(super) last_side_token_had_line_terminator: bool,
 }
 
 impl Debug for Lexer {
@@ -115,6 +117,8 @@ pub struct LexerSnapshot {
     pub(super) options: LexerOptions,
     /// Whether an `@` token has been observed.
     pub(super) has_at: bool,
+    /// Whether the most recent side token at snapshot time had a line terminator.
+    pub(super) last_side_token_had_line_terminator: bool,
 }
 
 impl Lexer {
@@ -141,6 +145,7 @@ impl Lexer {
             side_tokens: Vec::with_capacity(estimated_side),
             language,
             has_at: false,
+            last_side_token_had_line_terminator: false,
         }
     }
 
@@ -215,6 +220,21 @@ impl Lexer {
         Some(c)
     }
 
+    /// Advance by a known run of ascii bytes.
+    #[inline]
+    pub(super) fn advance_ascii_bytes(&mut self, count: usize, last_byte: u8) {
+        if count == 0 {
+            return;
+        }
+
+        debug_assert!(
+            last_byte.is_ascii(),
+            "advance_ascii_bytes expects ascii last byte"
+        );
+        self.pos += count;
+        self.prev = last_byte as char;
+    }
+
     /// Snapshot lexer state for speculative parsing.
     #[inline]
     pub fn snapshot(&self) -> LexerSnapshot {
@@ -224,6 +244,7 @@ impl Lexer {
             prev: self.prev,
             options: self.options.clone(),
             has_at: self.has_at,
+            last_side_token_had_line_terminator: self.last_side_token_had_line_terminator,
         }
     }
 
@@ -235,6 +256,13 @@ impl Lexer {
         self.prev = snapshot.prev;
         self.options = snapshot.options;
         self.has_at = snapshot.has_at;
+        self.last_side_token_had_line_terminator = snapshot.last_side_token_had_line_terminator;
+    }
+
+    /// Return whether the most recent side token contained a line terminator.
+    #[inline]
+    pub(super) fn side_token_had_line_terminator(&self) -> bool {
+        self.last_side_token_had_line_terminator
     }
 
     /// Eats symbols while predicate returns true or until the end of file is reached.

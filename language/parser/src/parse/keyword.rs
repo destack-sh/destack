@@ -42,19 +42,8 @@ impl Parser {
     /// Return true when the token after any leading newlines is the given keyword.
     #[inline]
     pub fn is_keyword_after_newlines(&mut self, keyword: Keyword) -> bool {
-        let pos = self.pos_index();
-        self.ensure_token(pos);
-        let pos = if self
-            .tokens()
-            .get(pos)
-            .is_some_and(|token| token.token.ty != TokenType::Newline)
-        {
-            pos
-        } else {
-            self.next_non_newline_index_from_stream(pos)
-        };
-
-        self.keyword_is_at(pos, keyword)
+        let cursor = self.peek_cursor();
+        self.keyword_is_at(cursor.index, keyword)
     }
 
     /// Peek a keyword.

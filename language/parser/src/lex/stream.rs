@@ -82,8 +82,6 @@ pub struct TokenStream {
     matching_pairs: Vec<u32>,
     /// Cached keyword values for identifier tokens.
     token_keywords: Vec<Option<Keyword>>,
-    /// Cached-state bits for identifier keyword lookup entries.
-    token_keywords_cached: Vec<bool>,
     /// Cached line terminator presence before semantic token indexes.
     line_terminators_before: Vec<bool>,
     /// The first token index that still needs a next non newline update.
@@ -121,7 +119,6 @@ impl TokenStream {
             next_non_newline: Vec::new(),
             matching_pairs: Vec::new(),
             token_keywords: Vec::new(),
-            token_keywords_cached: Vec::new(),
             line_terminators_before: Vec::new(),
             pending_non_newline_start: 0,
             paren_stack: Vec::new(),
@@ -229,7 +226,6 @@ impl TokenStream {
         self.tokens.truncate(tokens_len);
         self.lexer.tokens.truncate(tokens_len);
         self.token_keywords.truncate(tokens_len);
-        self.token_keywords_cached.truncate(tokens_len);
         self.line_terminators_before.truncate(tokens_len);
 
         // restore next non newline cache and mutable tail cursor
@@ -339,7 +335,6 @@ impl TokenStream {
         self.next_non_newline.clear();
         self.matching_pairs.clear();
         self.token_keywords.clear();
-        self.token_keywords_cached.clear();
         self.line_terminators_before.clear();
         self.pending_non_newline_start = 0;
         self.paren_stack.clear();
@@ -372,13 +367,31 @@ impl TokenStream {
     /// Return the keyword for a semantic token index.
     #[inline]
     pub fn keyword_at(&mut self, index: usize) -> Option<Keyword> {
-        // hot fast path: full token stream is already materialized
-        if self.is_finished {
-            return self.token_keywords.get(index).copied().flatten();
-        }
-
         self.ensure_token(index);
-        self.token_keywords.get(index).copied().flatten()
+        self.token_keywords.get(index).copied().unwrap_or(None)
+    }
+
+    /// Return the keyword for a semantic token index when prelexed.
+    #[inline]
+    pub fn keyword_at_prelexed(&self, index: usize) -> Option<Keyword> {
+        debug_assert!(
+            self.is_finished,
+            "keyword_at_prelexed requires prelexed tokens"
+        );
+        self.token_keywords.get(index).copied().unwrap_or(None)
+    }
+
+    /// Return whether trivia before a token index had a line terminator when prelexed.
+    #[inline]
+    pub fn line_terminator_before_prelexed(&self, index: usize) -> bool {
+        debug_assert!(
+            self.is_finished,
+            "line_terminator_before_prelexed requires prelexed tokens"
+        );
+        self.line_terminators_before
+            .get(index)
+            .copied()
+            .unwrap_or(false)
     }
 
     /// Look up the next non-newline token index from a start index.
@@ -491,7 +504,8 @@ impl TokenStream {
         if is_semantic(token.ty) {
             self.push_semantic_token(token_span);
         } else {
-            self.push_side_token(token_span);
+            let has_line_terminator = self.lexer.side_token_had_line_terminator();
+            self.push_side_token(token_span, has_line_terminator);
         }
 
         if token.ty == TokenType::End {
@@ -502,9 +516,9 @@ impl TokenStream {
 
     /// Push a side token and update side-token-driven stream flags.
     #[inline]
-    fn push_side_token(&mut self, token_span: TokenSpan) {
+    fn push_side_token(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
         self.side_tokens.push(token_span);
-        if self.side_token_has_line_terminator(token_span) {
+        if has_line_terminator {
             self.pending_line_terminator_before_next = true;
         }
     }
@@ -515,17 +529,15 @@ impl TokenStream {
 
         // add token and cache slots
         let token_index = self.tokens.len();
-        let is_identifier = token_span.token.ty == TokenType::Identifier;
-        let keyword = if is_identifier {
+        self.tokens.push(token_span);
+        self.next_non_newline.push(u32::MAX);
+        self.matching_pairs.push(u32::MAX);
+        let keyword = if token_span.token.ty == TokenType::Identifier {
             keyword_from_identifier(self.lexer.get_span_str(token_span.span))
         } else {
             None
         };
-        self.tokens.push(token_span);
-        self.next_non_newline.push(u32::MAX);
-        self.matching_pairs.push(u32::MAX);
         self.token_keywords.push(keyword);
-        self.token_keywords_cached.push(true);
         self.line_terminators_before
             .push(has_line_terminator_before);
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
@@ -569,42 +581,4 @@ impl TokenStream {
             self.next_non_newline[token_index] = (token_index + 1) as u32;
         }
     }
-
-    /// Return whether a side token contributes a line terminator.
-    #[inline]
-    fn side_token_has_line_terminator(&self, token_span: TokenSpan) -> bool {
-        match token_span.token.ty {
-            TokenType::Newline => true,
-            TokenType::Whitespace
-            | TokenType::LineComment
-            | TokenType::BlockComment
-            | TokenType::DocLineComment
-            | TokenType::DocBlockComment => {
-                let token_str = self.lexer.get_span_str(token_span.span);
-                trivia_has_line_terminator(token_str)
-            }
-            _ => false,
-        }
-    }
-}
-
-/// Return whether a trivia slice contains a line terminator.
-#[inline]
-fn trivia_has_line_terminator(trivia: &str) -> bool {
-    let bytes = trivia.as_bytes();
-    let mut index = 0usize;
-    while index < bytes.len() {
-        let current = bytes[index];
-        if current == b'\n' || current == b'\r' {
-            return true;
-        }
-        if current == 0xE2 && index + 2 < bytes.len() && bytes[index + 1] == 0x80 {
-            let third = bytes[index + 2];
-            if third == 0xA8 || third == 0xA9 {
-                return true;
-            }
-        }
-        index += 1;
-    }
-    false
 }

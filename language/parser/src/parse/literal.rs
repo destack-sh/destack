@@ -607,7 +607,7 @@ impl Parser {
     /// ```
     pub fn eat_type_template_literal_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
-        let start = self.mark();
+        let start = self.mark_span();
         let (strings, spans) = self.eat_template_literal_parts(|parser| {
             parser.with_options(parser.options.not_in_position().in_type(), |parser| {
                 parser.eat_expression(parser.options)
@@ -693,14 +693,13 @@ impl Parser {
     ///
     /// Template literal interpolations parse as full expressions (no named args).
     pub fn eat_template_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
-        let value = self.with_options(
+        let value = self.eat_expression(
             self.options
                 .not_in_position()
                 .not_in_tree_literal()
                 .not_in_left_precedence(),
-            |parser| parser.eat_expression(parser.options),
         )?;
 
         let argument_id = self.tree.insert(
@@ -761,7 +760,7 @@ impl Parser {
                 || self.peek_is(TokenType::Newline)
                     && self.is_token_after_newlines(self.pos(), TokenType::Comma);
             if has_comma_separator {
-                let start = self.mark();
+                let start = self.mark_span();
 
                 // leading hole: if we expected an element but got separator instead
                 if expect_element {
@@ -1021,7 +1020,7 @@ impl Parser {
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
     pub fn peek_tree_literal(&mut self) -> ParseResult<()> {
-        let mark = self.mark();
+        let mark = self.mark_rewind();
         let result = (|| {
             if !self.peek_is(TokenType::LessThan) {
                 return Err(ParseError::unexpected(self.peek()?.span));
@@ -1133,7 +1132,7 @@ impl Parser {
     /// ```
     pub fn eat_tree_literal(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
-        let start = self.mark();
+        let start = self.mark_span();
         self.eat_token(TokenType::LessThan)?;
         if !self.in_tree_literal()
             || self.in_tree_attribute_expression()
@@ -1159,7 +1158,7 @@ impl Parser {
             None
         };
         self.eat_newlines_maybe()?;
-        let header_start = self.mark();
+        let header_start = self.mark_span();
 
         // static arguments on the tag (TypeScript/TSX generic JSX components)
         let static_arguments = if path.is_some()

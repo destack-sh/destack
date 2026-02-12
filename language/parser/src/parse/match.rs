@@ -38,7 +38,7 @@ impl Parser {
 
     /// Eat a match body (without the match keyword)
     pub fn eat_match_body(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.mark();
+        let start = self.mark_span();
 
         // value
         let value_id = self.with_options(self.options.in_before_block(), |parser| {
@@ -137,7 +137,7 @@ impl Parser {
                 Vec::new()
             };
 
-        let start = self.mark();
+        let start = self.mark_span();
 
         let selector = match kind {
             MatchKind::Switch => {
@@ -151,19 +151,18 @@ impl Parser {
                 // regular case
                 else {
                     self.eat_keyword(Keyword::Case)?;
-                    let pattern_start = self.mark();
+                    let pattern_start = self.mark_span();
                     // allow a wildcard here so switch cases do not bind `_`
                     let pattern = if self.peek_identifier_str_is("_") {
                         self.bump();
                         self.tree
                             .insert(Pattern::Wildcard, self.get_span_from(&pattern_start))
                     } else {
-                        let value = self.with_options(
+                        let value = self.eat_expression(
                             self.options
                                 .not_in_position()
                                 .in_match_case()
                                 .in_before_block(),
-                            |parser| parser.eat_expression(parser.options),
                         )?;
                         self.tree.insert(
                             Pattern::Expression { value },
@@ -274,7 +273,7 @@ impl Parser {
                 {
                     break;
                 }
-                let statement_start = self.mark();
+                let statement_start = self.mark_span();
                 let expression_id = self
                     .with_recovery(
                         &statement_start,

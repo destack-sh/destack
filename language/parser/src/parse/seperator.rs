@@ -82,18 +82,11 @@ impl Parser {
             return Ok(());
         }
 
-        let pos = self.pos_index();
-        self.ensure_token(pos);
-        if !self
-            .tokens()
-            .get(pos)
-            .is_some_and(|token| token.token.ty == TokenType::Newline)
-        {
-            return Ok(());
+        let cursor = self.peek_cursor();
+        if cursor.index != self.pos_index() {
+            self.advance_to(cursor.index);
         }
 
-        let next = self.next_non_newline_index_from_stream(pos);
-        self.advance_to(next);
         Ok(())
     }
 
