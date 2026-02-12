@@ -4,7 +4,7 @@ use crate::model::{
     BindingEntry, BindingReplayKind, BindingType, EffectClass, ReplayPayload, ReplayPolicy,
 };
 
-use super::binding::*;
+use super::*;
 
 impl<'a> DomainWriter<'a> {
     /// Render replay payload structs for bindings.
