@@ -7,10 +7,13 @@ use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
     ImportEdgeKind, Loader, Module, ModuleSource, Package, PackageKind, ProfileId, ProfileKey,
-    Runtime,
+    Runtime, TsCompilerOptions,
 };
 
-use crate::import::{ImportResolveContext, materialize_import_resolve_options};
+use crate::import::{
+    ImportResolveContext, apply_typescript_import_resolve_policy,
+    declaration_companion_path_for_module_path, materialize_import_resolve_options,
+};
 use crate::{Compiler, ImportError, ImportResult};
 
 /// Extensions to try for builtin modules.
@@ -18,20 +21,63 @@ const BUILTIN_EXTENSIONS: &[&str] = &[
     ".d.ts", ".d.ds", ".ds", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".node",
 ];
 
-/// Node protocol alias modules supported for native Destack imports.
-const NODE_ALIAS_MODULES: &[&str] = &[
-    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream",
-    "timers", "url", "util", "vm",
+/// Node protocol alias modules mapped to destack builtin paths.
+const NODE_ALIAS_MODULES: &[(&str, &str)] = &[
+    ("assert", "assert"),
+    ("buffer", "buffer"),
+    ("console", "console"),
+    ("crypto", "crypto"),
+    ("fs", "fs"),
+    ("net", "net"),
+    ("os", "os"),
+    ("path", "path"),
+    ("process", "process"),
+    ("stream", "stream"),
+    ("timers", "timers"),
+    ("url", "url"),
+    ("util", "util"),
+    ("vm", "vm"),
+    ("worker_threads", "worker"),
 ];
 
-/// Bun protocol alias modules supported for native Destack imports.
-const BUN_ALIAS_MODULES: &[&str] = &[
-    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream", "sys",
-    "timers", "url", "util", "vm",
+/// Bun protocol alias modules mapped to destack builtin paths.
+const BUN_ALIAS_MODULES: &[(&str, &str)] = &[
+    ("assert", "assert"),
+    ("buffer", "buffer"),
+    ("console", "console"),
+    ("crypto", "crypto"),
+    ("fs", "fs"),
+    ("net", "net"),
+    ("os", "os"),
+    ("path", "path"),
+    ("process", "process"),
+    ("stream", "stream"),
+    ("sys", "sys"),
+    ("timers", "timers"),
+    ("url", "url"),
+    ("util", "util"),
+    ("vm", "vm"),
+    ("worker_threads", "worker"),
 ];
 
-/// Deno protocol alias modules supported for native Destack imports.
-const DENO_ALIAS_MODULES: &[&str] = &[];
+/// Deno protocol alias modules mapped to destack builtin paths.
+const DENO_ALIAS_MODULES: &[(&str, &str)] = &[];
+
+/// Source module resolve policy derived from package and tsconfig ownership.
+#[derive(Debug, Clone)]
+enum SourceImportResolvePolicy {
+    /// Package owns dsconfig, so tsconfig path mapping is disabled.
+    DsConfig,
+    /// Source module uses tsconfig with compiler settings.
+    TsConfig {
+        /// Path to the source tsconfig file.
+        config_file: PathBuf,
+        /// Compiler options from the source tsconfig.
+        compiler_options: TsCompilerOptions,
+    },
+    /// Source module has no config-specific resolver policy.
+    None,
+}
 
 impl Compiler {
     /// Resolve a specifier to a ModuleId, registering a blank module if needed.
@@ -82,12 +128,9 @@ impl Compiler {
         let source_language_type = self.source_language_type_for_resolution(source_module);
 
         // resolve protocol specifiers (destack:, node:, bun:, deno:)
-        if let Some(module_id) = self.resolve_protocol_specifier(
-            &specifier_str,
-            runtime,
-            &profile_key,
-            source_language_type,
-        ) {
+        if let Some(module_id) =
+            self.resolve_protocol_specifier(&specifier_str, runtime, &profile_key)
+        {
             return Ok(module_id);
         }
 
@@ -106,6 +149,7 @@ impl Compiler {
             specifier,
             &specifier_str,
             kind,
+            source_module,
             source_language_type,
             edge_kind,
         )?;
@@ -120,10 +164,11 @@ impl Compiler {
         specifier_id: StringId,
         specifier_str: &str,
         kind: DependencyKind,
+        source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
         edge_kind: ImportEdgeKind,
     ) -> ImportResult<(PathBuf, Resolver)> {
-        let resolver = self.resolver_for_kind(kind, source_language_type, edge_kind);
+        let resolver = self.resolver_for_kind(kind, source_module, source_language_type, edge_kind);
         let resolution = resolver.resolve(directory, specifier_str);
         if let Ok(resolution) = resolution {
             return Ok((resolution.path, resolver));
@@ -144,6 +189,13 @@ impl Compiler {
         edge_kind: ImportEdgeKind,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleResolution> {
+        // detect declaration import sites: they should keep type targets in declaration space
+        let source_is_declaration = source_module.is_some_and(|source_module_id| {
+            let source_module = self.program.modules.get(source_module_id);
+            source_module.read().language_type.is_declaration()
+        });
+
+        // resolve value and type targets through standard resolver options
         let value_target = self
             .resolve_specifier_to_module_with_loader(
                 None,
@@ -155,7 +207,7 @@ impl Compiler {
             )
             .ok()
             .map(ModuleTarget::Module);
-        let type_target = self
+        let mut type_target = self
             .resolve_specifier_to_module_with_loader(
                 None,
                 specifier,
@@ -166,6 +218,11 @@ impl Compiler {
             )
             .ok()
             .map(ModuleTarget::Module);
+
+        // for declaration sources: prefer declaration companions for type targets
+        if source_is_declaration {
+            type_target = self.preferred_declaration_type_target(type_target, value_target);
+        }
 
         if value_target.is_none() && type_target.is_none() {
             return Err(ImportError::ModuleNotFound {
@@ -297,34 +354,34 @@ impl Compiler {
         specifier: &str,
         runtime: Runtime,
         profile_key: &destack_workspace::ProfileKey,
-        source_language_type: Option<LanguageType>,
     ) -> Option<ModuleId> {
-        let (protocol, path) = specifier.split_once(':')?;
-        let path = path.trim_start_matches('/');
+        let (protocol, raw_path) = specifier.split_once(':')?;
+        let raw_path = raw_path.trim_start_matches('/');
 
         let is_destack = matches!(protocol, "destack");
         let is_alias = matches!(protocol, "node" | "bun" | "deno");
         if !is_destack && !is_alias {
             return None;
         }
-        if is_alias {
-            let source_is_destack = source_language_type
-                .map(|language_type| language_type.is_destack())
-                .unwrap_or(true);
-            if !source_is_destack {
-                return None;
-            }
-            if !runtime.is_native() {
-                return None;
-            }
-            // NOTE #Architecture: decide whether node:/bun:/deno: are aliases or separate libs (?)
-            if !Self::protocol_alias_allowed(protocol, path) {
-                return None;
-            }
+
+        // protocol aliases are runtime-specific host shims
+        if is_alias && !runtime.is_native() {
+            return None;
         }
 
+        // map protocol aliases to their destack builtin path roots
+        let alias_path = if is_destack {
+            raw_path.to_string()
+        } else {
+            Self::protocol_alias_target(protocol, raw_path)?
+        };
+
         // normalize to destack scheme
-        let path = if path.is_empty() { "index" } else { path };
+        let path = if alias_path.is_empty() {
+            "index".to_string()
+        } else {
+            alias_path
+        };
 
         // load destack builtin lib for native runtime
         let builtins = self.program.builtins.as_ref()?;
@@ -371,7 +428,8 @@ impl Compiler {
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
     pub fn resolve_path_to_module(&self, path: &PathBuf) -> ImportResult<ModuleId> {
-        let resolver = self.resolver_for_kind(DependencyKind::Value, None, ImportEdgeKind::Import);
+        let resolver =
+            self.resolver_for_kind(DependencyKind::Value, None, None, ImportEdgeKind::Import);
 
         // check if module already exists for this path
         if let Some(module_id) = self.program.modules.get_id_by_path(path) {
@@ -519,27 +577,87 @@ impl Compiler {
     fn resolver_options_for_kind(
         &self,
         kind: DependencyKind,
+        source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
         edge_kind: ImportEdgeKind,
     ) -> ResolveOptions {
+        let mut base_options = self.options.import_resolve.clone();
+        let source_policy = self.source_import_resolve_policy(source_module);
+
+        // dsconfig packages own resolver behavior and suppress tsconfig overlays
+        if matches!(source_policy, SourceImportResolvePolicy::DsConfig) {
+            base_options.tsconfig = None;
+        }
+
+        // tsconfig packages apply source tsconfig resolver policy
+        if let SourceImportResolvePolicy::TsConfig {
+            config_file,
+            compiler_options,
+        } = source_policy
+        {
+            apply_typescript_import_resolve_policy(
+                &mut base_options,
+                &compiler_options,
+                source_language_type,
+                config_file,
+            );
+        }
+
         let context = ImportResolveContext {
             dependency_kind: kind,
             source_language_type,
             edge_kind,
         };
 
-        materialize_import_resolve_options(&self.options.import_resolve, context)
+        materialize_import_resolve_options(&base_options, context)
+    }
+
+    /// Read source module resolver ownership from package and tsconfig data.
+    fn source_import_resolve_policy(
+        &self,
+        source_module: Option<ModuleId>,
+    ) -> SourceImportResolvePolicy {
+        let Some(source_module_id) = source_module else {
+            return SourceImportResolvePolicy::None;
+        };
+
+        // read source module identity
+        let source_module = self.program.modules.get(source_module_id);
+        let source_module = source_module.read();
+        let package_id = source_module.package_id;
+        let tsconfig_id = source_module.tsconfig_id;
+        drop(source_module);
+
+        // prefer package dsconfig ownership over tsconfig fallbacks
+        let package = self.program.packages.get(package_id);
+        if package.read().dsconfig.is_some() {
+            return SourceImportResolvePolicy::DsConfig;
+        }
+
+        // use source tsconfig policy when present
+        let Some(tsconfig_id) = tsconfig_id else {
+            return SourceImportResolvePolicy::None;
+        };
+
+        let tsconfig = self.program.tsconfigs.get(tsconfig_id);
+        let tsconfig = tsconfig.read();
+
+        SourceImportResolvePolicy::TsConfig {
+            config_file: tsconfig.path.clone(),
+            compiler_options: tsconfig.options.compiler.clone(),
+        }
     }
 
     /// Create a resolver configured for a dependency kind.
     fn resolver_for_kind(
         &self,
         kind: DependencyKind,
+        source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
         edge_kind: ImportEdgeKind,
     ) -> Resolver {
         let resolver_options =
-            self.resolver_options_for_kind(kind, source_language_type, edge_kind);
+            self.resolver_options_for_kind(kind, source_module, source_language_type, edge_kind);
 
         Resolver::from_program(&self.program, resolver_options)
     }
@@ -553,6 +671,67 @@ impl Compiler {
             let module = self.program.modules.get(module_id);
             module.read().language_type
         })
+    }
+
+    /// Resolve a declaration companion target for one value module.
+    fn declaration_companion_target_for_module(
+        &self,
+        value_module_id: ModuleId,
+    ) -> Option<ModuleTarget> {
+        let value_module = self.program.modules.get(value_module_id);
+        let value_module = value_module.read();
+        let value_path = value_module.path.as_ref()?;
+
+        let companion_path = declaration_companion_path_for_module_path(value_path)?;
+        let companion_exists = self
+            .program
+            .fs
+            .metadata(&companion_path)
+            .is_ok_and(|meta| meta.is_file);
+        if !companion_exists {
+            return None;
+        }
+
+        if let Some(companion_module_id) = self.program.modules.get_id_by_path(&companion_path) {
+            return Some(ModuleTarget::Module(companion_module_id));
+        }
+
+        let companion_module_id = self.resolve_path_to_module(&companion_path).ok()?;
+
+        Some(ModuleTarget::Module(companion_module_id))
+    }
+
+    /// Select one declaration target for imports from declaration modules.
+    fn preferred_declaration_type_target(
+        &self,
+        type_target: Option<ModuleTarget>,
+        value_target: Option<ModuleTarget>,
+    ) -> Option<ModuleTarget> {
+        // keep declaration targets as-is
+        if let Some(ModuleTarget::Module(type_module_id)) = type_target {
+            let type_module = self.program.modules.get(type_module_id);
+            if type_module.read().language_type.is_declaration() {
+                return Some(ModuleTarget::Module(type_module_id));
+            }
+
+            // upgrade non-declaration type targets through declaration companions
+            if let Some(companion_target) =
+                self.declaration_companion_target_for_module(type_module_id)
+            {
+                return Some(companion_target);
+            }
+        }
+
+        // fall back to declaration companions for value targets
+        if let Some(ModuleTarget::Module(value_module_id)) = value_target
+            && let Some(companion_target) =
+                self.declaration_companion_target_for_module(value_module_id)
+        {
+            return Some(companion_target);
+        }
+
+        // keep resolver result when no declaration companion exists
+        type_target
     }
 
     /// Get the directory to resolve from for a source module.
@@ -655,14 +834,28 @@ impl Compiler {
         format!("<{name}>")
     }
 
-    /// Return true when protocol alias imports are allowed for this module path.
-    fn protocol_alias_allowed(protocol: &str, path: &str) -> bool {
-        let module = path.split('/').next().unwrap_or("");
-        match protocol {
-            "node" => NODE_ALIAS_MODULES.contains(&module),
-            "bun" => BUN_ALIAS_MODULES.contains(&module),
-            "deno" => DENO_ALIAS_MODULES.contains(&module),
-            _ => false,
+    /// Map one protocol alias specifier to a destack builtin path.
+    fn protocol_alias_target(protocol: &str, path: &str) -> Option<String> {
+        let (module, suffix) = path
+            .split_once('/')
+            .map_or((path, ""), |(head, tail)| (head, tail));
+        let target_module = match protocol {
+            "node" => NODE_ALIAS_MODULES
+                .iter()
+                .find_map(|(alias, target)| (*alias == module).then_some(*target)),
+            "bun" => BUN_ALIAS_MODULES
+                .iter()
+                .find_map(|(alias, target)| (*alias == module).then_some(*target)),
+            "deno" => DENO_ALIAS_MODULES
+                .iter()
+                .find_map(|(alias, target)| (*alias == module).then_some(*target)),
+            _ => None,
+        }?;
+
+        if suffix.is_empty() {
+            Some(target_module.to_string())
+        } else {
+            Some(format!("{target_module}/{suffix}"))
         }
     }
 

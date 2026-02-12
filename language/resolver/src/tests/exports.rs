@@ -77,6 +77,24 @@ fn test_resolve_exports_field_simple() {
     }
 }
 
+/// Fall back to main field when package exports resolution is disabled.
+#[test]
+fn test_resolve_exports_field_disabled_uses_main_field() {
+    let f = super::fixture().join("exports-field");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        extensions: vec![".js".into()],
+        resolve_package_json_exports: false,
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver.resolve(&f, "exports-field").map(|r| r.full_path());
+    assert_eq!(
+        resolved_path,
+        Ok(f.join("node_modules/exports-field/main.js"))
+    );
+}
+
 /// Test resolving using exports field, ignoring browser field.
 #[test]
 fn test_resolve_exports_field_not_browser_field1() {

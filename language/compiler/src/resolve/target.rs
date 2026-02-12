@@ -56,9 +56,11 @@ impl Compiler {
         let Some(cache) = self.program.index.module_binding_tables.get(&cache_key) else {
             return Ok(None);
         };
+
         if cache.bindings_by_specifier.contains_key(&specifier) {
             return Ok(Some(ModuleTarget::Binding(specifier)));
         }
+
         Ok(None)
     }
 
@@ -244,6 +246,111 @@ value;
 
         // assert the import resolves to the module binding declaration
         assert_eq!(target_symbol.module_id, decl_module_id);
+    }
+
+    /// Prefer package modules over same-scope module declaration augmentations.
+    #[test]
+    fn test_resolve_prefers_package_module_over_module_binding_augmentation() {
+        let test = TestProgram::memory_sequential();
+
+        // provide a resolvable external package module target
+        test.add_file(
+            "node_modules/@vitest/runner/package.json",
+            r#"{ "name": "@vitest/runner", "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } } }"#,
+        );
+        test.add_module(
+            "node_modules/@vitest/runner/dist/index.js",
+            r#"
+module.exports = {};
+"#,
+        );
+        test.add_module(
+            "node_modules/@vitest/runner/dist/index.d.ts",
+            r#"
+export interface TaskResultPack {
+    ok: true;
+}
+"#,
+        );
+
+        // register an in-package module augmentation for the same specifier
+        let augmentation_module_id = test.add_module(
+            "node_modules/vitest/dist/chunks/global.d.ts",
+            r#"
+declare module "@vitest/runner" {
+    interface TaskMeta {
+        benchmark?: boolean;
+    }
+}
+"#,
+        );
+        test.import_module(augmentation_module_id);
+        test.compile_check_clean();
+
+        // resolve an import that needs the real package symbol
+        let main_module_id = test.add_module(
+            "node_modules/vitest/dist/index.d.ts",
+            r#"
+import { TaskResultPack } from "@vitest/runner";
+
+type Wrapped = TaskResultPack;
+"#,
+        );
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Resolve missing package symbols through module augmentation fallback.
+    #[test]
+    fn test_resolve_module_binding_fallback_for_missing_package_symbol() {
+        let test = TestProgram::memory_sequential();
+
+        // provide a resolvable external package module target
+        test.add_file(
+            "node_modules/@vitest/expect/package.json",
+            r#"{ "name": "@vitest/expect", "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } } }"#,
+        );
+        test.add_module(
+            "node_modules/@vitest/expect/dist/index.js",
+            r#"
+module.exports = {};
+"#,
+        );
+        test.add_module(
+            "node_modules/@vitest/expect/dist/index.d.ts",
+            r#"
+export interface ExpectStatic {
+    matcher: string;
+}
+"#,
+        );
+
+        // register an in-package module augmentation for the same specifier
+        let augmentation_module_id = test.add_module(
+            "node_modules/vitest/dist/chunks/global_expect.d.ts",
+            r#"
+declare module "@vitest/expect" {
+    interface ExpectPollOptions {
+        timeout?: number;
+    }
+}
+"#,
+        );
+        test.import_module(augmentation_module_id);
+        test.compile_check_clean();
+
+        // resolve symbols that come from both module and augmentation
+        let main_module_id = test.add_module(
+            "node_modules/vitest/dist/index.d.ts",
+            r#"
+import { ExpectPollOptions, ExpectStatic } from "@vitest/expect";
+
+type Poll = ExpectPollOptions;
+type Static = ExpectStatic;
+"#,
+        );
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
     }
 
     /// Resolve type imports from module declarations.

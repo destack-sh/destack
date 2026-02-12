@@ -1219,7 +1219,7 @@ impl Compiler {
 
         // check if already resolved locally
         if let Some(targets) = dir.imported_modules.read().get(&cache_key)
-            && let Some(remote_target) = targets.for_kind(kind)
+            && let Some(remote_target) = self.select_import_target_for_kind(module, *targets, kind)
         {
             return Ok(remote_target);
         }
@@ -1233,8 +1233,37 @@ impl Compiler {
             )?;
         }
 
-        // check for module bindings (i.e. `declare module`)
-        // (module bindings don't use loader overrides)
+        // resolve specifier to module ids first
+        let resolved_targets = self
+            .resolve_specifier_to_module_resolution(
+                target,
+                source_module,
+                edge_kind,
+                loader_override,
+            )
+            .ok();
+
+        // use resolved module targets when they satisfy the dependency kind
+        if let Some(resolved_targets) = resolved_targets
+            && let Some(remote_target) =
+                self.select_import_target_for_kind(module, resolved_targets, kind)
+        {
+            // require resolved modules to be bound
+            for target in [resolved_targets.value, resolved_targets.ty] {
+                if let Some(ModuleTarget::Module(module_id)) = target {
+                    self.require_import_module_validate(module_id)?;
+                }
+            }
+
+            // record the resolved import
+            dir.imported_modules
+                .write()
+                .insert(cache_key, resolved_targets);
+
+            return Ok(remote_target);
+        }
+
+        // fall back to module bindings when module resolution has no usable target
         if loader_override.is_none()
             && let Some(binding_target) =
                 self.resolve_module_binding_target(module.id, profile, target)?
@@ -1243,46 +1272,49 @@ impl Compiler {
             dir.imported_modules
                 .write()
                 .insert(cache_key, binding_targets);
-            if let Some(remote_target) = binding_targets.for_kind(kind) {
+
+            if let Some(remote_target) =
+                self.select_import_target_for_kind(module, binding_targets, kind)
+            {
                 return Ok(remote_target);
             }
-            return Err(ResolveError::UnresolvedModule {
-                node: node.into_anchored(Some(profile)),
-                target,
-            });
         }
 
-        // resolve specifier to module ids (synchronous!)
-        let resolved_targets = self
-            .resolve_specifier_to_module_resolution(
-                target,
-                source_module,
-                edge_kind,
-                loader_override,
-            )
-            .map_err(|_| ResolveError::UnresolvedModule {
-                node: node.into_anchored(Some(profile)),
-                target,
-            })?;
-        let Some(remote_target) = resolved_targets.for_kind(kind) else {
-            return Err(ResolveError::UnresolvedModule {
-                node: node.into_anchored(Some(profile)),
-                target,
-            });
-        };
+        Err(ResolveError::UnresolvedModule {
+            node: node.into_anchored(Some(profile)),
+            target,
+        })
+    }
 
-        // require resolved modules to be bound
-        for target in [resolved_targets.value, resolved_targets.ty] {
-            if let Some(ModuleTarget::Module(module_id)) = target {
-                self.require_import_module_validate(module_id)?;
-            }
+    /// Select one module target for one dependency kind.
+    fn select_import_target_for_kind(
+        &self,
+        module: &Module,
+        targets: ModuleResolution,
+        kind: DependencyKind,
+    ) -> Option<ModuleTarget> {
+        // declaration modules should prefer type targets, even for value imports
+        if kind == DependencyKind::Value && module.language_type.is_declaration() {
+            return targets.ty.or(targets.value);
         }
 
-        // record the resolved import
-        dir.imported_modules
-            .write()
-            .insert(cache_key, resolved_targets);
-        Ok(remote_target)
+        targets.for_kind(kind)
+    }
+
+    /// Select one symbol lookup target for one dependency kind.
+    fn select_symbol_target_for_dependency(
+        &self,
+        module: &Module,
+        kind: DependencyKind,
+        targets: ModuleResolution,
+        fallback: ModuleTarget,
+    ) -> ModuleTarget {
+        // declaration modules should prefer type targets when resolving imported symbols
+        if kind == DependencyKind::Value && module.language_type.is_declaration() {
+            return targets.ty.or(targets.value).unwrap_or(fallback);
+        }
+
+        fallback
     }
 
     /// Resolve the namespace symbol for a target module.
@@ -2060,6 +2092,12 @@ impl Compiler {
                         None,
                     )
                     .unwrap_or_else(|| ModuleResolution::from_target(remote_target));
+                let remote_symbol_target = self.select_symbol_target_for_dependency(
+                    module,
+                    *kind,
+                    target_module,
+                    remote_target,
+                );
 
                 // resolve target symbol based on mode
                 let (target_symbol, resolved_kind) = match mode {
@@ -2074,29 +2112,17 @@ impl Compiler {
                         )?;
                         let (symbol, resolved_kind) = {
                             let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_SYMBOL);
-                            if let Some(cache) = cache.as_deref_mut() {
-                                self.resolve_remote_item_symbol_with_kind_cached(
-                                    module,
-                                    item_id.into_global_any(module.id),
-                                    remote_target,
-                                    profile,
-                                    *kind,
-                                    origin_symbol,
-                                    key,
-                                    cache,
-                                )?
-                            } else {
-                                self.resolve_remote_item_symbol_with_kind(
-                                    module,
-                                    item_id.into_global_any(module.id),
-                                    remote_target,
-                                    profile,
-                                    *kind,
-                                    origin_symbol,
-                                    key,
-                                    None,
-                                )?
-                            }
+                            self.resolve_remote_item_symbol_result(
+                                module,
+                                item_id.into_global_any(module.id),
+                                remote_symbol_target,
+                                profile,
+                                *kind,
+                                origin_symbol,
+                                key,
+                                Some(*target),
+                                cache.as_deref_mut(),
+                            )?
                         };
                         (symbol, resolved_kind)
                     }
@@ -2106,29 +2132,17 @@ impl Compiler {
                         let key = StaticKey::Name(default_name);
                         let (symbol, resolved_kind) = {
                             let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_SYMBOL);
-                            if let Some(cache) = cache.as_deref_mut() {
-                                self.resolve_remote_item_symbol_with_kind_cached(
-                                    module,
-                                    item_id.into_global_any(module.id),
-                                    remote_target,
-                                    profile,
-                                    *kind,
-                                    origin_symbol,
-                                    key,
-                                    cache,
-                                )?
-                            } else {
-                                self.resolve_remote_item_symbol_with_kind(
-                                    module,
-                                    item_id.into_global_any(module.id),
-                                    remote_target,
-                                    profile,
-                                    *kind,
-                                    origin_symbol,
-                                    key,
-                                    None,
-                                )?
-                            }
+                            self.resolve_remote_item_symbol_result(
+                                module,
+                                item_id.into_global_any(module.id),
+                                remote_symbol_target,
+                                profile,
+                                *kind,
+                                origin_symbol,
+                                key,
+                                Some(*target),
+                                cache.as_deref_mut(),
+                            )?
                         };
                         (symbol, resolved_kind)
                     }
@@ -2139,7 +2153,7 @@ impl Compiler {
                         if *source == DependencySource::ImportEquals {
                             if let Some(symbol) = self.resolve_export_assignment_symbol(
                                 module.id,
-                                remote_target,
+                                remote_symbol_target,
                                 profile,
                             )? {
                                 (symbol, *kind)
@@ -2147,7 +2161,7 @@ impl Compiler {
                                 let symbol = self.resolve_namespace_symbol(
                                     module.id,
                                     item_id.into_global_any(module.id),
-                                    remote_target,
+                                    remote_symbol_target,
                                     profile,
                                 )?;
                                 (symbol, *kind)
@@ -2162,7 +2176,7 @@ impl Compiler {
                                 if item_scope_id == dir.namespace_scope {
                                     dir.namespace_exports.write().push(
                                         destack_dir::NamespaceExport {
-                                            module_id: remote_target,
+                                            module_id: remote_symbol_target,
                                             kind: *kind,
                                             item: item_id,
                                         },
@@ -2173,7 +2187,7 @@ impl Compiler {
                             let symbol = self.resolve_namespace_symbol(
                                 module.id,
                                 item_id.into_global_any(module.id),
-                                remote_target,
+                                remote_symbol_target,
                                 profile,
                             )?;
                             (symbol, *kind)
@@ -2281,8 +2295,8 @@ impl Compiler {
         Ok(Some(resolved_item))
     }
 
-    /// Resolve a remote item symbol with caching applied.
-    fn resolve_remote_item_symbol_with_kind_cached(
+    /// Resolve a remote item symbol result with cache access and optional binding fallback.
+    fn resolve_remote_item_symbol_result(
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
@@ -2291,47 +2305,11 @@ impl Compiler {
         kind: DependencyKind,
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
-        cache: &mut ResolveDependencyItemCache,
-    ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
-        // reuse cached resolution to avoid repeated reexport walks
-        let cache_key = RemoteSymbolCacheKey {
-            target: remote_target,
-            kind,
-            key,
-            origin_module_id: self.cache_origin_module_id(module.id, remote_target),
-        };
-        if let Some(&cached) = cache.remote_symbols.get(&cache_key) {
-            return Ok(cached);
-        }
-
-        let resolved = self.resolve_remote_item_symbol_with_kind(
-            module,
-            node,
-            remote_target,
-            profile,
-            kind,
-            origin_symbol,
-            key,
-            Some(cache),
-        )?;
-        cache.remote_symbols.insert(cache_key, resolved);
-        Ok(resolved)
-    }
-
-    /// Resolve an item symbol in a remote module, searching through namespace exports if needed.
-    fn resolve_remote_item_symbol(
-        &self,
-        module: &Module,
-        node: GlobalNodeIdAny,
-        remote_target: ModuleTarget,
-        profile: ProfileId,
-        kind: DependencyKind,
-        origin_symbol: Option<GlobalSymbolId>,
-        key: StaticKey,
+        target_specifier: Option<StringId>,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<ResolvedExportSymbol> {
-        // resolve the requested kind first
-        let resolved = self.resolve_remote_item_symbol_for_kind(
+    ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
+        // resolve against the selected module target first
+        let resolved = self.resolve_remote_item_symbol_result_for_target(
             module,
             node,
             remote_target,
@@ -2342,17 +2320,19 @@ impl Compiler {
             cache.as_deref_mut(),
         );
 
-        // fall back to type lookups for declaration modules
-        if kind == DependencyKind::Value
-            && let Err(ResolveError::MissingSymbol { .. }) = resolved
-            && self.target_is_declaration_module(module.id, remote_target, profile)?
+        // only fall back when a module target is missing the symbol
+        if let Err(ResolveError::MissingSymbol { .. }) = &resolved
+            && matches!(remote_target, ModuleTarget::Module(_))
+            && let Some(target_specifier) = target_specifier
+            && let Some(binding_target) =
+                self.resolve_module_binding_target(module.id, profile, target_specifier)?
         {
-            return self.resolve_remote_item_symbol_for_kind(
+            return self.resolve_remote_item_symbol_result_for_target(
                 module,
                 node,
-                remote_target,
+                binding_target,
                 profile,
-                DependencyKind::Type,
+                kind,
                 origin_symbol,
                 key,
                 cache,
@@ -2362,8 +2342,60 @@ impl Compiler {
         resolved
     }
 
-    /// Resolve an item symbol and align the dependency kind with the resolved symbol.
-    fn resolve_remote_item_symbol_with_kind(
+    /// Resolve a remote item symbol result for one module target, using cache when present.
+    fn resolve_remote_item_symbol_result_for_target(
+        &self,
+        module: &Module,
+        node: GlobalNodeIdAny,
+        remote_target: ModuleTarget,
+        profile: ProfileId,
+        kind: DependencyKind,
+        origin_symbol: Option<GlobalSymbolId>,
+        key: StaticKey,
+        cache: Option<&mut ResolveDependencyItemCache>,
+    ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
+        // resolve with cache for repeated symbol lookups
+        if let Some(cache) = cache {
+            let cache_key = RemoteSymbolCacheKey {
+                target: remote_target,
+                kind,
+                key,
+                origin_module_id: self.cache_origin_module_id(module.id, remote_target),
+            };
+            if let Some(&cached) = cache.remote_symbols.get(&cache_key) {
+                return Ok(cached);
+            }
+
+            let resolved = self.resolve_remote_item_symbol_result_uncached(
+                module,
+                node,
+                remote_target,
+                profile,
+                kind,
+                origin_symbol,
+                key,
+                Some(cache),
+            )?;
+            cache.remote_symbols.insert(cache_key, resolved);
+
+            return Ok(resolved);
+        }
+
+        // resolve directly when no cache is available
+        self.resolve_remote_item_symbol_result_uncached(
+            module,
+            node,
+            remote_target,
+            profile,
+            kind,
+            origin_symbol,
+            key,
+            None,
+        )
+    }
+
+    /// Resolve a remote item symbol result and align dependency kind to export space.
+    fn resolve_remote_item_symbol_result_uncached(
         &self,
         module: &Module,
         node: GlobalNodeIdAny,
@@ -2385,7 +2417,52 @@ impl Compiler {
             cache,
         )?;
         let resolved_kind = self.effective_dependency_kind_for_export_space(kind, resolved);
+
         Ok((resolved.symbol, resolved_kind))
+    }
+
+    /// Resolve an item symbol in a remote module, searching through namespace exports if needed.
+    fn resolve_remote_item_symbol(
+        &self,
+        module: &Module,
+        node: GlobalNodeIdAny,
+        remote_target: ModuleTarget,
+        profile: ProfileId,
+        kind: DependencyKind,
+        origin_symbol: Option<GlobalSymbolId>,
+        key: StaticKey,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
+    ) -> ResolveResult<ResolvedExportSymbol> {
+        // resolve the requested kind first
+        let resolved = self.resolve_remote_item_symbol_for_requested_kind(
+            module,
+            node,
+            remote_target,
+            profile,
+            kind,
+            origin_symbol,
+            key,
+            cache.as_deref_mut(),
+        );
+
+        // fall back to type lookups for declaration modules
+        if kind == DependencyKind::Value
+            && let Err(ResolveError::MissingSymbol { .. }) = resolved
+            && self.target_is_declaration_module(module.id, remote_target, profile)?
+        {
+            return self.resolve_remote_item_symbol_for_requested_kind(
+                module,
+                node,
+                remote_target,
+                profile,
+                DependencyKind::Type,
+                origin_symbol,
+                key,
+                cache,
+            );
+        }
+
+        resolved
     }
 
     /// Adjust a dependency kind based on the export space of the resolved symbol.
@@ -2402,7 +2479,7 @@ impl Compiler {
     }
 
     /// Resolve an item symbol for a specific dependency kind.
-    fn resolve_remote_item_symbol_for_kind(
+    fn resolve_remote_item_symbol_for_requested_kind(
         &self,
         module: &Module,
         node: GlobalNodeIdAny,

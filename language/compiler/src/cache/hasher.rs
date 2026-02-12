@@ -72,6 +72,8 @@ impl CacheHasher {
         self.hash_tsconfig_discovery(&options.tsconfig);
         self.hash_alias(&options.alias);
         self.hash_value(&options.conditions);
+        self.hash_value(&options.resolve_package_json_exports);
+        self.hash_value(&options.resolve_package_json_imports);
         self.hash_enforce_extension(options.enforce_extension);
 
         // hash extension aliases

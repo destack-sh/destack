@@ -129,11 +129,16 @@ pub(crate) fn can_merge_declarations(
             return true;
         }
 
-        // class or function merges require the namespace to appear after the value declaration
+        // ambient declarations merge regardless of declaration order
         if matches!(other.symbol_type, SymbolType::Class | SymbolType::Function) {
+            if namespace.binding == SymbolBinding::Ambient
+                && other.binding == SymbolBinding::Ambient
+            {
+                return true;
+            }
+
             return !namespace_is_left;
         }
-
         // enum merges are order independent
         if other.symbol_type == SymbolType::Enum {
             return true;

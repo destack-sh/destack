@@ -4,7 +4,7 @@ use destack_ast::Keyword;
 use destack_base::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression,
-    LocalNodeId, LocalNodeIdAny, Pattern, PatternField, StaticKey, SymbolTable,
+    LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, Pattern, PatternField, StaticKey, SymbolTable,
 };
 use destack_workspace::Module;
 use std::str::FromStr;
@@ -66,10 +66,34 @@ impl Compiler {
                     | Expression::UnresolvedReExport { .. }
                     | Expression::ExportNamespace { .. }
             ) {
+                // namespace bodies are their own declaration roots
+                if self.expression_is_within_namespace_declaration(&tree, expression_id) {
+                    continue;
+                }
+
                 let node = expression_id.into_global_any(module.id).into_anchored(None);
                 self.error(ImportError::ExportNotTopLevel { node });
             }
         }
+    }
+
+    /// Return true when an expression is nested under a namespace declaration.
+    fn expression_is_within_namespace_declaration(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // walk parent links until a declaration boundary is found
+        let mut current_id = expression_id.id;
+        while let Some(parent_id) = tree.get_parent(current_id) {
+            // namespace declarations own nested export declarations in TypeScript
+            if parent_id.ty == NodeType::Declaration {
+                let declaration = tree.get(parent_id.into_typed::<Declaration>());
+                return matches!(declaration, Declaration::Namespace { .. });
+            }
+            current_id = parent_id.id;
+        }
+        false
     }
 
     /// Validate local export item names use binding-compatible identifiers.
@@ -644,6 +668,16 @@ export default function convert(value: string | number): string | number {
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI305");
+    }
+
+    /// Allow nested export declarations inside TypeScript namespace bodies.
+    #[test]
+    fn test_allow_nested_export_declaration_inside_namespace() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ts", "export namespace N { export {}; }");
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI305");
     }
 
     /// Reject export clauses that reference missing local names.

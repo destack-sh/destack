@@ -52,6 +52,26 @@ fn test_imports_field_simple() {
     }
 }
 
+/// Return not found when package imports resolution is disabled.
+#[test]
+fn test_imports_field_disabled_returns_not_found() {
+    let f = super::fixture().join("imports-field");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        extensions: vec![".js".into()],
+        resolve_package_json_imports: false,
+        ..ResolveOptions::default()
+    });
+
+    let resolution = resolver.resolve(&f, "#imports-field");
+    assert_eq!(
+        resolution,
+        Err(ResolveError::NotFound {
+            specifier: "#imports-field".into()
+        })
+    );
+}
+
 struct TestCase {
     #[allow(dead_code)]
     name: &'static str,
