@@ -258,18 +258,23 @@
         ]
     },
     "scripts": {
-        "bundle": "bunx --bun esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
+        "bundle": "bunx --bun esbuild typescript/extension/index.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
         "vscode:prepublish": "bun install --no-save --ignore-scripts && bun run bundle",
         "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
         "publish:live": "bunx --bun @vscode/vsce@latest publish",
         "check:grammar": "node scripts/check-grammar.mjs",
-        "test:grammar": "node scripts/check-grammar.mjs && bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"typescript/tests/*.txt\" && bunx vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"typescript/tests-mir/*.txt\""
+        "test:grammar": "node scripts/check-grammar.mjs && bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"typescript/tests-grammar/*.txt\" && bunx vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"typescript/tests-grammar-mir/*.txt\"",
+        "test:host:build": "tsc -p tsconfig.tests.json",
+        "test:host": "bun run test:host:build && node out-tests/tests-host/run.js"
     },
     "dependencies": {},
     "devDependencies": {
+        "@types/mocha": "^10.0.10",
         "@types/node": "^20.11.25",
         "@types/vscode": "^1.90.0",
+        "@vscode/test-electron": "^2.5.2",
         "esbuild": "^0.25.9",
+        "mocha": "^11.7.4",
         "typescript": "~5.5.4",
         "vsce": "^2.15.0",
         "vscode": "^1.1.37",

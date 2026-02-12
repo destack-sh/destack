@@ -45,3 +45,26 @@ fn test_span_to_location_converts_known_file() {
         .into_owned();
     assert_eq!(location_path, path);
 }
+
+/// Return none when the file does not expose a canonical path.
+#[test]
+fn test_span_to_location_requires_file_path() {
+    // create a session and register a virtual file with only a uri
+    let session = Session::new(PathBuf::from("."));
+    let file_id = session.files.next_id();
+    let path = PathBuf::from("/tmp/destack_lsp_virtual_only.ds");
+    let file = File::from_text(
+        file_id,
+        "destack_lsp_virtual_only.ds".to_string(),
+        Uri::from_file_path(&path),
+        None,
+        FileType::Destack,
+        "export const value = 1;\n".to_string(),
+    );
+    session.files.insert(file);
+
+    // ensure lsp locations only emit for canonical file paths
+    let span = Span::new(file_id, 0, 6);
+    let location = span_to_location(&session, span);
+    assert!(location.is_none());
+}

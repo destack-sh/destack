@@ -14,6 +14,15 @@ struct ResolvedCommand {
 pub(crate) struct DestackExtension;
 
 impl DestackExtension {
+    /// Build an error message for missing lsp binaries.
+    fn missing_binary_message(worktree: &zed::Worktree) -> String {
+        let root = worktree.root_path();
+        let workspace_candidates = Self::workspace_binary_candidates(worktree).join(", ");
+        format!(
+            "could not find Destack LSP binary in worktree `{root}`: checked workspace binaries [{workspace_candidates}] and PATH commands `destack`, `ds`, `dsc`; set lsp.destack-lsp.binary.path to a shared binary path, or build `target/{{debug,release}}/destack` in this worktree"
+        )
+    }
+
     /// Return workspace-local destack binary candidates.
     fn workspace_binary_candidates(worktree: &zed::Worktree) -> Vec<String> {
         let (os, _) = zed::current_platform();
@@ -151,7 +160,7 @@ impl zed::Extension for DestackExtension {
         let command = binary_settings
             .and_then(|binary| binary.path.clone())
             .or_else(|| fallback.as_ref().map(|resolved| resolved.command.clone()))
-            .ok_or_else(|| "could not find Destack LSP binary, set lsp.destack-lsp.binary.path to a shared binary path, build `target/{debug,release}/destack` in this worktree, or install `destack`/`ds`/`dsc` on PATH".to_string())?;
+            .ok_or_else(|| Self::missing_binary_message(worktree))?;
 
         let configured_args = binary_settings.and_then(|binary| binary.arguments.clone());
         let fallback_args = fallback

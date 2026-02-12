@@ -67,6 +67,13 @@ test:
     just library/test
     just platform/test
 
+# run ide integration tests
+test-ide:
+    just platform/test-ide
+
+# backward compatibility alias
+alias test-editor := test-ide
+
 # run language runtime windows target tests through wine
 test-windows-runtime:
     just language/test-windows-runtime
