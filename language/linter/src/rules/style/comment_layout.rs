@@ -139,7 +139,7 @@ impl LintRule for CommentLayout {
                                 ctx.module.file_id,
                                 ctx.tree.get_span(node_id),
                             )
-                            .with_label("use NOTE, TODO, or FUGU in uppercase");
+                            .with_label(known_comment_tag_label(&ctx.options.comment_keywords));
 
                             // compute fixes only when requested by the runner
                             if ctx.compute_fixes

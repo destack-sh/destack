@@ -239,7 +239,7 @@ impl CompilerContext {
                 self.compiler
                     .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
 
-                // FUGU #Cleanup: revisit this
+                // TODO #Cleanup: revisit this (?)
                 let diagnostic_target = self.program.ensure_target_for_module(module.id);
                 let diagnostic_profile = self
                     .program

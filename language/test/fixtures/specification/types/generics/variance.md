@@ -280,4 +280,4 @@ const widened: Sink<string | number> = sink_string;
 
 - type Sink<string> is not assignable to type Sink<string | number>
 
-<!-- FUGU #Incomplete: wire up variance modifiers in analyze phase -->
+<!-- TODO #Incomplete: wire up variance modifiers in analyze phase -->

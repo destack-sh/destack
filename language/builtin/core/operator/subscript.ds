@@ -18,7 +18,6 @@ export newtype interface IndexSet<I, V> {
 }
 
 /// Interface for dereference `*a`.
-/// FUGU #Incomplete: support Deref (and DerefSet)
 ///
 /// `*a` becomes `a.deref()`.
 ///

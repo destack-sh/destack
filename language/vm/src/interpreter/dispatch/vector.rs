@@ -1,6 +1,6 @@
 use super::*;
 
-// FUGU #Performance: improve VM vector performance
+// TODO #Performance: improve VM vector performance
 
 /// Handle vector.splat.
 pub(crate) fn handle_vector_splat(

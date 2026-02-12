@@ -31,7 +31,7 @@ export struct String {
     data: *uint8;
 }
 
-// FUGU: support proper native String
+// TODO: support proper native String
 
 extension for String {
     /// The length in UTF-16 code units (TypeScript-compatible).
