@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -14,6 +15,13 @@ REGISTRY_PATH = LIB_ROOT / "registry.json"
 OUT_DIR = ROOT / "src" / "libs" / "lib"
 PLATFORM_DOC_DIRECTORIES = ["fs", "net", "process", "time", "timer"]
 PLATFORM_DOC_SECTIONS = ["# Platform", "# Errors", "# Security", "# Replay"]
+VERSIONED_LIB_PATTERN = re.compile(r"^(?P<base>.+)\.v(?P<version>[0-9][0-9A-Za-z._-]*)$")
+LEGACY_FEATURE_BY_FAMILY = {
+    "bun": "legacy-bun",
+    "deno": "legacy-deno",
+    "node": "legacy-node",
+    "undici_types": "legacy-undici-types",
+}
 
 
 @dataclass(frozen=True)
@@ -38,6 +46,7 @@ class LibEntry:
     dependencies: list[str]
     declared_symbols: str | None
     specifier_aliases: str | None
+    latest_from: str | None
 
 
 @dataclass(frozen=True)
@@ -46,6 +55,15 @@ class FileEntry:
 
     path: str
     libs: list[LibEntry]
+
+
+@dataclass(frozen=True)
+class LatestFileVariant:
+    """A generated latest only file variant."""
+
+    file: FileEntry
+    latest_file: FileEntry
+    latest_versioned_lib_names: set[str]
 
 
 def load_json(path: Path) -> dict:
@@ -181,6 +199,10 @@ def parse_lib_entry(raw: dict) -> LibEntry:
     if raw.get("declaredSymbols"):
         declared_symbols = as_str(raw["declaredSymbols"], f"libs.{name}.declaredSymbols")
 
+    latest_from = None
+    if raw.get("latestFrom"):
+        latest_from = as_str(raw["latestFrom"], f"libs.{name}.latestFrom")
+
     specifier_aliases = None
     if raw.get("specifierAliases"):
         specifier_aliases = as_str(raw["specifierAliases"], f"libs.{name}.specifierAliases")
@@ -193,6 +215,7 @@ def parse_lib_entry(raw: dict) -> LibEntry:
         dependencies=dependencies,
         declared_symbols=declared_symbols,
         specifier_aliases=specifier_aliases,
+        latest_from=latest_from,
     )
 
 
@@ -463,12 +486,174 @@ def render_symbols(symbol_sets: dict[str, list[str]], alias_sets: dict[str, list
     return "\n".join(lines).rstrip() + "\n"
 
 
+
+def module_name_for_path(path: str) -> str:
+    """Get the module name for a generated file path."""
+    # extract the file stem
+    return Path(path).stem
+
+
+def family_name_for_path(path: str) -> str:
+    """Get the lib family name for a generated file path."""
+    # derive the top level family for feature gates
+    if "/" in path:
+        return path.split("/", maxsplit=1)[0]
+    return Path(path).stem
+
+
+def feature_name_for_family(family: str) -> str:
+    """Build the cargo feature name for a lib family."""
+    # normalize family names for feature identifiers
+    return f"lib-{family.replace('_', '-')}"
+
+
+def legacy_mode_condition_for_family(family: str) -> str:
+    """Build the feature condition for all versions mode."""
+    # include explicit all versions mode
+    conditions = ['feature = "versions-all"']
+
+    # include family specific legacy override when defined
+    legacy_feature = LEGACY_FEATURE_BY_FAMILY.get(family)
+    if legacy_feature:
+        conditions.append(f'feature = "{legacy_feature}"')
+
+    if len(conditions) == 1:
+        return conditions[0]
+
+    return f"any({', '.join(conditions)})"
+
+
+def cfg_all(*conditions: str) -> str:
+    """Join conditions with cfg all syntax."""
+    # collapse single item conditions
+    if len(conditions) == 1:
+        return conditions[0]
+
+    return f"all({', '.join(conditions)})"
+
+
+def latest_mode_condition_for_family(family: str) -> str:
+    """Build the feature condition for latest only mode."""
+    # require explicit latest mode
+    conditions = ['feature = "versions-latest"', 'not(feature = "versions-all")']
+
+    # disable latest mode when legacy is explicitly enabled
+    legacy_feature = LEGACY_FEATURE_BY_FAMILY.get(family)
+    if legacy_feature:
+        conditions.append(f'not(feature = "{legacy_feature}")')
+
+    return cfg_all(*conditions)
+
+
+def versioned_name_parts(name: str) -> tuple[str, str] | None:
+    """Split a versioned lib name into base and version."""
+    # parse .v* suffixed names
+    match = VERSIONED_LIB_PATTERN.match(name)
+    if not match:
+        return None
+
+    return match.group("base"), match.group("version")
+
+
+def version_key(version: str) -> tuple[tuple[int, int | str], ...]:
+    """Build a sortable key for semanticish version strings."""
+    # split dotted parts and rank numeric tokens first
+    tokens: list[tuple[int, int | str]] = []
+    for token in version.split("."):
+        if token.isdigit():
+            tokens.append((0, int(token)))
+        else:
+            tokens.append((1, token))
+
+    return tuple(tokens)
+
+
+def latest_file_variant(file: FileEntry) -> LatestFileVariant | None:
+    """Build a latest only variant for files with legacy versioned libs."""
+    # index libs by name for explicit latest overrides
+    libs_by_name: dict[str, LibEntry] = {lib.name: lib for lib in file.libs}
+
+    # track latest versioned lib per base name
+    latest_by_base: dict[str, tuple[tuple[int, int | str], str]] = {}
+    for lib in file.libs:
+        parts = versioned_name_parts(lib.name)
+        if parts is None:
+            continue
+
+        base, version = parts
+        key = version_key(version)
+        current = latest_by_base.get(base)
+        if current is None or key > current[0]:
+            latest_by_base[base] = (key, lib.name)
+
+    # skip files without legacy version variants
+    if not latest_by_base:
+        return None
+
+    # keep unversioned aliases and latest explicit versions
+    latest_versioned_lib_names = {name for _, name in latest_by_base.values()}
+    filtered_libs: list[LibEntry] = []
+    for lib in file.libs:
+        parts = versioned_name_parts(lib.name)
+
+        # keep non versioned names
+        if parts is None:
+            filtered_libs.append(lib)
+            continue
+
+        # keep the latest explicit version per base
+        if lib.name in latest_versioned_lib_names:
+            filtered_libs.append(lib)
+
+    has_dropped_legacy = len(filtered_libs) != len(file.libs)
+
+    # rewrite unversioned aliases that pin explicit latest sources
+    has_latest_override = False
+    latest_libs: list[LibEntry] = []
+    for lib in filtered_libs:
+        if lib.latest_from is None:
+            latest_libs.append(lib)
+            continue
+
+        latest_target = libs_by_name.get(lib.latest_from)
+        if latest_target is None:
+            raise ValueError(
+                f"missing latestFrom target for {lib.name}: {lib.latest_from}"
+            )
+
+        latest_libs.append(
+            LibEntry(
+                name=lib.name,
+                ambient=lib.ambient,
+                sources=latest_target.sources,
+                dependencies=lib.dependencies,
+                declared_symbols=lib.declared_symbols,
+                specifier_aliases=lib.specifier_aliases,
+                latest_from=lib.latest_from,
+            )
+        )
+        has_latest_override = True
+
+    # skip files that do not change in latest mode
+    if not has_dropped_legacy and not has_latest_override:
+        return None
+
+    latest_file = FileEntry(path=file.path, libs=latest_libs)
+
+    return LatestFileVariant(
+        file=file,
+        latest_file=latest_file,
+        latest_versioned_lib_names=latest_versioned_lib_names,
+    )
+
+
 def render_mod(
     group: str,
     files: list[FileEntry],
     *,
     all_lib_files: list[FileEntry] | None = None,
     child_groups: list[str] | None = None,
+    latest_variants_by_path: dict[str, LatestFileVariant] | None = None,
 ) -> str:
     """Render the module index for a group."""
     lines = [
@@ -476,46 +661,133 @@ def render_mod(
         "// run `just generate-builtin-libs` to regenerate",
         "",
     ]
+
     # collect module names
-    modules = []
+    modules: list[tuple[FileEntry, str]] = []
     for file in files:
-        parts = file.path.split("/")
-        name = Path(parts[-1]).stem
-        modules.append(name)
+        modules.append((file, module_name_for_path(file.path)))
 
     # declare modules
     if group == "":
         lines.append("mod symbols;")
-    for module in modules:
+
+    for file, module in modules:
+        if group != "":
+            lines.append(f"mod {module};")
+            continue
+
+        family = family_name_for_path(file.path)
+        feature_name = feature_name_for_family(family)
+        feature_condition = f'feature = "{feature_name}"'
+
+        latest_variant = None
+        if latest_variants_by_path is not None:
+            latest_variant = latest_variants_by_path.get(file.path)
+
+        if latest_variant is None:
+            lines.append(f"#[cfg({feature_condition})]")
+            lines.append(f"mod {module};")
+            continue
+
+        legacy_mode_condition = legacy_mode_condition_for_family(family)
+        all_mode_condition = cfg_all(feature_condition, legacy_mode_condition)
+        latest_mode_condition = cfg_all(feature_condition, latest_mode_condition_for_family(family))
+
+        lines.append(f"#[cfg({all_mode_condition})]")
         lines.append(f"mod {module};")
+        lines.append(f"#[cfg({latest_mode_condition})]")
+        lines.append(f"mod {module}_latest;")
+
     if group == "":
         for child_group in child_groups or []:
+            feature_name = feature_name_for_family(child_group)
+            feature_condition = f'feature = "{feature_name}"'
+            lines.append(f"#[cfg({feature_condition})]")
             lines.append(f"mod {child_group};")
 
     lines.append("")
+
     # write exports
     if group == "":
         lines.append("use super::source::BuiltinLib;")
         lines.append("")
 
-    for module in modules:
+    for file, module in modules:
+        if group != "":
+            lines.append(f"pub use {module}::*;")
+            continue
+
+        family = family_name_for_path(file.path)
+        feature_name = feature_name_for_family(family)
+        feature_condition = f'feature = "{feature_name}"'
+
+        latest_variant = None
+        if latest_variants_by_path is not None:
+            latest_variant = latest_variants_by_path.get(file.path)
+
+        if latest_variant is None:
+            lines.append(f"#[cfg({feature_condition})]")
+            lines.append(f"pub use {module}::*;")
+            continue
+
+        legacy_mode_condition = legacy_mode_condition_for_family(family)
+        all_mode_condition = cfg_all(feature_condition, legacy_mode_condition)
+        latest_mode_condition = cfg_all(feature_condition, latest_mode_condition_for_family(family))
+
+        lines.append(f"#[cfg({all_mode_condition})]")
         lines.append(f"pub use {module}::*;")
+        lines.append(f"#[cfg({latest_mode_condition})]")
+        lines.append(f"pub use {module}_latest::*;")
+
     if group == "":
         for child_group in child_groups or []:
+            feature_name = feature_name_for_family(child_group)
+            feature_condition = f'feature = "{feature_name}"'
+            lines.append(f"#[cfg({feature_condition})]")
             lines.append(f"pub use {child_group}::*;")
 
     # emit lib registry
     if group == "":
         lib_files = all_lib_files if all_lib_files is not None else files
+
         lines.append("")
         lines.append("pub const LIBS: &[BuiltinLib] = &[")
         for file in lib_files:
+            family = family_name_for_path(file.path)
+            feature_name = feature_name_for_family(family)
+            feature_condition = f'feature = "{feature_name}"'
+
+            latest_variant = None
+            if latest_variants_by_path is not None:
+                latest_variant = latest_variants_by_path.get(file.path)
+
+            latest_versioned_lib_names: set[str] = set()
+            family_mode_condition = feature_condition
+            legacy_mode_condition = ""
+            if latest_variant is not None:
+                latest_versioned_lib_names = latest_variant.latest_versioned_lib_names
+                legacy_mode_condition = legacy_mode_condition_for_family(family)
+                latest_mode_condition = latest_mode_condition_for_family(family)
+                family_mode_condition = cfg_all(
+                    feature_condition,
+                    f"any({legacy_mode_condition}, {latest_mode_condition})",
+                )
+
             for lib in file.libs:
+                condition = family_mode_condition
+
+                parts = versioned_name_parts(lib.name)
+                if (
+                    latest_variant is not None
+                    and parts is not None
+                    and lib.name not in latest_versioned_lib_names
+                ):
+                    condition = cfg_all(feature_condition, legacy_mode_condition)
+                lines.append(f"    #[cfg({condition})]")
                 lines.append(f"    {const_name_for_lib(lib.name)},")
         lines.append("];\n")
 
     return "\n".join(lines).rstrip() + "\n"
-
 
 def render_file(
     file: FileEntry,
@@ -738,6 +1010,17 @@ def generate() -> None:
 
     symbol_sets, alias_sets, source_sets, files = parse_registry()
 
+    # derive latest only variants for versioned runtime libs
+    latest_variants: list[LatestFileVariant] = []
+    latest_variants_by_path: dict[str, LatestFileVariant] = {}
+    for file in files:
+        variant = latest_file_variant(file)
+        if variant is None:
+            continue
+
+        latest_variants.append(variant)
+        latest_variants_by_path[file.path] = variant
+
     # symbols
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "symbols.rs").write_text(render_symbols(symbol_sets, alias_sets), encoding="utf-8")
@@ -747,6 +1030,25 @@ def generate() -> None:
         out_path = OUT_DIR / file.path
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(render_file(file, symbol_sets, alias_sets, source_sets), encoding="utf-8")
+
+    # latest only file modules
+    expected_latest_paths: set[Path] = set()
+    for variant in latest_variants:
+        out_path = OUT_DIR / variant.file.path
+        latest_path = out_path.with_name(f"{out_path.stem}_latest.rs")
+        latest_path.parent.mkdir(parents=True, exist_ok=True)
+        latest_path.write_text(
+            render_file(variant.latest_file, symbol_sets, alias_sets, source_sets),
+            encoding="utf-8",
+        )
+        expected_latest_paths.add(latest_path.resolve())
+
+    # clean stale latest files no longer generated
+    for path in OUT_DIR.rglob("*_latest.rs"):
+        if path.resolve() in expected_latest_paths:
+            continue
+
+        path.unlink()
 
     # mod files
     grouped = group_by_parent(files)
@@ -758,6 +1060,7 @@ def generate() -> None:
                 entries,
                 all_lib_files=files,
                 child_groups=child_groups,
+                latest_variants_by_path=latest_variants_by_path,
             )
         else:
             rendered_mod = render_mod(group, entries)

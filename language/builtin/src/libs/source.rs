@@ -174,6 +174,7 @@ impl BuiltinLibSource {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) const fn new_with_targets(
         root: &'static str,
         path: &'static str,
