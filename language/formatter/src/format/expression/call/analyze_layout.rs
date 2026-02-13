@@ -312,11 +312,7 @@ fn build_scanned_call_argument_layout_class(
             dynamic_arguments,
             state.trailing_collection_argument,
         );
-    let is_multiline_in_source = if state.all_single_line_and_unannotated {
-        false
-    } else {
-        call_arguments_are_multiline_in_source(context, dynamic_arguments)
-    };
+    let is_multiline_in_source = call_arguments_are_multiline_in_source(context, dynamic_arguments);
 
     CachedCallArgumentLayoutClass {
         has_call_infix_annotations,

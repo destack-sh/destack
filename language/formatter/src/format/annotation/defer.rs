@@ -3,11 +3,80 @@ use crate::scan::{
     next_non_whitespace_after_annotation, previous_non_whitespace_before_annotation,
 };
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, Comment, CommentStyle, Declaration, Expression,
-    IfCondition, IfKind, LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter,
-    PostfixPosition, Property,
+    Annotation, AnnotationPosition, Argument, Comment, CommentStyle, Declaration, Doc, DocStyle,
+    Expression, IfCondition, IfKind, LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType,
+    Parameter, PostfixPosition, Property,
 };
 use destack_source::Span;
+
+/// Return the concrete content span for an annotation node.
+fn annotation_content_span(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Span {
+    match context.tree.get::<Annotation>(annotation_id) {
+        Annotation::Blank { node, .. } => context.get_span(*node),
+        Annotation::Doc { node, .. } => annotation_doc_token_span(context, *node),
+        Annotation::Comment { node, .. } => annotation_comment_token_span(context, *node),
+        Annotation::Decorator { node, .. } => context.get_span(*node),
+    }
+}
+
+/// Return the concrete token span for a slash or star comment node.
+fn annotation_comment_token_span(
+    context: &DestackFormatContext<'_>,
+    comment_id: LocalNodeId<Comment>,
+) -> Span {
+    let comment = context.tree.get::<Comment>(comment_id);
+    match comment.style {
+        CommentStyle::Slash => annotation_comment_like_token_span(context, comment_id, "//", None),
+        CommentStyle::Star => {
+            annotation_comment_like_token_span(context, comment_id, "/*", Some("*/"))
+        }
+    }
+}
+
+/// Return the concrete token span for a slash or star doc node.
+fn annotation_doc_token_span(context: &DestackFormatContext<'_>, doc_id: LocalNodeId<Doc>) -> Span {
+    let doc = context.tree.get::<Doc>(doc_id);
+    match doc.style {
+        DocStyle::Slash => annotation_comment_like_token_span(context, doc_id, "//", None),
+        DocStyle::Star => annotation_comment_like_token_span(context, doc_id, "/*", Some("*/")),
+    }
+}
+
+/// Return the concrete token span for one comment token inside a wrapper span.
+fn annotation_comment_like_token_span<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    prefix: &str,
+    suffix: Option<&str>,
+) -> Span
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let node_span = context.get_span(node_id);
+    let node_source = context.file.get_span_str(node_span).unwrap_or_default();
+
+    let Some(start_offset) = node_source.find(prefix) else {
+        return node_span;
+    };
+    let start = node_span.start + start_offset as u32;
+
+    let end = if let Some(suffix) = suffix {
+        let source = &node_source[start_offset..];
+        let Some(end_offset) = source.find(suffix) else {
+            return node_span;
+        };
+        start + end_offset as u32 + suffix.len() as u32
+    } else {
+        let source = &node_source[start_offset..];
+        let end_offset = source.find('\n').unwrap_or(source.len());
+        start + end_offset as u32
+    };
+
+    Span::new(node_span.file, start, end)
+}
 
 /// Return whether an annotation is followed by an `else` keyword.
 pub(super) fn annotation_followed_by_else_keyword(
@@ -23,7 +92,7 @@ fn annotation_tail_starts_with(
     annotation_id: LocalNodeId<Annotation>,
     expected: &str,
 ) -> bool {
-    let span = context.get_span::<Annotation>(annotation_id);
+    let span = annotation_content_span(context, annotation_id);
     if span.end >= context.file.len {
         return false;
     }
@@ -93,7 +162,7 @@ fn annotation_is_own_line_slash_comment(
         return false;
     }
 
-    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let annotation_span = annotation_content_span(context, annotation_id);
     let head_span = Span::new(annotation_span.file, 0, annotation_span.start);
     let head_source = context.file.get_span_str(head_span).unwrap_or_default();
     let line_start = head_source.rfind('\n').map_or(0, |index| index + 1);
@@ -106,13 +175,13 @@ fn deduplicate_annotations_by_span(
     annotation_ids: &mut Vec<LocalNodeId<Annotation>>,
 ) {
     annotation_ids.sort_by_key(|annotation_id| {
-        let span = context.get_span::<Annotation>(*annotation_id);
+        let span = annotation_content_span(context, *annotation_id);
         (span.file.0, span.start, span.end, annotation_id.id)
     });
 
     annotation_ids.dedup_by(|left_id, right_id| {
-        let left_span = context.get_span::<Annotation>(*left_id);
-        let right_span = context.get_span::<Annotation>(*right_id);
+        let left_span = annotation_content_span(context, *left_id);
+        let right_span = annotation_content_span(context, *right_id);
 
         left_span.file == right_span.file
             && left_span.start == right_span.start
@@ -432,7 +501,7 @@ fn annotation_span_is_between_expressions(
     left_end: u32,
     right_start: u32,
 ) -> bool {
-    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let annotation_span = annotation_content_span(context, annotation_id);
     annotation_span.start >= left_end && annotation_span.end <= right_start
 }
 
@@ -630,7 +699,7 @@ where
     if T::TYPE != NodeType::Expression {
         return false;
     }
-    if !annotation_is_expression_trailing_boundary_position(position) {
+    if !annotation_is_if_boundary_position(position) {
         return false;
     }
     if !annotation_is_comment_or_doc(context, annotation_id) {
@@ -953,7 +1022,7 @@ where
         return false;
     }
 
-    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let annotation_span = annotation_content_span(context, annotation_id);
     let inner_span = context.get_span::<Expression>(*inner_expression_id);
     if annotation_span.start <= inner_span.start || annotation_span.end >= inner_span.end {
         return false;
@@ -1018,7 +1087,7 @@ where
         return false;
     }
 
-    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let annotation_span = annotation_content_span(context, annotation_id);
     let binary_span = context.get_span::<Expression>(parent_id);
     if annotation_span.start < binary_span.end {
         return false;

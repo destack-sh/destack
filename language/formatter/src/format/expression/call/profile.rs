@@ -162,8 +162,12 @@ fn decide_post_hugged_call_argument_layout(
         return CallArgumentLayoutDecision::InlineAll;
     }
 
-    // comments can force explicit multiline argument rendering
+    // boundary comments should block aggressive inline and hug-last behavior
     let has_any_argument_annotation = planner_state.argument_shape.has_any_argument_annotation;
+    let has_boundary_comments =
+        call_arguments_have_boundary_comments(context, call_node_id, dynamic_arguments);
+
+    // comments can force explicit multiline argument rendering
     let comment_profile = resolve_call_argument_comment_profile(
         context,
         dynamic_arguments,
@@ -185,6 +189,7 @@ fn decide_post_hugged_call_argument_layout(
     let has_call_infix_annotations = expansion_profile.has_call_infix_annotations;
     let trailing_collection_argument = expansion_profile.trailing_collection_argument;
     let force_expand = expansion_profile.force_expand
+        || has_boundary_comments
         || call_argument_trailing_collection_comment_force_expand(
             context,
             dynamic_arguments,
@@ -196,7 +201,7 @@ fn decide_post_hugged_call_argument_layout(
     let can_consider_hug_last_argument = can_consider_hug_last_call_arguments(
         context,
         dynamic_arguments,
-        has_line_comment_annotations,
+        has_line_comment_annotations || has_boundary_comments,
         has_call_infix_annotations,
     );
     if can_consider_hug_last_argument {
@@ -294,7 +299,13 @@ fn format_default_call_argument_list<'ast>(
     } else {
         false
     };
-
+    let single_argument_has_source_separator_line_comment_annotation = if is_single_argument {
+        single_argument_id.is_some_and(|argument_id| {
+            argument_has_source_separator_line_comment_annotation(f.context(), argument_id)
+        })
+    } else {
+        false
+    };
     let can_use_plain_default_fast_path = !f.context().has_ignore_directive_markers()
         && dynamic_arguments.len() > 1
         && !has_any_argument_annotation
@@ -331,7 +342,10 @@ fn format_default_call_argument_list<'ast>(
     {
         list.disallow_trailing_separator();
     }
-    if trailing_collection_has_comment_signal || single_callback_without_leading_prefix {
+    if trailing_collection_has_comment_signal
+        || single_callback_without_leading_prefix
+        || single_argument_has_source_separator_line_comment_annotation
+    {
         list.disallow_trailing_separator();
     }
 
@@ -346,8 +360,11 @@ fn format_comment_expanded_call_argument_list<'ast>(
 ) -> FormatResult<()> {
     let has_trailing_collection_with_source_comment =
         trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
+    let has_single_argument_source_separator_line_comment_annotation = dynamic_arguments.len() == 1
+        && argument_has_source_separator_line_comment_annotation(f.context(), dynamic_arguments[0]);
     let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All
-        && !has_trailing_collection_with_source_comment;
+        && !has_trailing_collection_with_source_comment
+        && !has_single_argument_source_separator_line_comment_annotation;
     let deferred_boundary_prefix_annotations = comment_profile
         .deferred_boundary_prefix_annotations
         .as_ref();
@@ -472,8 +489,13 @@ fn call_arguments_use_no_annotation_multi_argument_fast_path(
     dynamic_arguments: &[LocalNodeId<Argument>],
     layout_class: CachedCallArgumentLayoutClass,
     planner_base_state: CallArgumentPlannerBaseState,
+    has_boundary_comments: bool,
 ) -> bool {
     if dynamic_arguments.len() <= 1 {
+        return false;
+    }
+
+    if has_boundary_comments {
         return false;
     }
 
@@ -522,8 +544,9 @@ fn format_no_annotation_multi_argument_fast_path<'ast>(
 fn call_arguments_use_forced_hug_last_inline_fast_path(
     dynamic_arguments: &[LocalNodeId<Argument>],
     layout_class: CachedCallArgumentLayoutClass,
+    has_boundary_comments: bool,
 ) -> bool {
-    dynamic_arguments.len() > 1 && layout_class.force_hug_last_inline
+    dynamic_arguments.len() > 1 && !has_boundary_comments && layout_class.force_hug_last_inline
 }
 
 /// Format call arguments with an active list group id.
@@ -534,6 +557,8 @@ fn format_single_call_argument_with_group<'ast>(
     group_id: GroupId,
 ) -> FormatResult<()> {
     let single_argument = [argument_id];
+    let has_boundary_comments =
+        call_arguments_have_boundary_comments(f.context(), call_node_id, &single_argument);
 
     // shared single argument planner base state
     let has_call_infix_annotations = call_has_non_blank_infix_annotation(f.context(), call_node_id);
@@ -575,7 +600,7 @@ fn format_single_call_argument_with_group<'ast>(
         },
         planner_base_state.argument_shape,
         inline_call_len_without_static_arguments,
-    );
+    ) && !has_boundary_comments;
     if use_single_simple_argument_fast_path {
         f.context()
             .increment_counter("profile.call.arguments.single_simple.fast_path", 1);
@@ -604,7 +629,7 @@ fn format_single_call_argument_with_group<'ast>(
         planner_base_state.has_call_infix_annotations,
         force_expand_single_long_with_static_arguments,
         force_expand_single_collection_for_type_binary_callee,
-    );
+    ) && !has_boundary_comments;
     if use_single_callback_argument_inline {
         f.context()
             .increment_counter("profile.call.arguments.path.single_callback_inline", 1);
@@ -617,7 +642,8 @@ fn format_single_call_argument_with_group<'ast>(
         call_should_force_hugged_expand(force_expand_single_collection_for_type_binary_callee);
     let has_hug_blocking_comment_annotation =
         argument_has_callback_blocking_comment_annotation(f.context(), argument_id);
-    let can_use_hugged = !argument_has_multiline_prefix_annotation(f.context(), argument_id)
+    let can_use_hugged = !has_boundary_comments
+        && !argument_has_multiline_prefix_annotation(f.context(), argument_id)
         && !has_hug_blocking_comment_annotation
         && !planner_base_state.has_call_infix_annotations
         && !force_expand_single_long_with_static_arguments
@@ -713,6 +739,8 @@ fn format_call_arguments_with_group<'ast>(
     let planner_base_state =
         build_call_argument_planner_base_state(f.context(), call_node_id, layout_class);
     let all_plain_call_arguments = layout_class.all_plain_call_arguments;
+    let has_boundary_comments =
+        call_arguments_have_boundary_comments(f.context(), call_node_id, dynamic_arguments);
 
     // keep compact, no-annotation lists on a cheap inline or grouped path
     let use_no_annotation_multi_argument_fast_path =
@@ -721,6 +749,7 @@ fn format_call_arguments_with_group<'ast>(
             dynamic_arguments,
             layout_class,
             planner_base_state,
+            has_boundary_comments,
         );
     if use_no_annotation_multi_argument_fast_path {
         format_no_annotation_multi_argument_fast_path(
@@ -735,8 +764,11 @@ fn format_call_arguments_with_group<'ast>(
     }
 
     // frequent hug-last callback and collection tails can skip profiled layout
-    let use_forced_hug_last_inline_fast_path =
-        call_arguments_use_forced_hug_last_inline_fast_path(dynamic_arguments, layout_class);
+    let use_forced_hug_last_inline_fast_path = call_arguments_use_forced_hug_last_inline_fast_path(
+        dynamic_arguments,
+        layout_class,
+        has_boundary_comments,
+    );
     if use_forced_hug_last_inline_fast_path {
         f.context()
             .increment_counter("profile.call.arguments.path.hug_last_forced", 1);
@@ -808,8 +840,11 @@ pub(crate) fn call_arguments_force_expand_for_chain(
     }
 
     let layout_class = resolve_call_argument_layout_class(context, call_node_id, dynamic_arguments);
+    let should_bypass_simple_fast_false = dynamic_arguments.len() == 1
+        && single_argument_requires_expanded_list(context, dynamic_arguments);
     let can_use_simple_fast_false =
-        call_argument_layout_class_is_simple_multi_unannotated(layout_class);
+        call_argument_layout_class_is_simple_multi_unannotated(layout_class)
+            && !should_bypass_simple_fast_false;
     if can_use_simple_fast_false {
         context.cache_call_argument_chain_force_expand(call_node_id, false);
         context.increment_counter("profile.call_arguments.chain.fast_false.simple", 1);

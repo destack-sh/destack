@@ -1,5 +1,17 @@
 use super::*;
 
+/// Return the concrete span that corresponds to one annotation node.
+fn annotation_content_span(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Span {
+    match context.tree.get::<Annotation>(annotation_id) {
+        Annotation::Blank { node, .. } => context.get_span(*node),
+        Annotation::Doc { node, .. } => context.get_span(*node),
+        Annotation::Comment { node, .. } => context.get_span(*node),
+        Annotation::Decorator { node, .. } => context.get_span(*node),
+    }
+}
 /// Check whether a member access uses a private hash (`.#name`).
 pub(crate) fn member_is_private_hash(
     context: &DestackFormatContext<'_>,
@@ -59,7 +71,7 @@ pub(crate) fn path_postfix_annotations_emit_on_tail(
                 }
 
                 has_postfix = true;
-                let span = context.get_span(*annotation_id);
+                let span = annotation_content_span(context, *annotation_id);
                 if span.start < last_segment_start {
                     return false;
                 }
@@ -135,7 +147,7 @@ pub(crate) fn path_deferred_boundary_line_comments(
                     continue;
                 }
 
-                let annotation_span = context.get_span(*annotation_id);
+                let annotation_span = annotation_content_span(context, *annotation_id);
                 if annotation_span.start >= last_segment_start {
                     continue;
                 }
@@ -151,6 +163,43 @@ pub(crate) fn path_deferred_boundary_line_comments(
         .unwrap_or_default()
 }
 
+/// Collect root path line postfix comments as fallback deferred boundary comments.
+pub(crate) fn path_root_line_postfix_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> Vec<String> {
+    context
+        .with_annotations(node_id, |annotations| {
+            let mut comments: Vec<String> = Vec::new();
+            for annotation_id in annotations {
+                let Annotation::Comment { node, position } =
+                    context.tree.get::<Annotation>(*annotation_id)
+                else {
+                    continue;
+                };
+                if !matches!(
+                    position,
+                    AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+                ) {
+                    continue;
+                }
+
+                let comment = context.tree.get::<destack_ast::Comment>(*node);
+                if comment.style != destack_ast::CommentStyle::Slash {
+                    continue;
+                }
+
+                let annotation_span = annotation_content_span(context, *annotation_id);
+                let annotation_source = context.get_span_str(annotation_span).trim().to_string();
+                if annotation_source.starts_with("//") {
+                    comments.push(annotation_source);
+                }
+            }
+
+            comments
+        })
+        .unwrap_or_default()
+}
 /// Estimate the rendered length of static arguments.
 pub(crate) fn static_arguments_len(
     context: &DestackFormatContext<'_>,

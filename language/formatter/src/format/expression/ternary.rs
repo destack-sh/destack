@@ -206,7 +206,7 @@ pub(super) fn collect_ternary_colon_line_comments(
             continue;
         }
 
-        if previous_non_whitespace_before_span(context, comment_token.span) != Some(':') {
+        if !line_comment_follows_colon_on_same_line(context, comment_token.span) {
             continue;
         }
 
@@ -242,6 +242,23 @@ pub(super) fn collect_ternary_colon_line_comments(
                 .collect::<Vec<_>>()
         })
         .collect()
+}
+
+/// Return whether a line comment appears after `:` on the same source line.
+fn line_comment_follows_colon_on_same_line(
+    context: &DestackFormatContext<'_>,
+    comment_span: Span,
+) -> bool {
+    let Some((line_index, _)) = context.file.get_position(comment_span.start) else {
+        return false;
+    };
+    let Some(line_span) = context.file.get_line_span(line_index) else {
+        return false;
+    };
+
+    let line_prefix_span = Span::new(comment_span.file, line_span.start, comment_span.start);
+    let line_prefix_source = context.get_span_str(line_prefix_span);
+    line_prefix_source.trim_end().ends_with(':')
 }
 
 /// Return the source start offset for the else side of a ternary branch.

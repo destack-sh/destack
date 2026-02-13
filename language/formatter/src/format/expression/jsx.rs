@@ -621,8 +621,21 @@ pub(super) fn format_hugged<'ast>(
         return Ok(false);
     }
 
-    // multiline object and array values prefer regular expanded delimiters
+    // multiline empty collections are not stable hugging candidates
     if !force_expand
+        && f.context().node_has_newline(value_id)
+        && match f.context().tree.get(value_id) {
+            Expression::ObjectExpression { properties, .. } => properties.is_empty(),
+            Expression::ArrayExpression { elements } => elements.is_empty(),
+            _ => false,
+        }
+    {
+        return Ok(false);
+    }
+
+    // multiline collection values can opt out of hugging by configuration
+    if !force_expand
+        && !config.allow_multiline_collection
         && f.context().node_has_newline(value_id)
         && matches!(
             f.context().tree.get(value_id),
