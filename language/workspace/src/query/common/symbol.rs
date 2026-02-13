@@ -411,7 +411,7 @@ fn static_parameter_symbol_at_offset(
             }
 
             if let Some(token_name) = token_name.as_deref()
-                && let Some(parameter_name) = static_parameter_name(session, &parameter)
+                && let Some(parameter_name) = static_parameter_name(session, parameter)
                 && parameter_name != token_name
             {
                 continue;

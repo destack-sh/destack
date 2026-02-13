@@ -100,6 +100,8 @@ pub struct ProfileKey {
     pub debug: bool,
     /// Test flag exposed to `import.meta`.
     pub test: bool,
+    /// Skip declaration diagnostics in JavaScript and TypeScript compatibility mode.
+    pub skip_lib_check: bool,
     /// Comptime environment snapshot for `import.meta.env`.
     pub env: EnvSnapshot,
     /// Flags that affect semantic behavior.
@@ -281,6 +283,7 @@ impl ProfileKey {
         lib: Vec<String>,
         debug: bool,
         test: bool,
+        skip_lib_check: bool,
         env: EnvSnapshot,
         flags: ProfileFlags,
     ) -> Self {
@@ -295,6 +298,7 @@ impl ProfileKey {
             lib,
             debug,
             test,
+            skip_lib_check,
             env,
             flags,
         }

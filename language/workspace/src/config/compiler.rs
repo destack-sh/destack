@@ -27,7 +27,7 @@ pub struct DsConfigCompilerOptions {
     pub es_target: EsTarget,
     /// Library files to include (e.g., "es2024", "dom", "worker").
     pub lib: Vec<String>,
-    /// Additional library types to include (e.g., "node", "dom.iterable").
+    /// Additional ambient type entries to include (e.g., "node", "@types/node", "dom.iterable").
     pub types: Vec<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
@@ -531,7 +531,7 @@ pub struct CompilerOptionsJson {
     pub target: Option<String>,
     /// Library files to include (e.g., ["es2024", "dom"]).
     pub lib: Option<Vec<String>>,
-    /// Additional library types to include (e.g., ["node", "dom.iterable"]).
+    /// Additional ambient type entries to include (e.g., ["node", "@types/node", "dom.iterable"]).
     pub types: Option<Vec<String>>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,

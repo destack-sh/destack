@@ -15,15 +15,12 @@ use crate::{
     ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
     FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleDetection, ModuleFormat,
     ModuleGraphKey, ModuleGraphStamp, ModuleGraphVersion, ModuleRegistry, ModuleSource, Package,
-    PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId,
-    ProfileKey, ProfileRegistry, ProgramIndex, SourceType, Target, TargetId, TsConfigId,
-    TsConfigOptions, TsConfigRegistry, WorkspaceFileEntry, WorkspaceIndexSnapshot,
-    WorkspaceModuleEntry, payload_hash_from_bytes,
+    PackageKind, PackageRegistry, Platform, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
+    ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, Runtime, SourceType, Target, TargetId,
+    TsConfigId, TsConfigOptions, TsConfigRegistry, WorkspaceFileEntry, WorkspaceIndexSnapshot,
+    WorkspaceModuleEntry, builtin_libs_for_type_entries, discover_typescript_type_entries,
+    normalize_typescript_lib_names, normalize_typescript_type_entries, payload_hash_from_bytes,
 };
-
-const TYPESCRIPT_LIB_PREFIX: &str = "lib.";
-const TYPESCRIPT_LIB_SUFFIX: &str = ".d.ts";
-const TYPESCRIPT_IMPLICIT_HOST_LIBS: &[&str] = &["dom", "dom.iterable", "scripthost"];
 
 /// Unique identifier for Programs.
 #[repr(transparent)]
@@ -76,6 +73,15 @@ impl ProgramStamp {
     pub fn raw(self) -> u64 {
         self.0
     }
+}
+
+/// Tsconfig context for one module profile decision.
+#[derive(Debug, Clone)]
+struct ModuleTsConfigContext {
+    /// The normalized tsconfig options.
+    options: TsConfigOptions,
+    /// The tsconfig directory for resolving relative paths.
+    directory: PathBuf,
 }
 
 /// A Program in a session.
@@ -643,6 +649,18 @@ impl Program {
         next
     }
 
+    /// Access tsconfig for a module via closure.
+    pub fn with_tsconfig<T>(
+        &self,
+        module: &Module,
+        f: impl FnOnce(&crate::TsConfig) -> T,
+    ) -> Option<T> {
+        let tsconfig_id = module.tsconfig_id?;
+        let tsconfig = self.tsconfigs.get(tsconfig_id);
+
+        Some(f(&tsconfig.read()))
+    }
+
     /// Access tsconfig options for a module via closure.
     pub fn with_tsconfig_options<T>(
         &self,
@@ -685,7 +703,7 @@ impl Program {
         &self,
         package: &Package,
         module: &Module,
-    ) -> (DsConfigCompilerOptions, Option<TsConfigOptions>) {
+    ) -> (DsConfigCompilerOptions, Option<ModuleTsConfigContext>) {
         // start from package compiler options when dsconfig exists
         let mut compiler_options = package
             .dsconfig
@@ -694,18 +712,29 @@ impl Program {
             .unwrap_or_default();
 
         // only use tsconfig when no package dsconfig exists
-        let tsconfig_options = if package.dsconfig.is_none() {
-            self.with_tsconfig_options(module, |options| options.clone())
+        let tsconfig_context = if package.dsconfig.is_none() {
+            self.with_tsconfig(module, |tsconfig| ModuleTsConfigContext {
+                options: tsconfig.options.clone(),
+                directory: tsconfig.directory.clone(),
+            })
         } else {
             None
         };
 
         // use tsconfig defaults when dsconfig is absent
-        if let Some(tsconfig_options) = tsconfig_options.as_ref() {
-            Self::apply_tsconfig_profile_overrides(&mut compiler_options, tsconfig_options);
+        if let Some(tsconfig_context) = tsconfig_context.as_ref() {
+            Self::apply_tsconfig_profile_overrides(
+                &mut compiler_options,
+                &tsconfig_context.options,
+            );
+            self.apply_tsconfig_implicit_type_overrides(
+                module,
+                &mut compiler_options,
+                tsconfig_context,
+            );
         }
 
-        (compiler_options, tsconfig_options)
+        (compiler_options, tsconfig_context)
     }
 
     /// Apply tsconfig settings that affect profile and resolution behavior.
@@ -730,12 +759,52 @@ impl Program {
         compiler_options.skip_lib_check = ts_compiler_options.skip_lib_check;
 
         if !ts_compiler_options.lib.is_empty() {
-            compiler_options.lib = Self::normalize_tsconfig_lib_names(&ts_compiler_options.lib);
+            compiler_options.lib = normalize_typescript_lib_names(&ts_compiler_options.lib);
         }
 
+        // keep normalized type entries for downstream resolver and analysis
         if !ts_compiler_options.types.is_empty() {
-            compiler_options.types = ts_compiler_options.types.clone();
+            compiler_options.types = normalize_typescript_type_entries(&ts_compiler_options.types);
         }
+    }
+
+    /// Add implicit type entries from tsconfig type root resolution.
+    fn apply_tsconfig_implicit_type_overrides(
+        &self,
+        module: &Module,
+        compiler_options: &mut DsConfigCompilerOptions,
+        tsconfig_context: &ModuleTsConfigContext,
+    ) {
+        // skip when tsconfig types are explicit
+        if !tsconfig_context.options.compiler.types.is_empty() {
+            return;
+        }
+
+        // discover normalized type entries from effective type roots
+        let discovered_types = discover_typescript_type_entries(
+            self.fs.as_ref(),
+            &tsconfig_context.options,
+            tsconfig_context.directory.as_path(),
+            module.path.as_deref(),
+        );
+        if discovered_types.is_empty() {
+            return;
+        }
+
+        // merge discovered types into compiler options
+        let mut types = normalize_typescript_type_entries(&compiler_options.types);
+        let mut seen = HashSet::new();
+        for type_name in &types {
+            seen.insert(type_name.clone());
+        }
+
+        for discovered_type in discovered_types {
+            if seen.insert(discovered_type.clone()) {
+                types.push(discovered_type);
+            }
+        }
+
+        compiler_options.types = types;
     }
 
     /// Get the profile id for a module with the default profile selection.
@@ -747,7 +816,7 @@ impl Program {
         let package = package.read();
 
         // derive profile compiler options from dsconfig or tsconfig
-        let (compiler_options, tsconfig_options) =
+        let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(&package, &module);
 
         // get target and profile config from package dsconfig
@@ -778,7 +847,7 @@ impl Program {
             &target,
             &compiler_options,
             profile_config,
-            tsconfig_options.as_ref(),
+            tsconfig_context.as_ref().map(|context| &context.options),
         );
 
         self.profiles.get_or_create(key)
@@ -868,7 +937,7 @@ impl Program {
             .cloned()
             .or_else(|| Target::implicit_for_name(&target_id.name))?;
 
-        let (compiler_options, tsconfig_options) =
+        let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(&package, &module);
         let profile_config = package.dsconfig.as_ref().and_then(|dsconfig| {
             target
@@ -882,7 +951,7 @@ impl Program {
             &target,
             &compiler_options,
             profile_config,
-            tsconfig_options.as_ref(),
+            tsconfig_context.as_ref().map(|context| &context.options),
         );
 
         Some(self.profiles.get_or_create(key))
@@ -904,70 +973,86 @@ impl Program {
         compiler_options: &DsConfigCompilerOptions,
         profile_config: Option<&ProfileConfig>,
     ) -> Vec<String> {
-        let mut types = Vec::new();
+        let mut type_entries = Vec::new();
 
-        // add compiler level types first
+        // add compiler level type entries first
         if !compiler_options.types.is_empty() {
-            types.extend(compiler_options.types.clone());
+            type_entries.extend(compiler_options.types.clone());
         }
 
-        // add target level types
+        // add target level type entries
         if let Some(target_types) = &target.types {
-            types.extend(target_types.clone());
+            type_entries.extend(target_types.clone());
         }
 
-        // add profile level types
+        // add profile level type entries
         if let Some(profile_types) = profile_config.and_then(|profile| profile.types.as_ref()) {
-            types.extend(profile_types.clone());
+            type_entries.extend(profile_types.clone());
         }
 
-        types
+        // only builtin compatible entries participate in profile libs
+        builtin_libs_for_type_entries(&type_entries)
     }
 
-    /// Normalize one tsconfig lib name to builtin lookup form.
-    fn normalize_tsconfig_lib_name(lib: &str) -> String {
-        // normalize casing and whitespace
-        let lower = lib.trim().to_ascii_lowercase();
-        let without_prefix = lower
-            .strip_prefix(TYPESCRIPT_LIB_PREFIX)
-            .unwrap_or(lower.as_str());
-        let normalized = without_prefix
-            .strip_suffix(TYPESCRIPT_LIB_SUFFIX)
-            .unwrap_or(without_prefix);
+    /// Build the effective library set for one target profile.
+    fn effective_libs_for_target_profile(
+        target: &Target,
+        compiler_options: &DsConfigCompilerOptions,
+        profile_config: Option<&ProfileConfig>,
+        tsconfig_options: Option<&TsConfigOptions>,
+        runtime: Runtime,
+        runtime_version: Option<String>,
+        platform: Platform,
+    ) -> Vec<String> {
+        // derive fallback target settings for implicit lib resolution
+        let derived_target = Target {
+            runtime,
+            runtime_version,
+            platform,
+            ..Target::default()
+        };
 
-        normalized.to_string()
-    }
+        // pick one base lib list from config precedence
+        let base_libs =
+            if let Some(profile_lib) = profile_config.and_then(|profile| profile.lib.as_ref()) {
+                profile_lib.clone()
+            } else if let Some(target_lib) = target.lib.as_ref() {
+                target_lib.clone()
+            } else if !compiler_options.lib.is_empty() {
+                compiler_options.lib.clone()
+            } else if let Some(tsconfig_options) = tsconfig_options {
+                crate::typescript_default_libs(tsconfig_options)
+            } else {
+                derived_target.derived_lib()
+            };
 
-    /// Normalize tsconfig lib names to builtin lookup form.
-    fn normalize_tsconfig_lib_names(libs: &[String]) -> Vec<String> {
-        libs.iter()
-            .map(|lib| Self::normalize_tsconfig_lib_name(lib))
-            .collect()
-    }
-
-    /// Build implicit tsconfig libs when no explicit profile libs are configured.
-    fn default_libs_for_tsconfig(tsconfig_options: &TsConfigOptions) -> Vec<String> {
-        let ts_compiler_options = &tsconfig_options.compiler;
-
-        // tsconfig noLib disables implicit libs
-        if ts_compiler_options.no_lib {
-            return Vec::new();
+        // append additive type libs from config layers
+        let mut libs = base_libs;
+        let mut seen = HashSet::new();
+        for lib_name in &libs {
+            seen.insert(lib_name.clone());
         }
 
-        // explicit tsconfig lib entries fully define the base lib set
-        if !ts_compiler_options.lib.is_empty() {
-            return Self::normalize_tsconfig_lib_names(&ts_compiler_options.lib);
+        let type_libs = Self::collect_types_for_target(target, compiler_options, profile_config);
+        for type_lib in type_libs {
+            if seen.insert(type_lib.clone()) {
+                libs.push(type_lib);
+            }
         }
 
-        // use TypeScript default ambient libs first
-        let mut libs = vec![
-            "js".to_string(),
-            ts_compiler_options.es_target.default_lib_name().to_string(),
-        ];
+        // lock native targets to native friendly libs
+        if runtime.is_native() {
+            libs.retain(|lib| {
+                let Some(builtin) = destack_builtin::builtin_lib(lib) else {
+                    return true;
+                };
 
-        // add typescript host libs
-        for lib in TYPESCRIPT_IMPLICIT_HOST_LIBS {
-            libs.push((*lib).to_string());
+                matches!(builtin.kind, destack_builtin::BuiltinLibKind::Std)
+                    || matches!(builtin.name, "native" | "platform" | "destack")
+            });
+            if !libs.iter().any(|lib| lib == "native") {
+                libs.push("native".to_string());
+            }
         }
 
         libs
@@ -995,62 +1080,16 @@ impl Program {
             .and_then(|profile| profile.debug)
             .unwrap_or(target.debug);
 
-        // derive fallback target settings once for implicit lib resolution
-        let derived_target = Target {
+        // resolve effective libraries once using config precedence
+        let libs = Self::effective_libs_for_target_profile(
+            target,
+            &compiler_options,
+            profile_config,
+            tsconfig_options,
             runtime,
             runtime_version,
             platform,
-            ..Target::default()
-        };
-
-        // pick one base lib list from config precedence
-        let base_lib =
-            if let Some(profile_lib) = profile_config.and_then(|profile| profile.lib.as_ref()) {
-                profile_lib.clone()
-            } else if let Some(target_lib) = target.lib.as_ref() {
-                target_lib.clone()
-            } else if !compiler_options.lib.is_empty() {
-                compiler_options.lib.clone()
-            } else if let Some(tsconfig_options) = tsconfig_options {
-                if tsconfig_options.compiler.no_lib {
-                    Vec::new()
-                } else if !tsconfig_options.compiler.lib.is_empty() {
-                    Self::normalize_tsconfig_lib_names(&tsconfig_options.compiler.lib)
-                } else {
-                    Self::default_libs_for_tsconfig(tsconfig_options)
-                }
-            } else {
-                derived_target.derived_lib()
-            };
-
-        // append additive library types from config layers
-        let mut libs = base_lib;
-        let mut seen = HashSet::new();
-        for lib_name in &libs {
-            seen.insert(lib_name.clone());
-        }
-
-        // regular additive "types" libs
-        let types = Self::collect_types_for_target(target, &compiler_options, profile_config);
-        for type_name in types {
-            if seen.insert(type_name.clone()) {
-                libs.push(type_name);
-            }
-        }
-
-        // lock native targets to native-friendly libs (#Cleanup)
-        if runtime.is_native() {
-            libs.retain(|lib| {
-                let Some(builtin) = destack_builtin::builtin_lib(lib) else {
-                    return true;
-                };
-                matches!(builtin.kind, destack_builtin::BuiltinLibKind::Std)
-                    || matches!(builtin.name, "native" | "platform" | "destack")
-            });
-            if !libs.iter().any(|lib| lib == "native") {
-                libs.push("native".to_string());
-            }
-        }
+        );
 
         let env = profile_config
             .and_then(|profile| profile.comptime_env.as_ref())
@@ -1071,6 +1110,7 @@ impl Program {
             libs,
             debug,
             test,
+            compiler_options.skip_lib_check,
             env,
             flags,
         )
@@ -1095,9 +1135,7 @@ impl Program {
     /// Read package json module type for one package id.
     fn package_module_type_for_id(&self, package_id: PackageId) -> Option<String> {
         // skip missing package entries
-        let Some(package) = self.packages.get_maybe(package_id) else {
-            return None;
-        };
+        let package = self.packages.get_maybe(package_id)?;
 
         // read module type from package manifest
         let package = package.read();
@@ -1207,7 +1245,7 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BorrowMode, DiagnosticPolicy, OutputFormat, Platform, Runtime};
+    use crate::{BorrowMode, DiagnosticPolicy, EsTarget, OutputFormat, Platform, Runtime};
 
     #[test]
     fn test_profile_key_for_target_appends_types() {
@@ -1221,7 +1259,11 @@ mod tests {
         };
 
         let compiler_options = DsConfigCompilerOptions {
-            types: vec!["node".to_string(), "dom".to_string()],
+            types: vec![
+                "node".to_string(),
+                "dom".to_string(),
+                "vitest/globals".to_string(),
+            ],
             ..DsConfigCompilerOptions::default()
         };
 
@@ -1254,7 +1296,7 @@ mod tests {
         let compiler_options = DsConfigCompilerOptions::default();
 
         let mut tsconfig_options = TsConfigOptions::default();
-        tsconfig_options.compiler.es_target = crate::EsTarget::Es2022;
+        tsconfig_options.compiler.es_target = EsTarget::Es2022;
 
         let key = Program::profile_key_for_target(
             &target,
@@ -1287,6 +1329,27 @@ mod tests {
         );
 
         assert!(key.lib.is_empty());
+    }
+
+    #[test]
+    fn test_apply_tsconfig_profile_overrides_keeps_normalized_type_entries() {
+        // configure tsconfig types with duplicates and non-builtin entries
+        let mut tsconfig_options = TsConfigOptions::default();
+        tsconfig_options.compiler.types = vec![
+            "@types/node".to_string(),
+            "NODE".to_string(),
+            "vitest/globals".to_string(),
+        ];
+
+        // apply tsconfig profile overrides
+        let mut compiler_options = DsConfigCompilerOptions::default();
+        Program::apply_tsconfig_profile_overrides(&mut compiler_options, &tsconfig_options);
+
+        // keep normalized type entries for downstream resolution
+        assert_eq!(
+            compiler_options.types,
+            vec!["node".to_string(), "vitest/globals".to_string()]
+        );
     }
 
     #[test]
