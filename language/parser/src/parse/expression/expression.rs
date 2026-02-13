@@ -134,18 +134,23 @@ impl Parser {
         }
 
         let pos_index = self.pos_index();
-        let next_token_type = self.peek_next_token_type();
-        if matches!(next_token_type, TokenType::Arrow | TokenType::ArrowWide) {
-            return Ok(None);
-        }
-        // labelled statements need the full expression entry path
-        if self.options.in_statement_position && next_token_type == TokenType::Colon {
-            return Ok(None);
-        }
 
         if self.has_active_split() {
             return Ok(None);
         }
+
+        let next_raw_token_type = self.peek_next_token_type();
+        if matches!(next_raw_token_type, TokenType::Arrow | TokenType::ArrowWide) {
+            return Ok(None);
+        }
+        // labelled statements need the full expression entry path
+        if self.options.in_statement_position && next_raw_token_type == TokenType::Colon {
+            return Ok(None);
+        }
+
+        let next_cursor = self.non_newline_cursor_from(self.index_for_next());
+        let next_token_type = next_cursor.token_type;
+        let next_token_index = next_cursor.index;
 
         if self.keyword_for_index_maybe_fast(pos_index).is_some() {
             return Ok(None);
@@ -163,19 +168,20 @@ impl Parser {
         // contextual global declarations need descriptor parsing even in non statement contexts
         let can_start_global_declaration = matches!(
             next_token_type,
-            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal | TokenType::Newline
+            TokenType::OpenBrace | TokenType::Identifier | TokenType::Literal
         );
         if can_start_global_declaration && self.is_global_identifier_at(pos_index) {
             return Ok(None);
         }
         let is_module_declaration_start = if self.language.supports_module_declaration()
+            && !next_cursor.has_line_break_before
             && DECLARATION_START_TOKENS.contains(&next_token_type)
             && self.is_module_identifier_at(pos_index)
         {
             let is_module_name_start =
                 matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
             let next_keyword = if next_token_type == TokenType::Identifier {
-                self.keyword_for_index_maybe_fast(self.index_for_next())
+                self.keyword_for_index_maybe_fast(next_token_index)
             } else {
                 None
             };
@@ -325,7 +331,7 @@ impl Parser {
 
         // require a known matching close parenthesis
         let open_index = self.pos_index();
-        let Some(close_index) = self.matching_pair(open_index) else {
+        let Some(close_index) = self.matching_pair_or_lex(open_index) else {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.parenthesized_expression_fast_misses += 1;
             }
@@ -334,12 +340,8 @@ impl Parser {
 
         // lambda and typed-lambda forms still need full lookahead handling
         let follow_start_index = close_index + 1;
-        let follow_index = if self.token_type_at(follow_start_index) == TokenType::Newline {
-            self.next_non_newline_index_from(follow_start_index + 1)
-        } else {
-            follow_start_index
-        };
-        let follow_token_type = self.token_type_at(follow_index);
+        let follow_cursor = self.non_newline_cursor_from(follow_start_index);
+        let follow_token_type = follow_cursor.token_type;
         if matches!(
             follow_token_type,
             TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
@@ -537,16 +539,21 @@ impl Parser {
 
                     // identifier context setup
                     let pos_index = self.pos_index();
-                    let next_token_type = if self.tokens_prelexed && !self.has_active_split() {
+                    let next_raw_token_type = if self.tokens_prelexed && !self.has_active_split() {
                         self.peek_next_token_type_prelexed_fast()
                     } else {
                         self.peek_next_token_type()
                     };
+                    let next_cursor = self.non_newline_cursor_from(self.index_for_next());
+                    let next_token_type = next_cursor.token_type;
+                    let next_token_index = next_cursor.index;
+                    let next_has_line_break = next_cursor.has_line_break_before;
                     let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
                     let has_active_split = self.has_active_split();
                     let module_identifier_matches = !has_active_split
                         && !self.options.in_decorator
                         && !self.options.in_type
+                        && !next_has_line_break
                         && is_declaration_start
                         && self.language.supports_module_declaration()
                         && self.is_module_identifier_at(pos_index);
@@ -554,7 +561,7 @@ impl Parser {
                         let is_module_name_start =
                             matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
                         let next_keyword = if next_token_type == TokenType::Identifier {
-                            self.keyword_for_index_maybe_fast(self.index_for_next())
+                            self.keyword_for_index_maybe_fast(next_token_index)
                         } else {
                             None
                         };
@@ -568,8 +575,8 @@ impl Parser {
                     // shorthand lambda function value
                     if !self.options.in_type
                         && !self.options.in_match_case
-                        && (next_token_type == TokenType::Arrow
-                            || next_token_type == TokenType::ArrowWide)
+                        && (next_raw_token_type == TokenType::Arrow
+                            || next_raw_token_type == TokenType::ArrowWide)
                     {
                         let lambda_id =
                             self.eat_function(&start, descriptor.clone(), false, false)?;
@@ -719,6 +726,9 @@ impl Parser {
                                 descriptor.clone(),
                                 keyword,
                                 next_token_type,
+                                next_token_index,
+                                next_has_line_break,
+                                next_raw_token_type,
                                 is_declaration_start,
                             )? {
                                 primary_expression_id = Some(keyword_expression_id);
@@ -803,17 +813,12 @@ impl Parser {
                             // parse direct arrow lambdas without deep group lookahead
                             if !self.options.in_arrow_return_type {
                                 let open_index = self.pos_index();
-                                if let Some(close_index) = self.matching_pair(open_index) {
+                                if let Some(close_index) = self.matching_pair_or_lex(open_index) {
                                     let follow_start_index = close_index + 1;
-                                    let follow_index = if self.token_type_at(follow_start_index)
-                                        == TokenType::Newline
-                                    {
-                                        self.next_non_newline_index_from(follow_start_index + 1)
-                                    } else {
-                                        follow_start_index
-                                    };
+                                    let follow_cursor =
+                                        self.non_newline_cursor_from(follow_start_index);
                                     let has_arrow_follow = matches!(
-                                        self.token_type_at(follow_index),
+                                        follow_cursor.token_type,
                                         TokenType::Arrow | TokenType::ArrowWide
                                     );
                                     if has_arrow_follow {

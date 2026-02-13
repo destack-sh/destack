@@ -1,5 +1,5 @@
 use criterion::profiler::Profiler;
-use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
@@ -110,21 +110,20 @@ fn print_parser_timing_snapshot_once(parser: &Parser, label: &str) {
     }
 }
 
-/// Parse one file and run full parser finalization.
+/// Parse one file through the full parser pipeline.
 fn parse_with_finish(file: Arc<File>) -> Parser {
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file, language_type);
-    parser.parse_without_finish();
-    parser.finish();
-    print_parser_timing_snapshot_once(&parser, "parse+finish");
+    parser.parse();
+    print_parser_timing_snapshot_once(&parser, "parse-total");
     parser
 }
 
-/// Parse one file without parser finalization.
-fn parse_without_finish(file: Arc<File>) -> Parser {
+/// Parse one file through the parser as a main-compat alias.
+fn parse_main_alias(file: Arc<File>) -> Parser {
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file, language_type);
-    parser.parse_without_finish();
+    parser.parse();
     parser
 }
 
@@ -361,60 +360,39 @@ fn bench_parse_single(criterion: &mut Criterion) {
         },
     );
 
-    // parse main only: no annotation attach and position build
+    // parse main alias: kept for historical benchmark compatibility
     group.bench_with_input(
         BenchmarkId::new("main", "single-thread"),
         &file,
         |bencher, file| {
             bencher.iter(|| {
-                let parser = parse_without_finish(file.clone());
+                let parser = parse_main_alias(file.clone());
                 print_parser_timing_snapshot_once(&parser, "parse-main-only");
                 black_box(parser);
             });
         },
     );
 
-    // parse main only: no drop timing
+    // parse main alias: no drop timing
     group.bench_with_input(
         BenchmarkId::new("main", "no-drop"),
         &file,
         |bencher, file| {
-            bencher.iter_with_large_drop(|| parse_without_finish(file.clone()));
+            bencher.iter_with_large_drop(|| parse_main_alias(file.clone()));
         },
     );
 
-    // parse main only: parallel throughput
+    // parse main alias: parallel throughput
     group.bench_with_input(
         BenchmarkId::new("main", "parallel"),
         &file,
         |bencher, file| {
             bencher.iter(|| {
                 (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_without_finish(file.clone());
+                    let parser = parse_main_alias(file.clone());
                     black_box(parser);
                 });
             });
-        },
-    );
-
-    // benchmark path with finish isolated from setup
-    group.bench_with_input(
-        BenchmarkId::new("finish", "single"),
-        &file,
-        |bencher, file| {
-            bencher.iter_batched(
-                || {
-                    // parse up to finish
-                    parse_without_finish(file.clone())
-                },
-                |mut parser| {
-                    // finalize parser state
-                    parser.finish();
-                    print_parser_timing_snapshot_once(&parser, "finish-total");
-                    black_box(parser);
-                },
-                BatchSize::PerIteration,
-            );
         },
     );
 

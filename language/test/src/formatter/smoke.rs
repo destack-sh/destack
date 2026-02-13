@@ -213,7 +213,6 @@ fn format_source(program: &Arc<Program>, path: &Path, source: &str) -> Result<St
 
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    parser.finish();
 
     let has_errors = parser
         .diagnostics

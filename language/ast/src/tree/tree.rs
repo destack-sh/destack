@@ -376,6 +376,18 @@ impl NodeTree {
         spans
     }
 
+    /// Get the spans for annotation side nodes in one scan.
+    #[inline]
+    pub fn get_side_annotation_spans(&self) -> Vec<Span> {
+        let mut spans = Vec::new();
+        for (idx, ty) in self.node_type_by_node_id.iter().enumerate() {
+            if matches!(*ty, NodeType::Annotation | NodeType::Decorator) {
+                spans.push(self.source_map.get(idx as u32));
+            }
+        }
+        spans
+    }
+
     /// Get the nodes for all nodes of a given type.
     #[inline]
     pub fn get_nodes<T>(&self) -> Vec<LocalNodeId<T>>

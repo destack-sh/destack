@@ -582,6 +582,19 @@ impl Parser {
         Ok(expression_id)
     }
 
+    /// Return true when the token after the current identifier ends a JS style label.
+    #[inline]
+    fn next_token_ends_label_statement(&mut self) -> bool {
+        let next_index = self.index_for_next();
+        let next_cursor = self.non_newline_cursor_from(next_index);
+        next_cursor.index != next_index
+            || next_cursor.has_line_break_before
+            || matches!(
+                next_cursor.token_type,
+                TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
+            )
+    }
+
     /// Eat a break expression.
     ///
     /// Examples:
@@ -610,12 +623,7 @@ impl Parser {
                 None
             };
             (Some(label), Some(label_span), value_id)
-        } else if self.peek_is(TokenType::Identifier)
-            && matches!(
-                self.peek_next_token_type(),
-                TokenType::Newline | TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
-            )
-        {
+        } else if self.peek_is(TokenType::Identifier) && self.next_token_ends_label_statement() {
             // JS style: break label (identifier followed by statement stop)
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span), None)
@@ -661,12 +669,7 @@ impl Parser {
             self.bump(); // eat colon
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
-        } else if self.peek_is(TokenType::Identifier)
-            && matches!(
-                self.peek_next_token_type(),
-                TokenType::Newline | TokenType::Semicolon | TokenType::End | TokenType::CloseBrace
-            )
-        {
+        } else if self.peek_is(TokenType::Identifier) && self.next_token_ends_label_statement() {
             // JS style: continue label
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
@@ -939,7 +942,7 @@ mod tests {
     fn test_parse_root_unmatched_close_brace_recovery() {
         let mut test = TestParser::new("}\nnextValue");
         let mut parser = test.prepare();
-        let expressions = parser.parse_without_finish();
+        let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Error);
@@ -952,7 +955,7 @@ mod tests {
     fn test_parse_root_unmatched_close_parenthesis_recovery() {
         let mut test = TestParser::new(")\nnextValue");
         let mut parser = test.prepare();
-        let expressions = parser.parse_without_finish();
+        let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Error);

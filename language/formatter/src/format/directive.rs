@@ -583,7 +583,6 @@ mod tests {
 
         let mut parser = Parser::lex_file(file.clone(), LanguageType::TypeScript);
         let expressions = parser.parse();
-        parser.finish();
 
         let side_span = parser.compute_side_span();
         let (tokens, side_tokens) = parser.take_tokens();

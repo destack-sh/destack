@@ -7,14 +7,6 @@ impl Parser {
     /// Return true when the token at index is the given keyword.
     #[inline]
     fn keyword_is_at(&mut self, index: usize, keyword: Keyword) -> bool {
-        if self.has_active_split() && index == self.pos_index() {
-            let Some(token) = self.token_at(index) else {
-                return false;
-            };
-            return token.token.ty == TokenType::Identifier
-                && self.get_span_str(token.span) == keyword.as_str();
-        }
-
         self.keyword_for_index(index) == Some(keyword)
     }
 
@@ -61,10 +53,6 @@ impl Parser {
     #[inline]
     pub fn peek_any_keyword(&mut self) -> ParseResult<Keyword> {
         let current = *self.peek_token(TokenType::Identifier)?;
-        if self.has_active_split() {
-            return Keyword::from_str(self.get_span_str(current.span))
-                .map_err(|_| ParseError::expected(current.span, TokenType::Identifier));
-        }
         self.keyword_for_index(self.pos_index())
             .ok_or_else(|| ParseError::expected(current.span, TokenType::Identifier))
     }
