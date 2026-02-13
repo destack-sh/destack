@@ -464,8 +464,8 @@ let value = make(data);
 > Constants with non-static initializers cannot be used as static arguments.
 
 ```ds
-function size(): int32 { 
-    return 4; 
+function size(): int32 {
+    return 4;
 }
 
 const SIZE = size();

@@ -4,7 +4,7 @@
 Build on TypeScript and the web ecosystem with a unified standards-based toolchain, stack and platform.
 Own your software, build it anywhere and run it everywhere in one integrated open source stack:
 
- - **Destack Language**: **"TypeScript++"** [extends TypeScript with opt-in features](language/DESIGN.md) for correctness, collaboration, ergonomics, and performance. Two-way compatibility enables incremental adoption [`.ds` adoption](language/SPECIFICATION.md) (like we already do with `.tsx`). 
+ - **Destack Language**: **"TypeScript++"** [extends TypeScript with opt-in features](language/DESIGN.md) for correctness, collaboration, ergonomics, and performance. Two-way compatibility enables incremental adoption [`.ds` adoption](language/SPECIFICATION.md) (like we already do with `.tsx`).
 
  - **Destack Library**: Standard library for most things most software needs. Fully integrated, batteries-included components for every layer of the stack and every moment in the software lifecycle.
 
@@ -33,7 +33,7 @@ Destack aims to make building correct, optimal, integrated software the obvious 
 TypeScript is a language for describing *the shape of data*.
 Destack is a system for describing *the shape of software*.
 TypeScript has `.ts`, `.d.ts`, and `.tsx`, Destack brings `.ds` (and `.d.ds`).
-The fully integrated library and platform let us extend the TypeScript philosophy for entire software systems. 
+The fully integrated library and platform let us extend the TypeScript philosophy for entire software systems.
 
 The best programing language is the one that fits the problem.
 And this "language" encompasses supporting libraries, the platform and its ecosystem.
@@ -42,7 +42,7 @@ Higher-order software raises the level of abstraction of what software can expre
 
 ## Contributing
 
-Destack is in [very active development](CONTRIBUTING.md) with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
+Destack is in [very active development](CONTRIBUTING.md) with a singular focus: a fully integrated software stack for optimal, correct, integrated software.
 We welcome feedback, issues, ideas, and small fixes, but please reach out for any non-trivial contributions.
 
 ## License

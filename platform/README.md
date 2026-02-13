@@ -5,15 +5,15 @@ CLI, editor support, and build system plugins.
 
 ## Components
 
-| Component | Description |
-|-----------|-------------|
-| `cli` | Command-line interface (`destack` binary) |
-| `lsp` | Language Server Protocol implementation |
-| `vscode` | VS Code extension (syntax, themes, LSP client) |
-| `daemon` | Background service for watch mode and caching |
-| `bun` | Bun plugin and loader for `.ds` files |
-| `vite` | Vite plugin for Destack projects |
-| `editor` | Editor-agnostic utilities |
+| Component | Description | Link |
+|-----------|-------------|------|
+| `cli` | Command-line interface (`destack` binary) | [cli/README.md](cli/README.md) |
+| `lsp` | Language Server Protocol implementation | [lsp/README.md](lsp/README.md) |
+| `vscode` | VS Code extension (syntax, themes, LSP client) | [vscode/README.md](vscode/README.md) |
+| `daemon` | Background service for watch mode and caching | [daemon/README.md](daemon/README.md) |
+| `bun` | Bun plugin and loader for `.ds` files | [bun/README.md](bun/README.md) |
+| `vite` | Vite plugin for Destack projects | [vite/README.md](vite/README.md) |
+| `zed` | Zed extension integration | [zed/README.md](zed/README.md) |
 
 ## Commands
 

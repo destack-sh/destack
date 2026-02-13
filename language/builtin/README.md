@@ -7,7 +7,7 @@ The compiler automatically loads these based on target configuration.
 
 Builtins are organized into three layers, each building on the previous:
 
-```
+```text
                           ┌─────────────────────────────────────────┐
                           │              User Code                  │
                           │         (imports from all layers)       │
@@ -40,7 +40,7 @@ What's in `core/`:
 - **Error handling**: `Result`, `Try`, `Ok`, `Err`
 - **Reflection**: `Type`, `typeOf`
 
-```
+```ds
 // core/operator/arithmetic.ds
 newtype interface Add<T, R = this> {
     add(other: T): R
@@ -64,7 +64,7 @@ The standard library is loaded for all profiles but is not ambient; modules must
 The `std/` layer is the portable, runtime-agnostic library surface.
 Anything that depends on OS services or scheduling belongs in `destack:*`, not `std/`.
 
-```
+```ds
 // std/array.ds
 extension<T> for Array<T> {
     /// Sum all elements (not in JS Array)
@@ -84,7 +84,7 @@ extension<T> for Array<T> {
 
 For operations that need different implementations per target, we use `if (comptime ..)`:
 
-```
+```ds
 extension<T> for Array<T> {
     sort(cmp: (T, T) => Ordering): Array<T> {
         if (comptime target.isJS) {

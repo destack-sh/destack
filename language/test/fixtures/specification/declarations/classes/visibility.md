@@ -139,7 +139,7 @@ class Base {
 }
 
 class Child extends Base {
-    get(): int32 { 
+    get(): int32 {
         return this.value;
     }
 }
@@ -155,7 +155,7 @@ class Base {
 }
 
 class Child extends Base {
-    get(): int32 { 
+    get(): int32 {
         return this.value;
     }
 }

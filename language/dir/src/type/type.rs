@@ -21,6 +21,7 @@ pub enum TypeLiteral {
     Undefined,
     /// Unknown type.
     Unknown,
+    // FUGU #Architecture: 'dynamic' type that auto-casts (like unknown, but implicit, like any)?
     /// Object type (any non-primitive).
     Object,
     /// Void type.

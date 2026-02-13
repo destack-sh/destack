@@ -1,7 +1,7 @@
 # Destack Language Design
 
 > **Destack is "TypeScript++" for building correct, optimal, integrated software systems.**
-> 
+>
 > This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
 Basically: Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for whole software systems including high performance ("systems") applications.
 
@@ -20,7 +20,7 @@ But that requires unifying all the disparate pieces: one language, one type syst
 
 TypeScript is the closest thing we have to a unified software foundation today.
 JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base (i.e., every browser everywhere).
-Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language (as evidenced by V8 and JSC coming within touching distance of Go and C# in some scenarios). 
+Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language (as evidenced by V8 and JSC coming within touching distance of Go and C# in some scenarios).
 
 Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript(++).
 Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack (on JS/TS targets), and the `++` features are opt-in and complementary.
@@ -85,8 +85,8 @@ The last non-statement expression (no trailing `;`) becomes the value of the exp
 This enables more ergonomic expressions for complex control flow.
 
 ```ds
-const result = if (condition) { 
-    computeA() 
+const result = if (condition) {
+    computeA()
 } else if (condition) {
     computeB()
 } else {
@@ -308,9 +308,9 @@ try {
     riskyOperationA()?; // -> Result<void, AError>
     riskyOperationB()?; // -> Result<void, BError>
 } catch match (e /* AError | BError */) {
-    NumericError(x) => Error(@format("bad number: {x}"))
-    FormatError => Error(@format("bad format {e}"))
-    _ => Error(@format("unknown error: {e}"))
+    NumericError(x) => Error(`bad number: ${x}`))
+    FormatError => Error(`bad format ${e}`))
+    _ => Error(`unknown error: ${e}`))
 }
 ```
 
@@ -501,7 +501,7 @@ Destack distinguishes **static execution** and **comptime execution**:
   VM interpreter during the Execute phase. Results are written back into the program
   as constants and dead branches are eliminated.
 
-Static execution must not depend on full comptime execution. 
+Static execution must not depend on full comptime execution.
 This avoids dependency cycles between static expressions and comptime execution.
 Full comptime evaluation happens after monomorphization and lowering, with full type information available.
 
@@ -516,9 +516,9 @@ Destack supports `Type` as a first-class values to enable reflection with one we
 Every type `T` in Destack has a corresponding runtime value of type `Type<T>`:
 
 ```ds
-struct User { 
-    name: string; 
-    age: uint; 
+struct User {
+    name: string;
+    age: uint;
 }
 
 // User in type position: the type
@@ -663,7 +663,7 @@ The `newtype` modifier on `interface` follows the same pattern as `newtype` on t
 
 Real function and operator overloading with distinct implementations:
 
-```
+```ds
 function parse(input: string): int32 { parseInt(input) }
 function parse(input: int32): int32 { input }
 

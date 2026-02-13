@@ -25,7 +25,7 @@ type ValueType = typeof value;
 
 let bad: ValueType = "no";
 ```
-jkm, 
+jkm,
 - contains: type "no" is not assignable to type valuetype
 
 ### typeof returns constructor types for classes

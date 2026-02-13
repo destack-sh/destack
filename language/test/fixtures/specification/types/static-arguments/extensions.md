@@ -12,7 +12,7 @@ Tests for static parameters on extensions.
 struct Box<T> { value: T }
 
 extension<T> for Box<T> {
-    get(): T { 
+    get(): T {
         return this.value;
     }
 }
@@ -31,7 +31,7 @@ boxed.get() satisfies number;
 struct Buffer<T, comptime N: number> { value: T }
 
 extension<T, comptime N: number> for Buffer<T, N> {
-    get(): T { 
+    get(): T {
         return this.value;
     }
 }
@@ -47,16 +47,16 @@ buffer.get() satisfies string;
 > Extension parameters follow the target type argument order.
 
 ```ds
-struct Pair<A, B> { 
-    left: A; 
-    right: B 
+struct Pair<A, B> {
+    left: A;
+    right: B
 }
 
 extension<Left, Right> for Pair<Right, Left> {
-    swap(): Pair<Left, Right> { 
-        return Pair<Left, Right> { 
-            left: this.right, 
-            right: this.left 
+    swap(): Pair<Left, Right> {
+        return Pair<Left, Right> {
+            left: this.right,
+            right: this.left
         };
     }
 }
@@ -72,12 +72,12 @@ pair.swap() satisfies Pair<string, number>;
 > Extensions inherit default static arguments from target type references.
 
 ```ds
-struct Buffer<T, comptime N: number = 4> { 
-    value: T 
+struct Buffer<T, comptime N: number = 4> {
+    value: T
 }
 
 extension<T, comptime N: number> for Buffer<T, N> {
-    get(): T { 
+    get(): T {
         return this.value;
     }
 }

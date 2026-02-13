@@ -1,14 +1,13 @@
 # dir
 
 Main Destack IR (DIR) definitions and program model.
-DIR is the semantic intermediate representation: the IR that knows about symbols, scopes, and types.
+DIR is the semantic intermediate representation that we do (almost) all of our semantic analysis on with all the classic stuff about symbols, scopes, and types.
 
 ## Overview
 
-DIR sits between the AST and MIR in the pipeline.
-The AST is purely syntactic ("what did you write?"), while DIR is semantic ("what does it mean?").
+DIR is mapped from AST during binding (with a pretty close 1:1 correspondence), and then we do a _lot_ of in-place processing and transformation before ultimately delegating to Lower (MIR) or straight codegen (JS/TS).
 
-```
+```text
 AST (syntax)  →  DIR (semantics)  →  MIR (machine)
     │                  │
   parser            compiler
@@ -23,18 +22,18 @@ The Bind phase creates base DIR from AST:
 - But symbol references are not yet resolved, and types are not yet inferred
 
 **Canonical DIR** (per-profile):
-Resolve, Analyze, and Elaborate transform base DIR into canonical DIR for each profile. By the time DIR is "canonical" (fully elaborated), it has:
+Resolve, Analyze, and Elaborate transform base DIR into canonical DIR for each profile. 
+By the time DIR is "canonical" (fully elaborated), it has:
 - All symbols resolved to their declarations (profile-dependent: library resolution depends on runtime/platform)
 - All types inferred and checked
 - All overloads resolved
 - All patterns expanded to decision trees
-
-A *profile* represents a semantic configuration—the combination of runtime, platform, libraries, and compiler flags that determines which symbols exist and how types resolve. Different profiles may resolve the same source code to different symbols (e.g., browser vs node libraries) or apply different type checking rules. See [compiler/README.md](../compiler/README.md#profiles-and-targets) for details.
+- .. etc. see Elaborate
 
 ### Symbols and Scopes
 
-Every named thing (variable, function, type, etc.) gets a `Symbol` in the symbol table.
-(And some unnamed things we need to track as symbols for various reasons.)
+Every named "thing" (variable, function, type, etc.) becomes a `Symbol` in the symbol table.
+(And some unnamed things too, when we need to track them as symbols for various reasons.)
 Symbols live in scopes, and scopes nest to form the lexical structure of the program.
 
 ```ds
@@ -48,9 +47,8 @@ struct Symbol {
 }
 ```
 
-TypeScript lets you have a type `Foo` and a value `Foo` in the same scope (interfaces do this) - we support this fully for `.ts` and `.tsx` files.
-Destack supports reflection and "types as values" semantics, so types and values must occupy both the type and value namespaces.
-In Destack `.ds` files, `Foo` as a type and `Foo` as a value must be the same thing.
+TypeScript lets code have a "type `Foo`" and a "value `Foo`" in the same _scope_, so we also distinguish between SymbolSpaces.
+Destack supports reflection and "types as values" semantics, so our types usually live in both type and value spaces.
 
 ### Types
 
@@ -72,7 +70,7 @@ Type inference happens in Analyze, which fills in the type table and links nodes
 ### Instances
 
 An `Instance` is a concrete instantiation of a statically parameterized declaration.
-When you write `Container<int32>`, that's an instance of the generic `Container<T>`.
+When we write `Container<int32>`, that's an instance of the generic `Container<T>`, and Instances are how this is tracked.
 
 ```ds
 struct Instance {
@@ -82,11 +80,12 @@ struct Instance {
 ```
 
 Arguments are stored flattened: inherited arguments from enclosing generic contexts come first, then own arguments.
-This matches how Rust and C++ handle monomorphization: each instance is self-contained.
 
-```
+```ds
 struct Container<T> {
-    map<U>(f: (T) => U): Container<U> { ... }
+    map<U>(f: (T) => U): Container<U> { 
+        ... 
+    }
 }
 
 let c: Container<int32> = ...;
@@ -96,13 +95,11 @@ c.map<string>(f)
 The instances created are:
 - `Container<int32>` → `{ symbol: Container, arguments: [int32] }`
 - `Container<int32>.map<string>` → `{ symbol: map, arguments: [int32, string] }`
-
 For `map`, `int32` is inherited from `Container<T>` and `string` is `map`'s own `U`.
 
 ### Resolutions
 
-A `Resolution` tells you how a **symbol lookup** was resolved at some usage site.
-This is what the Analyze phase produces for every call, member access, and operator.
+A `Resolution` tells us how a **symbol lookup** was resolved at some usage site: every call, member access, and (non-builtin) operator.
 
 ```ds
 newtype Resolution =
@@ -112,12 +109,11 @@ newtype Resolution =
     | Dynamic { receiver, candidates } // runtime dispatch needed (union types)
 ```
 
-The distinction matters for codegen:
-- **Builtin**: emit a primitive instruction (`iadd`, `fcmp`, etc.)
-- **Static**: emit a direct call to the resolved symbol
-- **Dynamic**: emit a type switch to dispatch between candidates at runtime
+The different Resolution kinds come naturally from the specification and basically answer the question "what do we invoke here exactly?":
+- **Builtin**: something the backend understands directly
+- **Static**: direct call to a specific symbol
+- **Dynamic**: may have multiple candidates, need runtime dispatch (like in a union)
 
 For example, `a + b` where `a: int32` and `b: int32` resolves to `Builtin`.
 But `a.foo()` where `a: Cat | Dog` might resolve to `Dynamic` if `Cat::foo` and `Dog::foo` are different symbols.
-Polymorphic types might still resolve to `Static` even with vtable lookup: Resolution answers "what is the *symbol*?", not "how do we call it?".
-If we don't know the symbol at compile time, it's dynamic dispatch.
+Note that a polymorphic `T` might still resolve to `Static`: Resolution answers "what is the *symbol*?", not "how do we call it?".

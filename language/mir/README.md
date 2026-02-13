@@ -1,6 +1,6 @@
 # MIR
 
-Machine-level Intermediate Representation for Destack.
+Machine-level(-ish) IR for Destack.
 This is what gets fed to native codegen (Cranelift) and WASM, and what the comptime interpreter (VM) executes.
 
 ## Overview
@@ -22,7 +22,7 @@ Function names in MIR are the mangled symbol identity.
 The mangling is deterministic and stable within the compilation unit.
 Package and program scope analyses use these names to stitch cross module edges.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              DIR → MIR → NATIVE                             │
 │                                                                             │

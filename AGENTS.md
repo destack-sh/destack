@@ -35,15 +35,15 @@ Documentation comments for functions/types/etc. should be proper sentences with 
 Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
 
 When documenting if/else-if/else logic, the comments should go *before* each case like so:
-```
+```text
 // do this
 if (...) {
   ...
-} 
+}
 // otherwise do this
 else if (...) {
   ...
-} 
+}
 // fall back to this
 else {
   ...
@@ -51,7 +51,7 @@ else {
 ```
 
 For ===-like separators for large comment blocks, you may use upper case sentences:
-```
+```text
 // ================================================================================
 // Binary operator precedence
 // ================================================================================
@@ -105,7 +105,7 @@ More specifically, for example, when a function takes an array of something, try
 
 ### Errors
 
-Always prefer explicit, loud errors through conventional channels. 
+Always prefer explicit, loud errors through conventional channels.
 Outside of tests, errors should almost never be suppressed or somehow default to "default values".
 
 ### Dependencies

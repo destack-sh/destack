@@ -1,7 +1,7 @@
 # workspace
 
 Core data structures for managing Destack projects.
-The workspace crate provides three main things: 
+The workspace crate provides three main things:
  1. **Configuration**: unified configuration
  2. **Containers**: container types (Session, Workspace, Program)
  3. **Queries**: query infrastructure for IDE features
@@ -96,7 +96,7 @@ These are parsed from `dsconfig.json` and passed to formatter and linter.
 Outside of tests, we need to actually put the Program and Modules *somewhere*.
 The workspace crate defines three levels of "containment":
 
-```
+```text
 Session (daemon/LSP lifetime)
     │
     ├── Workspace (monorepo or single package)
@@ -106,7 +106,7 @@ Session (daemon/LSP lifetime)
     │               ├── Package (npm package with package.json)
     │               │       └── Module (single source file)
     │               │
-    │               └── Artifacts (generated outputs)
+    │               └── Artifact (generated outputs)
 ```
 
 ### Session

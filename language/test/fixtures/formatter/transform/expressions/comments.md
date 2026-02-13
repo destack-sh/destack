@@ -298,7 +298,7 @@ data.filter(x => x.valid) /* now map */ .map(x => x.value)
 
 ```ds expected
 data
-    .filter((x) => x.valid) /* now map */ 
+    .filter((x) => x.valid) /* now map */
     .map((x) => x.value);
 ```
 
@@ -338,7 +338,7 @@ Block ignore comments keep the next expression unchanged.
 
 ```ts:main.ts
 /* prettier-ignore */
-(() => 
+(() =>
   c +
     b +
   d
@@ -347,7 +347,7 @@ Block ignore comments keep the next expression unchanged.
 
 ```ts expected
 /* prettier-ignore */
-(() => 
+(() =>
   c +
     b +
   d

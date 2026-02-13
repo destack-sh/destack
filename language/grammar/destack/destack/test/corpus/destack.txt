@@ -451,7 +451,7 @@ Try expression with catch match
 
 const result = try {
   readConfig()?;
-} catch match e {
+} catch match (e) {
   IOError(msg) => recover(msg)
   _ => throw e
 }
@@ -494,7 +494,7 @@ const result = try {
 Annotation call expression
 ==================================
 
-const message = Error(@format("bad number"))
+const message = Error(`bad number`))
 
 ---
 
@@ -560,11 +560,11 @@ Try expression with decorated catch match comma arms
 
 const value = try {
   riskyOperationA()?;
-} catch match e {
+} catch match (e) {
   @cold
-  NumericError(x) => Error(@format("bad number: {x}")),
-  FormatError => Error(@format("bad format {e}")),
-  _ => Error(@format("unknown error: {e}")),
+  NumericError(x) => Error(`bad number: ${x}`),
+  FormatError => Error(`bad format ${e}`),
+  _ => Error(`unknown error: ${e}`),
 }
 
 ---

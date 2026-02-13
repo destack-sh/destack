@@ -9,7 +9,7 @@ We try to keep most transforms the same across targets to reduce the combinatori
 Elaborate runs per profile on analyzed DIR.
 It feeds into Execute and then Lower.
 
-```
+```text
 ... ─-──► Analyze ───► Elaborate ───► Execute ───► Lower ───► ...
                            │
                            ├─► Transform
@@ -108,7 +108,7 @@ function classify(x: Option<int32>): int32 {
     if (x is Some) {
         let v = x.value;
         if (v > 0) { v } else { -v }
-    } else { 
+    } else {
         0
     }
 }
@@ -748,7 +748,7 @@ The core library defines RangeBounds and concrete Range types.
 // source
 function sumRange(): int32 {
     let sum = 0;
-    for (const i of 0..=5) { 
+    for (const i of 0..=5) {
         sum += i;
     }
     return sum;

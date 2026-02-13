@@ -34,7 +34,7 @@ Each suite has a `<suite>-known-failures.txt` file listing tests expected to fai
 - **Regression**: test fails that is NOT in known-failures
 - **Progress**: test passes that IS in known-failures
 
-The overall conformance test suite passes if there are no *regressions*. 
+The overall conformance test suite passes if there are no *regressions*.
 To make progress, fix bugs and remove newly passing tests from the known-failures files.
 
 ## Test Semantics

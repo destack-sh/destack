@@ -151,8 +151,8 @@ struct Point {
 }
 
 function test() {
-    const c: Container<$0> = Container { 
-        value: Point { x: 0, y: 0 } 
+    const c: Container<$0> = Container {
+        value: Point { x: 0, y: 0 }
     };
 }
 ```

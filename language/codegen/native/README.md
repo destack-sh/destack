@@ -14,7 +14,7 @@ We can always add an LLVM backend later for release builds if needed.
 
 ## Pipeline
 
-```
+```text
 MIR → Cranelift IR → Machine Code → Object File
       (lower)        (compile)      (emit)
 ```

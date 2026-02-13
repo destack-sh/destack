@@ -53,3 +53,9 @@ just language/fuzz-lexer         # lexer only
 just language/fuzz-parser        # parser only
 just language/fuzz-formatter     # formatter only
 ```
+
+## Fuzzing Expansion
+
+We plan to expand fuzz coverage beyond lexer and formatter targets.
+The current parser target is tracked in [language/parser/fuzz/README.md](language/parser/fuzz/README.md).
+New targets will be added as dedicated jobs once corpus quality and runtime budgets are stable.

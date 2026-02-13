@@ -48,7 +48,7 @@ We use synchronization points (`;`, `}`, keywords) to resync after malformed inp
 
 Full JSX/TSX compatibility for "tree literals":
 
-```
+```tsx
 <Component prop={value}>
     <Child />
     {expression}
