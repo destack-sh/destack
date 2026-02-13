@@ -4,10 +4,11 @@ use destack_ast::Keyword;
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
     DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey, Expression,
-    ForEachBinding, ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
-    MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern, PatternField, Property,
-    RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral,
-    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    ForEachBinding, ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern,
+    PatternField, Property, RuntimeCheckKind, ScalarLiteral, ScopeKind, StaticKey, StringId,
+    SymbolTable, SymbolType, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 use std::str::FromStr;
@@ -311,6 +312,9 @@ impl Compiler {
                         qualifier.as_ref(),
                     );
                 }
+            }
+            Expression::TypeInfer { .. } => {
+                self.validate_infer_type_expression(module, profile, tree, symbols, expression_id);
             }
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 self.validate_tuple_optional_order(module, profile, tree, expression_id, elements);
@@ -2786,6 +2790,49 @@ impl Compiler {
         });
     }
 
+    /// Validate infer type expressions are scoped to conditional extends clauses.
+    fn validate_infer_type_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        let (scope_id, _) = tree.get_scope(expression_id);
+        if self.scope_has_ancestor_kind(symbols, scope_id, ScopeKind::TypeConditional) {
+            return;
+        }
+
+        self.error(AnalyzeError::InferOutsideConditional {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        });
+    }
+
+    /// Return true when the scope or any parent scope matches the requested kind.
+    fn scope_has_ancestor_kind(
+        &self,
+        symbols: &SymbolTable,
+        start_scope_id: LocalScopeId,
+        kind: ScopeKind,
+    ) -> bool {
+        let mut scope_id = start_scope_id;
+
+        loop {
+            let scope = symbols.get_scope_by_id(scope_id);
+            if scope.kind == kind {
+                return true;
+            }
+
+            let Some((parent_scope_id, _)) = scope.parent else {
+                return false;
+            };
+            scope_id = parent_scope_id;
+        }
+    }
+
     /// Validate import type accesses for missing exports.
     fn validate_type_import_expression(
         &self,
@@ -3856,5 +3903,38 @@ const __proto__ = 1;
         test.analyze_module(module_id);
         test.compile();
         test.check_has_diagnostic("EA303");
+    }
+
+    // reject infer declarations outside conditional type extends clauses
+    #[test]
+    fn test_reject_infer_outside_conditional_type() {
+        let test = TestProgram::memory_sequential();
+
+        // source: type Invalid = infer U;
+        let module_id = test.add_module("test.ts", "type Invalid = infer U;");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA126");
+    }
+
+    // allow infer declarations inside conditional type extends clauses
+    #[test]
+    fn test_allow_infer_inside_conditional_type() {
+        let test = TestProgram::memory_sequential();
+
+        // source: type Valid<T> = T extends infer U ? U : never;
+        let module_id =
+            test.add_module("test.ts", "type Valid<T> = T extends infer U ? U : never;");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA126");
     }
 }

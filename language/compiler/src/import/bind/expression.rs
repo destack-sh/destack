@@ -682,7 +682,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let type_scope_id = symbols.insert_scope(ScopeKind::Type, Some(scope), None);
+                let type_scope_id = symbols.insert_scope(ScopeKind::TypeConditional, Some(scope), None);
                 let type_scope = (type_scope_id, symbols.get_scope_mark(type_scope_id));
                 let right = self.bind_expression(
                     module,
@@ -947,17 +947,19 @@ impl Compiler {
                         space_order,
                     )
                 });
-                let infer_scope = self
-                    .find_nearest_scope_of_kind(symbols, scope, ScopeKind::Type)
-                    .unwrap_or(scope);
-                let _ = self.bind_named_local(
-                    module,
-                    ast,
-                    SymbolSpace::Type,
-                    StaticKey::Name(name),
-                    infer_scope,
-                    symbols,
-                );
+                // bind conditional infer names only in the nearest conditional scope
+                if let Some(infer_scope) =
+                    self.find_nearest_scope_of_kind(symbols, scope, ScopeKind::TypeConditional)
+                {
+                    let _ = self.bind_named_local(
+                        module,
+                        ast,
+                        SymbolSpace::Type,
+                        StaticKey::Name(name),
+                        infer_scope,
+                        symbols,
+                    );
+                }
                 Expression::TypeInfer { name, constraint }
             }
             ast::Expression::TypePredicate {
@@ -2408,6 +2410,57 @@ type OmitThisParameter<T> = unknown extends ThisParameterType<T> ? T : T extends
 type ExtractCallback<T> = T extends { callback: (x: infer U) => void } ? U : never;
 "#,
         );
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    // test that infer variables from mapped key clauses are visible in conditional then branches
+    #[test]
+    fn test_bind_infer_type_variable_in_mapped_key_conditional_clause() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+type SearchValue<T> = T extends { [K in 'query']: infer Query } ? Query : never;
+"#,
+        );
+
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+
+    // test that nested conditional infer variables resolve in the nearest conditional scope
+    #[test]
+    fn test_bind_infer_type_variable_in_nearest_nested_conditional_scope() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+type Nested<T> = T extends { value: unknown }
+  ? T["value"] extends { inner: infer Inner }
+    ? Inner
+    : never
+  : never;
+"#,
+        );
+
+        test.bind_module(module_id);
+        test.compile();
+        test.check_clean();
+    }
+    // test that infer outside conditional extends clauses reports an analyze error
+    #[test]
+    fn test_bind_infer_type_variable_outside_conditional_scope() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.d.ts",
+            r#"
+type Invalid = infer U;
+"#,
+        );
+
         test.bind_module(module_id);
         test.compile();
         test.check_clean();

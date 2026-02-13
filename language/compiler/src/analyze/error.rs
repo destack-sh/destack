@@ -192,6 +192,13 @@ pub enum AnalyzeError {
         message: String,
     },
 
+    /// Infer declarations are only valid in conditional type extends clauses.
+    #[error(
+        code = "EA126",
+        message = "infer declarations are only permitted in the extends clause of a conditional type"
+    )]
+    InferOutsideConditional { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator / object errors
     // -------------------------------------------------------------------------
