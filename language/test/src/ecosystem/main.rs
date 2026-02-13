@@ -49,7 +49,7 @@ struct EcosystemOptions {
     tsc_mode: EcosystemTscMode,
 
     /// Select TypeScript TSC binary strategy.
-    #[arg(long, value_enum, default_value_t = EcosystemTscTool::Auto)]
+    #[arg(long, value_enum, default_value_t = EcosystemTscTool::Tsgo)]
     tsc_tool: EcosystemTscTool,
 
     /// Common test options.

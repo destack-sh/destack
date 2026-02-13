@@ -173,7 +173,7 @@ Total Blended Pass Rate: **100.00%** (25.42% incl. ignored)
 
 A manifest can specify base discovery and phase specific workload overrides.
 A manifest can also specify compiler option overrides when a package uses uncommon file extension conventions.
-Pass and skip expectations are tracked only in `known-failures.txt` and `ignored.txt`.
+Pass and skip expectations are tracked in `known-failures.txt`, `ignored.txt`, and per-manifest `[[diagnostics]]` entries.
 
 ```toml
 [package]
@@ -198,8 +198,14 @@ dependency_replacement = true
 [tsc]
 enabled = true
 mode = "on-failure"
-tool = "auto"
+tool = "tsgo"
 phases = ["resolve", "analyze"]
+
+[[diagnostics]]
+phase = "resolve"
+code = "ER200"
+file = "src/index.ts"
+message = "unresolved module 'missing-package'"
 
 [workloads.analyze]
 max_files = 1000
