@@ -25,7 +25,6 @@ install-fixtures := "install"
 
 # install formatter conformance sources
 install-formatter-conformance:
-    ./test/fixtures/formatter/conformance/biome-fetch.sh
     ./test/fixtures/formatter/conformance/prettier-fetch.sh
     ./test/fixtures/formatter/conformance/oxfmt-fetch.sh
 
