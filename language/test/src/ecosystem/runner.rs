@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitCode};
+use std::process::{Command, ExitCode, Stdio};
 use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, ResolveTask};
@@ -24,6 +24,7 @@ use crate::harness::{
 
 use super::manifest::{
     CompilerOptionsConfig, EcosystemManifest, EcosystemPhase, EcosystemSupportTier,
+    EcosystemTscMode, EcosystemTscTool,
 };
 
 const DEFAULT_INCLUDE_PATTERNS: &[&str] = &["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"];
@@ -44,6 +45,10 @@ pub struct EcosystemRunOptions {
     pub exclude: Vec<String>,
     /// Override max discovered files per package and phase.
     pub max_files: Option<usize>,
+    /// Control tsc execution strategy for selected packages and phases.
+    pub tsc_mode: EcosystemTscMode,
+    /// Select tsc binary strategy.
+    pub tsc_tool: EcosystemTscTool,
 }
 
 impl EcosystemRunOptions {
@@ -77,6 +82,8 @@ pub struct EcosystemSuite {
     include: Vec<String>,
     exclude: Vec<String>,
     max_files: Option<usize>,
+    tsc_mode: EcosystemTscMode,
+    tsc_tool: EcosystemTscTool,
     manifests: Vec<EcosystemManifest>,
     manifests_by_name: HashMap<String, EcosystemManifest>,
     checkouts_dir: PathBuf,
@@ -141,6 +148,8 @@ impl EcosystemSuite {
             include: options.include.clone(),
             exclude: options.exclude.clone(),
             max_files: options.max_files,
+            tsc_mode: options.tsc_mode,
+            tsc_tool: options.tsc_tool,
             manifests,
             manifests_by_name,
             checkouts_dir,
@@ -204,7 +213,14 @@ impl EcosystemSuite {
             };
         }
 
-        let phase_result = run_phase_tier(&package_dir, manifest, phase, &files);
+        let phase_result = run_phase_tier(
+            &package_dir,
+            manifest,
+            phase,
+            &files,
+            self.tsc_mode,
+            self.tsc_tool,
+        );
         phase_result
     }
 
@@ -1124,22 +1140,7 @@ fn print_phase_summary_table(
         .join(", ");
 
     println!();
-    println!(
-        "{}",
-        color::bold(
-            "════════════════════════════════════════════════════════════════════════════════════════════════════"
-        )
-    );
-    println!(
-        "{}",
-        color::bold("                                  ECOSYSTEM PHASE SUMMARY")
-    );
-    println!(
-        "{}",
-        color::bold(
-            "════════════════════════════════════════════════════════════════════════════════════════════════════"
-        )
-    );
+    println!("{}", color::bold("ECOSYSTEM PHASE SUMMARY"));
     println!("  selected phases: {}", color::cyan(&selected));
     println!();
 
@@ -1401,11 +1402,13 @@ fn run_phase_tier(
     manifest: &EcosystemManifest,
     phase: EcosystemPhase,
     files: &[PathBuf],
+    tsc_mode: EcosystemTscMode,
+    tsc_tool: EcosystemTscTool,
 ) -> TestResult {
     match phase {
         EcosystemPhase::Parse => run_parse_phase(package_dir, manifest, files),
         EcosystemPhase::Resolve | EcosystemPhase::Analyze | EcosystemPhase::Lower => {
-            run_compiler_phase(package_dir, phase, files)
+            run_compiler_phase(package_dir, manifest, phase, files, tsc_mode, tsc_tool)
         }
     }
 }
@@ -1444,7 +1447,14 @@ fn run_parse_phase(
 }
 
 /// Run compiler phase checks across selected entrypoints.
-fn run_compiler_phase(package_dir: &Path, phase: EcosystemPhase, files: &[PathBuf]) -> TestResult {
+fn run_compiler_phase(
+    package_dir: &Path,
+    manifest: &EcosystemManifest,
+    phase: EcosystemPhase,
+    files: &[PathBuf],
+    default_tsc_mode: EcosystemTscMode,
+    default_tsc_tool: EcosystemTscTool,
+) -> TestResult {
     let entrypoints = select_phase_entrypoints(package_dir, files);
     if entrypoints.is_empty() {
         return TestResult::Failed {
@@ -1499,7 +1509,27 @@ fn run_compiler_phase(package_dir: &Path, phase: EcosystemPhase, files: &[PathBu
         .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
         .collect::<Vec<_>>();
 
-    if errors.is_empty() {
+    let has_destack_errors = !errors.is_empty();
+
+    // run tsc only for configured languages, phases, and modes
+    let tsc_result = maybe_run_typescript_tsc(
+        package_dir,
+        manifest,
+        phase,
+        has_destack_errors,
+        default_tsc_mode,
+        default_tsc_tool,
+        &entrypoints,
+    );
+
+    // when Destack is clean, only fail if always mode found an tsc regression
+    if !has_destack_errors {
+        if let Some(tsc_result) = tsc_result
+            && let Err(message) = tsc_result_to_pass_failure_message(&tsc_result)
+        {
+            return TestResult::Failed { message };
+        }
+
         return TestResult::Passed;
     }
 
@@ -1516,15 +1546,431 @@ fn run_compiler_phase(package_dir: &Path, phase: EcosystemPhase, files: &[PathBu
             .with_module_count(entrypoints.len()),
     );
 
-    TestResult::Failed {
-        message: format!(
-            "phase '{}' failed with {} errors across {} entrypoints and {} discovered files:\n\n{}",
-            phase.name(),
-            errors.len(),
-            entrypoints.len(),
-            files.len(),
-            diagnostic_output.trim_end()
-        ),
+    let mut message = format!(
+        "phase '{}' failed with {} errors across {} entrypoints and {} discovered files:\n\n{}",
+        phase.name(),
+        errors.len(),
+        entrypoints.len(),
+        files.len(),
+        diagnostic_output.trim_end()
+    );
+
+    // append tsc context for faster triage against TypeScript behavior
+    if let Some(tsc_result) = tsc_result {
+        let tsc_message = tsc_result_to_failure_context(&tsc_result);
+        if !tsc_message.is_empty() {
+            message.push_str("\n\n");
+            message.push_str(&tsc_message);
+        }
+    }
+
+    TestResult::Failed { message }
+}
+
+/// Captured output from one TypeScript TSC run.
+#[derive(Debug, Clone)]
+struct TypeScriptTscRun {
+    /// TSC binary that was executed.
+    binary: &'static str,
+    /// TSC command arguments.
+    args: Vec<String>,
+    /// TSC process success status.
+    success: bool,
+    /// TSC output with stdout and stderr merged.
+    output: String,
+}
+
+/// Return one tsc mode using manifest override or suite default.
+fn tsc_mode_for_manifest(
+    manifest: &EcosystemManifest,
+    default_tsc_mode: EcosystemTscMode,
+) -> EcosystemTscMode {
+    manifest.tsc.mode.unwrap_or(default_tsc_mode)
+}
+
+/// Return one tsc tool using manifest override or suite default.
+fn tsc_tool_for_manifest(
+    manifest: &EcosystemManifest,
+    default_tsc_tool: EcosystemTscTool,
+) -> EcosystemTscTool {
+    manifest.tsc.tool.unwrap_or(default_tsc_tool)
+}
+
+/// Run the TypeScript TSC when configuration requires it.
+fn maybe_run_typescript_tsc(
+    package_dir: &Path,
+    manifest: &EcosystemManifest,
+    phase: EcosystemPhase,
+    has_destack_errors: bool,
+    default_tsc_mode: EcosystemTscMode,
+    default_tsc_tool: EcosystemTscTool,
+    entrypoints: &[PathBuf],
+) -> Option<Result<TypeScriptTscRun, String>> {
+    // skip packages and languages that do not opt into tsc execution
+    if !manifest.tsc.enabled_for_language(manifest.package.language) {
+        return None;
+    }
+
+    // skip phases outside the tsc phase allowlist
+    if !manifest.tsc.includes_phase(phase) {
+        return None;
+    }
+
+    let tsc_mode = tsc_mode_for_manifest(manifest, default_tsc_mode);
+
+    // skip by mode when no tsc execution is requested
+    if tsc_mode == EcosystemTscMode::Off {
+        return None;
+    }
+
+    // run only on Destack failures when on-failure mode is selected
+    if tsc_mode == EcosystemTscMode::OnFailure && !has_destack_errors {
+        return None;
+    }
+
+    let tsc_tool = tsc_tool_for_manifest(manifest, default_tsc_tool);
+
+    // resolve one available binary for the configured tool policy
+    let Some(binary) = resolve_typescript_tsc_binary(tsc_tool) else {
+        let error = match tsc_tool {
+            EcosystemTscTool::Auto => {
+                "TypeScript TSC binary not found: expected tsgo or tsc in PATH".to_string()
+            }
+            EcosystemTscTool::Tsgo => {
+                "TypeScript TSC binary not found: expected tsgo in PATH".to_string()
+            }
+            EcosystemTscTool::Tsc => {
+                "TypeScript TSC binary not found: expected tsc in PATH".to_string()
+            }
+        };
+        return Some(Err(error));
+    };
+
+    // build tsc arguments from selected entrypoints
+    let args = build_typescript_tsc_args(package_dir, entrypoints, binary);
+
+    let output = Command::new(binary)
+        .args(args.iter().map(String::as_str))
+        .current_dir(package_dir)
+        .env("CI", "1")
+        .output()
+        .map_err(|error| {
+            format!(
+                "failed to run {binary} in {}: {error}",
+                package_dir.display()
+            )
+        });
+
+    match output {
+        Ok(output) => {
+            let mut merged = String::new();
+            merged.push_str(&String::from_utf8_lossy(&output.stdout));
+            merged.push_str(&String::from_utf8_lossy(&output.stderr));
+
+            Some(Ok(TypeScriptTscRun {
+                binary,
+                args,
+                success: output.status.success(),
+                output: truncate_typescript_tsc_output(merged.trim_end()),
+            }))
+        }
+        Err(error) => Some(Err(error)),
+    }
+}
+
+/// Resolve one tsc binary according to the configured tool mode.
+fn resolve_typescript_tsc_binary(tool: EcosystemTscTool) -> Option<&'static str> {
+    match tool {
+        EcosystemTscTool::Tsgo => command_is_available("tsgo").then_some("tsgo"),
+        EcosystemTscTool::Tsc => command_is_available("tsc").then_some("tsc"),
+        EcosystemTscTool::Auto => {
+            if command_is_available("tsgo") {
+                Some("tsgo")
+            } else if command_is_available("tsc") {
+                Some("tsc")
+            } else {
+                None
+            }
+        }
+    }
+}
+
+/// Return whether one command can be executed from PATH.
+fn command_is_available(command: &str) -> bool {
+    Command::new(command)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok()
+}
+
+/// Build TypeScript TSC arguments from selected entrypoints.
+fn build_typescript_tsc_args(
+    package_dir: &Path,
+    entrypoints: &[PathBuf],
+    binary: &str,
+) -> Vec<String> {
+    let mut args = vec![
+        "--noEmit".to_string(),
+        "--pretty".to_string(),
+        "false".to_string(),
+    ];
+
+    // tsgo requires ignoreConfig when explicit files are passed
+    if binary == "tsgo" {
+        args.push("--ignoreConfig".to_string());
+    }
+
+    // keep tsc workload aligned with selected compiler entrypoints
+    for entrypoint in entrypoints {
+        let relative = entrypoint
+            .strip_prefix(package_dir)
+            .unwrap_or(entrypoint.as_path());
+        args.push(relative.to_string_lossy().to_string());
+    }
+
+    args
+}
+
+/// Limit tsc output noise while preserving actionable diagnostics.
+fn truncate_typescript_tsc_output(output: &str) -> String {
+    const MAX_LINES: usize = 80;
+    const MAX_CHARS: usize = 12_000;
+
+    let mut lines = output.lines().collect::<Vec<_>>();
+    let was_line_truncated = lines.len() > MAX_LINES;
+    if was_line_truncated {
+        lines.truncate(MAX_LINES);
+    }
+
+    let mut truncated = lines.join("\n");
+    let was_char_truncated = truncated.chars().count() > MAX_CHARS;
+    if was_char_truncated {
+        truncated = truncated.chars().take(MAX_CHARS).collect::<String>();
+    }
+
+    if was_line_truncated || was_char_truncated {
+        let total_lines = output.lines().count();
+        truncated.push_str("\n... output truncated ...");
+        truncated.push_str(format!(" ({total_lines} total lines)").as_str());
+    }
+
+    truncated
+}
+
+/// Return whether one argument looks like a source entrypoint path.
+fn argument_is_tsc_source_entrypoint(argument: &str) -> bool {
+    const SOURCE_SUFFIXES: &[&str] = &[".ts", ".tsx", ".js", ".jsx", ".cts", ".mts"];
+
+    SOURCE_SUFFIXES
+        .iter()
+        .any(|suffix| argument.ends_with(suffix))
+}
+
+/// Format one TSC command for readable failure output.
+fn format_tsc_command_for_display(tsc_run: &TypeScriptTscRun) -> String {
+    // split options from source entrypoint arguments
+    let first_entrypoint_index = tsc_run
+        .args
+        .iter()
+        .position(|argument| argument_is_tsc_source_entrypoint(argument));
+
+    // keep full command when no entrypoints were detected
+    let Some(first_entrypoint_index) = first_entrypoint_index else {
+        return format!("{} {}", tsc_run.binary, tsc_run.args.join(" "));
+    };
+
+    let options = tsc_run.args[..first_entrypoint_index].join(" ");
+    let entrypoints = &tsc_run.args[first_entrypoint_index..];
+
+    // keep short commands verbatim
+    if entrypoints.len() <= 3 {
+        return format!("{} {} {}", tsc_run.binary, options, entrypoints.join(" "));
+    }
+
+    // collapse long entrypoint lists into one compact summary
+    let preview = entrypoints
+        .iter()
+        .take(2)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "{} {} <{} entrypoints: {}, ...>",
+        tsc_run.binary,
+        options,
+        entrypoints.len(),
+        preview,
+    )
+}
+
+/// Parse one location based TypeScript diagnostic line.
+fn parse_tsc_location_diagnostic(line: &str) -> Option<(&str, &str, &str, &str, &str)> {
+    let marker = "): error TS";
+    let marker_index = line.find(marker)?;
+    let prefix = &line[..marker_index];
+
+    let open_paren_index = prefix.rfind('(')?;
+    let file = &prefix[..open_paren_index];
+    let location = &prefix[(open_paren_index + 1)..];
+
+    let (line_number, column_number) = location.split_once(',')?;
+
+    let suffix = &line[(marker_index + marker.len())..];
+    let (code, message) = suffix.split_once(": ")?;
+
+    Some((file, line_number, column_number, code, message))
+}
+
+/// Parse one global TypeScript diagnostic line.
+fn parse_tsc_global_diagnostic(line: &str) -> Option<(&str, &str)> {
+    let suffix = line.strip_prefix("error TS")?;
+    let (code, message) = suffix.split_once(": ")?;
+
+    Some((code, message))
+}
+
+/// Format TSC diagnostics as highlighted bullet lines.
+fn format_tsc_diagnostics_for_display(output: &str) -> String {
+    let mut diagnostics = Vec::new();
+
+    for line in output.lines() {
+        let line = line.trim_end();
+
+        // skip empty lines from command output
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        // render location diagnostics with highlighted parts
+        if let Some((file, line_number, column_number, code, message)) =
+            parse_tsc_location_diagnostic(line)
+        {
+            let location = format!(
+                "{}:{}:{}",
+                color::cyan(file),
+                color::yellow(line_number),
+                color::yellow(column_number),
+            );
+            let code = color::red(&format!("TS{code}"));
+            diagnostics.push(format!(
+                " - {}: {} {}: {}",
+                location,
+                color::red("error"),
+                code,
+                color::bold(message),
+            ));
+            continue;
+        }
+
+        // render global diagnostics with highlighted code
+        if let Some((code, message)) = parse_tsc_global_diagnostic(line) {
+            diagnostics.push(format!(
+                " - {} {}: {}",
+                color::red("error"),
+                color::red(&format!("TS{code}")),
+                color::bold(message),
+            ));
+            continue;
+        }
+
+        // render continuation and fallback lines in dim style
+        if line.starts_with(char::is_whitespace) {
+            diagnostics.push(format!("   {}", color::dim(line.trim())));
+        } else {
+            diagnostics.push(format!(" - {}", color::dim(line)));
+        }
+    }
+
+    diagnostics.join("\n")
+}
+
+/// Format one TSC status line with Destack status context.
+fn format_tsc_status_line(tsc_success: bool, destack_success: bool) -> String {
+    let tsc_status = if tsc_success {
+        color::green("passed")
+    } else {
+        color::red("failed")
+    };
+    let destack_status = if destack_success {
+        color::green("passed")
+    } else {
+        color::red("failed")
+    };
+
+    format!("TSC: {tsc_status} (Destack {destack_status})")
+}
+
+/// Return failure context text for one tsc result.
+fn tsc_result_to_failure_context(tsc_result: &Result<TypeScriptTscRun, String>) -> String {
+    match tsc_result {
+        Ok(tsc_run) => {
+            let mut message = format_tsc_status_line(tsc_run.success, false);
+            message.push_str("\n");
+            message.push_str(&format!(
+                "tsc: {}",
+                color::dim(&format_tsc_command_for_display(tsc_run))
+            ));
+
+            if !tsc_run.output.is_empty() {
+                message.push_str("\n");
+                message.push_str(&format_tsc_diagnostics_for_display(&tsc_run.output));
+            }
+
+            message
+        }
+        Err(error) => {
+            let mut message = format!(
+                "TSC: {} (Destack {})",
+                color::yellow("unavailable"),
+                color::red("failed"),
+            );
+            message.push_str("\n");
+            message.push_str(&format!("tsc: {}", color::dim("not executed")));
+            message.push_str("\n");
+            message.push_str(&format!(" - {}", color::red(error)));
+            message
+        }
+    }
+}
+
+/// Return a pass path failure message when always mode finds a tsc mismatch.
+fn tsc_result_to_pass_failure_message(
+    tsc_result: &Result<TypeScriptTscRun, String>,
+) -> Result<(), String> {
+    match tsc_result {
+        Ok(tsc_run) => {
+            if tsc_run.success {
+                return Ok(());
+            }
+
+            let mut message = format_tsc_status_line(false, true);
+            message.push_str("\n");
+            message.push_str(&format!(
+                "tsc: {}",
+                color::dim(&format_tsc_command_for_display(tsc_run))
+            ));
+
+            if !tsc_run.output.is_empty() {
+                message.push_str("\n");
+                message.push_str(&format_tsc_diagnostics_for_display(&tsc_run.output));
+            }
+
+            Err(message)
+        }
+        Err(error) => {
+            let mut message = format!(
+                "TSC: {} (Destack {})",
+                color::yellow("unavailable"),
+                color::green("passed"),
+            );
+            message.push_str("\n");
+            message.push_str(&format!("tsc: {}", color::dim("not executed")));
+            message.push_str("\n");
+            message.push_str(&format!(" - {}", color::red(error)));
+            Err(message)
+        }
     }
 }
 
@@ -2261,237 +2707,5 @@ pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        ReadmeCellStatus, ReadmePackageMetadata, ReadmePatchMarker, ReadmeSupportTier,
-        format_readme_summary_rows, language_type_for_parse, parse_readme_summary_rows,
-        path_is_supported_source, readme_support_tier_from_statuses, replace_readme_section,
-    };
-    use crate::ecosystem::manifest::{CompilerOptionsConfig, EcosystemPhase, EcosystemSupportTier};
-    use destack_source::{FileType, LanguageType};
-    use std::collections::BTreeMap;
-    use std::path::Path;
-
-    #[test]
-    fn test_readme_support_tier_stops_at_t3_without_run_and_test_phases() {
-        // the current table has parse, resolve, analyze, and lower only
-        let statuses = vec![
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-        ];
-
-        // the highest available tier is T3 when run and test phases are absent
-        let tier = readme_support_tier_from_statuses(&statuses);
-        assert_eq!(tier, ReadmeSupportTier::T3);
-    }
-
-    #[test]
-    fn test_readme_support_tier_returns_t4_when_run_passes_without_tests() {
-        // include a run phase pass and a tests phase failure
-        let statuses = vec![
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Fail,
-        ];
-
-        // run passing but tests failing maps to T4
-        let tier = readme_support_tier_from_statuses(&statuses);
-        assert_eq!(tier, ReadmeSupportTier::T4);
-    }
-
-    #[test]
-    fn test_readme_support_tier_returns_t5_when_run_and_tests_pass() {
-        // include all six contiguous phase passes
-        let statuses = vec![
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-            ReadmeCellStatus::Pass,
-        ];
-
-        // run and tests passing maps to T5
-        let tier = readme_support_tier_from_statuses(&statuses);
-        assert_eq!(tier, ReadmeSupportTier::T5);
-    }
-
-    #[test]
-    fn test_parse_readme_summary_rows_keeps_ignored_cells() {
-        // include ignored cells in package rows and ensure we still parse them
-        let content = r#"
-<!-- begin:summary-results -->
-| Package | parse | resolve | analyze | lower | Current | Target | Met | Total |  Rate   | Incl. Rate |
-|:--------|:--------:|:--------:|:--------:|:--------:|:-------:|:------:|:---:|------:|--------:|-----------:|
-| astro |   ---    |    x     |    ✓     |   ---    |   ---   |   ---  | --- |     4 |  50.00% |    25.00% |
-<!-- end:summary-results -->
-"#;
-
-        // parse the row and assert each phase cell maps to the expected status
-        let rows = parse_readme_summary_rows(content).unwrap();
-        let row = rows.get("astro").unwrap();
-        assert_eq!(
-            row.get(&EcosystemPhase::Parse).copied(),
-            Some(ReadmeCellStatus::Ignored)
-        );
-        assert_eq!(
-            row.get(&EcosystemPhase::Resolve).copied(),
-            Some(ReadmeCellStatus::Fail)
-        );
-        assert_eq!(
-            row.get(&EcosystemPhase::Analyze).copied(),
-            Some(ReadmeCellStatus::Pass)
-        );
-        assert_eq!(
-            row.get(&EcosystemPhase::Lower).copied(),
-            Some(ReadmeCellStatus::Ignored)
-        );
-    }
-
-    #[test]
-    fn test_format_readme_summary_rows_total_phase_cells_show_run_counts() {
-        let mut rows = BTreeMap::new();
-
-        let mut astro = BTreeMap::new();
-        astro.insert(EcosystemPhase::Parse, ReadmeCellStatus::Fail);
-        astro.insert(EcosystemPhase::Resolve, ReadmeCellStatus::Ignored);
-        astro.insert(EcosystemPhase::Analyze, ReadmeCellStatus::Ignored);
-        astro.insert(EcosystemPhase::Lower, ReadmeCellStatus::Ignored);
-        rows.insert("astro".to_string(), astro);
-
-        let mut semver = BTreeMap::new();
-        semver.insert(EcosystemPhase::Parse, ReadmeCellStatus::Pass);
-        semver.insert(EcosystemPhase::Resolve, ReadmeCellStatus::Pass);
-        semver.insert(EcosystemPhase::Analyze, ReadmeCellStatus::Ignored);
-        semver.insert(EcosystemPhase::Lower, ReadmeCellStatus::Ignored);
-        rows.insert("semver".to_string(), semver);
-
-        let table = format_readme_summary_rows(&rows, &BTreeMap::new());
-        let total_line = table
-            .lines()
-            .find(|line| line.trim_start().starts_with("| total"))
-            .unwrap();
-
-        assert!(total_line.contains("|   1/2    "));
-        assert!(total_line.contains("|   1/1    "));
-        assert!(total_line.contains("|   ---    "));
-    }
-
-    #[test]
-    fn test_parse_readme_summary_rows_normalizes_starred_package_names() {
-        // include one dependency patched row and parse it back to plain package key
-        let content = r#"
-<!-- begin:summary-results -->
-| Package | parse | resolve | analyze | lower | Current | Target | Met | Total |  Rate   | Incl. Rate |
-|:--------|:--------:|:--------:|:--------:|:--------:|:-------:|:------:|:---:|------:|--------:|-----------:|
-| astro** |   ✓**   |    x     |   ---    |   ---    |   T0    |   T1   |  x  |     4 |  50.00% |    25.00% |
-<!-- end:summary-results -->
-"#;
-
-        // parse the row and assert the package key and phase cells are normalized
-        let rows = parse_readme_summary_rows(content).unwrap();
-        let row = rows.get("astro").unwrap();
-        assert_eq!(
-            row.get(&EcosystemPhase::Parse).copied(),
-            Some(ReadmeCellStatus::Pass)
-        );
-        assert_eq!(
-            row.get(&EcosystemPhase::Resolve).copied(),
-            Some(ReadmeCellStatus::Fail)
-        );
-    }
-
-    #[test]
-    fn test_format_readme_summary_rows_writes_tier_and_patch_marker() {
-        // build one package row that reaches resolve so the support tier is T1
-        let mut rows = BTreeMap::new();
-        let mut astro = BTreeMap::new();
-        astro.insert(EcosystemPhase::Parse, ReadmeCellStatus::Pass);
-        astro.insert(EcosystemPhase::Resolve, ReadmeCellStatus::Pass);
-        astro.insert(EcosystemPhase::Analyze, ReadmeCellStatus::Ignored);
-        astro.insert(EcosystemPhase::Lower, ReadmeCellStatus::Ignored);
-        rows.insert("astro".to_string(), astro);
-
-        // mark the package as dependency patched and render the table
-        let mut metadata = BTreeMap::new();
-        metadata.insert(
-            "astro".to_string(),
-            ReadmePackageMetadata {
-                patch_marker: ReadmePatchMarker::Dependency,
-                target_tier: Some(EcosystemSupportTier::T1),
-            },
-        );
-        let table = format_readme_summary_rows(&rows, &metadata);
-
-        // assert the package label, support tier, and target match marker are shown in the rendered row
-        assert!(table.contains("astro**"));
-        assert!(table.contains("|   T1   |   T1   |  ✓  |"));
-    }
-    #[test]
-    fn test_replace_readme_section_uses_end_marker_after_begin() {
-        // ensure replacement uses the matching end marker after the section begin marker
-        let content = r#"
-<!-- end:summary-results -->
-prefix
-<!-- begin:summary-results -->
-old content
-<!-- end:summary-results -->
-suffix
-"#;
-
-        let new_content =
-            replace_readme_section(content, "summary-results", "new content").unwrap();
-
-        assert!(
-            new_content.contains(
-                "<!-- begin:summary-results -->\nnew content\n<!-- end:summary-results -->"
-            )
-        );
-        assert!(new_content.contains("prefix"));
-        assert!(new_content.contains("suffix"));
-    }
-
-    #[test]
-    fn test_path_is_supported_source_accepts_typescript_declaration() {
-        assert!(path_is_supported_source(Path::new("index.d.ts")));
-        assert!(path_is_supported_source(Path::new("index.d.mts")));
-        assert!(path_is_supported_source(Path::new("index.d.cts")));
-    }
-
-    #[test]
-    fn test_language_type_for_parse_promotes_js_to_jsx_for_jsx_packages() {
-        let compiler_options = CompilerOptionsConfig {
-            js_as_jsx: Some(true),
-        };
-
-        let language = language_type_for_parse(FileType::JavaScript, &compiler_options);
-        assert_eq!(language, LanguageType::JavaScriptXml);
-    }
-
-    #[test]
-    fn test_language_type_for_parse_keeps_js_without_jsx_tag() {
-        let compiler_options = CompilerOptionsConfig { js_as_jsx: None };
-
-        let language = language_type_for_parse(FileType::JavaScript, &compiler_options);
-        assert_eq!(language, LanguageType::JavaScript);
-    }
-
-    #[test]
-    fn test_language_type_for_parse_keeps_typescript_declaration() {
-        let compiler_options = CompilerOptionsConfig {
-            js_as_jsx: Some(true),
-        };
-
-        let language = language_type_for_parse(FileType::TypeScriptDeclaration, &compiler_options);
-        assert_eq!(language, LanguageType::TypeScriptDeclaration);
     }
 }

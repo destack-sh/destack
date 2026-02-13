@@ -638,18 +638,7 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
         .unwrap_or(0.0);
 
     println!();
-    println!(
-        "{}",
-        color::bold("═══════════════════════════════════════════════════════════════════════")
-    );
-    println!(
-        "{}",
-        color::bold("                          CONFORMANCE SUMMARY")
-    );
-    println!(
-        "{}",
-        color::bold("═══════════════════════════════════════════════════════════════════════")
-    );
+    println!("{}", color::bold("CONFORMANCE SUMMARY"));
     println!();
 
     // header

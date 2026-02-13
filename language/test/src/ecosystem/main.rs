@@ -3,7 +3,8 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use destack_test::ecosystem::{
-    EcosystemPhase, EcosystemRunOptions, FetchOptions, fetch_all_packages, run_ecosystem_tests,
+    EcosystemPhase, EcosystemRunOptions, EcosystemTscMode, EcosystemTscTool, FetchOptions,
+    fetch_all_packages, run_ecosystem_tests,
 };
 use destack_test::harness::TestOptions;
 
@@ -43,6 +44,14 @@ struct EcosystemOptions {
     #[arg(long, value_name = "COUNT")]
     max_files: Option<usize>,
 
+    /// Control TypeScript TSC execution strategy.
+    #[arg(long, value_enum, default_value_t = EcosystemTscMode::OnFailure)]
+    tsc_mode: EcosystemTscMode,
+
+    /// Select TypeScript TSC binary strategy.
+    #[arg(long, value_enum, default_value_t = EcosystemTscTool::Auto)]
+    tsc_tool: EcosystemTscTool,
+
     /// Common test options.
     #[command(flatten)]
     test: TestOptions,
@@ -66,6 +75,8 @@ fn main() -> ExitCode {
         include: options.include,
         exclude: options.exclude,
         max_files: options.max_files,
+        tsc_mode: options.tsc_mode,
+        tsc_tool: options.tsc_tool,
     };
 
     run_ecosystem_tests(&options.test, &run_options)
