@@ -254,12 +254,6 @@ impl Resolver {
             // walk up parent directories
             let mut current = Some(path.to_path_buf());
             while let Some(current_path) = current {
-                // skip if /path/to/node_modules does not exist
-                if !self.is_directory(&current_path, ctx) {
-                    current = current_path.parent().map(|p| p.to_path_buf());
-                    continue;
-                }
-
                 // get the module directory
                 let Some(module_dir) = self.get_module_directory(&current_path, module_name, ctx)
                 else {

@@ -157,6 +157,47 @@ impl Compiler {
         self.resolve_specifier_registration(&path, loader_override, &resolver)
     }
 
+    /// Resolve one triple slash `reference lib` target to a builtin module.
+    pub(crate) fn resolve_reference_lib_to_module(
+        &self,
+        profile_id: ProfileId,
+        target: &str,
+    ) -> ImportResult<ModuleId> {
+        // normalize one reference lib target into a builtin lib name
+        let Some(lib_name) = Self::reference_lib_name(target) else {
+            let target = self.program.strings.intern(target);
+            return Err(ImportError::ModuleNotFound {
+                target,
+                error: None,
+            });
+        };
+
+        // load the builtin lib modules for this profile
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            let target = self.program.strings.intern(target);
+            return Err(ImportError::ModuleNotFound {
+                target,
+                error: None,
+            });
+        };
+        let profile_key = self.program.profile(profile_id).key.clone();
+        let Some(module_ids) = builtins.load_lib(
+            &lib_name,
+            self.program.files.clone(),
+            self.program.modules.clone(),
+            &profile_key,
+        ) else {
+            let target = self.program.strings.intern(target);
+            return Err(ImportError::ModuleNotFound {
+                target,
+                error: None,
+            });
+        };
+
+        // return the library entry module
+        Ok(Self::entry_module_id(&self.program.modules, &module_ids))
+    }
+
     /// Resolve a specifier to a path using dependency-aware rules.
     fn resolve_specifier_to_path(
         &self,
@@ -857,6 +898,30 @@ impl Compiler {
         } else {
             Some(format!("{target_module}/{suffix}"))
         }
+    }
+
+    /// Normalize one triple slash `reference lib` target to a builtin lib name.
+    fn reference_lib_name(target: &str) -> Option<String> {
+        let target = target.trim();
+        if target.is_empty() {
+            return None;
+        }
+
+        // keep direct builtin lib names first
+        if let Some(lib) = builtin_lib(target) {
+            return Some(lib.name.to_string());
+        }
+
+        // normalize common `lib.*.d.ts` spellings used in directives
+        let mut normalized = target.to_ascii_lowercase();
+        if let Some(stripped) = normalized.strip_prefix("lib.") {
+            normalized = stripped.to_string();
+        }
+        if let Some(stripped) = normalized.strip_suffix(".d.ts") {
+            normalized = stripped.to_string();
+        }
+
+        builtin_lib(&normalized).map(|lib| lib.name.to_string())
     }
 
     /// Return true when a specifier is a relative path import.

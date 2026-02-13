@@ -3757,12 +3757,11 @@ fn test_parse_typescript_angle_const_assertion_expression() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
-        assert_eq!(*operator, TypeBinaryOperator::Cast);
-        assert_node!(parser.tree, *left, Expression::ArrayExpression { elements } => {
+    assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+        assert_eq!(*operator, TypeUnaryOperator::AsConst);
+        assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
             assert_eq!(elements.len(), 3);
         });
-        assert_expression_path!(parser, parser.tree.get(*right), "const");
     });
 }
 
@@ -4780,12 +4779,11 @@ fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument(
         assert_eq!(dynamic_arguments.len(), 1);
 
         assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::TypeBinary { left, operator, right } => {
-                assert_eq!(*operator, TypeBinaryOperator::Cast);
-                assert_node!(parser.tree, *left, Expression::ArrayExpression { elements } => {
+            assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                assert_eq!(*operator, TypeUnaryOperator::AsConst);
+                assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
                     assert_eq!(elements.len(), 1);
                 });
-                assert_expression_path!(parser, parser.tree.get(*right), "const");
             });
         });
     });

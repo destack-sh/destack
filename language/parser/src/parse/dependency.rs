@@ -7,9 +7,220 @@ use destack_ast::{
     TokenType,
 };
 use destack_base::StringId;
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanType, Span};
+
+/// One leading TypeScript triple slash directive.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TripleSlashDirective<'a> {
+    /// A `/// <reference path="..." />` directive.
+    ReferencePath(&'a str),
+    /// A `/// <reference types="..." />` directive.
+    ReferenceTypes(&'a str),
+    /// A `/// <reference lib="..." />` directive.
+    ReferenceLib(&'a str),
+    /// A `/// <reference no-default-lib="true" />` directive.
+    NoDefaultLib,
+}
 
 impl Parser {
+    /// Parse leading TypeScript triple slash directives as type imports.
+    pub(crate) fn parse_leading_triple_slash_reference_imports(
+        &mut self,
+    ) -> (Vec<LocalNodeId<Expression>>, bool) {
+        // triple slash directives only exist in typescript source kinds
+        if !self.language.is_typescript() {
+            return (Vec::new(), false);
+        }
+
+        let mut imports = Vec::new();
+        let text = self.file.text().to_string();
+        let bytes = text.as_bytes();
+        let mut offset = 0usize;
+        let mut in_block_comment = false;
+
+        // scan only the leading trivia and directives section
+        while offset < bytes.len() {
+            let line_start = offset;
+            let mut line_end = line_start;
+            while line_end < bytes.len() && bytes[line_end] != b'\n' && bytes[line_end] != b'\r' {
+                line_end += 1;
+            }
+
+            let line = &text[line_start..line_end];
+            let trimmed = line.trim_start();
+            let mut consume_line = true;
+
+            // continue an existing block comment
+            if in_block_comment {
+                if let Some(end_index) = trimmed.find("*/") {
+                    in_block_comment = false;
+                    let after = trimmed[end_index + 2..].trim_start();
+                    if !after.is_empty() {
+                        consume_line = false;
+                    }
+                }
+            }
+            // skip empty lines before declarations
+            else if trimmed.is_empty() {
+                // nothing to do
+            }
+            // skip shebang at the top of the file
+            else if line_start == 0 && trimmed.starts_with("#!") {
+                // nothing to do
+            }
+            // parse triple slash reference directives
+            else if let Some(directive) = Self::triple_slash_directive(trimmed) {
+                if let Some(import_id) =
+                    self.triple_slash_directive_import(directive, line_start, line_end)
+                {
+                    imports.push(import_id);
+                }
+            }
+            // skip regular line comments
+            else if trimmed.starts_with("//") {
+                // nothing to do
+            }
+            // skip block comments before declarations
+            else if trimmed.starts_with("/*") {
+                if trimmed.find("*/").is_none() {
+                    in_block_comment = true;
+                }
+            }
+            // stop once real source content starts
+            else {
+                break;
+            }
+
+            if !consume_line {
+                break;
+            }
+
+            while line_end < bytes.len() && (bytes[line_end] == b'\n' || bytes[line_end] == b'\r') {
+                line_end += 1;
+            }
+            offset = line_end;
+        }
+
+        (imports, offset >= bytes.len())
+    }
+
+    /// Build one import expression from one supported triple slash directive.
+    fn triple_slash_directive_import(
+        &mut self,
+        directive: TripleSlashDirective<'_>,
+        line_start: usize,
+        line_end: usize,
+    ) -> Option<LocalNodeId<Expression>> {
+        // select the import source and target for supported directives
+        let (source, target) = match directive {
+            TripleSlashDirective::ReferencePath(target) => {
+                (ImportSource::ReferencePathDirective, target)
+            }
+            TripleSlashDirective::ReferenceTypes(target) => {
+                (ImportSource::ReferenceTypesDirective, target)
+            }
+            TripleSlashDirective::ReferenceLib(target) => {
+                (ImportSource::ReferenceLibDirective, target)
+            }
+            TripleSlashDirective::NoDefaultLib => {
+                let span = Span::new(self.file_id, line_start as u32, line_end as u32);
+                let expression_id = self.tree.insert(Expression::Stub, span);
+                return Some(expression_id);
+            }
+        };
+
+        // insert the directive import expression
+        let target = self.strings.intern(target);
+        let span = Span::new(self.file_id, line_start as u32, line_end as u32);
+        let import = Expression::Import {
+            source,
+            kind: DependencyKind::Type,
+            target: ImportTarget::String(target),
+            items: Vec::new(),
+            arguments: None,
+        };
+
+        Some(self.tree.insert(import, span))
+    }
+
+    /// Parse one triple slash directive line.
+    fn triple_slash_directive(line: &str) -> Option<TripleSlashDirective<'_>> {
+        let directive = line.strip_prefix("///")?.trim_start();
+        let Some(directive) = directive.strip_prefix("<reference") else {
+            return None;
+        };
+
+        // parse a path directive
+        if let Some(path) = Self::triple_slash_reference_attribute_value(directive, "path") {
+            return Some(TripleSlashDirective::ReferencePath(path));
+        }
+
+        // parse a types directive
+        if let Some(types) = Self::triple_slash_reference_attribute_value(directive, "types") {
+            return Some(TripleSlashDirective::ReferenceTypes(types));
+        }
+
+        // parse a lib directive
+        if let Some(lib) = Self::triple_slash_reference_attribute_value(directive, "lib") {
+            return Some(TripleSlashDirective::ReferenceLib(lib));
+        }
+
+        // parse no default lib directive for compatibility, semantics are handled elsewhere
+        if Self::triple_slash_reference_attribute_value(directive, "no-default-lib").is_some() {
+            return Some(TripleSlashDirective::NoDefaultLib);
+        }
+
+        None
+    }
+
+    /// Parse one quoted attribute value from one triple slash reference directive.
+    fn triple_slash_reference_attribute_value<'a>(
+        directive: &'a str,
+        name: &str,
+    ) -> Option<&'a str> {
+        let mut search_start = 0usize;
+
+        // scan matching attributes with stable boundaries
+        while search_start < directive.len() {
+            let Some(relative_index) = directive[search_start..].find(name) else {
+                return None;
+            };
+            let index = search_start + relative_index;
+
+            // require a stable attribute boundary before the name
+            let before = directive[..index].chars().next_back();
+            if before.is_some_and(|character| {
+                !character.is_whitespace() && character != '<' && character != '/'
+            }) {
+                search_start = index + name.len();
+                continue;
+            }
+
+            // require an equals separator after the attribute name
+            let mut remainder = directive[index + name.len()..].trim_start();
+            let Some(without_equals) = remainder.strip_prefix('=') else {
+                search_start = index + name.len();
+                continue;
+            };
+            remainder = without_equals.trim_start();
+
+            // require one quoted value
+            let Some(quote) = remainder.chars().next() else {
+                return None;
+            };
+            if quote != '"' && quote != '\'' {
+                search_start = index + name.len();
+                continue;
+            }
+
+            // extract the quoted attribute value
+            let remainder = &remainder[1..];
+            let value_end = remainder.find(quote)?;
+            return Some(&remainder[..value_end]);
+        }
+
+        None
+    }
     /// Eat a dynamic import call expression (`import("foo")`).
     pub fn eat_import_call_expression(
         &mut self,
@@ -1446,6 +1657,118 @@ export type { CreateUIMessage, UIMessage }
                 assert_string!(parser, *alias, "foo");
             });
             assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_triple_slash_reference_path_leading_import() {
+        let mut test = TestParser::new_with_options(
+            r#"/// <reference path="global.d.ts" />
+export as namespace Foo"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse_without_finish();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Import { source, kind, target, items, arguments } => {
+            assert_eq!(*source, ImportSource::ReferencePathDirective);
+            assert_eq!(*kind, DependencyKind::Type);
+            assert!(items.is_empty());
+            assert!(arguments.is_none());
+            assert_import_target_string(&parser, target, "global.d.ts");
+        });
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
+                assert_string!(parser, *name, "Foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_triple_slash_reference_path_stops_after_code() {
+        let mut test = TestParser::new_with_options(
+            r#"export as namespace Foo
+/// <reference path="./late.d.ts" />"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse_without_finish();
+
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
+                assert_string!(parser, *name, "Foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_triple_slash_reference_types_leading_import() {
+        let mut test = TestParser::new_with_options(
+            r#"/// <reference types="node" />
+export as namespace Foo"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse_without_finish();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Import { source, kind, target, items, arguments } => {
+            assert_eq!(*source, ImportSource::ReferenceTypesDirective);
+            assert_eq!(*kind, DependencyKind::Type);
+            assert!(items.is_empty());
+            assert!(arguments.is_none());
+            assert_import_target_string(&parser, target, "node");
+        });
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
+                assert_string!(parser, *name, "Foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_triple_slash_reference_lib_leading_import() {
+        let mut test = TestParser::new_with_options(
+            r#"/// <reference lib="dom" />
+export as namespace Foo"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse_without_finish();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Import { source, kind, target, items, arguments } => {
+            assert_eq!(*source, ImportSource::ReferenceLibDirective);
+            assert_eq!(*kind, DependencyKind::Type);
+            assert!(items.is_empty());
+            assert!(arguments.is_none());
+            assert_import_target_string(&parser, target, "dom");
+        });
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
+                assert_string!(parser, *name, "Foo");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_triple_slash_no_default_lib_is_ignored() {
+        let mut test = TestParser::new_with_options(
+            r#"/// <reference no-default-lib="true" />
+export as namespace Foo"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse_without_finish();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Stub => {});
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
+                assert_string!(parser, *name, "Foo");
+            });
         });
     }
 

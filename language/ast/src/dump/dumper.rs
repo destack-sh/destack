@@ -471,6 +471,9 @@ impl Dump for ImportSource {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         let name = match self {
             ImportSource::ImportStatement => "ImportStatement",
+            ImportSource::ReferencePathDirective => "ReferencePathDirective",
+            ImportSource::ReferenceTypesDirective => "ReferenceTypesDirective",
+            ImportSource::ReferenceLibDirective => "ReferenceLibDirective",
             ImportSource::ImportEquals => "ImportEquals",
             ImportSource::ImportCall => "ImportCall",
         };

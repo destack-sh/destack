@@ -16,6 +16,12 @@ use crate::{
 pub enum ImportSource {
     /// Standard import statement.
     ImportStatement,
+    /// TypeScript triple-slash `reference path` directive.
+    ReferencePathDirective,
+    /// TypeScript triple-slash `reference types` directive.
+    ReferenceTypesDirective,
+    /// TypeScript triple-slash `reference lib` directive.
+    ReferenceLibDirective,
     /// Legacy import-equals expression used by older lowerings.
     ImportEquals,
     /// Dynamic import call (`import("mod")`).
@@ -68,8 +74,6 @@ pub enum Expression {
     /// import foo as baz with { bar: true }
     /// ```
     ///
-    /// NOTE #Incomplete: support `/// <reference path="..." />` triple-slash directives.
-    /// (These are TypeScript's legacy file inclusion mechanism, still used in .d.ts files.)
     Import {
         source: ImportSource,
         kind: DependencyKind,

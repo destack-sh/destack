@@ -2630,6 +2630,17 @@ import type { MyType } from "module";
 import { type MyType, myValue } from "module";
 ```
 
+#### TypeScript Triple-Slash Directives
+
+TypeScript source files support leading triple-slash reference directives.
+`reference path`, `reference types`, and `reference lib` are treated as type-only dependency edges.
+
+```ts
+/// <reference path="./global.d.ts" />
+/// <reference types="node" />
+/// <reference lib="dom" />
+```
+
 ### Exports
 
 Exports work exactly like JS/TS.
