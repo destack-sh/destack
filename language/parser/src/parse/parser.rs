@@ -148,6 +148,8 @@ pub struct ParserOptions {
     pub forbid_await: bool = false,
     /// Whether sequence expressions (comma operator) are allowed.
     pub allow_sequence_expression: bool = true,
+    /// Whether expression-leading annotations should attach at expression entry points.
+    pub allow_expression_leading_annotations: bool = true,
     /// Whether private hash keys (`#name`) are allowed in key position.
     pub allow_private_hash_key: bool = false,
     /// Whether ambiguous tree literal syntax is disallowed.
@@ -550,6 +552,24 @@ impl ParserOptions {
         }
     }
 
+    /// Disable expression-leading annotation attachment in wrapper-owned contexts.
+    #[inline]
+    pub(crate) fn without_expression_leading_annotations(self) -> Self {
+        Self {
+            allow_expression_leading_annotations: false,
+            ..self
+        }
+    }
+
+    /// Enable expression-leading annotation attachment for nested expression parses.
+    #[inline]
+    pub(crate) fn with_expression_leading_annotations(self) -> Self {
+        Self {
+            allow_expression_leading_annotations: true,
+            ..self
+        }
+    }
+
     /// Disallow arrow return type shielding for nested expressions.
     #[inline]
     pub(crate) fn not_in_arrow_return_type(self) -> Self {
@@ -578,6 +598,7 @@ impl ParserOptions {
             forbid_yield: self.forbid_yield,
             forbid_await: self.forbid_await,
             allow_sequence_expression: self.allow_sequence_expression,
+            allow_expression_leading_annotations: true,
             in_decorator: self.in_decorator,
             disallow_ambiguous_tree_literal: self.disallow_ambiguous_tree_literal,
             in_declare_context: self.in_declare_context,
@@ -604,8 +625,6 @@ pub struct Parser {
     is_finished: bool,
     /// Expression recursion depth for periodic stack growth checks.
     pub(crate) expression_stack_depth: u32,
-    /// Whether tokens were fully lexed before parsing.
-    pub(crate) tokens_prelexed: bool,
     /// The parser options.
     pub(crate) options: ParserOptions,
 
@@ -637,6 +656,12 @@ pub struct Parser {
     pub(crate) cursor_cache: Option<(usize, NonNewlineTokenCursor)>,
     /// Claimed side token flags for inline annotation attachment.
     pub(crate) annotation_claimed_side_tokens: Vec<bool>,
+    /// Claimed semantic token flags for inline annotation attachment.
+    pub(crate) annotation_claimed_tokens: Vec<bool>,
+    /// Side-token claim log used to rollback speculative claims on rewind.
+    pub(crate) annotation_claimed_side_token_log: Vec<usize>,
+    /// Semantic-token claim log used to rollback speculative claims on rewind.
+    pub(crate) annotation_claimed_token_log: Vec<usize>,
     /// Cached identifiers used by type literal parsing.
     pub(crate) type_literal_identifiers: TypeLiteralIdentifiers,
 }
@@ -682,7 +707,6 @@ impl Parser {
             pos: 0,
             is_finished: false,
             expression_stack_depth: 0,
-            tokens_prelexed: false,
             options: ParserOptions::default(),
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
@@ -699,6 +723,9 @@ impl Parser {
             delimiter_analyses_cached: Vec::with_capacity(estimated_tokens),
             cursor_cache: None,
             annotation_claimed_side_tokens: Vec::with_capacity(estimated_tokens),
+            annotation_claimed_tokens: Vec::with_capacity(estimated_tokens),
+            annotation_claimed_side_token_log: Vec::with_capacity(estimated_tokens / 8),
+            annotation_claimed_token_log: Vec::with_capacity(estimated_tokens / 8),
             type_literal_identifiers,
         };
 
@@ -754,9 +781,11 @@ impl Parser {
                 && self.language.is_typescript(),
             ..ParserOptions::default()
         };
-        self.tokens_prelexed = false;
         self.errors.clear();
         self.annotation_claimed_side_tokens.clear();
+        self.annotation_claimed_tokens.clear();
+        self.annotation_claimed_side_token_log.clear();
+        self.annotation_claimed_token_log.clear();
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             *speculation_stats = ParserSpeculationStats::default();
         }
@@ -810,15 +839,7 @@ impl Parser {
     /// Ensure a token exists at the given index.
     #[inline]
     pub(crate) fn ensure_token(&mut self, index: usize) {
-        if !self.is_prelex_mode() {
-            self.token_stream.ensure_token(index);
-        }
-    }
-
-    /// Return true when parser fast-path prelex mode is active.
-    #[inline]
-    pub(crate) fn is_prelex_mode(&self) -> bool {
-        self.tokens_prelexed && self.token_stream.is_finished() && !self.allow_tree_literals()
+        self.token_stream.ensure_token(index);
     }
 
     /// Return true when tree literal lexing is enabled.
@@ -981,30 +1002,32 @@ impl Parser {
     /// Ensure a token exists at the given index and return it.
     #[inline]
     pub(crate) fn token_at(&mut self, index: usize) -> Option<TokenSpan> {
-        if self.is_prelex_mode() {
-            self.tokens().get(index).copied()
-        } else {
-            self.token_stream.token(index)
+        if let Some(token) = self.tokens().get(index).copied() {
+            return Some(token);
         }
-    }
 
-    /// Ensure a token exists unless pre-lex mode guarantees the full token slice.
-    #[inline]
-    fn ensure_token_if_needed(&mut self, index: usize) {
-        self.ensure_token(index);
+        self.token_stream.token(index)
     }
 
     /// Ensure a token exists at the given index and return a reference.
     #[inline]
     pub(crate) fn token_ref_at(&mut self, index: usize) -> Option<&TokenSpan> {
-        self.ensure_token_if_needed(index);
+        if index < self.tokens().len() {
+            return self.tokens().get(index);
+        }
+
+        self.ensure_token(index);
         self.tokens().get(index)
     }
 
     /// Look up the token type at a given index.
     #[inline]
     pub(crate) fn token_type_at(&mut self, index: usize) -> TokenType {
-        self.ensure_token_if_needed(index);
+        if let Some(token) = self.tokens().get(index) {
+            return token.token.ty;
+        }
+
+        self.ensure_token(index);
         self.tokens()
             .get(index)
             .map(|token| token.token.ty)
@@ -1112,87 +1135,18 @@ impl Parser {
         self.token_stream.keyword_at(index)
     }
 
-    /// Look up a keyword at a token index with a prelexed fast path.
+    /// Look up a keyword at a token index.
     #[inline]
     pub(crate) fn keyword_for_index_maybe_fast(&mut self, index: usize) -> Option<Keyword> {
-        if self.is_prelex_mode() && !self.has_active_split() {
-            self.keyword_for_index_prelexed_fast(index)
-        } else {
-            self.keyword_for_index(index)
-        }
-    }
-
-    /// Look up a keyword at a token index in prelexed mode.
-    #[inline]
-    pub(crate) fn keyword_for_index_prelexed_fast(&self, index: usize) -> Option<Keyword> {
-        debug_assert!(
-            self.is_prelex_mode(),
-            "keyword fast path requires prelex mode"
-        );
-        debug_assert!(
-            !self.has_active_split(),
-            "keyword fast path requires no split token"
-        );
-        self.token_stream.keyword_at_prelexed(index)
-    }
-
-    /// Return the token type at an index in prelexed mode.
-    #[inline]
-    pub(crate) fn token_type_at_prelexed_fast(&self, index: usize) -> TokenType {
-        debug_assert!(
-            self.is_prelex_mode(),
-            "token type fast path requires prelex mode"
-        );
-        debug_assert!(
-            !self.has_active_split(),
-            "token type fast path requires no split token"
-        );
-        self.tokens()
-            .get(index)
-            .map(|token| token.token.ty)
-            .unwrap_or(TokenType::End)
-    }
-
-    /// Peek the next token type in prelexed mode.
-    #[inline]
-    pub(crate) fn peek_token_type_prelexed_fast(&self) -> TokenType {
-        self.token_type_at_prelexed_fast(self.pos)
-    }
-
-    /// Peek the next-next token type in prelexed mode.
-    #[inline]
-    pub(crate) fn peek_next_token_type_prelexed_fast(&self) -> TokenType {
-        self.token_type_at_prelexed_fast(self.pos + 1)
+        self.keyword_for_index(index)
     }
 
     /// Look up a pre interned identifier at a token index.
     #[inline]
     pub(crate) fn identifier_for_index(&mut self, index: usize) -> Option<StringId> {
-        // prelexed mode resolves identifiers from tokens with lazy cache growth
-        if self.is_prelex_mode() && !self.has_active_split() {
-            if index >= self.tokens().len() {
-                return None;
-            }
-
-            self.ensure_identifier_cache_capacity(index);
-
-            if self.token_identifiers_cached[index] {
-                return self.token_identifiers[index];
-            }
-
-            let token = self.tokens().get(index)?;
-            let identifier = if token.token.ty == TokenType::Identifier {
-                let span_str = self.file.span_str(token.span);
-                Some(self.strings.intern(span_str))
-            } else {
-                None
-            };
-            self.token_identifiers[index] = identifier;
-            self.token_identifiers_cached[index] = true;
-            return identifier;
+        if index >= self.tokens().len() {
+            self.ensure_token(index);
         }
-
-        self.ensure_token_if_needed(index);
 
         self.ensure_identifier_cache_capacity(index);
 
@@ -1215,7 +1169,10 @@ impl Parser {
     /// Return true when the identifier token at index matches the expected string.
     #[inline]
     pub(crate) fn identifier_equals_at(&mut self, index: usize, expected: &str) -> bool {
-        self.ensure_token_if_needed(index);
+        if index >= self.tokens().len() {
+            self.ensure_token(index);
+        }
+
         self.tokens().get(index).is_some_and(|token| {
             token.token.ty == TokenType::Identifier && self.file.span_str(token.span) == expected
         })
@@ -1272,11 +1229,7 @@ impl Parser {
     fn reset_token_caches_after_rewind(&mut self) {
         self.truncate_token_caches();
         self.truncate_claimed_annotation_side_tokens();
-    }
-
-    /// Synchronize prelexed fast-path mode with token stream state.
-    fn sync_prelexed_state_after_rewind(&mut self) {
-        self.tokens_prelexed = self.token_stream.is_finished() && !self.allow_tree_literals();
+        self.truncate_claimed_annotation_tokens();
     }
 
     /// Truncate claimed side token flags to the current side token length.
@@ -1285,22 +1238,15 @@ impl Parser {
         self.annotation_claimed_side_tokens.truncate(side_len);
     }
 
+    /// Truncate claimed semantic token flags to the current token length.
+    fn truncate_claimed_annotation_tokens(&mut self) {
+        let token_len = self.tokens().len();
+        self.annotation_claimed_tokens.truncate(token_len);
+    }
+
     /// Parse everything as an implicit namespace.
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        // pre-lex non-tree-literal sources to avoid lazy lexer dispatch in hot loops
-        if !self.allow_tree_literals() {
-            self.token_stream.lex_to_end();
-            self.tokens_prelexed = true;
-            self.token_identifiers.clear();
-            self.token_identifiers_cached.clear();
-            self.delimiter_analyses.clear();
-            self.delimiter_analyses_cached.clear();
-            self.invalidate_cursor_cache();
-        } else {
-            self.tokens_prelexed = false;
-        }
-
         // parse the root block body with recovery
         let start = self.mark_span();
         let mut expressions = self.with_recovery(
@@ -1311,7 +1257,6 @@ impl Parser {
         );
 
         // comment-only files need one target node
-        self.token_stream.lex_to_end();
         if expressions.is_empty() && self.has_comment_annotation_tokens() {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
@@ -1395,6 +1340,8 @@ impl Parser {
             token_stream_mark,
             self.errors.len(),
             self.diagnostics.len(),
+            self.annotation_claimed_side_token_log.len(),
+            self.annotation_claimed_token_log.len(),
         )
     }
 
@@ -1411,6 +1358,8 @@ impl Parser {
             token_stream_mark,
             error_count: None,
             diagnostic_count: None,
+            annotation_claimed_side_token_log_len: self.annotation_claimed_side_token_log.len(),
+            annotation_claimed_token_log_len: self.annotation_claimed_token_log.len(),
             span_override: None,
         }
     }
@@ -1424,6 +1373,8 @@ impl Parser {
             token_stream_mark: None,
             error_count: None,
             diagnostic_count: None,
+            annotation_claimed_side_token_log_len: self.annotation_claimed_side_token_log.len(),
+            annotation_claimed_token_log_len: self.annotation_claimed_token_log.len(),
             span_override: None,
         }
     }
@@ -1443,12 +1394,12 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.rewind_calls += 1;
         }
+        self.rollback_annotation_claims_to_mark(&mark);
         self.pos = mark.pos;
         self.invalidate_cursor_cache();
         if let Some(token_stream_mark) = mark.token_stream_mark {
             self.token_stream.restore(token_stream_mark);
             self.reset_token_caches_after_rewind();
-            self.sync_prelexed_state_after_rewind();
         }
     }
 
@@ -1457,6 +1408,7 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.restore_calls += 1;
         }
+        self.rollback_annotation_claims_to_mark(&mark);
         self.pos = mark.pos;
         self.invalidate_cursor_cache();
         if let Some(tree_mark) = mark.tree_mark {
@@ -1474,7 +1426,31 @@ impl Parser {
         if let Some(token_stream_mark) = mark.token_stream_mark {
             self.token_stream.restore(token_stream_mark);
             self.reset_token_caches_after_rewind();
-            self.sync_prelexed_state_after_rewind();
+        }
+    }
+
+    /// Roll back annotation claim flags to a parser mark.
+    fn rollback_annotation_claims_to_mark(&mut self, mark: &ParserMark) {
+        while self.annotation_claimed_side_token_log.len()
+            > mark.annotation_claimed_side_token_log_len
+        {
+            let side_index = self
+                .annotation_claimed_side_token_log
+                .pop()
+                .expect("checked len");
+            if let Some(claimed) = self.annotation_claimed_side_tokens.get_mut(side_index) {
+                *claimed = false;
+            }
+        }
+
+        while self.annotation_claimed_token_log.len() > mark.annotation_claimed_token_log_len {
+            let token_index = self
+                .annotation_claimed_token_log
+                .pop()
+                .expect("checked len");
+            if let Some(claimed) = self.annotation_claimed_tokens.get_mut(token_index) {
+                *claimed = false;
+            }
         }
     }
 
@@ -1485,36 +1461,25 @@ impl Parser {
         expression_id: LocalNodeId<Expression>,
         span: Span,
     ) -> LocalNodeId<Expression> {
-        let statement_id = self.tree.insert(Expression::Statement(expression_id), span);
-
-        // mirror existing annotations onto the statement wrapper
-        let expression_annotations = self.tree.get_annotations(expression_id.id).to_vec();
-        for annotation_id in expression_annotations {
-            self.tree.append_annotation(statement_id.id, annotation_id);
-        }
-
-        statement_id
+        self.tree.insert(Expression::Statement(expression_id), span)
     }
 
     /// Get a mark and return the span of the current position.
-    #[inline]
+    #[inline(always)]
     pub fn get_span_from(&self, mark: &ParserMark) -> Span {
         if let Some(span) = mark.span_override {
             return span;
         }
 
-        // if we're beyond the end we just point to the EOF token
-        if mark.pos >= self.tokens().len() {
+        let tokens = self.tokens();
+        let token_count = tokens.len();
+        if token_count == 0 || mark.pos >= token_count {
             return self.eof_span();
         }
 
-        // otherwise, get the span from the token
-        let start_token = self.tokens()[mark.pos];
-        let end_token = if self.pos > 0 {
-            self.tokens()[self.pos - 1]
-        } else {
-            self.tokens()[0]
-        };
+        let end_index = if self.pos > 0 { self.pos - 1 } else { 0 }.min(token_count - 1);
+        let start_token = unsafe { tokens.get_unchecked(mark.pos) };
+        let end_token = unsafe { tokens.get_unchecked(end_index) };
         Span {
             file: self.file_id,
             start: start_token.span.start,
@@ -1523,10 +1488,11 @@ impl Parser {
     }
 
     /// Get the span between two marks.
-    #[inline]
+    #[inline(always)]
     pub fn get_span_between(&self, start: &ParserMark, end: &ParserMark) -> Span {
-        let start_token = self.tokens()[start.pos];
-        let end_token = self.tokens()[end.pos];
+        let tokens = self.tokens();
+        let start_token = unsafe { tokens.get_unchecked(start.pos) };
+        let end_token = unsafe { tokens.get_unchecked(end.pos) };
         Span::new(self.file_id, start_token.span.start, end_token.span.end)
     }
 
@@ -1575,17 +1541,10 @@ impl Parser {
             self.token_stream.clear_split_token();
         }
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            if self.pos < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(self.pos) };
-                return Ok(token);
-            }
-            return Err(ParseError::unexpected(self.eof_span()));
+        if self.pos >= self.tokens().len() {
+            self.ensure_token(self.pos);
         }
 
-        self.ensure_token_if_needed(self.pos);
         self.tokens()
             .get(self.pos)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1598,17 +1557,11 @@ impl Parser {
             return split.token.ty;
         }
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            if self.pos < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(self.pos) };
-                return token.token.ty;
-            }
-            return TokenType::End;
+        if let Some(token) = self.tokens().get(self.pos) {
+            return token.token.ty;
         }
 
-        self.ensure_token_if_needed(self.pos);
+        self.ensure_token(self.pos);
         self.tokens()
             .get(self.pos)
             .map(|token| token.token.ty)
@@ -1620,17 +1573,11 @@ impl Parser {
     pub fn peek_next_token_type(&mut self) -> TokenType {
         let index = self.lookahead_index(1);
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            if index < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(index) };
-                return token.token.ty;
-            }
-            return TokenType::End;
+        if let Some(token) = self.tokens().get(index) {
+            return token.token.ty;
         }
 
-        self.ensure_token_if_needed(index);
+        self.ensure_token(index);
         self.tokens()
             .get(index)
             .map(|token| token.token.ty)
@@ -1645,16 +1592,6 @@ impl Parser {
             "peek_is requires semantic token type"
         );
 
-        // prelexed fast path: avoid repeated helper dispatch
-        if self.is_prelex_mode() && !self.has_active_split() {
-            if self.pos < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(self.pos) };
-                return token.token.ty == token_type;
-            }
-            return TokenType::End == token_type;
-        }
-
         self.peek_token_type() == token_type
     }
 
@@ -1665,17 +1602,6 @@ impl Parser {
             is_semantic(token_type),
             "peek_next_is requires semantic token type"
         );
-
-        // prelexed fast path: avoid repeated helper dispatch
-        if self.is_prelex_mode() && !self.has_active_split() {
-            let index = self.pos + 1;
-            if index < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(index) };
-                return token.token.ty == token_type;
-            }
-            return TokenType::End == token_type;
-        }
 
         self.peek_next_token_type() == token_type
     }
@@ -1703,15 +1629,6 @@ impl Parser {
     /// Return true when more tokens remain before End.
     #[inline]
     pub fn has_more_tokens(&mut self) -> bool {
-        if self.is_prelex_mode() && !self.has_active_split() {
-            if self.pos < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(self.pos) };
-                return token.token.ty != TokenType::End;
-            }
-            return false;
-        }
-
         self.peek_token_type() != TokenType::End
     }
 
@@ -1720,17 +1637,10 @@ impl Parser {
     pub fn peek_next(&mut self) -> ParseResult<&TokenSpan> {
         let index = self.lookahead_index(1);
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            if index < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(index) };
-                return Ok(token);
-            }
-            return Err(ParseError::unexpected(self.eof_span()));
+        if index >= self.tokens().len() {
+            self.ensure_token(index);
         }
 
-        self.ensure_token_if_needed(index);
         self.tokens()
             .get(index)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1741,17 +1651,10 @@ impl Parser {
     pub fn peek_next_next(&mut self) -> ParseResult<&TokenSpan> {
         let index = self.lookahead_index(2);
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            if index < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(index) };
-                return Ok(token);
-            }
-            return Err(ParseError::unexpected(self.eof_span()));
+        if index >= self.tokens().len() {
+            self.ensure_token(index);
         }
 
-        self.ensure_token_if_needed(index);
         self.tokens()
             .get(index)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1762,17 +1665,10 @@ impl Parser {
     pub fn peek_next_next_next(&mut self) -> ParseResult<&TokenSpan> {
         let index = self.lookahead_index(3);
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            if index < self.tokens().len() {
-                // bounds checked above
-                let token = unsafe { self.tokens().get_unchecked(index) };
-                return Ok(token);
-            }
-            return Err(ParseError::unexpected(self.eof_span()));
+        if index >= self.tokens().len() {
+            self.ensure_token(index);
         }
 
-        self.ensure_token_if_needed(index);
         self.tokens()
             .get(index)
             .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1795,21 +1691,11 @@ impl Parser {
             self.token_stream.clear_split_token();
         }
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            if self.pos < self.tokens().len() {
-                let pos = self.pos;
-                self.pos = pos + 1;
-                self.invalidate_cursor_cache();
-                // pos is validated against token length
-                let token = unsafe { self.tokens().get_unchecked(pos) };
-                return Ok(token);
-            }
-            return Err(ParseError::unexpected(self.eof_span()));
+        // normal case: consume from token stream
+        if self.pos >= self.tokens().len() {
+            self.ensure_token(self.pos);
         }
 
-        // normal case: consume from token stream
-        self.ensure_token_if_needed(self.pos);
         if self.pos < self.tokens().len() {
             let pos = self.pos;
             self.pos += 1;
@@ -1839,15 +1725,10 @@ impl Parser {
             self.token_stream.clear_split_token();
         }
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            debug_assert!(self.pos < self.tokens().len(), "bump past end of tokens");
-            self.pos += 1;
-            self.invalidate_cursor_cache();
-            return;
+        if self.pos >= self.tokens().len() {
+            self.ensure_token(self.pos);
         }
 
-        self.ensure_token_if_needed(self.pos);
         debug_assert!(self.pos < self.tokens().len(), "bump past end of tokens");
         self.pos += 1;
         self.invalidate_cursor_cache();
@@ -1862,23 +1743,13 @@ impl Parser {
             self.token_stream.clear_split_token();
         }
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            debug_assert!(
-                self.pos + (distance as usize) < self.tokens().len(),
-                "bump past end of tokens"
-            );
-            self.pos += distance as usize;
-            self.invalidate_cursor_cache();
-            return;
+        let next_pos = self.pos + (distance as usize);
+        if next_pos >= self.tokens().len() {
+            self.ensure_token(next_pos);
         }
 
-        self.ensure_token_if_needed(self.pos + (distance as usize));
-        debug_assert!(
-            self.pos + (distance as usize) < self.tokens().len(),
-            "bump past end of tokens"
-        );
-        self.pos += distance as usize;
+        debug_assert!(next_pos < self.tokens().len(), "bump past end of tokens");
+        self.pos = next_pos;
         self.invalidate_cursor_cache();
     }
 
@@ -1891,15 +1762,10 @@ impl Parser {
             self.token_stream.clear_split_token();
         }
 
-        // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.is_prelex_mode() {
-            debug_assert!(pos <= self.tokens().len(), "advance past end of tokens");
-            self.pos = pos;
-            self.invalidate_cursor_cache();
-            return;
+        if pos >= self.tokens().len() {
+            self.ensure_token(pos);
         }
 
-        self.ensure_token_if_needed(pos);
         debug_assert!(pos <= self.tokens().len(), "advance past end of tokens");
         self.pos = pos;
         self.invalidate_cursor_cache();
@@ -2380,6 +2246,10 @@ pub struct ParserMark {
     error_count: Option<usize>,
     /// The parser diagnostic count at mark time.
     diagnostic_count: Option<usize>,
+    /// Side-token claim log length at mark time.
+    annotation_claimed_side_token_log_len: usize,
+    /// Semantic-token claim log length at mark time.
+    annotation_claimed_token_log_len: usize,
     /// Optional override span for synthetic marks.
     span_override: Option<Span>,
 }
@@ -2393,6 +2263,8 @@ impl ParserMark {
         token_stream_mark: Option<TokenStreamMark>,
         error_count: usize,
         diagnostic_count: usize,
+        annotation_claimed_side_token_log_len: usize,
+        annotation_claimed_token_log_len: usize,
     ) -> Self {
         Self {
             pos,
@@ -2400,6 +2272,8 @@ impl ParserMark {
             token_stream_mark,
             error_count: Some(error_count),
             diagnostic_count: Some(diagnostic_count),
+            annotation_claimed_side_token_log_len,
+            annotation_claimed_token_log_len,
             span_override: None,
         }
     }
@@ -2413,6 +2287,8 @@ impl ParserMark {
             token_stream_mark: None,
             error_count: None,
             diagnostic_count: None,
+            annotation_claimed_side_token_log_len: 0,
+            annotation_claimed_token_log_len: 0,
             span_override: Some(span),
         }
     }

@@ -94,6 +94,7 @@ impl Parser {
             let where_clauses = self.eat_where_maybe()?;
 
             // body
+            let body_cursor = self.normalize_to_scanner_cursor();
             self.eat_newlines_maybe()?;
             self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
                 .for_node_type(NodeType::Declaration)?;
@@ -134,6 +135,13 @@ impl Parser {
             if let Some(span) = name_span {
                 self.tree.set_main_span(interface_id, span);
             }
+
+            // attach declaration header-to-body boundary annotations before `{`
+            self.attach_inline_infix_annotations_for_token(
+                body_cursor.index,
+                body_cursor.skipped_newline_count.saturating_add(1),
+                interface_id.id,
+            );
 
             Ok(interface_id)
         })();

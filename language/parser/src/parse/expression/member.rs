@@ -125,6 +125,10 @@ impl Parser {
             self.eat_newlines_maybe()?;
             let expression_id = self.eat_expression(self.options)?;
             self.eat_newlines_maybe()?;
+
+            // keep separator-boundary comments before `)` on the inner expression
+            self.attach_inline_trailing_annotations_for_current_token(expression_id.id);
+
             self.eat_token(TokenType::CloseParenthesis)?;
             self.tree
                 .set_span(expression_id, self.get_span_from(&start));

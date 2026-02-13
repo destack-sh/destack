@@ -407,17 +407,7 @@ pub fn write_ignored_span<'ast>(
     span: Span,
 ) -> FormatResult<()> {
     let raw = ignored_span_source(f.context(), span);
-    let start_column = f
-        .context()
-        .file
-        .get_position(span.start)
-        .map_or(0, |(_, column)| column);
-
-    // preserve exact line structure for top level ignored spans
-    if start_column == 0 {
-        write!(f, [text(&raw)])?;
-        return Ok(());
-    }
+    let raw = dedent_common_leading_whitespace(raw.as_str());
 
     let mut lines: Vec<&str> = raw.split('\n').collect();
     if raw.ends_with('\n') {
@@ -432,6 +422,65 @@ pub fn write_ignored_span<'ast>(
     }
 
     Ok(())
+}
+
+/// Remove shared leading indentation from non-empty lines.
+fn dedent_common_leading_whitespace(raw: &str) -> String {
+    // collect all non-empty lines that contribute indentation
+    let lines = raw.lines().collect::<Vec<_>>();
+    let mut common_prefix: Option<&str> = None;
+    for line in &lines {
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let prefix_end = line
+            .char_indices()
+            .find_map(|(index, character)| {
+                if character == ' ' || character == '\t' {
+                    None
+                } else {
+                    Some(index)
+                }
+            })
+            .unwrap_or(line.len());
+        let prefix = &line[..prefix_end];
+
+        match common_prefix {
+            None => common_prefix = Some(prefix),
+            Some(current_prefix) => {
+                let mut shared_len = 0usize;
+                let mut current_iter = current_prefix.chars();
+                let mut next_iter = prefix.chars();
+                loop {
+                    let Some(current_character) = current_iter.next() else {
+                        break;
+                    };
+                    let Some(next_character) = next_iter.next() else {
+                        break;
+                    };
+                    if current_character != next_character {
+                        break;
+                    }
+                    shared_len += current_character.len_utf8();
+                }
+                common_prefix = Some(&current_prefix[..shared_len]);
+            }
+        }
+    }
+
+    let Some(common_prefix) = common_prefix else {
+        return raw.to_owned();
+    };
+    if common_prefix.is_empty() {
+        return raw.to_owned();
+    }
+
+    lines
+        .into_iter()
+        .map(|line| line.strip_prefix(common_prefix).unwrap_or(line).to_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Extract the source for an ignored node.
@@ -485,6 +534,18 @@ pub(crate) fn is_ignore_directive_comment(raw: &str) -> bool {
     matches!(
         parse_directive_token_from_raw(raw),
         Some(FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart)
+    )
+}
+
+/// Return whether raw comment text is any ignore directive token.
+pub(crate) fn is_any_ignore_directive_comment(raw: &str) -> bool {
+    matches!(
+        parse_directive_token_from_raw(raw),
+        Some(
+            FormatterDirectiveToken::Ignore
+                | FormatterDirectiveToken::IgnoreStart
+                | FormatterDirectiveToken::IgnoreEnd
+        )
     )
 }
 
@@ -561,12 +622,12 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
 mod tests {
     use std::sync::Arc;
 
-    use destack_ast::NodeParentIndex;
+    use destack_ast::{Expression, NodeParentIndex};
     use destack_parser::Parser;
     use destack_source::{File, FileId, FileType, LanguageType, Uri};
     use destack_workspace::FormatterOptions;
 
-    use super::{collect_comment_tokens, ignore_range_for_node};
+    use super::{collect_comment_tokens, ignore_range_for_node, ignored_span_source};
     use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 
     #[test]
@@ -609,5 +670,74 @@ mod tests {
         assert!(!comment_tokens.is_empty());
         let range = ignore_range_for_node(&context, expressions[0], &comment_tokens);
         assert!(range.is_some());
+    }
+
+    #[test]
+    fn test_ignore_range_for_call_arguments_uses_comment_column_start() {
+        let source = r#"doThing(
+    1,
+    // format-ignore-start
+    foo ( 1 ,2 ),
+    bar(3),
+    // format-ignore-end
+    4,
+)"#;
+        let file = Arc::new(File::from_text(
+            FileId::new(0),
+            "main.ts".to_string(),
+            Uri::from_string("file://main.ts"),
+            None,
+            FileType::TypeScript,
+            source.to_string(),
+        ));
+
+        let mut parser = Parser::lex_file(file.clone(), LanguageType::TypeScript);
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 1);
+
+        let second_argument = match parser.tree.get(expressions[0]) {
+            Expression::Statement(call_expression_id) => match parser.tree.get(*call_expression_id)
+            {
+                Expression::Call {
+                    dynamic_arguments, ..
+                } => dynamic_arguments[1],
+                _ => panic!("expected call expression"),
+            },
+            _ => panic!("expected statement expression"),
+        };
+
+        let side_span = parser.compute_side_span();
+        let (tokens, side_tokens) = parser.take_tokens();
+        let strings = parser.strings.into_immutable();
+        let parents = NodeParentIndex::from_tree(&parser.tree);
+        let options = DestackFormatOptions::from_formatter_options(
+            FormatterOptions::default(),
+            LanguageType::TypeScript,
+        );
+        let context = DestackFormatContext::new(
+            options,
+            DestackFormatArtifacts {
+                file: &file,
+                tree: &parser.tree,
+                tokens: &tokens,
+                side_tokens: &side_tokens,
+                side_span: &side_span,
+                strings: &strings,
+                parents,
+            },
+        );
+
+        let comment_tokens = collect_comment_tokens(&context);
+        let range = ignore_range_for_node(&context, second_argument, &comment_tokens)
+            .expect("expected ignore range for second argument");
+
+        let (_, start_column) = context
+            .file
+            .get_position(range.start)
+            .expect("expected range start position");
+        assert_eq!(start_column, 4);
+
+        let raw = ignored_span_source(&context, range);
+        assert!(raw.starts_with("// format-ignore-start"));
     }
 }

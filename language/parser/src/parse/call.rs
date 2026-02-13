@@ -113,7 +113,9 @@ impl Parser {
         }
 
         // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
-        let dynamic_arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
+        let dynamic_arguments = self
+            .eat_dynamic_arguments_maybe(Some(left.id))?
+            .unwrap_or_default();
 
         // call
         let call_id = self.tree.insert(
@@ -182,7 +184,7 @@ impl Parser {
         };
 
         // dynamic arguments (may be empty)
-        let dynamic_arguments = self.eat_dynamic_arguments()?;
+        let dynamic_arguments = self.eat_dynamic_arguments(Some(receiver_id.id))?;
 
         // call
         let call_id = self.tree.insert(

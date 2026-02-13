@@ -19,6 +19,7 @@ impl Parser {
         self.eat_keyword(Keyword::Import)?;
 
         // open call
+        let open_parenthesis_token_index = self.pos_index();
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
@@ -54,8 +55,10 @@ impl Parser {
             } else {
                 let argument_options = self.options.nested();
                 let old_options = self.swap_options(argument_options);
-                let arguments_result =
-                    self.eat_positional_arguments_body(TokenType::CloseParenthesis);
+                let arguments_result = self.eat_positional_arguments_body(
+                    TokenType::CloseParenthesis,
+                    Some(open_parenthesis_token_index),
+                );
                 self.restore_options(old_options);
                 let arguments = arguments_result?;
                 Some(arguments)

@@ -57,11 +57,14 @@ impl Parser {
                     self.get_span_from(start),
                 );
             }
+            let mut pending_optional_call_boundary: Option<(usize, usize)> = None;
+
             // eat all regular postfix operators
             loop {
                 // load scanner state for this postfix step
                 let cursor = self.scanner_cursor();
                 let token_type = cursor.token_type;
+
                 if token_type == TokenType::End {
                     break;
                 }
@@ -69,28 +72,23 @@ impl Parser {
                 let cursor_index = cursor.index;
                 let has_pending_newline_tokens = cursor.index != self.pos_index();
                 let has_line_break_before = cursor.has_line_break_before;
+                let next_token_type = if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
+                    self.token_type_at(cursor_index.saturating_add(1))
+                } else {
+                    TokenType::End
+                };
+                let is_indirect_optional_call_boundary = token_type == TokenType::Dot
+                    && next_token_type == TokenType::OpenParenthesis
+                    && matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
 
                 // attach dot boundary trivia before consuming member tokens
-                if token_type == TokenType::Dot {
-                    self.attach_inline_dot_boundary_annotations_for_token(
-                        cursor_index,
-                        cursor.skipped_newline_count,
-                        left_expression_id.id,
-                    );
-                } else if token_type == TokenType::Maybe
-                    && self.is_optional_chain_after_maybe_at(cursor_index)
-                {
+                if token_type == TokenType::Dot && !is_indirect_optional_call_boundary {
                     self.attach_inline_dot_boundary_annotations_for_token(
                         cursor_index,
                         cursor.skipped_newline_count,
                         left_expression_id.id,
                     );
                 }
-                let next_token_type = if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
-                    self.token_type_at(cursor_index.saturating_add(1))
-                } else {
-                    TokenType::End
-                };
                 let dot_member_target = if token_type == TokenType::Dot {
                     self.peek_dot_member_target(cursor_index)
                 } else {
@@ -306,7 +304,25 @@ impl Parser {
                     } else {
                         PostfixPosition::Direct
                     };
+                    let call_receiver_id = left_expression_id;
                     left_expression_id = self.eat_call(left_expression_id, None, position)?;
+
+                    // optional call boundaries should attach to the full call expression
+                    if is_indirect_optional_call_boundary {
+                        let optional_boundary_target = match self.tree.get(call_receiver_id) {
+                            Expression::Maybe { left, .. } => *left,
+                            _ => call_receiver_id,
+                        };
+                        if let Some((optional_boundary_token_index, skipped_newline_count)) =
+                            pending_optional_call_boundary.take()
+                        {
+                            self.attach_inline_optional_call_boundary_annotations_for_token(
+                                optional_boundary_token_index,
+                                skipped_newline_count,
+                                optional_boundary_target.id,
+                            );
+                        }
+                    }
                 }
                 // statically parameterized call or instantiation expression (like `(expr)<T>()` or `(expr)<T>`)
                 else if self.can_start_postfix_static_arguments(left_expression_id) {
@@ -358,6 +374,15 @@ impl Parser {
 
                     // postfix maybe
                     if is_postfix_maybe {
+                        let is_direct_optional_call = token_type == TokenType::Maybe
+                            && next_token_type == TokenType::Dot
+                            && self.token_type_at(cursor_index.saturating_add(2))
+                                == TokenType::OpenParenthesis;
+                        if is_direct_optional_call {
+                            pending_optional_call_boundary =
+                                Some((cursor_index, cursor.skipped_newline_count));
+                        }
+
                         self.bump(); // eat ?
                         // (don't consume delimiter/stop)
                         left_expression_id = self.tree.insert(
@@ -682,18 +707,51 @@ impl Parser {
                 self.advance_to(ternary_cursor.index);
             }
             self.bump(); // eat ?
-            self.eat_newlines_maybe()?;
+
+            // parse the then branch with scanner-derived leading annotation context
+            let then_cursor = self.scanner_cursor();
+            if then_cursor.index != self.pos_index() {
+                self.advance_to(then_cursor.index);
+            }
             let then_options = self
                 .options
                 .not_in_position()
                 .in_ternary_condition()
-                .not_in_sequence_expression();
+                .not_in_sequence_expression()
+                .without_expression_leading_annotations();
             let then_expression_id = self.eat_expression(then_options)?;
-            self.eat_newlines_maybe()?;
+
+            self.attach_inline_expression_leading_annotations_for_token(
+                then_cursor.index,
+                then_cursor.skipped_newline_count,
+                then_expression_id.id,
+            );
+
+            // consume the ternary separator after scanner normalization
+            let colon_cursor = self.scanner_cursor();
+            if colon_cursor.index != self.pos_index() {
+                self.advance_to(colon_cursor.index);
+            }
             self.eat_colon()?;
-            self.eat_newlines_maybe()?;
-            let else_options = self.options.not_in_position().not_in_sequence_expression();
+
+            // parse the else branch with scanner-derived leading annotation context
+            let else_cursor = self.scanner_cursor();
+            if else_cursor.index != self.pos_index() {
+                self.advance_to(else_cursor.index);
+            }
+            let else_options = self
+                .options
+                .not_in_position()
+                .not_in_sequence_expression()
+                .without_expression_leading_annotations();
             let else_expression_id = self.eat_expression(else_options)?;
+
+            self.attach_inline_expression_leading_annotations_for_token(
+                else_cursor.index,
+                else_cursor.skipped_newline_count,
+                else_expression_id.id,
+            );
+
             let expression = Expression::If {
                 kind: IfKind::Ternary,
                 condition: IfCondition::Expression {

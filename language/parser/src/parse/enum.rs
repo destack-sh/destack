@@ -77,6 +77,7 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // body
+        let body_cursor = self.normalize_to_scanner_cursor();
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
@@ -101,6 +102,13 @@ impl Parser {
         if let Some(span) = name_span {
             self.tree.set_main_span(enum_id, span);
         }
+
+        // attach declaration header-to-body boundary annotations before `{`
+        self.attach_inline_infix_annotations_for_token(
+            body_cursor.index,
+            body_cursor.skipped_newline_count.saturating_add(1),
+            enum_id.id,
+        );
 
         Ok(enum_id)
     }

@@ -2,6 +2,7 @@ use super::super::*;
 use super::analyze::*;
 use super::classify::*;
 use crate::CachedCallArgumentLayoutClass;
+use crate::directive::any_ignore_range_for_nodes;
 use crate::timing::tags;
 use destack_fir::write;
 
@@ -683,6 +684,21 @@ fn format_call_arguments_with_group<'ast>(
     dynamic_arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
 ) -> FormatResult<()> {
+    // ignore ranges: route through list_like so raw span preservation stays consistent
+    if !dynamic_arguments.is_empty() && f.context().has_ignore_directive_markers() {
+        let comment_tokens = f.context().comment_tokens();
+        let has_ignore_ranges =
+            any_ignore_range_for_nodes(f.context(), dynamic_arguments, comment_tokens);
+        if has_ignore_ranges {
+            f.context()
+                .increment_counter("profile.call.arguments.path.ignore_ranges_list_like", 1);
+            let mut list = list_like("(", ")", ",", dynamic_arguments);
+            list.with_group_id(Some(group_id)).force_expand();
+            write!(f, [list])?;
+            return Ok(());
+        }
+    }
+
     if dynamic_arguments.len() == 1 {
         return format_single_call_argument_with_group(
             f,

@@ -355,6 +355,11 @@ impl Parser {
             let body = if self
                 .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
+                // attach method return-type boundary annotations before `{`
+                if let Some(return_type_id) = return_type {
+                    self.attach_inline_trailing_annotations_for_current_token(return_type_id.id);
+                }
+
                 self.eat_newlines_maybe()?;
                 let options = self
                     .options
@@ -512,6 +517,9 @@ impl Parser {
                         cursor.skipped_newline_count,
                         last_property_id.id,
                     );
+                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                        last_property_id.id,
+                    );
                     self.attach_inline_trailing_annotations_for_current_token(last_property_id.id);
                 }
                 break;
@@ -539,7 +547,7 @@ impl Parser {
                                 property_id.id,
                             );
                         }
-                        self.attach_inline_leading_annotations_for_token(
+                        self.attach_inline_expression_leading_annotations_for_token(
                             property_token_index,
                             property_skipped_newline_count,
                             property_id.id,
@@ -981,6 +989,11 @@ impl Parser {
             let body = if self
                 .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
+                // attach method return-type boundary annotations before `{`
+                if let Some(return_type_id) = return_type {
+                    self.attach_inline_trailing_annotations_for_current_token(return_type_id.id);
+                }
+
                 self.eat_newlines_maybe()?;
                 let options = self
                     .options
@@ -1127,7 +1140,7 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
         let mut last_member_id: Option<LocalNodeId<Member>> = None;
-        let mut pending_member_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
+        let mut pending_member_decorators: Vec<(LocalNodeId<Decorator>, usize, usize)> = Vec::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
             let cursor = self.normalize_to_scanner_cursor();
@@ -1139,6 +1152,9 @@ impl Parser {
                     self.attach_inline_postfix_blank_from_skipped_newlines(
                         cursor.index,
                         cursor.skipped_newline_count,
+                        last_member_id.id,
+                    );
+                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
                         last_member_id.id,
                     );
                     self.attach_inline_trailing_annotations_for_current_token(last_member_id.id);
@@ -1156,8 +1172,9 @@ impl Parser {
             }
             // consume decorator prefixes
             else if token_type == TokenType::At {
-                let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
-                pending_member_decorators.append(&mut decorators);
+                let decorators_with_cursors =
+                    self.eat_decorators_prefix_collect_with_cursors_maybe()?;
+                pending_member_decorators.extend(decorators_with_cursors);
                 continue;
             }
             // keep eating members
@@ -1167,10 +1184,24 @@ impl Parser {
                 match self.try_eat_member(TokenType::Newline) {
                     Ok(member_id) => {
                         if !pending_member_decorators.is_empty() {
-                            self.attach_decorators_to_target(
-                                std::mem::take(&mut pending_member_decorators),
-                                member_id.id,
-                            );
+                            for (
+                                decorator_id,
+                                decorator_token_index,
+                                decorator_skipped_newline_count,
+                            ) in pending_member_decorators.drain(..)
+                            {
+                                self.attach_inline_leading_annotations_for_token(
+                                    decorator_token_index,
+                                    decorator_skipped_newline_count,
+                                    member_id.id,
+                                );
+                                self.attach_inline_wrapper_leading_annotations_for_token(
+                                    decorator_token_index,
+                                    decorator_skipped_newline_count,
+                                    member_id.id,
+                                );
+                                self.attach_decorator_to_target(decorator_id, member_id.id);
+                            }
                         }
                         self.attach_inline_leading_annotations_for_token(
                             member_token_index,

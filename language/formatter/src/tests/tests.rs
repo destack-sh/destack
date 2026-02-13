@@ -54,6 +54,10 @@ impl TestFormatter {
         let (side_span, tree, tokens, side_tokens, strings, n) = {
             let mut parser = Parser::lex_file(file.clone(), language);
             let n = parse_fn(&mut parser)?;
+
+            // finalize annotation ownership for non-parse entrypoints used by formatter tests
+            parser.finish_annotations();
+
             let (tokens, side_tokens) = parser.take_tokens();
             (
                 parser.compute_side_span(),
