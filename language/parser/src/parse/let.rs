@@ -138,17 +138,17 @@ impl Parser {
             let declarator_id = self.eat_declarator(false, false)?;
             declarators.push(declarator_id);
 
-            // Check for comma to continue parsing more declarators
-            if self.peek_is(TokenType::Comma) {
-                self.bump(); // eat comma
-                self.eat_newlines_maybe()?;
-            } else {
-                // declarations require statement boundaries after declarators
-                if !self.declarator_has_statement_boundary() {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-                break;
+            // continue when a comma follows, even after line terminators
+            if self.eat_declarator_separator_maybe()? {
+                continue;
             }
+
+            // declarations require statement boundaries after declarators
+            if !self.declarator_has_statement_boundary() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
+            break;
         }
 
         // let
@@ -194,13 +194,12 @@ impl Parser {
             let declarator_id = self.eat_declarator(true, false)?;
             declarators.push(declarator_id);
 
-            // check for comma to continue parsing more declarators
-            if self.peek_is(TokenType::Comma) {
-                self.bump(); // eat comma
-                self.eat_newlines_maybe()?;
-            } else {
-                break;
+            // continue when a comma follows, even after line terminators
+            if self.eat_declarator_separator_maybe()? {
+                continue;
             }
+
+            break;
         }
 
         let using_id = self.tree.insert(
@@ -344,6 +343,24 @@ impl Parser {
         }
 
         Ok(declarator_id)
+    }
+
+    /// Eat one declarator separator comma maybe.
+    fn eat_declarator_separator_maybe(&mut self) -> ParseResult<bool> {
+        if !self.declarator_has_separator() {
+            return Ok(false);
+        }
+
+        self.eat_newlines_maybe()?;
+        self.bump(); // eat comma
+        self.eat_newlines_maybe()?;
+
+        Ok(true)
+    }
+
+    /// Return true when the next token sequence continues a declarator list.
+    fn declarator_has_separator(&mut self) -> bool {
+        self.peek_is(TokenType::Comma) || self.is_token_after_newlines(self.pos(), TokenType::Comma)
     }
 
     /// Return true when the current token can terminate a declaration statement.
@@ -845,6 +862,41 @@ const registry: Map<
                 });
                 assert!(ty.is_some());
                 assert!(value.is_some());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_var_declarators_with_leading_comma_newline_javascript() {
+        let mut test = TestParser::new_with_options(
+            r#"var args = new Array(arguments.length - 1)
+  , callbacks = this._callbacks['$' + event]"#,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(&start, DeclarationDescriptor::default())
+            .unwrap();
+
+        // parse both declarators split by a newline before the comma
+        assert_node!(parser.tree, let_id, Expression::Let { kind, mutability, declarators, .. } => {
+            assert_eq!(*kind, LetKind::Var);
+            assert_eq!(*mutability, Mutability::Mutable);
+            assert_eq!(declarators.len(), 2);
+
+            // first declarator name
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "args");
+                });
+            });
+
+            // second declarator name
+            assert_node!(parser.tree, declarators[1], Declarator { pattern, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "callbacks");
+                });
             });
         });
     }
