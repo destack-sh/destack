@@ -460,10 +460,13 @@ impl Compiler {
                             self.symbol_binding_category(ancestor_symbol);
                         let should_conflict = self.ancestor_binding_categories_conflict(
                             &tree,
+                            &symbols,
                             symbol,
                             ancestor_symbol,
                             binding_category,
                             ancestor_binding_category,
+                            symbol.scope.0,
+                            ancestor_scope_id,
                         );
                         if !should_conflict {
                             continue;
@@ -529,10 +532,13 @@ impl Compiler {
     fn ancestor_binding_categories_conflict(
         &self,
         tree: &NodeTree,
+        symbols: &SymbolTable,
         current_symbol: &Symbol,
         ancestor_symbol: &Symbol,
         current: BindingCategory,
         ancestor: BindingCategory,
+        current_scope_id: LocalScopeId,
+        ancestor_scope_id: LocalScopeId,
     ) -> bool {
         let current_is_parameter = current == BindingCategory::Parameter;
         let ancestor_is_parameter = ancestor == BindingCategory::Parameter;
@@ -556,12 +562,22 @@ impl Compiler {
         if ancestor == BindingCategory::Parameter
             && (self.symbol_is_runtime_function_parameter(ancestor_symbol)
                 || self.symbol_is_catch_parameter(tree, ancestor_symbol))
-            && matches!(
-                current,
-                BindingCategory::BlockScoped | BindingCategory::FunctionScoped
-            )
         {
-            return true;
+            // function scoped bindings always conflict with parameters
+            if current == BindingCategory::FunctionScoped {
+                return true;
+            }
+
+            // block scoped bindings only conflict in the immediate body scope
+            if current == BindingCategory::BlockScoped {
+                let current_scope = symbols.get_scope_by_id(current_scope_id);
+                let is_immediate_body_scope = current_scope
+                    .parent
+                    .is_some_and(|(parent_scope_id, _)| parent_scope_id == ancestor_scope_id);
+                if is_immediate_body_scope {
+                    return true;
+                }
+            }
         }
 
         matches!(
@@ -844,6 +860,21 @@ mod tests {
     #[test]
     fn test_javascript_arrow_parameter_destructuring_conflicts_with_body_const() {
         assert_import_conflicting_binding_in("test.js", "({a}) => { const a = 1; }");
+    }
+
+    /// JavaScript allows nested block lexical shadowing of function parameters.
+    #[test]
+    fn test_javascript_parameter_allows_nested_block_lexical_shadowing() {
+        assert_import_no_conflicting_binding_in(
+            "test.js",
+            "function a(node){ if (true) { const node = 1; } }",
+        );
+    }
+
+    /// Catch parameters allow nested block lexical shadowing.
+    #[test]
+    fn test_catch_parameter_allows_nested_block_lexical_shadowing() {
+        assert_import_no_conflicting_binding("try {} catch(a) { if (true) { let a; } }");
     }
 
     /// Catch parameters conflict with var declarations in catch bodies.
