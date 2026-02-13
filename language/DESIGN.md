@@ -22,7 +22,7 @@ TypeScript is the closest thing we have to a unified software foundation today.
 JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base (i.e., every browser everywhere).
 Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language (as evidenced by V8 and JSC coming within touching distance of Go and C# in some scenarios).
 
-Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript(++).
+Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`, objects, templates, generics, types), it behaves like TypeScript.
 Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack (on JS/TS targets), and the `++` features are opt-in and complementary.
 
 | Feature | Description | Tests |
@@ -36,45 +36,6 @@ Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack
 | [Reflection](#reflection) | Types as values, runtime type descriptors, schema validation | [declarations/reflection/](test/fixtures/specification/declarations/reflection/) |
 | [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [resolution/](test/fixtures/specification/resolution/) |
 | [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [types/ownership/](test/fixtures/specification/types/ownership/) |
-
-## Targets And Capabilities
-
-Destack targets both native runtimes and existing JS hosts.
-The native runtime is the reference platform and defines the full system model.
-JS host targets are for compatibility and incremental adoption.
-
-| Tier | Targets | Notes |
-|------|---------|-------|
-| Tier 1 | macOS, Linux, Windows | Full native runtime and platform bindings |
-| Tier 2 | iOS, Android, FreeBSD, OpenBSD, NetBSD, DragonFly | Native runtime with platform-specific constraints |
-| Tier 3 | WASI | Native runtime without host OS APIs, capabilities gated |
-| Host | Node, Bun, Deno, browsers | JS host execution with compatibility shims |
-
-Platform capabilities are explicit.
-Use `@require("fs", "net:tcp")` on bindings and APIs to declare what the code needs.
-Capabilities are hierarchical (`net:tcp` implies `net`), and the compiler enforces them against the target profile.
-
-| Capability | Description |
-|------------|-------------|
-| fs | Filesystem access |
-| fs:watch | File watching |
-| net | Networking |
-| net:tcp | TCP sockets |
-| net:udp | UDP sockets |
-| net:unix | Unix domain sockets |
-| net:tls | TLS sockets |
-| process | Process metadata and control |
-| process:spawn | Subprocess execution |
-| process:signals | Signal handling |
-| env | Environment variables |
-| clock | Wall and monotonic time |
-| random | Randomness and entropy |
-| thread | Threads and shared memory |
-| ffi | Native foreign function calls |
-| gpu | GPU compute and graphics |
-| ui | Windowing and input |
-| audio | Audio input and output |
-| crypto | Cryptographic primitives |
 
 ## Expressions
 
@@ -180,18 +141,31 @@ await using conn = openConnection();
 
 ## Trees
 
-TSX syntax generalized for any tree-shaped data:
+Destack generalizes TSX syntax for any tree-shaped data:
 
 ```ds
+// Wall.ds
+<Wall id={1}>
+    <Block name="foo" color={Color.RED} />
+    <Block name="bar" color={Color.BLUE} />
+</Wall>
+
+// Prompt.ds
 <Prompt>
-    <System>You are helpful.</System>
-    <User>{message}</User>
+    <System>You are a helpful assistant.</System>
+    <User>{userMessage}</User>
 </Prompt>
+
+// Level.ds
+<Level difficulty={3}>
+    <Player position={spawn} />
+    {enemies.map(e => <Enemy {...e} />)}
+</Level>
 ```
 
-Tree literals are fully TSX-compatible: copy-paste from `.tsx` files just works.
-They work with any tree-compatible type or function, not just React or React-like components.
-This enables domain-specific trees for AI prompts, game entities, UI components, and more.
+Destack's tree literals work with any tree-compatible type, not just UI component systems, and not just any _single_ JSX/TSX-style per project. 
+Because we have real type analysis you can mix and match.
+Types can opt into custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are supported
 
 ## Annotations
 
@@ -787,3 +761,4 @@ Index signatures follow TypeScript numeric key coercion rules, including numeric
 - **Flow**: We support TypeScript only.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
 - **Declaration expressions (native targets)**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with ahead-of-time compilation. Use named declarations instead. On JS targets, enable `noDynamicShapes` for portability.
+- **Namespaced tree tags (v1)**: XML-style namespaced tags like `<svg:path />` are not supported in v1. Use value tags (`<svg.Path />`) or intrinsic tags resolved by the active `TreeTagBuilder`.

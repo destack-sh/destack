@@ -111,6 +111,13 @@ destack_test::specification::declarations/associated-types/structs.md/structs/st
 destack_test::specification::declarations/associated-types/structs.md/structs/struct-generic-associated-projections-resolve-across-module-boundaries
 destack_test::specification::declarations/associated-types/structs.md/structs/struct-mixed-generic-associated-projections-resolve-across-module-boundaries
 destack_test::specification::expressions/comptime/conditions.md/comptime-conditions/comptime-type-condition-narrows-in-true-branch
+destack_test::specification::expressions/literals/tree-routing.md/value-tags/structural-component-tag-is-allowed
+destack_test::specification::expressions/literals/tree-routing.md/value-tags/key-and-ref-are-not-language-reserved
+destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/lowercase-intrinsic-requires-configured-treetagbuilder
+destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/fragment-requires-configured-treetagbuilder
+destack_test::specification::expressions/literals/tree-routing.md/intrinsic-tags/namespaced-tags-are-not-supported-in-v1
+destack_test::specification::expressions/literals/tree-routing.md/attributes-and-spread/explicit-props-override-spread-props-by-source-order
+destack_test::specification::expressions/literals/tree-routing.md/attributes-and-spread/open-shape-spread-is-rejected-when-nodynamicshapes-is-enabled
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-throw-when-true
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-try-catch-when-true
 destack_test::specification::options/strict.md/strictfunctiontypes/strictfunctiontypes-allows-narrow-method-parameters-when-false

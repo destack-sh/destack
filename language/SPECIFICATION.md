@@ -90,26 +90,76 @@ Range expressions evaluate to `Range<T>` or `RangeInclusive<T>` values (dependin
 
 ### Tree Literals
 
-Tree literals generalize TSX-like XML "trees" for hierarchical data structures beyond a specific "jsxSource".
+Tree literals generalize TSX/JSX syntax for any tree-shaped data beyond UIs with a superset of JSX/TSX syntax.
 
 ```ds
-<Entity id={1}>
-    <Child name="foo" />
-    <Child name="bar" />
-</Entity>
+// Wall.ds
+<Wall id={1}>
+    <Block name="foo" color={Color.RED} />
+    <Block name="bar" color={Color.BLUE} />
+</Wall>
 
+// Prompt.ds
 <Prompt>
     <System>You are a helpful assistant.</System>
     <User>{userMessage}</User>
 </Prompt>
 
+// Level.ds
 <Level difficulty={3}>
     <Player position={spawn} />
     {enemies.map(e => <Enemy {...e} />)}
 </Level>
 ```
 
-The tree literal syntax is customizable via traits, so your domain types can define how they're constructed from tree syntax.
+#### Tag Kinds And Resolution
+
+Like in TSX, Destack's tree literals come in two main forms:
+- **Value tags** via `TreeTag`: uppercase qualified tags like `<Button />` and `<UI.Button />` resolve in the normal value namespace.
+- **Intrinsic tags** via `TreeTagBuilder`: lowercase unqualified tags like `<div />` and `<span />` resolve through the active `TreeTagBuilder`.
+
+Value tag resolution follows normal symbol resolution rules, including import and member lookup semantics, just like in regular TS/TSX.
+Intrinsic tags just become strings
+Namespaced XML tags like `<svg:path />` just "svg:path".
+
+#### Value tags (TreeTag)
+
+Most "custom" tags are value tags, i.e., the uppercase `<Component />`s that are defined as actual types somewhere.
+Value tree tag construction is defined by the `TreeTag` interface.
+Compatible types automatically get a `TreeTag` implementation when possible, and all (nominal) types can implement `TreeTag` manually to customize tree construction behavior.
+
+```ds
+/// A tree tag.
+newtype interface TreeTag {
+    /// The associated Props type.
+    type Props;
+    /// The associated Node type.
+    type Node;
+
+    /// Create a Node from props and children.
+    static fromTree(props: this.Props, children: readonly this.Node[]): this.Node;
+}
+```
+
+#### Intrinsic tags (TreeTagBuilder)
+
+Like JSX/TSX, Destack also supports "intrinsic" lowercase tags that resolve to a generic tag instead of a specific type. 
+Lowercase tags and fragment construction are defined by the `TreeTagBuilder` interface.
+
+```ds
+/// A tree tag builder for intrinsic string tags (like `<div />` or `<svg:path />`)
+newtype interface TreeTagBuilder {
+    /// The associated Node type for all routed intrinsic tags.
+    type Node;
+    /// The tag with the given name.
+    type Tag<comptime Name: string>: TreeTag;
+    /// The fragment type (for `<> ... </>`).
+    type Fragment: TreeTag;
+}
+```
+
+The active tree tag builder can be configured at workspace, project and module level.
+Destack also recognizes the well known `jsxFactory`, `jsxFragmentFactory`, and related options, which is how we maintain compatibility with existing React-shaped TSX.
 
 ## Types
 
