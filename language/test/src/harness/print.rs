@@ -44,48 +44,6 @@ pub mod color {
     }
 }
 
-/// Compute the visible width of a string, ignoring ANSI SGR color sequences.
-///
-/// This is used to pad boxed output so the right border lines up.
-fn visible_width(text: &str) -> usize {
-    let mut width = 0;
-    let mut bytes = text.as_bytes();
-    while !bytes.is_empty() {
-        if bytes[0] == 0x1b && bytes.get(1) == Some(&b'[') {
-            // skip ANSI escape sequences like "\x1b[...m"
-            let mut i = 2;
-            while i < bytes.len() {
-                if bytes[i] == b'm' {
-                    i += 1;
-                    break;
-                }
-                i += 1;
-            }
-            bytes = &bytes[i.min(bytes.len())..];
-            continue;
-        }
-
-        // decode the next utf8 character
-        let next_char = match std::str::from_utf8(bytes) {
-            Ok(s) => s.chars().next(),
-            Err(err) => {
-                // skip invalid bytes to keep the renderer resilient
-                bytes = &bytes[err.valid_up_to().saturating_add(1)..];
-                continue;
-            }
-        };
-
-        if let Some(ch) = next_char {
-            width += 1;
-            bytes = &bytes[ch.len_utf8()..];
-        } else {
-            break;
-        }
-    }
-
-    width
-}
-
 /// Print test result with colors.
 pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, _verbose: bool) {
     let (_status_plain, status) = match result {
@@ -126,37 +84,14 @@ pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, _v
 
         let indent = "       ";
 
-        // calculate max visible width of all content lines
-        let max_content_width = message.lines().map(visible_width).max().unwrap_or(0);
-
-        // box inner width must fit the widest content line (plus minimum of 8)
-        let inner_width = max_content_width.max(8);
-        // separator includes: │ + space + content + space + │
-        let separator_len = inner_width + 4;
-
-        let border_top = color::dim(&format!(
-            "┌{}┐",
-            "─".repeat(separator_len.saturating_sub(2))
-        ));
-        let border_bottom = color::dim(&format!(
-            "└{}┘",
-            "─".repeat(separator_len.saturating_sub(2))
-        ));
-        let border_left = color::dim("│");
-        let border_right = color::dim("│");
-
-        println!("{indent}{border_top}");
-
+        println!("{indent}{}", color::red("failure details:"));
         for line in message.lines() {
-            let visible = visible_width(line);
-            let padding = inner_width.saturating_sub(visible);
-            println!(
-                "{indent}{border_left} {line}{} {border_right}",
-                " ".repeat(padding)
-            );
+            if line.is_empty() {
+                println!("{indent}");
+            } else {
+                println!("{indent}  {line}");
+            }
         }
-
-        println!("{indent}{border_bottom}");
         println!();
     }
 }

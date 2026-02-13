@@ -4,7 +4,8 @@ use clap::ValueEnum;
 use serde::Deserialize;
 
 /// A phase tier for ecosystem validation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
 pub enum EcosystemPhase {
     /// Parse source files with parser level validation only.
     Parse = 1,
@@ -92,6 +93,9 @@ pub struct EcosystemManifest {
     /// Compiler options overrides for ecosystem compatibility.
     #[serde(default)]
     pub compiler_options: CompilerOptionsConfig,
+    /// TSC configuration used for TypeScript parity checks.
+    #[serde(default)]
+    pub tsc: TscConfig,
     /// Per-phase workload settings for discovery and caps.
     #[serde(default)]
     pub workloads: WorkloadConfig,
@@ -159,6 +163,73 @@ impl CompilerOptionsConfig {
     /// Return whether plain js files should parse in jsx mode.
     pub fn js_as_jsx(&self) -> bool {
         self.js_as_jsx.unwrap_or(false)
+    }
+}
+
+/// TSC execution mode for ecosystem phase validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ValueEnum, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum EcosystemTscMode {
+    /// Disable tsc checks.
+    Off,
+    /// Run tsc checks only after Destack reports errors.
+    #[default]
+    OnFailure,
+    /// Always run tsc checks.
+    Always,
+}
+
+/// TSC tool selection for ecosystem phase validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ValueEnum, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum EcosystemTscTool {
+    /// Prefer `tsgo` and fall back to `tsc`.
+    #[default]
+    Auto,
+    /// Use `tsgo` directly.
+    Tsgo,
+    /// Use `tsc` directly.
+    Tsc,
+}
+
+/// TSC configuration for one ecosystem package.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct TscConfig {
+    /// Enable or disable tsc checks for this package.
+    pub enabled: Option<bool>,
+    /// TSC execution mode.
+    pub mode: Option<EcosystemTscMode>,
+    /// TSC tool selection.
+    pub tool: Option<EcosystemTscTool>,
+    /// Phase allowlist for tsc execution.
+    #[serde(default)]
+    pub phases: Vec<EcosystemPhase>,
+}
+
+impl TscConfig {
+    /// Return whether tsc checks are enabled for one package language.
+    pub fn enabled_for_language(&self, language: PackageLanguage) -> bool {
+        self.enabled
+            .unwrap_or(matches!(language, PackageLanguage::Ts))
+    }
+
+    /// Return the tsc execution mode with default fallback.
+    pub fn mode(&self) -> EcosystemTscMode {
+        self.mode.unwrap_or_default()
+    }
+
+    /// Return the tsc tool with default fallback.
+    pub fn tool(&self) -> EcosystemTscTool {
+        self.tool.unwrap_or_default()
+    }
+
+    /// Return whether one phase is eligible for tsc execution.
+    pub fn includes_phase(&self, phase: EcosystemPhase) -> bool {
+        if self.phases.is_empty() {
+            return matches!(phase, EcosystemPhase::Resolve | EcosystemPhase::Analyze);
+        }
+
+        self.phases.contains(&phase)
     }
 }
 
@@ -245,7 +316,10 @@ impl EcosystemManifest {
 
 #[cfg(test)]
 mod tests {
-    use super::{EcosystemManifest, EcosystemSupportTier};
+    use super::{
+        EcosystemManifest, EcosystemPhase, EcosystemSupportTier, EcosystemTscMode,
+        EcosystemTscTool, PackageLanguage,
+    };
 
     fn parse_manifest(content: &str) -> EcosystemManifest {
         toml::from_str(content).unwrap()
@@ -346,5 +420,61 @@ language = "ts"
         );
 
         assert_eq!(manifest.package.target_tier, None);
+    }
+
+    #[test]
+    fn test_parse_tsc_configuration() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[tsc]
+enabled = true
+mode = "always"
+tool = "tsgo"
+phases = ["resolve", "analyze"]
+"#,
+        );
+
+        assert!(manifest.tsc.enabled_for_language(PackageLanguage::Ts));
+        assert_eq!(manifest.tsc.mode(), EcosystemTscMode::Always);
+        assert_eq!(manifest.tsc.tool(), EcosystemTscTool::Tsgo);
+        assert!(manifest.tsc.includes_phase(EcosystemPhase::Resolve));
+        assert!(manifest.tsc.includes_phase(EcosystemPhase::Analyze));
+        assert!(!manifest.tsc.includes_phase(EcosystemPhase::Lower));
+    }
+
+    #[test]
+    fn test_parse_tsc_defaults_for_package_language() {
+        let ts_manifest = parse_manifest(
+            r#"
+[package]
+name = "demo-ts"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+"#,
+        );
+        let js_manifest = parse_manifest(
+            r#"
+[package]
+name = "demo-js"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "js"
+"#,
+        );
+
+        assert!(ts_manifest.tsc.enabled_for_language(PackageLanguage::Ts));
+        assert!(!js_manifest.tsc.enabled_for_language(PackageLanguage::Js));
+        assert_eq!(ts_manifest.tsc.mode(), EcosystemTscMode::OnFailure);
+        assert_eq!(ts_manifest.tsc.tool(), EcosystemTscTool::Auto);
+        assert!(ts_manifest.tsc.includes_phase(EcosystemPhase::Resolve));
+        assert!(ts_manifest.tsc.includes_phase(EcosystemPhase::Analyze));
+        assert!(!ts_manifest.tsc.includes_phase(EcosystemPhase::Parse));
     }
 }

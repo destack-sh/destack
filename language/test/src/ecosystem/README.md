@@ -195,6 +195,12 @@ js_as_jsx = true
 [patch]
 dependency_replacement = true
 
+[tsc]
+enabled = true
+mode = "on-failure"
+tool = "auto"
+phases = ["resolve", "analyze"]
+
 [workloads.analyze]
 max_files = 1000
 ```
@@ -202,6 +208,8 @@ max_files = 1000
 Supported values for `package.language` are `js`, `ts`, and `ds`.
 Use `package.target_tier` with one of `T0`, `T1`, `T2`, `T3`, `T4`, or `T5` to track intended coverage.
 Set `patch.dependency_replacement = true` when a package requires dependency patching or replacement.
+Use `[tsc]` to configure TypeScript parity checks with `tsgo` or `tsc` for selected phases.
+`tsc.mode` supports `off`, `on-failure`, and `always`, and `tsc.tool` supports `auto`, `tsgo`, and `tsc`.
 
 ## Status Files
 
@@ -232,5 +240,6 @@ cargo test -p destack_test --test ecosystem -- --phase parse
 cargo test -p destack_test --test ecosystem -- --phase resolve
 cargo test -p destack_test --test ecosystem -- --all-phases
 cargo test -p destack_test --test ecosystem -- --phase analyze --include-known-failures
+cargo test -p destack_test --test ecosystem -- --phase resolve --tsc-mode always --tsc-tool tsgo
 cargo test -p destack_test --test ecosystem -- --update-known-failures
 ```
