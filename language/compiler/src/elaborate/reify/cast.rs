@@ -3298,7 +3298,7 @@ class GreeterImpl implements Greeter {
         return;
     }
 
-    greet(): int32 { 
+    greet(): int32 {
         return this.value;
     }
 }

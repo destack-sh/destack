@@ -1,20 +1,13 @@
 # Elaborate
 
-Elaborate runs after Analyze and turns DIR into a "canonical" form.
+Elaborate turns DIR into a "canonical" form by transforming and reifying ("elaborating") implicit or higher level concepts from the base DIR into "canonical DIR".
+.
 The exact responsibilities of Elaborate are unfortunately a bit fuzzy because we need to support both high-level targets like JS/TS *and* low-level targets like WASM.
 We try to keep most transforms the same across targets to reduce the combinatorial explosion, but in some cases it's inevitable (like to retain some nullish coalescing behavior without complicating the JS/TS codegen backend).
 
 ## Pipeline
 
-Elaborate runs per profile on analyzed DIR.
-It feeds into Execute and then Lower.
-
-```text
-... ─-──► Analyze ───► Elaborate ───► Execute ───► Lower ───► ...
-                           │
-                           ├─► Transform
-                           └─► Reify
-```
+Elaborate is part of the front-end that runs per profile on analyzed DIR (after Execute has patched comptime results in).
 
 ## Transform
 

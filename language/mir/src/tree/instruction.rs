@@ -15,7 +15,7 @@ use crate::{
 /// Compact representation of an argument slice stored in an external buffer.
 ///
 /// Used by aggregate, call, intrinsic, and tensor instructions to reference value lists.
-/// This saves 16 bytes per instruction compared to using `Vec<Value>` inline.
+/// (This saves 16 bytes per instruction compared to using `Vec<Value>` inline.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ArgumentSlice {
     /// Start index in the arguments buffer.

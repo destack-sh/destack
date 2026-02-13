@@ -1,39 +1,21 @@
 # MIR
 
-Machine-level(-ish) IR for Destack.
-This is what gets fed to native codegen (Cranelift) and WASM, and what the comptime interpreter (VM) executes.
+Machine-level(-ish) IR for Destack for native codegen and VM execution.
 
 ## Overview
 
-MIR is the low-level IR in the Destack pipeline.
-DIR is high-level, target-independent, and polymorphic; MIR is low-level, target-aware, and monomorphic.
-It knows pointer sizes and calling conventions, but doesn't commit to specific registers or instruction encodings yet.
+MIR is the low-level IR in the Destack pipeline. 
+While DIR is _more_ high-level, target-independent, and polymorphic; MIR is low-level, target-aware, and monomorphic.
 
-## Compilation Unit
-
-The compilation unit defines the scope for inter module optimization and shared metadata.
-Module scope is the default compilation unit for fast builds.
-Thin LTO uses package scope and Full LTO uses program scope.
-Auto selects Thin LTO at O4 and uses module scope at lower levels.
-
-## Symbol Identity
-
-Function names in MIR are the mangled symbol identity.
-The mangling is deterministic and stable within the compilation unit.
-Package and program scope analyses use these names to stitch cross module edges.
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              DIR → MIR → NATIVE                             │
-│                                                                             │
-│  Stages:  Lower ───► Verify ───► Optimize ───► Generate                     │
-│  Output:    MIR    checked MIR   optimized MIR   native/WASM                │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+Admittedly, compared to some other "MIR"s in related compilers, our MIR is still somewhat high-level, but it's not _as_ high-level as DIR and it's actually executable efficiently so we'll just call it low-level. 
+We know pointer sizes and calling conventions and layouts and all that, but don't commit to specific registers or CPU instructions yet (that is for codegen).
 
 MIR uses SSA with block parameters (instead of phi nodes) like MLIR, Cranelift, and Swift's SIL.
 SSA values are explicitly typed at their definition site in MIR text.
+Overall, it's a pretty standard low-level IR with _some_ extras:
+1. **SSA with block parameters** (like Cranelift, MLIR, Swift SIL) instead of phi nodes
+2. **Value-semantic aggregate operations** (like LLVM, Swift SIL) for constructing and destructuring
+3. **Memory-semantic aggregate operations** (like Cranelift) for pointer-based access
 
 ```mir
 block0:
@@ -55,15 +37,6 @@ block0:
 block2(v3: i32):          // v3 is v1 or v2 depending on which edge
     ...
 ```
-
-## Design Philosophy
-
-MIR is a **hybrid IR** that combines:
-1. **SSA with block parameters** (like Cranelift, MLIR, Swift SIL) instead of phi nodes
-2. **Value-semantic aggregate operations** (like LLVM, Swift SIL) for constructing and destructuring
-3. **Memory-semantic aggregate operations** (like Cranelift) for pointer-based access
-
-This hybrid approach serves Destack's multi-backend architecture and mixed value/reference semantics.
 
 ### Why Both Value and Memory Semantics?
 
@@ -87,21 +60,6 @@ v0: ref<borrowed i32> = field.addr v1, 0   ; get address of field 0
 v2: i32 = load v0                          ; load through pointer
 store v0, v3                               ; store through pointer
 ```
-
-### Comparison with Other IRs
-
-| IR | Block Params | Value Aggregates | Memory Aggregates | Notes |
-|----|--------------|------------------|-------------------|-------|
-| **LLVM** | No (phi nodes) | Yes (`extractvalue`, `insertvalue`) | Yes (`getelementptr`) | Maximum expressiveness |
-| **Cranelift** | Yes | No | Yes (stack slots + loads) | Simplicity for fast JIT |
-| **Swift SIL** | Yes | Yes (`struct_extract`, `tuple_extract`) | Yes (`struct_element_addr`) | Mixed semantics like Destack |
-| **MLIR** | Yes | Dialect-dependent | Dialect-dependent | Extensible framework |
-| **Destack MIR** | Yes | Yes | Yes | Matches source semantics |
-
-Cranelift chose memory-only to simplify their implementation because they're optimized for fast compilation as a JIT backend, not maximum optimization potential.
-LLVM and Swift SIL use the same hybrid approach as MIR for the same reasons:
-- Value operations enable cleaner dataflow analysis (no aliasing concerns)
-- Memory operations are necessary when addresses are taken or data is behind references
 
 ## Instructions
 

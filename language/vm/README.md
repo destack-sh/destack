@@ -1,12 +1,12 @@
 # VM
 
-The VM is the MIR execution engine used for comptime evaluation, debugging, deterministic replay, and deopt fallback from native code.
+The VM is the MIR execution engine used for comptime evaluation, debugging, analysis, deterministic replay, and deopt fallback from native code.
 It is fully featured for MIR _logic_, and it performs "external" work only via explicit platform bindings.
-So, the VM by itself is just a pure computation engine.
+So, the VM by itself is just a pure resumable computation engine with serializable state, which is quite nice.
 
 ## Overview
 
-The VM runs MIR deterministically while deferring all external effects to the runtime.
+The VM runs MIR deterministically while deferring all external effects to the runtime (as above).
 It provides yield and continuation support so that scheduling and replay can be driven externally.
 It cooperates with native code through OSR, deopt, and stack maps in a way that mirrors the V8 and JSC split between engine and host.
 
