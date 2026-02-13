@@ -44,6 +44,8 @@ These are used by the dedicated `formatter-conformance` test binary and not by `
 
 ## Running Tests
 
+Run these commands from `language/`.
+
 ```bash
 just test-formatter
 ```
@@ -51,10 +53,10 @@ just test-formatter
 To fetch upstream formatter conformance sources:
 
 ```bash
-just language/install-formatter-conformance
+just install-formatter-conformance
 ```
 
 To run a specific test:
 ```bash
-just test-formatter spacing  # runs tests matching "spacing"
+cargo test --release --test formatter -- spacing  # runs tests matching "spacing"
 ```

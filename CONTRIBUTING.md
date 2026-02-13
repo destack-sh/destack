@@ -62,7 +62,6 @@ We use `justfile`s as the source of truth for all commands:
 just install 		# setup everything
 just check          # check & lint everything
 just fmt            # format all code
-just lint           # lint all code
 just test           # run all tests
 just bench          # run all benchmarks
 just fuzz           # run all fuzzers

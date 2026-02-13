@@ -761,4 +761,5 @@ Index signatures follow TypeScript numeric key coercion rules, including numeric
 - **Flow**: We support TypeScript only.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
 - **Declaration expressions (native targets)**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with ahead-of-time compilation. Use named declarations instead. On JS targets, enable `noDynamicShapes` for portability.
-- **Namespaced tree tags (v1)**: XML-style namespaced tags like `<svg:path />` are not supported in v1. Use value tags (`<svg.Path />`) or intrinsic tags resolved by the active `TreeTagBuilder`.
+- **XML namespace resolution (v1)**: Destack does not implement XML `xmlns` namespace binding semantics.
+  Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`) and routed through the active `TreeTagBuilder`.

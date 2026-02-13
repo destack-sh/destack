@@ -6,7 +6,7 @@ Parser conformance tests using external test suites.
 
 ```sh
 # install all test fixtures
-just language/install-fixtures
+just language/install
 
 # run all conformance tests
 cargo test --release --test conformance

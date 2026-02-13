@@ -22,6 +22,8 @@ The only way to ensure 100% reliability is to test everything, and test it thoro
 | **Stress** | [language/test/fixtures/stress/](language/test/fixtures/stress/) | Scale limits: large files, many modules, deep nesting |
 | **Fuzz** | [language/parser/fuzz/](language/parser/fuzz/), [language/formatter/fuzz/](language/formatter/fuzz/) | Random input exploration |
 
+Run these commands from the repository root.
+
 ```bash
 # all tests
 just test

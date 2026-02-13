@@ -17,10 +17,12 @@ CLI, editor support, and build system plugins.
 
 ## Commands
 
-```sh
-just platform/cli     # build CLI
-just platform/lsp     # build LSP server
-just platform/vscode  # build VS Code extension
-just platform/build   # build all platform crates
-```
+Run these commands from the repository root.
 
+```sh
+just platform/build            # build all platform crates
+just platform/build-vscode     # build VS Code extension package
+just platform/build-zed        # check Zed extension
+just platform/test             # run platform tests
+just platform/generate-schema  # generate CLI report schema
+```

@@ -119,8 +119,8 @@ Like in TSX, Destack's tree literals come in two main forms:
 - **Intrinsic tags** via `TreeTagBuilder`: lowercase unqualified tags like `<div />` and `<span />` resolve through the active `TreeTagBuilder`.
 
 Value tag resolution follows normal symbol resolution rules, including import and member lookup semantics, just like in regular TS/TSX.
-Intrinsic tags just become strings
-Namespaced XML tags like `<svg:path />` just "svg:path".
+Intrinsic tags resolve through the active `TreeTagBuilder` as compile-time string names.
+Namespaced XML tags like `<svg:path />` keep their lexical name and route as intrinsic tag names (`"svg:path"`).
 
 #### Value tags (TreeTag)
 
@@ -143,7 +143,7 @@ newtype interface TreeTag {
 
 #### Intrinsic tags (TreeTagBuilder)
 
-Like JSX/TSX, Destack also supports "intrinsic" lowercase tags that resolve to a generic tag instead of a specific type. 
+Like JSX/TSX, Destack also supports "intrinsic" lowercase tags that resolve to a generic tag instead of a specific type.
 Lowercase tags and fragment construction are defined by the `TreeTagBuilder` interface.
 
 ```ds
@@ -158,8 +158,8 @@ newtype interface TreeTagBuilder {
 }
 ```
 
-The active tree tag builder can be configured at workspace, project and module level.
-Destack also recognizes the well known `jsxFactory`, `jsxFragmentFactory`, and related options, which is how we maintain compatibility with existing React-shaped TSX.
+The active tree tag builder can be configured at workspace, project, and module level.
+Destack also recognizes `jsx`, `jsxFactory`, `jsxFragmentFactory`, and `jsxImportSource` options for TSX ecosystem compatibility.
 
 ## Types
 

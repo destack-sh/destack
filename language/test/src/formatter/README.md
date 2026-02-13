@@ -14,14 +14,16 @@ The formatter test suite includes two types of tests:
 
 ## Running
 
+Run these commands from `language/`.
+
 ```bash
 # Run all formatter tests
 just test-formatter
 
 # Run specific tests
-just test-formatter spacing        # tests matching "spacing"
-just test-formatter roundtrip      # only roundtrip tests
-just test-formatter transform      # only transform tests
-just test-formatter smoke          # only smoke tests
+cargo test --release --test formatter -- spacing     # tests matching "spacing"
+cargo test --release --test formatter -- roundtrip   # only roundtrip tests
+cargo test --release --test formatter -- transform   # only transform tests
+cargo test --release --test formatter -- smoke       # only smoke tests
 just test-formatter-conformance    # external suite conformance harness
 ```

@@ -712,11 +712,12 @@ function requireName(name: string | null): string {
 }
 ```
 
-### Realize tree literals via renderer protocols
+### Realize tree literals via TreeTag and TreeTagBuilder
 
-Tree literals are realized via a renderer protocol chosen by tag type.
-Renderer selection is static when possible and dynamic when needed.
-NOTE #Incomplete: define renderer protocol and routing rules
+Tree literals are realized via tag routing, not a renderer protocol.
+Value tags (e.g. `<Button />`) lower through `fromTree` on the resolved `TreeTag`.
+Intrinsic tags (e.g. `<div />` and `<svg:path />`) lower through the active `TreeTagBuilder`.
+Fragment syntax lowers through the builder `Fragment` tag.
 
 ```ds
 // source
@@ -728,7 +729,35 @@ function view(label: string): unknown {
 ```ds
 // after reify
 function view(label: string): unknown {
-    Renderer.create(Button, null, label)
+    Button.fromTree({}, [label])
+}
+```
+
+```ds
+// source
+function panel(label: string): unknown {
+    <div className="card">{label}</div>
+}
+```
+
+```ds
+// after reify
+function panel(label: string): unknown {
+    TreeTagBuilder.Tag<"div">.fromTree({ className: "card" }, [label])
+}
+```
+
+```ds
+// source
+function namespaced(): unknown {
+    <svg:path />
+}
+```
+
+```ds
+// after reify
+function namespaced(): unknown {
+    TreeTagBuilder.Tag<"svg:path">.fromTree({}, [])
 }
 ```
 
