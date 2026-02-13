@@ -8,15 +8,12 @@ Local formatter smoke fixtures live in `fixtures/formatter/smoke`.
 
 Fetched upstream suites are stored under:
 
-- `conformance/staging/biome`
 - `conformance/staging/prettier`
 - `conformance/staging/oxfmt`
 
 ## Suggested suite sources
 
-Use oxfmt as the hard external baseline for JS/TS behavior.
-
-Use Biome and Prettier as advisory corpora for broader gap discovery.
+Use both oxfmt and Prettier as required external baselines for supported JS/TS behavior.
 
 Keep TS++ and annotation behavior in Destack owned fixtures under `transform` and `roundtrip`.
 
@@ -36,7 +33,6 @@ just language/install-formatter-conformance
 Or run scripts directly:
 
 ```sh
-./biome-fetch.sh
 ./prettier-fetch.sh
 ./oxfmt-fetch.sh
 ```
@@ -57,8 +53,6 @@ just language/test-formatter-conformance
 
 Known failures and ignored test lists live alongside this README.
 
-- `biome-known-failures.txt`
-- `biome-ignored.txt`
 - `prettier-known-failures.txt`
 - `prettier-ignored.txt`
 - `oxfmt-known-failures.txt`

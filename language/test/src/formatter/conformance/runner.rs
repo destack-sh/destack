@@ -631,10 +631,10 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
 
     // header
     println!(
-        "  {:10}  {:6}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}  {:>10}",
-        "Suite", "Tier", "Passed", "Failed", "Ignored", "Total", "Rate", "Δ Rate"
+        "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}  {:>10}",
+        "Suite", "Passed", "Failed", "Ignored", "Total", "Rate", "Δ Rate"
     );
-    println!("  {}", "─".repeat(82));
+    println!("  {}", "─".repeat(74));
 
     // rows - pad values before coloring to maintain alignment
     for r in results {
@@ -656,7 +656,6 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
         let delta_str = format_rate_delta_inline(rate_delta);
 
         let name = format!("{:10}", r.name);
-        let tier = format!("{:6}", suite_tier_label(&r.name));
         let passed = format!("{:>8}", r.result.passed);
         let failed = format!("{:>8}", r.result.failed);
         let skipped = if r.result.skipped > 0 {
@@ -666,9 +665,8 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
         };
 
         println!(
-            "  {}  {}  {}  {}  {}  {:>8}  {}  {}",
+            "  {}  {}  {}  {}  {:>8}  {}  {}",
             color::cyan(&name),
-            color::bold(&tier),
             color::green(&passed),
             color::red(&failed),
             color::dim(&skipped),
@@ -679,7 +677,7 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
     }
 
     // total row
-    println!("  {}", "─".repeat(82));
+    println!("  {}", "─".repeat(74));
     let total_rate_str = format!("{overall_rate:>7.2}%");
     let total_rate_colored = if overall_rate >= 90.0 {
         color::green(&total_rate_str)
@@ -699,7 +697,6 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
     let total_label = format!("{:10}", "TOTAL");
     let total_passed_str = format!("{total_passed:>8}");
     let total_failed_str = format!("{:>8}", total_failed + total_timedout);
-    let total_tier = format!("{:6}", "-");
     let total_skipped_str = if total_skipped > 0 {
         format!("{total_skipped:>8}")
     } else {
@@ -707,9 +704,8 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
     };
 
     println!(
-        "  {}  {}  {}  {}  {}  {:>8}  {}  {}",
+        "  {}  {}  {}  {}  {:>8}  {}  {}",
         color::bold(&total_label),
-        color::dim(&total_tier),
         color::green(&total_passed_str),
         color::red(&total_failed_str),
         color::dim(&total_skipped_str),
@@ -1042,10 +1038,6 @@ struct ReadmeRow {
 }
 
 impl ReadmeRow {
-    fn tier(&self) -> &'static str {
-        suite_tier_label(&self.name)
-    }
-
     fn from_suite_result(result: &SuiteResult) -> Self {
         Self {
             name: result.name.clone(),
@@ -1061,25 +1053,13 @@ impl ReadmeRow {
     fn format(&self) -> String {
         if self.skipped > 0 {
             format!(
-                "| {:<8} | {:<4} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
-                self.name,
-                self.tier(),
-                self.passed,
-                self.failed,
-                self.skipped,
-                self.total,
-                self.rate
+                "| {:<8} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+                self.name, self.passed, self.failed, self.skipped, self.total, self.rate
             )
         } else {
             format!(
-                "| {:<8} | {:<4} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
-                self.name,
-                self.tier(),
-                self.passed,
-                self.failed,
-                "-",
-                self.total,
-                self.rate
+                "| {:<8} | {:>5}  | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+                self.name, self.passed, self.failed, "-", self.total, self.rate
             )
         }
     }
@@ -1126,7 +1106,7 @@ impl ReadmeResults {
                 (name, passed, failed, skipped, total, rate)
             }
             9 => {
-                // New format with tier and ignored columns
+                // Legacy format with tier and ignored columns
                 let name = parts[1].to_lowercase();
                 let passed: usize = parts[3].parse().ok()?;
                 let failed: usize = parts[4].parse().ok()?;
@@ -1293,14 +1273,6 @@ fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> Stri
     lines.join("\n")
 }
 
-fn suite_tier_label(suite_name: &str) -> &'static str {
-    match suite_name {
-        "oxfmt" => "hard",
-        "prettier" | "biome" => "soft",
-        _ => "-",
-    }
-}
-
 /// Format the complete results section.
 fn format_results_section(rows: &[ReadmeRow]) -> String {
     // compute totals
@@ -1315,22 +1287,22 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
     };
 
     let mut lines = Vec::new();
-    lines.push("| Suite    | Tier | Passed | Failed | Ignored | Total |  Rate   |".to_string());
-    lines.push("|:---------|:-----|-------:|-------:|--------:|------:|--------:|".to_string());
+    lines.push("| Suite    | Passed | Failed | Ignored | Total |  Rate   |".to_string());
+    lines.push("|:---------|-------:|-------:|--------:|------:|--------:|".to_string());
 
     for row in rows {
         lines.push(row.format());
     }
 
-    lines.push("|----------|------|--------|--------|---------|-------|---------|".to_string());
+    lines.push("|----------|--------|--------|---------|-------|---------|".to_string());
     let skipped_str = if total_skipped > 0 {
         format!("{total_skipped:>5}")
     } else {
         "-".to_string()
     };
     lines.push(format!(
-        "| {:<8} | {:<4} | {:>5}  | {:>5}  | {:>6}  | {:>5} | {:>6.2}% |",
-        "total", "-", total_passed, total_failed, skipped_str, total_total, total_rate
+        "| {:<8} | {:>5}  | {:>5}  | {:>6}  | {:>5} | {:>6.2}% |",
+        "total", total_passed, total_failed, skipped_str, total_total, total_rate
     ));
     lines.push(String::new());
     lines.push(format!("Total Blended Pass Rate: **{total_rate:.2}%**"));

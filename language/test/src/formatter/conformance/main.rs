@@ -16,10 +16,6 @@ struct Args {
     #[arg(long)]
     suite_filter: Option<String>,
 
-    /// Run Biome formatter suite.
-    #[arg(long)]
-    biome: bool,
-
     /// Run Prettier formatter suite.
     #[arg(long)]
     prettier: bool,
@@ -38,7 +34,6 @@ fn main() -> ExitCode {
     let mut test_options = args.test;
     test_options.continue_on_timeout = true;
     let selection = ConformanceSelection {
-        biome: args.biome,
         prettier: args.prettier,
         oxfmt: args.oxfmt,
     };

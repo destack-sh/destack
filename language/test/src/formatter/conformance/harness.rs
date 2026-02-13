@@ -3,15 +3,12 @@ use std::sync::Mutex;
 use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult};
 
 use super::{
-    SuiteResult, load_readme_baseline, print_summary, run_biome, run_oxfmt, run_prettier,
-    update_readme,
+    SuiteResult, load_readme_baseline, print_summary, run_oxfmt, run_prettier, update_readme,
 };
 
 /// Selection of formatter conformance suites to run.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ConformanceSelection {
-    /// Run Biome formatter suite.
-    pub biome: bool,
     /// Run Prettier formatter suite.
     pub prettier: bool,
     /// Run oxfmt formatter suite.
@@ -20,7 +17,7 @@ pub struct ConformanceSelection {
 
 impl ConformanceSelection {
     pub fn is_all_disabled(&self) -> bool {
-        !self.biome && !self.prettier && !self.oxfmt
+        !self.prettier && !self.oxfmt
     }
 }
 
@@ -63,15 +60,6 @@ impl Suite for ConformanceHarnessSuite {
 
         let mut cases = Vec::new();
 
-        // biome
-        if run_all || self.selection.biome {
-            cases.push(TestCase::directory(
-                "biome",
-                "fixtures/formatter/conformance/staging/biome",
-                "destack_test::formatter::conformance",
-            ));
-        }
-
         // prettier
         if run_all || self.selection.prettier {
             cases.push(TestCase::directory(
@@ -100,7 +88,6 @@ impl Suite for ConformanceHarnessSuite {
         }
 
         let suite_result = match case.name.as_str() {
-            "biome" => run_biome(&suite_options, self.update_known_failures),
             "prettier" => run_prettier(&suite_options, self.update_known_failures),
             "oxfmt" => run_oxfmt(&suite_options, self.update_known_failures),
             other => {
