@@ -383,6 +383,8 @@ pub struct BuiltinLib {
     pub dependencies: &'static [&'static str],
     /// Import specifier aliases for this library.
     pub specifier_aliases: &'static [(&'static str, &'static str)],
+    /// Types package names that should map to this library.
+    pub types_package_names: &'static [&'static str],
     /// Symbols declared by this library used by the compiler.
     pub declared_symbols: &'static [&'static str],
     /// Whether symbols are ambient without explicit imports.
@@ -404,6 +406,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: true,
             specifier_aliases: &[],
+            types_package_names: &[],
             declared_symbols: &[],
         }
     }
@@ -421,6 +424,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: true,
             specifier_aliases: &[],
+            types_package_names: &[],
             declared_symbols: &[],
         }
     }
@@ -438,6 +442,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: true,
             specifier_aliases: &[],
+            types_package_names: &[],
             declared_symbols: &[],
         }
     }
@@ -455,6 +460,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: false,
             specifier_aliases: &[],
+            types_package_names: &[],
             declared_symbols: &[],
         }
     }
@@ -472,6 +478,7 @@ impl BuiltinLib {
             dependencies,
             is_ambient: false,
             specifier_aliases: &[],
+            types_package_names: &[],
             declared_symbols: &[],
         }
     }
@@ -491,6 +498,15 @@ impl BuiltinLib {
         specifier_aliases: &'static [(&'static str, &'static str)],
     ) -> Self {
         self.specifier_aliases = specifier_aliases;
+        self
+    }
+
+    /// Attach tsconfig types package names to the builtin library definition.
+    pub(crate) const fn with_types_package_names(
+        mut self,
+        types_package_names: &'static [&'static str],
+    ) -> Self {
+        self.types_package_names = types_package_names;
         self
     }
 

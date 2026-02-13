@@ -31,7 +31,10 @@
         "node.v24",
         "undici-types.v7"
       ],
-      "specifierAliases": "undici_types_v7"
+      "specifierAliases": "undici_types_v7",
+      "typesPackageNames": [
+        "bun-types"
+      ]
     },
     {
       "name": "bun.v1.3",

@@ -82,7 +82,8 @@ pub const LIB_BUN: BuiltinLib = BuiltinLib::ambient_lib(
     ],
     &["esnext", "node.v24", "undici-types.v7"],
 )
-.with_specifier_aliases(UNDICI_TYPES_V7_SPECIFIER_ALIASES);
+.with_specifier_aliases(UNDICI_TYPES_V7_SPECIFIER_ALIASES)
+.with_types_package_names(&["bun-types"]);
 
 pub const LIB_BUN_V1_3: BuiltinLib = BuiltinLib::ambient_lib(
     "bun.v1.3",
