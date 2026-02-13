@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -8,7 +8,7 @@ use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, Res
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileRegistry, FileSystem, FileType,
-    LanguageType, MemoryFileSystem, ModuleId, PhysicalFileSystem, PrintOptions, Uri,
+    LanguageType, MemoryFileSystem, ModuleId, PhysicalFileSystem, PrintOptions, Uri, glob,
 };
 use destack_workspace::{
     FormatterOptions, LinterOptions, PackageJson, Program, Session, select_manifest_entry_paths,
@@ -80,12 +80,12 @@ fn run_compiler_phase(
     default_tsc_mode: EcosystemTscMode,
     default_tsc_tool: EcosystemTscTool,
 ) -> TestResult {
-    let entrypoints = select_phase_entrypoints(package_dir, files);
-    if entrypoints.is_empty() {
-        return TestResult::Failed {
-            message: format!("no entrypoints selected for phase '{}'", phase.name(),),
-        };
-    }
+    let entrypoints = match select_phase_entrypoints(package_dir, files) {
+        Ok(entrypoints) => entrypoints,
+        Err(message) => {
+            return TestResult::Failed { message };
+        }
+    };
 
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let session = Arc::new(Session::new(package_dir.to_path_buf()).with_fs(file_system));
@@ -808,24 +808,25 @@ fn enqueue_phase_task(
     }
 }
 
-/// Select phase entrypoints from package metadata, with deterministic fallback heuristics.
-fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Vec<PathBuf> {
+/// Select phase entrypoints from package manifests.
+fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
     let mut candidates = files.to_vec();
 
     // filter declaration files for semantic and lowering phases
     candidates.retain(|path| !is_declaration_file(path.as_path()));
-
     candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
 
-    // prefer package.json entry fields when possible
-    let manifest_entrypoints = select_manifest_entrypoints(package_dir, &candidates);
-    let selected = if manifest_entrypoints.is_empty() {
-        candidates
-    } else {
-        manifest_entrypoints
-    };
+    // resolve entrypoints from package manifests only
+    let manifest_entrypoints = select_manifest_entrypoints(package_dir, &candidates)?;
+    if manifest_entrypoints.is_empty() {
+        return Err(format!(
+            "no entrypoints discovered from package manifest entries in {} ({} candidate source files)",
+            package_dir.display(),
+            candidates.len(),
+        ));
+    }
 
-    selected
+    Ok(manifest_entrypoints)
 }
 
 /// Build deterministic sort keys for phase entrypoints.
@@ -855,28 +856,222 @@ fn is_declaration_file(path: &Path) -> bool {
     file_name.ends_with(".d.ts") || file_name.ends_with(".d.mts") || file_name.ends_with(".d.cts")
 }
 
-/// Select candidate files that correspond to package.json entry fields.
-fn select_manifest_entrypoints(package_dir: &Path, candidates: &[PathBuf]) -> Vec<PathBuf> {
-    let entry_targets = load_package_entry_targets(package_dir);
-    if entry_targets.is_empty() {
-        return Vec::new();
+/// One package manifest source used for entrypoint resolution.
+#[derive(Debug, Clone)]
+struct ManifestEntrySource {
+    /// The package directory containing this manifest.
+    package_dir: PathBuf,
+    /// Ordered manifest entry targets.
+    entry_targets: Vec<String>,
+}
+
+/// Select candidate files that correspond to package manifest entry fields.
+fn select_manifest_entrypoints(
+    package_dir: &Path,
+    candidates: &[PathBuf],
+) -> Result<Vec<PathBuf>, String> {
+    let manifest_sources = load_manifest_entry_sources(package_dir)?;
+    if manifest_sources.is_empty() {
+        return Ok(Vec::new());
     }
-    select_manifest_entry_paths(package_dir, candidates, &entry_targets)
+
+    let mut selected = Vec::new();
+    let mut selected_keys = HashSet::new();
+
+    // resolve entry targets for each manifest source
+    for source in manifest_sources {
+        let source_candidates = candidates
+            .iter()
+            .filter(|path| path.starts_with(source.package_dir.as_path()))
+            .cloned()
+            .collect::<Vec<_>>();
+        if source_candidates.is_empty() {
+            continue;
+        }
+
+        let source_selected = select_manifest_entry_paths(
+            source.package_dir.as_path(),
+            &source_candidates,
+            &source.entry_targets,
+        );
+
+        for selected_path in source_selected {
+            let selected_key = normalize_path_key(selected_path.as_path());
+            if selected_keys.insert(selected_key) {
+                selected.push(selected_path);
+            }
+        }
+    }
+
+    selected.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
+
+    Ok(selected)
 }
 
-/// Load package entry target strings from package.json.
-fn load_package_entry_targets(package_dir: &Path) -> Vec<String> {
-    let package_json_path = package_dir.join("package.json");
-    let Ok(content) = fs::read_to_string(&package_json_path) else {
-        return Vec::new();
-    };
-    let Ok(package_json) = serde_json::from_str::<PackageJson>(&content) else {
-        return Vec::new();
+/// Load package manifest entry sources from root and workspace package manifests.
+fn load_manifest_entry_sources(package_dir: &Path) -> Result<Vec<ManifestEntrySource>, String> {
+    let root_manifest_path = package_dir.join("package.json");
+    let Some(root_package_json) = load_package_json(root_manifest_path.as_path())? else {
+        return Ok(Vec::new());
     };
 
-    package_json.entry_targets()
+    let mut sources = Vec::new();
+    let mut seen_manifest_paths = HashSet::new();
+
+    // add the root package manifest when it has entry targets
+    let root_entry_targets = root_package_json.entry_targets();
+    if !root_entry_targets.is_empty() {
+        seen_manifest_paths.insert(normalize_path_key(root_manifest_path.as_path()));
+        sources.push(ManifestEntrySource {
+            package_dir: package_dir.to_path_buf(),
+            entry_targets: root_entry_targets,
+        });
+    }
+
+    // add workspace package manifests when configured
+    if let Some(workspaces) = root_package_json.workspaces.as_ref() {
+        let workspace_manifest_paths =
+            collect_workspace_manifest_paths(package_dir, workspaces.patterns());
+
+        for workspace_manifest_path in workspace_manifest_paths {
+            let workspace_manifest_key = normalize_path_key(workspace_manifest_path.as_path());
+            if !seen_manifest_paths.insert(workspace_manifest_key) {
+                continue;
+            }
+
+            let Some(workspace_package_json) =
+                load_package_json(workspace_manifest_path.as_path())?
+            else {
+                continue;
+            };
+
+            let workspace_entry_targets = workspace_package_json.entry_targets();
+            if workspace_entry_targets.is_empty() {
+                continue;
+            }
+
+            let Some(workspace_package_dir) = workspace_manifest_path.parent() else {
+                continue;
+            };
+            if !workspace_package_dir.starts_with(package_dir) {
+                continue;
+            }
+
+            sources.push(ManifestEntrySource {
+                package_dir: workspace_package_dir.to_path_buf(),
+                entry_targets: workspace_entry_targets,
+            });
+        }
+    }
+
+    sources.sort_by_key(|source| normalize_path_key(source.package_dir.as_path()));
+
+    Ok(sources)
 }
 
+/// Load one package json file when present.
+fn load_package_json(path: &Path) -> Result<Option<PackageJson>, String> {
+    if !path.is_file() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(path)
+        .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    let package_json = serde_json::from_str::<PackageJson>(&content)
+        .map_err(|error| format!("failed to parse {}: {error}", path.display()))?;
+
+    Ok(Some(package_json))
+}
+
+/// Normalize one path key for stable matching.
+fn normalize_path_key(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+/// Collect workspace package manifest paths from npm style workspace patterns.
+fn collect_workspace_manifest_paths(package_dir: &Path, patterns: &[String]) -> Vec<PathBuf> {
+    let mut selected_paths: Vec<PathBuf> = Vec::new();
+    let mut selected_path_keys: HashSet<String> = HashSet::new();
+
+    // apply include and exclude workspace patterns in order
+    for raw_pattern in patterns {
+        let trimmed_pattern = raw_pattern.trim();
+        if trimmed_pattern.is_empty() {
+            continue;
+        }
+
+        // parse workspace exclusion syntax
+        let (is_exclude_pattern, workspace_pattern) =
+            if let Some(workspace_pattern) = trimmed_pattern.strip_prefix('!') {
+                (true, workspace_pattern.trim())
+            } else {
+                (false, trimmed_pattern)
+            };
+        if workspace_pattern.is_empty() {
+            continue;
+        }
+
+        // resolve one pattern to matching package manifests
+        let matched_manifest_paths =
+            glob_workspace_manifest_paths_for_pattern(package_dir, workspace_pattern);
+
+        // remove excluded matches from the current set
+        if is_exclude_pattern {
+            for manifest_path in matched_manifest_paths {
+                let manifest_key = normalize_path_key(manifest_path.as_path());
+                if !selected_path_keys.remove(&manifest_key) {
+                    continue;
+                }
+
+                selected_paths.retain(|path| normalize_path_key(path.as_path()) != manifest_key);
+            }
+
+            continue;
+        }
+
+        // add included matches while preserving order
+        for manifest_path in matched_manifest_paths {
+            let manifest_key = normalize_path_key(manifest_path.as_path());
+            if selected_path_keys.insert(manifest_key) {
+                selected_paths.push(manifest_path);
+            }
+        }
+    }
+
+    selected_paths
+}
+
+/// Resolve one workspace pattern to matching package manifest paths.
+fn glob_workspace_manifest_paths_for_pattern(package_dir: &Path, pattern: &str) -> Vec<PathBuf> {
+    let mut manifest_paths = Vec::new();
+    let pattern = pattern.trim_end_matches('/');
+    if pattern.is_empty() {
+        return manifest_paths;
+    }
+
+    // normalize one workspace pattern to package json targets
+    let manifest_pattern = if pattern.ends_with("package.json") {
+        pattern.to_string()
+    } else {
+        format!("{pattern}/package.json")
+    };
+    let absolute_manifest_pattern = package_dir.join(manifest_pattern);
+
+    // collect matching package manifests inside the package root
+    for matched_path in glob(&absolute_manifest_pattern.to_string_lossy()) {
+        if !matched_path.is_file() {
+            continue;
+        }
+        if !matched_path.starts_with(package_dir) {
+            continue;
+        }
+
+        manifest_paths.push(matched_path);
+    }
+
+    manifest_paths.sort_by_key(|path| normalize_path_key(path.as_path()));
+    manifest_paths
+}
 /// Parse one source file and fail when parser diagnostics contain errors.
 fn parse_file(path: &Path, manifest: &EcosystemManifest) -> Result<(), String> {
     let content = fs::read_to_string(path).map_err(|error| format!("read error: {error}"))?;
@@ -960,11 +1155,34 @@ fn language_type_for_parse(
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
     use super::{
         ExpectedDiagnosticConfig, ObservedPhaseDiagnostic, match_expected_phase_diagnostics,
-        normalize_path_fragment,
+        normalize_path_fragment, select_phase_entrypoints,
     };
     use crate::ecosystem::manifest::EcosystemPhase;
+
+    /// Allocate a unique temporary directory for one test.
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before unix epoch")
+            .as_nanos();
+        let process_id = std::process::id();
+        std::env::temp_dir().join(format!(
+            "destack-ecosystem-tier-{label}-{process_id}-{timestamp}"
+        ))
+    }
+
+    /// Write one file and create parent directories.
+    fn write_text_file(path: &Path, text: &str) {
+        let parent = path.parent().expect("expected parent directory");
+        fs::create_dir_all(parent).expect("failed to create parent directory");
+        fs::write(path, text).expect("failed to write file");
+    }
 
     #[test]
     fn test_match_expected_phase_diagnostics_matches_path_and_message_fragments() {
@@ -1016,5 +1234,154 @@ mod tests {
         assert_eq!(outcome.missing_expected[0].code, "ER200");
         assert_eq!(outcome.unexpected_observed.len(), 1);
         assert_eq!(outcome.unexpected_observed[0].code, "ER201");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_from_workspace_manifests() {
+        let temp_dir = unique_temp_dir("workspace-entrypoints");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create root workspace package json
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "private": true,
+  "workspaces": ["packages/*"]
+}"#,
+        );
+
+        // create workspace package manifests with explicit entry targets
+        write_text_file(
+            &temp_dir.join("packages/a/package.json"),
+            r#"{
+  "name": "a",
+  "main": "./src/index.js"
+}"#,
+        );
+        write_text_file(
+            &temp_dir.join("packages/b/package.json"),
+            r#"{
+  "name": "b",
+  "exports": {
+    ".": "./src/main.ts"
+  }
+}"#,
+        );
+
+        // create source candidates for both packages
+        let candidates = vec![
+            temp_dir.join("packages/a/src/index.ts"),
+            temp_dir.join("packages/a/src/extra.ts"),
+            temp_dir.join("packages/b/src/main.ts"),
+            temp_dir.join("packages/b/src/extra.ts"),
+        ];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select entrypoints from manifest targets only
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            selected_relative,
+            vec!["packages/a/src/index.ts", "packages/b/src/main.ts"]
+        );
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_respects_workspace_exclusions() {
+        let temp_dir = unique_temp_dir("workspace-exclude");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create root workspace package json with one exclusion
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "private": true,
+  "workspaces": ["packages/*", "!packages/b"]
+}"#,
+        );
+
+        // create workspace package manifests with explicit entry targets
+        write_text_file(
+            &temp_dir.join("packages/a/package.json"),
+            r#"{
+  "name": "a",
+  "main": "./src/index.ts"
+}"#,
+        );
+        write_text_file(
+            &temp_dir.join("packages/b/package.json"),
+            r#"{
+  "name": "b",
+  "main": "./src/main.ts"
+}"#,
+        );
+
+        // create source candidates for both packages
+        let candidates = vec![
+            temp_dir.join("packages/a/src/index.ts"),
+            temp_dir.join("packages/b/src/main.ts"),
+        ];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select only non excluded workspace entrypoints
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["packages/a/src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_errors_without_manifest_entries() {
+        let temp_dir = unique_temp_dir("missing-entrypoints");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create a package manifest without entry targets
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root"
+}"#,
+        );
+
+        // create one candidate source file
+        let candidates = vec![temp_dir.join("src/index.ts")];
+        write_text_file(&candidates[0], "export const value = 1;");
+
+        // fail loudly when manifest entry targets are not available
+        let error = select_phase_entrypoints(&temp_dir, &candidates)
+            .expect_err("expected missing entrypoint error");
+
+        assert!(error.contains("no entrypoints discovered from package manifest entries"));
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
     }
 }
