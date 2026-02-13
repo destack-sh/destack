@@ -18,7 +18,7 @@ Conflict resolution follows this order.
 
 Known failures and ignored files have strict meanings.
 1. `*-known-failures.txt`: active gaps we intend to burn down.
-2. `*-ignored.txt`: intentional divergence or unsupported scope only.
+2. `*-ignored.txt`: intentional divergence or unsupported / out of scope behaviors.
 3. Flow and `flow-repo` fixtures are unsupported language scope and stay in `ignored`.
 
 Runner output and README summary rows report per-suite conformance without tier labels.
@@ -27,18 +27,19 @@ Each suite is treated as release relevant for its supported syntax scope.
 ## Status
 
 The pass rate intentionally excludes explicitly ignored tests.
-Ignored tests track intentional differences and unsupported or out of scope behaviors.
+Ignored tests track intentional differences and unsupported / out of scope behaviors.
+(Mostly flow stuff, IDE-specific features like cursors, and some deliberate error cases.)
 
 <!-- (results are automatically updated by the formatter conformance test runner) -->
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Ignored | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| oxfmt    |   125  |     4  |     6  |   129 |  96.90% |
-| prettier |  1287  |   422  |  1519  |  1709 |  75.31% |
+| oxfmt    |   123  |     6  |     6  |   129 |  95.35% |
+| prettier |  1323  |   345  |  1560  |  1668 |  79.32% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  1412  |   426  |   1525  |  1838 |  76.82% |
+| total    |  1446  |   351  |   1566  |  1797 |  80.47% |
 
-Total Blended Pass Rate: **76.82%**
+Total Blended Pass Rate: **80.47%**
 <!-- end:summary-results -->
 
 ### prettier
@@ -47,22 +48,22 @@ Total Blended Pass Rate: **76.82%**
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | flow                 |     0  |     0  |    1415  |     0 | 100.00% |
 | flow-repo            |     0  |     0  |      14  |     0 | 100.00% |
-| js                   |   696  |   273  |      69  |   969 |  71.83% |
-| jsx                  |     2  |    55  |       6  |    57 |   3.51% |
+| js                   |   696  |   246  |      96  |   942 |  73.89% |
+| jsx                  |    36  |    21  |       6  |    57 |  63.16% |
 | misc                 |    42  |     0  |       2  |    42 | 100.00% |
-| typescript           |   547  |    94  |      13  |   641 |  85.34% |
+| typescript           |   549  |    78  |      27  |   627 |  87.56% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |  1287  |   422  |    1519  |  1709 |  75.31% |
+| total                |  1323  |   345  |    1560  |  1668 |  79.32% |
 <!-- end:prettier-results -->
 
 ### oxfmt
 <!-- begin:oxfmt-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| js                   |    69  |     4  |       2  |    73 |  94.52% |
+| js                   |    67  |     6  |       2  |    73 |  91.78% |
 | ts                   |    56  |     0  |       4  |    56 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   125  |     4  |       6  |   129 |  96.90% |
+| total                |   123  |     6  |       6  |   129 |  95.35% |
 <!-- end:oxfmt-results -->
 
 ## Running

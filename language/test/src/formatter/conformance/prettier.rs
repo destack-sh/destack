@@ -59,15 +59,16 @@ impl PrettierSuite {
                 continue;
             }
 
-            let Some(file_type) = FileType::from_path(&path) else {
+            let relative = path.strip_prefix(&self.root).unwrap_or(&path);
+            let test_name = relative.to_string_lossy().replace('\\', "/");
+
+            let Some(file_type) = infer_prettier_file_type(&path, &test_name) else {
                 continue;
             };
             if !is_formattable_file_type(file_type) {
                 continue;
             }
 
-            let relative = path.strip_prefix(&self.root).unwrap_or(&path);
-            let test_name = relative.to_string_lossy().replace('\\', "/");
             let test = if expect_error_from_path(&test_name) {
                 Test::fail(test_name, file_type)
             } else {
@@ -77,6 +78,18 @@ impl PrettierSuite {
             tests.push(test);
         }
     }
+}
+
+/// Infer the parser file type for a prettier fixture path.
+fn infer_prettier_file_type(path: &Path, test_name: &str) -> Option<FileType> {
+    let file_type = FileType::from_path(path)?;
+
+    // parse jsx directory .js fixtures in jsx mode
+    if file_type == FileType::JavaScript && test_name.starts_with("jsx/") {
+        return Some(FileType::JavaScriptXml);
+    }
+
+    Some(file_type)
 }
 
 impl Default for PrettierSuite {
@@ -133,4 +146,25 @@ impl ConformanceSuite for PrettierSuite {
 pub fn run_prettier(options: &TestOptions, update_known_failures: bool) -> Option<SuiteResult> {
     let suite = PrettierSuite::new();
     run_conformance_suite(&suite, options, update_known_failures)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use destack_source::FileType;
+
+    use super::infer_prettier_file_type;
+
+    #[test]
+    fn test_infer_prettier_file_type_promotes_jsx_directory_js() {
+        let file_type = infer_prettier_file_type(Path::new("sample.js"), "jsx/jsx/sample.js");
+        assert_eq!(file_type, Some(FileType::JavaScriptXml));
+    }
+
+    #[test]
+    fn test_infer_prettier_file_type_keeps_js_outside_jsx_directory() {
+        let file_type = infer_prettier_file_type(Path::new("sample.js"), "js/module/sample.js");
+        assert_eq!(file_type, Some(FileType::JavaScript));
+    }
 }

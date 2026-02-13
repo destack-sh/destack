@@ -1,4 +1,6 @@
+js/arguments/empty-lines.js
 js/calls/issue-16125.js
 js/calls/test.js
 js/comments/calls/last-argument-group.js
 js/comments/jsx.jsx
+js/conditional/argument.js
