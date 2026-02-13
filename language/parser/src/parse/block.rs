@@ -154,6 +154,60 @@ impl Parser {
         Ok(Some(labelled_id))
     }
 
+    /// Try to parse a statement expression that starts with an identifier.
+    #[inline]
+    fn try_eat_identifier_statement_expression_lane(
+        &mut self,
+        start: &ParserMark,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.statement_keyword_fast_calls += 1;
+        }
+
+        // parse labelled statements before keyword and expression dispatch
+        if let Some(expression_id) = self.try_eat_labelled_statement_expression_fast(start)? {
+            return Ok(Some(expression_id));
+        }
+
+        // direct keyword dispatch in statement position
+        if let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) {
+            let next_token_type = self.peek_next_token_type();
+            if let Some(expression_id) =
+                self.try_eat_direct_statement_keyword_expression(start, keyword, next_token_type)?
+            {
+                if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                    speculation_stats.statement_keyword_fast_direct_hits += 1;
+                }
+
+                let expression = self.tree.get(expression_id);
+                let is_terminal_statement = matches!(expression, Expression::Statement(_))
+                    || expression.is_top_level_statement();
+                if is_terminal_statement {
+                    return Ok(Some(expression_id));
+                }
+
+                let continuation_id = self.eat_expression_continuation(start, expression_id)?;
+                return Ok(Some(continuation_id));
+            }
+
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.statement_keyword_fast_direct_misses += 1;
+            }
+            return Ok(None);
+        }
+
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.statement_keyword_fast_keyword_rejects += 1;
+        }
+
+        // parse plain identifier paths without entering generic keyword dispatch
+        if let Some(expression_id) = self.try_eat_plain_identifier_expression_fast(start)? {
+            return Ok(Some(expression_id));
+        }
+
+        Ok(None)
+    }
+
     /// Try to dispatch a statement expression from a scanner-style cursor.
     #[inline]
     fn try_eat_statement_expression_fast_dispatch(
@@ -161,7 +215,7 @@ impl Parser {
         start: &ParserMark,
         cursor: NonNewlineTokenCursor,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        // direct block statement dispatch avoids generic expression entry
+        // block statements stay in the statement lane
         if cursor.token_type == TokenType::OpenBrace {
             let block_id = self.eat_block()?;
             let expression_id = self
@@ -170,29 +224,13 @@ impl Parser {
             return Ok(Some(expression_id));
         }
 
-        // identifier led dispatch handles labels, statement keywords, and plain identifiers
-        if cursor.token_type != TokenType::Identifier {
-            return Ok(None);
+        // identifier starts use a dedicated statement lane
+        if cursor.token_type == TokenType::Identifier {
+            return self.try_eat_identifier_statement_expression_lane(start);
         }
 
-        if let Some(expression_id) = self.try_eat_labelled_statement_expression_fast(start)? {
-            return Ok(Some(expression_id));
-        }
-
-        if let Some(expression_id) = self.try_eat_statement_keyword_expression_fast(start)? {
-            let expression = self.tree.get(expression_id);
-            let is_terminal_statement = matches!(expression, Expression::Statement(_))
-                || expression.is_top_level_statement();
-            if is_terminal_statement {
-                return Ok(Some(expression_id));
-            }
-
-            let continuation_id = self.eat_expression_continuation(start, expression_id)?;
-            return Ok(Some(continuation_id));
-        }
-
-        if let Some(expression_id) = self.try_eat_plain_identifier_expression_fast(start)? {
-            return Ok(Some(expression_id));
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.statement_keyword_fast_prefilter_rejects += 1;
         }
 
         Ok(None)
@@ -213,7 +251,7 @@ impl Parser {
             return Ok(expression_id);
         }
 
-        // non identifier statements can parse through expression mode without statement flags
+        // non identifier starts parse through expression mode without statement flags
         if cursor.token_type != TokenType::Identifier {
             let old_options = self.swap_options(self.options.not_in_statement_position());
             let expression_id = self.eat_expression_without_statement_keyword_fast();
@@ -221,7 +259,18 @@ impl Parser {
             return expression_id;
         }
 
-        // fallback: parse through the full expression parser
+        // plain identifier fallbacks avoid statement mode option checks
+        if self
+            .keyword_for_index_maybe_fast(self.pos_index())
+            .is_none()
+        {
+            let old_options = self.swap_options(self.options.not_in_statement_position());
+            let expression_id = self.eat_expression_without_statement_keyword_fast();
+            self.restore_options(old_options);
+            return expression_id;
+        }
+
+        // keyword fallback stays in full statement expression mode
         self.eat_expression_without_statement_keyword_fast()
     }
 
