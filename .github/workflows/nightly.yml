@@ -1,0 +1,111 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: nightly-2025-11-27
+  BUN_VERSION: 1.2.18
+
+jobs:
+  nightly-core:
+    name: Nightly Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt --component clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version
+          cargo --version
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install just
+        run: cargo install just --locked
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Run language check
+        run: just language/check
+
+      - name: Run parser crate tests
+        run: cargo test --release -p destack_parser --lib
+
+      - name: Run grammar specification sweep
+        run: just language/test-grammar-specification-sweep-positive
+
+  nightly-integration:
+    name: Nightly Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    needs:
+      - nightly-core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component clippy
+          rustup default "${RUST_TOOLCHAIN}"
+          rustc --version
+          cargo --version
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install just
+        run: cargo install just --locked
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install heavy fixture suites
+        run: just language/install
+
+      - name: Run conformance
+        run: just language/test-conformance
+
+      - name: Run formatter conformance
+        run: just language/test-formatter-conformance
+
+      - name: Run ecosystem tests
+        run: just language/test-ecosystem
+
+      - name: Generate stress fixtures
+        run: just language/generate-stress
+
+      - name: Run stress tests
+        run: just language/test-stress
+
+      - name: Run library check
+        run: just library/check
+
+      - name: Run platform check
+        run: just platform/check
