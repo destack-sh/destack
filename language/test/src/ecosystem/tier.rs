@@ -7,11 +7,13 @@ use std::sync::Arc;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, ResolveTask};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileRegistry, FileSystem, FileType,
-    LanguageType, MemoryFileSystem, ModuleId, PhysicalFileSystem, PrintOptions, Uri, glob,
+    Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileSystem,
+    FileType, LanguageType, MemoryFileSystem, ModuleId, PhysicalFileSystem, PrintOptions, Uri,
+    glob, matches as glob_matches,
 };
 use destack_workspace::{
-    FormatterOptions, LinterOptions, PackageJson, Program, Session, select_manifest_entry_paths,
+    FormatterOptions, LinterOptions, PackageJson, Program, Session, TsConfig, TsConfigId,
+    select_manifest_entry_paths,
 };
 
 use crate::ecosystem::manifest::{
@@ -20,6 +22,9 @@ use crate::ecosystem::manifest::{
 };
 use crate::harness::print::color;
 use crate::harness::{TestResult, format_diagnostics};
+
+/// default excludes applied by typescript when `exclude` is omitted.
+const TYPESCRIPT_DEFAULT_EXCLUDES: &[&str] = &["node_modules", "bower_components", "jspm_packages"];
 
 /// Run one phase tier for one package workload.
 pub(super) fn run_phase_tier(
@@ -816,9 +821,9 @@ fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Result<Vec
     candidates.retain(|path| !is_declaration_file(path.as_path()));
     candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
 
-    // resolve entrypoints from package manifests only
-    let manifest_entrypoints = select_manifest_entrypoints(package_dir, &candidates)?;
-    if manifest_entrypoints.is_empty() {
+    // load manifest sources once for deterministic selection
+    let manifest_sources = load_manifest_entry_sources(package_dir)?;
+    if manifest_sources.is_empty() {
         return Err(format!(
             "no entrypoints discovered from package manifest entries in {} ({} candidate source files)",
             package_dir.display(),
@@ -826,7 +831,28 @@ fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Result<Vec
         ));
     }
 
-    Ok(manifest_entrypoints)
+    // resolve entrypoints from package manifest targets first
+    let manifest_entrypoints =
+        select_manifest_entrypoints_from_sources(package_dir, &candidates, &manifest_sources);
+    if !manifest_entrypoints.is_empty() {
+        return Ok(manifest_entrypoints);
+    }
+
+    // fall back to tsconfig source roots when manifest targets only point to build outputs
+    let tsconfig_entrypoints = select_tsconfig_entrypoints_from_manifest_sources(
+        package_dir,
+        &candidates,
+        &manifest_sources,
+    )?;
+    if !tsconfig_entrypoints.is_empty() {
+        return Ok(tsconfig_entrypoints);
+    }
+
+    Err(format!(
+        "no entrypoints discovered from package manifest entries in {} ({} candidate source files)",
+        package_dir.display(),
+        candidates.len(),
+    ))
 }
 
 /// Build deterministic sort keys for phase entrypoints.
@@ -866,15 +892,11 @@ struct ManifestEntrySource {
 }
 
 /// Select candidate files that correspond to package manifest entry fields.
-fn select_manifest_entrypoints(
+fn select_manifest_entrypoints_from_sources(
     package_dir: &Path,
     candidates: &[PathBuf],
-) -> Result<Vec<PathBuf>, String> {
-    let manifest_sources = load_manifest_entry_sources(package_dir)?;
-    if manifest_sources.is_empty() {
-        return Ok(Vec::new());
-    }
-
+    manifest_sources: &[ManifestEntrySource],
+) -> Vec<PathBuf> {
     let mut selected = Vec::new();
     let mut selected_keys = HashSet::new();
 
@@ -905,7 +927,245 @@ fn select_manifest_entrypoints(
 
     selected.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
 
+    selected
+}
+
+/// Select entrypoints from tsconfig source roots when manifest entry targets are build outputs.
+fn select_tsconfig_entrypoints_from_manifest_sources(
+    package_dir: &Path,
+    candidates: &[PathBuf],
+    manifest_sources: &[ManifestEntrySource],
+) -> Result<Vec<PathBuf>, String> {
+    let mut selected = Vec::new();
+    let mut selected_keys = HashSet::new();
+
+    // resolve one tsconfig source set for each manifest source package
+    for source in manifest_sources {
+        let source_candidates = candidates
+            .iter()
+            .filter(|path| path.starts_with(source.package_dir.as_path()))
+            .cloned()
+            .collect::<Vec<_>>();
+        if source_candidates.is_empty() {
+            continue;
+        }
+
+        let Some(tsconfig_source) = load_tsconfig_entry_source(source.package_dir.as_path())?
+        else {
+            continue;
+        };
+
+        let source_selected = select_tsconfig_entry_paths(&source_candidates, &tsconfig_source);
+        for selected_path in source_selected {
+            let selected_key = normalize_path_key(selected_path.as_path());
+            if selected_keys.insert(selected_key) {
+                selected.push(selected_path);
+            }
+        }
+    }
+
+    selected.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
+
     Ok(selected)
+}
+
+/// Tsconfig data used for source entrypoint fallback selection.
+#[derive(Debug, Clone)]
+struct TsConfigEntrySource {
+    /// The directory containing the tsconfig file.
+    directory: PathBuf,
+    /// Explicit source files from tsconfig.
+    files: Vec<String>,
+    /// Include globs from tsconfig.
+    include: Vec<String>,
+    /// Exclude globs from tsconfig.
+    exclude: Vec<String>,
+    /// Output directory from tsconfig compiler options.
+    out_dir: Option<PathBuf>,
+}
+
+/// Load one package tsconfig source selection when available.
+fn load_tsconfig_entry_source(package_dir: &Path) -> Result<Option<TsConfigEntrySource>, String> {
+    // find one package level tsconfig or jsconfig
+    let Some(tsconfig_path) = resolve_package_tsconfig_path(package_dir) else {
+        return Ok(None);
+    };
+
+    // load tsconfig source text
+    let content = fs::read_to_string(tsconfig_path.as_path())
+        .map_err(|error| format!("failed to read {}: {error}", tsconfig_path.display()))?;
+
+    // parse jsonc config into a workspace tsconfig model
+    let (name, uri) = Uri::from_path_with_name(tsconfig_path.as_path());
+    let file_type = FileType::from_path(tsconfig_path.as_path()).unwrap_or(FileType::Json);
+    let file = File::from_text_as_jsonc(
+        FileId::new(0),
+        name,
+        uri,
+        Some(tsconfig_path.clone()),
+        file_type,
+        content,
+    )
+    .map_err(|error| format!("failed to parse {}: {error}", tsconfig_path.display()))?;
+    let file = Arc::new(file);
+    let tsconfig = TsConfig::parse(TsConfigId::new(0), true, &file)
+        .map_err(|error| format!("failed to parse {}: {error}", tsconfig_path.display()))?;
+
+    // project tsconfig source selection fields used by fallback discovery
+    let out_dir = tsconfig.options.compiler.out_dir.clone();
+    Ok(Some(TsConfigEntrySource {
+        directory: tsconfig.directory,
+        files: tsconfig.options.files,
+        include: tsconfig.options.include,
+        exclude: tsconfig.options.exclude,
+        out_dir,
+    }))
+}
+
+/// Resolve one package tsconfig path from common config file names.
+fn resolve_package_tsconfig_path(package_dir: &Path) -> Option<PathBuf> {
+    for config_name in [
+        "tsconfig.json",
+        "tsconfig.jsonc",
+        "jsconfig.json",
+        "jsconfig.jsonc",
+    ] {
+        let config_path = package_dir.join(config_name);
+        if config_path.is_file() {
+            return Some(config_path);
+        }
+    }
+
+    None
+}
+
+/// Select source entrypoints from one tsconfig source set.
+fn select_tsconfig_entry_paths(
+    candidates: &[PathBuf],
+    tsconfig_source: &TsConfigEntrySource,
+) -> Vec<PathBuf> {
+    // resolve explicit files through existing entry target matching
+    if !tsconfig_source.files.is_empty() {
+        return select_manifest_entry_paths(
+            tsconfig_source.directory.as_path(),
+            candidates,
+            &tsconfig_source.files,
+        );
+    }
+
+    // apply include semantics: omitted include means all discovered source candidates
+    let include_patterns = if tsconfig_source.include.is_empty() {
+        None
+    } else {
+        Some(tsconfig_source.include.clone())
+    };
+
+    // apply exclude defaults when tsconfig omits exclude
+    let mut exclude_patterns = if tsconfig_source.exclude.is_empty() {
+        TYPESCRIPT_DEFAULT_EXCLUDES
+            .iter()
+            .map(|pattern| pattern.to_string())
+            .collect::<Vec<_>>()
+    } else {
+        tsconfig_source.exclude.clone()
+    };
+
+    // exclude configured output directories to avoid selecting build artifacts
+    if let Some(out_dir) = tsconfig_source.out_dir.as_ref() {
+        let out_dir_pattern =
+            normalize_tsconfig_out_dir_pattern(tsconfig_source.directory.as_path(), out_dir);
+        if !out_dir_pattern.is_empty() {
+            exclude_patterns.push(out_dir_pattern);
+        }
+    }
+
+    // filter source candidates with tsconfig include and exclude semantics
+    candidates
+        .iter()
+        .filter_map(|candidate| {
+            let relative = candidate
+                .strip_prefix(tsconfig_source.directory.as_path())
+                .unwrap_or(candidate.as_path());
+            let path_fragment = normalize_path_key(relative);
+            if path_fragment.is_empty() {
+                return None;
+            }
+
+            let is_included = match include_patterns.as_ref() {
+                Some(patterns) => patterns
+                    .iter()
+                    .any(|pattern| tsconfig_path_matches_pattern(pattern, &path_fragment)),
+                None => true,
+            };
+            if !is_included {
+                return None;
+            }
+
+            let is_excluded = exclude_patterns
+                .iter()
+                .any(|pattern| tsconfig_path_matches_pattern(pattern, &path_fragment));
+            if is_excluded {
+                return None;
+            }
+
+            Some(candidate.clone())
+        })
+        .collect()
+}
+
+/// Normalize one outDir pattern to a package relative glob fragment.
+fn normalize_tsconfig_out_dir_pattern(directory: &Path, out_dir: &Path) -> String {
+    let relative = if out_dir.is_absolute() {
+        out_dir.strip_prefix(directory).unwrap_or(out_dir)
+    } else {
+        out_dir
+    };
+
+    normalize_tsconfig_pattern(relative.to_string_lossy().as_ref())
+}
+
+/// Return true when a path fragment matches one tsconfig style pattern.
+fn tsconfig_path_matches_pattern(pattern: &str, path_fragment: &str) -> bool {
+    let pattern = normalize_tsconfig_pattern(pattern);
+    if pattern.is_empty() {
+        return false;
+    }
+
+    if glob_matches(pattern.as_bytes(), 0, path_fragment.as_bytes(), 0) {
+        return true;
+    }
+
+    if pattern.contains('*') {
+        return false;
+    }
+
+    let trimmed = pattern.trim_end_matches('/');
+    if path_fragment == trimmed || path_fragment.starts_with(&format!("{trimmed}/")) {
+        return true;
+    }
+
+    let nested_pattern = format!("{trimmed}/**");
+    if glob_matches(nested_pattern.as_bytes(), 0, path_fragment.as_bytes(), 0) {
+        return true;
+    }
+
+    let deep_nested_pattern = format!("{trimmed}/**/*");
+    glob_matches(
+        deep_nested_pattern.as_bytes(),
+        0,
+        path_fragment.as_bytes(),
+        0,
+    )
+}
+
+/// Normalize one tsconfig glob pattern for stable matching.
+fn normalize_tsconfig_pattern(pattern: &str) -> String {
+    pattern
+        .trim()
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .trim_start_matches('/')
+        .to_string()
 }
 
 /// Load package manifest entry sources from root and workspace package manifests.
@@ -1355,6 +1615,100 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(selected_relative, vec!["packages/a/src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_falls_back_to_tsconfig_files() {
+        let temp_dir = unique_temp_dir("tsconfig-files-fallback");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create package manifest with build output entries only
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "main": "./dist/index.js"
+}"#,
+        );
+
+        // create tsconfig with explicit source file entries
+        write_text_file(
+            &temp_dir.join("tsconfig.json"),
+            r#"{
+  "files": ["src/index.ts"],
+  "exclude": ["dist"]
+}"#,
+        );
+
+        // create source candidates in the package
+        let candidates = vec![temp_dir.join("src/index.ts"), temp_dir.join("src/extra.ts")];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select entrypoints from tsconfig fallback
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_falls_back_to_tsconfig_include_patterns() {
+        let temp_dir = unique_temp_dir("tsconfig-include-fallback");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create package manifest with build output entries only
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "main": "./dist/index.js"
+}"#,
+        );
+
+        // create tsconfig with include and exclude source patterns
+        write_text_file(
+            &temp_dir.join("tsconfig.json"),
+            r#"{
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/extra.ts", "dist"]
+}"#,
+        );
+
+        // create source candidates in the package
+        let candidates = vec![temp_dir.join("src/index.ts"), temp_dir.join("src/extra.ts")];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select entrypoints from tsconfig include fallback
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["src/index.ts"]);
 
         fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
     }
