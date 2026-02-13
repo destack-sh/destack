@@ -451,6 +451,9 @@ impl Parser {
                     self.push_block_body_expression(&mut statements, pending_id, false, true);
                 }
 
+                // keep the semantic token index that starts this statement item
+                let statement_token_index = cursor.index;
+
                 // parse and recover one statement item
                 let start = self.mark_span();
                 let (expression_id, is_statement) =
@@ -471,9 +474,19 @@ impl Parser {
                     };
 
                 // attach any pending decorators to this statement item
-                if !pending_statement_decorators.is_empty() {
+                let had_pending_statement_decorators = !pending_statement_decorators.is_empty();
+                if had_pending_statement_decorators {
                     self.attach_decorators_to_target(
                         std::mem::take(&mut pending_statement_decorators),
+                        expression_id.id,
+                    );
+                }
+
+                // attach simple leading trivia inline:
+                // this claims obvious block prefixes and leaves ambiguous trivia for the fallback pass
+                if !had_pending_statement_decorators {
+                    self.attach_inline_leading_annotations_for_token(
+                        statement_token_index,
                         expression_id.id,
                     );
                 }

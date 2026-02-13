@@ -4,7 +4,7 @@ use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
     Doc, DocStyle, Expression, LocalNodeId, NodeType, TokenSpan, TokenType,
 };
-use destack_source::{MultiSpan, NodeSearchMode, Span};
+use destack_source::{EnclosingSpan, MultiSpan, NodeSearchMode, Span};
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,
@@ -14,6 +14,232 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 const DECORATOR_EXPRESSION_PRECEDENCE: u16 = u16::MAX;
+
+/// Cached lookup entry for annotation target candidate selection.
+#[derive(Debug, Copy, Clone)]
+struct AnnotationLookupNode {
+    /// The candidate node id.
+    node_id: u32,
+    /// The candidate enclosing span.
+    span: Span,
+    /// The candidate span length.
+    length: u32,
+}
+
+/// Planned side annotation before AST insertion.
+#[derive(Debug, Copy, Clone)]
+struct PendingSideAnnotation {
+    /// The token type that produced this annotation.
+    token_type: TokenType,
+    /// The first token index in the group.
+    group_start_idx: usize,
+    /// The last token index in the group.
+    group_end_idx: usize,
+    /// The token count in the group.
+    group_len: usize,
+    /// The annotation position relative to the target node.
+    position: AnnotationPosition,
+    /// The target node id.
+    target_node_id: u32,
+}
+
+/// Cached annotation target lookups for one attachment pass.
+struct AnnotationTargetIndex<'a> {
+    /// Span ranges to ignore for side annotation attachment.
+    ignore_span: &'a MultiSpan,
+    /// Semantic tokens from the parser stream.
+    semantic_tokens: Vec<TokenSpan>,
+    /// Node lookup by semantic token start index for smallest outermost search.
+    start_smallest_outermost: Vec<Option<AnnotationLookupNode>>,
+    /// Node lookup by semantic token start index for biggest outermost search.
+    start_biggest_outermost: Vec<Option<AnnotationLookupNode>>,
+    /// Node lookup by semantic token end index for smallest outermost search.
+    end_smallest_outermost: Vec<Option<AnnotationLookupNode>>,
+    /// Node lookup by semantic token end index for biggest outermost search.
+    end_biggest_outermost: Vec<Option<AnnotationLookupNode>>,
+}
+
+impl<'a> AnnotationTargetIndex<'a> {
+    /// Build annotation target caches from the current parse tree.
+    fn new(parser: &Parser, ignore_span: &'a MultiSpan) -> Self {
+        let semantic_tokens = parser.tokens().to_vec();
+        let semantic_len = semantic_tokens.len();
+        let mut index = Self {
+            ignore_span,
+            semantic_tokens,
+            start_smallest_outermost: vec![None; semantic_len],
+            start_biggest_outermost: vec![None; semantic_len],
+            end_smallest_outermost: vec![None; semantic_len],
+            end_biggest_outermost: vec![None; semantic_len],
+        };
+        index.build_edge_maps(parser);
+        index
+    }
+
+    /// Build start and end node lookup maps once for this parse tree.
+    fn build_edge_maps(&mut self, parser: &Parser) {
+        let mut node_id = 0u32;
+        let total_nodes = parser.tree.next_id();
+        while node_id < total_nodes {
+            let span = parser.tree.get_span_by_id(node_id);
+            if span.end > span.start {
+                let candidate = AnnotationLookupNode {
+                    node_id,
+                    span,
+                    length: span.end - span.start,
+                };
+                if let Some(start_index) = self.semantic_index_by_start(candidate.span.start)
+                    && self.semantic_tokens[start_index].span.end <= candidate.span.end
+                {
+                    Self::insert_candidate(
+                        &mut self.start_smallest_outermost[start_index],
+                        candidate,
+                        NodeSearchMode::SmallestOutermost,
+                    );
+                    Self::insert_candidate(
+                        &mut self.start_biggest_outermost[start_index],
+                        candidate,
+                        NodeSearchMode::BiggestOutermost,
+                    );
+                }
+
+                if let Some(end_index) = self.semantic_index_by_end(candidate.span.end)
+                    && self.semantic_tokens[end_index].span.start >= candidate.span.start
+                {
+                    Self::insert_candidate(
+                        &mut self.end_smallest_outermost[end_index],
+                        candidate,
+                        NodeSearchMode::SmallestOutermost,
+                    );
+                    Self::insert_candidate(
+                        &mut self.end_biggest_outermost[end_index],
+                        candidate,
+                        NodeSearchMode::BiggestOutermost,
+                    );
+                }
+            }
+
+            node_id += 1;
+        }
+    }
+
+    /// Return true when the candidate should replace the current map entry.
+    fn should_replace_candidate(
+        search: NodeSearchMode,
+        candidate: AnnotationLookupNode,
+        current: AnnotationLookupNode,
+    ) -> bool {
+        match search {
+            NodeSearchMode::BiggestOutermost => {
+                candidate.length > current.length
+                    || (candidate.length == current.length && candidate.node_id > current.node_id)
+            }
+            NodeSearchMode::SmallestOutermost => {
+                candidate.length < current.length
+                    || (candidate.length == current.length && candidate.node_id > current.node_id)
+            }
+            NodeSearchMode::SmallestInnermost => {
+                candidate.length < current.length
+                    || (candidate.length == current.length && candidate.node_id < current.node_id)
+            }
+        }
+    }
+
+    /// Insert a node candidate into an edge slot.
+    fn insert_candidate(
+        slot: &mut Option<AnnotationLookupNode>,
+        candidate: AnnotationLookupNode,
+        search: NodeSearchMode,
+    ) {
+        match *slot {
+            Some(current) => {
+                if Self::should_replace_candidate(search, candidate, current) {
+                    *slot = Some(candidate);
+                }
+            }
+            None => {
+                *slot = Some(candidate);
+            }
+        }
+    }
+
+    /// Return the semantic token index that starts at the given offset.
+    fn semantic_index_by_start(&self, start: u32) -> Option<usize> {
+        self.semantic_tokens
+            .binary_search_by_key(&start, |token| token.span.start)
+            .ok()
+    }
+
+    /// Return the semantic token index that ends at the given offset.
+    fn semantic_index_by_end(&self, end: u32) -> Option<usize> {
+        self.semantic_tokens
+            .binary_search_by_key(&end, |token| token.span.end)
+            .ok()
+    }
+
+    /// Find a node that starts at the token span.
+    fn find_node_starting_at(
+        &self,
+        parser: &Parser,
+        span: &Span,
+        search: NodeSearchMode,
+    ) -> Option<u32> {
+        if let Some(start_index) = self.semantic_index_by_start(span.start) {
+            let cached = match search {
+                NodeSearchMode::BiggestOutermost => self.start_biggest_outermost[start_index],
+                NodeSearchMode::SmallestOutermost => self.start_smallest_outermost[start_index],
+                NodeSearchMode::SmallestInnermost => self.start_smallest_outermost[start_index],
+            };
+            if let Some(candidate) = cached
+                && candidate.span.end >= span.end
+            {
+                return Some(candidate.node_id);
+            }
+        }
+
+        parser
+            .find_node_starting_at(span, search)
+            .map(|result| result.idx)
+    }
+
+    /// Find a node that ends at the token span.
+    fn find_node_ending_at(
+        &self,
+        parser: &Parser,
+        span: &Span,
+        search: NodeSearchMode,
+    ) -> Option<u32> {
+        if let Some(end_index) = self.semantic_index_by_end(span.end) {
+            let cached = match search {
+                NodeSearchMode::BiggestOutermost => self.end_biggest_outermost[end_index],
+                NodeSearchMode::SmallestOutermost => self.end_smallest_outermost[end_index],
+                NodeSearchMode::SmallestInnermost => self.end_smallest_outermost[end_index],
+            };
+            if let Some(candidate) = cached
+                && candidate.span.start <= span.start
+            {
+                return Some(candidate.node_id);
+            }
+        }
+
+        parser
+            .find_node_ending_at(span, search)
+            .map(|result| result.idx)
+    }
+
+    /// Find a node enclosing the token span with annotation filters.
+    fn find_node_enclosing_at(
+        &mut self,
+        parser: &Parser,
+        span: &Span,
+        search: NodeSearchMode,
+    ) -> Option<EnclosingSpan> {
+        parser.find_node_enclosing_at(span, search, |candidate| {
+            !ANNOTATION_NODE_TYPES.contains(&parser.tree.get_node_type(candidate.idx))
+                && !self.ignore_span.contains(&candidate.span)
+        })
+    }
+}
 
 impl Parser {
     /// Eat any leading decorators and leave the parser at the next token.
@@ -101,17 +327,93 @@ impl Parser {
         }
     }
 
-    /// Attach parsed side annotations to AST nodes.
-    pub(crate) fn attach_annotations(&mut self) {
-        if !self.should_attach_annotations() {
+    /// Attach safe leading side annotations for one semantic token directly to a target node.
+    pub(crate) fn attach_inline_leading_annotations_for_token(
+        &mut self,
+        token_index: usize,
+        target_node_id: u32,
+    ) {
+        let (side_start, side_end) = self.token_stream.leading_side_range(token_index);
+        if side_start >= side_end {
             return;
         }
 
-        // avoid duplicate side annotation attachment on repeated finish calls
-        if !self.tree.get_nodes::<Blank>().is_empty()
-            || !self.tree.get_nodes::<Comment>().is_empty()
-            || !self.tree.get_nodes::<Doc>().is_empty()
+        let mut annotation_tokens = Vec::new();
+        for token in self.token_stream.side_tokens()[side_start..side_end]
+            .iter()
+            .copied()
         {
+            if token.token.ty != TokenType::Whitespace {
+                annotation_tokens.push(token);
+            }
+        }
+
+        if annotation_tokens.is_empty() {
+            return;
+        }
+
+        // only take trivially safe prefix ranges:
+        // - token 0 can claim leading docs/comments
+        // - other tokens must start with newline to avoid stealing postfix comments
+        let first_token_type = annotation_tokens[0].token.ty;
+        if token_index != 0 && first_token_type != TokenType::Newline {
+            return;
+        }
+
+        let mut group_start_idx = 0usize;
+        let mut group_end_idx = 0usize;
+        let mut current_token_type = annotation_tokens[0].token.ty;
+        let mut group_len = 1usize;
+
+        for (index, token) in annotation_tokens.iter().enumerate().skip(1) {
+            if token.token.ty != current_token_type {
+                if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
+                    && (current_token_type != TokenType::Newline || group_len > 1)
+                {
+                    let pending_annotation = PendingSideAnnotation {
+                        token_type: current_token_type,
+                        group_start_idx,
+                        group_end_idx,
+                        group_len,
+                        position: AnnotationPosition::BlockPrefix,
+                        target_node_id,
+                    };
+                    self.attach_planned_side_annotation(pending_annotation, &annotation_tokens);
+                }
+
+                current_token_type = token.token.ty;
+                group_start_idx = index;
+                group_end_idx = index;
+                group_len = 0;
+            }
+
+            if token.token.ty == current_token_type {
+                if group_len == 0 {
+                    group_start_idx = index;
+                }
+                group_end_idx = index;
+                group_len += 1;
+            }
+        }
+
+        if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
+            && (current_token_type != TokenType::Newline || group_len > 1)
+        {
+            let pending_annotation = PendingSideAnnotation {
+                token_type: current_token_type,
+                group_start_idx,
+                group_end_idx,
+                group_len,
+                position: AnnotationPosition::BlockPrefix,
+                target_node_id,
+            };
+            self.attach_planned_side_annotation(pending_annotation, &annotation_tokens);
+        }
+    }
+
+    /// Attach parsed side annotations to AST nodes.
+    pub(crate) fn attach_annotations(&mut self) {
+        if !self.should_attach_annotations() {
             return;
         }
 
@@ -260,6 +562,9 @@ impl Parser {
         ignore_span: &MultiSpan,
         statement_wrappers: &[Option<u32>],
     ) {
+        let mut target_index = AnnotationTargetIndex::new(self, ignore_span);
+        let mut pending_annotations = Vec::new();
+
         // build annotation groups
         let mut current_token_type: TokenType = tokens[0].token.ty;
         let mut group_start_idx: usize = 0;
@@ -297,7 +602,7 @@ impl Parser {
                     && !ignore_span.contains(&start_token.span)
                     && !ignore_span.contains(&tokens[group_end_idx].span)
                 {
-                    self.attach_side_annotation(
+                    self.plan_side_annotation(
                         (i - group_len) as u32,
                         current_token_type,
                         tokens,
@@ -307,6 +612,8 @@ impl Parser {
                         group_len,
                         statement_wrappers,
                         ignore_span,
+                        &mut target_index,
+                        &mut pending_annotations,
                     );
                 }
 
@@ -330,7 +637,7 @@ impl Parser {
         if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
             && (current_token_type != TokenType::Newline || group_len > 1)
         {
-            self.attach_side_annotation(
+            self.plan_side_annotation(
                 (tokens.len() - group_len) as u32,
                 current_token_type,
                 tokens,
@@ -340,7 +647,14 @@ impl Parser {
                 group_len,
                 statement_wrappers,
                 ignore_span,
+                &mut target_index,
+                &mut pending_annotations,
             );
+        }
+
+        // apply planned annotations after target selection so span lookups stay stable
+        for pending_annotation in pending_annotations {
+            self.attach_planned_side_annotation(pending_annotation, tokens);
         }
     }
 
@@ -449,6 +763,7 @@ impl Parser {
         group_len: usize,
         is_full_line: bool,
         is_block_prefix_only: bool,
+        target_index: &mut AnnotationTargetIndex<'_>,
         statement_wrappers: &[Option<u32>],
         ignore_span: &MultiSpan,
     ) -> Option<(AnnotationPosition, u32)> {
@@ -469,14 +784,15 @@ impl Parser {
         } else {
             line_indices[group_start_idx] == line_indices[group_end_idx]
         };
-        let enclosing_scope = self.find_node_enclosing_at(
-            &start_token.span,
-            NodeSearchMode::SmallestInnermost,
-            |span| {
-                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
-                    && !ignore_span.contains(&span.span)
-            },
-        );
+        let enclosing_scope = if start_token.token.ty == TokenType::Newline {
+            None
+        } else {
+            target_index.find_node_enclosing_at(
+                self,
+                &start_token.span,
+                NodeSearchMode::SmallestInnermost,
+            )
+        };
         let enclosing_span = enclosing_scope.map(|scope| scope.span);
 
         // line prefix or postfix
@@ -519,7 +835,8 @@ impl Parser {
                 } else {
                     NodeSearchMode::SmallestOutermost
                 };
-                self.find_node_ending_at(&prev_token.span, search_mode)
+                target_index
+                    .find_node_ending_at(self, &prev_token.span, search_mode)
                     .or_else(|| {
                         // if prev_token is a separator and comment is at end of line,
                         // look past the separator to find the element (handles `3, // comment`)
@@ -542,12 +859,15 @@ impl Parser {
                                 {
                                     continue;
                                 }
-                                return self.find_node_ending_at(&before_token.span, search_mode);
+                                return target_index.find_node_ending_at(
+                                    self,
+                                    &before_token.span,
+                                    search_mode,
+                                );
                             }
                         }
                         None
                     })
-                    .map(|span| span.idx)
             } else {
                 None
             };
@@ -578,29 +898,30 @@ impl Parser {
                 && (line_indices[group_end_idx] == line_indices[next_idx]
                     || line_indices[group_start_idx] == line_indices[next_idx])
             {
-                let target_node_id = self
-                    .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
+                let target_node_id = target_index
+                    .find_node_starting_at(
+                        self,
+                        &next_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                    )
                     .or_else(|| {
-                        self.find_node_enclosing_at(
-                            &next_token.span,
-                            NodeSearchMode::SmallestOutermost,
-                            |span| {
-                                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
-                                    && !ignore_span.contains(&span.span)
-                            },
-                        )
+                        target_index
+                            .find_node_enclosing_at(
+                                self,
+                                &next_token.span,
+                                NodeSearchMode::SmallestOutermost,
+                            )
+                            .map(|span| span.idx)
                     })
                     .or_else(|| {
-                        self.find_node_enclosing_at(
-                            &next_token.span,
-                            NodeSearchMode::BiggestOutermost,
-                            |span| {
-                                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
-                                    && !ignore_span.contains(&span.span)
-                            },
-                        )
-                    })
-                    .map(|span| span.idx);
+                        target_index
+                            .find_node_enclosing_at(
+                                self,
+                                &next_token.span,
+                                NodeSearchMode::BiggestOutermost,
+                            )
+                            .map(|span| span.idx)
+                    });
 
                 if let Some(target_node_id) = target_node_id {
                     return Some((
@@ -646,19 +967,21 @@ impl Parser {
                 && (line_indices[group_end_idx] == line_indices[next_idx]
                     || line_indices[group_start_idx] == line_indices[next_idx])
             {
-                let target_node_id = self
-                    .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
+                let target_node_id = target_index
+                    .find_node_starting_at(
+                        self,
+                        &next_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                    )
                     .or_else(|| {
-                        self.find_node_enclosing_at(
-                            &next_token.span,
-                            NodeSearchMode::SmallestOutermost,
-                            |span| {
-                                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
-                                    && !ignore_span.contains(&span.span)
-                            },
-                        )
-                    })
-                    .map(|span| span.idx);
+                        target_index
+                            .find_node_enclosing_at(
+                                self,
+                                &next_token.span,
+                                NodeSearchMode::SmallestOutermost,
+                            )
+                            .map(|span| span.idx)
+                    });
 
                 if let Some(target_node_id) = target_node_id {
                     return Some((
@@ -689,27 +1012,22 @@ impl Parser {
             {
                 break;
             }
-            if let Some(next_node) =
-                self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
-            {
+            if let Some(next_node) = target_index.find_node_starting_at(
+                self,
+                &next_token.span,
+                NodeSearchMode::BiggestOutermost,
+            ) {
                 return Some((
                     AnnotationPosition::BlockPrefix,
-                    self.annotation_promote_statement(
-                        start_token,
-                        next_node.idx,
-                        statement_wrappers,
-                    ),
+                    self.annotation_promote_statement(start_token, next_node, statement_wrappers),
                 ));
             }
             if next_token.token.ty == TokenType::Dot {
-                let target_node_id = self
+                let target_node_id = target_index
                     .find_node_enclosing_at(
+                        self,
                         &next_token.span,
                         NodeSearchMode::SmallestOutermost,
-                        |span| {
-                            !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
-                                && !ignore_span.contains(&span.span)
-                        },
                     )
                     .map(|span| span.idx);
                 if let Some(target_node_id) = target_node_id {
@@ -745,14 +1063,16 @@ impl Parser {
                 {
                     break;
                 }
-                if let Some(prev_node) =
-                    self.find_node_ending_at(&prev_token.span, NodeSearchMode::BiggestOutermost)
-                {
+                if let Some(prev_node) = target_index.find_node_ending_at(
+                    self,
+                    &prev_token.span,
+                    NodeSearchMode::BiggestOutermost,
+                ) {
                     return Some((
                         AnnotationPosition::BlockPostfix,
                         self.annotation_promote_statement(
                             start_token,
-                            prev_node.idx,
+                            prev_node,
                             statement_wrappers,
                         ),
                     ));
@@ -798,9 +1118,9 @@ impl Parser {
         self.annotation_statement_wrappers_precise = true;
     }
 
-    /// Make and attach an annotation group.
+    /// Plan one annotation group and collect it for later insertion.
     #[allow(clippy::too_many_arguments)]
-    fn attach_side_annotation(
+    fn plan_side_annotation(
         &mut self,
         token_idx: u32,
         token_type: TokenType,
@@ -811,6 +1131,8 @@ impl Parser {
         group_len: usize,
         statement_wrappers: &[Option<u32>],
         ignore_span: &MultiSpan,
+        target_index: &mut AnnotationTargetIndex<'_>,
+        pending_annotations: &mut Vec<PendingSideAnnotation>,
     ) {
         debug_assert!(ANNOTATION_TOKEN_TYPES.contains(&token_type));
         debug_assert!(group_len > 0);
@@ -835,6 +1157,7 @@ impl Parser {
             group_len,
             is_line_comment,
             false,
+            target_index,
             statement_wrappers,
             ignore_span,
         ) else {
@@ -848,6 +1171,37 @@ impl Parser {
             self.error(&error);
             return;
         };
+
+        pending_annotations.push(PendingSideAnnotation {
+            token_type,
+            group_start_idx,
+            group_end_idx,
+            group_len,
+            position,
+            target_node_id,
+        });
+    }
+
+    /// Attach one planned annotation group to the AST.
+    fn attach_planned_side_annotation(
+        &mut self,
+        pending_annotation: PendingSideAnnotation,
+        tokens: &[TokenSpan],
+    ) {
+        let token_type = pending_annotation.token_type;
+        let group_start_idx = pending_annotation.group_start_idx;
+        let group_end_idx = pending_annotation.group_end_idx;
+        let group_len = pending_annotation.group_len;
+        let position = pending_annotation.position;
+        let target_node_id = pending_annotation.target_node_id;
+
+        let start_token = tokens[group_start_idx];
+        let end_token = tokens[group_end_idx];
+        let span = Span::new(
+            start_token.span.file,
+            start_token.span.start,
+            end_token.span.end,
+        );
 
         // create the annotation
         let annotation_id = match token_type {

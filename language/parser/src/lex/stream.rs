@@ -63,6 +63,12 @@ pub struct TokenStreamMark {
     pub(super) brace_stack: Vec<usize>,
     /// The open bracket stack at mark time.
     pub(super) bracket_stack: Vec<usize>,
+    /// Side trivia start indexes per semantic token from the mark tail.
+    pub(super) leading_side_start_tail: Vec<u32>,
+    /// Side trivia end indexes per semantic token from the mark tail.
+    pub(super) leading_side_end_tail: Vec<u32>,
+    /// The pending side trivia start index for the next semantic token.
+    pub(super) pending_leading_side_start: usize,
     /// Whether side trivia since the last semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
     /// Pending synthetic token from operator decomposition.
@@ -101,6 +107,12 @@ pub struct TokenStream {
     token_keywords: Vec<Option<Keyword>>,
     /// Cached line terminator presence before semantic token indexes.
     line_terminators_before: Vec<bool>,
+    /// Side trivia start index before each semantic token.
+    leading_side_start_by_token: Vec<u32>,
+    /// Side trivia end index before each semantic token.
+    leading_side_end_by_token: Vec<u32>,
+    /// Side trivia start index for the next semantic token.
+    pending_leading_side_start: usize,
     /// The first token index that still needs a next non newline update.
     pending_non_newline_start: usize,
     /// The stack of open parenthesis token indexes.
@@ -141,6 +153,9 @@ impl TokenStream {
             matching_pairs: Vec::new(),
             token_keywords: Vec::new(),
             line_terminators_before: Vec::new(),
+            leading_side_start_by_token: Vec::new(),
+            leading_side_end_by_token: Vec::new(),
+            pending_leading_side_start: 0,
             pending_non_newline_start: 0,
             paren_stack: Vec::new(),
             brace_stack: Vec::new(),
@@ -163,6 +178,36 @@ impl TokenStream {
     #[inline]
     pub fn side_tokens(&self) -> &[TokenSpan] {
         &self.side_tokens
+    }
+
+    /// Return the leading side trivia range for a semantic token index.
+    #[inline]
+    pub fn leading_side_range(&mut self, index: usize) -> (usize, usize) {
+        self.ensure_token(index);
+        self.leading_side_range_materialized(index)
+    }
+
+    /// Return the leading side trivia range for a semantic token index when prelexed.
+    #[inline]
+    pub fn leading_side_range_prelexed(&self, index: usize) -> (usize, usize) {
+        debug_assert!(
+            self.is_finished,
+            "leading_side_range_prelexed requires prelexed tokens"
+        );
+        self.leading_side_range_materialized(index)
+    }
+
+    /// Return the leading side trivia range for a semantic token index.
+    #[inline]
+    fn leading_side_range_materialized(&self, index: usize) -> (usize, usize) {
+        if index >= self.leading_side_start_by_token.len() {
+            let side_len = self.side_tokens.len();
+            return (side_len, side_len);
+        }
+
+        let start = self.leading_side_start_by_token[index] as usize;
+        let end = self.leading_side_end_by_token[index] as usize;
+        (start, end)
     }
 
     /// Return true once EOF has been reached.
@@ -274,6 +319,11 @@ impl TokenStream {
             paren_stack: self.paren_stack.clone(),
             brace_stack: self.brace_stack.clone(),
             bracket_stack: self.bracket_stack.clone(),
+            leading_side_start_tail: self.leading_side_start_by_token[pending_non_newline_start..]
+                .to_vec(),
+            leading_side_end_tail: self.leading_side_end_by_token[pending_non_newline_start..]
+                .to_vec(),
+            pending_leading_side_start: self.pending_leading_side_start,
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
             split_token: self.split_token,
             split_token_consumed: self.split_token_consumed,
@@ -291,6 +341,9 @@ impl TokenStream {
             paren_stack,
             brace_stack,
             bracket_stack,
+            leading_side_start_tail,
+            leading_side_end_tail,
+            pending_leading_side_start,
             pending_line_terminator_before_next,
             split_token,
             split_token_consumed,
@@ -305,6 +358,7 @@ impl TokenStream {
             self.lexer.side_tokens.truncate(side_tokens_len);
         }
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
+        self.pending_leading_side_start = pending_leading_side_start;
         self.split_token = split_token;
         self.split_token_consumed = split_token_consumed;
 
@@ -317,11 +371,19 @@ impl TokenStream {
         self.lexer.tokens.truncate(tokens_len);
         self.token_keywords.truncate(tokens_len);
         self.line_terminators_before.truncate(tokens_len);
+        self.leading_side_start_by_token.truncate(tokens_len);
+        self.leading_side_end_by_token.truncate(tokens_len);
 
         // restore next non newline cache and mutable tail cursor
         self.next_non_newline.truncate(tokens_len);
         for (offset, next_non_newline) in next_non_newline_tail.into_iter().enumerate() {
             self.next_non_newline[pending_non_newline_start + offset] = next_non_newline;
+        }
+        for (offset, side_start) in leading_side_start_tail.into_iter().enumerate() {
+            self.leading_side_start_by_token[pending_non_newline_start + offset] = side_start;
+        }
+        for (offset, side_end) in leading_side_end_tail.into_iter().enumerate() {
+            self.leading_side_end_by_token[pending_non_newline_start + offset] = side_end;
         }
         self.pending_non_newline_start = pending_non_newline_start;
 
@@ -426,6 +488,9 @@ impl TokenStream {
         self.matching_pairs.clear();
         self.token_keywords.clear();
         self.line_terminators_before.clear();
+        self.leading_side_start_by_token.clear();
+        self.leading_side_end_by_token.clear();
+        self.pending_leading_side_start = 0;
         self.pending_non_newline_start = 0;
         self.paren_stack.clear();
         self.brace_stack.clear();
@@ -761,6 +826,8 @@ impl TokenStream {
     /// Push a semantic token and update indexes.
     fn push_semantic_token(&mut self, token_span: TokenSpan) {
         let has_line_terminator_before = self.pending_line_terminator_before_next;
+        let leading_side_start = self.pending_leading_side_start as u32;
+        let leading_side_end = self.side_tokens.len() as u32;
 
         // add token and cache slots
         let token_index = self.tokens.len();
@@ -775,6 +842,9 @@ impl TokenStream {
         self.token_keywords.push(keyword);
         self.line_terminators_before
             .push(has_line_terminator_before);
+        self.leading_side_start_by_token.push(leading_side_start);
+        self.leading_side_end_by_token.push(leading_side_end);
+        self.pending_leading_side_start = self.side_tokens.len();
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
 
         // update lexer context for regex and tree rules
