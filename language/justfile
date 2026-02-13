@@ -1,8 +1,8 @@
 set shell := ["bash", "-cu"]
 
 # all language crates
-packages := "-p destack_ast -p destack_codegen_js -p destack_compiler -p destack_dir -p destack_fir -p destack_formatter -p destack_linter -p destack_vm -p destack_mir -p destack_parser -p destack_resolver -p destack_source -p destack_test -p destack_unicode -p destack_workspace"
-packages-no-linter := "-p destack_ast -p destack_codegen_js -p destack_compiler -p destack_dir -p destack_fir -p destack_formatter -p destack_vm -p destack_mir -p destack_parser -p destack_resolver -p destack_source -p destack_test -p destack_unicode -p destack_workspace"
+packages := "-p destack_base -p destack_ast -p destack_builtin -p destack_test_mirbench -p destack_codegen_native -p destack_codegen_lib -p destack_codegen_js -p destack_compiler -p destack_compiler_macros -p destack_dir -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter -p destack_linter_macros -p destack_vm -p destack_vm_abi -p destack_mir -p destack_parser -p destack_resolver -p destack_runtime -p destack_source -p destack_test -p destack_unicode -p destack_workspace -p destack_workspace_service"
+packages-no-linter := "-p destack_base -p destack_ast -p destack_builtin -p destack_test_mirbench -p destack_codegen_native -p destack_codegen_lib -p destack_codegen_js -p destack_compiler -p destack_compiler_macros -p destack_dir -p destack_fir -p destack_formatter -p destack_heap -p destack_json -p destack_linter_macros -p destack_vm -p destack_vm_abi -p destack_mir -p destack_parser -p destack_resolver -p destack_runtime -p destack_source -p destack_test -p destack_unicode -p destack_workspace -p destack_workspace_service"
 linter-test-threads := "2"
 
 _default:
@@ -73,6 +73,10 @@ ecosystem-fetch:
 check:
     cargo clippy --release {{ packages }}
 
+# lint (alias for check)
+lint:
+    just check
+
 # check runtime against windows via zig
 check-windows-runtime:
     CARGO_INCREMENTAL=0 cargo zigbuild -p destack_runtime --target x86_64-pc-windows-gnu
@@ -121,6 +125,10 @@ build:
 # format code
 format:
     cargo fmt {{ packages }}
+
+# check formatting
+format-check:
+    cargo fmt --check {{ packages }}
 
 # alias for format
 alias fmt := format
@@ -248,11 +256,11 @@ test-linter:
 
 # run smoke tests
 test-smoke:
-    cargo test --release --test smoke
+    cargo test --release -p destack_test --test smoke
 
 # run codegen tests
 test-codegen:
-    cargo test --release --test codegen
+    cargo test --release -p destack_test --test codegen
 
 # run mdtest suites (specification + query)
 test-mdtest:
@@ -261,23 +269,23 @@ test-mdtest:
 
 # run conformance tests
 test-conformance:
-    cargo test --release --test conformance
+    cargo test --release -p destack_test --test conformance
 
 # update conformance test baselines
 test-conformance-update:
-    cargo test --release --test conformance -- --update-known-failures
+    cargo test --release -p destack_test --test conformance -- --update-known-failures
 
 # run formatter tests
 test-formatter:
-    cargo test --release --test formatter
+    cargo test --release -p destack_test --test formatter
 
 # run formatter conformance tests
 test-formatter-conformance:
-    cargo test --release --test formatter-conformance
+    cargo test --release -p destack_test --test formatter-conformance
 
 # update formatter conformance known failures
 test-formatter-conformance-update:
-    cargo test --release --test formatter-conformance -- --update-known-failures
+    cargo test --release -p destack_test --test formatter-conformance -- --update-known-failures
 
 # snapshot formatter output for a corpus
 formatter-corpus-snapshot root="test/fixtures/formatter/conformance/staging/oxfmt" out="/tmp/destack-formatter-corpus-snapshot":
@@ -297,7 +305,7 @@ formatter-corpus-diff baseline candidate:
 
 # run ecosystem tests
 test-ecosystem:
-    cargo test --release --test ecosystem
+    cargo test --release -p destack_test --test ecosystem
 
 # run resolver tests
 test-resolver:
@@ -305,7 +313,7 @@ test-resolver:
 
 # run specification tests (type checking specification)
 test-specification:
-    cargo test --release --test specification
+    cargo test --release -p destack_test --test specification
 
 # validate tree sitter overlay coverage
 test-grammar-overlay:
@@ -350,11 +358,11 @@ profile-grammar-delta args="--target destack --baseline tsx --top 30":
 
 # run query tests (IDE/LSP queries)
 test-query:
-    cargo test --release --test query
+    cargo test --release -p destack_test --test query
 
 # run stress tests (requires generated fixtures)
 test-stress:
-    cargo test --release --test stress
+    cargo test --release -p destack_test --test stress
 
 # --- stress fixtures ---
 

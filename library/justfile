@@ -1,5 +1,7 @@
 set shell := ["bash", "-cu"]
 
+packages := "-p destack_napi -p destack_wasm"
+
 _default:
     @just --list --unsorted
 
@@ -31,6 +33,10 @@ check:
     bun x tsc --noEmit -p napi/tsconfig.json
     bun run biome lint .
 
+# lint (alias for check)
+lint:
+    just check
+
 # test
 test:
     cargo test --release --all-targets -p destack_napi
@@ -39,7 +45,13 @@ test:
 
 # format code
 format:
+    cargo fmt {{ packages }}
     bun run biome format --write .
+
+# check formatting
+format-check:
+    cargo fmt --check {{ packages }}
+    bun run biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .
 
 # alias for format
 alias fmt := format
