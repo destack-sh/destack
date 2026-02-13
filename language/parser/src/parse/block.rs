@@ -171,10 +171,18 @@ impl Parser {
 
         // direct keyword dispatch in statement position
         if let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) {
-            let next_token_type = self.peek_next_token_type();
-            if let Some(expression_id) =
-                self.try_eat_direct_statement_keyword_expression(start, keyword, next_token_type)?
-            {
+            let next_raw_token_type = if self.tokens_prelexed && !self.has_active_split() {
+                self.peek_next_token_type_prelexed_fast()
+            } else {
+                self.peek_next_token_type()
+            };
+            let next_cursor = self.non_newline_cursor_from(self.index_for_next());
+            if let Some(expression_id) = self.try_eat_direct_statement_keyword_expression(
+                start,
+                keyword,
+                next_raw_token_type,
+                next_cursor,
+            )? {
                 if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                     speculation_stats.statement_keyword_fast_direct_hits += 1;
                 }
@@ -213,10 +221,10 @@ impl Parser {
     fn try_eat_statement_expression_fast_dispatch(
         &mut self,
         start: &ParserMark,
-        cursor: NonNewlineTokenCursor,
+        token_type: TokenType,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // block statements stay in the statement lane
-        if cursor.token_type == TokenType::OpenBrace {
+        if token_type == TokenType::OpenBrace {
             let block_id = self.eat_block()?;
             let expression_id = self
                 .tree
@@ -225,7 +233,7 @@ impl Parser {
         }
 
         // identifier starts use a dedicated statement lane
-        if cursor.token_type == TokenType::Identifier {
+        if token_type == TokenType::Identifier {
             return self.try_eat_identifier_statement_expression_lane(start);
         }
 
@@ -243,20 +251,25 @@ impl Parser {
     ) -> ParseResult<LocalNodeId<Expression>> {
         // normalize to the next non-newline token once per dispatch
         let cursor = self.normalize_to_scanner_cursor();
+        self.eat_statement_expression_in_current_options_from_normalized_token(cursor.token_type)
+    }
 
+    /// Eat one statement expression when the parser cursor is already normalized.
+    #[inline]
+    fn eat_statement_expression_in_current_options_from_normalized_token(
+        &mut self,
+        token_type: TokenType,
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
         if let Some(expression_id) =
-            self.try_eat_statement_expression_fast_dispatch(&start, cursor)?
+            self.try_eat_statement_expression_fast_dispatch(&start, token_type)?
         {
             return Ok(expression_id);
         }
 
         // non identifier starts parse through expression mode without statement flags
-        if cursor.token_type != TokenType::Identifier {
-            let old_options = self.swap_options(self.options.not_in_statement_position());
-            let expression_id = self.eat_expression_without_statement_keyword_fast();
-            self.restore_options(old_options);
-            return expression_id;
+        if token_type != TokenType::Identifier {
+            return self.eat_expression_without_statement_position_fast();
         }
 
         // plain identifier fallbacks avoid statement mode option checks
@@ -264,10 +277,7 @@ impl Parser {
             .keyword_for_index_maybe_fast(self.pos_index())
             .is_none()
         {
-            let old_options = self.swap_options(self.options.not_in_statement_position());
-            let expression_id = self.eat_expression_without_statement_keyword_fast();
-            self.restore_options(old_options);
-            return expression_id;
+            return self.eat_expression_without_statement_position_fast();
         }
 
         // keyword fallback stays in full statement expression mode
@@ -387,6 +397,8 @@ impl Parser {
         let expressions = self
             .eat_block_body(BlockFormat::Explicit)
             .for_node_type(NodeType::Block)?;
+        let is_empty_block = expressions.is_empty();
+        let close_cursor = self.peek_cursor();
         self.eat_token(TokenType::CloseBrace)?;
 
         // block
@@ -397,6 +409,16 @@ impl Parser {
             },
             self.get_span_from(&start),
         );
+
+        // comments inside empty blocks attach as infix to the block itself
+        if is_empty_block {
+            self.attach_inline_infix_annotations_for_token(
+                close_cursor.index,
+                close_cursor.skipped_newline_count,
+                block_id.id,
+            );
+        }
+
         Ok(block_id)
     }
 
@@ -421,15 +443,25 @@ impl Parser {
 
             loop {
                 // normalize block body cursor once per iteration
-                let cursor = self.peek_cursor();
-                if cursor.index != self.pos_index() {
-                    self.advance_to(cursor.index);
-                }
+                let cursor = self.normalize_to_scanner_cursor();
                 let token_type = cursor.token_type;
 
                 // stop at block terminators
                 // NOTE #Cleanup: recover block parse more explicitly?
                 if self.is_block_body_terminator_token(token_type, format) {
+                    // attach trailing block annotations before the terminator to the last item
+                    let trailing_target =
+                        pending_tail_expression.or_else(|| statements.last().copied());
+                    if let Some(trailing_target) = trailing_target {
+                        self.attach_inline_postfix_blank_from_skipped_newlines(
+                            cursor.index,
+                            cursor.skipped_newline_count,
+                            trailing_target.id,
+                        );
+                        self.attach_inline_trailing_annotations_for_current_token(
+                            trailing_target.id,
+                        );
+                    }
                     break;
                 }
 
@@ -453,25 +485,27 @@ impl Parser {
 
                 // keep the semantic token index that starts this statement item
                 let statement_token_index = cursor.index;
+                let statement_skipped_newline_count = cursor.skipped_newline_count;
 
                 // parse and recover one statement item
                 let start = self.mark_span();
-                let (expression_id, is_statement) =
-                    match self.eat_statement_expression_in_current_options() {
-                        Ok(expression_id) => {
-                            self.finalize_statement_expression_with_flag(&start, expression_id)?
-                        }
-                        Err(err) => {
-                            let err = err.for_node_type(NodeType::Expression);
-                            let span = err.leaf_span();
-                            let start = ParserMark::from_span(span);
-                            self.try_recover(&start, TokenType::Newline, Some(err))?;
-                            let error_id = self
-                                .tree
-                                .insert(Expression::Error, self.get_span_from(&start));
-                            (error_id, true)
-                        }
-                    };
+                let (expression_id, is_statement) = match self
+                    .eat_statement_expression_in_current_options_from_normalized_token(token_type)
+                {
+                    Ok(expression_id) => {
+                        self.finalize_statement_expression_with_flag(&start, expression_id)?
+                    }
+                    Err(err) => {
+                        let err = err.for_node_type(NodeType::Expression);
+                        let span = err.leaf_span();
+                        let start = ParserMark::from_span(span);
+                        self.try_recover(&start, TokenType::Newline, Some(err))?;
+                        let error_id = self
+                            .tree
+                            .insert(Expression::Error, self.get_span_from(&start));
+                        (error_id, true)
+                    }
+                };
 
                 // attach any pending decorators to this statement item
                 let had_pending_statement_decorators = !pending_statement_decorators.is_empty();
@@ -487,6 +521,7 @@ impl Parser {
                 if !had_pending_statement_decorators {
                     self.attach_inline_leading_annotations_for_token(
                         statement_token_index,
+                        statement_skipped_newline_count,
                         expression_id.id,
                     );
                 }
@@ -567,6 +602,7 @@ impl Parser {
             self.bump(); // eat semicolon
             let expression_id =
                 self.wrap_statement_expression(expression_id, self.get_span_from(start));
+            self.attach_inline_trailing_annotations_for_current_token(expression_id.id);
             return Ok((expression_id, true));
         }
 
@@ -585,6 +621,7 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
+        self.attach_inline_trailing_annotations_for_current_token(expression_id.id);
         Ok((expression_id, is_statement))
     }
 

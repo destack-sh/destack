@@ -322,12 +322,14 @@ impl Parser {
             let static_parameters = self.eat_static_parameters_maybe()?;
 
             // dynamic parameters
-            let dynamic_parameters = self.with_options(
-                self.options
-                    .with_generator(is_generator)
-                    .with_forbid_yield(is_generator),
-                |parser| parser.eat_dynamic_parameters(),
-            )?;
+            let parameter_options = self
+                .options
+                .with_generator(is_generator)
+                .with_forbid_yield(is_generator);
+            let old_options = self.swap_options(parameter_options);
+            let dynamic_parameters_result = self.eat_dynamic_parameters();
+            self.restore_options(old_options);
+            let dynamic_parameters = dynamic_parameters_result?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -495,14 +497,27 @@ impl Parser {
     pub fn eat_properties(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         // eat everything
         let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
+        let mut last_property_id: Option<LocalNodeId<Property>> = None;
         let mut pending_property_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
         while self.has_more_tokens() {
+            // normalize cursor to the next non newline token
+            let cursor = self.normalize_to_scanner_cursor();
+            let token_type = cursor.token_type;
+
             // stop on closing brace
-            if self.peek_is(TokenType::CloseBrace) || self.peek_is(TokenType::End) {
+            if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
+                if let Some(last_property_id) = last_property_id {
+                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                        cursor.index,
+                        cursor.skipped_newline_count,
+                        last_property_id.id,
+                    );
+                    self.attach_inline_trailing_annotations_for_current_token(last_property_id.id);
+                }
                 break;
             }
             // consume decorator prefixes in type literal properties
-            else if self.options.in_type && self.peek_is(TokenType::At) {
+            else if self.options.in_type && token_type == TokenType::At {
                 let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
                 pending_property_decorators.append(&mut decorators);
                 continue;
@@ -514,6 +529,8 @@ impl Parser {
             }
             // keep eating properties
             else {
+                let property_token_index = cursor.index;
+                let property_skipped_newline_count = cursor.skipped_newline_count;
                 match self.try_eat_property(TokenType::Newline) {
                     Ok(property_id) => {
                         if !pending_property_decorators.is_empty() {
@@ -522,6 +539,13 @@ impl Parser {
                                 property_id.id,
                             );
                         }
+                        self.attach_inline_leading_annotations_for_token(
+                            property_token_index,
+                            property_skipped_newline_count,
+                            property_id.id,
+                        );
+                        self.attach_inline_trailing_annotations_for_current_token(property_id.id);
+                        last_property_id = Some(property_id);
                         properties.push(property_id);
                     }
                     Err(_) => continue, // keep eating other properties
@@ -802,10 +826,11 @@ impl Parser {
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
 
         // key
-        let (key, key_span) = if let Some((key, span)) = self
-            .with_options(self.options.allow_private_hash_key(), |parser| {
-                parser.eat_key_maybe_with_span()
-            })? {
+        let key_options = self.options.allow_private_hash_key();
+        let old_options = self.swap_options(key_options);
+        let key_result = self.eat_key_maybe_with_span();
+        self.restore_options(old_options);
+        let (key, key_span) = if let Some((key, span)) = key_result? {
             (Some(key), Some(span))
         } else {
             (None, None)
@@ -923,12 +948,14 @@ impl Parser {
             let static_parameters = self.eat_static_parameters_maybe()?;
 
             // dynamic parameters
-            let dynamic_parameters = self.with_options(
-                self.options
-                    .with_generator(is_generator)
-                    .with_forbid_yield(is_generator),
-                |parser| parser.eat_dynamic_parameters(),
-            )?;
+            let parameter_options = self
+                .options
+                .with_generator(is_generator)
+                .with_forbid_yield(is_generator);
+            let old_options = self.swap_options(parameter_options);
+            let dynamic_parameters_result = self.eat_dynamic_parameters();
+            self.restore_options(old_options);
+            let dynamic_parameters = dynamic_parameters_result?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -1099,10 +1126,23 @@ impl Parser {
         allow_comma_separators: bool,
     ) -> ParseResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
+        let mut last_member_id: Option<LocalNodeId<Member>> = None;
         let mut pending_member_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
         while self.has_more_tokens() {
+            // normalize cursor to the next non newline token
+            let cursor = self.normalize_to_scanner_cursor();
+            let token_type = cursor.token_type;
+
             // stop on closing brace
-            if self.peek_is(TokenType::CloseBrace) || self.peek_is(TokenType::End) {
+            if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
+                if let Some(last_member_id) = last_member_id {
+                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                        cursor.index,
+                        cursor.skipped_newline_count,
+                        last_member_id.id,
+                    );
+                    self.attach_inline_trailing_annotations_for_current_token(last_member_id.id);
+                }
                 break;
             }
             // consume any stop
@@ -1115,13 +1155,15 @@ impl Parser {
                 continue;
             }
             // consume decorator prefixes
-            else if self.peek_is(TokenType::At) {
+            else if token_type == TokenType::At {
                 let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
                 pending_member_decorators.append(&mut decorators);
                 continue;
             }
             // keep eating members
             else {
+                let member_token_index = cursor.index;
+                let member_skipped_newline_count = cursor.skipped_newline_count;
                 match self.try_eat_member(TokenType::Newline) {
                     Ok(member_id) => {
                         if !pending_member_decorators.is_empty() {
@@ -1130,6 +1172,13 @@ impl Parser {
                                 member_id.id,
                             );
                         }
+                        self.attach_inline_leading_annotations_for_token(
+                            member_token_index,
+                            member_skipped_newline_count,
+                            member_id.id,
+                        );
+                        self.attach_inline_trailing_annotations_for_current_token(member_id.id);
+                        last_member_id = Some(member_id);
                         members.push(member_id);
                     }
                     Err(_) => continue, // keep eating other members

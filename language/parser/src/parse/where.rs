@@ -48,9 +48,11 @@ impl Parser {
     pub fn eat_where(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
         let _timing = self.timing_scope(tags::PARSE_WHERE);
         self.eat_keyword(Keyword::Where)?;
-        let clauses = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_where_body()
-        })?;
+        let body_options = self.options.in_before_block();
+        let old_options = self.swap_options(body_options);
+        let clauses_result = self.eat_where_body();
+        self.restore_options(old_options);
+        let clauses = clauses_result?;
         Ok(clauses)
     }
 

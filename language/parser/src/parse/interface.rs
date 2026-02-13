@@ -101,15 +101,17 @@ impl Parser {
 
             // parse interface members in type context for typescript
             let members = if self.language.is_typescript() {
-                self.with_options(self.options.nested().in_variant().in_type(), |parser| {
-                    parser.eat_members(true)
-                })
-                .for_node_type(NodeType::Declaration)?
+                let member_options = self.options.nested().in_variant().in_type();
+                let old_options = self.swap_options(member_options);
+                let members_result = self.eat_members(true);
+                self.restore_options(old_options);
+                members_result.for_node_type(NodeType::Declaration)?
             } else {
-                self.with_options(self.options.nested().in_variant(), |parser| {
-                    parser.eat_members(true)
-                })
-                .for_node_type(NodeType::Declaration)?
+                let member_options = self.options.nested().in_variant();
+                let old_options = self.swap_options(member_options);
+                let members_result = self.eat_members(true);
+                self.restore_options(old_options);
+                members_result.for_node_type(NodeType::Declaration)?
             };
             self.eat_token(TokenType::CloseBrace)
                 .for_node_type(NodeType::Declaration)?;

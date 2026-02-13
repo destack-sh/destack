@@ -41,9 +41,11 @@ impl Parser {
         let start = self.mark_span();
 
         // value
-        let value_id = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_expression_parenthesized_maybe()
-        })?;
+        let value_options = self.options.in_before_block();
+        let old_options = self.swap_options(value_options);
+        let value_result = self.eat_expression_parenthesized_maybe();
+        self.restore_options(old_options);
+        let value_id = value_result?;
 
         // cases
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
@@ -77,10 +79,23 @@ impl Parser {
         kind: MatchKind,
     ) -> ParseResult<Vec<LocalNodeId<MatchCase>>> {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
+        let mut last_case_id: Option<LocalNodeId<MatchCase>> = None;
         let mut has_default_case = false;
         while self.has_more_tokens() {
+            // normalize cursor to the next non newline token
+            let cursor = self.normalize_to_scanner_cursor();
+            let token_type = cursor.token_type;
+
             // stop on closing brace
-            if self.peek_is(TokenType::CloseBrace) {
+            if token_type == TokenType::CloseBrace {
+                if let Some(last_case_id) = last_case_id {
+                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                        cursor.index,
+                        cursor.skipped_newline_count,
+                        last_case_id.id,
+                    );
+                    self.attach_inline_trailing_annotations_for_current_token(last_case_id.id);
+                }
                 break;
             }
             // allow statement separators between cases (newline/semicolon)
@@ -89,6 +104,9 @@ impl Parser {
             }
             // case
             else {
+                let case_token_index = cursor.index;
+                let case_skipped_newline_count = cursor.skipped_newline_count;
+
                 // reject duplicate default selectors in switch blocks
                 if kind == MatchKind::Switch
                     && has_default_case
@@ -112,6 +130,12 @@ impl Parser {
                     }
                 }
 
+                self.attach_inline_leading_annotations_for_token(
+                    case_token_index,
+                    case_skipped_newline_count,
+                    case.id,
+                );
+                last_case_id = Some(case);
                 cases.push(case);
             }
         }
@@ -172,14 +196,15 @@ impl Parser {
                     // guard
                     let guard = if self.is_keyword(Keyword::If) {
                         self.eat_keyword(Keyword::If)?;
-                        let guard = self.with_options(
-                            ParserOptions {
-                                in_match_case: true,
-                                in_before_block: true,
-                                ..Default::default()
-                            },
-                            |parser| parser.eat_expression_parenthesized_maybe(),
-                        )?;
+                        let guard_options = ParserOptions {
+                            in_match_case: true,
+                            in_before_block: true,
+                            ..Default::default()
+                        };
+                        let old_options = self.swap_options(guard_options);
+                        let guard_result = self.eat_expression_parenthesized_maybe();
+                        self.restore_options(old_options);
+                        let guard = guard_result?;
                         Some(guard)
                     } else {
                         None
@@ -193,20 +218,24 @@ impl Parser {
             // match-kind
             MatchKind::Match => {
                 // pattern
-                let pattern =
-                    self.with_options(self.options.in_match_case(), |parser| parser.eat_pattern())?;
+                let pattern_options = self.options.in_match_case();
+                let old_options = self.swap_options(pattern_options);
+                let pattern_result = self.eat_pattern();
+                self.restore_options(old_options);
+                let pattern = pattern_result?;
 
                 // guard
                 let guard = if self.is_keyword(Keyword::If) {
                     self.eat_keyword(Keyword::If)?;
-                    let guard = self.with_options(
-                        ParserOptions {
-                            in_match_case: true,
-                            in_before_block: true,
-                            ..Default::default()
-                        },
-                        |parser| parser.eat_expression_parenthesized_maybe(),
-                    )?;
+                    let guard_options = ParserOptions {
+                        in_match_case: true,
+                        in_before_block: true,
+                        ..Default::default()
+                    };
+                    let old_options = self.swap_options(guard_options);
+                    let guard_result = self.eat_expression_parenthesized_maybe();
+                    self.restore_options(old_options);
+                    let guard = guard_result?;
                     Some(guard)
                 } else {
                     None

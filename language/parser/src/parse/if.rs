@@ -24,9 +24,11 @@ impl Parser {
             return Ok(expression_id);
         }
 
-        let expression_id = self.with_options(self.options.in_before_block(), |parser| {
-            parser.eat_statement_expression_in_current_options()
-        })?;
+        let statement_options = self.options.in_before_block();
+        let old_options = self.swap_options(statement_options);
+        let expression_result = self.eat_statement_expression_in_current_options();
+        self.restore_options(old_options);
+        let expression_id = expression_result?;
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -82,34 +84,40 @@ impl Parser {
     pub fn eat_if(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark_span();
 
-        // NOTE #Architecture: ternary if is parsed in expression parser, not in eat_if
+        // NOTE: ternary if is parsed in expression loop, not in eat_if
 
         // keyword
         self.eat_keyword(Keyword::If)?;
 
         // condition
-        let condition = self.with_options(self.options.nested().in_before_block(), |parser| {
-            let keyword = parser.peek_any_keyword().ok();
-            if matches!(keyword, Some(Keyword::Let)) || parser.peek_mutability_is() {
-                let (kind, mutability) = parser.eat_let_kind()?;
-                let declarator = parser.eat_declarator(true, true)?;
-                Ok(IfCondition::Let {
-                    kind,
-                    mutability,
-                    declarator,
+        let condition_options = self.options.nested().in_before_block();
+        let old_options = self.swap_options(condition_options);
+        let condition_result: ParseResult<IfCondition> =
+            if matches!(self.peek_any_keyword().ok(), Some(Keyword::Let))
+                || self.peek_mutability_is()
+            {
+                self.eat_let_kind().and_then(|(kind, mutability)| {
+                    self.eat_declarator(true, true)
+                        .map(|declarator| IfCondition::Let {
+                            kind,
+                            mutability,
+                            declarator,
+                        })
                 })
             } else {
-                let condition = parser.eat_expression_parenthesized_maybe()?;
-                Ok(IfCondition::Expression { condition })
-            }
-        })?;
+                self.eat_expression_parenthesized_maybe()
+                    .map(|condition| IfCondition::Expression { condition })
+            };
+        self.restore_options(old_options);
+        let condition = condition_result?;
         self.eat_newlines_maybe()?;
 
         // then block
-        let then_expression_id = self
-            .with_options(self.options.in_statement_position(), |parser| {
-                parser.eat_expression_as_block()
-            })?;
+        let then_options = self.options.in_statement_position();
+        let old_options = self.swap_options(then_options);
+        let then_expression_result = self.eat_expression_as_block();
+        self.restore_options(old_options);
+        let then_expression_id = then_expression_result?;
 
         // allow semicolons between then and else branches in JS/TS
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
@@ -122,10 +130,11 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
-            let else_expression_id = self
-                .with_options(self.options.in_statement_position(), |parser| {
-                    parser.eat_expression_as_block()
-                })?;
+            let else_options = self.options.in_statement_position();
+            let old_options = self.swap_options(else_options);
+            let else_expression_result = self.eat_expression_as_block();
+            self.restore_options(old_options);
+            let else_expression_id = else_expression_result?;
             Some(else_expression_id)
         } else {
             None

@@ -82,10 +82,7 @@ impl Parser {
             return Ok(());
         }
 
-        let cursor = self.peek_cursor();
-        if cursor.index != self.pos_index() {
-            self.advance_to(cursor.index);
-        }
+        let _cursor = self.normalize_to_scanner_cursor();
 
         Ok(())
     }

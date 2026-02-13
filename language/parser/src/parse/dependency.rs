@@ -52,9 +52,12 @@ impl Parser {
             if self.peek_is(TokenType::CloseParenthesis) {
                 Some(vec![])
             } else {
-                let arguments = self.with_options(self.options.nested(), |parser| {
-                    parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
-                })?;
+                let argument_options = self.options.nested();
+                let old_options = self.swap_options(argument_options);
+                let arguments_result =
+                    self.eat_positional_arguments_body(TokenType::CloseParenthesis);
+                self.restore_options(old_options);
+                let arguments = arguments_result?;
                 Some(arguments)
             }
         } else {
@@ -130,15 +133,15 @@ impl Parser {
                 return Ok(expression_id);
             }
 
-            let value = if kind == Some(DependencyKind::Type) {
-                self.with_options(self.options.not_in_position().in_type(), |parser| {
-                    parser.eat_expression(parser.options)
-                })?
+            let value_options = if kind == Some(DependencyKind::Type) {
+                self.options.not_in_position().in_type()
             } else {
-                self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression(parser.options)
-                })?
+                self.options.not_in_position()
             };
+            let old_options = self.swap_options(value_options);
+            let value_result = self.eat_expression(self.options);
+            self.restore_options(old_options);
+            let value = value_result?;
             let descriptor = DeclarationDescriptor::default();
             let target = ImportAliasTarget::Path { value };
             let expression_id =
@@ -315,15 +318,15 @@ impl Parser {
         }
 
         // value expression
-        let value = if kind == Some(DependencyKind::Type) {
-            self.with_options(self.options.not_in_position().in_type(), |parser| {
-                parser.eat_expression(parser.options)
-            })?
+        let value_options = if kind == Some(DependencyKind::Type) {
+            self.options.not_in_position().in_type()
         } else {
-            self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression(parser.options)
-            })?
+            self.options.not_in_position()
         };
+        let old_options = self.swap_options(value_options);
+        let value_result = self.eat_expression(self.options);
+        self.restore_options(old_options);
+        let value = value_result?;
         // normalize descriptor export mode
         if descriptor.export.is_none() {
             descriptor.export = Some(DependencyMode::Item);
@@ -549,9 +552,11 @@ impl Parser {
             self.bump(); // eat with or assert
             self.eat_newlines_maybe()?;
             self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
-            let arguments = self.with_options(self.options.nested(), |parser| {
-                parser.eat_arguments_body(TokenType::CloseBrace)
-            })?;
+            let argument_options = self.options.nested();
+            let old_options = self.swap_options(argument_options);
+            let arguments_result = self.eat_arguments_body(TokenType::CloseBrace);
+            self.restore_options(old_options);
+            let arguments = arguments_result?;
             self.eat_token(TokenType::CloseBrace)?;
             Ok(Some(arguments))
         } else {

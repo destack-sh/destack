@@ -67,10 +67,16 @@ pub struct TokenStreamMark {
     pub(super) leading_side_start_tail: Vec<u32>,
     /// Side trivia end indexes per semantic token from the mark tail.
     pub(super) leading_side_end_tail: Vec<u32>,
+    /// Prefix counts of semantic tokens that have non whitespace side trivia.
+    pub(super) non_whitespace_side_prefix_tail: Vec<u32>,
     /// The pending side trivia start index for the next semantic token.
     pub(super) pending_leading_side_start: usize,
     /// Whether side trivia since the last semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
+    /// Whether this stream snapshot has comment style side annotations.
+    pub(super) has_comment_side_tokens: bool,
+    /// Whether this stream snapshot has semantic newline tokens.
+    pub(super) has_semantic_newline_tokens: bool,
     /// Pending synthetic token from operator decomposition.
     pub(super) split_token: Option<TokenSpan>,
     /// Whether the pending split token has already been consumed.
@@ -99,6 +105,8 @@ pub struct TokenStream {
     tokens: Vec<TokenSpan>,
     /// The side tokens produced so far.
     side_tokens: Vec<TokenSpan>,
+    /// The semantic token index that each side token belongs to.
+    side_owner_token_index: Vec<u32>,
     /// The cached next non newline token indexes.
     next_non_newline: Vec<u32>,
     /// The cached matching pair indexes for delimiters.
@@ -111,6 +119,8 @@ pub struct TokenStream {
     leading_side_start_by_token: Vec<u32>,
     /// Side trivia end index before each semantic token.
     leading_side_end_by_token: Vec<u32>,
+    /// Prefix counts for semantic tokens that have non whitespace side trivia.
+    non_whitespace_side_prefix: Vec<u32>,
     /// Side trivia start index for the next semantic token.
     pending_leading_side_start: usize,
     /// The first token index that still needs a next non newline update.
@@ -123,6 +133,10 @@ pub struct TokenStream {
     bracket_stack: Vec<usize>,
     /// Whether side trivia since the previous semantic token had a line terminator.
     pending_line_terminator_before_next: bool,
+    /// Whether any comment style side trivia token was seen.
+    has_comment_side_tokens: bool,
+    /// Whether any semantic newline token was seen.
+    has_semantic_newline_tokens: bool,
     /// Whether EOF has been reached.
     is_finished: bool,
     /// The cached EOF token, when available.
@@ -149,18 +163,22 @@ impl TokenStream {
             lexer: Lexer::new(file, language),
             tokens,
             side_tokens,
+            side_owner_token_index: Vec::with_capacity(estimated_tokens * 2 / 5),
             next_non_newline: Vec::new(),
             matching_pairs: Vec::new(),
             token_keywords: Vec::new(),
             line_terminators_before: Vec::new(),
             leading_side_start_by_token: Vec::new(),
             leading_side_end_by_token: Vec::new(),
+            non_whitespace_side_prefix: vec![0],
             pending_leading_side_start: 0,
             pending_non_newline_start: 0,
             paren_stack: Vec::new(),
             brace_stack: Vec::new(),
             bracket_stack: Vec::new(),
             pending_line_terminator_before_next: false,
+            has_comment_side_tokens: false,
+            has_semantic_newline_tokens: false,
             is_finished: false,
             eof_token: None,
             split_token: None,
@@ -178,6 +196,15 @@ impl TokenStream {
     #[inline]
     pub fn side_tokens(&self) -> &[TokenSpan] {
         &self.side_tokens
+    }
+
+    /// Return the owner semantic token index for a side token.
+    #[inline]
+    pub fn side_owner_token_index(&self, side_index: usize) -> Option<usize> {
+        self.side_owner_token_index
+            .get(side_index)
+            .copied()
+            .map(|index| index as usize)
     }
 
     /// Return the leading side trivia range for a semantic token index.
@@ -323,8 +350,13 @@ impl TokenStream {
                 .to_vec(),
             leading_side_end_tail: self.leading_side_end_by_token[pending_non_newline_start..]
                 .to_vec(),
+            non_whitespace_side_prefix_tail: self.non_whitespace_side_prefix
+                [pending_non_newline_start + 1..]
+                .to_vec(),
             pending_leading_side_start: self.pending_leading_side_start,
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
+            has_comment_side_tokens: self.has_comment_side_tokens,
+            has_semantic_newline_tokens: self.has_semantic_newline_tokens,
             split_token: self.split_token,
             split_token_consumed: self.split_token_consumed,
         }
@@ -343,8 +375,11 @@ impl TokenStream {
             bracket_stack,
             leading_side_start_tail,
             leading_side_end_tail,
+            non_whitespace_side_prefix_tail,
             pending_leading_side_start,
             pending_line_terminator_before_next,
+            has_comment_side_tokens,
+            has_semantic_newline_tokens,
             split_token,
             split_token_consumed,
         } = mark;
@@ -356,9 +391,12 @@ impl TokenStream {
         if side_tokens_changed {
             self.side_tokens.truncate(side_tokens_len);
             self.lexer.side_tokens.truncate(side_tokens_len);
+            self.side_owner_token_index.truncate(side_tokens_len);
         }
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
         self.pending_leading_side_start = pending_leading_side_start;
+        self.has_comment_side_tokens = has_comment_side_tokens;
+        self.has_semantic_newline_tokens = has_semantic_newline_tokens;
         self.split_token = split_token;
         self.split_token_consumed = split_token_consumed;
 
@@ -373,6 +411,7 @@ impl TokenStream {
         self.line_terminators_before.truncate(tokens_len);
         self.leading_side_start_by_token.truncate(tokens_len);
         self.leading_side_end_by_token.truncate(tokens_len);
+        self.non_whitespace_side_prefix.truncate(tokens_len + 1);
 
         // restore next non newline cache and mutable tail cursor
         self.next_non_newline.truncate(tokens_len);
@@ -384,6 +423,9 @@ impl TokenStream {
         }
         for (offset, side_end) in leading_side_end_tail.into_iter().enumerate() {
             self.leading_side_end_by_token[pending_non_newline_start + offset] = side_end;
+        }
+        for (offset, prefix) in non_whitespace_side_prefix_tail.into_iter().enumerate() {
+            self.non_whitespace_side_prefix[pending_non_newline_start + 1 + offset] = prefix;
         }
         self.pending_non_newline_start = pending_non_newline_start;
 
@@ -482,6 +524,7 @@ impl TokenStream {
         let side_tokens = std::mem::take(&mut self.side_tokens);
         self.lexer.tokens.clear();
         self.lexer.side_tokens.clear();
+        self.side_owner_token_index.clear();
 
         // reset caches and stacks for any follow-up access
         self.next_non_newline.clear();
@@ -490,12 +533,16 @@ impl TokenStream {
         self.line_terminators_before.clear();
         self.leading_side_start_by_token.clear();
         self.leading_side_end_by_token.clear();
+        self.non_whitespace_side_prefix.clear();
+        self.non_whitespace_side_prefix.push(0);
         self.pending_leading_side_start = 0;
         self.pending_non_newline_start = 0;
         self.paren_stack.clear();
         self.brace_stack.clear();
         self.bracket_stack.clear();
         self.pending_line_terminator_before_next = false;
+        self.has_comment_side_tokens = false;
+        self.has_semantic_newline_tokens = false;
         self.clear_split_token();
 
         (tokens, side_tokens)
@@ -548,6 +595,63 @@ impl TokenStream {
             .get(index)
             .copied()
             .unwrap_or(false)
+    }
+
+    /// Return true when a semantic token window has any non-whitespace side trivia in prelexed mode.
+    #[inline]
+    pub fn has_non_whitespace_side_in_window_prelexed(
+        &self,
+        token_window_start: usize,
+        token_window_end_exclusive: usize,
+    ) -> bool {
+        debug_assert!(
+            self.is_finished,
+            "has_non_whitespace_side_in_window_prelexed requires prelexed tokens"
+        );
+
+        let token_len = self.tokens.len();
+        let token_window_start = token_window_start.min(token_len);
+        let token_window_end_exclusive = token_window_end_exclusive.min(token_len);
+        if token_window_start >= token_window_end_exclusive {
+            return false;
+        }
+
+        let start = self
+            .non_whitespace_side_prefix
+            .get(token_window_start)
+            .copied()
+            .unwrap_or(0);
+        let end = self
+            .non_whitespace_side_prefix
+            .get(token_window_end_exclusive)
+            .copied()
+            .unwrap_or(start);
+        end > start
+    }
+
+    /// Return true when a semantic token window has any non-whitespace side trivia.
+    #[inline]
+    pub fn has_non_whitespace_side_in_window(
+        &mut self,
+        token_window_start: usize,
+        token_window_end_exclusive: usize,
+    ) -> bool {
+        if self.is_finished {
+            return self.has_non_whitespace_side_in_window_prelexed(
+                token_window_start,
+                token_window_end_exclusive,
+            );
+        }
+
+        if token_window_end_exclusive == 0 {
+            return false;
+        }
+
+        self.ensure_token(token_window_end_exclusive.saturating_sub(1));
+        self.has_non_whitespace_side_in_window_prelexed(
+            token_window_start,
+            token_window_end_exclusive,
+        )
     }
 
     /// Look up the next non-newline token index from a start index.
@@ -814,10 +918,21 @@ impl TokenStream {
         }
     }
 
-    /// Push a side token and update side-token-driven stream flags.
+    /// Push a side token and update stream flags that depend on side tokens.
     #[inline]
     fn push_side_token(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
+        if matches!(
+            token_span.token.ty,
+            TokenType::LineComment
+                | TokenType::DocLineComment
+                | TokenType::BlockComment
+                | TokenType::DocBlockComment
+        ) {
+            self.has_comment_side_tokens = true;
+        }
+
         self.side_tokens.push(token_span);
+        self.side_owner_token_index.push(u32::MAX);
         if has_line_terminator {
             self.pending_line_terminator_before_next = true;
         }
@@ -825,12 +940,21 @@ impl TokenStream {
 
     /// Push a semantic token and update indexes.
     fn push_semantic_token(&mut self, token_span: TokenSpan) {
+        let token_index = self.tokens.len();
         let has_line_terminator_before = self.pending_line_terminator_before_next;
         let leading_side_start = self.pending_leading_side_start as u32;
         let leading_side_end = self.side_tokens.len() as u32;
+        let mut has_non_whitespace_side = false;
+        let pending_side_start = self.pending_leading_side_start;
+        let pending_side_end = self.side_tokens.len();
+        for side_index in pending_side_start..pending_side_end {
+            self.side_owner_token_index[side_index] = token_index as u32;
+            if self.side_tokens[side_index].token.ty != TokenType::Whitespace {
+                has_non_whitespace_side = true;
+            }
+        }
 
         // add token and cache slots
-        let token_index = self.tokens.len();
         self.tokens.push(token_span);
         self.next_non_newline.push(u32::MAX);
         self.matching_pairs.push(u32::MAX);
@@ -844,8 +968,15 @@ impl TokenStream {
             .push(has_line_terminator_before);
         self.leading_side_start_by_token.push(leading_side_start);
         self.leading_side_end_by_token.push(leading_side_end);
+        let previous_non_whitespace_side_prefix =
+            self.non_whitespace_side_prefix.last().copied().unwrap_or(0);
+        self.non_whitespace_side_prefix
+            .push(previous_non_whitespace_side_prefix + has_non_whitespace_side as u32);
         self.pending_leading_side_start = self.side_tokens.len();
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
+        if token_span.token.ty == TokenType::Newline {
+            self.has_semantic_newline_tokens = true;
+        }
 
         // update lexer context for regex and tree rules
         self.lexer.track_semantic_token(token_span);
@@ -885,5 +1016,17 @@ impl TokenStream {
         if token_span.token.ty == TokenType::End {
             self.next_non_newline[token_index] = (token_index + 1) as u32;
         }
+    }
+
+    /// Return true when comment style side annotation tokens were seen.
+    #[inline]
+    pub fn has_comment_annotation_tokens(&self) -> bool {
+        self.has_comment_side_tokens
+    }
+
+    /// Return true when semantic newline tokens were seen.
+    #[inline]
+    pub fn has_blank_annotation_tokens(&self) -> bool {
+        self.has_semantic_newline_tokens
     }
 }

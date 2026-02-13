@@ -113,10 +113,24 @@ impl Parser {
         // eat everything
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
+        let mut last_item_node_id: Option<u32> = None;
         let mut pending_enum_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
+        let mut pending_enum_decorator_anchor: Option<(usize, usize)> = None;
         while self.has_more_tokens() {
+            // normalize cursor to the next non newline token
+            let cursor = self.normalize_to_scanner_cursor();
+            let token_type = cursor.token_type;
+
             // stop on closing brace
-            if self.peek_is(TokenType::CloseBrace) {
+            if token_type == TokenType::CloseBrace {
+                if let Some(last_item_node_id) = last_item_node_id {
+                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                        cursor.index,
+                        cursor.skipped_newline_count,
+                        last_item_node_id,
+                    );
+                    self.attach_inline_trailing_annotations_for_current_token(last_item_node_id);
+                }
                 break;
             }
             // consume any stop
@@ -124,34 +138,74 @@ impl Parser {
                 self.eat_any_stop_with_newlines()?;
             }
             // consume decorator prefixes
-            else if self.peek_is(TokenType::At) {
+            else if token_type == TokenType::At {
+                if pending_enum_decorator_anchor.is_none() {
+                    pending_enum_decorator_anchor =
+                        Some((cursor.index, cursor.skipped_newline_count));
+                }
                 let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
                 pending_enum_decorators.append(&mut decorators);
             }
             // enum field
             else if self.peek_enum_field_is() {
+                let field_token_index = cursor.index;
+                let field_skipped_newline_count = cursor.skipped_newline_count;
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
                 if !pending_enum_decorators.is_empty() {
+                    if let Some((anchor_token_index, anchor_skipped_newline_count)) =
+                        pending_enum_decorator_anchor.take()
+                    {
+                        self.attach_inline_prefix_blank_from_skipped_newlines(
+                            anchor_token_index,
+                            anchor_skipped_newline_count,
+                            field.id,
+                        );
+                    }
                     self.attach_decorators_to_target(
                         std::mem::take(&mut pending_enum_decorators),
                         field.id,
                     );
                 }
+                self.attach_inline_leading_annotations_for_token(
+                    field_token_index,
+                    field_skipped_newline_count,
+                    field.id,
+                );
+                self.attach_inline_trailing_annotations_for_current_token(field.id);
+                last_item_node_id = Some(field.id);
                 fields.push(field);
             }
             // eat members
             else {
-                let member_id = self
-                    .with_options(self.options.nested().in_variant(), |parser| {
-                        parser.try_eat_member(TokenType::Newline)
-                    })
-                    .for_node_type(NodeType::Member)?;
+                let member_token_index = cursor.index;
+                let member_skipped_newline_count = cursor.skipped_newline_count;
+                let member_options = self.options.nested().in_variant();
+                let old_options = self.swap_options(member_options);
+                let member_result = self.try_eat_member(TokenType::Newline);
+                self.restore_options(old_options);
+                let member_id = member_result.for_node_type(NodeType::Member)?;
                 if !pending_enum_decorators.is_empty() {
+                    if let Some((anchor_token_index, anchor_skipped_newline_count)) =
+                        pending_enum_decorator_anchor.take()
+                    {
+                        self.attach_inline_prefix_blank_from_skipped_newlines(
+                            anchor_token_index,
+                            anchor_skipped_newline_count,
+                            member_id.id,
+                        );
+                    }
                     self.attach_decorators_to_target(
                         std::mem::take(&mut pending_enum_decorators),
                         member_id.id,
                     );
                 }
+                self.attach_inline_leading_annotations_for_token(
+                    member_token_index,
+                    member_skipped_newline_count,
+                    member_id.id,
+                );
+                self.attach_inline_trailing_annotations_for_current_token(member_id.id);
+                last_item_node_id = Some(member_id.id);
                 members.push(member_id);
             }
         }

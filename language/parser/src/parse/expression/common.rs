@@ -1,8 +1,8 @@
 use crate::Parser;
 
 use destack_ast::{
-    BinaryOperator, Declaration, DeclarationDescriptor, Expression, FunctionKind, Keyword,
-    LocalNodeId, TokenType,
+    BinaryOperator, Declaration, DeclarationDescriptor, Decorator, Expression, FunctionKind,
+    Keyword, LocalNodeId, TokenType,
 };
 
 pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
@@ -60,7 +60,12 @@ pub(super) static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [Binar
 /// Result of parsing declaration modifiers.
 pub(super) enum DescriptorHead {
     /// Parsed declaration descriptor.
-    Descriptor(DeclarationDescriptor),
+    Descriptor {
+        /// The parsed declaration descriptor.
+        descriptor: DeclarationDescriptor,
+        /// Decorators parsed between declaration modifiers and the declaration head.
+        decorators: Vec<LocalNodeId<Decorator>>,
+    },
     /// Parsed expression that consumed the modifiers.
     Expression(LocalNodeId<Expression>),
 }

@@ -100,11 +100,11 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
-        let members = self
-            .with_options(self.options.nested().in_variant(), |parser| {
-                parser.eat_members(false)
-            })
-            .for_node_type(NodeType::Declaration)?;
+        let member_options = self.options.nested().in_variant();
+        let old_options = self.swap_options(member_options);
+        let members_result = self.eat_members(false);
+        self.restore_options(old_options);
+        let members = members_result.for_node_type(NodeType::Declaration)?;
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
 

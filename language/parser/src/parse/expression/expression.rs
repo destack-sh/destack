@@ -4,8 +4,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BinaryOperator, Block, BlockFormat, Declaration, DeclarationDescriptor, Expression, Keyword,
-    LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
+    BinaryOperator, Block, BlockFormat, Declaration, DeclarationDescriptor, Decorator, Expression,
+    Keyword, LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
 };
 
 /// The recursion interval for stack growth checks in expression parsing.
@@ -38,6 +38,22 @@ impl Parser {
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_expression_inner_with_stack_guard()
+    }
+
+    /// Eat an expression with statement position temporarily disabled.
+    #[inline]
+    pub(crate) fn eat_expression_without_statement_position_fast(
+        &mut self,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        if !self.options.in_statement_position {
+            return self.eat_expression_inner_with_stack_guard();
+        }
+
+        let old_in_statement_position = self.options.in_statement_position;
+        self.options.in_statement_position = false;
+        let result = self.eat_expression_inner_with_stack_guard();
+        self.options.in_statement_position = old_in_statement_position;
+        result
     }
 
     /// Eat an expression with stack growth checks.
@@ -159,12 +175,6 @@ impl Parser {
         if self.should_try_contextual_type_literal() {
             return Ok(None);
         }
-        // contextual declaration descriptors like `global {}` and `module "x" {}`
-        // need the existing descriptor parser path
-        if self.options.in_statement_position && self.should_parse_declaration_descriptor() {
-            return Ok(None);
-        }
-
         // contextual global declarations need descriptor parsing even in non statement contexts
         let can_start_global_declaration = matches!(
             next_token_type,
@@ -193,7 +203,18 @@ impl Parser {
             return Ok(None);
         }
 
+        let expression_cursor = self.scanner_cursor();
         let identifier_expression_id = self.eat_identifier_expression_path(start)?;
+        if self.should_attach_expression_leading_annotations(expression_cursor.index) {
+            let leading_skipped_newline_count =
+                expression_cursor.skipped_newline_count.saturating_add(1);
+            self.attach_inline_expression_leading_annotations_for_token(
+                expression_cursor.index,
+                leading_skipped_newline_count,
+                identifier_expression_id.id,
+            );
+        }
+
         let expression_id = self.eat_expression_continuation(start, identifier_expression_id)?;
 
         Ok(Some(expression_id))
@@ -252,7 +273,18 @@ impl Parser {
             return Ok(None);
         }
 
+        let expression_cursor = self.scanner_cursor();
         let identifier_expression_id = self.eat_identifier_expression_path(start)?;
+        if self.should_attach_expression_leading_annotations(expression_cursor.index) {
+            let leading_skipped_newline_count =
+                expression_cursor.skipped_newline_count.saturating_add(1);
+            self.attach_inline_expression_leading_annotations_for_token(
+                expression_cursor.index,
+                leading_skipped_newline_count,
+                identifier_expression_id.id,
+            );
+        }
+
         let expression_id = self.eat_expression_continuation(start, identifier_expression_id)?;
 
         Ok(Some(expression_id))
@@ -397,12 +429,19 @@ impl Parser {
 
     /// Eat an expression body without stack growth checks.
     fn eat_expression_inner(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        // consume decorator prefixes before parsing the next expression
-        if !self.options.in_decorator && self.peek_is(TokenType::At) {
-            self.eat_decorators_prefix_maybe()?;
-        }
+        // collect decorator prefixes before parsing the next expression
+        let mut expression_decorators = if !self.options.in_decorator && self.peek_is(TokenType::At)
+        {
+            self.eat_decorators_prefix_collect_maybe()?
+        } else {
+            Vec::new()
+        };
 
+        // capture expression span and scanner cursor metadata
         let start = self.mark_span();
+        let expression_cursor = self.scanner_cursor();
+        let expression_token_index = expression_cursor.index;
+        let expression_skipped_newline_count = expression_cursor.skipped_newline_count;
 
         // labelled statement or expression (like `label: while(...)` or `label: loop {}`)
         // decorators treat keywords as identifiers, so skip label parsing there
@@ -471,6 +510,10 @@ impl Parser {
                     self.get_span_from(&start),
                 );
                 self.tree.set_main_span(labelled_id, label_span);
+                self.attach_pending_decorators_to_expression(
+                    &mut expression_decorators,
+                    labelled_id,
+                );
                 return Ok(labelled_id);
             }
         }
@@ -481,6 +524,10 @@ impl Parser {
             && let Some(identifier_expression_id) =
                 self.try_eat_plain_type_identifier_expression_fast(&start)?
         {
+            self.attach_pending_decorators_to_expression(
+                &mut expression_decorators,
+                identifier_expression_id,
+            );
             return Ok(identifier_expression_id);
         }
 
@@ -490,6 +537,10 @@ impl Parser {
             && let Some(identifier_expression_id) =
                 self.try_eat_plain_identifier_expression_fast(&start)?
         {
+            self.attach_pending_decorators_to_expression(
+                &mut expression_decorators,
+                identifier_expression_id,
+            );
             return Ok(identifier_expression_id);
         }
         // ------------------------------------------------------------
@@ -499,6 +550,8 @@ impl Parser {
 
         let left_expression_id: LocalNodeId<Expression> = {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
+
+            // resolve the current token with prelexed fast path when available
             let token_type = if self.tokens_prelexed && !self.has_active_split() {
                 self.peek_token_type_prelexed_fast()
             } else {
@@ -515,10 +568,45 @@ impl Parser {
             match token_type {
                 TokenType::Identifier => {
                     // declaration descriptor parsing only matters for identifier starts
-                    let descriptor = if self.should_parse_declaration_descriptor() {
+                    let pos_index = self.pos_index();
+                    let has_active_split = self.has_active_split();
+                    let descriptor_head_keyword = if has_active_split {
+                        self.peek_any_keyword().ok()
+                    } else {
+                        self.keyword_for_index_maybe_fast(pos_index)
+                    };
+                    let can_parse_declaration_descriptor = self.options.in_statement_position
+                        || self.options.in_type
+                        || self.options.in_variant
+                        || self.options.in_declare_context
+                        || self.language.is_declaration()
+                        || matches!(
+                            descriptor_head_keyword,
+                            Some(
+                                Keyword::Export
+                                    | Keyword::Declare
+                                    | Keyword::Abstract
+                                    | Keyword::Static
+                            )
+                        );
+                    let descriptor = if can_parse_declaration_descriptor
+                        && self.should_parse_declaration_descriptor()
+                    {
                         match self.eat_declaration_descriptor(&start)? {
-                            DescriptorHead::Descriptor(descriptor) => descriptor,
-                            DescriptorHead::Expression(expression_id) => return Ok(expression_id),
+                            DescriptorHead::Descriptor {
+                                descriptor,
+                                mut decorators,
+                            } => {
+                                expression_decorators.append(&mut decorators);
+                                descriptor
+                            }
+                            DescriptorHead::Expression(expression_id) => {
+                                self.attach_pending_decorators_to_expression(
+                                    &mut expression_decorators,
+                                    expression_id,
+                                );
+                                return Ok(expression_id);
+                            }
                         }
                     } else {
                         DeclarationDescriptor::default()
@@ -722,9 +810,8 @@ impl Parser {
                             }
                         }
 
-                        // type literal
+                        // fallback to contextual type literals when keyword parsing did not match
                         if primary_expression_id.is_none() {
-                            // late fallback for contextual type literals
                             let should_try_type_literal = self.should_try_contextual_type_literal();
                             if should_try_type_literal
                                 && let Ok(type_literal) = self.peek_type_literal()
@@ -781,6 +868,10 @@ impl Parser {
                             .set_span(expression_id, self.get_span_from(&start));
 
                         // forward the expression (no need to parse further here)
+                        self.attach_pending_decorators_to_expression(
+                            &mut expression_decorators,
+                            expression_id,
+                        );
                         return Ok(expression_id);
                     }
                     // parenthesis
@@ -1220,6 +1311,81 @@ impl Parser {
             }
         };
 
-        self.eat_expression_continuation(&start, left_expression_id)
+        // attach parsed decorators before continuation parsing
+        self.attach_pending_decorators_to_expression(
+            &mut expression_decorators,
+            left_expression_id,
+        );
+
+        // attach leading annotations from scanner context before continuation parsing
+        if self.should_attach_expression_leading_annotations(expression_token_index) {
+            let expression_leading_skipped_newline_count =
+                expression_skipped_newline_count.saturating_add(1);
+            self.attach_inline_expression_leading_annotations_for_token(
+                expression_token_index,
+                expression_leading_skipped_newline_count,
+                left_expression_id.id,
+            );
+        }
+
+        // parse postfix and infix continuation for the primary expression
+        let expression_id = self.eat_expression_continuation(&start, left_expression_id)?;
+        Ok(expression_id)
+    }
+
+    /// Attach pending decorators to the best expression target.
+    fn attach_pending_decorators_to_expression(
+        &mut self,
+        decorators: &mut Vec<LocalNodeId<Decorator>>,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        let target_expression_id = self.decorator_target_expression(expression_id);
+        self.attach_decorators_to_target(std::mem::take(decorators), target_expression_id.id);
+    }
+
+    /// Return the expression target that should own prefix decorators.
+    fn decorator_target_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        let expression = self.tree.get(expression_id);
+        let Expression::Export { items, .. } = expression else {
+            return expression_id;
+        };
+
+        for item_id in items {
+            let item = self.tree.get(*item_id);
+            let Some(value) = item.value else {
+                continue;
+            };
+            if matches!(self.tree.get(value), Expression::Declaration(_)) {
+                return value;
+            }
+        }
+
+        expression_id
+    }
+
+    /// Return whether expression-leading annotations should attach in the current context.
+    fn should_attach_expression_leading_annotations(
+        &mut self,
+        expression_token_index: usize,
+    ) -> bool {
+        // expression contexts always permit leading attachment
+        if !self.options.in_statement_position {
+            return true;
+        }
+
+        // no previous token means no statement-leading window
+        if expression_token_index == 0 {
+            return false;
+        }
+
+        // statement boundaries suppress expression-leading attachment
+        let previous_token_type = self.token_type_at(expression_token_index.saturating_sub(1));
+        !matches!(
+            previous_token_type,
+            TokenType::Newline | TokenType::Semicolon | TokenType::OpenBrace | TokenType::End
+        )
     }
 }

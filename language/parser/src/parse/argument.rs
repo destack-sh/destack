@@ -409,10 +409,12 @@ impl Parser {
     /// ...args: int32[]
     /// ```
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
-        // decorators are only allowed on runtime parameters
-        if !self.options.in_type {
-            self.eat_decorators_prefix_maybe()?;
-        }
+        // collect runtime decorators so validation can check placement
+        let decorators = if !self.options.in_type {
+            self.eat_decorators_prefix_collect_maybe()?
+        } else {
+            Vec::new()
+        };
 
         let start = self.mark_span();
 
@@ -588,6 +590,9 @@ impl Parser {
             self.tree
                 .set_side_span(parameter_id, NodeSpanType::Type, span);
         }
+
+        // attach parsed decorators to the parameter node
+        self.attach_decorators_to_target(decorators, parameter_id.id);
 
         Ok(parameter_id)
     }
@@ -834,6 +839,11 @@ impl Parser {
     pub fn eat_positional_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark_span();
         let mut modifiers = None;
+        let decorators = if !self.options.in_type {
+            self.eat_decorators_prefix_collect_maybe()?
+        } else {
+            Vec::new()
+        };
 
         // readonly tuple element modifiers in type context
         if self.options.in_type && self.is_keyword(Keyword::Readonly) {
@@ -905,6 +915,7 @@ impl Parser {
             if let Some(label_span) = label_span {
                 self.tree.set_main_span(argument_id, label_span);
             }
+            self.attach_decorators_to_target(decorators, argument_id.id);
             return Ok(argument_id);
         }
 
@@ -940,6 +951,7 @@ impl Parser {
                 self.get_span_from(&start),
             );
             self.tree.set_main_span(argument_id, label_span);
+            self.attach_decorators_to_target(decorators, argument_id.id);
             return Ok(argument_id);
         }
 
@@ -982,6 +994,7 @@ impl Parser {
             Argument::Positional { modifiers, value },
             self.get_span_from(&start),
         );
+        self.attach_decorators_to_target(decorators, argument_id.id);
         Ok(argument_id)
     }
 
@@ -1433,10 +1446,20 @@ impl Parser {
         let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
         self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
-            if self.peek_token_type() == terminator {
+            let cursor = self.normalize_to_scanner_cursor();
+            if cursor.token_type == terminator {
                 break;
             }
+
+            let argument_token_index = cursor.index;
+            let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_positional_argument()?;
+            self.attach_inline_expression_leading_annotations_for_token(
+                argument_token_index,
+                argument_skipped_newline_count,
+                argument_id.id,
+            );
+            self.attach_inline_trailing_annotations_for_current_token(argument_id.id);
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.is_item_stop() {
@@ -1465,10 +1488,20 @@ impl Parser {
         let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
         self.eat_newlines_maybe()?;
         while self.has_more_tokens() {
-            if self.peek_token_type() == terminator {
+            let cursor = self.normalize_to_scanner_cursor();
+            if cursor.token_type == terminator {
                 break;
             }
+
+            let argument_token_index = cursor.index;
+            let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_tree_argument()?;
+            self.attach_inline_expression_leading_annotations_for_token(
+                argument_token_index,
+                argument_skipped_newline_count,
+                argument_id.id,
+            );
+            self.attach_inline_trailing_annotations_for_current_token(argument_id.id);
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.is_item_stop() {

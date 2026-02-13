@@ -445,11 +445,22 @@ impl NodeTree {
     pub fn append_annotation(&mut self, target_id: u32, annotation: LocalNodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
 
-        // parse order appends annotations in source order for each target
-        self.annotations_by_node_id
-            .entry(target_id)
-            .or_default()
-            .push(annotation);
+        // keep vectors sorted by span order without paying a sort pass in the common case
+        let annotation_ids = self.annotations_by_node_id.entry(target_id).or_default();
+        if let Some(previous_annotation) = annotation_ids.last().copied() {
+            let previous_span = self.source_map.get(previous_annotation.id);
+            let current_span = self.source_map.get(annotation.id);
+            let is_in_non_decreasing_order = previous_span.start < current_span.start
+                || previous_span.start == current_span.start
+                    && (previous_span.end < current_span.end
+                        || previous_span.end == current_span.end
+                            && previous_annotation.id <= annotation.id);
+            if !is_in_non_decreasing_order {
+                self.annotations_are_sorted = false;
+            }
+        }
+
+        annotation_ids.push(annotation);
     }
 
     /// Whether there are any annotations attached to a node.
@@ -512,6 +523,10 @@ impl NodeTree {
     /// Sort all annotations.
     #[inline]
     pub fn sort_annotations(&mut self) {
+        if self.annotations_are_sorted {
+            return;
+        }
+
         let source_map = &self.source_map;
         for annotation_ids in self.annotations_by_node_id.values_mut() {
             annotation_ids.sort_by(|left, right| {
