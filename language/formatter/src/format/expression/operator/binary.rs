@@ -86,12 +86,47 @@ fn operand_prefers_trailing_logical_operator(
     is_logical_binary_operator(operator) && context.has_prefix_annotation(operand_expression)
 }
 
+/// Return whether a logical binary left operand ends with a line postfix slash comment.
+fn logical_left_has_line_postfix_slash_comment(
+    context: &DestackFormatContext<'_>,
+    operator: BinaryOperator,
+    left: LocalNodeId<Expression>,
+) -> bool {
+    if !is_logical_binary_operator(operator) {
+        return false;
+    }
+
+    let Some(annotations) = context.get_annotations(left) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let Annotation::Comment { node, position } = annotation else {
+            return false;
+        };
+
+        if !matches!(
+            position,
+            AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+        ) {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
+}
+
 /// Write one separating space after the left operand when no postfix trivia exists.
 fn write_space_after_binary_left_if_needed<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: LocalNodeId<Expression>,
+    operator: BinaryOperator,
 ) -> FormatResult<()> {
-    if f.context().has_postfix_annotation(left) {
+    let allow_logical_space_after_line_comment =
+        logical_left_has_line_postfix_slash_comment(f.context(), operator, left);
+    if f.context().has_postfix_annotation(left) && !allow_logical_space_after_line_comment {
         return Ok(());
     }
 
@@ -117,7 +152,7 @@ fn try_format_trailing_coalesce<'ast>(
         [group(&format_args![
             left,
             indent(&format_with(|f| {
-                write_space_after_binary_left_if_needed(f, left)?;
+                write_space_after_binary_left_if_needed(f, left, operator)?;
                 write!(f, [operator, soft_line_break_or_space(), right])
             }))
         ])]
@@ -160,7 +195,7 @@ fn try_format_logical_line_comment<'ast>(
         f,
         [group(&format_args![
             left,
-            format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+            format_with(|f| write_space_after_binary_left_if_needed(f, left, operator)),
             operator,
             space(),
             text(line_comment.as_str()),
@@ -197,7 +232,7 @@ fn try_format_mixed_logical_precedence<'ast>(
         f,
         [group(&format_args![
             left,
-            format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+            format_with(|f| write_space_after_binary_left_if_needed(f, left, operator)),
             operator,
             space(),
             token("("),
@@ -240,7 +275,7 @@ fn try_format_logical_parenthesized_cases<'ast>(
             f,
             [group(&format_args![
                 left,
-                format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+                format_with(|f| write_space_after_binary_left_if_needed(f, left, operator)),
                 operator,
                 indent(&format_args![hard_line_break(), right])
             ])]
@@ -260,7 +295,7 @@ fn try_format_logical_parenthesized_cases<'ast>(
             f,
             [group(&format_args![
                 left,
-                format_with(|f| write_space_after_binary_left_if_needed(f, left)),
+                format_with(|f| write_space_after_binary_left_if_needed(f, left, operator)),
                 operator,
                 space(),
                 right
@@ -791,7 +826,15 @@ pub(super) fn format_binary_expression<'ast>(
                             operand.expression,
                         );
                     if operand_prefers_trailing_operator {
-                        if !has_postfix {
+                        let allow_space_after_line_comment =
+                            prev_expression.is_some_and(|expression_id| {
+                                logical_left_has_line_postfix_slash_comment(
+                                    f.context(),
+                                    op,
+                                    expression_id,
+                                )
+                            });
+                        if !has_postfix || allow_space_after_line_comment {
                             write!(f, [space()])?;
                         }
                         write!(
@@ -811,7 +854,15 @@ pub(super) fn format_binary_expression<'ast>(
                             ]
                         )?;
                     } else if previous_has_prefix_annotation {
-                        if !has_postfix {
+                        let allow_space_after_line_comment =
+                            prev_expression.is_some_and(|expression_id| {
+                                logical_left_has_line_postfix_slash_comment(
+                                    f.context(),
+                                    op,
+                                    expression_id,
+                                )
+                            });
+                        if !has_postfix || allow_space_after_line_comment {
                             write!(f, [space()])?;
                         }
                         write!(f, [op, space()])?;
@@ -825,6 +876,14 @@ pub(super) fn format_binary_expression<'ast>(
                             f,
                             [indent(&format_with(
                                 |f: &mut DestackFormatter<'ast, '_>| {
+                                    let allow_space_after_line_comment = prev_expression
+                                        .is_some_and(|expression_id| {
+                                            logical_left_has_line_postfix_slash_comment(
+                                                f.context(),
+                                                op,
+                                                expression_id,
+                                            )
+                                        });
                                     if !has_postfix {
                                         if preserve_source_operator_break {
                                             write!(f, [hard_line_break()])?;
@@ -835,6 +894,8 @@ pub(super) fn format_binary_expression<'ast>(
                                         } else {
                                             write!(f, [soft_line_break_or_space()])?;
                                         }
+                                    } else if allow_space_after_line_comment {
+                                        write!(f, [space()])?;
                                     }
                                     write!(f, [op, space()])?;
                                     format_binary_operand_with_grouping_parentheses(
@@ -937,13 +998,18 @@ pub(super) fn format_type_binary_expression<'ast>(
             }))]
         )?;
     } else {
+        let keep_left_and_operator_on_same_line = matches!(
+            operator,
+            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
+        );
+
         write!(
             f,
             [group(&format_args![
                 formatted_left,
                 indent(&format_with(|f| {
                     if !has_postfix {
-                        if left_has_leading_prefix_comment {
+                        if left_has_leading_prefix_comment || keep_left_and_operator_on_same_line {
                             write!(f, [space()])?;
                         } else {
                             write!(f, [soft_line_break_or_space()])?;

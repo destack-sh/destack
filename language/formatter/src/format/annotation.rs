@@ -5,7 +5,8 @@ use destack_source::Span;
 
 use crate::directive::is_ignore_directive_comment;
 use crate::scan::{
-    next_non_whitespace_after_annotation, previous_non_whitespace_before_annotation,
+    next_non_whitespace_after_annotation, next_non_whitespace_after_span,
+    previous_non_whitespace_before_annotation,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
@@ -13,11 +14,26 @@ use destack_ast::{
     Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
 };
 
+/// Return the concrete content span for an annotation node.
+fn annotation_content_span(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Span {
+    match context.tree.get::<Annotation>(annotation_id) {
+        Annotation::Blank { node, .. } => context.get_span(*node),
+        Annotation::Doc { node, .. } => context.get_span(*node),
+        Annotation::Comment { node, .. } => context.get_span(*node),
+        Annotation::Decorator { node, .. } => context.get_span(*node),
+    }
+}
+
 mod defer;
 
 pub(crate) use defer::{
-    call_argument_inline_boundary_prefix_annotations, declaration_body_boundary_prefix_annotations,
-    declaration_expression_body_boundary_prefix_annotations, is_lambda_arrow_prefix_annotation,
+    annotation_should_defer, call_argument_inline_boundary_prefix_annotations,
+    declaration_body_boundary_prefix_annotations,
+    declaration_expression_body_boundary_prefix_annotations, if_head_boundary_annotations,
+    if_then_else_boundary_annotations, is_lambda_arrow_prefix_annotation,
     parameter_type_separator_prefix_annotations,
 };
 
@@ -115,9 +131,21 @@ fn annotation_precedes_separator<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
+    // default to wrapper span behavior, which preserves established inline comment spacing
+    let next_character = next_non_whitespace_after_annotation(context, annotation_id);
+    if matches!(
+        next_character,
+        Some(',' | ';' | ')' | ']' | '}' | '>' | '?' | '.' | ':' | '=')
+    ) {
+        return true;
+    }
+
+    // fallback: some inline boundary comments are tokenized with wrapper spans that can hide
+    // immediate closing delimiters, so also probe from the concrete comment span
+    let span = annotation_content_span(context, annotation_id);
     matches!(
-        next_non_whitespace_after_annotation(context, annotation_id),
-        Some(',' | ';' | ')' | ']' | '}' | '>' | '(' | '?' | '.' | ':')
+        next_non_whitespace_after_span(context, span),
+        Some(')' | ']' | '}' | '>')
     )
 }
 
@@ -212,6 +240,7 @@ fn annotation_follows_opening_delimiter<'ast>(
         Some('(' | '[' | '{' | '<')
     )
 }
+
 /// Return whether an annotation directly follows a separator in source.
 fn annotation_follows_separator<'ast>(
     context: &DestackFormatContext<'ast>,
@@ -219,7 +248,6 @@ fn annotation_follows_separator<'ast>(
 ) -> bool {
     previous_non_whitespace_before_annotation(context, annotation_id) == Some(',')
 }
-
 /// Return whether an annotation starts on a line with only leading whitespace.
 pub(super) fn annotation_starts_on_own_line<'ast>(
     context: &DestackFormatContext<'ast>,
@@ -231,6 +259,20 @@ pub(super) fn annotation_starts_on_own_line<'ast>(
     let line_start = head_source.rfind('\n').map(|index| index + 1).unwrap_or(0);
     let line_prefix = &head_source[line_start..];
     line_prefix.trim().is_empty()
+}
+
+/// Return whether annotation source contains more than one newline.
+fn annotation_contains_multiple_newlines(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.get_span::<Annotation>(annotation_id);
+    let source = context.get_span_str(span);
+    source
+        .chars()
+        .filter(|character| *character == '\n')
+        .count()
+        > 1
 }
 
 /// Return whether annotation source begins after at least one newline.
@@ -305,37 +347,25 @@ fn annotation_raw_line_or_trimmed_source(
     })
 }
 
-/// Return whether node has an if ancestor and a member ancestor.
-fn annotation_ancestor_flags<T: Node>(
+/// Return whether node has a member ancestor.
+fn node_has_member_ancestor<T: Node>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
-) -> (bool, bool)
+) -> bool
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    let mut has_if_ancestor = false;
     let mut has_member_ancestor = false;
 
-    context.any_ancestor(node_id, |ancestor_id, node_type| {
+    context.any_ancestor(node_id, |_, node_type| {
         if node_type == NodeType::Member {
             has_member_ancestor = true;
         }
 
-        if node_type == NodeType::Expression
-            && matches!(
-                context
-                    .tree
-                    .get::<Expression>(LocalNodeId::<Expression>::new(ancestor_id)),
-                Expression::If { .. }
-            )
-        {
-            has_if_ancestor = true;
-        }
-
-        has_if_ancestor && has_member_ancestor
+        has_member_ancestor
     });
 
-    (has_if_ancestor, has_member_ancestor)
+    has_member_ancestor
 }
 
 /// Return whether node naturally behaves like a member chain root.
@@ -361,8 +391,6 @@ where
 /// Node-level context shared by all annotation formatting within one node.
 #[derive(Debug, Clone, Copy)]
 struct AnnotationNodeContext {
-    /// Whether any ancestor expression is an if expression.
-    has_if_ancestor: bool,
     /// Whether annotation placement should use member-context rules.
     has_member_context: bool,
 }
@@ -377,15 +405,11 @@ where
 {
     let node_index = node_id.id;
     let current_node_id = LocalNodeId::<T>::new(node_index);
-    let (has_if_ancestor, has_member_ancestor) =
-        annotation_ancestor_flags(context, current_node_id);
+    let has_member_ancestor = node_has_member_ancestor(context, current_node_id);
     let current_node_id = LocalNodeId::<T>::new(node_index);
     let has_member_context = has_member_ancestor || node_has_member_shape(context, current_node_id);
 
-    AnnotationNodeContext {
-        has_if_ancestor,
-        has_member_context,
-    }
+    AnnotationNodeContext { has_member_context }
 }
 
 /// Annotation-level rendering facts computed once and reused across branches.
@@ -401,9 +425,9 @@ struct AnnotationRenderFacts {
     follows_colon: bool,
     /// Whether annotation follows an opening delimiter.
     follows_opening_delimiter: bool,
-    /// Whether annotation precedes a separator.
     /// Whether annotation follows a separator.
     follows_separator: bool,
+    /// Whether annotation precedes a separator.
     precedes_separator: bool,
     /// First non-whitespace character after the annotation.
     next_character: Option<char>,
@@ -563,6 +587,7 @@ where
                 && position == AnnotationPosition::BlockPrefix
                 && f.context().options.language_type.is_typescript()
                 && annotation_next_token_is_on_same_line(f.context(), annotation_id);
+            let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
             let is_blank_prefix_annotation = matches!(
                 annotation,
                 Annotation::Blank {
@@ -570,13 +595,13 @@ where
                     ..
                 }
             );
-            let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
             if is_blank_annotation && previous_was_blank_annotation {
                 continue;
             }
             if is_blank_prefix_annotation
-                && node_context.has_if_ancestor
+                && T::TYPE == NodeType::Expression
                 && defer::annotation_followed_by_else_keyword(f.context(), annotation_id)
+                && annotation_contains_multiple_newlines(f.context(), annotation_id)
             {
                 continue;
             }
@@ -620,7 +645,11 @@ where
 
                 let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                     write!(f, [space()])?;
-                    if node_context.has_if_ancestor {
+
+                    // keep inline slash comments byte stable for idempotence
+                    if !render_facts.slash_starts_on_own_line
+                        && let Annotation::Comment { .. } = annotation
+                    {
                         let annotation_span = f.context().get_span::<Annotation>(annotation_id);
                         let annotation_source = f.context().get_span_str(annotation_span);
                         write!(f, [text(annotation_source.trim())])
@@ -709,36 +738,6 @@ where
                 continue;
             }
 
-            // keep if boundary block comments inline between then and else
-            let is_if_boundary_block_comment = if let Annotation::Comment {
-                node: comment_id, ..
-            } = annotation
-            {
-                let comment = f.context().tree.get::<Comment>(*comment_id);
-                comment.style == CommentStyle::Star
-                    && position == AnnotationPosition::LinePostfixBoundary
-                    && node_context.has_if_ancestor
-                    && !annotation_starts_on_own_line(f.context(), annotation_id)
-                    && defer::annotation_followed_by_else_keyword(f.context(), annotation_id)
-            } else {
-                false
-            };
-
-            if is_if_boundary_block_comment {
-                if first_node_type.is_none() {
-                    first_node_type = Some(node_type);
-                    write!(f, [space()])?;
-                }
-
-                let annotation_span = f.context().get_span::<Annotation>(annotation_id);
-                let annotation_source = f.context().get_span_str(annotation_span);
-                write!(f, [text(annotation_source.trim())])?;
-                if !render_facts.precedes_separator {
-                    write!(f, [space()])?;
-                }
-                continue;
-            }
-
             // insert space/newline for first annotation in group
             if first_node_type.is_none() {
                 first_node_type = Some(node_type);
@@ -805,7 +804,9 @@ where
             // insert space / newline
             match position {
                 AnnotationPosition::LinePrefix => {
-                    write!(f, [space()])?;
+                    if annotation_next_token_is_on_same_line(f.context(), annotation_id) {
+                        write!(f, [space()])?;
+                    }
                 }
                 AnnotationPosition::LinePostfix => {
                     if !(render_facts.is_star_comment && render_facts.precedes_separator) {
@@ -814,7 +815,9 @@ where
                 }
                 AnnotationPosition::BlockInfix => {
                     if is_inline_block_star_comment {
-                        if !render_facts.precedes_separator {
+                        if !render_facts.precedes_separator
+                            && annotation_next_token_is_on_same_line(f.context(), annotation_id)
+                        {
                             write!(f, [space()])?;
                         }
                     } else {
@@ -832,7 +835,9 @@ where
                 }
                 AnnotationPosition::BlockPrefix => {
                     if is_inline_block_star_comment {
-                        if !render_facts.precedes_separator {
+                        if !render_facts.precedes_separator
+                            && annotation_next_token_is_on_same_line(f.context(), annotation_id)
+                        {
                             write!(f, [space()])?;
                         }
                     } else if is_inline_decorator_prefix
@@ -1545,6 +1550,23 @@ mod tests {
             &context,
             "method-body-boundary"
         ));
+    }
+
+    /// Condition boundary comments should detect closing delimiter separators.
+    #[test]
+    fn test_annotation_render_facts_condition_comment_precedes_separator() {
+        let source = "{
+    if (true /* separator-marker */ ) {}
+}";
+        let (formatter, _) =
+            TestFormatter::parse(source, |p| p.eat_block()).expect("parse separator marker source");
+        let context = context_from_formatter(&formatter);
+        let annotation_id = find_annotation_by_marker(&context, "separator-marker")
+            .expect("expected marker-tagged separator annotation");
+        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let facts = super::annotation_render_facts(&context, annotation, annotation_id);
+
+        assert!(facts.precedes_separator);
     }
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
