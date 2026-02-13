@@ -15,6 +15,16 @@ let ok: Inner<Box<int32>> = 1;
 ok satisfies int32;
 ```
 
+### infer outside conditional extends clauses reports errors
+
+> `infer` declarations are only valid in conditional extends clauses.
+
+```ds
+type Invalid = infer U;
+```
+
+- contains: infer declarations are only permitted in the extends clause of a conditional type
+
 ### infer from type reference patterns rejects mismatches
 
 > Inferred types must satisfy assignments.

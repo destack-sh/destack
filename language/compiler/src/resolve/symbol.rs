@@ -3036,6 +3036,22 @@ Box.missing;
         test.check_no_diagnostic_code("ER101");
     }
 
+    /// Resolve TypeScript angle bracket const assertions without unresolved `const` names.
+    #[test]
+    fn test_resolve_typescript_angle_const_assertion_expression() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+const events = <const>["connect", "disconnect"];
+
+events;
+"#,
+        );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+    }
+
     /// Resolve function-scoped var bindings outside nested blocks in JavaScript.
     #[test]
     fn test_resolve_var_hoists_out_of_nested_block_javascript() {

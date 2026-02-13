@@ -12,6 +12,8 @@ pub enum ScopeKind {
     Namespace,
     /// Type.
     Type,
+    /// Conditional type infer scope.
+    TypeConditional,
     /// Block.
     Block,
 }
