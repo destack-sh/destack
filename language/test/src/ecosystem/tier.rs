@@ -9,7 +9,7 @@ use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileSystem,
     FileType, LanguageType, MemoryFileSystem, ModuleId, PhysicalFileSystem, PrintOptions, Uri,
-    glob, matches as glob_matches,
+    glob,
 };
 use destack_workspace::{
     FormatterOptions, LinterOptions, PackageJson, Program, Session, TsConfig, TsConfigId,
@@ -1131,31 +1131,126 @@ fn tsconfig_path_matches_pattern(pattern: &str, path_fragment: &str) -> bool {
         return false;
     }
 
-    if glob_matches(pattern.as_bytes(), 0, path_fragment.as_bytes(), 0) {
+    // match tsconfig style glob patterns with star behavior that allows extensions
+    if tsconfig_glob_matches_pattern(pattern.as_str(), path_fragment) {
         return true;
     }
 
-    if pattern.contains('*') {
+    // stop after glob matching for patterns with wildcards
+    if pattern.contains('*') || pattern.contains('?') {
         return false;
     }
 
+    // treat non-glob directory names as recursive includes
     let trimmed = pattern.trim_end_matches('/');
     if path_fragment == trimmed || path_fragment.starts_with(&format!("{trimmed}/")) {
         return true;
     }
 
-    let nested_pattern = format!("{trimmed}/**");
-    if glob_matches(nested_pattern.as_bytes(), 0, path_fragment.as_bytes(), 0) {
-        return true;
+    false
+}
+
+/// Return whether one path fragment matches one tsconfig glob pattern.
+fn tsconfig_glob_matches_pattern(pattern: &str, path_fragment: &str) -> bool {
+    let pattern_segments = tsconfig_path_segments(pattern);
+    let path_segments = tsconfig_path_segments(path_fragment);
+
+    tsconfig_glob_matches_segments(&pattern_segments, &path_segments)
+}
+
+/// Match normalized tsconfig path segments with support for `**`, `*`, and `?`.
+fn tsconfig_glob_matches_segments(pattern_segments: &[&str], path_segments: &[&str]) -> bool {
+    if pattern_segments.is_empty() {
+        return path_segments.is_empty();
     }
 
-    let deep_nested_pattern = format!("{trimmed}/**/*");
-    glob_matches(
-        deep_nested_pattern.as_bytes(),
-        0,
-        path_fragment.as_bytes(),
-        0,
-    )
+    // let `**` consume zero or more path segments
+    if pattern_segments[0] == "**" {
+        let mut rest_pattern_segments = &pattern_segments[1..];
+        while rest_pattern_segments
+            .first()
+            .is_some_and(|segment| *segment == "**")
+        {
+            rest_pattern_segments = &rest_pattern_segments[1..];
+        }
+
+        if rest_pattern_segments.is_empty() {
+            return true;
+        }
+
+        if tsconfig_glob_matches_segments(rest_pattern_segments, path_segments) {
+            return true;
+        }
+
+        if path_segments.is_empty() {
+            return false;
+        }
+
+        return tsconfig_glob_matches_segments(pattern_segments, &path_segments[1..]);
+    }
+
+    if path_segments.is_empty() {
+        return false;
+    }
+
+    if !tsconfig_segment_matches_pattern(pattern_segments[0], path_segments[0]) {
+        return false;
+    }
+
+    tsconfig_glob_matches_segments(&pattern_segments[1..], &path_segments[1..])
+}
+
+/// Split one normalized path fragment into path segments.
+fn tsconfig_path_segments(path_fragment: &str) -> Vec<&str> {
+    path_fragment
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect()
+}
+
+/// Match one single path segment against tsconfig wildcards.
+fn tsconfig_segment_matches_pattern(pattern_segment: &str, text_segment: &str) -> bool {
+    let pattern_bytes = pattern_segment.as_bytes();
+    let text_bytes = text_segment.as_bytes();
+    let pattern_length = pattern_bytes.len();
+    let text_length = text_bytes.len();
+
+    let mut pattern_index = 0;
+    let mut text_index = 0;
+    let mut star_index = None;
+    let mut match_index = 0;
+
+    while text_index < text_length {
+        if pattern_index < pattern_length
+            && (pattern_bytes[pattern_index] == b'?'
+                || pattern_bytes[pattern_index] == text_bytes[text_index])
+        {
+            pattern_index += 1;
+            text_index += 1;
+            continue;
+        }
+
+        if pattern_index < pattern_length && pattern_bytes[pattern_index] == b'*' {
+            star_index = Some(pattern_index);
+            pattern_index += 1;
+            match_index = text_index;
+            continue;
+        }
+
+        let Some(star_index) = star_index else {
+            return false;
+        };
+
+        pattern_index = star_index + 1;
+        match_index += 1;
+        text_index = match_index;
+    }
+
+    while pattern_index < pattern_length && pattern_bytes[pattern_index] == b'*' {
+        pattern_index += 1;
+    }
+
+    pattern_index == pattern_length
 }
 
 /// Normalize one tsconfig glob pattern for stable matching.
@@ -1178,15 +1273,13 @@ fn load_manifest_entry_sources(package_dir: &Path) -> Result<Vec<ManifestEntrySo
     let mut sources = Vec::new();
     let mut seen_manifest_paths = HashSet::new();
 
-    // add the root package manifest when it has entry targets
+    // add the root package manifest even when entry targets are empty
     let root_entry_targets = root_package_json.entry_targets();
-    if !root_entry_targets.is_empty() {
-        seen_manifest_paths.insert(normalize_path_key(root_manifest_path.as_path()));
-        sources.push(ManifestEntrySource {
-            package_dir: package_dir.to_path_buf(),
-            entry_targets: root_entry_targets,
-        });
-    }
+    seen_manifest_paths.insert(normalize_path_key(root_manifest_path.as_path()));
+    sources.push(ManifestEntrySource {
+        package_dir: package_dir.to_path_buf(),
+        entry_targets: root_entry_targets,
+    });
 
     // add workspace package manifests when configured
     if let Some(workspaces) = root_package_json.workspaces.as_ref() {
@@ -1206,9 +1299,6 @@ fn load_manifest_entry_sources(package_dir: &Path) -> Result<Vec<ManifestEntrySo
             };
 
             let workspace_entry_targets = workspace_package_json.entry_targets();
-            if workspace_entry_targets.is_empty() {
-                continue;
-            }
 
             let Some(workspace_package_dir) = workspace_manifest_path.parent() else {
                 continue;
@@ -1421,7 +1511,7 @@ mod tests {
 
     use super::{
         ExpectedDiagnosticConfig, ObservedPhaseDiagnostic, match_expected_phase_diagnostics,
-        normalize_path_fragment, select_phase_entrypoints,
+        normalize_path_fragment, select_phase_entrypoints, tsconfig_path_matches_pattern,
     };
     use crate::ecosystem::manifest::EcosystemPhase;
 
@@ -1714,6 +1804,101 @@ mod tests {
     }
 
     #[test]
+    fn test_select_phase_entrypoints_falls_back_to_tsconfig_include_wildcard_paths() {
+        let temp_dir = unique_temp_dir("tsconfig-include-wildcard-fallback");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create package manifest with build output entries only
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "main": "./dist/index.js"
+}"#,
+        );
+
+        // create tsconfig with include wildcard paths without an extension suffix
+        write_text_file(
+            &temp_dir.join("tsconfig.json"),
+            r#"{
+  "include": ["src/**/*"],
+  "exclude": ["dist"]
+}"#,
+        );
+
+        // create source candidates in the package
+        let candidates = vec![
+            temp_dir.join("src/index.ts"),
+            temp_dir.join("src/utils/math.ts"),
+        ];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select entrypoints from tsconfig include fallback
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["src/index.ts", "src/utils/math.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_falls_back_to_tsconfig_without_manifest_entries() {
+        let temp_dir = unique_temp_dir("tsconfig-no-manifest-entry-targets");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create package manifest without explicit entry targets
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root"
+}"#,
+        );
+
+        // create tsconfig with explicit source file entries
+        write_text_file(
+            &temp_dir.join("tsconfig.json"),
+            r#"{
+  "files": ["src/index.ts"]
+}"#,
+        );
+
+        // create source candidates in the package
+        let candidates = vec![temp_dir.join("src/index.ts"), temp_dir.join("src/extra.ts")];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select entrypoints from tsconfig fallback
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
     fn test_select_phase_entrypoints_errors_without_manifest_entries() {
         let temp_dir = unique_temp_dir("missing-entrypoints");
         fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
@@ -1730,12 +1915,35 @@ mod tests {
         let candidates = vec![temp_dir.join("src/index.ts")];
         write_text_file(&candidates[0], "export const value = 1;");
 
-        // fail loudly when manifest entry targets are not available
+        // fail loudly when no manifest or tsconfig entrypoints are available
         let error = select_phase_entrypoints(&temp_dir, &candidates)
             .expect_err("expected missing entrypoint error");
 
         assert!(error.contains("no entrypoints discovered from package manifest entries"));
 
         fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+    #[test]
+    fn test_tsconfig_path_matches_pattern_with_extension_wildcards() {
+        // match root and nested paths for extension scoped double star patterns
+        assert!(tsconfig_path_matches_pattern("src/**/*.ts", "src/index.ts"));
+        assert!(tsconfig_path_matches_pattern(
+            "src/**/*.ts",
+            "src/utils/math.ts"
+        ));
+        assert!(!tsconfig_path_matches_pattern(
+            "src/**/*.ts",
+            "src/index.js"
+        ));
+    }
+
+    #[test]
+    fn test_tsconfig_path_matches_pattern_with_wildcard_paths() {
+        // match root and nested paths for wildcard path patterns without extension suffixes
+        assert!(tsconfig_path_matches_pattern("src/**/*", "src/index.ts"));
+        assert!(tsconfig_path_matches_pattern(
+            "src/**/*",
+            "src/utils/math.ts"
+        ));
     }
 }
