@@ -54,16 +54,17 @@ node;
 
 - contains: Fragment
 
-### namespaced tags are not supported in v1
+### namespaced tags route as intrinsic string names
 
-> XML namespaced tags are rejected.
+> XML namespaced tags are routed as intrinsic string names.
 
 ```ds
 const node = <svg:path />;
 node;
 ```
 
-- contains: namespaced
+- contains: intrinsic
+- contains: svg:path
 
 ## Attributes And Spread
 

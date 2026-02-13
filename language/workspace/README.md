@@ -23,7 +23,7 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
         "incremental": true
     },
     "runtimeOptions": {
-        "executionMode": "record",
+        "execution": "record",
         "replayLog": { "path": ".destack/runtime/replay" },
         "time": { "mode": "virtual" },
         "random": { "mode": "deterministic", "seed": 1337 }

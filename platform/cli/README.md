@@ -98,6 +98,7 @@ Grouped list payloads use:
 ```
 
 Generate the CLI report schema with:
+Run these commands from the repository root.
 
 ```sh
 just platform/generate-schema

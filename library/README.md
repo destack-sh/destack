@@ -17,11 +17,13 @@ Integrated packages for building full-stack applications with Destack.
 
 ## Commands
 
+Run these commands from the repository root.
+
 ```sh
 just library/napi        # build napi bindings
 just library/wasm        # build wasm bindings
 just library/wasm-size   # canonical wasm size analysis with preset defaults
 just library/test        # run tests
 just library/fmt         # format code
-just library/lint        # lint code
+just library/check       # lint and check code
 ```

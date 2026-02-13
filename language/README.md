@@ -2,6 +2,7 @@
 
 The Destack language toolchain, written in Rust (for now).
 See [DESIGN.md](DESIGN.md) for design philosophy and [SPECIFICATION.md](SPECIFICATION.md) for precise syntax and semantics.
+See [INTEROPERABILITY.md](INTEROPERABILITY.md) for the language and target compatibility matrix.
 
 The Destack compiler takes source files from a supported language (`.ds`, `.ts`/`.tsx`, `.js`/`.jsx`) and compiles them to final output via several intermediate representations (AST → DIR → MIR). See [compiler/README.md](compiler/README.md) for the full pipeline.
 
@@ -36,6 +37,7 @@ The language toolchain is split into several crates, each handling a specific pa
 ## Commands
 
 Common development commands:
+Run these commands from the repository root.
 
 ```sh
 just language/check   # cargo clippy --release

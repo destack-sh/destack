@@ -25,5 +25,5 @@ Run `just -f language/justfile test-grammar-all` to run the full grammar validat
 ```sh
 node language/grammar/scripts/check-overlay.mjs
 node language/grammar/scripts/profile-grammar-delta.mjs --target destack --baseline tsx --top 30
-just -f language/justfile profile-grammar-delta --args="--target destack --baseline tsx --top 30"
+just -f language/justfile profile-grammar-delta
 ```
