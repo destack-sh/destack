@@ -1,5 +1,7 @@
+mod fetch;
 mod manifest;
 pub mod runner;
+mod tier;
 
 pub use manifest::{
     EcosystemManifest, EcosystemPhase, EcosystemSupportTier, EcosystemTscMode, EcosystemTscTool,

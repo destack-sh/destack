@@ -96,6 +96,9 @@ pub struct EcosystemManifest {
     /// TSC configuration used for TypeScript parity checks.
     #[serde(default)]
     pub tsc: TscConfig,
+    /// Expected diagnostics used for phase level matching.
+    #[serde(default)]
+    pub diagnostics: Vec<ExpectedDiagnosticConfig>,
     /// Per-phase workload settings for discovery and caps.
     #[serde(default)]
     pub workloads: WorkloadConfig,
@@ -184,9 +187,9 @@ pub enum EcosystemTscMode {
 #[serde(rename_all = "lowercase")]
 pub enum EcosystemTscTool {
     /// Prefer `tsgo` and fall back to `tsc`.
-    #[default]
     Auto,
     /// Use `tsgo` directly.
+    #[default]
     Tsgo,
     /// Use `tsc` directly.
     Tsc,
@@ -204,6 +207,19 @@ pub struct TscConfig {
     /// Phase allowlist for tsc execution.
     #[serde(default)]
     pub phases: Vec<EcosystemPhase>,
+}
+
+/// One expected diagnostic entry for an ecosystem phase.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct ExpectedDiagnosticConfig {
+    /// The phase where this diagnostic is expected.
+    pub phase: EcosystemPhase,
+    /// The expected diagnostic code.
+    pub code: String,
+    /// A file path fragment to match.
+    pub file: String,
+    /// A message fragment to match.
+    pub message: String,
 }
 
 impl TscConfig {
@@ -311,6 +327,16 @@ impl EcosystemManifest {
         }
         manifests.sort();
         manifests
+    }
+
+    /// Return expected diagnostics for one phase.
+    pub fn diagnostics_for_phase(
+        &self,
+        phase: EcosystemPhase,
+    ) -> impl Iterator<Item = &ExpectedDiagnosticConfig> {
+        self.diagnostics
+            .iter()
+            .filter(move |diagnostic| diagnostic.phase == phase)
     }
 }
 
@@ -472,9 +498,49 @@ language = "js"
         assert!(ts_manifest.tsc.enabled_for_language(PackageLanguage::Ts));
         assert!(!js_manifest.tsc.enabled_for_language(PackageLanguage::Js));
         assert_eq!(ts_manifest.tsc.mode(), EcosystemTscMode::OnFailure);
-        assert_eq!(ts_manifest.tsc.tool(), EcosystemTscTool::Auto);
+        assert_eq!(ts_manifest.tsc.tool(), EcosystemTscTool::Tsgo);
         assert!(ts_manifest.tsc.includes_phase(EcosystemPhase::Resolve));
         assert!(ts_manifest.tsc.includes_phase(EcosystemPhase::Analyze));
         assert!(!ts_manifest.tsc.includes_phase(EcosystemPhase::Parse));
+    }
+
+    #[test]
+    fn test_parse_diagnostics() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo-ts"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[[diagnostics]]
+phase = "resolve"
+code = "ER200"
+file = "src/index.ts"
+message = "unresolved module 'x'"
+
+[[diagnostics]]
+phase = "analyze"
+code = "EA101"
+file = "src/domain.ts"
+message = "type mismatch"
+"#,
+        );
+
+        // verify phase filtering for expected diagnostics
+        let resolve_entries = manifest
+            .diagnostics_for_phase(EcosystemPhase::Resolve)
+            .collect::<Vec<_>>();
+        let analyze_entries = manifest
+            .diagnostics_for_phase(EcosystemPhase::Analyze)
+            .collect::<Vec<_>>();
+
+        assert_eq!(resolve_entries.len(), 1);
+        assert_eq!(resolve_entries[0].code, "ER200");
+        assert_eq!(resolve_entries[0].file, "src/index.ts");
+        assert_eq!(resolve_entries[0].message, "unresolved module 'x'");
+        assert_eq!(analyze_entries.len(), 1);
+        assert_eq!(analyze_entries[0].code, "EA101");
     }
 }
