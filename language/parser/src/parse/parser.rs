@@ -1273,6 +1273,9 @@ impl Parser {
             expressions.push(stub);
         }
 
+        // attach side annotations in the default parse pipeline
+        self.attach_annotations();
+
         self.is_finished = true;
         expressions
     }
