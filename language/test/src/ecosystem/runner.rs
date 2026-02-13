@@ -1,7 +1,9 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 use destack_source::{FileType, glob};
 
@@ -21,6 +23,7 @@ const DEFAULT_INCLUDE_PATTERNS: &[&str] = &["**/*.ts", "**/*.tsx", "**/*.js", "*
 const DEFAULT_EXCLUDE_PATTERNS: &[&str] = &["**/node_modules/**", "**/dist/**", "**/build/**"];
 
 const README_SECTION_SUMMARY_RESULTS: &str = "summary-results";
+const PREPARE_STAMP_FILE: &str = ".destack_prepare_stamp";
 
 /// Configuration options for running ecosystem tests.
 #[derive(Debug, Clone, Default)]
@@ -85,6 +88,7 @@ pub struct EcosystemSuite {
     stale_known_entries: Vec<String>,
     stale_ignored_entries: Vec<String>,
     fetch_failures: HashMap<String, String>,
+    prepare_failures: HashMap<String, String>,
 }
 
 impl EcosystemSuite {
@@ -132,6 +136,15 @@ impl EcosystemSuite {
             test_options.list,
         );
 
+        let prepare_failures = auto_prepare_selected_packages(
+            &manifests,
+            &phases,
+            test_options.filter.as_deref(),
+            &checkouts_dir,
+            &fetch_failures,
+            test_options.list,
+        );
+
         Self {
             phases,
             include: options.include.clone(),
@@ -151,6 +164,7 @@ impl EcosystemSuite {
             stale_known_entries: status.stale_known_entries,
             stale_ignored_entries: status.stale_ignored_entries,
             fetch_failures,
+            prepare_failures,
         }
     }
 
@@ -160,6 +174,15 @@ impl EcosystemSuite {
             return TestResult::Failed {
                 message: format!(
                     "auto-fetch failed for package '{}': {error}",
+                    manifest.package.name
+                ),
+            };
+        }
+
+        if let Some(error) = self.prepare_failures.get(&manifest.package.name) {
+            return TestResult::Failed {
+                message: format!(
+                    "auto-prepare failed for package '{}': {error}",
                     manifest.package.name
                 ),
             };
@@ -1288,6 +1311,179 @@ fn build_valid_case_ids(manifests_by_name: &HashMap<String, EcosystemManifest>) 
     }
 
     ids
+}
+
+/// Run manifest configured prepare commands before selected phases.
+fn auto_prepare_selected_packages(
+    manifests: &[EcosystemManifest],
+    phases: &[EcosystemPhase],
+    filter: Option<&str>,
+    checkouts_dir: &Path,
+    fetch_failures: &HashMap<String, String>,
+    is_list_mode: bool,
+) -> HashMap<String, String> {
+    if is_list_mode {
+        return HashMap::new();
+    }
+
+    // collect manifests that need one prepare run for selected phases
+    let selected = manifests
+        .iter()
+        .filter(|manifest| manifest_matches_filter(manifest, phases, filter))
+        .filter(|manifest| manifest_requires_prepare_for_selected_phases(manifest, phases))
+        .collect::<Vec<_>>();
+
+    if selected.is_empty() {
+        return HashMap::new();
+    }
+
+    println!();
+    println!("auto-preparing {} ecosystem checkouts", selected.len());
+
+    let mut failures = HashMap::new();
+
+    for manifest in selected {
+        if fetch_failures.contains_key(&manifest.package.name) {
+            continue;
+        }
+
+        let package_dir = checkouts_dir.join(&manifest.package.name);
+        if !package_dir.exists() {
+            continue;
+        }
+
+        print!("  {} ... ", manifest.package.name);
+        match ensure_prepare_commands_applied(manifest, package_dir.as_path()) {
+            Ok(()) => println!("ok"),
+            Err(error) => {
+                println!("FAILED: {error}");
+                failures.insert(manifest.package.name.clone(), error);
+            }
+        }
+    }
+
+    println!();
+
+    failures
+}
+
+/// Return whether one manifest should run for the current filter and phases.
+fn manifest_matches_filter(
+    manifest: &EcosystemManifest,
+    phases: &[EcosystemPhase],
+    filter: Option<&str>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    // allow direct package name filters
+    if manifest.package.name.contains(filter) {
+        return true;
+    }
+
+    // allow package-phase case id filters
+    phases
+        .iter()
+        .copied()
+        .any(|phase| case_id_for(manifest.package.name.as_str(), phase).contains(filter))
+}
+
+/// Return whether this manifest needs prepare for any selected phase.
+fn manifest_requires_prepare_for_selected_phases(
+    manifest: &EcosystemManifest,
+    phases: &[EcosystemPhase],
+) -> bool {
+    if !manifest.prepare.has_commands() {
+        return false;
+    }
+
+    phases
+        .iter()
+        .copied()
+        .any(|phase| manifest.prepare.includes_phase(phase))
+}
+
+/// Ensure prepare commands have run for this package checkout snapshot.
+fn ensure_prepare_commands_applied(
+    manifest: &EcosystemManifest,
+    package_dir: &Path,
+) -> Result<(), String> {
+    // skip manifests without prepare commands
+    if !manifest.prepare.has_commands() {
+        return Ok(());
+    }
+
+    let expected_stamp = prepare_stamp_for_manifest(manifest);
+    let stamp_path = package_dir.join(PREPARE_STAMP_FILE);
+
+    // skip prepare when the current manifest stamp already ran
+    if let Ok(existing_stamp) = fs::read_to_string(&stamp_path)
+        && existing_stamp.trim() == expected_stamp
+    {
+        return Ok(());
+    }
+
+    for command_tokens in &manifest.prepare.commands {
+        // reject empty commands loudly so the manifest is explicit
+        if command_tokens.is_empty() {
+            return Err("prepare command cannot be empty".to_string());
+        }
+
+        let program = &command_tokens[0];
+        let args = &command_tokens[1..];
+        let display_command = format_prepare_command(command_tokens);
+
+        // run one prepare command in checkout root with deterministic ci env
+        let status = Command::new(program)
+            .args(args)
+            .current_dir(package_dir)
+            .env("CI", "1")
+            .status()
+            .map_err(|error| {
+                format!(
+                    "prepare command failed to start in {}: {} ({error})",
+                    package_dir.display(),
+                    display_command
+                )
+            })?;
+
+        // fail fast on any non-zero prepare command status
+        if !status.success() {
+            return Err(format!(
+                "prepare command failed in {}: {}",
+                package_dir.display(),
+                display_command
+            ));
+        }
+    }
+
+    fs::write(&stamp_path, format!("{expected_stamp}\n"))
+        .map_err(|error| format!("failed writing {}: {error}", stamp_path.display()))?;
+
+    Ok(())
+}
+
+/// Build one stable prepare stamp from manifest config and checkout ref.
+fn prepare_stamp_for_manifest(manifest: &EcosystemManifest) -> String {
+    let mut hasher = DefaultHasher::new();
+
+    manifest.package.git_ref.hash(&mut hasher);
+
+    for phase in &manifest.prepare.phases {
+        phase.name().hash(&mut hasher);
+    }
+
+    for command_tokens in &manifest.prepare.commands {
+        command_tokens.hash(&mut hasher);
+    }
+
+    format!("{:016x}", hasher.finish())
+}
+
+/// Format one tokenized command for diagnostics.
+fn format_prepare_command(command_tokens: &[String]) -> String {
+    command_tokens.join(" ")
 }
 
 /// Build a stable case id from package and phase.

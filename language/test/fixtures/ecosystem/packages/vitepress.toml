@@ -9,3 +9,7 @@ tags = ["application", "docs", "typescript"]
 [discovery]
 include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
 exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]
+
+[prepare]
+phases = ["resolve", "analyze", "lower"]
+commands = [["pnpm", "build"]]

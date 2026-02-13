@@ -102,6 +102,9 @@ pub struct EcosystemManifest {
     /// Per-phase workload settings for discovery and caps.
     #[serde(default)]
     pub workloads: WorkloadConfig,
+    /// Optional prepare commands run before selected phases.
+    #[serde(default)]
+    pub prepare: PrepareConfig,
     /// Patch metadata for support markers.
     #[serde(default)]
     pub patch: PatchConfig,
@@ -243,6 +246,40 @@ impl TscConfig {
     pub fn includes_phase(&self, phase: EcosystemPhase) -> bool {
         if self.phases.is_empty() {
             return matches!(phase, EcosystemPhase::Resolve | EcosystemPhase::Analyze);
+        }
+
+        self.phases.contains(&phase)
+    }
+}
+
+/// Prepare commands for one package checkout.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PrepareConfig {
+    /// Phase allowlist for prepare execution.
+    #[serde(default)]
+    pub phases: Vec<EcosystemPhase>,
+    /// One or more tokenized shell commands.
+    #[serde(default)]
+    pub commands: Vec<Vec<String>>,
+}
+
+impl PrepareConfig {
+    /// Return whether this package has one prepare command configured.
+    pub fn has_commands(&self) -> bool {
+        !self.commands.is_empty()
+    }
+
+    /// Return whether one phase should run prepare commands.
+    pub fn includes_phase(&self, phase: EcosystemPhase) -> bool {
+        if self.commands.is_empty() {
+            return false;
+        }
+
+        if self.phases.is_empty() {
+            return matches!(
+                phase,
+                EcosystemPhase::Resolve | EcosystemPhase::Analyze | EcosystemPhase::Lower
+            );
         }
 
         self.phases.contains(&phase)
@@ -415,6 +452,53 @@ language = "ts"
         );
 
         assert!(!manifest.patch.dependency_replacement());
+    }
+
+    #[test]
+    fn test_parse_prepare_configuration() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[prepare]
+phases = ["resolve", "analyze"]
+commands = [
+    ["pnpm", "build"],
+    ["pnpm", "gen:types"],
+]
+"#,
+        );
+
+        assert!(manifest.prepare.has_commands());
+        assert!(manifest.prepare.includes_phase(EcosystemPhase::Resolve));
+        assert!(manifest.prepare.includes_phase(EcosystemPhase::Analyze));
+        assert!(!manifest.prepare.includes_phase(EcosystemPhase::Lower));
+    }
+
+    #[test]
+    fn test_parse_prepare_defaults_to_compiler_phases() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[prepare]
+commands = [["pnpm", "build"]]
+"#,
+        );
+
+        assert!(manifest.prepare.has_commands());
+        assert!(!manifest.prepare.includes_phase(EcosystemPhase::Parse));
+        assert!(manifest.prepare.includes_phase(EcosystemPhase::Resolve));
+        assert!(manifest.prepare.includes_phase(EcosystemPhase::Analyze));
+        assert!(manifest.prepare.includes_phase(EcosystemPhase::Lower));
     }
 
     #[test]

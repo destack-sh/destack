@@ -568,3 +568,41 @@ type Result = NonDist<never>;
 const ok: Result = 1;
 ok satisfies 1;
 ```
+
+### infer from mapped key object patterns
+
+> `infer` can bind inside mapped key object patterns.
+
+```ds
+type SearchValue<T> = T extends { [K in "query"]: infer Query } ? Query : never;
+
+let ok: SearchValue<{ query: string }> = "ok";
+ok satisfies string;
+```
+
+### infer from mapped key object patterns rejects mismatches
+
+> Mapped key inference rejects incompatible assignments.
+
+```ds
+type SearchValue<T> = T extends { [K in "query"]: infer Query } ? Query : never;
+
+let bad: SearchValue<{ query: string }> = 1;
+```
+
+- contains: type 1 is not assignable to type searchvalue<<type>>
+
+### infer in nested conditional clauses
+
+> Nested conditional clauses should resolve the nearest inferred type variable.
+
+```ds
+type Nested<T> = T extends { value: unknown }
+  ? T["value"] extends { inner: infer Inner }
+    ? Inner
+    : never
+  : never;
+
+let ok: Nested<{ value: { inner: int32 } }> = 1;
+ok satisfies int32;
+```

@@ -195,6 +195,12 @@ js_as_jsx = true
 [patch]
 dependency_replacement = true
 
+[prepare]
+phases = ["resolve", "analyze", "lower"]
+commands = [
+    ["pnpm", "build"],
+]
+
 [tsc]
 enabled = true
 mode = "on-failure"
@@ -211,6 +217,7 @@ message = "unresolved module 'missing-package'"
 Supported values for `package.language` are `js`, `ts`, and `ds`.
 Use `package.target_tier` with one of `T0`, `T1`, `T2`, `T3`, `T4`, or `T5` to track intended coverage.
 Set `patch.dependency_replacement = true` when a package requires dependency patching or replacement.
+Use `[prepare]` with tokenized `commands` to run package setup work like `pnpm build` before selected phases.
 Use `[tsc]` to configure TypeScript parity checks with `tsgo` or `tsc` for selected phases.
 `tsc.mode` supports `off`, `on-failure`, and `always`, and `tsc.tool` supports `auto`, `tsgo`, and `tsc`.
 
@@ -233,6 +240,7 @@ Use these commands to fetch and run the suite.
 Missing package checkouts are auto-fetched during normal runs.
 Explicit fetch runs also prune stale checkouts that no longer have manifests.
 Resolve, analyze, and lower runs also install dependencies for freshly fetched packages.
+Prepare commands run before selected compiler phases when configured in manifests.
 Use explicit fetch to prewarm local state.
 
 ```bash
