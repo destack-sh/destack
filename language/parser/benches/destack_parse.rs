@@ -32,6 +32,7 @@ fn parser_bench_worker_count() -> usize {
 }
 
 static PARSER_TIMINGS_PRINTED: AtomicBool = AtomicBool::new(false);
+static PARSER_SPECULATION_PRINTED: AtomicBool = AtomicBool::new(false);
 
 /// Return whether parser timing snapshots should be printed.
 fn parser_timing_print_enabled_from_env() -> bool {
@@ -41,6 +42,21 @@ fn parser_timing_print_enabled_from_env() -> bool {
         .map(|value| value > 0)
         .or_else(|| {
             env::var("DESTACK_PARSER_TIMINGS_PRINT")
+                .ok()
+                .and_then(|value| value.parse::<u8>().ok())
+                .map(|value| value > 0)
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether parser speculation counters should be printed.
+fn parser_speculation_print_enabled_from_env() -> bool {
+    env::var("DESTACK_PARSE_PRINT_SPECULATION")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .or_else(|| {
+            env::var("DESTACK_PARSER_SPECULATION_PRINT")
                 .ok()
                 .and_then(|value| value.parse::<u8>().ok())
                 .map(|value| value > 0)
@@ -110,20 +126,65 @@ fn print_parser_timing_snapshot_once(parser: &Parser, label: &str) {
     }
 }
 
+/// Print one parser speculation snapshot.
+fn print_parser_speculation_snapshot_once(parser: &Parser, label: &str) {
+    if !parser_speculation_print_enabled_from_env() {
+        return;
+    }
+
+    if PARSER_SPECULATION_PRINTED.swap(true, Ordering::Relaxed) {
+        return;
+    }
+
+    let Some(stats) = parser.speculation_snapshot() else {
+        return;
+    };
+
+    eprintln!("parser speculation snapshot: {label}");
+    eprintln!(
+        "  with_options={} rewind={} restore={}",
+        stats.with_options_calls, stats.rewind_calls, stats.restore_calls
+    );
+    eprintln!(
+        "  statement fast: calls={} prefilter_rejects={} keyword_rejects={} direct_hits={} direct_misses={} fallback_hits={} fallback_misses={}",
+        stats.statement_keyword_fast_calls,
+        stats.statement_keyword_fast_prefilter_rejects,
+        stats.statement_keyword_fast_keyword_rejects,
+        stats.statement_keyword_fast_direct_hits,
+        stats.statement_keyword_fast_direct_misses,
+        stats.statement_keyword_fast_fallback_hits,
+        stats.statement_keyword_fast_fallback_misses,
+    );
+    eprintln!(
+        "  parenthesized fast: calls={} hits={} misses={}",
+        stats.parenthesized_expression_fast_calls,
+        stats.parenthesized_expression_fast_hits,
+        stats.parenthesized_expression_fast_misses,
+    );
+    eprintln!(
+        "  lambda fast: paren calls={} hits={} misses={} identifier calls={} hits={} misses={}",
+        stats.simple_parenthesized_lambda_calls,
+        stats.simple_parenthesized_lambda_hits,
+        stats.simple_parenthesized_lambda_misses,
+        stats.simple_identifier_lambda_calls,
+        stats.simple_identifier_lambda_hits,
+        stats.simple_identifier_lambda_misses,
+    );
+    eprintln!(
+        "  async speculative: attempts={} successes={} rollbacks={}",
+        stats.async_keyword_speculative_attempts,
+        stats.async_keyword_speculative_successes,
+        stats.async_keyword_speculative_rollbacks,
+    );
+}
+
 /// Parse one file through the full parser pipeline.
-fn parse_with_finish(file: Arc<File>) -> Parser {
+fn parse_file(file: Arc<File>) -> Parser {
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file, language_type);
     parser.parse();
     print_parser_timing_snapshot_once(&parser, "parse-total");
-    parser
-}
-
-/// Parse one file through the parser as a main-compat alias.
-fn parse_main_alias(file: Arc<File>) -> Parser {
-    let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file(file, language_type);
-    parser.parse();
+    print_parser_speculation_snapshot_once(&parser, "parse-total");
     parser
 }
 
@@ -253,7 +314,7 @@ fn bench_parse(criterion: &mut Criterion) {
             bencher.iter(|| {
                 // parse each file
                 for file in source_files.iter() {
-                    let parser = parse_with_finish(file.clone());
+                    let parser = parse_file(file.clone());
                     black_box(parser);
                 }
             });
@@ -319,7 +380,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 // parse full pipeline
-                let parser = parse_with_finish(file.clone());
+                let parser = parse_file(file.clone());
                 black_box(parser);
             });
         },
@@ -330,7 +391,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         BenchmarkId::new("parse", "no-drop"),
         &file,
         |bencher, file| {
-            bencher.iter_with_large_drop(|| parse_with_finish(file.clone()));
+            bencher.iter_with_large_drop(|| parse_file(file.clone()));
         },
     );
 
@@ -341,7 +402,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_with_finish(file.clone());
+                    let parser = parse_file(file.clone());
                     black_box(parser);
                 });
             });
@@ -354,7 +415,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         &file,
         |bencher, file| {
             bencher.iter(|| {
-                let parser = parse_with_finish(file.clone());
+                let parser = parse_file(file.clone());
                 black_box(parser);
             });
         },
@@ -366,7 +427,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         &file,
         |bencher, file| {
             bencher.iter(|| {
-                let parser = parse_main_alias(file.clone());
+                let parser = parse_file(file.clone());
                 print_parser_timing_snapshot_once(&parser, "parse-main-only");
                 black_box(parser);
             });
@@ -378,7 +439,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         BenchmarkId::new("main", "no-drop"),
         &file,
         |bencher, file| {
-            bencher.iter_with_large_drop(|| parse_main_alias(file.clone()));
+            bencher.iter_with_large_drop(|| parse_file(file.clone()));
         },
     );
 
@@ -389,7 +450,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_main_alias(file.clone());
+                    let parser = parse_file(file.clone());
                     black_box(parser);
                 });
             });

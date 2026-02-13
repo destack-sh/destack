@@ -225,18 +225,18 @@ pub mod tags {
     pub const PARSE_KEYWORD_EXPRESSION: ParserTimingTag =
         ParserTimingTag::new("parse.keyword.expression");
 
-    pub const PARSE_ANNOTATIONS_INDEX: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.index");
-    pub const PARSE_ANNOTATIONS_COLLECT: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.collect");
-    pub const PARSE_ANNOTATIONS_WRAPPERS: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.wrappers");
-    pub const PARSE_ANNOTATIONS_SIDE: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.side");
     pub const PARSE_ANNOTATIONS_MAIN: ParserTimingTag =
         ParserTimingTag::new("parse.annotations.main");
-    pub const PARSE_ANNOTATIONS_SORT: ParserTimingTag =
-        ParserTimingTag::new("parse.annotations.sort");
+    pub const PARSE_ANNOTATIONS_INLINE_LEADING: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.inline.leading");
+    pub const PARSE_ANNOTATIONS_INLINE_TRAILING: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.inline.trailing");
+    pub const PARSE_ANNOTATIONS_INLINE_COLLECT: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.inline.collect");
+    pub const PARSE_ANNOTATIONS_INLINE_ATTACH_GROUP: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.inline.attach.group");
+    pub const PARSE_ANNOTATIONS_INLINE_CLEAN: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.inline.clean");
 
     pub const PARSE_POSITIONS_BUILD: ParserTimingTag =
         ParserTimingTag::new("parse.positions.build");

@@ -72,9 +72,10 @@ impl Parser {
         self.with_pos(next, |parser| {
             let mut options = parser.options;
             options.in_type = false;
-            parser
-                .with_options(options, |parser| Ok(parser.can_start_tree_literal()))
-                .unwrap_or(false)
+            let old_options = parser.swap_options(options);
+            let can_start_tree_literal = parser.can_start_tree_literal();
+            parser.restore_options(old_options);
+            can_start_tree_literal
         })
     }
 

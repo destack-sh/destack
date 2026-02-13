@@ -6,7 +6,7 @@ use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use super::expression::lookahead::ParenthesizedGroupShape;
+use super::expression::lookahead::DelimiterAnalysis;
 use crate::{TokenStream, TokenStreamCursor, TokenStreamMark, is_semantic};
 use destack_ast::{
     BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
@@ -620,10 +620,6 @@ pub struct Parser {
     pub diagnostics: DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParseError>,
-    /// Scratch storage for statement wrappers keyed by expression id.
-    pub(crate) annotation_statement_wrappers: Vec<Option<u32>>,
-    /// Whether statement wrapper mappings are precise for the current tree.
-    pub(crate) annotation_statement_wrappers_precise: bool,
     /// Optional parser timing collector.
     #[cfg(feature = "parser_timings")]
     pub(crate) timings: Option<Rc<ParserTimings>>,
@@ -633,12 +629,14 @@ pub struct Parser {
     pub(crate) token_identifiers: Vec<Option<StringId>>,
     /// Cached-state bits for identifier lookup entries.
     pub(crate) token_identifiers_cached: Vec<bool>,
-    /// Cached parenthesized-group shape metadata by token index.
-    pub(crate) parenthesized_group_shapes: Vec<ParenthesizedGroupShape>,
-    /// Cached-state bits for parenthesized-group shape entries.
-    pub(crate) parenthesized_group_shapes_cached: Vec<bool>,
+    /// Cached delimiter analysis metadata by token index.
+    pub(crate) delimiter_analyses: Vec<DelimiterAnalysis>,
+    /// Cached state bits for delimiter analysis entries.
+    pub(crate) delimiter_analyses_cached: Vec<bool>,
     /// Cached non-newline cursor keyed by parser token position.
     pub(crate) cursor_cache: Option<(usize, NonNewlineTokenCursor)>,
+    /// Claimed side token flags for inline annotation attachment.
+    pub(crate) annotation_claimed_side_tokens: Vec<bool>,
     /// Cached identifiers used by type literal parsing.
     pub(crate) type_literal_identifiers: TypeLiteralIdentifiers,
 }
@@ -691,17 +689,16 @@ impl Parser {
             strings,
             diagnostics: DiagnosticCollector::new(),
             errors: Vec::new(),
-            annotation_statement_wrappers: Vec::with_capacity(estimated_nodes),
-            annotation_statement_wrappers_precise: true,
             #[cfg(feature = "parser_timings")]
             timings: parser_timings_from_env(),
             speculation_stats: speculation_stats_enabled_from_env()
                 .then(ParserSpeculationStats::default),
             token_identifiers: Vec::with_capacity(estimated_tokens),
             token_identifiers_cached: Vec::with_capacity(estimated_tokens),
-            parenthesized_group_shapes: Vec::with_capacity(estimated_tokens),
-            parenthesized_group_shapes_cached: Vec::with_capacity(estimated_tokens),
+            delimiter_analyses: Vec::with_capacity(estimated_tokens),
+            delimiter_analyses_cached: Vec::with_capacity(estimated_tokens),
             cursor_cache: None,
+            annotation_claimed_side_tokens: Vec::with_capacity(estimated_tokens),
             type_literal_identifiers,
         };
 
@@ -759,8 +756,7 @@ impl Parser {
         };
         self.tokens_prelexed = false;
         self.errors.clear();
-        self.annotation_statement_wrappers.clear();
-        self.annotation_statement_wrappers_precise = true;
+        self.annotation_claimed_side_tokens.clear();
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             *speculation_stats = ParserSpeculationStats::default();
         }
@@ -1045,9 +1041,47 @@ impl Parser {
         let len = self.tokens().len();
         self.token_identifiers.truncate(len);
         self.token_identifiers_cached.truncate(len);
-        self.parenthesized_group_shapes.truncate(len);
-        self.parenthesized_group_shapes_cached.truncate(len);
+        self.delimiter_analyses.truncate(len);
+        self.delimiter_analyses_cached.truncate(len);
     }
+
+    /// Ensure identifier caches can index at least `index`.
+    #[inline]
+    pub(crate) fn ensure_identifier_cache_capacity(&mut self, index: usize) {
+        if self.token_identifiers.len() > index {
+            return;
+        }
+
+        let required_len = index + 1;
+        let grown_len = self
+            .token_identifiers
+            .len()
+            .saturating_add(self.token_identifiers.len() / 2)
+            .saturating_add(64);
+        let new_len = required_len.max(grown_len);
+        self.token_identifiers.resize(new_len, None);
+        self.token_identifiers_cached.resize(new_len, false);
+    }
+
+    /// Ensure delimiter analysis caches can index at least `index`.
+    #[inline]
+    pub(crate) fn ensure_delimiter_analysis_cache_capacity(&mut self, index: usize) {
+        if self.delimiter_analyses.len() > index {
+            return;
+        }
+
+        let required_len = index + 1;
+        let grown_len = self
+            .delimiter_analyses
+            .len()
+            .saturating_add(self.delimiter_analyses.len() / 2)
+            .saturating_add(64);
+        let new_len = required_len.max(grown_len);
+        self.delimiter_analyses
+            .resize(new_len, DelimiterAnalysis::default());
+        self.delimiter_analyses_cached.resize(new_len, false);
+    }
+
     /// Invalidate the cached scanner cursor after parser position mutations.
     #[inline]
     fn invalidate_cursor_cache(&mut self) {
@@ -1128,11 +1162,13 @@ impl Parser {
     /// Look up a pre interned identifier at a token index.
     #[inline]
     pub(crate) fn identifier_for_index(&mut self, index: usize) -> Option<StringId> {
-        // prelexed parser mode keeps caches sized to token length
+        // prelexed mode resolves identifiers from tokens with lazy cache growth
         if self.tokens_prelexed && !self.has_active_split() {
             if index >= self.tokens().len() {
                 return None;
             }
+
+            self.ensure_identifier_cache_capacity(index);
 
             if self.token_identifiers_cached[index] {
                 return self.token_identifiers[index];
@@ -1152,10 +1188,7 @@ impl Parser {
 
         self.ensure_token_if_needed(index);
 
-        if self.token_identifiers.len() <= index {
-            self.token_identifiers.resize(index + 1, None);
-            self.token_identifiers_cached.resize(index + 1, false);
-        }
+        self.ensure_identifier_cache_capacity(index);
 
         if self.token_identifiers_cached[index] {
             return self.token_identifiers[index];
@@ -1232,6 +1265,13 @@ impl Parser {
     /// Ensure token caches align with the current token stream after a rewind.
     fn reset_token_caches_after_rewind(&mut self) {
         self.truncate_token_caches();
+        self.truncate_claimed_annotation_side_tokens();
+    }
+
+    /// Truncate claimed side token flags to the current side token length.
+    fn truncate_claimed_annotation_side_tokens(&mut self) {
+        let side_len = self.token_stream.side_tokens().len();
+        self.annotation_claimed_side_tokens.truncate(side_len);
     }
 
     /// Parse everything as an implicit namespace.
@@ -1241,16 +1281,10 @@ impl Parser {
         if !self.allow_tree_literals() {
             self.token_stream.lex_to_end();
             self.tokens_prelexed = true;
-            let len = self.tokens().len();
             self.token_identifiers.clear();
-            self.token_identifiers.resize(len, None);
             self.token_identifiers_cached.clear();
-            self.token_identifiers_cached.resize(len, false);
-            self.parenthesized_group_shapes.clear();
-            self.parenthesized_group_shapes
-                .resize(len, ParenthesizedGroupShape::default());
-            self.parenthesized_group_shapes_cached.clear();
-            self.parenthesized_group_shapes_cached.resize(len, false);
+            self.delimiter_analyses.clear();
+            self.delimiter_analyses_cached.clear();
             self.invalidate_cursor_cache();
         } else {
             self.tokens_prelexed = false;
@@ -1270,6 +1304,7 @@ impl Parser {
         if expressions.is_empty() && self.has_comment_annotation_tokens() {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
+            self.attach_inline_stub_annotations_for_token(0, 0, stub.id);
             expressions.push(stub);
         }
 
@@ -1428,23 +1463,9 @@ impl Parser {
             self.token_stream.restore(token_stream_mark);
             self.reset_token_caches_after_rewind();
         }
-
-        // speculative restores can remove statement wrappers recorded on kept expression ids
-        self.annotation_statement_wrappers_precise = false;
     }
 
-    /// Record a statement wrapper for an expression id.
-    #[inline]
-    pub(crate) fn record_statement_wrapper(&mut self, expression_id: u32, statement_id: u32) {
-        let expression_index = expression_id as usize;
-        if self.annotation_statement_wrappers.len() <= expression_index {
-            self.annotation_statement_wrappers
-                .resize(expression_index + 1, None);
-        }
-        self.annotation_statement_wrappers[expression_index] = Some(statement_id);
-    }
-
-    /// Wrap an expression in a statement expression and record the wrapper mapping.
+    /// Wrap an expression in a statement expression.
     #[inline]
     pub(crate) fn wrap_statement_expression(
         &mut self,
@@ -1452,7 +1473,13 @@ impl Parser {
         span: Span,
     ) -> LocalNodeId<Expression> {
         let statement_id = self.tree.insert(Expression::Statement(expression_id), span);
-        self.record_statement_wrapper(expression_id.id, statement_id.id);
+
+        // mirror existing annotations onto the statement wrapper
+        let expression_annotations = self.tree.get_annotations(expression_id.id).to_vec();
+        for annotation_id in expression_annotations {
+            self.tree.append_annotation(statement_id.id, annotation_id);
+        }
+
         statement_id
     }
 

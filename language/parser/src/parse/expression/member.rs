@@ -76,13 +76,19 @@ impl Parser {
     /// Check whether `?.` starts an optional chaining segment.
     #[inline]
     pub(super) fn is_optional_chain_after_maybe(&mut self) -> bool {
+        self.is_optional_chain_after_maybe_at(self.pos_index())
+    }
+
+    /// Check whether `?.` starts an optional chaining segment at a token index.
+    #[inline]
+    pub(super) fn is_optional_chain_after_maybe_at(&mut self, maybe_index: usize) -> bool {
         // require ?. before we look at the target
-        if !self.peek_next_is(TokenType::Dot) {
+        if self.token_type_at(maybe_index.saturating_add(1)) != TokenType::Dot {
             return false;
         }
 
         // accept valid optional chain targets after ?.
-        let next_next_token_type = self.token_type_at(self.pos() as usize + 2);
+        let next_next_token_type = self.token_type_at(maybe_index.saturating_add(2));
         matches!(
             next_next_token_type,
             TokenType::Identifier

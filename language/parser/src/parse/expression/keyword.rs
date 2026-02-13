@@ -142,12 +142,12 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         keyword: Keyword,
-        next_token_type: TokenType,
+        next_raw_token_type: TokenType,
+        next_cursor: NonNewlineTokenCursor,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         let descriptor = DeclarationDescriptor::default();
-        let next_raw_token_type = next_token_type;
-        let next_cursor = self.non_newline_cursor_from(self.pos_index().saturating_add(1));
         let next_token_type = next_cursor.token_type;
+        let next_token_index = next_cursor.index;
         let next_has_line_break = next_cursor.has_line_break_before;
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
 
@@ -190,7 +190,7 @@ impl Parser {
                     && !next_has_line_break
                     && next_token_type == TokenType::Identifier
                     && !is_type_relation_keyword(
-                        self.keyword_for_index_maybe_fast(self.index_for_next()),
+                        self.keyword_for_index_maybe_fast(next_token_index),
                     ) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
@@ -211,11 +211,11 @@ impl Parser {
                     return Ok(None);
                 }
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(next_token_index)
                 } else {
                     None
                 };
-                let next_index = self.index_for_next();
+                let next_index = next_token_index;
                 let after_next_index = self.next_non_newline_index_from(next_index + 1);
                 let after_next_token_type = self.token_type_at(after_next_index);
                 let starts_type_operator = is_type_relation_keyword(next_keyword)
@@ -388,9 +388,7 @@ impl Parser {
                 }
             }
             Keyword::Async if next_raw_token_type == TokenType::Identifier => {
-                if self.keyword_for_index_maybe_fast(self.index_for_next())
-                    != Some(Keyword::Function)
-                {
+                if self.keyword_for_index_maybe_fast(next_token_index) != Some(Keyword::Function) {
                     return Ok(None);
                 }
 

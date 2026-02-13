@@ -59,6 +59,7 @@ impl Parser {
             }
             // eat all regular postfix operators
             loop {
+                // load scanner state for this postfix step
                 let cursor = self.scanner_cursor();
                 let token_type = cursor.token_type;
                 if token_type == TokenType::End {
@@ -68,6 +69,23 @@ impl Parser {
                 let cursor_index = cursor.index;
                 let has_pending_newline_tokens = cursor.index != self.pos_index();
                 let has_line_break_before = cursor.has_line_break_before;
+
+                // attach dot boundary trivia before consuming member tokens
+                if token_type == TokenType::Dot {
+                    self.attach_inline_dot_boundary_annotations_for_token(
+                        cursor_index,
+                        cursor.skipped_newline_count,
+                        left_expression_id.id,
+                    );
+                } else if token_type == TokenType::Maybe
+                    && self.is_optional_chain_after_maybe_at(cursor_index)
+                {
+                    self.attach_inline_dot_boundary_annotations_for_token(
+                        cursor_index,
+                        cursor.skipped_newline_count,
+                        left_expression_id.id,
+                    );
+                }
                 let next_token_type = if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
                     self.token_type_at(cursor_index.saturating_add(1))
                 } else {
@@ -128,6 +146,8 @@ impl Parser {
                     && !self.options.in_type
                     && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                     && !self.options.in_new_receiver;
+
+                // direct and indirect call dispatch share the same continuation lane
                 let should_parse_call =
                     (can_direct_call || has_indirect_call) && !self.options.in_type;
 
@@ -198,6 +218,8 @@ impl Parser {
                     if has_pending_newline_tokens {
                         self.advance_to(cursor_index);
                     }
+
+                    // consume the dot and jump to member token index when needed
                     self.bump(); // eat .
                     if self.pos_index() != member_index {
                         self.advance_to(member_index);
@@ -216,6 +238,11 @@ impl Parser {
                             self.get_span_from(start),
                         );
                         self.tree.set_main_span(left_expression_id, name_span);
+                        self.attach_inline_dot_prefix_annotations_for_token(
+                            cursor_index,
+                            cursor.skipped_newline_count,
+                            left_expression_id.id,
+                        );
                         continue;
                     }
 
@@ -237,6 +264,11 @@ impl Parser {
                         self.get_span_from(start),
                     );
                     self.tree.set_main_span(left_expression_id, name_span);
+                    self.attach_inline_dot_prefix_annotations_for_token(
+                        cursor_index,
+                        cursor.skipped_newline_count,
+                        left_expression_id.id,
+                    );
                     continue;
                 }
                 // index (like `[]`)
@@ -493,9 +525,11 @@ impl Parser {
                     break;
                 }
 
+                // load cursor details once per infix iteration
                 let cursor_index = cursor.index;
                 let newline_count = cursor.skipped_newline_count;
                 let has_line_break_before = cursor.has_line_break_before;
+                let has_pending_newline_tokens = cursor_index != self.pos_index();
 
                 // new receivers stop before type argument delimiters at top-level receiver scope
                 if self.options.in_new_receiver
@@ -551,9 +585,13 @@ impl Parser {
                     break;
                 }
 
-                if cursor_index != self.pos_index() {
+                // align parser position with scanner cursor before consuming operator tokens
+                if has_pending_newline_tokens {
                     self.advance_to(cursor_index);
                 }
+
+                // trailing annotations before the infix operator belong to the left operand
+                self.attach_inline_trailing_annotations_for_current_token(left_expression_id.id);
 
                 // capture operator span before eating
                 let operator_start = self.mark_span();
@@ -596,7 +634,16 @@ impl Parser {
                 {
                     right_options = right_options.in_type_conditional_right();
                 }
+
+                // parse the right side and attach inline annotation context around it
+                let right_cursor = self.scanner_cursor();
                 let right_expression_id = self.eat_expression(right_options)?;
+                self.attach_inline_expression_leading_annotations_for_token(
+                    right_cursor.index,
+                    right_cursor.skipped_newline_count,
+                    right_expression_id.id,
+                );
+                self.attach_inline_trailing_annotations_for_current_token(right_expression_id.id);
 
                 // combine into new left expression
                 let left_expression = self.make_infix_expression(
@@ -630,6 +677,7 @@ impl Parser {
             && self.options.left_precedence.is_none()
             && ternary_cursor.token_type == TokenType::Maybe
         {
+            // move to the ternary marker and parse then and else branches
             if ternary_cursor.index != self.pos_index() {
                 self.advance_to(ternary_cursor.index);
             }
@@ -665,6 +713,7 @@ impl Parser {
             && (self.language.is_typescript() || self.language.is_javascript())
             && sequence_cursor.token_type == TokenType::Comma
         {
+            // gather comma-separated expressions into a sequence expression
             let mut expressions = vec![left_expression_id];
             loop {
                 let comma_cursor = self.peek_cursor();
@@ -689,6 +738,7 @@ impl Parser {
         // type conditional expression
         let type_conditional_cursor = self.peek_cursor();
         if self.options.in_type && type_conditional_cursor.token_type == TokenType::Maybe {
+            // align cursor at conditional marker and split operands
             if type_conditional_cursor.index != self.pos_index() {
                 self.advance_to(type_conditional_cursor.index);
             }

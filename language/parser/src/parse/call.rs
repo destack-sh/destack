@@ -91,10 +91,11 @@ impl Parser {
         self.eat_keyword(Keyword::New)?;
 
         // receiver
-        let left = self
-            .with_options(self.options.not_in_position().in_new_receiver(), |parser| {
-                parser.eat_expression(parser.options)
-            })?;
+        let receiver_options = self.options.not_in_position().in_new_receiver();
+        let old_options = self.swap_options(receiver_options);
+        let left_result = self.eat_expression(self.options);
+        self.restore_options(old_options);
+        let left = left_result?;
 
         // hoist static arguments parsed on the receiver
         let mut static_arguments = None;
@@ -142,9 +143,11 @@ impl Parser {
         self.eat_keyword(Keyword::Delete)?;
 
         // value
-        let value = self.with_options(self.options.not_in_position(), |parser| {
-            parser.eat_expression(parser.options)
-        })?;
+        let value_options = self.options.not_in_position();
+        let old_options = self.swap_options(value_options);
+        let value_result = self.eat_expression(self.options);
+        self.restore_options(old_options);
+        let value = value_result?;
 
         // delete
         let delete_id = self

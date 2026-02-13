@@ -1,10 +1,10 @@
 use crate::parse::timing::tags;
-use crate::{ParseError, ParseResult, Parser};
+use crate::{ParseResult, Parser};
 use destack_ast::{
-    ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, Expression, LocalNodeId, NodeType, TokenSpan, TokenType,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
+    LocalNodeId, TokenSpan, TokenType,
 };
-use destack_source::{EnclosingSpan, MultiSpan, NodeSearchMode, Span};
+use destack_source::Span;
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,
@@ -15,239 +15,18 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
 ];
 const DECORATOR_EXPRESSION_PRECEDENCE: u16 = u16::MAX;
 
-/// Cached lookup entry for annotation target candidate selection.
+/// Side-token view for inline annotation grouping.
 #[derive(Debug, Copy, Clone)]
-struct AnnotationLookupNode {
-    /// The candidate node id.
-    node_id: u32,
-    /// The candidate enclosing span.
-    span: Span,
-    /// The candidate span length.
-    length: u32,
-}
-
-/// Planned side annotation before AST insertion.
-#[derive(Debug, Copy, Clone)]
-struct PendingSideAnnotation {
-    /// The token type that produced this annotation.
-    token_type: TokenType,
-    /// The first token index in the group.
-    group_start_idx: usize,
-    /// The last token index in the group.
-    group_end_idx: usize,
-    /// The token count in the group.
-    group_len: usize,
-    /// The annotation position relative to the target node.
-    position: AnnotationPosition,
-    /// The target node id.
-    target_node_id: u32,
-}
-
-/// Cached annotation target lookups for one attachment pass.
-struct AnnotationTargetIndex<'a> {
-    /// Span ranges to ignore for side annotation attachment.
-    ignore_span: &'a MultiSpan,
-    /// Semantic tokens from the parser stream.
-    semantic_tokens: Vec<TokenSpan>,
-    /// Node lookup by semantic token start index for smallest outermost search.
-    start_smallest_outermost: Vec<Option<AnnotationLookupNode>>,
-    /// Node lookup by semantic token start index for biggest outermost search.
-    start_biggest_outermost: Vec<Option<AnnotationLookupNode>>,
-    /// Node lookup by semantic token end index for smallest outermost search.
-    end_smallest_outermost: Vec<Option<AnnotationLookupNode>>,
-    /// Node lookup by semantic token end index for biggest outermost search.
-    end_biggest_outermost: Vec<Option<AnnotationLookupNode>>,
-}
-
-impl<'a> AnnotationTargetIndex<'a> {
-    /// Build annotation target caches from the current parse tree.
-    fn new(parser: &Parser, ignore_span: &'a MultiSpan) -> Self {
-        let semantic_tokens = parser.tokens().to_vec();
-        let semantic_len = semantic_tokens.len();
-        let mut index = Self {
-            ignore_span,
-            semantic_tokens,
-            start_smallest_outermost: vec![None; semantic_len],
-            start_biggest_outermost: vec![None; semantic_len],
-            end_smallest_outermost: vec![None; semantic_len],
-            end_biggest_outermost: vec![None; semantic_len],
-        };
-        index.build_edge_maps(parser);
-        index
-    }
-
-    /// Build start and end node lookup maps once for this parse tree.
-    fn build_edge_maps(&mut self, parser: &Parser) {
-        let mut node_id = 0u32;
-        let total_nodes = parser.tree.next_id();
-        while node_id < total_nodes {
-            let span = parser.tree.get_span_by_id(node_id);
-            if span.end > span.start {
-                let candidate = AnnotationLookupNode {
-                    node_id,
-                    span,
-                    length: span.end - span.start,
-                };
-                if let Some(start_index) = self.semantic_index_by_start(candidate.span.start)
-                    && self.semantic_tokens[start_index].span.end <= candidate.span.end
-                {
-                    Self::insert_candidate(
-                        &mut self.start_smallest_outermost[start_index],
-                        candidate,
-                        NodeSearchMode::SmallestOutermost,
-                    );
-                    Self::insert_candidate(
-                        &mut self.start_biggest_outermost[start_index],
-                        candidate,
-                        NodeSearchMode::BiggestOutermost,
-                    );
-                }
-
-                if let Some(end_index) = self.semantic_index_by_end(candidate.span.end)
-                    && self.semantic_tokens[end_index].span.start >= candidate.span.start
-                {
-                    Self::insert_candidate(
-                        &mut self.end_smallest_outermost[end_index],
-                        candidate,
-                        NodeSearchMode::SmallestOutermost,
-                    );
-                    Self::insert_candidate(
-                        &mut self.end_biggest_outermost[end_index],
-                        candidate,
-                        NodeSearchMode::BiggestOutermost,
-                    );
-                }
-            }
-
-            node_id += 1;
-        }
-    }
-
-    /// Return true when the candidate should replace the current map entry.
-    fn should_replace_candidate(
-        search: NodeSearchMode,
-        candidate: AnnotationLookupNode,
-        current: AnnotationLookupNode,
-    ) -> bool {
-        match search {
-            NodeSearchMode::BiggestOutermost => {
-                candidate.length > current.length
-                    || (candidate.length == current.length && candidate.node_id > current.node_id)
-            }
-            NodeSearchMode::SmallestOutermost => {
-                candidate.length < current.length
-                    || (candidate.length == current.length && candidate.node_id > current.node_id)
-            }
-            NodeSearchMode::SmallestInnermost => {
-                candidate.length < current.length
-                    || (candidate.length == current.length && candidate.node_id < current.node_id)
-            }
-        }
-    }
-
-    /// Insert a node candidate into an edge slot.
-    fn insert_candidate(
-        slot: &mut Option<AnnotationLookupNode>,
-        candidate: AnnotationLookupNode,
-        search: NodeSearchMode,
-    ) {
-        match *slot {
-            Some(current) => {
-                if Self::should_replace_candidate(search, candidate, current) {
-                    *slot = Some(candidate);
-                }
-            }
-            None => {
-                *slot = Some(candidate);
-            }
-        }
-    }
-
-    /// Return the semantic token index that starts at the given offset.
-    fn semantic_index_by_start(&self, start: u32) -> Option<usize> {
-        self.semantic_tokens
-            .binary_search_by_key(&start, |token| token.span.start)
-            .ok()
-    }
-
-    /// Return the semantic token index that ends at the given offset.
-    fn semantic_index_by_end(&self, end: u32) -> Option<usize> {
-        self.semantic_tokens
-            .binary_search_by_key(&end, |token| token.span.end)
-            .ok()
-    }
-
-    /// Find a node that starts at the token span.
-    fn find_node_starting_at(
-        &self,
-        parser: &Parser,
-        span: &Span,
-        search: NodeSearchMode,
-    ) -> Option<u32> {
-        if let Some(start_index) = self.semantic_index_by_start(span.start) {
-            let cached = match search {
-                NodeSearchMode::BiggestOutermost => self.start_biggest_outermost[start_index],
-                NodeSearchMode::SmallestOutermost => self.start_smallest_outermost[start_index],
-                NodeSearchMode::SmallestInnermost => self.start_smallest_outermost[start_index],
-            };
-            if let Some(candidate) = cached
-                && candidate.span.end >= span.end
-            {
-                return Some(candidate.node_id);
-            }
-        }
-
-        parser
-            .find_node_starting_at(span, search)
-            .map(|result| result.idx)
-    }
-
-    /// Find a node that ends at the token span.
-    fn find_node_ending_at(
-        &self,
-        parser: &Parser,
-        span: &Span,
-        search: NodeSearchMode,
-    ) -> Option<u32> {
-        if let Some(end_index) = self.semantic_index_by_end(span.end) {
-            let cached = match search {
-                NodeSearchMode::BiggestOutermost => self.end_biggest_outermost[end_index],
-                NodeSearchMode::SmallestOutermost => self.end_smallest_outermost[end_index],
-                NodeSearchMode::SmallestInnermost => self.end_smallest_outermost[end_index],
-            };
-            if let Some(candidate) = cached
-                && candidate.span.start <= span.start
-            {
-                return Some(candidate.node_id);
-            }
-        }
-
-        parser
-            .find_node_ending_at(span, search)
-            .map(|result| result.idx)
-    }
-
-    /// Find a node enclosing the token span with annotation filters.
-    fn find_node_enclosing_at(
-        &mut self,
-        parser: &Parser,
-        span: &Span,
-        search: NodeSearchMode,
-    ) -> Option<EnclosingSpan> {
-        parser.find_node_enclosing_at(span, search, |candidate| {
-            !ANNOTATION_NODE_TYPES.contains(&parser.tree.get_node_type(candidate.idx))
-                && !self.ignore_span.contains(&candidate.span)
-        })
-    }
+struct InlineAnnotationToken {
+    /// Semantic token index that owns this side token range.
+    token_index: usize,
+    /// Index in the global side-token stream.
+    side_index: usize,
+    /// Side-token payload.
+    token: TokenSpan,
 }
 
 impl Parser {
-    /// Eat any leading decorators and leave the parser at the next token.
-    pub(crate) fn eat_decorators_prefix_maybe(&mut self) -> ParseResult<()> {
-        let _decorators = self.eat_decorators_prefix_collect_maybe()?;
-        Ok(())
-    }
-
     /// Eat any leading decorators and return collected decorator ids.
     pub(crate) fn eat_decorators_prefix_collect_maybe(
         &mut self,
@@ -327,887 +106,904 @@ impl Parser {
         }
     }
 
-    /// Attach safe leading side annotations for one semantic token directly to a target node.
+    /// Attach leading annotations for one semantic token in statement and declaration contexts.
+    #[inline(always)]
     pub(crate) fn attach_inline_leading_annotations_for_token(
         &mut self,
         token_index: usize,
+        skipped_newline_count: usize,
         target_node_id: u32,
     ) {
-        let (side_start, side_end) = self.token_stream.leading_side_range(token_index);
-        if side_start >= side_end {
-            return;
-        }
+        self.attach_inline_leading_annotations_for_token_with_mode(
+            token_index,
+            skipped_newline_count,
+            target_node_id,
+            AnnotationPosition::BlockPrefix,
+            true,
+        );
+    }
 
-        let mut annotation_tokens = Vec::new();
-        for token in self.token_stream.side_tokens()[side_start..side_end]
-            .iter()
-            .copied()
-        {
-            if token.token.ty != TokenType::Whitespace {
-                annotation_tokens.push(token);
-            }
-        }
+    /// Attach leading annotations for one semantic token in expression contexts.
+    #[inline(always)]
+    pub(crate) fn attach_inline_expression_leading_annotations_for_token(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+    ) {
+        self.attach_inline_leading_annotations_for_token_with_mode(
+            token_index,
+            skipped_newline_count,
+            target_node_id,
+            AnnotationPosition::LinePrefix,
+            false,
+        );
+    }
 
+    /// Attach infix annotations for one semantic token in container contexts.
+    #[inline(always)]
+    pub(crate) fn attach_inline_infix_annotations_for_token(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+    ) {
+        self.attach_inline_blank_from_skipped_newlines_with_position(
+            token_index,
+            skipped_newline_count,
+            target_node_id,
+            AnnotationPosition::BlockInfix,
+        );
+
+        let token_window_start =
+            self.annotation_leading_window_start(token_index, skipped_newline_count);
+        let annotation_tokens = self.collect_unclaimed_side_annotation_tokens_for_window(
+            token_window_start,
+            token_index + 1,
+        );
         if annotation_tokens.is_empty() {
             return;
         }
 
-        // only take trivially safe prefix ranges:
-        // - token 0 can claim leading docs/comments
-        // - other tokens must start with newline to avoid stealing postfix comments
-        let first_token_type = annotation_tokens[0].token.ty;
-        if token_index != 0 && first_token_type != TokenType::Newline {
+        let mut group_start_index = 0usize;
+        while group_start_index < annotation_tokens.len() {
+            let token_type = annotation_tokens[group_start_index].token.token.ty;
+            let group_end_index =
+                self.next_same_type_group_end(&annotation_tokens, group_start_index, true);
+
+            let group_len = group_end_index - group_start_index + 1;
+            if self.is_comment_annotation_token_type(token_type) {
+                self.attach_inline_annotation_group(
+                    token_type,
+                    &annotation_tokens,
+                    group_start_index,
+                    group_end_index,
+                    group_len,
+                    target_node_id,
+                    AnnotationPosition::BlockInfix,
+                );
+            }
+
+            group_start_index = group_end_index + 1;
+        }
+    }
+
+    /// Attach postfix blank lines from skipped semantic newline tokens.
+    #[inline(always)]
+    pub(crate) fn attach_inline_postfix_blank_from_skipped_newlines(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+    ) {
+        self.attach_inline_blank_from_skipped_newlines_with_position(
+            token_index,
+            skipped_newline_count,
+            target_node_id,
+            AnnotationPosition::BlockPostfix,
+        );
+    }
+
+    /// Attach prefix blank lines from skipped semantic newline tokens.
+    #[inline(always)]
+    pub(crate) fn attach_inline_prefix_blank_from_skipped_newlines(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+    ) {
+        self.attach_inline_blank_from_skipped_newlines_with_position(
+            token_index,
+            skipped_newline_count,
+            target_node_id,
+            AnnotationPosition::BlockPrefix,
+        );
+    }
+
+    /// Attach leading annotations for a synthetic stub target.
+    pub(crate) fn attach_inline_stub_annotations_for_token(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+    ) {
+        // collect side tokens around the synthetic stub boundary
+        let token_window_start =
+            self.annotation_leading_window_start(token_index, skipped_newline_count);
+        let token_window_start = token_window_start.saturating_sub(1);
+        let annotation_tokens = self.collect_unclaimed_side_annotation_tokens_for_window(
+            token_window_start,
+            token_index + 1,
+        );
+        if annotation_tokens.is_empty() {
             return;
         }
 
-        let mut group_start_idx = 0usize;
-        let mut group_end_idx = 0usize;
-        let mut current_token_type = annotation_tokens[0].token.ty;
-        let mut group_len = 1usize;
+        // attach only comment-like groups as infix content on the stub
+        let mut group_start_index = 0usize;
+        while group_start_index < annotation_tokens.len() {
+            let token_type = annotation_tokens[group_start_index].token.token.ty;
+            let group_end_index =
+                self.next_same_type_group_end(&annotation_tokens, group_start_index, true);
 
-        for (index, token) in annotation_tokens.iter().enumerate().skip(1) {
-            if token.token.ty != current_token_type {
-                if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
-                    && (current_token_type != TokenType::Newline || group_len > 1)
+            let group_len = group_end_index - group_start_index + 1;
+            if self.is_comment_annotation_token_type(token_type) {
+                self.attach_inline_annotation_group(
+                    token_type,
+                    &annotation_tokens,
+                    group_start_index,
+                    group_end_index,
+                    group_len,
+                    target_node_id,
+                    AnnotationPosition::BlockInfix,
+                );
+            }
+
+            group_start_index = group_end_index + 1;
+        }
+    }
+
+    /// Attach trailing annotations before the current parser token to an expression.
+    #[inline(always)]
+    pub(crate) fn attach_inline_trailing_annotations_for_current_token(
+        &mut self,
+        target_node_id: u32,
+    ) {
+        // bail when there are no semantic tokens
+        let token_len = self.tokens().len();
+        if token_len == 0 {
+            return;
+        }
+
+        // clamp the parser position to a valid semantic token index
+        let mut token_index = self.pos_index();
+        if token_index >= token_len {
+            token_index = token_len - 1;
+        }
+
+        // skip windows with no non whitespace side trivia
+        let token_window_start = self.annotation_leading_window_start(token_index, 0);
+        if !self.token_window_has_non_whitespace_side(token_window_start, token_index + 1) {
+            return;
+        }
+
+        // collect candidate side tokens for trailing attachment
+        let annotation_tokens = self.collect_unclaimed_side_annotation_tokens_for_window(
+            token_window_start,
+            token_index + 1,
+        );
+        if annotation_tokens.is_empty() {
+            return;
+        }
+
+        let current_token_type = self.token_type_at(token_index);
+        let is_boundary = self.is_inline_trailing_boundary_token(current_token_type);
+
+        // process each mergeable token group and attach it with boundary-aware positioning
+        let mut group_start_index = 0usize;
+        while group_start_index < annotation_tokens.len() {
+            let token_type = annotation_tokens[group_start_index].token.token.ty;
+            let mut group_end_index = group_start_index;
+            while group_end_index + 1 < annotation_tokens.len()
+                && self.annotation_tokens_can_merge(
+                    &annotation_tokens[group_end_index],
+                    &annotation_tokens[group_end_index + 1],
+                )
+            {
+                group_end_index += 1;
+            }
+
+            let group_len = group_end_index - group_start_index + 1;
+            if ANNOTATION_TOKEN_TYPES.contains(&token_type) && token_type != TokenType::Newline {
+                let is_group_on_current_token = annotation_tokens
+                    [group_start_index..=group_end_index]
+                    .iter()
+                    .all(|token| token.token_index == token_index);
+                let has_line_break_before_boundary = self
+                    .annotation_group_has_line_break_before_boundary(
+                        &annotation_tokens,
+                        group_end_index,
+                        token_index,
+                    );
+                let is_line_boundary_attachment =
+                    is_group_on_current_token && !has_line_break_before_boundary;
+                let position = match token_type {
+                    TokenType::LineComment | TokenType::DocLineComment => {
+                        if is_boundary && is_line_boundary_attachment {
+                            AnnotationPosition::LinePostfixBoundary
+                        } else if is_boundary {
+                            AnnotationPosition::BlockPostfix
+                        } else {
+                            AnnotationPosition::LinePostfix
+                        }
+                    }
+                    TokenType::BlockComment | TokenType::DocBlockComment => {
+                        let is_single_line = self.annotation_group_is_single_line(
+                            &annotation_tokens,
+                            group_start_index,
+                            group_end_index,
+                        );
+                        if is_single_line {
+                            if is_boundary && is_line_boundary_attachment {
+                                AnnotationPosition::LinePostfixBoundary
+                            } else if is_boundary {
+                                AnnotationPosition::BlockPostfix
+                            } else {
+                                AnnotationPosition::LinePostfix
+                            }
+                        } else {
+                            AnnotationPosition::BlockPostfix
+                        }
+                    }
+                    _ => continue,
+                };
+
+                // attach the grouped annotation to the target and claim side tokens
+                self.attach_inline_annotation_group(
+                    token_type,
+                    &annotation_tokens,
+                    group_start_index,
+                    group_end_index,
+                    group_len,
+                    target_node_id,
+                    position,
+                );
+            }
+
+            group_start_index = group_end_index + 1;
+        }
+    }
+
+    /// Return true when the current token is a trailing annotation boundary.
+    fn is_inline_trailing_boundary_token(&self, token_type: TokenType) -> bool {
+        matches!(
+            token_type,
+            TokenType::Newline
+                | TokenType::CloseBrace
+                | TokenType::CloseBracket
+                | TokenType::CloseParenthesis
+                | TokenType::End
+        )
+    }
+
+    /// Attach boundary annotations before a dot token to the left expression.
+    #[inline(always)]
+    pub(crate) fn attach_inline_dot_boundary_annotations_for_token(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+    ) {
+        // collect trivia around the dot boundary
+        let token_window_start =
+            self.annotation_leading_window_start(token_index, skipped_newline_count);
+        let token_window_start = token_window_start.saturating_sub(1);
+        let annotation_tokens = self.collect_unclaimed_side_annotation_tokens_for_window(
+            token_window_start,
+            token_index + 1,
+        );
+        if annotation_tokens.is_empty() {
+            return;
+        }
+
+        // choose boundary position from line-break context
+        let has_line_break_before = self.line_terminator_before_index(token_index);
+        let position = if has_line_break_before {
+            AnnotationPosition::LinePostfixBoundary
+        } else {
+            AnnotationPosition::BlockInfix
+        };
+
+        let mut group_start_index = 0usize;
+        while group_start_index < annotation_tokens.len() {
+            let token_type = annotation_tokens[group_start_index].token.token.ty;
+            let group_end_index =
+                self.next_same_type_group_end(&annotation_tokens, group_start_index, false);
+
+            let group_len = group_end_index - group_start_index + 1;
+            if self.is_comment_annotation_token_type(token_type) {
+                // line comments after a line break are prefix candidates for the right side
+                if has_line_break_before
+                    && matches!(
+                        token_type,
+                        TokenType::LineComment | TokenType::DocLineComment
+                    )
                 {
-                    let pending_annotation = PendingSideAnnotation {
-                        token_type: current_token_type,
-                        group_start_idx,
-                        group_end_idx,
-                        group_len,
-                        position: AnnotationPosition::BlockPrefix,
-                        target_node_id,
-                    };
-                    self.attach_planned_side_annotation(pending_annotation, &annotation_tokens);
+                    group_start_index = group_end_index + 1;
+                    continue;
                 }
 
-                current_token_type = token.token.ty;
-                group_start_idx = index;
-                group_end_idx = index;
-                group_len = 0;
+                // attach eligible comment group at the boundary position
+                self.attach_inline_annotation_group(
+                    token_type,
+                    &annotation_tokens,
+                    group_start_index,
+                    group_end_index,
+                    group_len,
+                    target_node_id,
+                    position,
+                );
             }
 
-            if token.token.ty == current_token_type {
-                if group_len == 0 {
-                    group_start_idx = index;
-                }
-                group_end_idx = index;
-                group_len += 1;
-            }
-        }
-
-        if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
-            && (current_token_type != TokenType::Newline || group_len > 1)
-        {
-            let pending_annotation = PendingSideAnnotation {
-                token_type: current_token_type,
-                group_start_idx,
-                group_end_idx,
-                group_len,
-                position: AnnotationPosition::BlockPrefix,
-                target_node_id,
-            };
-            self.attach_planned_side_annotation(pending_annotation, &annotation_tokens);
+            group_start_index = group_end_index + 1;
         }
     }
 
-    /// Attach parsed side annotations to AST nodes.
-    pub(crate) fn attach_annotations(&mut self) {
-        if !self.should_attach_annotations() {
+    /// Attach chained line comment prefixes to the following member target.
+    #[inline(always)]
+    pub(crate) fn attach_inline_dot_prefix_annotations_for_token(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+    ) {
+        // prefix attachment only applies across line breaks
+        if !self.line_terminator_before_index(token_index) {
             return;
         }
 
-        let side_span = self.compute_side_span();
-        let mut tokens = Vec::new();
-        let mut line_indices = Vec::new();
-        {
-            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_COLLECT);
-            self.collect_annotation_tokens(&mut tokens, &mut line_indices);
-        }
-        if tokens.is_empty() {
+        // collect nearby trivia that could prefix the next chain segment
+        let token_window_start =
+            self.annotation_leading_window_start(token_index, skipped_newline_count);
+        let token_window_start = token_window_start.saturating_sub(1);
+        let annotation_tokens = self.collect_unclaimed_side_annotation_tokens_for_window(
+            token_window_start,
+            token_index + 1,
+        );
+        if annotation_tokens.is_empty() {
             return;
         }
 
-        if !self.annotation_statement_wrappers_precise {
-            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_WRAPPERS);
-            self.collect_statement_wrappers();
-        }
-        let statement_wrappers = std::mem::take(&mut self.annotation_statement_wrappers);
+        // only line comment groups attach as dot-prefix annotations
+        let mut group_start_index = 0usize;
+        while group_start_index < annotation_tokens.len() {
+            let token_type = annotation_tokens[group_start_index].token.token.ty;
+            let group_end_index =
+                self.next_same_type_group_end(&annotation_tokens, group_start_index, false);
 
-        {
-            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_SIDE);
-            self.attach_side_annotations(&tokens, &line_indices, &side_span, &statement_wrappers);
-        }
-        self.annotation_statement_wrappers = statement_wrappers;
-        {
-            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_SORT);
-            self.tree.sort_annotations();
+            let group_len = group_end_index - group_start_index + 1;
+            if matches!(
+                token_type,
+                TokenType::LineComment | TokenType::DocLineComment
+            ) {
+                self.attach_inline_annotation_group(
+                    token_type,
+                    &annotation_tokens,
+                    group_start_index,
+                    group_end_index,
+                    group_len,
+                    target_node_id,
+                    AnnotationPosition::BlockPrefix,
+                );
+            }
+
+            group_start_index = group_end_index + 1;
         }
     }
 
-    /// Return true when there are annotations worth attaching.
-    pub(crate) fn should_attach_annotations(&mut self) -> bool {
-        self.token_stream.lex_to_end();
-        self.has_comment_annotation_tokens() || self.has_blank_annotation_tokens()
+    /// Attach grouped leading annotations for one semantic token.
+    #[inline(always)]
+    fn attach_inline_leading_annotations_for_token_with_mode(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+        inline_position: AnnotationPosition,
+        require_line_break_before: bool,
+    ) {
+        // enforce line-break-only modes early
+        let has_line_break_before = self.line_terminator_before_index(token_index);
+        if require_line_break_before && !has_line_break_before {
+            return;
+        }
+
+        // collect leading side tokens from skipped newline tokens and the target token
+        let mut token_window_start =
+            self.annotation_leading_window_start(token_index, skipped_newline_count);
+        if !require_line_break_before {
+            token_window_start = token_window_start.saturating_sub(1);
+        }
+
+        let has_non_whitespace_side =
+            self.token_window_has_non_whitespace_side(token_window_start, token_index + 1);
+        if !has_non_whitespace_side && skipped_newline_count <= 1 {
+            let materialized_newline_count = self.materialized_leading_newline_count(token_index);
+            if materialized_newline_count <= 1 {
+                return;
+            }
+        }
+
+        // attach blank lines from skipped semantic newlines
+        self.attach_inline_blank_from_skipped_newlines_with_position(
+            token_index,
+            skipped_newline_count,
+            target_node_id,
+            AnnotationPosition::BlockPrefix,
+        );
+
+        if !has_non_whitespace_side {
+            return;
+        }
+
+        // collect concrete side annotation tokens for this leading window
+        let annotation_tokens = self.collect_unclaimed_side_annotation_tokens_for_window(
+            token_window_start,
+            token_index + 1,
+        );
+        if annotation_tokens.is_empty() {
+            return;
+        }
+
+        // process contiguous token groups
+        let mut group_start_index = 0usize;
+        while group_start_index < annotation_tokens.len() {
+            let token_type = annotation_tokens[group_start_index].token.token.ty;
+            let group_end_index =
+                self.next_same_type_group_end(&annotation_tokens, group_start_index, true);
+
+            let group_len = group_end_index - group_start_index + 1;
+            if ANNOTATION_TOKEN_TYPES.contains(&token_type)
+                && (token_type != TokenType::Newline || group_len > 1)
+            {
+                let position = if token_type == TokenType::Newline {
+                    AnnotationPosition::BlockPrefix
+                } else if has_line_break_before {
+                    AnnotationPosition::BlockPrefix
+                } else {
+                    inline_position
+                };
+
+                self.attach_inline_annotation_group(
+                    token_type,
+                    &annotation_tokens,
+                    group_start_index,
+                    group_end_index,
+                    group_len,
+                    target_node_id,
+                    position,
+                );
+            }
+
+            group_start_index = group_end_index + 1;
+        }
     }
 
-    /// Return true when there are comment or doc tokens.
-    pub(crate) fn has_comment_annotation_tokens(&self) -> bool {
-        self.token_stream.side_tokens().iter().any(|token| {
-            matches!(
-                token.token.ty,
+    /// Attach blank annotations from skipped semantic newline tokens.
+    #[inline(always)]
+    fn attach_inline_blank_from_skipped_newlines_with_position(
+        &mut self,
+        token_index: usize,
+        skipped_newline_count: usize,
+        target_node_id: u32,
+        position: AnnotationPosition,
+    ) {
+        // normalize newline count with materialized fallback in lazy mode
+        let mut skipped_newline_count = skipped_newline_count;
+        if skipped_newline_count <= 1 {
+            let materialized_newline_count = self.materialized_leading_newline_count(token_index);
+            skipped_newline_count = skipped_newline_count.max(materialized_newline_count);
+        }
+
+        // reject degenerate ranges with no attachable blank content
+        if skipped_newline_count <= 1 || token_index == 0 || token_index < skipped_newline_count {
+            return;
+        }
+
+        let start_newline_index = token_index - skipped_newline_count;
+        let end_newline_index = token_index - 1;
+        let token_len = self.tokens().len();
+        if start_newline_index >= token_len || end_newline_index >= token_len {
+            return;
+        }
+
+        // count blank newlines and keep first and last blank token indexes
+        let mut blank_lines = 0u32;
+        let mut first_blank_newline_index: Option<usize> = None;
+        let mut last_blank_newline_index: Option<usize> = None;
+        for newline_index in (start_newline_index + 1)..=end_newline_index {
+            if self.skipped_newline_token_has_comment(newline_index) {
+                continue;
+            }
+
+            blank_lines += 1;
+            if first_blank_newline_index.is_none() {
+                first_blank_newline_index = Some(newline_index);
+            }
+            last_blank_newline_index = Some(newline_index);
+        }
+        if blank_lines == 0 {
+            return;
+        }
+
+        let (Some(first_blank_newline_index), Some(last_blank_newline_index)) =
+            (first_blank_newline_index, last_blank_newline_index)
+        else {
+            return;
+        };
+
+        // build span from first to last blank newline token
+        let tokens = self.tokens();
+        let start_token = tokens[first_blank_newline_index];
+        let end_token = tokens[last_blank_newline_index];
+        let span = Span::new(
+            start_token.span.file,
+            start_token.span.start,
+            end_token.span.end,
+        );
+
+        let blank = self.tree.insert(Blank { lines: blank_lines }, span);
+
+        // attach blank annotation at the requested position
+        let annotation_id = self.tree.insert(
+            Annotation::Blank {
+                node: blank,
+                position,
+            },
+            span,
+        );
+        self.tree.append_annotation(target_node_id, annotation_id);
+    }
+
+    /// Return true when a skipped newline token has comment or doc side trivia.
+    fn skipped_newline_token_has_comment(&mut self, token_index: usize) -> bool {
+        let (side_start, side_end) = self.side_range_for_token(token_index);
+        if side_start >= side_end {
+            return false;
+        }
+
+        for side_index in side_start..side_end {
+            let side_token = self.token_stream.side_tokens()[side_index];
+            if matches!(
+                side_token.token.ty,
                 TokenType::LineComment
                     | TokenType::DocLineComment
                     | TokenType::BlockComment
                     | TokenType::DocBlockComment
-            )
-        })
-    }
-
-    /// Return true when there are blank line tokens.
-    pub(crate) fn has_blank_annotation_tokens(&self) -> bool {
-        self.tokens()
-            .iter()
-            .any(|token| token.token.ty == TokenType::Newline)
-    }
-
-    /// Collect semantic and side tokens without whitespace in source order.
-    fn collect_annotation_tokens(&self, tokens: &mut Vec<TokenSpan>, line_indices: &mut Vec<u32>) {
-        tokens.clear();
-        line_indices.clear();
-
-        // track line indices when available
-        let line_starts = self.file.line_start_offsets.as_deref();
-        let mut line_index = 0usize;
-        let mut next_line_start = line_starts
-            .and_then(|starts| starts.get(1).copied())
-            .unwrap_or(u32::MAX);
-        let mut push_token = |token: TokenSpan| {
-            if let Some(starts) = line_starts {
-                while token.span.start >= next_line_start {
-                    line_index += 1;
-                    next_line_start = starts.get(line_index + 1).copied().unwrap_or(u32::MAX);
-                }
-                line_indices.push(line_index as u32);
-            } else {
-                line_indices.push(0);
-            }
-            tokens.push(token);
-        };
-
-        // fast path when side tokens only contain whitespace
-        if !self.has_comment_annotation_tokens() {
-            for token in self.tokens() {
-                if token.token.ty == TokenType::Whitespace {
-                    continue;
-                }
-                push_token(*token);
-            }
-            return;
-        }
-
-        // merge both token streams by span start
-        let main_tokens = self.tokens();
-        let side_tokens = self.token_stream.side_tokens();
-        let mut main_index = 0;
-        let mut side_index = 0;
-        loop {
-            // skip whitespace in main tokens
-            while let Some(token) = main_tokens.get(main_index) {
-                if token.token.ty != TokenType::Whitespace {
-                    break;
-                }
-                main_index += 1;
-            }
-
-            // skip whitespace in side tokens
-            while let Some(token) = side_tokens.get(side_index) {
-                if token.token.ty != TokenType::Whitespace {
-                    break;
-                }
-                side_index += 1;
-            }
-
-            // select the next token in source order
-            let main_token = main_tokens.get(main_index).copied();
-            let side_token = side_tokens.get(side_index).copied();
-            match (main_token, side_token) {
-                (Some(main_token), Some(side_token)) => {
-                    if main_token.span.start <= side_token.span.start {
-                        push_token(main_token);
-                        main_index += 1;
-                    } else {
-                        push_token(side_token);
-                        side_index += 1;
-                    }
-                }
-                (Some(main_token), None) => {
-                    push_token(main_token);
-                    main_index += 1;
-                }
-                (None, Some(side_token)) => {
-                    push_token(side_token);
-                    side_index += 1;
-                }
-                (None, None) => break,
+            ) {
+                return true;
             }
         }
+
+        false
     }
 
-    /// Attach comment and doc annotations to the tokens.
-    fn attach_side_annotations(
+    /// Return the side-token range for one semantic token index.
+    fn side_range_for_token(&mut self, token_index: usize) -> (usize, usize) {
+        if self.tokens_prelexed && !self.has_active_split() {
+            return self.token_stream.leading_side_range_prelexed(token_index);
+        }
+
+        self.token_stream.leading_side_range(token_index)
+    }
+
+    /// Return the semantic token window start used for leading annotation scans.
+    #[inline(always)]
+    fn annotation_leading_window_start(
         &mut self,
-        tokens: &[TokenSpan],
-        line_indices: &[u32],
-        ignore_span: &MultiSpan,
-        statement_wrappers: &[Option<u32>],
-    ) {
-        let mut target_index = AnnotationTargetIndex::new(self, ignore_span);
-        let mut pending_annotations = Vec::new();
-
-        // build annotation groups
-        let mut current_token_type: TokenType = tokens[0].token.ty;
-        let mut group_start_idx: usize = 0;
-        let mut group_end_idx: usize = 0;
-        let mut group_len: usize = 1;
-        for (i, token) in tokens.iter().enumerate().skip(1) {
-            if token.token.ty != current_token_type {
-                let start_token = tokens[group_start_idx];
-                let prev_token = if i > 1 {
-                    Some((i - 2, tokens[i - 2]))
-                } else {
-                    None
-                };
-
-                // check for line postfix: single token on same line as previous non newline token
-                let is_line_postfix = group_len == 1
-                    && prev_token.is_some_and(|(prev_idx, prev)| {
-                        prev.token.ty != TokenType::Newline
-                            && line_indices[prev_idx] == line_indices[group_start_idx]
-                    });
-
-                // skip up to one newline in between non blank annotations
-                if token.token.ty == TokenType::Newline
-                    && current_token_type != TokenType::Newline
-                    && let Some(next_token) = tokens.get(i + 1)
-                    && next_token.token.ty == current_token_type
-                    && !is_line_postfix
-                {
-                    continue;
-                }
-
-                // flush group before different annotation type
-                if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
-                    && (current_token_type != TokenType::Newline || group_len > 1)
-                    && !ignore_span.contains(&start_token.span)
-                    && !ignore_span.contains(&tokens[group_end_idx].span)
-                {
-                    self.plan_side_annotation(
-                        (i - group_len) as u32,
-                        current_token_type,
-                        tokens,
-                        line_indices,
-                        group_start_idx,
-                        group_end_idx,
-                        group_len,
-                        statement_wrappers,
-                        ignore_span,
-                        &mut target_index,
-                        &mut pending_annotations,
-                    );
-                }
-
-                // begin new group
-                current_token_type = token.token.ty;
-                group_start_idx = i;
-                group_end_idx = i;
-                group_len = 0;
-            }
-
-            if token.token.ty == current_token_type {
-                if group_len == 0 {
-                    group_start_idx = i;
-                }
-                group_end_idx = i;
-                group_len += 1;
-            }
+        token_index: usize,
+        skipped_newline_count: usize,
+    ) -> usize {
+        if skipped_newline_count > 0 {
+            return token_index.saturating_sub(skipped_newline_count);
         }
 
-        // flush group at the end
-        if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
-            && (current_token_type != TokenType::Newline || group_len > 1)
-        {
-            self.plan_side_annotation(
-                (tokens.len() - group_len) as u32,
-                current_token_type,
-                tokens,
-                line_indices,
-                group_start_idx,
-                group_end_idx,
-                group_len,
-                statement_wrappers,
-                ignore_span,
-                &mut target_index,
-                &mut pending_annotations,
-            );
+        if !self.line_terminator_before_index(token_index) {
+            return token_index;
         }
 
-        // apply planned annotations after target selection so span lookups stay stable
-        for pending_annotation in pending_annotations {
-            self.attach_planned_side_annotation(pending_annotation, tokens);
-        }
+        let materialized_newline_count = self.materialized_leading_newline_count(token_index);
+        token_index.saturating_sub(materialized_newline_count)
     }
 
-    /// Promote expression targets to their statement wrapper when required.
-    fn annotation_promote_statement(
-        &self,
-        start_token: TokenSpan,
-        target_node_id: u32,
-        statement_wrappers: &[Option<u32>],
-    ) -> u32 {
-        if start_token.token.ty == TokenType::Newline
-            && self.tree.get_node_type(target_node_id) == NodeType::Expression
-            && let Some(statement_id) = statement_wrappers
-                .get(target_node_id as usize)
-                .and_then(|id| *id)
-        {
-            return statement_id;
+    /// Count contiguous semantic newline tokens directly before the token index.
+    #[inline(always)]
+    fn materialized_leading_newline_count(&mut self, token_index: usize) -> usize {
+        if token_index == 0 {
+            return 0;
         }
 
-        target_node_id
+        // ensure trivia before this boundary is materialized in lazy lex mode
+        let _ = self.token_at(token_index.saturating_sub(1));
+
+        let tokens = self.tokens();
+        let mut cursor = token_index.min(tokens.len());
+        let mut newline_count = 0usize;
+
+        while cursor > 0 && tokens[cursor - 1].token.ty == TokenType::Newline {
+            newline_count += 1;
+            cursor -= 1;
+        }
+
+        newline_count
     }
 
-    /// Return whether a block comment stays on a single line.
-    fn annotation_is_single_line_block_comment(&self, start_token: TokenSpan) -> bool {
-        let raw = self.get_span_str(start_token.span);
-        for byte in raw.as_bytes() {
-            if *byte == b'\n' || *byte == b'\r' {
-                return false;
-            }
-        }
-        true
-    }
-
-    /// Find the previous targetable token within the enclosing span.
-    fn annotation_prev_token(
-        &self,
-        token_idx: u32,
-        tokens: &[TokenSpan],
-        ignore_span: &MultiSpan,
-        enclosing_span: Option<Span>,
-    ) -> Option<(usize, TokenSpan)> {
-        if token_idx == 0 {
-            return None;
+    /// Collect unclaimed side annotation tokens for a semantic token window.
+    #[inline(always)]
+    fn collect_unclaimed_side_annotation_tokens_for_window(
+        &mut self,
+        token_window_start: usize,
+        token_window_end_exclusive: usize,
+    ) -> Vec<InlineAnnotationToken> {
+        // clamp token window to current semantic token length
+        let token_len = self.tokens().len();
+        let token_window_start = token_window_start.min(token_len);
+        let token_window_end_exclusive = token_window_end_exclusive.min(token_len);
+        if token_window_start >= token_window_end_exclusive {
+            return Vec::new();
         }
 
-        let mut prev_token_idx = token_idx as usize;
-        while prev_token_idx > 0 {
-            prev_token_idx -= 1;
-            let prev_token = tokens.get(prev_token_idx)?;
-            if ignore_span.contains(&prev_token.span)
-                || prev_token.token.ty == TokenType::Whitespace
-            {
+        let has_non_whitespace_side = self
+            .token_window_has_non_whitespace_side(token_window_start, token_window_end_exclusive);
+        if !has_non_whitespace_side {
+            return Vec::new();
+        }
+
+        // derive side token window that corresponds to this semantic token window
+        self.ensure_claimed_side_tokens_capacity();
+        let (side_window_start, _) = self.side_range_for_token(token_window_start);
+        let (_, side_window_end) = self.side_range_for_token(token_window_end_exclusive - 1);
+        if side_window_start >= side_window_end {
+            return Vec::new();
+        }
+
+        // collect unclaimed non-whitespace side tokens owned by this token window
+        let mut tokens = Vec::new();
+        for side_index in side_window_start..side_window_end {
+            if self.annotation_claimed_side_tokens[side_index] {
                 continue;
             }
 
-            if let Some(enclosing_span) = enclosing_span
-                && !enclosing_span.intersects(prev_token.span)
-            {
-                return None;
-            }
-
-            return Some((prev_token_idx, *prev_token));
-        }
-
-        None
-    }
-
-    /// Find the next targetable token within the enclosing span.
-    fn annotation_next_token(
-        &self,
-        token_idx: u32,
-        group_len: usize,
-        tokens: &[TokenSpan],
-        ignore_span: &MultiSpan,
-        enclosing_span: Option<Span>,
-    ) -> Option<(usize, TokenSpan)> {
-        let mut next_token_idx = token_idx as usize + group_len;
-        loop {
-            let next_token = tokens.get(next_token_idx)?;
-            if ignore_span.contains(&next_token.span)
-                || next_token.token.ty == TokenType::Whitespace
-            {
-                next_token_idx += 1;
+            let token = self.token_stream.side_tokens()[side_index];
+            if token.token.ty == TokenType::Whitespace {
                 continue;
             }
 
-            if let Some(enclosing_span) = enclosing_span
-                && !enclosing_span.intersects(next_token.span)
-            {
-                return None;
+            let token_index = self
+                .token_stream
+                .side_owner_token_index(side_index)
+                .unwrap_or(token_window_end_exclusive - 1);
+            if token_index < token_window_start || token_index >= token_window_end_exclusive {
+                continue;
             }
 
-            return Some((next_token_idx, *next_token));
+            tokens.push(InlineAnnotationToken {
+                token_index,
+                side_index,
+                token,
+            });
         }
+
+        tokens
     }
 
-    /// Find the annotation position for a given token index and group.
-    #[allow(clippy::too_many_arguments)]
-    fn find_annotation_target(
-        &self,
-        token_idx: u32,
-        tokens: &[TokenSpan],
-        line_indices: &[u32],
-        group_start_idx: usize,
-        group_end_idx: usize,
-        group_len: usize,
-        is_full_line: bool,
-        is_block_prefix_only: bool,
-        target_index: &mut AnnotationTargetIndex<'_>,
-        statement_wrappers: &[Option<u32>],
-        ignore_span: &MultiSpan,
-    ) -> Option<(AnnotationPosition, u32)> {
-        debug_assert!(group_len > 0);
-
-        let start_token = tokens[group_start_idx];
-        let is_block_comment = matches!(
-            start_token.token.ty,
-            TokenType::BlockComment | TokenType::DocBlockComment
-        );
-        let is_block_comment_single_line = if is_block_comment {
-            self.annotation_is_single_line_block_comment(start_token)
-        } else {
-            false
-        };
-        let is_one_line = if is_block_comment && !is_block_comment_single_line {
-            false
-        } else {
-            line_indices[group_start_idx] == line_indices[group_end_idx]
-        };
-        let enclosing_scope = if start_token.token.ty == TokenType::Newline {
-            None
-        } else {
-            target_index.find_node_enclosing_at(
-                self,
-                &start_token.span,
-                NodeSearchMode::SmallestInnermost,
-            )
-        };
-        let enclosing_span = enclosing_scope.map(|scope| scope.span);
-
-        // line prefix or postfix
-        if !is_block_prefix_only && is_one_line {
-            // find surrounding tokens
-            let prev_token =
-                self.annotation_prev_token(token_idx, tokens, ignore_span, enclosing_span);
-            let next_token = self.annotation_next_token(
-                token_idx,
-                group_len,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            );
-
-            // inline member split: keep comments between receiver and dot on their own line
-            if let (
-                Some((prev_idx, _prev_token)),
-                Some((next_idx, next_token)),
-                Some(enclosing_scope),
-            ) = (prev_token, next_token, enclosing_scope)
-                && next_token.token.ty == TokenType::Dot
-                && line_indices[group_end_idx] == line_indices[next_idx]
-                && line_indices[prev_idx] == line_indices[group_end_idx]
-                && self.tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
-            {
-                let enclosing_expr_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
-                if matches!(self.tree.get(enclosing_expr_id), Expression::Path { .. }) {
-                    return Some((AnnotationPosition::BlockInfix, enclosing_scope.idx));
-                }
-            }
-
-            // line postfix: check for directly preceding node that ends at the start token
-            let line_postfix_target = if let Some((prev_idx, prev_token)) = prev_token
-                && line_indices[prev_idx] == line_indices[group_end_idx]
-                && prev_token.token.ty != TokenType::Newline
-            {
-                let search_mode = if is_full_line {
-                    NodeSearchMode::BiggestOutermost
-                } else {
-                    NodeSearchMode::SmallestOutermost
-                };
-                target_index
-                    .find_node_ending_at(self, &prev_token.span, search_mode)
-                    .or_else(|| {
-                        // if prev_token is a separator and comment is at end of line,
-                        // look past the separator to find the element (handles `3, // comment`)
-                        let is_end_of_line = next_token.is_none_or(|(_, token)| {
-                            token.token.ty == TokenType::Newline || token.token.ty == TokenType::End
-                        });
-                        if is_end_of_line
-                            && matches!(
-                                prev_token.token.ty,
-                                TokenType::Comma | TokenType::Semicolon
-                            )
-                            && token_idx > 1
-                        {
-                            let mut before_sep_idx = token_idx as usize - 1;
-                            while before_sep_idx > 0 {
-                                before_sep_idx -= 1;
-                                let before_token = tokens.get(before_sep_idx)?;
-                                if ignore_span.contains(&before_token.span)
-                                    || before_token.token.ty == TokenType::Whitespace
-                                {
-                                    continue;
-                                }
-                                return target_index.find_node_ending_at(
-                                    self,
-                                    &before_token.span,
-                                    search_mode,
-                                );
-                            }
-                        }
-                        None
-                    })
-            } else {
-                None
-            };
-
-            if let Some(target_node_id) = line_postfix_target {
-                // line postfix boundary if next token is newline (or end)
-                if next_token.is_none_or(|(_, token)| {
-                    token.token.ty == TokenType::Newline || token.token.ty == TokenType::End
-                }) {
-                    return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
-                }
-                // otherwise regular line postfix
-                else {
-                    return Some((AnnotationPosition::LinePostfix, target_node_id));
-                }
-            }
-            // inline block comment before a node: keep on the same line
-            else if is_block_comment_single_line
-                && let Some((next_idx, next_token)) = next_token
-                && next_token.token.ty != TokenType::Newline
-                && !matches!(
-                    next_token.token.ty,
-                    TokenType::CloseParenthesis
-                        | TokenType::CloseBrace
-                        | TokenType::CloseBracket
-                        | TokenType::End
+    /// Return true when a semantic token window has non-whitespace side trivia.
+    #[inline(always)]
+    fn token_window_has_non_whitespace_side(
+        &mut self,
+        token_window_start: usize,
+        token_window_end_exclusive: usize,
+    ) -> bool {
+        if self.tokens_prelexed && !self.has_active_split() {
+            self.token_stream
+                .has_non_whitespace_side_in_window_prelexed(
+                    token_window_start,
+                    token_window_end_exclusive,
                 )
-                && (line_indices[group_end_idx] == line_indices[next_idx]
-                    || line_indices[group_start_idx] == line_indices[next_idx])
-            {
-                let target_node_id = target_index
-                    .find_node_starting_at(
-                        self,
-                        &next_token.span,
-                        NodeSearchMode::SmallestOutermost,
-                    )
-                    .or_else(|| {
-                        target_index
-                            .find_node_enclosing_at(
-                                self,
-                                &next_token.span,
-                                NodeSearchMode::SmallestOutermost,
-                            )
-                            .map(|span| span.idx)
-                    })
-                    .or_else(|| {
-                        target_index
-                            .find_node_enclosing_at(
-                                self,
-                                &next_token.span,
-                                NodeSearchMode::BiggestOutermost,
-                            )
-                            .map(|span| span.idx)
-                    });
-
-                if let Some(target_node_id) = target_node_id {
-                    return Some((
-                        AnnotationPosition::LinePrefix,
-                        self.annotation_promote_statement(
-                            start_token,
-                            target_node_id,
-                            statement_wrappers,
-                        ),
-                    ));
-                }
-            }
-            // special case: inline comment between path segments attaches to the path as postfix
-            else if let Some((_, prev_token)) = prev_token
-                && let Some(enclosing_scope) = enclosing_scope
-                && self.tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
-            {
-                let expression_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
-                if let Expression::Path { path, .. } = self.tree.get(expression_id)
-                    && path.segments.len() > 1
-                    && enclosing_scope.span.end > prev_token.span.end
-                {
-                    return Some((
-                        AnnotationPosition::LinePostfixBoundary,
-                        self.annotation_promote_statement(
-                            start_token,
-                            expression_id.id,
-                            statement_wrappers,
-                        ),
-                    ));
-                }
-            }
-            // line prefix: check for directly following node that starts at the end token
-            else if let Some((next_idx, next_token)) = next_token
-                && next_token.token.ty != TokenType::Newline
-                && !matches!(
-                    next_token.token.ty,
-                    TokenType::CloseParenthesis
-                        | TokenType::CloseBrace
-                        | TokenType::CloseBracket
-                        | TokenType::End
-                )
-                && (line_indices[group_end_idx] == line_indices[next_idx]
-                    || line_indices[group_start_idx] == line_indices[next_idx])
-            {
-                let target_node_id = target_index
-                    .find_node_starting_at(
-                        self,
-                        &next_token.span,
-                        NodeSearchMode::SmallestOutermost,
-                    )
-                    .or_else(|| {
-                        target_index
-                            .find_node_enclosing_at(
-                                self,
-                                &next_token.span,
-                                NodeSearchMode::SmallestOutermost,
-                            )
-                            .map(|span| span.idx)
-                    });
-
-                if let Some(target_node_id) = target_node_id {
-                    return Some((
-                        AnnotationPosition::LinePrefix,
-                        self.annotation_promote_statement(
-                            start_token,
-                            target_node_id,
-                            statement_wrappers,
-                        ),
-                    ));
-                }
-            }
+        } else {
+            self.token_stream
+                .has_non_whitespace_side_in_window(token_window_start, token_window_end_exclusive)
         }
+    }
 
-        // block prefix: find the following targetable node
-        let mut next_token_idx = token_idx as usize + group_len;
-        while let Some(next_token) = tokens.get(next_token_idx) {
-            if ignore_span.contains(&next_token.span)
-                || ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
-                || next_token.token.ty == TokenType::Whitespace
-            {
-                next_token_idx += 1;
-                continue;
+    /// Ensure claimed-side-token flags cover the current side stream length.
+    fn ensure_claimed_side_tokens_capacity(&mut self) {
+        let side_len = self.token_stream.side_tokens().len();
+        if self.annotation_claimed_side_tokens.len() < side_len {
+            self.annotation_claimed_side_tokens.resize(side_len, false);
+        }
+    }
+
+    /// Return true when the token type is comment or doc trivia.
+    #[inline(always)]
+    fn is_comment_annotation_token_type(&self, token_type: TokenType) -> bool {
+        matches!(
+            token_type,
+            TokenType::LineComment
+                | TokenType::DocLineComment
+                | TokenType::BlockComment
+                | TokenType::DocBlockComment
+        )
+    }
+
+    /// Find the end index of a same-type token group.
+    #[inline(always)]
+    fn next_same_type_group_end(
+        &self,
+        tokens: &[InlineAnnotationToken],
+        group_start_index: usize,
+        requires_adjacent_owner_index: bool,
+    ) -> usize {
+        let token_type = tokens[group_start_index].token.token.ty;
+        let mut group_end_index = group_start_index;
+
+        while group_end_index + 1 < tokens.len() {
+            let current = tokens[group_end_index];
+            let next = tokens[group_end_index + 1];
+            if next.token.token.ty != token_type {
+                break;
             }
-            if let Some(enclosing_span) = enclosing_span
-                && !enclosing_span.intersects(next_token.span)
-                && start_token.token.ty != TokenType::Newline
+
+            if requires_adjacent_owner_index
+                && next.token_index > current.token_index.saturating_add(1)
             {
                 break;
             }
-            if let Some(next_node) = target_index.find_node_starting_at(
-                self,
-                &next_token.span,
-                NodeSearchMode::BiggestOutermost,
-            ) {
-                return Some((
-                    AnnotationPosition::BlockPrefix,
-                    self.annotation_promote_statement(start_token, next_node, statement_wrappers),
-                ));
-            }
-            if next_token.token.ty == TokenType::Dot {
-                let target_node_id = target_index
-                    .find_node_enclosing_at(
-                        self,
-                        &next_token.span,
-                        NodeSearchMode::SmallestOutermost,
-                    )
-                    .map(|span| span.idx);
-                if let Some(target_node_id) = target_node_id {
-                    return Some((
-                        AnnotationPosition::BlockPrefix,
-                        self.annotation_promote_statement(
-                            start_token,
-                            target_node_id,
-                            statement_wrappers,
-                        ),
-                    ));
-                }
-            }
-            next_token_idx += 1;
+
+            group_end_index += 1;
         }
 
-        // block postfix: find the preceding targetable node
-        if !is_block_prefix_only && token_idx > 0 {
-            let mut prev_token_idx = token_idx as usize;
-            while prev_token_idx > 0 {
-                prev_token_idx -= 1;
-                let Some(prev_token) = tokens.get(prev_token_idx) else {
-                    break;
-                };
-                if ignore_span.contains(&prev_token.span)
-                    || ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.ty)
-                    || prev_token.token.ty == TokenType::Whitespace
-                {
-                    continue;
-                }
-                if let Some(enclosing_span) = enclosing_span
-                    && !enclosing_span.intersects(prev_token.span)
-                {
-                    break;
-                }
-                if let Some(prev_node) = target_index.find_node_ending_at(
-                    self,
-                    &prev_token.span,
-                    NodeSearchMode::BiggestOutermost,
-                ) {
-                    return Some((
-                        AnnotationPosition::BlockPostfix,
-                        self.annotation_promote_statement(
-                            start_token,
-                            prev_node,
-                            statement_wrappers,
-                        ),
-                    ));
-                }
-            }
-        }
-
-        // find inner enclosing node (block infix)
-        if !is_block_prefix_only && let Some(enclosing_node) = enclosing_scope {
-            return Some((
-                AnnotationPosition::BlockInfix,
-                self.annotation_promote_statement(
-                    start_token,
-                    enclosing_node.idx,
-                    statement_wrappers,
-                ),
-            ));
-        }
-
-        // nothing to attach to
-        None
+        group_end_index
     }
 
-    /// Collect statement wrapper ids keyed by expression id.
-    fn collect_statement_wrappers(&mut self) {
-        let total_nodes = self.tree.next_id() as usize;
-        let wrappers = &mut self.annotation_statement_wrappers;
-        wrappers.clear();
-        wrappers.resize(total_nodes, None);
-
-        let mut node_id = 0;
-        while node_id < total_nodes {
-            let global_id = node_id as u32;
-            if self.tree.get_node_type(global_id) == NodeType::Expression {
-                let expression = self.tree.get(LocalNodeId::<Expression>::new(global_id));
-                if let Expression::Statement(inner_id) = expression {
-                    wrappers[inner_id.id as usize] = Some(global_id);
+    /// Return true when a grouped block-style annotation stays on one line.
+    fn annotation_group_is_single_line(
+        &self,
+        tokens: &[InlineAnnotationToken],
+        group_start_idx: usize,
+        group_end_idx: usize,
+    ) -> bool {
+        for token in &tokens[group_start_idx..=group_end_idx] {
+            let raw = self.get_span_str(token.token.span);
+            for byte in raw.as_bytes() {
+                if *byte == b'\n' || *byte == b'\r' {
+                    return false;
                 }
             }
-            node_id += 1;
         }
 
-        self.annotation_statement_wrappers_precise = true;
+        true
     }
 
-    /// Plan one annotation group and collect it for later insertion.
-    #[allow(clippy::too_many_arguments)]
-    fn plan_side_annotation(
+    /// Return true when text between annotation group end and boundary token contains a newline.
+    fn annotation_group_has_line_break_before_boundary(
+        &self,
+        tokens: &[InlineAnnotationToken],
+        group_end_idx: usize,
+        boundary_token_index: usize,
+    ) -> bool {
+        let Some(boundary_token) = self.tokens().get(boundary_token_index) else {
+            return false;
+        };
+        let group_end_token = tokens[group_end_idx].token;
+
+        if group_end_token.span.file != boundary_token.span.file {
+            return false;
+        }
+
+        // annotations that start after the boundary token are on later lines
+        if group_end_token.span.start >= boundary_token.span.start {
+            return true;
+        }
+
+        // overlapping spans are treated as same line boundary attachments
+        if group_end_token.span.end >= boundary_token.span.start {
+            return false;
+        }
+
+        let between_span = Span::new(
+            group_end_token.span.file,
+            group_end_token.span.end,
+            boundary_token.span.start,
+        );
+        let between_text = self.get_span_str(between_span);
+        between_text
+            .as_bytes()
+            .iter()
+            .any(|byte| *byte == b'\n' || *byte == b'\r')
+    }
+
+    /// Return true when two inline annotation tokens belong to the same merged group.
+    fn annotation_tokens_can_merge(
+        &self,
+        left: &InlineAnnotationToken,
+        right: &InlineAnnotationToken,
+    ) -> bool {
+        if left.token.token.ty != right.token.token.ty {
+            return false;
+        }
+
+        if right.token_index > left.token_index.saturating_add(1) {
+            return false;
+        }
+
+        if left.token.span.file != right.token.span.file {
+            return false;
+        }
+
+        if right.token.span.start <= left.token.span.end {
+            return true;
+        }
+
+        let between_span = Span::new(
+            left.token.span.file,
+            left.token.span.end,
+            right.token.span.start,
+        );
+        self.count_line_breaks_in_span(between_span) <= 1
+    }
+
+    /// Count logical line breaks in a span.
+    fn count_line_breaks_in_span(&self, span: Span) -> usize {
+        let text = self.get_span_str(span);
+        let bytes = text.as_bytes();
+        let mut index = 0usize;
+        let mut line_breaks = 0usize;
+
+        while index < bytes.len() {
+            let byte = bytes[index];
+            if byte == b'\r' {
+                line_breaks += 1;
+
+                if index + 1 < bytes.len() && bytes[index + 1] == b'\n' {
+                    index += 1;
+                }
+            } else if byte == b'\n' {
+                line_breaks += 1;
+            }
+
+            index += 1;
+        }
+
+        line_breaks
+    }
+
+    /// Attach one grouped inline annotation to a target node.
+    fn attach_inline_annotation_group(
         &mut self,
-        token_idx: u32,
         token_type: TokenType,
-        tokens: &[TokenSpan],
-        line_indices: &[u32],
+        tokens: &[InlineAnnotationToken],
         group_start_idx: usize,
         group_end_idx: usize,
         group_len: usize,
-        statement_wrappers: &[Option<u32>],
-        ignore_span: &MultiSpan,
-        target_index: &mut AnnotationTargetIndex<'_>,
-        pending_annotations: &mut Vec<PendingSideAnnotation>,
+        target_node_id: u32,
+        position: AnnotationPosition,
     ) {
-        debug_assert!(ANNOTATION_TOKEN_TYPES.contains(&token_type));
-        debug_assert!(group_len > 0);
-
-        let start_token = tokens[group_start_idx];
-        let end_token = tokens[group_end_idx];
+        let start_token = tokens[group_start_idx].token;
+        let end_token = tokens[group_end_idx].token;
         let span = Span::new(
             start_token.span.file,
             start_token.span.start,
             end_token.span.end,
         );
 
-        // find the node to attach to
-        let is_line_comment = start_token.token.ty == TokenType::LineComment
-            || start_token.token.ty == TokenType::DocLineComment;
-        let Some((position, target_node_id)) = self.find_annotation_target(
-            token_idx,
-            tokens,
-            line_indices,
-            group_start_idx,
-            group_end_idx,
-            group_len,
-            is_line_comment,
-            false,
-            target_index,
-            statement_wrappers,
-            ignore_span,
-        ) else {
-            let node_type = match token_type {
-                TokenType::Newline => NodeType::Blank,
-                TokenType::LineComment | TokenType::BlockComment => NodeType::Comment,
-                TokenType::DocLineComment | TokenType::DocBlockComment => NodeType::Doc,
-                _ => unreachable!("unexpected token type: {token_type:?}"),
-            };
-            let error = ParseError::unexpected_for(span, node_type);
-            self.error(&error);
-            return;
-        };
-
-        pending_annotations.push(PendingSideAnnotation {
-            token_type,
-            group_start_idx,
-            group_end_idx,
-            group_len,
-            position,
-            target_node_id,
-        });
-    }
-
-    /// Attach one planned annotation group to the AST.
-    fn attach_planned_side_annotation(
-        &mut self,
-        pending_annotation: PendingSideAnnotation,
-        tokens: &[TokenSpan],
-    ) {
-        let token_type = pending_annotation.token_type;
-        let group_start_idx = pending_annotation.group_start_idx;
-        let group_end_idx = pending_annotation.group_end_idx;
-        let group_len = pending_annotation.group_len;
-        let position = pending_annotation.position;
-        let target_node_id = pending_annotation.target_node_id;
-
-        let start_token = tokens[group_start_idx];
-        let end_token = tokens[group_end_idx];
-        let span = Span::new(
-            start_token.span.file,
-            start_token.span.start,
-            end_token.span.end,
-        );
-
-        // create the annotation
         let annotation_id = match token_type {
             TokenType::Newline => {
-                let lines = group_len as u32 - 1;
-                let blank = self.tree.insert(Blank { lines }, span);
+                let blank = self.tree.insert(
+                    Blank {
+                        lines: group_len as u32 - 1,
+                    },
+                    span,
+                );
                 self.tree.insert(
                     Annotation::Blank {
                         node: blank,
@@ -1312,129 +1108,177 @@ impl Parser {
                     span,
                 )
             }
-            _ => unreachable!("unexpected token type: {token_type:?}"),
+            _ => return,
         };
 
-        // attach the annotation to the node
+        // mark side tokens as claimed after attachment
+        self.ensure_claimed_side_tokens_capacity();
+        for token in &tokens[group_start_idx..=group_end_idx] {
+            self.annotation_claimed_side_tokens[token.side_index] = true;
+        }
+
+        // attach annotation to parsed target
         self.tree.append_annotation(target_node_id, annotation_id);
+    }
+
+    /// Finalize annotations after parsing.
+    pub(crate) fn attach_annotations(&mut self) {
+        if !self.should_attach_annotations() {
+            return;
+        }
+
+        // inline attachment runs during parse: only keep stable ordering here
+        let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_MAIN);
+        self.tree.sort_annotations();
+    }
+
+    /// Return true when there are annotations worth attaching.
+    pub(crate) fn should_attach_annotations(&mut self) -> bool {
+        self.token_stream.lex_to_end();
+        self.has_comment_annotation_tokens() || self.has_blank_annotation_tokens()
+    }
+
+    /// Return true when there are comment or doc tokens.
+    pub(crate) fn has_comment_annotation_tokens(&self) -> bool {
+        self.token_stream.has_comment_annotation_tokens()
+    }
+
+    /// Return true when there are blank line tokens.
+    pub(crate) fn has_blank_annotation_tokens(&self) -> bool {
+        self.token_stream.has_blank_annotation_tokens()
     }
 
     /// Clean annotation tokens into their inner string, preserving intentional spacing.
     fn clean_annotation_string(
         &self,
         token_type: TokenType,
-        tokens: &[TokenSpan],
+        tokens: &[InlineAnnotationToken],
         group_start_idx: usize,
         group_end_idx: usize,
         group_len: usize,
     ) -> String {
         debug_assert!(group_len > 0);
 
+        // fast path for single-token groups
+        if group_len == 1 {
+            let token = tokens[group_start_idx];
+            if token.token.token.ty == token_type {
+                return self.clean_annotation_token_string(token_type, token.token.span);
+            }
+        }
+
+        // clean each token in the group and join with explicit line breaks
         let mut cleaned_tokens = Vec::with_capacity(group_len);
 
-        for token in tokens[group_start_idx..=group_end_idx].iter() {
-            if token.token.ty != token_type {
+        for token in &tokens[group_start_idx..=group_end_idx] {
+            if token.token.token.ty != token_type {
                 continue;
             }
-            // strip comment prefixes and suffixes
-            let raw_str = self.file.get_span_str(token.span).unwrap_or_default();
-            let mut inner_str = match token_type {
-                TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
-                TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),
-                TokenType::BlockComment => raw_str
-                    .strip_prefix("/*")
-                    .unwrap_or(raw_str)
-                    .strip_suffix("*/")
-                    .unwrap_or(raw_str),
-                TokenType::DocBlockComment => raw_str
-                    .strip_prefix("/**")
-                    .unwrap_or(raw_str)
-                    .strip_suffix("*/")
-                    .unwrap_or(raw_str),
-                _ => panic!("unexpected token type: {token_type:?}"),
-            };
 
-            if matches!(
-                token_type,
-                TokenType::BlockComment | TokenType::DocBlockComment
-            ) {
-                if inner_str.starts_with(' ') {
-                    inner_str = &inner_str[1..];
-                }
-                while inner_str.ends_with(' ') {
-                    inner_str = inner_str.strip_suffix(' ').unwrap();
-                }
-            }
-
-            // clean up whitespace and formatting characters
-            let cleaned = match token_type {
-                TokenType::LineComment | TokenType::DocLineComment => {
-                    if inner_str.contains('\n') {
-                        let mut cleaned = String::with_capacity(inner_str.len());
-                        for (idx, line) in inner_str.lines().enumerate() {
-                            if idx > 0 {
-                                cleaned.push('\n');
-                            }
-                            let line = line.strip_prefix(' ').unwrap_or(line);
-                            cleaned.push_str(line);
-                        }
-                        cleaned
-                    } else {
-                        inner_str.strip_prefix(' ').unwrap_or(inner_str).to_owned()
-                    }
-                }
-                TokenType::BlockComment | TokenType::DocBlockComment => {
-                    if inner_str.trim().is_empty() {
-                        String::new()
-                    } else {
-                        let mut cleaned = String::with_capacity(inner_str.len());
-                        for (idx, line) in inner_str.split('\n').enumerate() {
-                            if idx > 0 {
-                                cleaned.push('\n');
-                            }
-
-                            // strip optional asterisk prefixes and leading spaces
-                            let mut line = if let Some((pos, ch)) =
-                                line.char_indices().find(|&(_, ch)| ch != ' ')
-                                && ch == '*'
-                            {
-                                let mut line_str = &line[pos + ch.len_utf8()..];
-                                if line_str.starts_with(' ') {
-                                    line_str = &line_str[1..];
-                                }
-                                line_str
-                            } else {
-                                line.strip_prefix(' ').unwrap_or(line)
-                            };
-
-                            // drop lines that are only spaces, otherwise trim trailing space
-                            if line.chars().all(|ch| ch == ' ') {
-                                line = "";
-                            } else {
-                                line = line.trim_end_matches(' ');
-                            }
-
-                            cleaned.push_str(line);
-                        }
-                        cleaned
-                    }
-                }
-                _ => unreachable!(),
-            };
-
-            cleaned_tokens.push(cleaned);
+            cleaned_tokens.push(self.clean_annotation_token_string(token_type, token.token.span));
         }
 
         cleaned_tokens.join("\n")
+    }
+
+    /// Clean one annotation token into its normalized text.
+    fn clean_annotation_token_string(&self, token_type: TokenType, token_span: Span) -> String {
+        // strip comment delimiters and capture the raw inner text
+        let raw_str = self.file.get_span_str(token_span).unwrap_or_default();
+        let mut inner_str = match token_type {
+            TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
+            TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),
+            TokenType::BlockComment => raw_str
+                .strip_prefix("/*")
+                .unwrap_or(raw_str)
+                .strip_suffix("*/")
+                .unwrap_or(raw_str),
+            TokenType::DocBlockComment => raw_str
+                .strip_prefix("/**")
+                .unwrap_or(raw_str)
+                .strip_suffix("*/")
+                .unwrap_or(raw_str),
+            _ => panic!("unexpected token type: {token_type:?}"),
+        };
+
+        // trim block-style edge spaces before line normalization
+        if matches!(
+            token_type,
+            TokenType::BlockComment | TokenType::DocBlockComment
+        ) {
+            if inner_str.starts_with(' ') {
+                inner_str = &inner_str[1..];
+            }
+
+            while let Some(stripped) = inner_str.strip_suffix(' ') {
+                inner_str = stripped;
+            }
+        }
+
+        // normalize lines based on comment kind rules
+        match token_type {
+            TokenType::LineComment | TokenType::DocLineComment => {
+                if inner_str.contains('\n') {
+                    let mut cleaned = String::with_capacity(inner_str.len());
+                    for (index, line) in inner_str.lines().enumerate() {
+                        if index > 0 {
+                            cleaned.push('\n');
+                        }
+                        let line = line.strip_prefix(' ').unwrap_or(line);
+                        cleaned.push_str(line);
+                    }
+                    cleaned
+                } else {
+                    inner_str.strip_prefix(' ').unwrap_or(inner_str).to_owned()
+                }
+            }
+            TokenType::BlockComment | TokenType::DocBlockComment => {
+                if inner_str.trim().is_empty() {
+                    String::new()
+                } else {
+                    let mut cleaned = String::with_capacity(inner_str.len());
+                    for (index, line) in inner_str.split('\n').enumerate() {
+                        if index > 0 {
+                            cleaned.push('\n');
+                        }
+
+                        // strip optional asterisk prefixes and leading spaces
+                        let mut line = if let Some((pos, ch)) =
+                            line.char_indices().find(|&(_, ch)| ch != ' ')
+                            && ch == '*'
+                        {
+                            let mut line_str = &line[pos + ch.len_utf8()..];
+                            if line_str.starts_with(' ') {
+                                line_str = &line_str[1..];
+                            }
+                            line_str
+                        } else {
+                            line.strip_prefix(' ').unwrap_or(line)
+                        };
+
+                        // drop lines with only spaces, otherwise trim trailing spaces
+                        if line.chars().all(|ch| ch == ' ') {
+                            line = "";
+                        } else {
+                            line = line.trim_end_matches(' ');
+                        }
+
+                        cleaned.push_str(line);
+                    }
+                    cleaned
+                }
+            }
+            _ => unreachable!(),
+        }
     }
 }
 #[cfg(test)]
 mod tests {
     use destack_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
-        Comment, CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc,
-        DocStyle, Expression, FunctionKind, FunctionMode, Key, Member, Name, Parameter, TypeKind,
-        TypeLiteral,
+        Comment, CommentStyle, Declaration, DeclarationAbstraction, DeclarationDescriptor,
+        Declarator, Decorator, Doc, DocStyle, Expression, FunctionKind, FunctionMode, Key, Member,
+        Name, Parameter, TypeKind, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -1468,7 +1312,7 @@ mod tests {
     fn test_attach_block_comment_retain_newlines() {
         let mut test: TestParser = TestParser::new(
             r#"
-/* 
+/*
  * Comment 1
  */
 let x;
@@ -1518,7 +1362,7 @@ function foo() { }",
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        // parse decorator annotations on the function
+        // function foo() { }
         let decorators = parser.tree.get_nodes::<Decorator>();
         assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
         assert_eq!(expressions.len(), 1);
@@ -1533,6 +1377,186 @@ function foo() { }",
         });
     }
 
+    /// Decorators on runtime parameters should be attached to the parameter node.
+    #[test]
+    fn test_attach_decorator_to_parameter() {
+        let mut test = TestParser::new("function demo(@if(true) value: number): void { }");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // function demo
+        assert_eq!(expressions.len(), 1);
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                // value: number
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                let parameter_id = signature.dynamic_parameters[0];
+                let annotations = parser.tree.get_annotations(parameter_id.id);
+                assert_eq!(annotations.len(), 1);
+
+                // @if(true)
+                assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Call { left, dynamic_arguments, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "if");
+                            assert_eq!(dynamic_arguments.len(), 1);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Decorators on call arguments should be attached to the argument node.
+    #[test]
+    fn test_attach_decorator_to_call_argument() {
+        let mut test = TestParser::new(
+            r"function call(value: number): void { }
+call(@if(true) 1);",
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // call(@if(true) 1)
+        assert_eq!(expressions.len(), 2);
+        let call_expression_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, call_expression_id, Expression::Call { dynamic_arguments, .. } => {
+            // @if(true) 1
+            assert_eq!(dynamic_arguments.len(), 1);
+            let argument_id = dynamic_arguments[0];
+            let annotations = parser.tree.get_annotations(argument_id.id);
+            assert_eq!(annotations.len(), 1);
+
+            // @if(true)
+            assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Call { left, dynamic_arguments, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "if");
+                        assert_eq!(dynamic_arguments.len(), 1);
+                    });
+                });
+            });
+        });
+    }
+
+    /// Decorators after export modifiers should attach to the exported declaration expression.
+    #[test]
+    fn test_attach_decorator_after_export_modifier() {
+        let mut test = TestParser::new_with_options(
+            "export default @after abstract class Foo { }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // export default @after abstract class Foo { }
+        assert_eq!(expressions.len(), 1);
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Export { items, .. } => {
+            assert_eq!(items.len(), 1);
+
+            // default value
+            let value_id = parser
+                .tree
+                .get(items[0])
+                .value
+                .expect("expected export default value");
+            assert_node!(parser.tree, value_id, Expression::Declaration(_) => {});
+
+            // @after
+            let annotations = parser.tree.get_annotations(value_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "after");
+                });
+            });
+        });
+    }
+
+    /// Top level export decorators should attach to export or class targets as expected.
+    #[test]
+    fn test_parse_javascript_decorator_export_top_level_sequences() {
+        let mut test = TestParser::new_with_options(
+            r"@decorator
+export class Foo { }
+@first.field @second @(() => decorator)()
+export class Bar {}
+@before
+export @after class Foo { }
+@before
+export abstract class Foo { }
+@before
+export @after abstract class Foo { }",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // @decorator ... export class ...
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 5);
+
+        // expected declaration metadata
+        let expected_names = ["Foo", "Bar", "Foo", "Foo", "Foo"];
+        let expected_abstractions = [
+            DeclarationAbstraction::Concrete,
+            DeclarationAbstraction::Concrete,
+            DeclarationAbstraction::Concrete,
+            DeclarationAbstraction::Abstract,
+            DeclarationAbstraction::Abstract,
+        ];
+        let expected_decorators = [
+            vec!["decorator"],
+            vec!["first.field", "second", "<<call>>"],
+            vec!["before", "after"],
+            vec!["before"],
+            vec!["before", "after"],
+        ];
+
+        // per declaration assertions
+        for index in 0..expressions.len() {
+            // class declaration
+            let expression_id = parser.unwrap_statement_expression(expressions[index]);
+            assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+                    assert!(descriptor.export.is_some());
+                    assert_eq!(descriptor.abstraction, expected_abstractions[index]);
+                    assert_string!(parser, descriptor.name.unwrap().string(), expected_names[index]);
+                });
+            });
+
+            // decorator list
+            let annotations = parser.tree.get_annotations(expression_id.id);
+            assert_eq!(annotations.len(), expected_decorators[index].len());
+            for annotation_index in 0..annotations.len() {
+                let expected_decorator = expected_decorators[index][annotation_index];
+                assert_node!(parser.tree, annotations[annotation_index], Annotation::Decorator { node, .. } => {
+                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                        if expected_decorator == "<<call>>" {
+                            assert_node!(parser.tree, *expression, Expression::Call { .. } => {});
+                        } else {
+                            assert_expression_path!(
+                                parser,
+                                parser.tree.get(*expression),
+                                expected_decorator
+                            );
+                        }
+                    });
+                });
+            }
+        }
+    }
+
+    /// Decorator static arguments should preserve generic lambda details.
     #[test]
     fn test_attach_decorator_with_static_arguments() {
         let mut test = TestParser::new(
@@ -1542,9 +1566,12 @@ function foo() { }",
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
+        // function foo() { }
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1);
+
+        // @foo<<T>(value: T) => T>()
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Decorator { expression } => {
@@ -1598,9 +1625,12 @@ function foo() { }",
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
+        // function foo() { }
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1);
+
+        // @joiful.string().guid().required()
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Decorator { expression } => {
@@ -1637,9 +1667,12 @@ function foo() { }",
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
+        // function foo() { }
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1);
+
+        // @foo<T>()
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Decorator { expression } => {
@@ -1666,6 +1699,8 @@ class Foo {}",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
+
+        // @f<<T>(v: T) => void>()
         let decorators = parser.tree.get_nodes::<Decorator>();
         assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
         let decorator_span = parser.tree.get_span(decorators[0]);
@@ -1673,9 +1708,13 @@ class Foo {}",
             parser.file.span_str(decorator_span),
             "@f<<T>(v: T) => void>()",
         );
+
+        // class Foo {}
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(annotations.len(), 1, "annotations: {annotations:?}");
+
+        // <<T>(v: T) => void
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Decorator { expression } => {
@@ -1707,8 +1746,8 @@ class Foo {}",
     /// Decorator annotations on accessors should attach to the member node.
     #[test]
     fn test_attach_decorator_to_accessor_member() {
-        // parse a class with decorator gated accessors
-        let input = r#"
+        let mut test = TestParser::new(
+            r#"
 class Box {
     @if(true)
     get value(): int32 {
@@ -1720,41 +1759,51 @@ class Box {
         let _ = next;
     }
 }
-"#;
-        let mut test_parser = TestParser::new(input);
-        let mut parser = test_parser.prepare();
-        parser.parse();
-
-        // locate the getter and setter members
-        let mut getter_id = None;
-        let mut setter_id = None;
-        for member_id in parser.tree.get_nodes::<Member>() {
-            // skip non method members
-            let Member::Method { signature, .. } = parser.tree.get(member_id) else {
-                continue;
-            };
-
-            // record accessor members
-            match signature.mode {
-                Some(FunctionMode::Getter) => getter_id = Some(member_id),
-                Some(FunctionMode::Setter) => setter_id = Some(member_id),
-                _ => {}
-            }
-        }
-
-        // confirm both accessors were parsed
-        let getter_id = getter_id.expect("expected getter member");
-        let setter_id = setter_id.expect("expected setter member");
-
-        // confirm decorators were attached to accessor members
-        assert!(
-            !parser.tree.get_annotations(getter_id.id).is_empty(),
-            "expected getter annotations"
+"#,
         );
-        assert!(
-            !parser.tree.get_annotations(setter_id.id).is_empty(),
-            "expected setter annotations"
-        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // class Box
+        assert_eq!(expressions.len(), 1);
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+                assert_eq!(members.len(), 2);
+
+                // get value(): int32
+                assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                    assert_eq!(signature.mode, Some(FunctionMode::Getter));
+                });
+                let getter_annotations = parser.tree.get_annotations(members[0].id);
+                assert_eq!(getter_annotations.len(), 1);
+                assert_node!(parser.tree, getter_annotations[0], Annotation::Decorator { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Call { left, dynamic_arguments, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "if");
+                            assert_eq!(dynamic_arguments.len(), 1);
+                        });
+                    });
+                });
+
+                // set value(next: int32)
+                assert_node!(parser.tree, members[1], Member::Method { signature, .. } => {
+                    assert_eq!(signature.mode, Some(FunctionMode::Setter));
+                });
+                let setter_annotations = parser.tree.get_annotations(members[1].id);
+                assert_eq!(setter_annotations.len(), 1);
+                assert_node!(parser.tree, setter_annotations[0], Annotation::Decorator { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Call { left, dynamic_arguments, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "if");
+                            assert_eq!(dynamic_arguments.len(), 1);
+                        });
+                    });
+                });
+            });
+        });
     }
 
     /// Decorator annotations on enum and its variants should be attached correctly.
@@ -1778,9 +1827,8 @@ export enum EventStatus {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
+        // @description("The status of an event.")
         assert_eq!(expressions.len(), 1);
-
-        // @description
         let enum_annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(enum_annotations.len(), 1);
         assert_node!(parser.tree, enum_annotations[0], Annotation::Decorator { node, position } => {
@@ -1878,7 +1926,7 @@ export enum EventStatus {
         let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish_annotations();
 
-        // locate the path expression for `foo.getParameters`
+        // foo.getParameters?.()
         let mut current = expr_id;
         let mut path_id = None;
         loop {
@@ -1895,8 +1943,8 @@ export enum EventStatus {
             }
         }
 
+        // foo /* trailing comment */
         let path_id = path_id.expect("expected a chained path expression");
-
         let annotations = parser.tree.get_annotations(path_id.id);
         assert_eq!(annotations.len(), 1);
         assert_node!(
@@ -1924,6 +1972,7 @@ export enum EventStatus {
         let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish_annotations();
 
+        // Promise.all(...).then(...)
         let mut current = expr_id;
         let mut member_id = None;
         loop {
@@ -1944,6 +1993,7 @@ export enum EventStatus {
             }
         }
 
+        // // TO DO -- END
         let member_id = member_id.expect("expected .then member");
         let annotations = parser.tree.get_annotations(member_id.id);
         assert_eq!(annotations.len(), 1);
@@ -1973,7 +2023,10 @@ Promise.all(writeIconFiles)",
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
+        // Promise.all(...); Promise.all(...)
         assert_eq!(expressions.len(), 2);
+
+        // blank between top level calls
         let mut blank_parent = None;
         for (node_id, annotations) in parser.tree.get_all_annotations() {
             let has_blank = annotations.iter().any(|annotation_id| {
@@ -1987,6 +2040,8 @@ Promise.all(writeIconFiles)",
                 break;
             }
         }
+
+        // second Promise.all(...)
         let blank_parent_id = blank_parent.expect("expected blank annotation");
         assert_eq!(blank_parent_id, expressions[1].id);
     }
@@ -2002,6 +2057,7 @@ Promise.all(writeIconFiles)",
         let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish_annotations();
 
+        // wow.omg!
         let mut current = expr_id;
         let mut path_id = None;
         loop {
@@ -2018,6 +2074,7 @@ Promise.all(writeIconFiles)",
             }
         }
 
+        // wow /* inline comment */
         let path_id = path_id.expect("expected a chained path expression");
         let annotations = parser.tree.get_annotations(path_id.id);
         assert_eq!(annotations.len(), 1);
@@ -2042,6 +2099,7 @@ Promise.all(writeIconFiles)",
         let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish_annotations();
 
+        // wow .omg
         let mut current = expr_id;
         loop {
             match parser.tree.get(current) {
@@ -2054,6 +2112,7 @@ Promise.all(writeIconFiles)",
             }
         }
 
+        // wow /* inline comment */
         let annotations = parser.tree.get_annotations(current.id);
         assert_eq!(annotations.len(), 1);
         assert_node!(
@@ -2077,6 +2136,7 @@ Promise.all(writeIconFiles)",
         let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish_annotations();
 
+        // a && b
         assert_node!(
             parser.tree,
             expr_id,
@@ -2106,10 +2166,13 @@ Promise.all(writeIconFiles)",
         let expr_id = parser.eat_expression(parser.options).unwrap();
         parser.finish_annotations();
 
+        // foo(a)
         assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 1);
             let argument_id = dynamic_arguments[0];
             let annotations = parser.tree.get_annotations(argument_id.id);
+
+            // /* first */ a
             let annotation_owner_id = if annotations.is_empty() {
                 let argument = parser.tree.get(argument_id);
                 let value_id = match argument {
@@ -2123,6 +2186,7 @@ Promise.all(writeIconFiles)",
                 argument_id.id
             };
 
+            // /* first */
             let annotations = parser.tree.get_annotations(annotation_owner_id);
             assert_eq!(annotations.len(), 1);
             assert_node!(
@@ -2331,6 +2395,7 @@ over multiple lines with trailing space    */",
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finish_annotations();
 
+        // let X = A && B
         assert_eq!(expressions.len(), 1);
 
         // A && B
@@ -2616,6 +2681,7 @@ struct Floof {
         })
     }
 
+    /// Nested namespace declarations should keep prefix comments on each level.
     #[test]
     fn test_attach_annotations_in_mixed_nested_declaration() {
         let mut test = TestParser::new(
@@ -2634,12 +2700,13 @@ export namespace Outer {
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finish_annotations();
 
-        // Outer
+        // Outer namespace
+        assert_eq!(expressions.len(), 1);
         assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
             // Outer comment
-            let annotations = parser.tree.get_annotations(expressions[0].id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            let outer_annotations = parser.tree.get_annotations(expressions[0].id);
+            assert_eq!(outer_annotations.len(), 1);
+            assert_node!(parser.tree, outer_annotations[0], Annotation::Comment { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_string!(parser, *string, "Outer comment");
@@ -2648,14 +2715,15 @@ export namespace Outer {
             });
 
             // Outer
-            assert_node!(parser.tree, *node, Declaration::Namespace { descriptor, expressions, .. } => {
+            assert_node!(parser.tree, *node, Declaration::Namespace { descriptor, expressions: outer_expressions, .. } => {
                 assert_string!(parser, descriptor.name.unwrap().string(), "Outer");
+                assert_eq!(outer_expressions.len(), 1);
 
                 // Middle comment
-                assert_eq!(expressions.len(), 1);
-                let annotations = parser.tree.get_annotations(expressions[0].id);
-                assert_eq!(annotations.len(), 1);
-                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                let middle_expression_id = outer_expressions[0];
+                let middle_annotations = parser.tree.get_annotations(middle_expression_id.id);
+                assert_eq!(middle_annotations.len(), 1);
+                assert_node!(parser.tree, middle_annotations[0], Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
                         assert_string!(parser, *string, "Middle comment");
@@ -2664,15 +2732,16 @@ export namespace Outer {
                 });
 
                 // Middle
-                assert_node!(parser.tree, expressions[0], Expression::Declaration(node) => {
-                    assert_node!(parser.tree, *node, Declaration::Namespace { descriptor, expressions, .. } => {
+                assert_node!(parser.tree, middle_expression_id, Expression::Declaration(node) => {
+                    assert_node!(parser.tree, *node, Declaration::Namespace { descriptor, expressions: middle_expressions, .. } => {
                         assert_string!(parser, descriptor.name.unwrap().string(), "Middle");
+                        assert_eq!(middle_expressions.len(), 1);
 
                         // Inner comment
-                        assert_eq!(expressions.len(), 1);
-                        let annotations = parser.tree.get_annotations(expressions[0].id);
-                        assert_eq!(annotations.len(), 1);
-                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        let inner_expression_id = middle_expressions[0];
+                        let inner_annotations = parser.tree.get_annotations(inner_expression_id.id);
+                        assert_eq!(inner_annotations.len(), 1);
+                        assert_node!(parser.tree, inner_annotations[0], Annotation::Comment { node, position } => {
                             assert_eq!(*position, AnnotationPosition::BlockPrefix);
                             assert_node!(parser.tree, *node, Comment { string, style } => {
                                 assert_string!(parser, *string, "Inner comment");
@@ -2682,10 +2751,10 @@ export namespace Outer {
                     });
                 });
             });
-
         });
     }
 
+    /// Successive labelled blocks should keep surrounding comments attached to the right nodes.
     #[test]
     fn test_attach_multiple_comments_around_expression_in_successive_blocks() {
         let mut test = TestParser::new(
@@ -2714,6 +2783,7 @@ export namespace Outer {
         let block = parser.eat_block().unwrap();
         parser.finish_annotations();
 
+        // { a: { .. } b: { .. } }
         assert_node!(parser.tree, block, Block { expressions, .. } => {
             assert_eq!(expressions.len(), 2);
 

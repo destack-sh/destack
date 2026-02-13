@@ -63,13 +63,15 @@ impl Parser {
                         self.bump(); // eat (
                         self.eat_newlines_maybe()?;
 
-                        let catch_pattern = self.with_options(
-                            self.options
-                                .not_in_position()
-                                .in_before_type()
-                                .in_before_block(),
-                            |parser| parser.eat_pattern(),
-                        )?;
+                        let catch_pattern_options = self
+                            .options
+                            .not_in_position()
+                            .in_before_type()
+                            .in_before_block();
+                        let old_options = self.swap_options(catch_pattern_options);
+                        let catch_pattern_result = self.eat_pattern();
+                        self.restore_options(old_options);
+                        let catch_pattern = catch_pattern_result?;
 
                         self.eat_newlines_maybe()?;
 
@@ -88,13 +90,15 @@ impl Parser {
                         self.eat_token(TokenType::CloseParenthesis)?;
                         (catch_pattern, catch_ty)
                     } else {
-                        let catch_pattern = self.with_options(
-                            self.options
-                                .not_in_position()
-                                .in_before_type()
-                                .in_before_block(),
-                            |parser| parser.eat_pattern(),
-                        )?;
+                        let catch_pattern_options = self
+                            .options
+                            .not_in_position()
+                            .in_before_type()
+                            .in_before_block();
+                        let old_options = self.swap_options(catch_pattern_options);
+                        let catch_pattern_result = self.eat_pattern();
+                        self.restore_options(old_options);
+                        let catch_pattern = catch_pattern_result?;
                         let catch_ty = if self.peek_colon_is() {
                             self.bump(); // eat :
                             self.eat_newlines_maybe()?;
@@ -144,9 +148,11 @@ impl Parser {
         }
         // try expression
         else {
-            let expression_id = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression(parser.options)
-            })?;
+            let expression_options = self.options.not_in_position();
+            let old_options = self.swap_options(expression_options);
+            let expression_result = self.eat_expression(self.options);
+            self.restore_options(old_options);
+            let expression_id = expression_result?;
             let try_id = self.tree.insert(
                 Expression::Try {
                     try_expression: expression_id,

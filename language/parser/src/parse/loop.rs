@@ -172,10 +172,11 @@ impl Parser {
 
             // iterator
             self.eat_newlines_maybe()?;
-            let iterator_id = self
-                .with_options(self.options.nested().in_before_block(), |parser| {
-                    parser.eat_expression(parser.options)
-                })?;
+            let iterator_options = self.options.nested().in_before_block();
+            let old_options = self.swap_options(iterator_options);
+            let iterator_result = self.eat_expression(self.options);
+            self.restore_options(old_options);
+            let iterator_id = iterator_result?;
 
             if in_parenthesis {
                 // close parenthesis
@@ -213,13 +214,15 @@ impl Parser {
 
         if self.is_keyword(Keyword::Using) {
             self.bump(); // eat using
-            let pattern = self.with_options(
-                self.options
-                    .not_in_position()
-                    .in_for_each()
-                    .in_before_block(),
-                |parser| parser.eat_pattern(),
-            )?;
+            let pattern_options = self
+                .options
+                .not_in_position()
+                .in_for_each()
+                .in_before_block();
+            let old_options = self.swap_options(pattern_options);
+            let pattern_result = self.eat_pattern();
+            self.restore_options(old_options);
+            let pattern = pattern_result?;
             Ok(ForEachBinding::Using {
                 asynchrony: using_asynchrony,
                 pattern,
@@ -247,13 +250,15 @@ impl Parser {
                 })
             } else {
                 // declaration forms keep binding-pattern parsing
-                let pattern = self.with_options(
-                    self.options
-                        .not_in_position()
-                        .in_for_each()
-                        .in_before_block(),
-                    |parser| parser.eat_pattern(),
-                )?;
+                let pattern_options = self
+                    .options
+                    .not_in_position()
+                    .in_for_each()
+                    .in_before_block();
+                let old_options = self.swap_options(pattern_options);
+                let pattern_result = self.eat_pattern();
+                self.restore_options(old_options);
+                let pattern = pattern_result?;
                 Ok(ForEachBinding::Pattern {
                     pattern,
                     declaration_kind,
@@ -309,9 +314,11 @@ impl Parser {
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_id = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression_parenthesized_maybe()
-            })?;
+            let condition_options = self.options.not_in_position();
+            let old_options = self.swap_options(condition_options);
+            let condition_result = self.eat_expression_parenthesized_maybe();
+            self.restore_options(old_options);
+            let condition_id = condition_result?;
 
             // while
             let while_id = self.tree.insert(
@@ -330,10 +337,11 @@ impl Parser {
             self.eat_keyword(Keyword::While)?;
 
             // condition
-            let condition_id = self
-                .with_options(self.options.not_in_position().in_before_block(), |parser| {
-                    parser.eat_expression_parenthesized_maybe()
-                })?;
+            let condition_options = self.options.not_in_position().in_before_block();
+            let old_options = self.swap_options(condition_options);
+            let condition_result = self.eat_expression_parenthesized_maybe();
+            self.restore_options(old_options);
+            let condition_id = condition_result?;
 
             // body
             let body_id = self.eat_block_or_statement()?;

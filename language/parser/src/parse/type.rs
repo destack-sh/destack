@@ -359,9 +359,11 @@ impl Parser {
                 if self.options.in_type_conditional_right {
                     value_options = value_options.in_type_conditional_right();
                 }
-                let value_id = self.with_options(value_options, |parser| {
-                    parser.eat_type_expression_with_optional_leading_binary_operator()
-                })?;
+                let old_options = self.swap_options(value_options);
+                let value_id_result =
+                    self.eat_type_expression_with_optional_leading_binary_operator();
+                self.restore_options(old_options);
+                let value_id = value_id_result?;
                 if let Some(name) = descriptor.name.as_ref() {
                     self.apply_intrinsic_type_literal(name, value_id);
                 }
@@ -391,9 +393,10 @@ impl Parser {
                 if self.options.in_type_conditional_right {
                     right_options = right_options.in_type_conditional_right();
                 }
-                let right = self.with_options(right_options, |parser| {
-                    parser.eat_type_expression_with_optional_leading_binary_operator()
-                })?;
+                let old_options = self.swap_options(right_options);
+                let right_result = self.eat_type_expression_with_optional_leading_binary_operator();
+                self.restore_options(old_options);
+                let right = right_result?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
                 } else if kind == TypeKind::Nominal {
@@ -411,9 +414,10 @@ impl Parser {
             if self.options.in_type_conditional_right {
                 right_options = right_options.in_type_conditional_right();
             }
-            let right = self.with_options(right_options, |parser| {
-                parser.eat_type_expression_with_optional_leading_binary_operator()
-            })?;
+            let old_options = self.swap_options(right_options);
+            let right_result = self.eat_type_expression_with_optional_leading_binary_operator();
+            self.restore_options(old_options);
+            let right = right_result?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
             } else if kind == TypeKind::Nominal {
@@ -656,9 +660,11 @@ impl Parser {
         }
 
         // positional arguments
-        let arguments = self.with_options(self.options.nested().not_in_position(), |parser| {
-            parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
-        })?;
+        let argument_options = self.options.nested().not_in_position();
+        let old_options = self.swap_options(argument_options);
+        let arguments_result = self.eat_positional_arguments_body(TokenType::CloseParenthesis);
+        self.restore_options(old_options);
+        let arguments = arguments_result?;
 
         // close argument list
         self.eat_newlines_maybe()?;
@@ -702,9 +708,11 @@ impl Parser {
         self.eat_keyword(Keyword::Import)?;
 
         // arguments
-        let arguments = self.with_options(self.options.nested().not_in_position(), |parser| {
-            parser.eat_type_import_arguments()
-        })?;
+        let argument_options = self.options.nested().not_in_position();
+        let old_options = self.swap_options(argument_options);
+        let arguments_result = self.eat_type_import_arguments();
+        self.restore_options(old_options);
+        let arguments = arguments_result?;
 
         // target
         if arguments.is_empty() {
@@ -1122,9 +1130,10 @@ impl Parser {
         } else {
             self.options.in_super_type().not_in_new_receiver()
         };
-        let types = self.with_options(options, |parser| {
-            parser.eat_super_type_list(terminators, enforce_class_extends_head)
-        })?;
+        let old_options = self.swap_options(options);
+        let types_result = self.eat_super_type_list(terminators, enforce_class_extends_head);
+        self.restore_options(old_options);
+        let types = types_result?;
 
         // close the optional parenthesized type list
         if is_parenthesized_type_list {

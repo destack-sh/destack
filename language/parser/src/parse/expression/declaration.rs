@@ -241,15 +241,22 @@ impl Parser {
         start: &ParserMark,
     ) -> ParseResult<DescriptorHead> {
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
+        let mut decorators = Vec::new();
 
         // decorators parse as expressions only
         if self.options.in_decorator {
-            return Ok(DescriptorHead::Descriptor(descriptor));
+            return Ok(DescriptorHead::Descriptor {
+                descriptor,
+                decorators,
+            });
         }
 
         // declaration modifiers only start on identifiers
         if !self.peek_is(TokenType::Identifier) {
-            return Ok(DescriptorHead::Descriptor(descriptor));
+            return Ok(DescriptorHead::Descriptor {
+                descriptor,
+                decorators,
+            });
         }
 
         // check for a modifier keyword or a global or module identifier
@@ -279,7 +286,10 @@ impl Parser {
             && self.is_module_identifier_at(pos);
 
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
-            return Ok(DescriptorHead::Descriptor(descriptor));
+            return Ok(DescriptorHead::Descriptor {
+                descriptor,
+                decorators,
+            });
         }
 
         // export modifier
@@ -339,9 +349,10 @@ impl Parser {
 
             descriptor.export = export_mode;
 
-            // allow decorators after export modifier
+            // parse decorators after export so descriptor modifiers still parse correctly
             if self.peek_is(TokenType::At) {
-                self.eat_decorators_prefix_maybe()?;
+                let mut export_decorators = self.eat_decorators_prefix_collect_maybe()?;
+                decorators.append(&mut export_decorators);
             }
         }
 
@@ -461,7 +472,10 @@ impl Parser {
             return Ok(DescriptorHead::Expression(expression_id));
         }
 
-        Ok(DescriptorHead::Descriptor(descriptor))
+        Ok(DescriptorHead::Descriptor {
+            descriptor,
+            decorators,
+        })
     }
 
     /// Check whether a token index starts a declare target keyword.

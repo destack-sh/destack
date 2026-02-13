@@ -722,9 +722,10 @@ impl Parser {
             vec![]
         } else {
             let element_options = self.options.not_in_position().not_in_left_precedence();
-            self.with_options(element_options, |parser| {
-                parser.eat_sequence_literal_body(None, TokenType::CloseBracket)
-            })?
+            let old_options = self.swap_options(element_options);
+            let elements_result = self.eat_sequence_literal_body(None, TokenType::CloseBracket);
+            self.restore_options(old_options);
+            elements_result?
         };
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseBracket)?;
@@ -745,21 +746,24 @@ impl Parser {
         // track whether we expect an element (at start or after comma)
         let mut expect_element = first_element.is_none();
         while self.has_more_tokens() {
-            // allow trailing newlines before the closing token
-            if self.peek_is(TokenType::Newline)
-                && self.is_token_after_newlines(self.pos(), close_token)
-            {
+            let cursor = self.normalize_to_scanner_cursor();
+            let token_type = cursor.token_type;
+
+            // stop at the closing token (trailing commas are allowed, no hole)
+            if token_type == close_token {
+                if let Some(last_element) = elements.last().copied() {
+                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                        cursor.index,
+                        cursor.skipped_newline_count,
+                        last_element.id,
+                    );
+                    self.attach_inline_trailing_annotations_for_current_token(last_element.id);
+                }
                 break;
             }
-            // stop at closing parenthesis (trailing commas are allowed, no hole)
-            if self.peek_token_type() == close_token {
-                break;
-            }
-            // consume comma separators, including newline then comma
-            let has_comma_separator = self.peek_comma_is()
-                || self.peek_is(TokenType::Newline)
-                    && self.is_token_after_newlines(self.pos(), TokenType::Comma);
-            if has_comma_separator {
+
+            // consume comma separators
+            if token_type == TokenType::Comma {
                 let start = self.mark_span();
 
                 // leading hole: if we expected an element but got separator instead
@@ -784,18 +788,18 @@ impl Parser {
                 continue;
             }
 
-            // consume newline separators
-            if self.peek_is(TokenType::Newline) {
-                self.bump(); // eat newline
-                self.eat_newlines_maybe()?;
-                expect_element = true;
-                continue;
-            }
-
             // keep eating elements (positional/spread only)
+            let element_token_index = cursor.index;
+            let element_skipped_newline_count = cursor.skipped_newline_count;
             let element = self
                 .eat_positional_argument()
                 .for_node_type(NodeType::Argument)?;
+            self.attach_inline_expression_leading_annotations_for_token(
+                element_token_index,
+                element_skipped_newline_count,
+                element.id,
+            );
+            self.attach_inline_trailing_annotations_for_current_token(element.id);
             elements.push(element);
             expect_element = false;
         }
@@ -1164,11 +1168,11 @@ impl Parser {
         let static_arguments = if path.is_some()
             && (self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft))
         {
-            Some(
-                self.with_options(self.options.not_in_tree_literal(), |parser| {
-                    parser.eat_static_arguments()
-                })?,
-            )
+            let static_options = self.options.not_in_tree_literal();
+            let old_options = self.swap_options(static_options);
+            let static_arguments_result = self.eat_static_arguments();
+            self.restore_options(old_options);
+            Some(static_arguments_result?)
         } else {
             None
         };
@@ -1189,10 +1193,11 @@ impl Parser {
                     if self.peek_is(TokenType::Divide) || self.peek_is(TokenType::GreaterThan) {
                         break;
                     }
-                    let argument = self.with_options(
-                        self.options.not_in_position().in_tree_literal(),
-                        |parser| parser.eat_tree_literal_argument(),
-                    )?;
+                    let argument_options = self.options.not_in_position().in_tree_literal();
+                    let old_options = self.swap_options(argument_options);
+                    let argument_result = self.eat_tree_literal_argument();
+                    self.restore_options(old_options);
+                    let argument = argument_result?;
                     arguments.push(argument);
                     self.eat_newlines_maybe()?;
                 }
@@ -1284,13 +1289,15 @@ impl Parser {
 
                     // keep eating child elements
                     // NOTE #Robustness: uses statement position so {expr} parses as block (expression container)
-                    let element = self.with_options(
-                        self.options
-                            .not_in_position()
-                            .in_tree_literal()
-                            .in_statement_position(),
-                        |parser| parser.eat_tree_argument(),
-                    )?;
+                    let element_options = self
+                        .options
+                        .not_in_position()
+                        .in_tree_literal()
+                        .in_statement_position();
+                    let old_options = self.swap_options(element_options);
+                    let element_result = self.eat_tree_argument();
+                    self.restore_options(old_options);
+                    let element = element_result?;
                     elements.push(element);
                     self.skip_tree_whitespace()?; // skip whitespace-only tree content
                 }

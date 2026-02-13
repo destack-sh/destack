@@ -85,11 +85,12 @@ impl Parser {
             else if self.peek_is(TokenType::OpenParenthesis) {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
-                let fields = self
-                    .with_options(self.options.nested(), |parser| {
-                        parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
-                    })
-                    .for_node_type(NodeType::Pattern)?;
+                let field_options = self.options.nested();
+                let old_options = self.swap_options(field_options);
+                let fields_result =
+                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis);
+                self.restore_options(old_options);
+                let fields = fields_result.for_node_type(NodeType::Pattern)?;
                 let pattern = Pattern::Tuple { fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.insert(pattern, self.get_span_from(&start))
@@ -98,11 +99,12 @@ impl Parser {
             else if self.peek_is(TokenType::OpenBrace) {
                 self.bump(); // eat open brace
                 self.eat_newlines_maybe()?;
-                let fields = self
-                    .with_options(self.options.nested(), |parser| {
-                        parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
-                    })
-                    .for_node_type(NodeType::Pattern)?;
+                let field_options = self.options.nested();
+                let old_options = self.swap_options(field_options);
+                let fields_result =
+                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace);
+                self.restore_options(old_options);
+                let fields = fields_result.for_node_type(NodeType::Pattern)?;
                 let pattern = Pattern::Object { fields };
                 self.eat_token(TokenType::CloseBrace)?;
                 self.tree.insert(pattern, self.get_span_from(&start))
@@ -111,11 +113,12 @@ impl Parser {
             else if self.peek_is(TokenType::OpenBracket) {
                 self.bump(); // eat open bracket
                 self.eat_newlines_maybe()?;
-                let fields = self
-                    .with_options(self.options.nested(), |parser| {
-                        parser.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)
-                    })
-                    .for_node_type(NodeType::Pattern)?;
+                let field_options = self.options.nested();
+                let old_options = self.swap_options(field_options);
+                let fields_result =
+                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket);
+                self.restore_options(old_options);
+                let fields = fields_result.for_node_type(NodeType::Pattern)?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
                 self.tree
@@ -164,11 +167,11 @@ impl Parser {
             {
                 let (name, name_span) = self.eat_binding_identifier_with_span()?;
                 self.bump(); // eat colon
-                let inner_pattern_id = self
-                    .with_options(self.options.in_static().in_before_block(), |parser| {
-                        parser.eat_pattern()
-                    })
-                    .for_node_type(NodeType::Pattern)?;
+                let inner_pattern_options = self.options.in_static().in_before_block();
+                let old_options = self.swap_options(inner_pattern_options);
+                let inner_pattern_result = self.eat_pattern();
+                self.restore_options(old_options);
+                let inner_pattern_id = inner_pattern_result.for_node_type(NodeType::Pattern)?;
                 let pattern_id = self.tree.insert(
                     Pattern::Binding {
                         mutability,
@@ -315,11 +318,11 @@ impl Parser {
             let mut patterns: Vec<LocalNodeId<Pattern>> = vec![pattern_id];
             while self.peek_is(TokenType::ElementwiseOr) {
                 self.bump(); // eat '|'
-                let field_pattern_id = self
-                    .with_options(self.options.in_union_pattern(), |parser| {
-                        parser.eat_pattern()
-                    })
-                    .for_node_type(NodeType::Pattern)?;
+                let union_options = self.options.in_union_pattern();
+                let old_options = self.swap_options(union_options);
+                let field_pattern_result = self.eat_pattern();
+                self.restore_options(old_options);
+                let field_pattern_id = field_pattern_result.for_node_type(NodeType::Pattern)?;
                 patterns.push(field_pattern_id);
             }
             let pattern = Pattern::Union { patterns };
