@@ -16,11 +16,7 @@ pub fn builtin_lib_name_for_types_package(package_name: &str) -> Option<String> 
 
     // map declared types package names
     for lib in builtin_libs() {
-        if lib
-            .types_package_names
-            .iter()
-            .any(|name| package_name == *name)
-        {
+        if lib.types_package_names.contains(&package_name) {
             return Some(lib.name.to_string());
         }
     }

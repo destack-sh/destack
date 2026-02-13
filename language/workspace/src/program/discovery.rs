@@ -452,7 +452,7 @@ fn resolve_entry_target_to_candidate<'a>(
 
     candidates
         .iter()
-        .find(|candidate| target_stems.iter().any(|stem| candidate.stem_key == *stem))
+        .find(|candidate| target_stems.contains(&candidate.stem_key))
 }
 
 /// Normalize one package entry target into an absolute path candidate.

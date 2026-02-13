@@ -11,6 +11,7 @@ mod profile;
 mod runtime;
 mod target;
 mod tsconfig;
+mod typescript;
 mod watch;
 
 pub use cache::*;
@@ -26,4 +27,5 @@ pub use profile::*;
 pub use runtime::*;
 pub use target::*;
 pub use tsconfig::*;
+pub use typescript::*;
 pub use watch::*;

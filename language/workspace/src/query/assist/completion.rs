@@ -1027,9 +1027,7 @@ pub fn completions(
     }
 
     // apply fuzzy matching to filter and rank results
-    let ranked = filter_and_rank_completions(results, token.as_ref());
-
-    ranked
+    filter_and_rank_completions(results, token.as_ref())
 }
 
 /// Complete members of a type (after `.`).
@@ -1355,7 +1353,7 @@ fn collect_member_completions_from_ast(
 fn member_key_name_ast(ast: &crate::ModuleAst, key: &ast::Key) -> Option<String> {
     match key {
         ast::Key::Name(name) => Some(ast.strings.get(name.string()).to_string()),
-        ast::Key::Private(name) => Some(format!("#{}", ast.strings.get(*name).to_string())),
+        ast::Key::Private(name) => Some(format!("#{}", &*ast.strings.get(*name))),
         ast::Key::NamedExpression { name, .. } => Some(ast.strings.get(*name).to_string()),
         ast::Key::Expression(_) => None,
     }
