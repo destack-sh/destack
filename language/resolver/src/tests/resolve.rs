@@ -990,6 +990,124 @@ fn test_resolve_self_package_name_with_exports_does_not_fallback_to_main() {
     ));
 }
 
+/// Prefer `@types` package declarations for type-conditioned bare package resolution.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_types_condition_prefers_types_package_fallback() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/index.ts", ""),
+        (
+            "/repo/node_modules/react/package.json",
+            r#"{"name":"react","exports":{".":{"default":"./index.js"}}}"#,
+        ),
+        ("/repo/node_modules/react/index.js", ""),
+        (
+            "/repo/node_modules/@types/react/package.json",
+            r#"{"name":"@types/react","types":"./index.d.ts"}"#,
+        ),
+        (
+            "/repo/node_modules/@types/react/index.d.ts",
+            "export declare function useCallback(): void;",
+        ),
+    ]));
+
+    let resolver = Resolver::blank(
+        fs,
+        ResolveOptions {
+            conditions: vec!["types".into(), "import".into()],
+            ..ResolveOptions::default()
+        },
+    );
+
+    let resolution = resolver
+        .resolve("/repo/src", "react")
+        .map(|r| r.full_path());
+    assert_eq!(
+        resolution,
+        Ok(std::path::PathBuf::from(
+            "/repo/node_modules/@types/react/index.d.ts",
+        )),
+    );
+}
+
+/// Prefer scoped `@types` fallback package declarations for type-conditioned bare package resolution.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_types_condition_prefers_scoped_types_package_fallback() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/index.ts", ""),
+        (
+            "/repo/node_modules/@babel/core/package.json",
+            r#"{"name":"@babel/core","exports":{".":{"default":"./lib/index.js"}}}"#,
+        ),
+        ("/repo/node_modules/@babel/core/lib/index.js", ""),
+        (
+            "/repo/node_modules/@types/babel__core/package.json",
+            r#"{"name":"@types/babel__core","types":"./index.d.ts"}"#,
+        ),
+        (
+            "/repo/node_modules/@types/babel__core/index.d.ts",
+            "export interface PluginObj {}",
+        ),
+    ]));
+
+    let resolver = Resolver::blank(
+        fs,
+        ResolveOptions {
+            conditions: vec!["types".into(), "import".into()],
+            ..ResolveOptions::default()
+        },
+    );
+
+    let resolution = resolver
+        .resolve("/repo/src", "@babel/core")
+        .map(|r| r.full_path());
+    assert_eq!(
+        resolution,
+        Ok(std::path::PathBuf::from(
+            "/repo/node_modules/@types/babel__core/index.d.ts",
+        )),
+    );
+}
+
+/// Keep runtime package resolution when no `@types` fallback package exists.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_types_condition_falls_back_to_runtime_package_without_types_package() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/index.ts", ""),
+        (
+            "/repo/node_modules/react/package.json",
+            r#"{"name":"react","main":"./index.js"}"#,
+        ),
+        ("/repo/node_modules/react/index.js", ""),
+    ]));
+
+    let resolver = Resolver::blank(
+        fs,
+        ResolveOptions {
+            conditions: vec!["types".into(), "import".into()],
+            ..ResolveOptions::default()
+        },
+    );
+
+    let resolution = resolver
+        .resolve("/repo/src", "react")
+        .map(|r| r.full_path());
+    assert_eq!(
+        resolution,
+        Ok(std::path::PathBuf::from(
+            "/repo/node_modules/react/index.js",
+        )),
+    );
+}
+
 #[cfg(not(target_os = "windows"))] // MemoryFS's path separator is always `/` so the test will not pass in windows.
 mod windows {
     use crate::{ResolveOptions, Resolver};

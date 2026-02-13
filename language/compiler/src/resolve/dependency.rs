@@ -135,7 +135,14 @@ impl Compiler {
     ) -> Option<GlobalSymbolId> {
         // walk export spaces in priority order
         for space in order.spaces() {
-            let Some(export) = exports.get(&(*space, key)) else {
+            let export = exports.get(&(*space, key)).or_else(|| {
+                if *space == SymbolSpace::Type || *space == SymbolSpace::Value {
+                    return exports.get(&(SymbolSpace::TypeValue, key));
+                }
+
+                None
+            });
+            let Some(export) = export else {
                 continue;
             };
 
@@ -1309,12 +1316,29 @@ impl Compiler {
         targets: ModuleResolution,
         fallback: ModuleTarget,
     ) -> ModuleTarget {
-        // declaration modules should prefer type targets when resolving imported symbols
-        if kind == DependencyKind::Value && module.language_type.is_declaration() {
+        // declaration and typescript modules should prefer declaration targets for symbol lookup
+        if kind == DependencyKind::Value
+            && (module.language_type.is_declaration() || module.language_type.is_typescript())
+        {
             return targets.ty.or(targets.value).unwrap_or(fallback);
         }
 
         fallback
+    }
+
+    /// Select a fallback target for default import symbol lookups.
+    fn fallback_target_for_default_dependency(
+        &self,
+        kind: DependencyKind,
+        symbol_target: ModuleTarget,
+        resolved_target: ModuleTarget,
+    ) -> Option<ModuleTarget> {
+        // value lookups may retry the runtime target after declaration-symbol lookups
+        if kind == DependencyKind::Value && symbol_target != resolved_target {
+            return Some(resolved_target);
+        }
+
+        None
     }
 
     /// Resolve the namespace symbol for a target module.
@@ -1658,10 +1682,16 @@ impl Compiler {
             } => Ok(target_module
                 .for_kind(DependencyKind::Value)
                 .map(ExportAssignmentTarget::Module)),
-            DependencyItem::Local { target_symbol, .. } => {
-                // export = localSymbol: the target could be a namespace
-                Ok(Some(ExportAssignmentTarget::Namespace(*target_symbol)))
-            }
+            DependencyItem::Local { target_symbol, .. } => self
+                .resolve_export_assignment_target_for_local_symbol(
+                    module_id,
+                    profile,
+                    dir,
+                    tree,
+                    scope_id,
+                    *target_symbol,
+                    cache,
+                ),
             DependencyItem::Value { value, .. } => self.resolve_export_assignment_value_target(
                 module_id, profile, dir, tree, scope_id, *value, cache,
             ),
@@ -1669,6 +1699,39 @@ impl Compiler {
         }
     }
 
+    /// Resolve an export assignment target from a local dependency symbol.
+    fn resolve_export_assignment_target_for_local_symbol(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        scope_id: LocalScopeId,
+        target_symbol: GlobalSymbolId,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
+    ) -> ResolveResult<Option<ExportAssignmentTarget>> {
+        // prefer import alias redirects for `export = alias` targets
+        let symbols = dir.symbols.read();
+        let symbol = symbols.get_symbol(target_symbol.local_id);
+        let symbol_name = symbol.name();
+        drop(symbols);
+
+        if let Some(symbol_name) = symbol_name
+            && let Some(redirect) = self.find_import_redirect_for_name(
+                module_id,
+                profile,
+                tree,
+                scope_id,
+                symbol_name,
+                cache.as_deref_mut(),
+            )?
+        {
+            return Ok(Some(ExportAssignmentTarget::Module(redirect)));
+        }
+
+        // otherwise the assignment points at a local namespace-like symbol
+        Ok(Some(ExportAssignmentTarget::Namespace(target_symbol)))
+    }
     /// Resolve an export assignment target from a value expression.
     fn resolve_export_assignment_value_target(
         &self,
@@ -2031,6 +2094,16 @@ impl Compiler {
                 }
             }
         }
+
+        // declaration export assignments may expose members through value types
+        // this path only runs for `export =` namespace-target lookups
+        if kind == DependencyKind::Value && module.language_type.is_declaration() {
+            let resolved = Some(namespace_symbol);
+            if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
+                cache.namespace_symbols.insert(cache_key, resolved);
+            }
+            return Ok(resolved);
+        }
         if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
             cache.namespace_symbols.insert(cache_key, None);
         }
@@ -2116,6 +2189,7 @@ impl Compiler {
                                 module,
                                 item_id.into_global_any(module.id),
                                 remote_symbol_target,
+                                None,
                                 profile,
                                 *kind,
                                 origin_symbol,
@@ -2136,6 +2210,11 @@ impl Compiler {
                                 module,
                                 item_id.into_global_any(module.id),
                                 remote_symbol_target,
+                                self.fallback_target_for_default_dependency(
+                                    *kind,
+                                    remote_symbol_target,
+                                    remote_target,
+                                ),
                                 profile,
                                 *kind,
                                 origin_symbol,
@@ -2301,6 +2380,7 @@ impl Compiler {
         module: &Module,
         node: GlobalNodeIdAny,
         remote_target: ModuleTarget,
+        fallback_remote_target: Option<ModuleTarget>,
         profile: ProfileId,
         kind: DependencyKind,
         origin_symbol: Option<GlobalSymbolId>,
@@ -2320,7 +2400,24 @@ impl Compiler {
             cache.as_deref_mut(),
         );
 
-        // only fall back when a module target is missing the symbol
+        // retry against one explicit fallback target first
+        if let Err(ResolveError::MissingSymbol { .. }) = &resolved
+            && let Some(fallback_remote_target) = fallback_remote_target
+            && fallback_remote_target != remote_target
+        {
+            return self.resolve_remote_item_symbol_result_for_target(
+                module,
+                node,
+                fallback_remote_target,
+                profile,
+                kind,
+                origin_symbol,
+                key,
+                cache,
+            );
+        }
+
+        // only fall back to module bindings when a module target is missing the symbol
         if let Err(ResolveError::MissingSymbol { .. }) = &resolved
             && matches!(remote_target, ModuleTarget::Module(_))
             && let Some(target_specifier) = target_specifier

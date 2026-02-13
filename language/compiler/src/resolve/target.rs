@@ -743,6 +743,42 @@ import { Assert, AssertionError } from 'assert/strict';
         test.compile_check_clean();
     }
 
+    /// Resolve named imports through `export =` module-binding aliases.
+    #[test]
+    fn test_module_binding_named_import_through_export_assignment_alias() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "decl.d.ts",
+            r#"
+declare module "path" {
+    namespace path {
+        interface PlatformPath {
+            readonly sep: string;
+        }
+    }
+    const path: path.PlatformPath;
+    export = path;
+}
+
+declare module "node:path" {
+    import path = require("path");
+    export = path;
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import "./decl.d.ts";
+import { sep } from "node:path";
+
+const value = sep;
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
     /// Resolve node builtin subpath imports from ambient lib module bindings.
     #[test]
     fn test_module_binding_node_builtin_subpath_import() {
@@ -757,8 +793,7 @@ assert.ok(true);
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve node builtin named exports from ambient lib module bindings.
@@ -776,9 +811,7 @@ randomUUID();
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve parent-directory imports that target an index module.
@@ -806,9 +839,7 @@ getCompilingSchema();
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve current-directory imports that target an index module.
@@ -831,9 +862,7 @@ SchemaEnv;
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve default imports from CommonJS `module.exports` assignments.
@@ -860,9 +889,7 @@ buildValue();
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve default imports from CommonJS bracket export assignments.
@@ -889,9 +916,7 @@ buildValue() satisfies number;
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve the last CommonJS export assignment as the default import.
@@ -919,9 +944,7 @@ selected();
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve default imports from chained CommonJS export assignments.
@@ -950,9 +973,7 @@ selected();
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve default imports from CommonJS modules without explicit export assignments.
@@ -975,9 +996,7 @@ cjs.answer;
         );
 
         test.resolve_module(main_module_id);
-        test.compile_with_timeout(Duration::from_secs(30));
-        test.check_no_diagnostic_code("ER101");
-        test.check_no_diagnostic_code("ER200");
+        test.compile_check_clean();
     }
 
     /// Resolve CommonJS default imports when `module` is declared via global augmentation.
@@ -1011,6 +1030,125 @@ import "./globals.d.ts";
 import buildValue from "./cjs";
 
 buildValue() satisfies number;
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Resolve TypeScript value import symbols from declaration companions.
+    #[test]
+    fn test_resolve_typescript_value_import_prefers_declaration_symbols() {
+        let test = TestProgram::memory_sequential_with_prelude();
+        test.add_module(
+            "react.js",
+            r#"
+module.exports = {};
+"#,
+        );
+        test.add_module(
+            "react.d.ts",
+            r#"
+export declare function useCallback(): void;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import { useCallback } from "./react.js";
+
+useCallback();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Report unresolved declaration imports when skipLibCheck is disabled.
+    #[test]
+    fn test_resolve_declaration_unresolved_module_without_skip_lib_check_reports_error() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "types.d.ts",
+            r#"
+import type { Missing } from "missing-package";
+
+export interface Value {
+    item: Missing;
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import "./types.d.ts";
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_has_diagnostic("ER200");
+    }
+
+    /// Suppress unresolved declaration imports when skipLibCheck is enabled.
+    #[test]
+    fn test_resolve_declaration_unresolved_module_with_skip_lib_check_skips_error() {
+        let test = TestProgram::memory_sequential();
+        test.add_dsconfig(
+            r#"
+{ "compilerOptions": { "skipLibCheck": true } }
+"#,
+        );
+        test.add_module(
+            "types.d.ts",
+            r#"
+import type { Missing } from "missing-package";
+
+export interface Value {
+    item: Missing;
+}
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import "./types.d.ts";
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Suppress dependency declaration unresolved-module diagnostics when skipLibCheck is enabled.
+    #[test]
+    fn test_resolve_dependency_declaration_unresolved_module_with_skip_lib_check_skips_error() {
+        let test = TestProgram::memory_sequential();
+        test.add_dsconfig(
+            r#"
+{ "compilerOptions": { "skipLibCheck": true } }
+"#,
+        );
+        test.add_file(
+            "node_modules/pkg/package.json",
+            r#"{ "name": "pkg", "types": "index.d.ts" }"#,
+        );
+        test.add_module(
+            "node_modules/pkg/index.d.ts",
+            r#"
+import type { Missing } from "missing-package";
+
+export type Value = Missing;
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import type { Value } from "./node_modules/pkg/index.d.ts";
+
+export type RootValue = Value;
 "#,
         );
 

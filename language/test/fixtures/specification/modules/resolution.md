@@ -355,3 +355,45 @@ module.exports = {};
   }
 }
 ```
+
+### resolves named imports through export assignment alias chains
+
+> Module binding aliases that use `export =` should still resolve named imports from the final declaration target.
+
+```ts:decl.d.ts
+declare module "path" {
+    const path: {
+        readonly sep: string;
+    };
+    export = path;
+}
+
+declare module "node:path" {
+    import path = require("path");
+    export = path;
+}
+```
+
+```ts:main.ts
+import "./decl.d.ts";
+import { sep } from "node:path";
+
+sep;
+```
+
+### resolves typescript value imports through declaration companions
+> TypeScript value imports from `.js` specifiers should resolve symbols from the `.d.ts` companion when present.
+
+```js:react.js
+module.exports = {};
+```
+
+```ts:react.d.ts
+export declare function useCallback(): void;
+```
+
+```ts:main.ts
+import { useCallback } from "./react.js";
+
+useCallback();
+```
