@@ -1,7 +1,8 @@
 use destack_base::StringId;
 use destack_dir::{
-    Argument, DependencyKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree,
-    Path, ScalarLiteral, StaticKey, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Argument, DependencyKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
+    ModuleResolution, ModuleTarget, NodeTree, Path, ScalarLiteral, StaticKey, SymbolKind,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{
@@ -156,6 +157,7 @@ impl Compiler {
                 &symbols,
                 scope_cache,
             ) {
+                // resolve namespace members directly when the local scope has the full path
                 Ok((resolved_id, None)) => {
                     return Ok(Some(Expression::GlobalReference {
                         path: path.clone(),
@@ -163,23 +165,96 @@ impl Compiler {
                         target_symbol: resolved_id,
                     }));
                 }
+                // build a member chain when only a path prefix resolved
                 Ok((resolved_id, Some(remaining))) => {
-                    let resolved_path =
-                        path.slice(0..path.segments.len() - remaining.segments.len());
-                    let root_expr = Expression::GlobalReference {
-                        path: resolved_path,
-                        static_arguments: None,
-                        target_symbol: resolved_id,
-                    };
-                    return Ok(Some(self.build_member_chain(
-                        expression_id,
-                        root_expr,
-                        &remaining,
-                        static_arguments,
-                        tree,
-                    )));
+                    // if local namespace lookup consumed no member segments, retry via module exports
+                    if remaining.segments.len() == remaining_path.segments.len()
+                        && let Some((export_symbol, export_remaining)) = self
+                            .resolve_global_namespace_member_via_exports(
+                                &target_module,
+                                profile_id,
+                                &remaining_path,
+                                space_order,
+                            )?
+                    {
+                        let resolved_path =
+                            path.slice(0..path.segments.len() - export_remaining.segments.len());
+                        if export_remaining.segments.is_empty() {
+                            return Ok(Some(Expression::GlobalReference {
+                                path: resolved_path,
+                                static_arguments,
+                                target_symbol: export_symbol,
+                            }));
+                        }
+
+                        let root_expr = Expression::GlobalReference {
+                            path: resolved_path,
+                            static_arguments: None,
+                            target_symbol: export_symbol,
+                        };
+                        return Ok(Some(self.build_member_chain(
+                            expression_id,
+                            root_expr,
+                            &export_remaining,
+                            static_arguments,
+                            tree,
+                        )));
+                    }
+                    // build regular global reference member chain
+                    else {
+                        let resolved_path =
+                            path.slice(0..path.segments.len() - remaining.segments.len());
+                        let root_expr = Expression::GlobalReference {
+                            path: resolved_path,
+                            static_arguments: None,
+                            target_symbol: resolved_id,
+                        };
+                        return Ok(Some(self.build_member_chain(
+                            expression_id,
+                            root_expr,
+                            &remaining,
+                            static_arguments,
+                            tree,
+                        )));
+                    }
                 }
-                Err(e) => return Err(e),
+                // fall back to module exports for export-as-namespace alias members
+                Err(error @ ResolveError::MissingSymbol { .. }) => {
+                    if let Some((resolved_id, remaining)) = self
+                        .resolve_global_namespace_member_via_exports(
+                            &target_module,
+                            profile_id,
+                            &remaining_path,
+                            space_order,
+                        )?
+                    {
+                        let resolved_path =
+                            path.slice(0..path.segments.len() - remaining.segments.len());
+                        if remaining.segments.is_empty() {
+                            return Ok(Some(Expression::GlobalReference {
+                                path: resolved_path,
+                                static_arguments,
+                                target_symbol: resolved_id,
+                            }));
+                        }
+
+                        let root_expr = Expression::GlobalReference {
+                            path: resolved_path,
+                            static_arguments: None,
+                            target_symbol: resolved_id,
+                        };
+                        return Ok(Some(self.build_member_chain(
+                            expression_id,
+                            root_expr,
+                            &remaining,
+                            static_arguments,
+                            tree,
+                        )));
+                    }
+
+                    return Err(error);
+                }
+                Err(error) => return Err(error),
             }
         }
 
@@ -199,6 +274,44 @@ impl Compiler {
             static_arguments,
             tree,
         )))
+    }
+
+    /// Resolve a global namespace member through module exports.
+    fn resolve_global_namespace_member_via_exports(
+        &self,
+        module: &Module,
+        profile_id: ProfileId,
+        path: &Path,
+        space_order: SymbolSpaceOrder,
+    ) -> ResolveResult<Option<(GlobalSymbolId, Path)>> {
+        // only declaration modules support export-as-namespace fallback
+        if !module.language_type.is_declaration() {
+            return Ok(None);
+        }
+
+        // no member path means there is nothing to resolve through exports
+        let Some(first_segment) = path.first_segment() else {
+            return Ok(None);
+        };
+
+        // look up the first segment through the full export resolution chain
+        let key = StaticKey::Name(first_segment);
+        let anchor = module.dir_base().anchor_node.into_global(module.id);
+        let Some(resolved_symbol) = self.resolve_export_symbol_for_target(
+            module.id,
+            anchor,
+            ModuleTarget::Module(module.id),
+            profile_id,
+            space_order,
+            key,
+        )?
+        else {
+            return Ok(None);
+        };
+
+        // keep the unresolved tail for member-chain building
+        let remaining = path.slice(1..);
+        Ok(Some((resolved_symbol, remaining)))
     }
 
     /// Build the cache key for a module and profile.
@@ -402,7 +515,7 @@ impl Compiler {
             if module.language_type.is_declaration() {
                 self.collect_export_namespace_globals(&module, &tree, &symbols, &mut cache);
             }
-            if self.module_is_ambient_lib(&module) {
+            if self.module_exposes_namespace_scope_globals(&module) {
                 self.collect_namespace_scope_globals(&module, dir, &symbols, &mut cache);
             }
         }
@@ -463,7 +576,7 @@ impl Compiler {
             if module.language_type.is_declaration() {
                 self.collect_export_namespace_globals(&module, &tree, &symbols, &mut cache);
             }
-            if self.module_is_ambient_lib(&module) {
+            if self.module_exposes_namespace_scope_globals(&module) {
                 self.collect_namespace_scope_globals(&module, dir, &symbols, &mut cache);
             }
 
@@ -479,15 +592,13 @@ impl Compiler {
                 }
 
                 // resolve specifiers to modules for traversal
-                let remote_module_id = match self.resolve_specifier_to_module_resolution(
+                let resolved_targets = match self.resolve_specifier_to_module_resolution(
                     dependency.target,
                     Some(module_id),
                     destack_workspace::ImportEdgeKind::Import,
                     None,
                 ) {
-                    Ok(targets) => targets
-                        .for_kind(dependency.kind)
-                        .and_then(|target| target.module_id()),
+                    Ok(targets) => targets,
                     Err(_) if module.is_builtin() && dependency.kind == DependencyKind::Type => {
                         continue;
                     }
@@ -499,13 +610,55 @@ impl Compiler {
                         continue;
                     }
                 };
-                if let Some(remote_module_id) = remote_module_id {
+
+                // enqueue primary and companion module targets for global symbol traversal
+                for remote_module_id in
+                    self.resolved_dependency_module_ids(resolved_targets, dependency.kind)
+                {
                     cache.pending.push_back(remote_module_id);
                 }
             }
         }
 
         Ok(cache)
+    }
+
+    /// Return true when a module's namespace scope contributes global symbols.
+    fn module_exposes_namespace_scope_globals(&self, module: &Module) -> bool {
+        // ambient libs always contribute top-level global declarations
+        if self.module_is_ambient_lib(module) {
+            return true;
+        }
+
+        // declaration scripts also contribute top-level global declarations
+        module.language_type.is_declaration() && module.source_type.is_script()
+    }
+
+    /// Collect module ids from primary and companion resolution targets.
+    fn resolved_dependency_module_ids(
+        &self,
+        targets: ModuleResolution,
+        kind: DependencyKind,
+    ) -> Vec<ModuleId> {
+        let mut module_ids = Vec::new();
+
+        // include the target for the requested dependency kind
+        if let Some(module_id) = targets.for_kind(kind).and_then(|target| target.module_id()) {
+            module_ids.push(module_id);
+        }
+
+        // include the companion target to cover mixed value and type declaration globals
+        let companion = match kind {
+            DependencyKind::Value => targets.ty,
+            DependencyKind::Type => targets.value,
+        };
+        if let Some(module_id) = companion.and_then(|target| target.module_id())
+            && !module_ids.contains(&module_id)
+        {
+            module_ids.push(module_id);
+        }
+
+        module_ids
     }
 
     /// Collect global symbols from the global augmentation scope.
@@ -542,6 +695,7 @@ impl Compiler {
                 continue;
             };
             cache.insert_symbol(StaticKey::Name(*name), SymbolSpace::Value, symbol_id);
+            cache.insert_symbol(StaticKey::Name(*name), SymbolSpace::Type, symbol_id);
         }
     }
 
@@ -642,6 +796,7 @@ export {};
 "#,
         );
         test.resolve_module(module_id);
+
         test.compile_check_clean();
 
         let profile = test.default_profile_id(module_id);
@@ -657,6 +812,156 @@ export {};
         assert!(cache.symbols.contains_key(&test_fn_key),);
         let test_iface_key = StaticKey::Name(test.program.strings.intern("TestGlobalInterface"));
         assert!(cache.symbols.contains_key(&test_iface_key),);
+    }
+
+    /// Resolve `export as namespace` globals in both value and type spaces.
+    #[test]
+    fn test_collect_export_namespace_globals_in_type_space() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "a.d.ts",
+            r#"
+export as namespace babel;
+
+export namespace types {
+    export interface Expression {
+        kind: string;
+    }
+}
+"#,
+        );
+        let module_id = test.add_module(
+            "main.ts",
+            r#"
+import { types } from "./a";
+
+type Expression = babel.types.Expression;
+const expression: types.Expression = { kind: "ok" };
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+    }
+
+    /// Resolve triple-slash global declarations through declaration script dependencies.
+    #[test]
+    fn test_collect_global_symbols_from_triple_slash_declaration_script() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "global.d.ts",
+            r#"
+interface TrustedHTML {}
+interface HTMLWebViewElement {}
+"#,
+        );
+        test.add_module(
+            "react.d.ts",
+            r#"
+/// <reference path="global.d.ts" />
+
+export interface Markup {
+    html: TrustedHTML;
+    webview: HTMLWebViewElement;
+}
+"#,
+        );
+        let module_id = test.add_module(
+            "main.ts",
+            r#"
+import type { Markup } from "./react";
+
+const markups: Markup[] = [];
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+    }
+
+    /// Resolve export-namespace globals when value imports use declaration companions.
+    #[test]
+    fn test_collect_export_namespace_globals_from_companion_type_target() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "babel.js",
+            r#"
+export const types = {};
+"#,
+        );
+        test.add_module(
+            "babel.d.ts",
+            r#"
+export as namespace babel;
+
+export namespace types {
+    export interface Expression {
+        kind: string;
+    }
+
+    export interface V8IntrinsicIdentifier {
+        intrinsic: string;
+    }
+}
+"#,
+        );
+        let module_id = test.add_module(
+            "main.ts",
+            r#"
+import "./babel.js";
+
+type BabelType = babel.types.Expression | babel.types.V8IntrinsicIdentifier;
+const value: BabelType | null = null;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+    }
+
+    /// Resolve export-namespace globals when members are export aliases.
+    #[test]
+    fn test_collect_export_namespace_globals_from_export_alias() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "types.d.ts",
+            r#"
+export interface Expression {
+    kind: string;
+}
+
+export interface V8IntrinsicIdentifier {
+    intrinsic: string;
+}
+"#,
+        );
+        test.add_module(
+            "babel.js",
+            r#"
+export {};
+"#,
+        );
+        test.add_module(
+            "babel.d.ts",
+            r#"
+import * as t from "./types";
+
+export { t as types };
+export as namespace babel;
+"#,
+        );
+        let module_id = test.add_module(
+            "main.ts",
+            r#"
+import "./babel.js";
+
+type BabelType = babel.types.Expression | babel.types.V8IntrinsicIdentifier;
+const value: BabelType | null = null;
+"#,
+        );
+
+        test.resolve_module(module_id);
+        test.compile_check_clean();
     }
 
     /// Test that symbols inside nested `declare module "x" { global { } }` are collected.

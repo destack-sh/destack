@@ -162,6 +162,7 @@ fn platform_profile_key() -> ProfileKey {
         vec!["native".to_string(), "platform".to_string()],
         false,
         false,
+        false,
         EnvSnapshot::from_env_all(),
         ProfileFlags::default(),
     )

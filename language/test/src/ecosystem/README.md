@@ -206,9 +206,6 @@ phase = "resolve"
 code = "ER200"
 file = "src/index.ts"
 message = "unresolved module 'missing-package'"
-
-[workloads.analyze]
-max_files = 1000
 ```
 
 Supported values for `package.language` are `js`, `ts`, and `ds`.

@@ -148,6 +148,7 @@ impl TestProgram {
             libs,
             false,
             false,
+            false,
             EnvSnapshot::from_env_all(),
             ProfileFlags::default(),
         );

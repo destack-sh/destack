@@ -267,56 +267,36 @@ impl Resolver {
                     continue;
                 };
 
-                // optimize node_modules lookup by inspecting whether the package exists
-                if !package_name.is_empty() {
-                    let package_path = module_dir.normalize_with(package_name);
-
-                    // try <foo>/node_modules/package_name
-                    if self.is_directory(&package_path, ctx) {
-                        if let Some(resolved) =
-                            self.load_package_exports(specifier, subpath, &package_path, ctx)?
-                        {
-                            return Ok(Some(resolved));
-                        }
-                    }
-                    // package_name is not a directory, skip unless we're looking for scope
-                    else {
-                        if !subpath.is_empty() {
-                            current = current_path.parent().map(|p| p.to_path_buf());
-                            continue;
-                        }
-                        // skip if the scope directory doesn't exist
-                        if package_name.starts_with('@')
-                            && let Some(parent) = package_path.parent()
-                            && !self.is_directory(parent, ctx)
-                        {
-                            current = current_path.parent().map(|p| p.to_path_buf());
-                            continue;
-                        }
-                    }
-                }
-
-                // try as file or directory for all other cases
-                let resolved_path = module_dir.normalize_with(specifier);
-
-                // prefer directory
-                if self.options.resolve_to_context {
-                    return Ok(self
-                        .is_directory(&resolved_path, ctx)
-                        .then(|| resolved_path.to_path_buf()));
-                }
-
-                // load directory
-                if self.is_directory(&resolved_path, ctx) {
-                    if let Some(resolved) = self.load_browser_field_or_alias(&resolved_path, ctx)? {
+                // resolve type-conditioned package entries before runtime fallback
+                if self.is_types_condition_active() {
+                    if let Some(resolved) = self.resolve_modules_entry(
+                        &module_dir,
+                        specifier,
+                        package_name,
+                        subpath,
+                        false,
+                        ctx,
+                    )? {
                         return Ok(Some(resolved));
                     }
-                    if let Some(resolved) = self.load_directory(&resolved_path, ctx)? {
+
+                    // resolve declaration fallback through @types packages
+                    if let Some(resolved) =
+                        self.resolve_types_modules_entry(&module_dir, package_name, subpath, ctx)?
+                    {
                         return Ok(Some(resolved));
                     }
                 }
-                // load file
-                else if let Some(resolved) = self.load_file(&resolved_path, ctx)? {
+
+                // resolve runtime package entries when declaration resolution did not match
+                if let Some(resolved) = self.resolve_modules_entry(
+                    &module_dir,
+                    specifier,
+                    package_name,
+                    subpath,
+                    true,
+                    ctx,
+                )? {
                     return Ok(Some(resolved));
                 }
 
@@ -324,6 +304,171 @@ impl Resolver {
             }
         }
         Ok(None)
+    }
+
+    /// Resolve one specifier from one concrete modules directory.
+    fn resolve_modules_entry(
+        &self,
+        module_directory: &Path,
+        specifier: &str,
+        package_name: &str,
+        subpath: &str,
+        allow_runtime_fallback: bool,
+        ctx: &mut ResolveContext,
+    ) -> Result<Option<PathBuf>, ResolveError> {
+        // optimize node_modules lookup by checking whether the package directory exists
+        if !package_name.is_empty() {
+            let package_path = module_directory.normalize_with(package_name);
+
+            // try <dir>/node_modules/package_name exports first
+            if self.is_directory(&package_path, ctx) {
+                if let Some(resolved) =
+                    self.load_package_exports(specifier, subpath, &package_path, ctx)?
+                {
+                    // keep declaration compatible export targets in the type prepass
+                    if allow_runtime_fallback
+                        || !self.is_types_condition_active()
+                        || Self::path_is_types_compatible(&resolved)
+                    {
+                        return Ok(Some(resolved));
+                    }
+                }
+
+                // resolve explicit package types fields for root package requests
+                if (subpath.is_empty() || subpath == ".")
+                    && self.is_types_condition_active()
+                    && let Some(package_id) =
+                        self.load_package(&package_path, ctx, CachePolicy::UseCache)?
+                {
+                    let package = self.packages.get(package_id);
+                    let package = package.read();
+
+                    if let Some(config) = &package.manifest
+                        && let Some(types_field) = config.content.types.as_deref()
+                    {
+                        let types_path = package_path.normalize_with(types_field);
+                        if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
+                            return self.resolve_esm_match(specifier, &types_path, ctx);
+                        }
+                    }
+                }
+            }
+            // package_name is not a directory, skip unless we're looking for scope
+            else {
+                if !subpath.is_empty() {
+                    return Ok(None);
+                }
+
+                // skip if the scope directory itself doesn't exist
+                if package_name.starts_with('@')
+                    && let Some(parent) = package_path.parent()
+                    && !self.is_directory(parent, ctx)
+                {
+                    return Ok(None);
+                }
+            }
+        }
+
+        // skip runtime fallback in type-only prepass
+        if !allow_runtime_fallback {
+            return Ok(None);
+        }
+
+        // try as file or directory for all other cases
+        let resolved_path = module_directory.normalize_with(specifier);
+
+        // prefer directory contexts
+        if self.options.resolve_to_context {
+            return Ok(self
+                .is_directory(&resolved_path, ctx)
+                .then(|| resolved_path.to_path_buf()));
+        }
+
+        // load directory targets
+        if self.is_directory(&resolved_path, ctx) {
+            if let Some(resolved) = self.load_browser_field_or_alias(&resolved_path, ctx)? {
+                return Ok(Some(resolved));
+            }
+            if let Some(resolved) = self.load_directory(&resolved_path, ctx)? {
+                return Ok(Some(resolved));
+            }
+        }
+        // load file targets
+        else if let Some(resolved) = self.load_file(&resolved_path, ctx)? {
+            return Ok(Some(resolved));
+        }
+
+        Ok(None)
+    }
+
+    /// Resolve one specifier through a matching `@types/*` package when type conditions are active.
+    fn resolve_types_modules_entry(
+        &self,
+        module_directory: &Path,
+        package_name: &str,
+        subpath: &str,
+        ctx: &mut ResolveContext,
+    ) -> Result<Option<PathBuf>, ResolveError> {
+        // only type-conditioned resolution may use @types fallback
+        if !self.is_types_condition_active() {
+            return Ok(None);
+        }
+
+        // avoid recursive fallback and invalid package inputs
+        if package_name.is_empty() || package_name.starts_with("@types/") {
+            return Ok(None);
+        }
+
+        // map one package name into one @types package name
+        let Some(types_package_name) = Self::types_package_name_for(package_name) else {
+            return Ok(None);
+        };
+
+        let types_specifier = format!("{types_package_name}{subpath}");
+        let (types_package_name, types_subpath) = Self::parse_package_specifier(&types_specifier);
+        self.resolve_modules_entry(
+            module_directory,
+            &types_specifier,
+            types_package_name,
+            types_subpath,
+            true,
+            ctx,
+        )
+    }
+
+    /// Return true when one resolved path is compatible with type-conditioned resolution.
+    fn path_is_types_compatible(path: &Path) -> bool {
+        matches!(
+            FileType::from_path(path),
+            Some(
+                FileType::Destack
+                    | FileType::DestackDeclaration
+                    | FileType::TypeScript
+                    | FileType::TypeScriptXml
+                    | FileType::TypeScriptDeclaration
+            )
+        )
+    }
+
+    /// Return true when the active conditions include the TypeScript `types` condition.
+    fn is_types_condition_active(&self) -> bool {
+        self.options
+            .conditions
+            .iter()
+            .any(|condition| condition == "types")
+    }
+
+    /// Convert one bare package name into its matching `@types` package name.
+    fn types_package_name_for(package_name: &str) -> Option<String> {
+        // map scoped packages to DefinitelyTyped scoped naming
+        if package_name.starts_with('@') {
+            let scoped = package_name.strip_prefix('@')?;
+            let (scope, name) = scoped.split_once('/')?;
+
+            return Some(format!("@types/{scope}__{name}"));
+        }
+
+        Some(format!("@types/{package_name}"))
     }
 
     /// Get a subdirectory of the given path if it exists.
