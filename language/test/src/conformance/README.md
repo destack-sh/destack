@@ -30,21 +30,21 @@ If auto-fetch cannot satisfy a suite, the run fails with an explicit error inste
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------|-------:|-------:|--------:|------:|--------:|-----------:|
-| babel    |   703  |     0  |    12  |   703 | 100.00% |  98.32% |
+| babel    |   702  |     1  |    12  |   703 |  99.86% |  98.18% |
 | biome    |   614  |     0  |    23  |   614 | 100.00% |  96.39% |
-| swc      |   536  |     0  |     2  |   536 | 100.00% |  99.63% |
+| swc      |   535  |     1  |     2  |   536 |  99.81% |  99.44% |
 | test262  |  5174  |     0  |   189  |  5174 | 100.00% |  96.48% |
 |----------|--------|--------|---------|-------|---------|------------|
-| total    |  7027  |     0  |    226  |  7027 | 100.00% |     96.88% |
+| total    |  7025  |     2  |    226  |  7027 |  99.97% |     96.86% |
 
-Total Blended Pass Rate: **100.00%** (96.88% incl. ignored)
+Total Blended Pass Rate: **99.97%** (96.86% incl. ignored)
 <!-- end:summary-results -->
 
 ### babel
 <!-- begin:babel-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------------------|-------:|-------:|--------:|------:|--------:|-----------:|
-| arrow-function       |    21  |     0  |       1  |    21 | 100.00% |     95.45% |
+| arrow-function       |    20  |     1  |       1  |    21 |  95.24% |     90.91% |
 | assert-predicate     |    10  |     0  |       -  |    10 | 100.00% |    100.00% |
 | assign               |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | async-call           |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
@@ -82,7 +82,7 @@ Total Blended Pass Rate: **100.00%** (96.88% incl. ignored)
 | types-arrow-function |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | variable-declarator  |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |   703  |     0  |      12  |   703 | 100.00% |     98.32% |
+| total                |   702  |     1  |      12  |   703 |  99.86% |     98.18% |
 <!-- end:babel-results -->
 
 ### biome
@@ -100,7 +100,7 @@ Total Blended Pass Rate: **100.00%** (96.88% incl. ignored)
 | Category             | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------------------|-------:|-------:|--------:|------:|--------:|-----------:|
 | amaro-194            |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
-| arrow-function       |    15  |     0  |       -  |    15 | 100.00% |    100.00% |
+| arrow-function       |    14  |     1  |       -  |    15 |  93.33% |     93.33% |
 | basic                |    63  |     0  |       -  |    63 | 100.00% |    100.00% |
 | case1                |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | cast                 |    16  |     0  |       -  |    16 | 100.00% |    100.00% |
@@ -145,7 +145,7 @@ Total Blended Pass Rate: **100.00%** (96.88% incl. ignored)
 | variance-annotations |     0  |     0  |       2  |     0 | 100.00% |      0.00% |
 | vercel               |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |   536  |     0  |       2  |   536 | 100.00% |     99.63% |
+| total                |   535  |     1  |       2  |   536 |  99.81% |     99.44% |
 <!-- end:swc-results -->
 
 ### test262

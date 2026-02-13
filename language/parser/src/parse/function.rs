@@ -254,7 +254,7 @@ impl Parser {
 
         // require a precomputed matching close
         let open_index = self.pos_index();
-        let Some(close_index) = self.matching_pair(open_index) else {
+        let Some(close_index) = self.matching_pair_or_lex(open_index) else {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.simple_parenthesized_lambda_misses += 1;
             }

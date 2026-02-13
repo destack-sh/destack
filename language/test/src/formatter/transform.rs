@@ -101,7 +101,6 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    parser.finish();
 
     // bail on parse errors
     let has_errors = parser

@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationDescriptor, DependencyMode, EnumKind, Expression,
-    FunctionKind, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType, TypeKind,
+    Asynchrony, Declaration, DeclarationDescriptor, DependencyMode, EnumKind, Expression, Keyword,
+    LocalNodeId, TokenType, TypeKind,
 };
 
 use super::common::{DECLARATION_START_TOKENS, is_type_relation_keyword};
@@ -81,41 +81,6 @@ impl Parser {
             Expression::Declaration(declaration_id),
             self.get_span_from(start),
         )
-    }
-
-    /// Parse a keyword path and optionally fold `<T>(...)` into a call expression.
-    fn eat_keyword_path_or_static_call_expression(
-        &mut self,
-        start: &ParserMark,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        let (path, last_span) = self
-            .eat_path_with_last_span()
-            .for_node_type(NodeType::Expression)?;
-        let static_arguments = self.eat_static_arguments_in_expression(false);
-
-        // parse call when static arguments apply
-        if static_arguments.is_some()
-            && self.peek_is(TokenType::OpenParenthesis)
-            && !self.options.in_new_receiver
-        {
-            let receiver = Expression::Path {
-                path,
-                static_arguments: None,
-            };
-            let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
-            self.tree.set_main_span(receiver_id, last_span);
-            return self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct);
-        }
-
-        // otherwise build a path expression
-        let expression = Expression::Path {
-            path,
-            static_arguments,
-        };
-        let expression_id = self.tree.insert(expression, self.get_span_from(start));
-        self.tree.set_main_span(expression_id, last_span);
-
-        Ok(expression_id)
     }
 
     pub(super) fn keyword_member_access_is(
@@ -203,7 +168,7 @@ impl Parser {
                 let struct_id = self.eat_struct_or_class(start, descriptor, false)?;
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
-            Keyword::Enum if is_declaration_start => {
+            Keyword::Enum if is_declaration_start && !next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
@@ -439,15 +404,19 @@ impl Parser {
         descriptor: DeclarationDescriptor,
         keyword: Keyword,
         next_token_type: TokenType,
+        next_token_index: usize,
+        next_has_line_break: bool,
+        next_raw_token_type: TokenType,
         is_declaration_start: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         match keyword {
             // namespace declaration
             Keyword::Namespace
                 if is_declaration_start
+                    && !next_has_line_break
                     && next_token_type == TokenType::Identifier
                     && !is_type_relation_keyword(
-                        self.keyword_for_index_maybe_fast(self.index_for_next()),
+                        self.keyword_for_index_maybe_fast(next_token_index),
                     ) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
@@ -458,8 +427,7 @@ impl Parser {
             }
             // struct declaration
             Keyword::Struct
-                if self.language.is_destack()
-                    && (is_declaration_start || next_token_type == TokenType::Newline) =>
+                if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = !self.options.in_statement_position
@@ -469,7 +437,7 @@ impl Parser {
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             // class declaration
-            Keyword::Class if is_declaration_start || next_token_type == TokenType::Newline => {
+            Keyword::Class if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let allow_anonymous_class = !self.options.in_statement_position
                     || descriptor.export == Some(DependencyMode::Default);
@@ -478,7 +446,7 @@ impl Parser {
                 Ok(Some(self.insert_declaration_expression(start, struct_id)))
             }
             // enum declaration
-            Keyword::Enum if is_declaration_start => {
+            Keyword::Enum if is_declaration_start && !next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
@@ -487,7 +455,7 @@ impl Parser {
             Keyword::Const => {
                 // look ahead for const enum
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(next_token_index)
                 } else {
                     None
                 };
@@ -508,7 +476,7 @@ impl Parser {
             Keyword::Newtype => {
                 // look ahead for newtype interface
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(next_token_index)
                 } else {
                     None
                 };
@@ -544,7 +512,7 @@ impl Parser {
                 }
             }
             // interface declaration
-            Keyword::Interface if is_declaration_start || next_token_type == TokenType::Newline => {
+            Keyword::Interface if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
                 Ok(Some(
@@ -565,6 +533,10 @@ impl Parser {
             }
             // async declaration or async path
             Keyword::Async => {
+                if next_has_line_break {
+                    return Ok(None);
+                }
+
                 // avoid async generic parses when tree literal disambiguation is active
                 if self.language.is_typescript()
                     && self.options.left_precedence.is_some()
@@ -580,52 +552,10 @@ impl Parser {
                     return Ok(None);
                 }
 
-                // parse async function with speculative rollback
+                // parse async declaration directly after scanner disambiguation
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                    speculation_stats.async_keyword_speculative_attempts += 1;
-                }
-                let speculative_start = self.mark();
-                let speculative_start_idx = self.tree.next_id();
-                if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
-                    // accept only when not a rejected lambda signature
-                    let should_accept = match self.tree.get(function_id) {
-                        Declaration::Function {
-                            signature, body, ..
-                        } => {
-                            !(signature.kind == FunctionKind::Lambda
-                                && body.is_none()
-                                && !self.options.in_type)
-                        }
-                        _ => true,
-                    };
-
-                    // accept the parsed function
-                    if should_accept {
-                        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                            speculation_stats.async_keyword_speculative_successes += 1;
-                        }
-                        Ok(Some(self.insert_declaration_expression(start, function_id)))
-                    // otherwise fall back to async path
-                    } else {
-                        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                            speculation_stats.async_keyword_speculative_rollbacks += 1;
-                        }
-                        self.restore(speculative_start, speculative_start_idx);
-                        Ok(Some(
-                            self.eat_keyword_path_or_static_call_expression(start)?,
-                        ))
-                    }
-                // fall back to async path when signature parsing failed
-                } else {
-                    if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                        speculation_stats.async_keyword_speculative_rollbacks += 1;
-                    }
-                    self.restore(speculative_start, speculative_start_idx);
-                    Ok(Some(
-                        self.eat_keyword_path_or_static_call_expression(start)?,
-                    ))
-                }
+                let function_id = self.eat_function(start, descriptor, false, false)?;
+                Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // override is contextual in value expressions
             Keyword::Override if !self.options.in_type => Ok(None),
@@ -639,6 +569,10 @@ impl Parser {
             }
             // function or method declaration
             Keyword::Function | Keyword::Abstract | Keyword::Override => {
+                if matches!(keyword, Keyword::Abstract | Keyword::Override) && next_has_line_break {
+                    return Ok(None);
+                }
+
                 // require a valid function signature start
                 let can_start_signature = Self::can_start_function_signature(next_token_type);
                 if !can_start_signature {
@@ -730,13 +664,13 @@ impl Parser {
             }
             // type only import expression
             Keyword::Import
-                if self.options.in_type && next_token_type == TokenType::OpenParenthesis =>
+                if self.options.in_type && next_raw_token_type == TokenType::OpenParenthesis =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_type_import_expression()?))
             }
             // import call expression
-            Keyword::Import if next_token_type == TokenType::OpenParenthesis => {
+            Keyword::Import if next_raw_token_type == TokenType::OpenParenthesis => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
@@ -820,12 +754,16 @@ impl Parser {
                     return Ok(None);
                 }
 
+                if keyword == Keyword::Type && next_has_line_break {
+                    return Ok(None);
+                }
+
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(self.index_for_next())
+                    self.keyword_for_index_maybe_fast(next_token_index)
                 } else {
                     None
                 };
-                let next_index = self.index_for_next();
+                let next_index = next_token_index;
                 let after_next_index = self.next_non_newline_index_from(next_index + 1);
                 let after_next_token_type = self.token_type_at(after_next_index);
                 let starts_type_operator = is_type_relation_keyword(next_keyword)

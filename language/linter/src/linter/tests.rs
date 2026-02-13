@@ -728,7 +728,6 @@ impl<'a> LintResult<'a> {
         let language_type = LanguageType::Destack;
         let mut parser = Parser::lex_file(file.clone(), language_type);
         let expressions = parser.parse();
-        parser.finish();
 
         // if parsing fails, return original source
         if parser

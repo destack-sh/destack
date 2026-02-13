@@ -32,7 +32,6 @@ fuzz_target!(|data: &[u8]| {
     // Parse the input
     let mut parser = Parser::lex_file(file.clone(), LanguageType::Destack);
     let expressions = parser.parse();
-    parser.finish();
 
     // Only format if parsing succeeded without errors
     if parser.diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {

@@ -62,7 +62,6 @@ pub(super) fn run(test: &TestCase) -> TestResult {
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    parser.finish();
     program.diagnostics.merge_from(&parser.diagnostics);
 
     let parse_result = check_diagnostics(test, &program.files, &program.diagnostics);

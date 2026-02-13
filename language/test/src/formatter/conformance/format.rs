@@ -127,7 +127,6 @@ fn format_once(
     let language_type = LanguageType::from(file_type);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    parser.finish();
 
     let has_errors = parser
         .diagnostics

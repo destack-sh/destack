@@ -6,7 +6,7 @@ use destack_ast::{
     PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
     TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
-use destack_source::LanguageType;
+use destack_source::{DiagnosticSeverity, LanguageType};
 
 use crate::{
     TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
@@ -370,6 +370,57 @@ fn test_parse_type_as_identifier_call_in_typescript() {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(123)));
         });
     });
+}
+
+/// Parse TypeScript newline-sensitive keyword cases without parse diagnostics.
+fn assert_parse_without_errors_in_typescript(source: &str) {
+    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let _ = parser.parse();
+
+    let error_diagnostics: Vec<_> = parser
+        .diagnostics
+        .iter()
+        .into_iter()
+        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        .collect();
+    assert!(
+        error_diagnostics.is_empty(),
+        "unexpected parser diagnostics: {error_diagnostics:#?}"
+    );
+}
+
+/// Parse `abstract` on one line and class on the next as valid TypeScript.
+#[test]
+fn test_parse_typescript_abstract_newline_class_without_errors() {
+    assert_parse_without_errors_in_typescript("abstract\nclass B {}");
+}
+
+/// Parse `declare enum` split across lines as valid TypeScript.
+#[test]
+fn test_parse_typescript_declare_enum_newline_without_errors() {
+    assert_parse_without_errors_in_typescript("declare enum\nE\n{}");
+}
+
+/// Parse `type` followed by a newline as valid TypeScript source.
+#[test]
+fn test_parse_typescript_type_newline_without_errors() {
+    assert_parse_without_errors_in_typescript("type\nFoo = string;");
+}
+
+/// Parse a callback body using `type` as an identifier statement.
+#[test]
+fn test_parse_typescript_callback_type_identifier_without_errors() {
+    assert_parse_without_errors_in_typescript(
+        "avplay.setListener({
+    onsubtitlechange: (duration, subtitles, type, attributes) => {
+        duration // $ExpectType string
+        subtitles // $ExpectType string
+        type // $ExpectType string
+        attributes // $ExpectType AVPlaySubtitleAttribute[]
+    }
+})",
+    );
 }
 
 /// Parse typed object methods in decorator style call arguments.
@@ -1592,7 +1643,7 @@ const addSpanOperationAttributes = addSpanAttributes("gen_ai.operation", String.
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse_without_finish();
+    let expressions = parser.parse();
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     assert_eq!(expressions.len(), 2);
 

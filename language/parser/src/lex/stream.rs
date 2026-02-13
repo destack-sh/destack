@@ -65,6 +65,23 @@ pub struct TokenStreamMark {
     pub(super) bracket_stack: Vec<usize>,
     /// Whether side trivia since the last semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
+    /// Pending synthetic token from operator decomposition.
+    pub(super) split_token: Option<TokenSpan>,
+    /// Whether the pending split token has already been consumed.
+    pub(super) split_token_consumed: bool,
+}
+
+/// Cursor information for the first non-newline token from a start index.
+#[derive(Debug, Copy, Clone)]
+pub struct TokenStreamCursor {
+    /// The semantic token index.
+    pub index: usize,
+    /// The token type at `index`.
+    pub token_type: TokenType,
+    /// The number of leading newline tokens skipped from `start`.
+    pub skipped_newline_count: usize,
+    /// Whether a line break appears before the token at `index`.
+    pub has_line_break_before: bool,
 }
 
 /// Lazy token stream that drives the lexer on demand.
@@ -98,6 +115,10 @@ pub struct TokenStream {
     is_finished: bool,
     /// The cached EOF token, when available.
     eof_token: Option<TokenSpan>,
+    /// Pending synthetic token from parser level operator decomposition.
+    split_token: Option<TokenSpan>,
+    /// Whether the split token has been consumed.
+    split_token_consumed: bool,
 }
 
 impl TokenStream {
@@ -127,6 +148,8 @@ impl TokenStream {
             pending_line_terminator_before_next: false,
             is_finished: false,
             eof_token: None,
+            split_token: None,
+            split_token_consumed: false,
         }
     }
 
@@ -146,6 +169,67 @@ impl TokenStream {
     #[inline]
     pub fn is_finished(&self) -> bool {
         self.is_finished
+    }
+
+    /// Return true when a split token is present and unconsumed.
+    #[inline]
+    pub fn has_active_split(&self) -> bool {
+        self.split_token.is_some() && !self.split_token_consumed
+    }
+
+    /// Return true when split token state exists.
+    #[inline]
+    pub fn has_split_state(&self) -> bool {
+        self.split_token.is_some()
+    }
+
+    /// Return the active split token.
+    #[inline]
+    pub fn active_split_token(&self) -> Option<&TokenSpan> {
+        if self.has_active_split() {
+            self.split_token.as_ref()
+        } else {
+            None
+        }
+    }
+
+    /// Mark the active split token as consumed.
+    #[inline]
+    pub fn mark_split_token_consumed(&mut self) -> bool {
+        if !self.has_active_split() {
+            return false;
+        }
+
+        self.split_token_consumed = true;
+        true
+    }
+
+    /// Return the split token regardless of consumed state.
+    #[inline]
+    pub fn split_token_ref(&self) -> Option<&TokenSpan> {
+        self.split_token.as_ref()
+    }
+
+    /// Set a split token and mark it as unconsumed.
+    #[inline]
+    pub fn set_split_token(&mut self, token: TokenSpan) {
+        self.split_token = Some(token);
+        self.split_token_consumed = false;
+    }
+
+    /// Clear split token state.
+    #[inline]
+    pub fn clear_split_token(&mut self) {
+        self.split_token = None;
+        self.split_token_consumed = false;
+    }
+
+    /// Return true when the active split token matches the given type.
+    #[inline]
+    pub fn has_split_token(&self, token_type: TokenType) -> bool {
+        self.split_token
+            .map(|token| token.token.ty == token_type && !self.split_token_consumed)
+            .unwrap_or(false)
     }
 
     /// Allow or disallow tree literal lexing.
@@ -191,6 +275,8 @@ impl TokenStream {
             brace_stack: self.brace_stack.clone(),
             bracket_stack: self.bracket_stack.clone(),
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
+            split_token: self.split_token,
+            split_token_consumed: self.split_token_consumed,
         }
     }
 
@@ -206,6 +292,8 @@ impl TokenStream {
             brace_stack,
             bracket_stack,
             pending_line_terminator_before_next,
+            split_token,
+            split_token_consumed,
         } = mark;
 
         // restore lexer state and truncate token buffers
@@ -217,6 +305,8 @@ impl TokenStream {
             self.lexer.side_tokens.truncate(side_tokens_len);
         }
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
+        self.split_token = split_token;
+        self.split_token_consumed = split_token_consumed;
 
         // fast path: no semantic token changes, caches are still valid
         if !semantic_tokens_changed {
@@ -341,6 +431,7 @@ impl TokenStream {
         self.brace_stack.clear();
         self.bracket_stack.clear();
         self.pending_line_terminator_before_next = false;
+        self.clear_split_token();
 
         (tokens, side_tokens)
     }
@@ -448,6 +539,121 @@ impl TokenStream {
         }
     }
 
+    /// Return cursor information for the first non-newline token from a start index.
+    #[inline]
+    pub fn non_newline_cursor_from(&mut self, start: usize) -> TokenStreamCursor {
+        // hot fast path: full token stream is already materialized
+        if self.is_finished {
+            return self.non_newline_cursor_from_prelexed(start);
+        }
+
+        self.ensure_token(start);
+        self.non_newline_cursor_from_materialized(start)
+    }
+
+    /// Return cursor information for the first non-newline token from a start index.
+    #[inline]
+    fn non_newline_cursor_from_prelexed(&self, start: usize) -> TokenStreamCursor {
+        let len = self.tokens.len();
+        if start >= len {
+            return TokenStreamCursor {
+                index: len,
+                token_type: TokenType::End,
+                skipped_newline_count: 0,
+                has_line_break_before: false,
+            };
+        }
+
+        let token = self.tokens[start];
+        if token.token.ty != TokenType::Newline {
+            let has_line_break_before = self
+                .line_terminators_before
+                .get(start)
+                .copied()
+                .unwrap_or(false);
+            return TokenStreamCursor {
+                index: start,
+                token_type: token.token.ty,
+                skipped_newline_count: 0,
+                has_line_break_before,
+            };
+        }
+
+        let next = self
+            .next_non_newline
+            .get(start)
+            .copied()
+            .unwrap_or(u32::MAX);
+        if next == u32::MAX {
+            return TokenStreamCursor {
+                index: len,
+                token_type: TokenType::End,
+                skipped_newline_count: len.saturating_sub(start),
+                has_line_break_before: true,
+            };
+        }
+
+        let next_index = next as usize;
+        let next_token_type = self
+            .tokens
+            .get(next_index)
+            .map(|token| token.token.ty)
+            .unwrap_or(TokenType::End);
+        TokenStreamCursor {
+            index: next_index,
+            token_type: next_token_type,
+            skipped_newline_count: next_index.saturating_sub(start),
+            has_line_break_before: true,
+        }
+    }
+
+    /// Return cursor information for the first non-newline token from a start index.
+    #[inline]
+    fn non_newline_cursor_from_materialized(&mut self, start: usize) -> TokenStreamCursor {
+        let len = self.tokens.len();
+        if start >= len {
+            return TokenStreamCursor {
+                index: len,
+                token_type: TokenType::End,
+                skipped_newline_count: 0,
+                has_line_break_before: false,
+            };
+        }
+
+        let token = self.tokens[start];
+        if token.token.ty != TokenType::Newline {
+            let has_line_break_before = self
+                .line_terminators_before
+                .get(start)
+                .copied()
+                .unwrap_or(false);
+            return TokenStreamCursor {
+                index: start,
+                token_type: token.token.ty,
+                skipped_newline_count: 0,
+                has_line_break_before,
+            };
+        }
+
+        let next_index = self.next_non_newline_index_from(start);
+        if next_index >= self.tokens.len() {
+            return TokenStreamCursor {
+                index: self.tokens.len(),
+                token_type: TokenType::End,
+                skipped_newline_count: next_index.saturating_sub(start),
+                has_line_break_before: true,
+            };
+        }
+
+        let next_token_type = self.tokens[next_index].token.ty;
+        TokenStreamCursor {
+            index: next_index,
+            token_type: next_token_type,
+            skipped_newline_count: next_index.saturating_sub(start),
+            has_line_break_before: true,
+        }
+    }
+
     /// Return the matching close token index for an opening token, if known.
     pub fn matching_pair(&mut self, index: usize) -> Option<usize> {
         // hot fast path: full token stream is already materialized
@@ -468,6 +674,35 @@ impl TokenStream {
         }
 
         Some(value as usize)
+    }
+
+    /// Return the matching close token index for an opening token, lexing ahead if needed.
+    pub fn matching_pair_or_lex(&mut self, index: usize) -> Option<usize> {
+        self.ensure_token(index);
+
+        let Some(token) = self.tokens.get(index) else {
+            return None;
+        };
+
+        if !matches!(
+            token.token.ty,
+            TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
+        ) {
+            return None;
+        }
+
+        loop {
+            let value = self.matching_pairs.get(index).copied().unwrap_or(u32::MAX);
+            if value != u32::MAX {
+                return Some(value as usize);
+            }
+
+            if self.is_finished {
+                return None;
+            }
+
+            self.lex_next();
+        }
     }
 
     /// Lex the next token from the underlying lexer.

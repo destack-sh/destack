@@ -743,7 +743,6 @@ impl Parser {
     }
 
     /// Return a valid dot-member target after `.` from a scanner cursor index.
-    #[inline]
     fn peek_dot_member_target(&mut self, dot_index: usize) -> Option<(usize, bool)> {
         let member_index = self.next_non_newline_index_from(dot_index.saturating_add(1));
         let member_token_type = self.token_type_at(member_index);
@@ -772,6 +771,7 @@ impl Parser {
 
         None
     }
+
     /// Check whether the current token sequence can start postfix static arguments.
     fn can_start_postfix_static_arguments(
         &mut self,

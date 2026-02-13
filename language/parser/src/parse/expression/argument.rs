@@ -6,13 +6,14 @@ use destack_ast::{
 
 impl Parser {
     pub fn can_follow_type_arguments_in_expression(&mut self) -> bool {
-        // a newline terminates the current expression statement
-        if self.peek_is(TokenType::Newline) {
+        let cursor = self.peek_cursor();
+
+        // a line break terminates the current expression statement
+        if cursor.has_line_break_before {
             return true;
         }
 
-        let index = self.pos_index();
-        self.can_follow_type_arguments_at_index(index)
+        self.can_follow_type_arguments_at_index(cursor.index)
     }
 
     /// Check whether a static argument list can be followed by a specific token.
@@ -103,13 +104,9 @@ impl Parser {
     /// Check whether static arguments can be followed by a statement-start keyword.
     #[inline]
     pub(super) fn can_follow_type_arguments_with_statement_keyword(&mut self) -> bool {
-        let index = if self.peek_is(TokenType::Newline) {
-            self.next_non_newline_index_from(self.pos_index())
-        } else {
-            self.pos_index()
-        };
-        self.token_type_at(index) == TokenType::Identifier
-            && self.keyword_for_index_maybe_fast(index).is_some()
+        let cursor = self.peek_cursor();
+        cursor.token_type == TokenType::Identifier
+            && self.keyword_for_index_maybe_fast(cursor.index).is_some()
     }
 
     /// Speculatively eat static arguments and validate a compatible follow token.
@@ -125,12 +122,19 @@ impl Parser {
         }
 
         // static argument start
-        let has_static_argument_start = self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::ShiftLeft)
-            || allow_newline_prefix
-                && self.peek_is(TokenType::Newline)
-                && (self.peek_next_is(TokenType::LessThan)
-                    || self.peek_next_is(TokenType::ShiftLeft));
+        let has_static_argument_start =
+            if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
+                true
+            } else if allow_newline_prefix {
+                let cursor = self.peek_cursor();
+                cursor.has_line_break_before
+                    && matches!(
+                        cursor.token_type,
+                        TokenType::LessThan | TokenType::ShiftLeft
+                    )
+            } else {
+                false
+            };
         if !has_static_argument_start {
             return None;
         }
@@ -139,10 +143,11 @@ impl Parser {
         let speculative_start = self.mark();
         let speculative_start_idx = self.tree.next_id();
 
-        // normalize optional newline prefix before `<...>`
+        // normalize optional line break prefix before `<...>`
         if allow_newline_prefix {
-            while self.peek_is(TokenType::Newline) {
-                self.bump();
+            let cursor = self.peek_cursor();
+            if cursor.index != self.pos_index() {
+                self.advance_to(cursor.index);
             }
         }
 

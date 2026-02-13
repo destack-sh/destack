@@ -308,7 +308,7 @@ impl Parser {
                 && self
                     .token_ref_at(pos)
                     .is_some_and(|token| token.token.ty == open_token)
-                && let Some(matching) = self.matching_pair(pos)
+                && let Some(matching) = self.matching_pair_or_lex(pos)
             {
                 return Ok(matching as u32);
             }

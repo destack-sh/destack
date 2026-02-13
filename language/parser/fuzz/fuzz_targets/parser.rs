@@ -27,5 +27,4 @@ fuzz_target!(|data: &[u8]| {
     // parse the input
     let mut parser = Parser::lex_file(file, LanguageType::Destack);
     let _ = parser.parse();
-    parser.finish();
 });

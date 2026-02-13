@@ -33,18 +33,9 @@ case "$PHASE" in
   main)
     BENCH_PATH="main/single-thread"
     ;;
-  finish)
-    BENCH_PATH="finish/single"
-    ;;
-  finish-annotations)
-    BENCH_PATH="finish/annotations"
-    ;;
-  finish-positions)
-    BENCH_PATH="finish/positions"
-    ;;
   *)
     echo "unknown phase: $PHASE"
-    echo "expected one of: parse, parse-no-drop, main, finish, finish-annotations, finish-positions"
+    echo "expected one of: parse, parse-no-drop, main"
     exit 2
     ;;
 esac

@@ -168,21 +168,11 @@ impl Compiler {
         };
         let expressions = {
             let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_TREE);
-            // parse main expressions without finalization
+            // parse module expressions in a single scanner-driven pass
             let expressions = {
                 let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_MAIN);
-                parser.parse_without_finish()
+                parser.parse()
             };
-
-            // finalize annotations
-            {
-                let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_FINISH);
-
-                {
-                    let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_ANNOTATIONS);
-                    parser.finish_annotations();
-                }
-            }
 
             expressions
         };

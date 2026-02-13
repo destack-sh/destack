@@ -83,7 +83,7 @@ impl Parser {
                 .token_ref_at(open_pos as usize)
                 .is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
         {
-            if let Some(close_index) = self.matching_pair(open_pos as usize) {
+            if let Some(close_index) = self.matching_pair_or_lex(open_pos as usize) {
                 close_index as u32
             } else {
                 self.find_matching_close(
@@ -100,12 +100,12 @@ impl Parser {
             )?
         };
         let follow_start_index = close_pos as usize + 1;
-        let follow_index = if self.token_type_at(follow_start_index) == TokenType::Newline {
-            self.next_non_newline_index_from(follow_start_index + 1)
+        let follow_cursor = self.non_newline_cursor_from(follow_start_index);
+        let follow_token_type = if follow_cursor.token_type == TokenType::End {
+            None
         } else {
-            follow_start_index
+            Some(follow_cursor.token_type)
         };
-        let follow_token_type = self.token_ref_at(follow_index).map(|token| token.token.ty);
         let has_arrow_follow = matches!(
             follow_token_type,
             Some(TokenType::Arrow | TokenType::ArrowWide)
@@ -178,7 +178,7 @@ impl Parser {
                     token_type,
                     TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
                 )
-                && let Some(close_index_for_token) = self.matching_pair(token_index)
+                && let Some(close_index_for_token) = self.matching_pair_or_lex(token_index)
                 && close_index_for_token > token_index
                 && close_index_for_token < close_index
             {

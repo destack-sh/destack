@@ -849,12 +849,9 @@ fn benchmark_file(
     let language = LanguageType::from(corpus_file.file_type);
     let mut parser = DestackParser::lex_file(file.clone(), language);
     let parse_main_started_at = Instant::now();
-    let expressions: Vec<LocalNodeId<Expression>> = parser.parse_without_finish();
+    let expressions: Vec<LocalNodeId<Expression>> = parser.parse();
     let parse_main = parse_main_started_at.elapsed();
-
-    let parse_finish_started_at = Instant::now();
-    parser.finish();
-    let parse_finish = parse_finish_started_at.elapsed();
+    let parse_finish = Duration::ZERO;
 
     let parser_timings = if timings_enabled {
         parser.timing_snapshot().unwrap_or_default()

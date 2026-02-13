@@ -88,14 +88,11 @@ impl Parser {
         // computed key start: require a clear property marker after the closing bracket
         if next_token.token.ty == TokenType::OpenBracket {
             let open_bracket_pos = open_pos + 1;
-            let close_bracket_pos = match self.find_matching_close(
-                Some(open_bracket_pos),
-                TokenType::OpenBracket,
-                TokenType::CloseBracket,
-            ) {
-                Ok(pos) => pos,
-                Err(_) => return false,
+            let Some(close_bracket_pos) = self.matching_pair_or_lex(open_bracket_pos as usize)
+            else {
+                return false;
             };
+            let close_bracket_pos = close_bracket_pos as u32;
 
             let after_close_pos = match self.skip_newlines(close_bracket_pos) {
                 Ok(pos) => pos,
@@ -168,25 +165,74 @@ impl Parser {
         )
     }
 
+    /// Return true when a using declarator has a required initializer.
+    fn using_declarator_has_required_initializer(&mut self, declarator_index: usize) -> bool {
+        let mut index = declarator_index;
+
+        loop {
+            // read the next significant token in the declarator
+            let token_type = self.token_type_at(index);
+
+            // skip nested groups by jumping to their cached close token
+            if matches!(
+                token_type,
+                TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
+            ) && let Some(close_index) = self.matching_pair_or_lex(index)
+                && close_index > index
+            {
+                let next_index = self.next_non_newline_index_from(close_index + 1);
+                if next_index <= index {
+                    return false;
+                }
+                index = next_index;
+                continue;
+            }
+
+            // using declarators require a top level initializer
+            if token_type == TokenType::Assign {
+                return true;
+            }
+
+            // stop once the declarator ends before an initializer
+            if matches!(
+                token_type,
+                TokenType::Comma
+                    | TokenType::Semicolon
+                    | TokenType::End
+                    | TokenType::CloseBrace
+                    | TokenType::CloseParenthesis
+            ) {
+                return false;
+            }
+
+            // continue scanning across newline trivia
+            let next_index = self.next_non_newline_index_from(index.saturating_add(1));
+            if next_index <= index {
+                return false;
+            }
+            index = next_index;
+        }
+    }
+
     /// Check whether a using declaration can be parsed at the current position.
     pub(super) fn can_parse_using_declaration(
         &mut self,
-        descriptor: &DeclarationDescriptor,
+        _descriptor: &DeclarationDescriptor,
         asynchrony: Asynchrony,
     ) -> bool {
-        // reject impossible using starts without speculative parsing
+        // reject impossible using starts with scanner-level checks
         if !self.can_start_using_declarator(asynchrony) {
             return false;
         }
 
-        // speculatively parse a using declaration
-        let speculative_start = self.mark();
-        let speculative_start_idx = self.tree.next_id();
-        let result = self
-            .eat_using(&speculative_start, descriptor.clone(), asynchrony)
-            .is_ok();
-        self.restore(speculative_start, speculative_start_idx);
-        result
+        let using_index = if asynchrony == Asynchrony::Async {
+            self.next_non_newline_index_from(self.pos_index() + 1)
+        } else {
+            self.pos_index()
+        };
+        let declarator_index = self.next_non_newline_index_from(using_index + 1);
+
+        self.using_declarator_has_required_initializer(declarator_index)
     }
 
     /// Eat declaration modifiers and return a descriptor or a parsed expression.
