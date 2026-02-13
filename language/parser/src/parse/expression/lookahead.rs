@@ -23,6 +23,22 @@ pub(crate) struct DelimiterAnalysis {
 pub(crate) type ParenthesizedGroupShape = DelimiterAnalysis;
 
 impl Parser {
+    /// Return the non-newline token type that follows the current parenthesized group.
+    pub(super) fn parenthesized_follow_token_type(&mut self) -> Option<TokenType> {
+        if self.peek_token_type() != TokenType::OpenParenthesis {
+            return None;
+        }
+
+        let open_index = self.pos_index();
+        let close_index = self.matching_pair_or_lex(open_index)?;
+        let follow_cursor = self.non_newline_cursor_from(close_index + 1);
+        if follow_cursor.token_type == TokenType::End {
+            None
+        } else {
+            Some(follow_cursor.token_type)
+        }
+    }
+
     /// Try to look ahead at a parenthesized group shape without committing parser state.
     pub(super) fn try_lookahead_parenthesized_group_shape(
         &mut self,

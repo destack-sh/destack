@@ -171,11 +171,7 @@ impl Parser {
 
         // direct keyword dispatch in statement position
         if let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) {
-            let next_raw_token_type = if self.is_prelex_mode() && !self.has_active_split() {
-                self.peek_next_token_type_prelexed_fast()
-            } else {
-                self.peek_next_token_type()
-            };
+            let next_raw_token_type = self.peek_next_token_type();
             let next_cursor = self.non_newline_cursor_from(self.index_for_next());
             if let Some(expression_id) = self.try_eat_direct_statement_keyword_expression(
                 start,
@@ -309,7 +305,11 @@ impl Parser {
         }
 
         // otherwise, eat a single statement and wrap it in a block
-        let statement_options = self.options.nested().in_statement_position();
+        let statement_options = self
+            .options
+            .nested()
+            .in_statement_position()
+            .without_expression_leading_annotations();
         let old_options = self.options;
         self.options = statement_options;
         let expression_id = self.eat_statement_expression_in_current_options();
@@ -431,7 +431,11 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
 
         // keep statement options for the whole body to avoid per statement option churn
-        let statement_options = self.options.nested().in_statement_position();
+        let statement_options = self
+            .options
+            .nested()
+            .in_statement_position()
+            .without_expression_leading_annotations();
         let old_options = self.options;
         self.options = statement_options;
 
@@ -439,7 +443,8 @@ impl Parser {
         let result = (|| {
             let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
             let mut pending_tail_expression: Option<LocalNodeId<Expression>> = None;
-            let mut pending_statement_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
+            let mut pending_statement_decorators: Vec<(LocalNodeId<Decorator>, usize, usize)> =
+                Vec::new();
 
             loop {
                 // normalize block body cursor once per iteration
@@ -458,6 +463,9 @@ impl Parser {
                             cursor.skipped_newline_count,
                             trailing_target.id,
                         );
+                        self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                            trailing_target.id,
+                        );
                         self.attach_inline_trailing_annotations_for_current_token(
                             trailing_target.id,
                         );
@@ -473,9 +481,19 @@ impl Parser {
 
                 // consume decorator prefixes for the next statement item
                 if token_type == TokenType::At {
-                    let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
-                    pending_statement_decorators.append(&mut decorators);
+                    let decorators_with_cursors =
+                        self.eat_decorators_prefix_collect_with_cursors_maybe()?;
+                    pending_statement_decorators.extend(decorators_with_cursors);
                     continue;
+                }
+
+                // attach same-line trailing line comments to the previous emitted item
+                if let Some(previous_item_id) =
+                    pending_tail_expression.or_else(|| statements.last().copied())
+                {
+                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                        previous_item_id.id,
+                    );
                 }
 
                 // previous tail expressions are no longer block tails once a new item starts
@@ -510,21 +528,29 @@ impl Parser {
                 // attach any pending decorators to this statement item
                 let had_pending_statement_decorators = !pending_statement_decorators.is_empty();
                 if had_pending_statement_decorators {
-                    self.attach_decorators_to_target(
-                        std::mem::take(&mut pending_statement_decorators),
-                        expression_id.id,
-                    );
+                    for (decorator_id, decorator_token_index, decorator_skipped_newline_count) in
+                        pending_statement_decorators.drain(..)
+                    {
+                        self.attach_inline_leading_annotations_for_token(
+                            decorator_token_index,
+                            decorator_skipped_newline_count,
+                            expression_id.id,
+                        );
+                        self.attach_inline_wrapper_leading_annotations_for_token(
+                            decorator_token_index,
+                            decorator_skipped_newline_count,
+                            expression_id.id,
+                        );
+                        self.attach_decorator_to_target(decorator_id, expression_id.id);
+                    }
                 }
 
-                // attach simple leading trivia inline:
-                // this claims obvious block prefixes and leaves ambiguous trivia for the fallback pass
-                if !had_pending_statement_decorators {
-                    self.attach_inline_leading_annotations_for_token(
-                        statement_token_index,
-                        statement_skipped_newline_count,
-                        expression_id.id,
-                    );
-                }
+                // attach statement-leading trivia on the emitted statement target
+                self.attach_inline_leading_annotations_for_token(
+                    statement_token_index,
+                    statement_skipped_newline_count,
+                    expression_id.id,
+                );
 
                 // keep at most one tail candidate, emit statements directly
                 if is_statement {
@@ -557,7 +583,11 @@ impl Parser {
     pub fn try_eat_statement_expression_with_flag(
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
-        let statement_options = self.options.nested().in_statement_position();
+        let statement_options = self
+            .options
+            .nested()
+            .in_statement_position()
+            .without_expression_leading_annotations();
         let old_options = self.options;
         self.options = statement_options;
         let result = self.try_eat_statement_expression_with_flag_in_statement_position();
@@ -600,9 +630,9 @@ impl Parser {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
+            self.attach_inline_trailing_line_boundary_comments_for_current_token(expression_id.id);
             let expression_id =
                 self.wrap_statement_expression(expression_id, self.get_span_from(start));
-            self.attach_inline_trailing_annotations_for_current_token(expression_id.id);
             return Ok((expression_id, true));
         }
 
@@ -621,7 +651,7 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        self.attach_inline_trailing_annotations_for_current_token(expression_id.id);
+        self.attach_inline_trailing_line_boundary_comments_for_current_token(expression_id.id);
         Ok((expression_id, is_statement))
     }
 

@@ -9,10 +9,10 @@ use destack_ast::{
 };
 
 /// The recursion interval for stack growth checks in expression parsing.
-const STACK_GROW_CHECK_INTERVAL: u32 = 64;
+const STACK_GROW_CHECK_INTERVAL: u32 = 256;
 
 impl Parser {
-    #[inline]
+    #[inline(always)]
     pub fn eat_expression(
         &mut self,
         options: ParserOptions,
@@ -29,11 +29,13 @@ impl Parser {
     }
 
     /// Eat an expression in the current parser options.
+    #[inline(always)]
     fn eat_expression_in_current_options(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         self.eat_expression_inner_with_stack_guard()
     }
 
     /// Eat an expression after statement keyword dispatch already ran in the caller.
+    #[inline(always)]
     pub(crate) fn eat_expression_without_statement_keyword_fast(
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -57,11 +59,12 @@ impl Parser {
     }
 
     /// Eat an expression with stack growth checks.
+    #[inline(always)]
     fn eat_expression_inner_with_stack_guard(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
         let depth = self.expression_stack_depth;
-        self.expression_stack_depth = depth.saturating_add(1);
-        let should_check_stack = depth % STACK_GROW_CHECK_INTERVAL == 0;
+        self.expression_stack_depth = depth + 1;
+        let should_check_stack = (depth & (STACK_GROW_CHECK_INTERVAL - 1)) == 0;
         let result = if should_check_stack {
             destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
         } else {
@@ -205,12 +208,13 @@ impl Parser {
 
         let expression_cursor = self.scanner_cursor();
         let identifier_expression_id = self.eat_identifier_expression_path(start)?;
-        if self.should_attach_expression_leading_annotations(expression_cursor.index) {
-            let leading_skipped_newline_count =
-                expression_cursor.skipped_newline_count.saturating_add(1);
+        if self.should_attach_expression_leading_annotations(
+            expression_cursor.index,
+            expression_cursor.has_line_break_before,
+        ) {
             self.attach_inline_expression_leading_annotations_for_token(
                 expression_cursor.index,
-                leading_skipped_newline_count,
+                expression_cursor.skipped_newline_count,
                 identifier_expression_id.id,
             );
         }
@@ -275,12 +279,13 @@ impl Parser {
 
         let expression_cursor = self.scanner_cursor();
         let identifier_expression_id = self.eat_identifier_expression_path(start)?;
-        if self.should_attach_expression_leading_annotations(expression_cursor.index) {
-            let leading_skipped_newline_count =
-                expression_cursor.skipped_newline_count.saturating_add(1);
+        if self.should_attach_expression_leading_annotations(
+            expression_cursor.index,
+            expression_cursor.has_line_break_before,
+        ) {
             self.attach_inline_expression_leading_annotations_for_token(
                 expression_cursor.index,
-                leading_skipped_newline_count,
+                expression_cursor.skipped_newline_count,
                 identifier_expression_id.id,
             );
         }
@@ -427,6 +432,178 @@ impl Parser {
         Ok(Some(expression_id))
     }
 
+    /// Parse a parenthesized primary expression using precomputed group metadata.
+    fn eat_parenthesized_primary_from_shape(
+        &mut self,
+        start: &ParserMark,
+        group_shape: ParenthesizedGroupShape,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        // fast path for non-lambda grouped expressions
+        if let Some(group_expression_id) =
+            self.try_eat_parenthesized_expression_fast(start, group_shape)?
+        {
+            return Ok(group_expression_id);
+        }
+
+        let has_top_level_comma = group_shape.has_top_level_comma;
+        let mut lambda_expression_id = None;
+
+        // parse direct arrow lambdas without deep group lookahead
+        if !self.options.in_arrow_return_type && group_shape.has_arrow_follow {
+            let lambda_id =
+                self.eat_function(start, DeclarationDescriptor::default(), false, false)?;
+            lambda_expression_id = Some(self.tree.insert(
+                Expression::Declaration(lambda_id),
+                self.get_span_from(start),
+            ));
+        }
+
+        // look ahead for colon lambdas and tuple cues when needed
+        if lambda_expression_id.is_none() {
+            let ParenthesizedGroupShape {
+                has_arrow_follow,
+                has_colon_follow,
+                has_top_level_parameter_colon,
+                is_empty: is_empty_parenthesized_group,
+                ..
+            } = group_shape;
+            let has_parenthesized_parameter_shape = has_top_level_parameter_colon
+                || has_top_level_comma
+                || is_empty_parenthesized_group;
+            let is_colon_lambda_allowed = has_colon_follow
+                && (self.language.is_destack() || self.language.is_typescript())
+                && !self.options.in_before_type
+                && !self.options.in_match_case
+                && (!self.options.in_type || !has_top_level_comma);
+            let can_parse_lambda_in_arrow_return = !self.options.in_arrow_return_type
+                || self.options.in_type && has_parenthesized_parameter_shape;
+
+            // parse lambda when we see a likely arrow or colon
+            if (has_arrow_follow || is_colon_lambda_allowed) && can_parse_lambda_in_arrow_return {
+                // avoid colon lambdas that steal ternary delimiters
+                if self.options.in_ternary_condition && has_colon_follow {
+                    let speculative_start = self.mark();
+                    let speculative_start_idx = self.tree.next_id();
+                    if let Ok(lambda_id) =
+                        self.eat_function(start, DeclarationDescriptor::default(), false, false)
+                    {
+                        let has_ternary_delimiter = self.peek_is(TokenType::Colon)
+                            || self.is_token_after_newlines(self.pos(), TokenType::Colon);
+                        let should_accept = match self.tree.get(lambda_id) {
+                            Declaration::Function { body, .. } => {
+                                (body.is_some() || self.options.in_type) && has_ternary_delimiter
+                            }
+                            _ => has_ternary_delimiter,
+                        };
+                        if should_accept {
+                            lambda_expression_id = Some(self.tree.insert(
+                                Expression::Declaration(lambda_id),
+                                self.get_span_from(start),
+                            ));
+                        } else {
+                            self.restore(speculative_start, speculative_start_idx);
+                        }
+                    } else {
+                        self.restore(speculative_start, speculative_start_idx);
+                    }
+                } else {
+                    let lambda_id =
+                        self.eat_function(start, DeclarationDescriptor::default(), false, false)?;
+                    lambda_expression_id = Some(self.tree.insert(
+                        Expression::Declaration(lambda_id),
+                        self.get_span_from(start),
+                    ));
+                }
+            }
+        }
+
+        // tuple or parenthesized expression
+        if let Some(lambda_expression_id) = lambda_expression_id {
+            return Ok(lambda_expression_id);
+        }
+
+        self.bump(); // eat open parenthesis
+        self.eat_newlines_maybe()?;
+
+        // empty tuple or sequence when we immediately see a closing parenthesis
+        if self.peek_is(TokenType::CloseParenthesis) {
+            self.bump(); // eat closing parenthesis
+
+            // in Destack: empty tuple
+            if self.language.is_destack() {
+                return Ok(self.tree.insert(
+                    Expression::TupleExpression { elements: vec![] },
+                    self.get_span_from(start),
+                ));
+            }
+
+            // in JS/TS: empty sequence expression
+            return Ok(self.tree.insert(
+                Expression::SequenceExpression {
+                    expressions: vec![],
+                },
+                self.get_span_from(start),
+            ));
+        }
+
+        // tuple when we see a named element or top-level comma
+        if (self.language.is_destack()
+            && self.peek_is(TokenType::Identifier)
+            && self.peek_next_is(TokenType::Colon))
+            || has_top_level_comma
+        {
+            let tuple_elements = self
+                .eat_sequence_literal_body(None, TokenType::CloseParenthesis)
+                .for_node_type(NodeType::Expression)?;
+            self.eat_newlines_maybe()?;
+            self.eat_token(TokenType::CloseParenthesis)?;
+            return Ok(self.tree.insert(
+                Expression::TupleExpression {
+                    elements: tuple_elements,
+                },
+                self.get_span_from(start),
+            ));
+        }
+
+        // tuple or parenthesized expression for the remaining cases
+        let inner_start = self.pos();
+        let mut inner_options = self.options.nested().in_parenthesis();
+        inner_options.allow_sequence_expression = true;
+        if self.options.in_type {
+            inner_options = inner_options.in_type();
+        }
+        let expression_id = self.eat_expression(inner_options)?;
+        self.eat_newlines_maybe()?;
+        self.eat_token(TokenType::CloseParenthesis)?;
+        let inner_token_type = self.token_type_at(inner_start as usize);
+        let expression_id = match self.tree.get(expression_id) {
+            // if it was a tuple starting here, expand it to cover the entire span
+            // (except if that tuple has its own parenthesis already when nesting)
+            Expression::TupleExpression { .. }
+                if inner_token_type != TokenType::OpenParenthesis =>
+            {
+                self.tree.set_span(expression_id, self.get_span_from(start));
+                expression_id
+            }
+            // if it was a sequence expression starting here, expand it to cover the entire span
+            Expression::SequenceExpression { .. }
+                if inner_token_type != TokenType::OpenParenthesis =>
+            {
+                self.tree.set_span(expression_id, self.get_span_from(start));
+                expression_id
+            }
+            // otherwise it was a manually parenthesized expression, wrap it
+            _ => self.tree.insert(
+                Expression::Parenthesized {
+                    expression: expression_id,
+                },
+                self.get_span_from(start),
+            ),
+        };
+
+        Ok(expression_id)
+    }
+
     /// Eat an expression body without stack growth checks.
     fn eat_expression_inner(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // collect decorator prefixes before parsing the next expression
@@ -551,12 +728,8 @@ impl Parser {
         let left_expression_id: LocalNodeId<Expression> = {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
 
-            // resolve the current token with prelexed fast path when available
-            let token_type = if self.is_prelex_mode() && !self.has_active_split() {
-                self.peek_token_type_prelexed_fast()
-            } else {
-                self.peek_token_type()
-            };
+            // resolve the current token type for primary dispatch
+            let token_type = self.peek_token_type();
 
             //
             // ------------------------------------------------------------
@@ -614,11 +787,7 @@ impl Parser {
 
                     // identifier context setup
                     let pos_index = self.pos_index();
-                    let next_raw_token_type = if self.is_prelex_mode() && !self.has_active_split() {
-                        self.peek_next_token_type_prelexed_fast()
-                    } else {
-                        self.peek_next_token_type()
-                    };
+                    let next_raw_token_type = self.peek_next_token_type();
                     let next_cursor = self.non_newline_cursor_from(self.index_for_next());
                     let next_token_type = next_cursor.token_type;
                     let next_token_index = next_cursor.index;
@@ -879,204 +1048,41 @@ impl Parser {
                     else if token_type == TokenType::OpenParenthesis {
                         let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
 
-                        let group_shape = self.try_lookahead_parenthesized_group_shape()?;
-
-                        // fast path for non-lambda grouped expressions
-                        if let Some(group_expression_id) =
-                            self.try_eat_parenthesized_expression_fast(&start, group_shape)?
+                        // fast path: in JS/TS value contexts, branch on the token after ')'
+                        let can_use_follow_fast_path = !self.language.is_destack()
+                            && !self.options.in_type
+                            && !self.options.in_arrow_return_type
+                            && !self.has_active_split();
+                        if can_use_follow_fast_path
+                            && let Some(follow_token_type) = self.parenthesized_follow_token_type()
                         {
-                            group_expression_id
-                        } else {
-                            let has_top_level_comma = group_shape.has_top_level_comma;
-                            let mut lambda_expression_id = None;
-
-                            // parse direct arrow lambdas without deep group lookahead
-                            if !self.options.in_arrow_return_type && group_shape.has_arrow_follow {
+                            // direct arrow after ')' means this is a lambda head
+                            if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide)
+                            {
                                 let lambda_id = self.eat_function(
                                     &start,
                                     DeclarationDescriptor::default(),
                                     false,
                                     false,
                                 )?;
-                                lambda_expression_id = Some(self.tree.insert(
+                                self.tree.insert(
                                     Expression::Declaration(lambda_id),
                                     self.get_span_from(&start),
-                                ));
+                                )
                             }
-
-                            // look ahead for colon lambdas and tuple cues when needed
-                            if lambda_expression_id.is_none() {
-                                let ParenthesizedGroupShape {
-                                    has_arrow_follow,
-                                    has_colon_follow,
-                                    has_top_level_parameter_colon,
-                                    is_empty: is_empty_parenthesized_group,
-                                    ..
-                                } = group_shape;
-                                let has_parenthesized_parameter_shape =
-                                    has_top_level_parameter_colon
-                                        || has_top_level_comma
-                                        || is_empty_parenthesized_group;
-                                let is_colon_lambda_allowed = has_colon_follow
-                                    && (self.language.is_destack()
-                                        || self.language.is_typescript())
-                                    && !self.options.in_before_type
-                                    && !self.options.in_match_case
-                                    && (!self.options.in_type || !has_top_level_comma);
-                                let can_parse_lambda_in_arrow_return = !self
-                                    .options
-                                    .in_arrow_return_type
-                                    || self.options.in_type && has_parenthesized_parameter_shape;
-
-                                // parse lambda when we see a likely arrow or colon
-                                if (has_arrow_follow || is_colon_lambda_allowed)
-                                    && can_parse_lambda_in_arrow_return
-                                {
-                                    // avoid colon lambdas that steal ternary delimiters
-                                    if self.options.in_ternary_condition && has_colon_follow {
-                                        let speculative_start = self.mark();
-                                        let speculative_start_idx = self.tree.next_id();
-                                        if let Ok(lambda_id) = self.eat_function(
-                                            &start,
-                                            DeclarationDescriptor::default(),
-                                            false,
-                                            false,
-                                        ) {
-                                            let has_ternary_delimiter = self
-                                                .peek_is(TokenType::Colon)
-                                                || self.is_token_after_newlines(
-                                                    self.pos(),
-                                                    TokenType::Colon,
-                                                );
-                                            let should_accept = match self.tree.get(lambda_id) {
-                                                Declaration::Function { body, .. } => {
-                                                    (body.is_some() || self.options.in_type)
-                                                        && has_ternary_delimiter
-                                                }
-                                                _ => has_ternary_delimiter,
-                                            };
-                                            if should_accept {
-                                                lambda_expression_id = Some(self.tree.insert(
-                                                    Expression::Declaration(lambda_id),
-                                                    self.get_span_from(&start),
-                                                ));
-                                            } else {
-                                                self.restore(
-                                                    speculative_start,
-                                                    speculative_start_idx,
-                                                );
-                                            }
-                                        } else {
-                                            self.restore(speculative_start, speculative_start_idx);
-                                        }
-                                    } else {
-                                        let lambda_id = self.eat_function(
-                                            &start,
-                                            DeclarationDescriptor::default(),
-                                            false,
-                                            false,
-                                        )?;
-                                        lambda_expression_id = Some(self.tree.insert(
-                                            Expression::Declaration(lambda_id),
-                                            self.get_span_from(&start),
-                                        ));
-                                    }
-                                }
+                            // non-colon follow cannot be a typed lambda head
+                            else if follow_token_type != TokenType::Colon {
+                                let group_shape = ParenthesizedGroupShape::default();
+                                self.eat_parenthesized_primary_from_shape(&start, group_shape)?
                             }
-
-                            // tuple or parenthesized expression
-                            if let Some(lambda_expression_id) = lambda_expression_id {
-                                lambda_expression_id
-                            } else {
-                                self.bump(); // eat open parenthesis
-                                self.eat_newlines_maybe()?;
-
-                                // empty tuple or sequence when we immediately see a closing parenthesis
-                                if self.peek_is(TokenType::CloseParenthesis) {
-                                    self.bump(); // eat closing parenthesis
-
-                                    // in Destack: empty tuple
-                                    if self.language.is_destack() {
-                                        self.tree.insert(
-                                            Expression::TupleExpression { elements: vec![] },
-                                            self.get_span_from(&start),
-                                        )
-                                    }
-                                    // in JS/TS: empty sequence expression
-                                    else {
-                                        self.tree.insert(
-                                            Expression::SequenceExpression {
-                                                expressions: vec![],
-                                            },
-                                            self.get_span_from(&start),
-                                        )
-                                    }
-                                }
-                                // tuple when we see a named element or top level comma
-                                else if (self.language.is_destack()
-                                    && self.peek_is(TokenType::Identifier)
-                                    && self.peek_next_is(TokenType::Colon))
-                                    || has_top_level_comma
-                                {
-                                    let tuple_elements = self
-                                        .eat_sequence_literal_body(
-                                            None,
-                                            TokenType::CloseParenthesis,
-                                        )
-                                        .for_node_type(NodeType::Expression)?;
-                                    self.eat_newlines_maybe()?;
-                                    self.eat_token(TokenType::CloseParenthesis)?;
-                                    self.tree.insert(
-                                        Expression::TupleExpression {
-                                            elements: tuple_elements,
-                                        },
-                                        self.get_span_from(&start),
-                                    )
-                                }
-                                // tuple or parenthesized expression for the remaining cases
-                                else {
-                                    let inner_start = self.pos();
-                                    let mut inner_options = self.options.nested().in_parenthesis();
-                                    inner_options.allow_sequence_expression = true;
-                                    if self.options.in_type {
-                                        inner_options = inner_options.in_type();
-                                    }
-                                    let expression_id = self.eat_expression(inner_options)?;
-                                    self.eat_newlines_maybe()?;
-                                    self.eat_token(TokenType::CloseParenthesis)?;
-                                    let inner_token_type = self.token_type_at(inner_start as usize);
-                                    match self.tree.get(expression_id) {
-                                        // if it was a tuple starting here, expand it to cover the entire span
-                                        //  (except if that tuple has its own parenthesis already when nesting)
-                                        Expression::TupleExpression { .. }
-                                            if inner_token_type != TokenType::OpenParenthesis =>
-                                        {
-                                            self.tree.set_span(
-                                                expression_id,
-                                                self.get_span_from(&start),
-                                            );
-                                            expression_id
-                                        }
-                                        // if it was a sequence expression starting here, expand it to cover the entire span
-                                        Expression::SequenceExpression { .. }
-                                            if inner_token_type != TokenType::OpenParenthesis =>
-                                        {
-                                            self.tree.set_span(
-                                                expression_id,
-                                                self.get_span_from(&start),
-                                            );
-                                            expression_id
-                                        }
-                                        // otherwise it was a manually parenthesized expression, wrap it
-                                        _ => self.tree.insert(
-                                            Expression::Parenthesized {
-                                                expression: expression_id,
-                                            },
-                                            self.get_span_from(&start),
-                                        ),
-                                    }
-                                }
+                            // colon follow needs the full shape pipeline for ternary/lambda disambiguation
+                            else {
+                                let group_shape = self.try_lookahead_parenthesized_group_shape()?;
+                                self.eat_parenthesized_primary_from_shape(&start, group_shape)?
                             }
+                        } else {
+                            let group_shape = self.try_lookahead_parenthesized_group_shape()?;
+                            self.eat_parenthesized_primary_from_shape(&start, group_shape)?
                         }
                     }
                     //
@@ -1318,12 +1324,13 @@ impl Parser {
         );
 
         // attach leading annotations from scanner context before continuation parsing
-        if self.should_attach_expression_leading_annotations(expression_token_index) {
-            let expression_leading_skipped_newline_count =
-                expression_skipped_newline_count.saturating_add(1);
+        if self.should_attach_expression_leading_annotations(
+            expression_token_index,
+            expression_cursor.has_line_break_before,
+        ) {
             self.attach_inline_expression_leading_annotations_for_token(
                 expression_token_index,
-                expression_leading_skipped_newline_count,
+                expression_skipped_newline_count,
                 left_expression_id.id,
             );
         }
@@ -1370,22 +1377,21 @@ impl Parser {
     fn should_attach_expression_leading_annotations(
         &mut self,
         expression_token_index: usize,
+        has_line_break_before: bool,
     ) -> bool {
+        // wrapper-owned contexts control expression boundary attachments directly
+        if !self.options.allow_expression_leading_annotations {
+            return false;
+        }
+
         // expression contexts always permit leading attachment
         if !self.options.in_statement_position {
             return true;
         }
 
-        // no previous token means no statement-leading window
-        if expression_token_index == 0 {
-            return false;
-        }
-
-        // statement boundaries suppress expression-leading attachment
-        let previous_token_type = self.token_type_at(expression_token_index.saturating_sub(1));
-        !matches!(
-            previous_token_type,
-            TokenType::Newline | TokenType::Semicolon | TokenType::OpenBrace | TokenType::End
-        )
+        // statement wrappers own leading comment attachment
+        let _ = expression_token_index;
+        let _ = has_line_break_before;
+        false
     }
 }

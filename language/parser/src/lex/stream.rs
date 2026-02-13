@@ -214,16 +214,6 @@ impl TokenStream {
         self.leading_side_range_materialized(index)
     }
 
-    /// Return the leading side trivia range for a semantic token index when prelexed.
-    #[inline]
-    pub fn leading_side_range_prelexed(&self, index: usize) -> (usize, usize) {
-        debug_assert!(
-            self.is_finished,
-            "leading_side_range_prelexed requires prelexed tokens"
-        );
-        self.leading_side_range_materialized(index)
-    }
-
     /// Return the leading side trivia range for a semantic token index.
     #[inline]
     fn leading_side_range_materialized(&self, index: usize) -> (usize, usize) {
@@ -499,7 +489,7 @@ impl TokenStream {
 
     /// Ensure all tokens are lexed.
     pub fn lex_to_end(&mut self) {
-        // fast path: pre-lexed full file for non tree literal sources
+        // fast path: one-pass full-file lex for non tree literal sources
         if !self.is_finished
             && !self.allow_tree_literals()
             && self.tokens.is_empty()
@@ -574,74 +564,18 @@ impl TokenStream {
         self.token_keywords.get(index).copied().unwrap_or(None)
     }
 
-    /// Return the keyword for a semantic token index when prelexed.
+    /// Return true when a semantic token window has any non-whitespace side trivia in cached mode.
     #[inline]
-    pub fn keyword_at_prelexed(&self, index: usize) -> Option<Keyword> {
-        debug_assert!(
-            self.is_finished,
-            "keyword_at_prelexed requires prelexed tokens"
-        );
-        self.token_keywords.get(index).copied().unwrap_or(None)
-    }
-
-    /// Return whether trivia before a token index had a line terminator when prelexed.
-    #[inline]
-    pub fn line_terminator_before_prelexed(&self, index: usize) -> bool {
-        debug_assert!(
-            self.is_finished,
-            "line_terminator_before_prelexed requires prelexed tokens"
-        );
-        self.line_terminators_before
-            .get(index)
-            .copied()
-            .unwrap_or(false)
-    }
-
-    /// Return true when a semantic token window has any non-whitespace side trivia in prelexed mode.
-    #[inline]
-    pub fn has_non_whitespace_side_in_window_prelexed(
+    pub fn has_non_whitespace_side_in_window_cached(
         &self,
         token_window_start: usize,
         token_window_end_exclusive: usize,
     ) -> bool {
-        self.has_non_whitespace_side_in_window_materialized(
-            token_window_start,
-            token_window_end_exclusive,
-        )
-    }
+        debug_assert!(
+            self.is_finished,
+            "has_non_whitespace_side_in_window_cached requires a fully materialized token stream"
+        );
 
-    /// Return true when a semantic token window has any non-whitespace side trivia.
-    #[inline]
-    pub fn has_non_whitespace_side_in_window(
-        &mut self,
-        token_window_start: usize,
-        token_window_end_exclusive: usize,
-    ) -> bool {
-        if self.is_finished {
-            return self.has_non_whitespace_side_in_window_materialized(
-                token_window_start,
-                token_window_end_exclusive,
-            );
-        }
-
-        if token_window_end_exclusive == 0 {
-            return false;
-        }
-
-        self.ensure_token(token_window_end_exclusive.saturating_sub(1));
-        self.has_non_whitespace_side_in_window_materialized(
-            token_window_start,
-            token_window_end_exclusive,
-        )
-    }
-
-    /// Return true when a semantic token window has any non-whitespace side trivia.
-    #[inline]
-    fn has_non_whitespace_side_in_window_materialized(
-        &self,
-        token_window_start: usize,
-        token_window_end_exclusive: usize,
-    ) -> bool {
         let token_len = self.tokens.len();
         let token_window_start = token_window_start.min(token_len);
         let token_window_end_exclusive = token_window_end_exclusive.min(token_len);
@@ -660,6 +594,31 @@ impl TokenStream {
             .copied()
             .unwrap_or(start);
         end > start
+    }
+
+    /// Return true when a semantic token window has any non-whitespace side trivia.
+    #[inline]
+    pub fn has_non_whitespace_side_in_window(
+        &mut self,
+        token_window_start: usize,
+        token_window_end_exclusive: usize,
+    ) -> bool {
+        if self.is_finished {
+            return self.has_non_whitespace_side_in_window_cached(
+                token_window_start,
+                token_window_end_exclusive,
+            );
+        }
+
+        if token_window_end_exclusive == 0 {
+            return false;
+        }
+
+        self.ensure_token(token_window_end_exclusive.saturating_sub(1));
+        self.has_non_whitespace_side_in_window_cached(
+            token_window_start,
+            token_window_end_exclusive,
+        )
     }
 
     /// Look up the next non-newline token index from a start index.
@@ -721,7 +680,7 @@ impl TokenStream {
     pub fn non_newline_cursor_from(&mut self, start: usize) -> TokenStreamCursor {
         // hot fast path: full token stream is already materialized
         if self.is_finished {
-            return self.non_newline_cursor_from_prelexed(start);
+            return self.non_newline_cursor_from_cached(start);
         }
 
         self.ensure_token(start);
@@ -730,7 +689,7 @@ impl TokenStream {
 
     /// Return cursor information for the first non-newline token from a start index.
     #[inline]
-    fn non_newline_cursor_from_prelexed(&self, start: usize) -> TokenStreamCursor {
+    fn non_newline_cursor_from_cached(&self, start: usize) -> TokenStreamCursor {
         let len = self.tokens.len();
         if start >= len {
             return TokenStreamCursor {

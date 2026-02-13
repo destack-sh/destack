@@ -395,7 +395,14 @@ pub(crate) fn format_block_of_statements<'ast>(
                     expression_id,
                 )
             };
-            if !has_blank_prefix_annotation || has_ignore_range {
+            let uses_source_blank_line_without_leading_break = source_has_blank_line_between
+                && !has_blank_prefix_annotation
+                && !has_prefix_annotation
+                && !previous_has_postfix_annotation
+                && !has_ignore_range;
+            if (!has_blank_prefix_annotation || has_ignore_range)
+                && !uses_source_blank_line_without_leading_break
+            {
                 write!(f, [hard_line_break()])?;
             }
 
@@ -650,7 +657,12 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::{Annotation, AnnotationPosition, Block, NodeParentIndex};
+
+    use crate::{
+        DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
+        assert_format,
+    };
 
     /// Semicolons should be automatically inserted for every value-ignored expression.
     /// Control flow forms like if and let only get semicolons if used as statements.
@@ -716,6 +728,229 @@ mod tests {
             |p| p.eat_block(),
             DestackFormatOptions::default()
         );
+    }
+
+    /// Parser annotations should keep one blank prefix between loop and following let statement.
+    #[test]
+    fn test_block_insert_semicolon_annotation_contract_after_loop() {
+        let source = r#"{
+    import "foo"
+    import * as baz from "foo"
+
+    let x = 1;
+    let y = 2
+    y
+
+    if (x) {
+        y
+    } else {
+        print("foo")
+        z(x) 
+    }
+
+    loop {
+       break;
+    }
+
+    let x = z()
+    let x = if (let y = 1) {
+        z()
+    } else {
+        w()
+    };
+
+    return 5;
+}"#;
+        let (test, block_id) = TestFormatter::parse(source, |p| p.eat_block()).unwrap();
+        let block = test.tree.get(block_id);
+        let Block { expressions, .. } = block;
+
+        let mut loop_statement_id = None;
+        let mut let_after_loop_id = None;
+        let mut loop_statement_index = None;
+        let mut let_after_loop_index = None;
+        for (index, expression_id) in expressions.iter().enumerate() {
+            let span = test.tree.get_span(*expression_id);
+            let source = test.file.span_str(span);
+            if source.starts_with("loop {") {
+                loop_statement_id = Some(*expression_id);
+                loop_statement_index = Some(index);
+            }
+            if source.starts_with("let x = z()") {
+                let_after_loop_id = Some(*expression_id);
+                let_after_loop_index = Some(index);
+            }
+        }
+
+        let loop_statement_id = loop_statement_id.expect("expected loop statement");
+        let let_after_loop_id = let_after_loop_id.expect("expected let statement after loop");
+        let loop_statement_index = loop_statement_index.expect("expected loop statement index");
+        let let_after_loop_index =
+            let_after_loop_index.expect("expected let statement after loop index");
+        assert_eq!(let_after_loop_index, loop_statement_index + 1);
+
+        let loop_annotations = test.tree.get_annotations(loop_statement_id.id);
+        let loop_blank_block_prefix = loop_annotations
+            .iter()
+            .filter(|annotation_id| {
+                matches!(
+                    test.tree.get::<Annotation>(**annotation_id),
+                    Annotation::Blank {
+                        position: AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(loop_blank_block_prefix, 1);
+
+        let loop_blank_postfix = loop_annotations
+            .iter()
+            .filter(|annotation_id| {
+                matches!(
+                    test.tree.get::<Annotation>(**annotation_id),
+                    Annotation::Blank {
+                        position: AnnotationPosition::BlockPostfix
+                            | AnnotationPosition::LinePostfix
+                            | AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(loop_blank_postfix, 0);
+
+        let let_annotations = test.tree.get_annotations(let_after_loop_id.id);
+        let let_blank_annotations = let_annotations
+            .iter()
+            .filter(|annotation_id| {
+                matches!(
+                    test.tree.get::<Annotation>(**annotation_id),
+                    Annotation::Blank { .. }
+                )
+            })
+            .count();
+        assert_eq!(let_blank_annotations, 1);
+
+        let let_blank_block_prefix = let_annotations
+            .iter()
+            .filter(|annotation_id| {
+                matches!(
+                    test.tree.get::<Annotation>(**annotation_id),
+                    Annotation::Blank {
+                        position: AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(let_blank_block_prefix, 1);
+
+        let let_blank_line_prefix = let_annotations
+            .iter()
+            .filter(|annotation_id| {
+                matches!(
+                    test.tree.get::<Annotation>(**annotation_id),
+                    Annotation::Blank {
+                        position: AnnotationPosition::LinePrefix,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(let_blank_line_prefix, 0);
+
+        let context = {
+            DestackFormatContext::new(
+                DestackFormatOptions::default(),
+                DestackFormatArtifacts {
+                    file: &test.file,
+                    tree: &test.tree,
+                    tokens: &test.tokens,
+                    side_tokens: &test.side_tokens,
+                    side_span: &test.side_span,
+                    strings: &test.strings,
+                    parents: NodeParentIndex::from_tree(&test.tree),
+                },
+            )
+        };
+        assert!(context.has_blank_prefix_annotation(let_after_loop_id));
+    }
+
+    /// One blank line between loop and following let should stay one blank line.
+    #[test]
+    fn test_format_block_loop_blank_line_before_let() {
+        assert_format!(
+            r#"{
+    loop {
+        break;
+    }
+
+    let x = z()
+}"#,
+            r#"{
+    loop {
+        break;
+    }
+
+    let x = z();
+}"#,
+            |p| p.eat_block(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Minimal loop-to-let blank line contract should attach one blank prefix to the let node.
+    #[test]
+    fn test_block_loop_blank_line_annotation_contract_minimal() {
+        let source = r#"{
+    loop {
+        break;
+    }
+
+    let x = z()
+}"#;
+        let (test, block_id) = TestFormatter::parse(source, |p| p.eat_block()).unwrap();
+        let block = test.tree.get(block_id);
+        let Block { expressions, .. } = block;
+        assert_eq!(expressions.len(), 2);
+
+        let loop_statement_id = expressions[0];
+        let let_statement_id = expressions[1];
+
+        let loop_blank_postfix = test
+            .tree
+            .get_annotations(loop_statement_id.id)
+            .iter()
+            .filter(|annotation_id| {
+                matches!(
+                    test.tree.get::<Annotation>(**annotation_id),
+                    Annotation::Blank {
+                        position: AnnotationPosition::BlockPostfix
+                            | AnnotationPosition::LinePostfix
+                            | AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(loop_blank_postfix, 0);
+
+        let let_blank_block_prefix = test
+            .tree
+            .get_annotations(let_statement_id.id)
+            .iter()
+            .filter(|annotation_id| {
+                matches!(
+                    test.tree.get::<Annotation>(**annotation_id),
+                    Annotation::Blank {
+                        position: AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert_eq!(let_blank_block_prefix, 1);
     }
 
     #[test]

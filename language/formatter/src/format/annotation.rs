@@ -3,7 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::Span;
 
-use crate::directive::is_ignore_directive_comment;
+use crate::directive::{is_any_ignore_directive_comment, is_ignore_directive_comment};
 use crate::scan::{
     next_non_whitespace_after_annotation, next_non_whitespace_after_span,
     previous_non_whitespace_before_annotation,
@@ -679,8 +679,29 @@ where
             }
 
             if render_facts.is_slash_comment && position == AnnotationPosition::LinePrefix {
-                let should_preserve_own_line_indentation = render_facts.slash_starts_on_own_line;
-                if should_preserve_own_line_indentation {
+                if render_facts.slash_starts_on_own_line {
+                    let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                    let annotation_source = f.context().get_span_str(annotation_span);
+
+                    // keep formatter directives on own lines but let formatter manage indentation
+                    let comment_source = if let Annotation::Comment {
+                        node: comment_id, ..
+                    } = annotation
+                    {
+                        let comment = f.context().tree.get::<Comment>(*comment_id);
+                        f.context().strings.get(comment.string)
+                    } else {
+                        ""
+                    };
+                    let is_ignore_directive_comment =
+                        is_any_ignore_directive_comment(annotation_source)
+                            || is_any_ignore_directive_comment(comment_source);
+                    if is_ignore_directive_comment && !annotation_source.trim().is_empty() {
+                        write!(f, [hard_line_break(), text(annotation_source.trim())])?;
+                        write!(f, [hard_line_break()])?;
+                        continue;
+                    }
+
                     let raw_line =
                         annotation_raw_line_or_trimmed_source(f.context(), annotation_id);
                     if !raw_line.trim().is_empty() {

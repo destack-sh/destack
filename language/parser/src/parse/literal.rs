@@ -757,6 +757,9 @@ impl Parser {
                         cursor.skipped_newline_count,
                         last_element.id,
                     );
+                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                        last_element.id,
+                    );
                     self.attach_inline_trailing_annotations_for_current_token(last_element.id);
                 }
                 break;
@@ -765,6 +768,13 @@ impl Parser {
             // consume comma separators
             if token_type == TokenType::Comma {
                 let start = self.mark_span();
+
+                // line comments before the separator belong to the previous element
+                if let Some(last_element) = elements.last().copied() {
+                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                        last_element.id,
+                    );
+                }
 
                 // leading hole: if we expected an element but got separator instead
                 if expect_element {

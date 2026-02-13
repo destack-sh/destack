@@ -472,9 +472,9 @@ impl NodeTree {
     /// Has prefix annotations attached to a node.
     #[inline]
     pub fn has_prefix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations(node_id)
-            .into_iter()
-            .any(|annotation_id| {
+        self.get_annotations_ref(node_id)
+            .iter()
+            .any(|&annotation_id| {
                 let annotation = self.get(annotation_id);
                 annotation.position() == AnnotationPosition::BlockPrefix
                     || annotation.position() == AnnotationPosition::LinePrefix
@@ -484,9 +484,9 @@ impl NodeTree {
     /// Has postfix annotations attached to a node.
     #[inline]
     pub fn has_postfix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations(node_id)
-            .into_iter()
-            .any(|annotation_id| {
+        self.get_annotations_ref(node_id)
+            .iter()
+            .any(|&annotation_id| {
                 let annotation = self.get(annotation_id);
                 annotation.position() == AnnotationPosition::BlockPostfix
                     || annotation.position() == AnnotationPosition::LinePostfix
@@ -497,21 +497,27 @@ impl NodeTree {
     /// Has infix annotations attached to a node.
     #[inline]
     pub fn has_infix_annotations(&self, node_id: u32) -> bool {
-        self.get_annotations(node_id)
-            .into_iter()
-            .any(|annotation_id| {
+        self.get_annotations_ref(node_id)
+            .iter()
+            .any(|&annotation_id| {
                 let annotation = self.get(annotation_id);
                 annotation.position() == AnnotationPosition::BlockInfix
             })
     }
 
+    /// Get annotations attached to a node by reference.
+    #[inline]
+    pub fn get_annotations_ref(&self, node_id: u32) -> &[LocalNodeId<Annotation>] {
+        self.annotations_by_node_id
+            .get(&node_id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
     /// Get annotations attached to a node.
     #[inline]
     pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
-        self.annotations_by_node_id
-            .get(&node_id)
-            .cloned()
-            .unwrap_or_else(Vec::new)
+        self.get_annotations_ref(node_id).to_vec()
     }
 
     /// Get all annotations.
@@ -543,6 +549,32 @@ impl NodeTree {
         self.annotations_are_sorted = true;
     }
 
+    /// Remap annotation target node ids in one linear pass.
+    #[inline]
+    pub fn remap_annotation_targets(
+        &mut self,
+        mut remap: impl FnMut(u32, LocalNodeId<Annotation>, &Annotation, Span) -> u32,
+    ) {
+        // collect existing edges so target remaps can rewrite map keys safely
+        let mut entries = Vec::new();
+        for (target_id, annotation_ids) in &self.annotations_by_node_id {
+            for &annotation_id in annotation_ids {
+                let annotation = self.get(annotation_id);
+                let annotation_span = self.source_map.get(annotation_id.id);
+                let remapped_target_id =
+                    remap(*target_id, annotation_id, annotation, annotation_span);
+                entries.push((remapped_target_id, annotation_id));
+            }
+        }
+
+        // rebuild attachment map from remapped edges
+        self.annotations_by_node_id.clear();
+        self.annotations_are_sorted = true;
+        for (target_id, annotation_id) in entries {
+            self.append_annotation(target_id, annotation_id);
+        }
+    }
+
     /// Build position index for fast enclosing span lookups.
     /// Call this after parsing is complete.
     #[inline]
@@ -553,9 +585,9 @@ impl NodeTree {
     /// Get blank annotation attached to a node, cloned as a Vec.
     #[inline]
     pub fn get_blanks_for(&self, node_id: u32) -> Vec<(LocalNodeId<Blank>, AnnotationPosition)> {
-        self.get_annotations(node_id)
-            .into_iter()
-            .filter_map(|id| match self.get(id) {
+        self.get_annotations_ref(node_id)
+            .iter()
+            .filter_map(|&id| match self.get(id) {
                 Annotation::Blank { node, position } => Some((*node, *position)),
                 _ => None,
             })
@@ -568,9 +600,9 @@ impl NodeTree {
         &self,
         node_id: u32,
     ) -> Vec<(LocalNodeId<Comment>, AnnotationPosition)> {
-        self.get_annotations(node_id)
-            .into_iter()
-            .filter_map(|id| match self.get(id) {
+        self.get_annotations_ref(node_id)
+            .iter()
+            .filter_map(|&id| match self.get(id) {
                 Annotation::Comment { node, position } => Some((*node, *position)),
                 _ => None,
             })
@@ -580,9 +612,9 @@ impl NodeTree {
     /// Get doc annotation attached to a node, cloned as a Vec.
     #[inline]
     pub fn get_docs_for(&self, node_id: u32) -> Vec<(LocalNodeId<Doc>, AnnotationPosition)> {
-        self.get_annotations(node_id)
-            .into_iter()
-            .filter_map(|id| match self.get(id) {
+        self.get_annotations_ref(node_id)
+            .iter()
+            .filter_map(|&id| match self.get(id) {
                 Annotation::Doc { node, position } => Some((*node, *position)),
                 _ => None,
             })

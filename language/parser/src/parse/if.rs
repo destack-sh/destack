@@ -127,7 +127,11 @@ impl Parser {
 
         // if / else if / else node
         let else_expression_id = if self.is_keyword_after_newlines(Keyword::Else) {
+            // keep inline then-to-else boundary comments on the then expression
+            self.attach_inline_trailing_annotations_for_current_token(then_expression_id.id);
+
             self.eat_newlines_maybe()?;
+            let else_cursor = self.peek_cursor();
             self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
             let else_options = self.options.in_statement_position();
@@ -135,6 +139,14 @@ impl Parser {
             let else_expression_result = self.eat_expression_as_block();
             self.restore_options(old_options);
             let else_expression_id = else_expression_result?;
+
+            // keep own-line comments before `else` attached to the else branch expression
+            self.attach_inline_leading_annotations_for_token(
+                else_cursor.index,
+                else_cursor.skipped_newline_count,
+                else_expression_id.id,
+            );
+
             Some(else_expression_id)
         } else {
             None

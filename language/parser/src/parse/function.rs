@@ -71,7 +71,11 @@ impl Parser {
                 .insert(Expression::Block(block_id), self.get_span_from(body_start));
             Ok(body)
         } else {
-            let mut options = self.options.in_before_block().not_in_decorator();
+            let mut options = self
+                .options
+                .in_before_block()
+                .not_in_decorator()
+                .without_expression_leading_annotations();
             options.allow_sequence_expression = false;
             self.eat_expression(options)
         }
@@ -365,8 +369,10 @@ impl Parser {
         };
 
         // parse the body
+        let arrow_cursor = self.peek_cursor();
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
+        let body_cursor = self.peek_cursor();
         let body_start = self.mark_span();
         let body = self.eat_simple_lambda_body(&body_start)?;
 
@@ -382,6 +388,18 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.simple_parenthesized_lambda_hits += 1;
         }
+
+        // keep comments/docs between parameter head and `=>` on the lambda declaration
+        self.attach_inline_wrapper_leading_annotations_for_token(
+            arrow_cursor.index,
+            arrow_cursor.skipped_newline_count,
+            function_id.id,
+        );
+        self.attach_inline_expression_leading_annotations_for_token(
+            body_cursor.index,
+            body_cursor.skipped_newline_count,
+            body.id,
+        );
 
         Ok(Some(function_id))
     }
@@ -432,8 +450,10 @@ impl Parser {
         );
 
         // parse the lambda body
+        let arrow_cursor = self.peek_cursor();
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
+        let body_cursor = self.peek_cursor();
         let body_start = self.mark_span();
         let body = self.eat_simple_lambda_body(&body_start)?;
 
@@ -450,6 +470,18 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.simple_identifier_lambda_hits += 1;
         }
+
+        // keep comments/docs between parameter head and `=>` on the lambda declaration
+        self.attach_inline_wrapper_leading_annotations_for_token(
+            arrow_cursor.index,
+            arrow_cursor.skipped_newline_count,
+            function_id.id,
+        );
+        self.attach_inline_expression_leading_annotations_for_token(
+            body_cursor.index,
+            body_cursor.skipped_newline_count,
+            body.id,
+        );
 
         Ok(Some(function_id))
     }
@@ -534,6 +566,10 @@ impl Parser {
                 return Ok(function_id);
             }
         }
+
+        // track lambda separator token for inline boundary annotation attachment
+        let mut lambda_separator_cursor: Option<(usize, usize)> = None;
+        let mut lambda_body_cursor: Option<(usize, usize, u32)> = None;
 
         // abstraction
         if self.is_keyword(Keyword::Abstract)
@@ -689,7 +725,17 @@ impl Parser {
             if kind == FunctionKind::Lambda && self.has_lambda_return_type_marker() {
                 let type_start = self.mark_span();
                 self.eat_newlines_maybe()?;
+                let separator_cursor = self.peek_cursor();
                 self.bump(); // eat colon or arrow
+                if matches!(
+                    separator_cursor.token_type,
+                    TokenType::Arrow | TokenType::ArrowWide
+                ) {
+                    lambda_separator_cursor = Some((
+                        separator_cursor.index,
+                        separator_cursor.skipped_newline_count,
+                    ));
+                }
                 self.eat_newlines_maybe()?;
 
                 // return type
@@ -783,8 +829,14 @@ impl Parser {
             // lambda with body
             else if kind == FunctionKind::Lambda && !self.options.in_type && self.peek_arrow_is()
             {
+                let separator_cursor = self.peek_cursor();
                 self.eat_arrow()?;
+                lambda_separator_cursor = Some((
+                    separator_cursor.index,
+                    separator_cursor.skipped_newline_count,
+                ));
                 self.eat_newlines_maybe()?;
+                let body_cursor = self.peek_cursor();
                 let body_start = self.mark_span();
                 let body = if self.is_block_start() {
                     let mut options = self
@@ -807,11 +859,17 @@ impl Parser {
                         .options
                         .in_before_block()
                         .not_in_decorator()
+                        .without_expression_leading_annotations()
                         .with_generator(is_generator);
                     // avoid swallowing commas from surrounding contexts
                     options.allow_sequence_expression = false;
                     self.eat_expression(options)?
                 };
+                lambda_body_cursor = Some((
+                    body_cursor.index,
+                    body_cursor.skipped_newline_count,
+                    body.id,
+                ));
                 Some(body)
             }
             // no body
@@ -869,6 +927,24 @@ impl Parser {
         if let Some(span) = return_type_span {
             self.tree
                 .set_side_span(function_id, NodeSpanType::Type, span);
+        }
+
+        // keep comments/docs between lambda head and separator on the declaration
+        if let Some((separator_index, separator_skipped_newline_count)) = lambda_separator_cursor {
+            self.attach_inline_wrapper_leading_annotations_for_token(
+                separator_index,
+                separator_skipped_newline_count,
+                function_id.id,
+            );
+        }
+
+        // keep comments/docs between lambda separator and body on the body expression
+        if let Some((body_index, body_skipped_newline_count, body_id)) = lambda_body_cursor {
+            self.attach_inline_expression_leading_annotations_for_token(
+                body_index,
+                body_skipped_newline_count,
+                body_id,
+            );
         }
 
         Ok(function_id)

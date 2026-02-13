@@ -650,6 +650,7 @@ impl Parser {
     /// Eat type import arguments.
     fn eat_type_import_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         // open argument list
+        let open_parenthesis_token_index = self.pos_index();
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
@@ -662,7 +663,10 @@ impl Parser {
         // positional arguments
         let argument_options = self.options.nested().not_in_position();
         let old_options = self.swap_options(argument_options);
-        let arguments_result = self.eat_positional_arguments_body(TokenType::CloseParenthesis);
+        let arguments_result = self.eat_positional_arguments_body(
+            TokenType::CloseParenthesis,
+            Some(open_parenthesis_token_index),
+        );
         self.restore_options(old_options);
         let arguments = arguments_result?;
 
