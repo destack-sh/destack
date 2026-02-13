@@ -168,7 +168,7 @@ impl Parser {
     }
 
     /// Try to parse common statement keywords without the full keyword dispatch table.
-    fn try_eat_direct_statement_keyword_expression(
+    pub(crate) fn try_eat_direct_statement_keyword_expression(
         &mut self,
         start: &ParserMark,
         keyword: Keyword,
@@ -430,113 +430,6 @@ impl Parser {
             }
             _ => Ok(None),
         }
-    }
-
-    /// Try to parse a statement keyword directly before the generic identifier path.
-    pub(crate) fn try_eat_statement_keyword_expression_fast(
-        &mut self,
-        start: &ParserMark,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.statement_keyword_fast_calls += 1;
-        }
-
-        // only fast path in plain statement position without split tokens
-        if !self.options.in_statement_position
-            || self.options.in_decorator
-            || self.options.in_match_case
-            || self.has_active_split()
-            || !self.peek_is(TokenType::Identifier)
-        {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.statement_keyword_fast_prefilter_rejects += 1;
-            }
-            return Ok(None);
-        }
-
-        // only route commonly statement led keywords through the direct parser
-        let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) else {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.statement_keyword_fast_keyword_rejects += 1;
-            }
-            return Ok(None);
-        };
-        let can_fast_path = matches!(
-            keyword,
-            Keyword::If
-                | Keyword::While
-                | Keyword::Do
-                | Keyword::For
-                | Keyword::Loop
-                | Keyword::Try
-                | Keyword::Switch
-                | Keyword::Match
-                | Keyword::Break
-                | Keyword::Continue
-                | Keyword::Throw
-                | Keyword::Return
-                | Keyword::Debugger
-                | Keyword::Yield
-                | Keyword::Let
-                | Keyword::Var
-                | Keyword::Const
-                | Keyword::Using
-                | Keyword::Await
-                | Keyword::Import
-                | Keyword::Function
-                | Keyword::Class
-                | Keyword::Struct
-                | Keyword::Enum
-                | Keyword::Interface
-                | Keyword::Type
-                | Keyword::Readonly
-                | Keyword::Newtype
-                | Keyword::Namespace
-                | Keyword::Extension
-                | Keyword::Comptime
-        );
-        if !can_fast_path {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.statement_keyword_fast_keyword_rejects += 1;
-            }
-            return Ok(None);
-        }
-
-        let next_token_type = self.peek_next_token_type();
-        if let Some(expression_id) =
-            self.try_eat_direct_statement_keyword_expression(start, keyword, next_token_type)?
-        {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.statement_keyword_fast_direct_hits += 1;
-            }
-            return Ok(Some(expression_id));
-        }
-        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-            speculation_stats.statement_keyword_fast_direct_misses += 1;
-        }
-
-        // parse through the existing keyword machinery with a neutral descriptor
-        let descriptor = DeclarationDescriptor::default();
-        let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
-        let expression_id = self.eat_keyword_expression(
-            start,
-            descriptor,
-            keyword,
-            next_token_type,
-            is_declaration_start,
-        )?;
-
-        if expression_id.is_some() {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.statement_keyword_fast_fallback_hits += 1;
-            }
-        } else {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.statement_keyword_fast_fallback_misses += 1;
-            }
-        }
-
-        Ok(expression_id)
     }
 
     /// Eat a keyword-led expression when possible.

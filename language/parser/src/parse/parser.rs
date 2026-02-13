@@ -1369,23 +1369,23 @@ impl Parser {
 
     /// Finish parsing. You don't need to call this manually if using Parser::parse().
     pub fn finish(&mut self) {
-        if !self.is_finished {
-            // parse time attachment is complete before finish
-            self.finish_annotations();
-            self.is_finished = true;
-        }
-    }
-
-    /// Finalize parse time annotations.
-    ///
-    /// Annotation ownership is resolved during parsing, and finish normalizes stable annotation order.
-    pub fn finish_annotations(&mut self) {
         if self.is_finished {
             return;
         }
 
-        self.tree.sort_annotations();
+        // parse path now performs annotation ownership and ordering incrementally
+        self.is_finished = true;
     }
+
+    /// Finalize parse time annotations.
+    ///
+    /// Annotation ownership and ordering are handled during parsing, so this is a compatibility no op.
+    pub fn finish_annotations(&mut self) {
+        if self.is_finished {
+            return;
+        }
+    }
+
     /// Build the position index after parsing.
     ///
     /// Position indexes are now built lazily by source map lookups, so this is a compatibility no op.
