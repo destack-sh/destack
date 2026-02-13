@@ -1092,7 +1092,6 @@ mod tests {
         let mut test = TestParser::new("// just a comment");
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         // should have one Stub expression
         assert_eq!(expressions.len(), 1);
@@ -1164,7 +1163,6 @@ function foo() { }",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         // parse decorator annotations on the function
         let decorators = parser.tree.get_nodes::<Decorator>();
@@ -1189,7 +1187,6 @@ function foo() { }",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -1246,7 +1243,6 @@ function foo() { }",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -1286,7 +1282,6 @@ function foo() { }",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
@@ -1317,7 +1312,6 @@ class Foo {}",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
         let decorators = parser.tree.get_nodes::<Decorator>();
         assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
         let decorator_span = parser.tree.get_span(decorators[0]);
@@ -1429,7 +1423,6 @@ export enum EventStatus {
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         assert_eq!(expressions.len(), 1);
 
@@ -1504,7 +1497,6 @@ export enum EventStatus {
         let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         // let A = 1
         assert_eq!(expressions.len(), 1);
@@ -1626,7 +1618,6 @@ Promise.all(writeIconFiles)",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         assert_eq!(expressions.len(), 2);
         let mut blank_parent = None;
@@ -1803,7 +1794,6 @@ over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        parser.finish_annotations();
 
         // let A = 1
         assert_eq!(expressions.len(), 1);
