@@ -84,12 +84,68 @@ impl Compiler {
                 ImportEdgeKind::Require
             }
 
-            // keep esm edges and runtime imports as import conditions
+            // keep esm edges, directives, and runtime imports as import conditions
             DependencySource::ImportStatement
+            | DependencySource::ReferencePathDirective
+            | DependencySource::ReferenceTypesDirective
+            | DependencySource::ReferenceLibDirective
             | DependencySource::ExportStatement
             | DependencySource::ImportCall
             | DependencySource::ValueExpression => ImportEdgeKind::Import,
         }
+    }
+
+    /// Normalize one dependency target specifier for source-specific semantics.
+    pub(crate) fn resolve_target_for_dependency_source(
+        &self,
+        source: DependencySource,
+        target: StringId,
+    ) -> StringId {
+        // normalize bare reference path directives to same directory relative paths
+        if source == DependencySource::ReferencePathDirective {
+            return self.normalize_reference_path_directive_target(target);
+        }
+
+        target
+    }
+
+    /// Normalize one triple slash reference path target.
+    fn normalize_reference_path_directive_target(&self, target: StringId) -> StringId {
+        let target_text = self.program.strings.get(target).to_string();
+
+        // keep explicit path forms as-is
+        if Self::reference_path_target_is_explicit(&target_text) {
+            return target;
+        }
+
+        // normalize bare file names to same directory relative imports
+        self.program.strings.intern(&format!("./{target_text}"))
+    }
+
+    /// Return true when a reference path target already specifies an explicit path.
+    fn reference_path_target_is_explicit(target: &str) -> bool {
+        if target.starts_with("./")
+            || target.starts_with("../")
+            || target.starts_with('/')
+            || target.starts_with('\\')
+        {
+            return true;
+        }
+
+        if target.contains("://") || target.starts_with("file:") {
+            return true;
+        }
+
+        let bytes = target.as_bytes();
+        if bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && (bytes[2] == b'/' || bytes[2] == b'\\')
+        {
+            return true;
+        }
+
+        false
     }
 
     /// Select an origin module for module binding cache entries.
@@ -1231,8 +1287,29 @@ impl Compiler {
             return Ok(remote_target);
         }
 
+        // resolve reference lib directives through builtin library loading
+        if source == DependencySource::ReferenceLibDirective {
+            let target_text = self.program.strings.get(target);
+            let module_id = self
+                .resolve_reference_lib_to_module(profile, target_text.as_ref())
+                .map_err(|_| ResolveError::UnresolvedModule {
+                    node: node.into_anchored(Some(profile)),
+                    target,
+                })?;
+            let remote_target = ModuleTarget::Module(module_id);
+            let resolved_targets = ModuleResolution::from_target(remote_target);
+            dir.imported_modules
+                .write()
+                .insert(cache_key, resolved_targets);
+
+            return Ok(remote_target);
+        }
+
+        // normalize target specifiers for source-specific semantics
+        let resolve_target = self.resolve_target_for_dependency_source(source, target);
+
         // prepare root context for non-relative import resolution
-        if !self.is_import_relative(target) && !module.is_builtin() {
+        if !self.is_import_relative(resolve_target) && !module.is_builtin() {
             self.require_resolve_module_prepare_if_needed(
                 module.id,
                 self.program.root_module_id,
@@ -1243,7 +1320,7 @@ impl Compiler {
         // resolve specifier to module ids first
         let resolved_targets = self
             .resolve_specifier_to_module_resolution(
-                target,
+                resolve_target,
                 source_module,
                 edge_kind,
                 loader_override,
@@ -1273,7 +1350,7 @@ impl Compiler {
         // fall back to module bindings when module resolution has no usable target
         if loader_override.is_none()
             && let Some(binding_target) =
-                self.resolve_module_binding_target(module.id, profile, target)?
+                self.resolve_module_binding_target(module.id, profile, resolve_target)?
         {
             let binding_targets = ModuleResolution::from_target(binding_target);
             dir.imported_modules
@@ -2943,6 +3020,17 @@ mod tests {
     fn test_import_edge_kind_for_typescript_commonjs_import_call() {
         let edge_kind =
             Compiler::import_edge_kind_for_dependency(DependencySource::ImportCall, true);
+
+        assert_eq!(edge_kind, ImportEdgeKind::Import);
+    }
+
+    /// Keep triple slash directives on import conditions in TypeScript CommonJS modules.
+    #[test]
+    fn test_import_edge_kind_for_typescript_commonjs_reference_path_directive() {
+        let edge_kind = Compiler::import_edge_kind_for_dependency(
+            DependencySource::ReferencePathDirective,
+            true,
+        );
 
         assert_eq!(edge_kind, ImportEdgeKind::Import);
     }

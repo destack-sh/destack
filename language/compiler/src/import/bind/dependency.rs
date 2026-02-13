@@ -16,6 +16,9 @@ impl Compiler {
     pub(super) fn bind_dependency_source(&self, source: ast::ImportSource) -> DependencySource {
         match source {
             ast::ImportSource::ImportStatement => DependencySource::ImportStatement,
+            ast::ImportSource::ReferencePathDirective => DependencySource::ReferencePathDirective,
+            ast::ImportSource::ReferenceTypesDirective => DependencySource::ReferenceTypesDirective,
+            ast::ImportSource::ReferenceLibDirective => DependencySource::ReferenceLibDirective,
             ast::ImportSource::ImportEquals => DependencySource::ImportEquals,
             ast::ImportSource::ImportCall => DependencySource::ImportCall,
         }
@@ -151,6 +154,9 @@ impl Compiler {
                 && matches!(
                     source,
                     DependencySource::ImportStatement
+                        | DependencySource::ReferencePathDirective
+                        | DependencySource::ReferenceTypesDirective
+                        | DependencySource::ReferenceLibDirective
                         | DependencySource::ImportEquals
                         | DependencySource::ImportCall
                 )

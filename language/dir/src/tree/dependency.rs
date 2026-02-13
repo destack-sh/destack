@@ -11,6 +11,12 @@ use crate::{
 pub enum DependencySource {
     /// Plain import statement (like `import "foo"`).
     ImportStatement,
+    /// TypeScript triple-slash `reference path` directive.
+    ReferencePathDirective,
+    /// TypeScript triple-slash `reference types` directive.
+    ReferenceTypesDirective,
+    /// TypeScript triple-slash `reference lib` directive.
+    ReferenceLibDirective,
     /// Import-equals statement (like `import foo = require("foo")`).
     ImportEquals,
     /// Re-export statement (like `export { bar } from "foo"`).

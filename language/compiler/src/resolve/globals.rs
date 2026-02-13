@@ -1,13 +1,13 @@
 use destack_base::StringId;
 use destack_dir::{
-    Argument, DependencyKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    ModuleResolution, ModuleTarget, NodeTree, Path, ScalarLiteral, StaticKey, SymbolKind,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Argument, DependencyKind, DependencySource, Expression, GlobalNodeIdAny, GlobalSymbolId,
+    LocalNodeId, ModuleResolution, ModuleTarget, NodeTree, Path, ScalarLiteral, StaticKey,
+    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{
-    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir, ProfileId,
-    Target, TargetDiscovery, TargetId,
+    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, ImportEdgeKind, Module,
+    ModuleDir, ProfileId, Target, TargetDiscovery, TargetId,
 };
 
 use crate::resolve::cache::ResolveScopeIndexCache;
@@ -16,6 +16,8 @@ use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryIssue, TaskDep
 /// Track dependency targets while scanning module trees.
 #[derive(Debug, Clone, Copy)]
 struct DependencyTarget {
+    /// The dependency source syntax.
+    source: DependencySource,
     /// The module specifier.
     target: StringId,
     /// The node that referenced the module.
@@ -592,11 +594,8 @@ impl Compiler {
                 }
 
                 // resolve specifiers to modules for traversal
-                let resolved_targets = match self.resolve_specifier_to_module_resolution(
-                    dependency.target,
-                    Some(module_id),
-                    destack_workspace::ImportEdgeKind::Import,
-                    None,
+                let resolved_targets = match self.resolve_dependency_targets_for_global_traversal(
+                    module_id, profile_id, dependency,
                 ) {
                     Ok(targets) => targets,
                     Err(_) if module.is_builtin() && dependency.kind == DependencyKind::Type => {
@@ -632,6 +631,44 @@ impl Compiler {
 
         // declaration scripts also contribute top-level global declarations
         module.language_type.is_declaration() && module.source_type.is_script()
+    }
+
+    /// Resolve one dependency target for global symbol table traversal.
+    fn resolve_dependency_targets_for_global_traversal(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        dependency: DependencyTarget,
+    ) -> ResolveResult<ModuleResolution> {
+        // resolve triple slash reference lib directives through builtin library loading
+        if dependency.source == DependencySource::ReferenceLibDirective {
+            let target_text = self.program.strings.get(dependency.target);
+            let module_id = self
+                .resolve_reference_lib_to_module(profile_id, target_text.as_ref())
+                .map_err(|_| ResolveError::UnresolvedModule {
+                    node: dependency.node.into_anchored(Some(profile_id)),
+                    target: dependency.target,
+                })?;
+
+            return Ok(ModuleResolution::from_target(ModuleTarget::Module(
+                module_id,
+            )));
+        }
+
+        // normalize triple slash reference path directives before specifier resolution
+        let target =
+            self.resolve_target_for_dependency_source(dependency.source, dependency.target);
+
+        self.resolve_specifier_to_module_resolution(
+            target,
+            Some(module_id),
+            ImportEdgeKind::Import,
+            None,
+        )
+        .map_err(|_| ResolveError::UnresolvedModule {
+            node: dependency.node.into_anchored(Some(profile_id)),
+            target: dependency.target,
+        })
     }
 
     /// Collect module ids from primary and companion resolution targets.
@@ -729,12 +766,18 @@ impl Compiler {
                 continue;
             }
             match tree.get(expression_id) {
-                Expression::UnresolvedImport { target, kind, .. } => {
+                Expression::UnresolvedImport {
+                    source,
+                    target,
+                    kind,
+                    ..
+                } => {
                     let target = match target {
                         destack_dir::ImportTarget::String(target) => *target,
                         destack_dir::ImportTarget::Expression { .. } => continue,
                     };
                     targets.push(DependencyTarget {
+                        source: *source,
                         target,
                         node: expression_id.into_global_any(module_id),
                         kind: *kind,
@@ -743,13 +786,20 @@ impl Compiler {
                 Expression::UnresolvedReExport { target, kind, .. }
                 | Expression::ReExport { target, kind, .. } => {
                     targets.push(DependencyTarget {
+                        source: DependencySource::ExportStatement,
                         target: *target,
                         node: expression_id.into_global_any(module_id),
                         kind: *kind,
                     });
                 }
-                Expression::Import { target, kind, .. } => {
+                Expression::Import {
+                    source,
+                    target,
+                    kind,
+                    ..
+                } => {
                     targets.push(DependencyTarget {
+                        source: *source,
                         target: *target,
                         node: expression_id.into_global_any(module_id),
                         kind: *kind,
@@ -761,6 +811,7 @@ impl Compiler {
                     } = tree.get(*target)
                     {
                         targets.push(DependencyTarget {
+                            source: DependencySource::ImportStatement,
                             target: *target,
                             node: expression_id.into_global_any(module_id),
                             kind: DependencyKind::Type,
@@ -776,7 +827,7 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::StaticKey;
+    use destack_dir::{DependencySource, StaticKey};
 
     use crate::TestProgram;
 
@@ -796,7 +847,6 @@ export {};
 "#,
         );
         test.resolve_module(module_id);
-
         test.compile_check_clean();
 
         let profile = test.default_profile_id(module_id);
@@ -839,42 +889,102 @@ type Expression = babel.types.Expression;
 const expression: types.Expression = { kind: "ok" };
 "#,
         );
-
         test.resolve_module(module_id);
         test.compile_check_clean();
     }
 
-    /// Resolve triple-slash global declarations through declaration script dependencies.
+    /// Resolve triple slash path directives to same-directory declaration modules.
     #[test]
     fn test_collect_global_symbols_from_triple_slash_declaration_script() {
         let test = TestProgram::memory_sequential();
+
+        // normalize one bare reference path target to same-directory relative form
+        let bare_target = test.program.strings.intern("global.d.ts");
+        let normalized_target = test.compiler.resolve_target_for_dependency_source(
+            DependencySource::ReferencePathDirective,
+            bare_target,
+        );
+        let normalized_text = test.program.strings.get(normalized_target);
+        assert_eq!(normalized_text.as_ref(), "./global.d.ts");
+
+        // keep explicit relative path targets unchanged
+        let explicit_target = test.program.strings.intern("./global.d.ts");
+        let explicit_result = test.compiler.resolve_target_for_dependency_source(
+            DependencySource::ReferencePathDirective,
+            explicit_target,
+        );
+        assert_eq!(explicit_result, explicit_target);
+    }
+
+    /// Resolve triple slash type package directives through @types package lookup.
+
+    #[test]
+    fn test_collect_global_symbols_from_triple_slash_types_package() {
+        let test = TestProgram::memory_sequential();
         test.add_module(
-            "global.d.ts",
+            "node_modules/@types/runner-types/package.json",
+            r#"{
+  "name": "@types/runner-types",
+  "types": "./index.d.ts"
+}"#,
+        );
+        test.add_module(
+            "node_modules/@types/runner-types/index.d.ts",
             r#"
-interface TrustedHTML {}
-interface HTMLWebViewElement {}
+interface RunnerGlobal {
+    id: string;
+}
 "#,
         );
         test.add_module(
-            "react.d.ts",
+            "ambient.d.ts",
             r#"
-/// <reference path="global.d.ts" />
+/// <reference types="runner-types" />
 
 export interface Markup {
-    html: TrustedHTML;
-    webview: HTMLWebViewElement;
+    value: RunnerGlobal;
 }
 "#,
         );
         let module_id = test.add_module(
             "main.ts",
             r#"
-import type { Markup } from "./react";
+import type { Markup } from "./ambient";
 
-const markups: Markup[] = [];
+const markup: Markup = {
+    value: {
+        id: "ok",
+    },
+};
 "#,
         );
+        test.resolve_module(module_id);
+        test.compile_check_clean();
+    }
 
+    /// Resolve triple slash lib directives through builtin library loading.
+    #[test]
+    fn test_collect_global_symbols_from_triple_slash_lib_directive() {
+        let test = TestProgram::memory_sequential();
+        test.add_module(
+            "ambient.d.ts",
+            r#"
+/// <reference lib="esnext.disposable" />
+
+export interface ResourceHolder {
+    resource: Disposable;
+}
+"#,
+        );
+        let module_id = test.add_module(
+            "main.ts",
+            r#"
+import type { ResourceHolder } from "./ambient";
+
+declare const holder: ResourceHolder;
+holder.resource;
+"#,
+        );
         test.resolve_module(module_id);
         test.compile_check_clean();
     }
@@ -914,7 +1024,6 @@ type BabelType = babel.types.Expression | babel.types.V8IntrinsicIdentifier;
 const value: BabelType | null = null;
 "#,
         );
-
         test.resolve_module(module_id);
         test.compile_check_clean();
     }
@@ -959,7 +1068,6 @@ type BabelType = babel.types.Expression | babel.types.V8IntrinsicIdentifier;
 const value: BabelType | null = null;
 "#,
         );
-
         test.resolve_module(module_id);
         test.compile_check_clean();
     }

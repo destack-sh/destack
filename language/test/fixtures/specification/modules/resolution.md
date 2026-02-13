@@ -132,6 +132,92 @@ export const value: number;
 }
 ```
 
+## triple slash directives
+
+### resolves reference path directives
+
+> Triple slash `reference path` directives include sibling declaration files.
+
+```ts:ambient.d.ts
+/// <reference path="global.d.ts" />
+
+export interface Markup {
+    value: TrustedHTML;
+}
+```
+
+```ts:global.d.ts
+interface TrustedHTML {
+    html: string;
+}
+```
+
+```ts:main.ts
+import type { Markup } from "./ambient";
+
+const markup: Markup = {
+    value: {
+        html: "ok",
+    },
+};
+markup.value.html satisfies string;
+```
+
+### resolves reference types directives
+
+> Triple slash `reference types` directives resolve type packages through `@types` lookups.
+
+```ts:ambient.d.ts
+/// <reference types="runner-types" />
+
+export interface Markup {
+    value: RunnerGlobal;
+}
+```
+
+```ts:main.ts
+import type { Markup } from "./ambient";
+
+const markup: Markup = {
+    value: {
+        id: "ok",
+    },
+};
+markup.value.id satisfies string;
+```
+
+```json:node_modules/@types/runner-types/package.json
+{
+  "name": "@types/runner-types",
+  "types": "./index.d.ts"
+}
+```
+
+```ts:node_modules/@types/runner-types/index.d.ts
+interface RunnerGlobal {
+    id: string;
+}
+```
+
+### resolves reference lib directives
+
+> Triple slash `reference lib` directives load builtin ambient libs by name.
+
+```ts:ambient.d.ts
+/// <reference lib="esnext.disposable" />
+
+export interface ResourceHolder {
+    resource: Disposable;
+}
+```
+
+```ts:main.ts
+import type { ResourceHolder } from "./ambient";
+
+declare const holder: ResourceHolder;
+holder.resource;
+```
+
 ## package self references
 
 ### rejects self package bare import without exports

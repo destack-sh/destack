@@ -1352,17 +1352,45 @@ impl Parser {
     /// Parse everything as an implicit namespace.
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        // parse the root block body with recovery
-        let start = self.mark_span();
-        let mut expressions = self.with_recovery(
-            &start,
-            |parser| parser.eat_block_body(BlockFormat::Implicit),
-            Vec::new(),
-            TokenType::End,
-        );
+        // parse main expressions without finalization
+        let expressions = self.parse_without_finish();
 
-        // comment-only files need one target node
-        if expressions.is_empty() && self.has_comment_annotation_tokens() {
+        // finalize annotations and indexes
+        self.finish();
+
+        expressions
+    }
+
+    /// Parse everything as an implicit namespace without attaching annotations or indexes.
+    /// Call `finish` to attach annotations and build the position index.
+    pub fn parse_without_finish(&mut self) -> Vec<LocalNodeId<Expression>> {
+        // pre-lex non-tree-literal sources to reduce ensure_token overhead in hot parse loops
+        if !self.allow_tree_literals() {
+            self.lex_to_end();
+            self.tokens_prelexed = true;
+        } else {
+            self.tokens_prelexed = false;
+        }
+
+        // parse leading triple-slash reference path directives
+        let (mut expressions, consumed_to_end) =
+            self.parse_leading_triple_slash_reference_imports();
+
+        // parse the root block body with recovery when source has non-directive content
+        if !consumed_to_end {
+            let start = self.mark_span();
+            let mut body_expressions = self.with_recovery(
+                &start,
+                |parser| parser.eat_block_body(BlockFormat::Implicit),
+                Vec::new(),
+                TokenType::End,
+            );
+            expressions.append(&mut body_expressions);
+        }
+
+        // insert a stub expression when annotation-only prefixes need one stable attachment target
+        self.lex_to_end();
+        if self.has_comment_annotation_tokens() && (expressions.is_empty() || consumed_to_end) {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
             self.attach_boundary(
@@ -1371,7 +1399,11 @@ impl Parser {
                 stub.id,
                 crate::parse::annotation::AnnotationBoundaryKind::Stub,
             );
-            expressions.push(stub);
+            if expressions.is_empty() {
+                expressions.push(stub);
+            } else {
+                expressions.insert(0, stub);
+            }
         }
 
         // attach side annotations in the default parse pipeline

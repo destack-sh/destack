@@ -1099,9 +1099,21 @@ impl Compiler {
     /// Convert a DIR import source into an AST import source.
     fn unbind_import_source(&self, source: dir::DependencySource) -> ast::ImportSource {
         match source {
+            dir::DependencySource::ImportStatement => ast::ImportSource::ImportStatement,
+            dir::DependencySource::ReferencePathDirective => {
+                ast::ImportSource::ReferencePathDirective
+            }
+            dir::DependencySource::ReferenceTypesDirective => {
+                ast::ImportSource::ReferenceTypesDirective
+            }
+            dir::DependencySource::ReferenceLibDirective => {
+                ast::ImportSource::ReferenceLibDirective
+            }
             dir::DependencySource::ImportEquals => ast::ImportSource::ImportEquals,
             dir::DependencySource::ImportCall => ast::ImportSource::ImportCall,
-            _ => ast::ImportSource::ImportStatement,
+            dir::DependencySource::RequireCall
+            | dir::DependencySource::ExportStatement
+            | dir::DependencySource::ValueExpression => ast::ImportSource::ImportStatement,
         }
     }
 }

@@ -144,6 +144,9 @@ impl Compiler {
         matches!(
             source,
             DependencySource::ImportStatement
+                | DependencySource::ReferencePathDirective
+                | DependencySource::ReferenceTypesDirective
+                | DependencySource::ReferenceLibDirective
                 | DependencySource::ImportEquals
                 | DependencySource::ExportStatement
                 | DependencySource::ValueExpression

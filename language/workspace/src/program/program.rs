@@ -1202,9 +1202,12 @@ impl Program {
         let expression_id = Self::top_level_expression_without_statement(&ast.tree, expression_id);
         let expression = ast.tree.get(expression_id);
 
-        // treat explicit imports as module syntax
+        // treat module import statements as module syntax
         if let ast::Expression::Import { source, .. } = expression {
-            return *source != ast::ImportSource::ImportCall;
+            return matches!(
+                source,
+                ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals
+            );
         }
 
         // treat explicit export statements as module syntax
