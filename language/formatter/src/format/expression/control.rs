@@ -1,7 +1,11 @@
 use super::*;
+use crate::annotation::{
+    annotation_should_defer, if_head_boundary_annotations, if_then_else_boundary_annotations,
+};
 use crate::r#match::{MatchCaseStyle, format_match_case_with_style};
 use destack_ast::BlockFormat;
 use destack_fir::{format_args, write};
+use destack_source::Span;
 
 /// Format a statement body block, preserving wrapper semantics.
 pub(super) fn format_statement_body_block<'ast>(
@@ -93,129 +97,6 @@ pub(super) fn format_for_each_binding_pattern<'ast>(
     }
 }
 
-/// Return whether node has a line postfix slash comment annotation.
-fn has_line_postfix_slash_comment<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    node_id: LocalNodeId<T>,
-) -> bool
-where
-    T: destack_ast::Node,
-    NodeTree: destack_ast::NodeTreeImpl<T>,
-{
-    let Some(annotations) = context.get_annotations(node_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        let Annotation::Comment { node, position } = annotation else {
-            return false;
-        };
-        if !matches!(
-            position,
-            AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
-        ) {
-            return false;
-        }
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
-        comment.style == destack_ast::CommentStyle::Slash
-    })
-}
-
-/// Return whether node has a line postfix boundary star comment annotation.
-fn has_line_postfix_boundary_star_comment<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    node_id: LocalNodeId<T>,
-) -> bool
-where
-    T: destack_ast::Node,
-    NodeTree: destack_ast::NodeTreeImpl<T>,
-{
-    let Some(annotations) = context.get_annotations(node_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        let Annotation::Comment { node, position } = annotation else {
-            return false;
-        };
-        if *position != AnnotationPosition::LinePostfixBoundary {
-            return false;
-        }
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
-        comment.style == destack_ast::CommentStyle::Star
-    })
-}
-
-/// Return an inline block comment source for an else boundary when safe.
-fn inline_else_boundary_block_comment<'ast>(
-    context: &DestackFormatContext<'ast>,
-    then_expression_id: LocalNodeId<Expression>,
-    else_expression_id: LocalNodeId<Expression>,
-) -> Option<(String, bool)> {
-    let annotations = context.get_annotations(else_expression_id)?;
-    let mut prefix_comment_annotation: Option<LocalNodeId<Annotation>> = None;
-
-    for annotation_id in annotations {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        match annotation {
-            Annotation::Comment { node, position } => {
-                if !matches!(
-                    position,
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) {
-                    continue;
-                }
-                let comment = context.tree.get::<destack_ast::Comment>(*node);
-                if comment.style != destack_ast::CommentStyle::Star {
-                    return None;
-                }
-                if prefix_comment_annotation.replace(annotation_id).is_some() {
-                    return None;
-                }
-            }
-            Annotation::Blank { position, .. }
-            | Annotation::Doc { position, .. }
-            | Annotation::Decorator { position, .. } => {
-                if matches!(
-                    position,
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) {
-                    return None;
-                }
-            }
-        }
-    }
-
-    let prefix_comment_annotation = prefix_comment_annotation?;
-    let comment_span = context.get_span::<Annotation>(prefix_comment_annotation);
-    let comment_source = context.get_span_str(comment_span);
-    let comment_source = comment_source.trim();
-    if !comment_source.starts_with("/*") || !comment_source.ends_with("*/") {
-        return None;
-    }
-
-    let then_span = context.get_span(then_expression_id);
-    let else_span = context.get_span(else_expression_id);
-    if then_span.file != else_span.file || then_span.end > else_span.start {
-        return None;
-    }
-    let between_span = Span::new(then_span.file, then_span.end, else_span.start);
-    let between_source = context.get_span_str(between_span);
-    let comment_index = between_source.find(comment_source)?;
-    let before_comment = &between_source[..comment_index];
-    if before_comment
-        .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
-        .any(|token| token == "else")
-    {
-        return None;
-    }
-    let comment_is_on_new_line = between_source[..comment_index].contains('\n');
-
-    Some((comment_source.to_string(), comment_is_on_new_line))
-}
-
 /// Return whether expression annotations include a block prefix annotation.
 fn expression_has_block_prefix_annotation(
     context: &DestackFormatContext<'_>,
@@ -274,6 +155,29 @@ fn expression_has_line_prefix_annotation(
     })
 }
 
+/// Return whether expression has any prefix annotation that is not deferred away.
+fn expression_has_effective_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        let position = context.tree.get::<Annotation>(annotation_id).position();
+        let is_prefix = matches!(
+            position,
+            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+        );
+        if !is_prefix {
+            return false;
+        }
+
+        !annotation_should_defer(context, expression_id, annotation_id, position)
+    })
+}
+
 /// Return whether an if branch should include a space after the condition head.
 fn if_branch_head_requires_space(
     context: &DestackFormatContext<'_>,
@@ -293,6 +197,98 @@ fn if_branch_head_requires_space(
     }
 
     !then_is_empty_statement
+}
+
+/// Return whether annotation is a slash comment.
+fn annotation_is_slash_comment(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+        return false;
+    };
+
+    let comment = context.tree.get::<destack_ast::Comment>(*node);
+    comment.style == destack_ast::CommentStyle::Slash
+}
+
+/// Return whether an annotation starts on its own source line.
+fn annotation_starts_on_own_line(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let head_span = Span::new(annotation_span.file, 0, annotation_span.start);
+    let head_source = context.file.get_span_str(head_span).unwrap_or_default();
+    let line_start = head_source.rfind('\n').map_or(0, |index| index + 1);
+    head_source[line_start..].trim().is_empty()
+}
+
+/// Write deferred if boundary annotations with stable separator spacing.
+fn write_deferred_if_boundary_annotation_cluster<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    annotation_ids: &[LocalNodeId<Annotation>],
+) -> FormatResult<()> {
+    if annotation_ids.is_empty() {
+        return Ok(());
+    }
+
+    let mut previous_was_slash = false;
+    for (index, annotation_id) in annotation_ids.iter().copied().enumerate() {
+        let is_slash = annotation_is_slash_comment(f.context(), annotation_id);
+        let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id);
+
+        // separate each deferred boundary annotation with stable seam spacing
+        if starts_on_own_line {
+            write!(f, [hard_line_break()])?;
+        } else if index == 0 || !previous_was_slash {
+            write!(f, [space()])?;
+        }
+
+        let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+        let annotation_source = f.context().get_span_str(annotation_span);
+        write!(f, [text(annotation_source.trim())])?;
+        if is_slash {
+            write!(f, [hard_line_break()])?;
+        }
+        previous_was_slash = is_slash;
+    }
+
+    if !previous_was_slash {
+        write!(f, [space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write deferred boundary annotations between if head and then body.
+fn write_deferred_if_head_boundary_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    if_id: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    let annotation_ids = if_head_boundary_annotations(f.context(), if_id);
+    if annotation_ids.is_empty() {
+        return Ok(false);
+    }
+
+    write_deferred_if_boundary_annotation_cluster(f, annotation_ids.as_slice())?;
+    Ok(true)
+}
+
+/// Write deferred boundary annotations between then body and else branch.
+fn write_deferred_if_then_else_boundary_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    if_id: LocalNodeId<Expression>,
+    then_id: LocalNodeId<Expression>,
+    else_id: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    let annotation_ids = if_then_else_boundary_annotations(f.context(), if_id, then_id, else_id);
+    if annotation_ids.is_empty() {
+        return Ok(false);
+    }
+
+    write_deferred_if_boundary_annotation_cluster(f, annotation_ids.as_slice())?;
+    Ok(true)
 }
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
@@ -322,9 +318,6 @@ pub(crate) fn format_if_else_chain<'ast>(
                             f,
                             [Keyword::If, space(), token("("), *condition, token(")")]
                         )?;
-                        if then_requires_head_space {
-                            write!(f, [space()])?;
-                        }
                     }
                     IfCondition::Let {
                         kind,
@@ -339,10 +332,16 @@ pub(crate) fn format_if_else_chain<'ast>(
                         }
                         write!(f, [space()])?;
                         format_declarator(f, f.context().tree, *declarator)?;
-                        if then_requires_head_space {
-                            write!(f, [space()])?;
-                        }
                     }
+                }
+
+                // write deferred boundary annotations between the condition head and body
+                let wrote_deferred_head_boundary_annotations =
+                    write_deferred_if_head_boundary_annotations(f, next_if_id)?;
+
+                // insert canonical spacing before the then expression when no deferred boundary exists
+                if then_requires_head_space && !wrote_deferred_head_boundary_annotations {
+                    write!(f, [space()])?;
                 }
 
                 // then block
@@ -368,57 +367,34 @@ pub(crate) fn format_if_else_chain<'ast>(
 
                 // next node
                 if let Some(else_expression) = else_expression_id {
-                    let has_line_postfix_slash_on_boundary =
-                        has_line_postfix_slash_comment(f.context(), next_if_id)
-                            || has_line_postfix_slash_comment(f.context(), *then_expression_id);
-                    let has_line_postfix_star_on_boundary =
-                        has_line_postfix_boundary_star_comment(f.context(), next_if_id)
-                            || has_line_postfix_boundary_star_comment(
-                                f.context(),
-                                *then_expression_id,
-                            );
-                    let inline_else_block_comment = inline_else_boundary_block_comment(
-                        f.context(),
-                        *then_expression_id,
-                        *else_expression,
-                    );
-                    let consume_else_prefix_annotations = inline_else_block_comment.is_some();
-                    if has_line_postfix_slash_on_boundary {
-                        write!(f, [line_postfix_boundary()])?;
-                    }
+                    // write deferred boundary annotations between then and else
+                    let wrote_deferred_then_else_boundary_annotations =
+                        write_deferred_if_then_else_boundary_annotations(
+                            f,
+                            next_if_id,
+                            *then_expression_id,
+                            *else_expression,
+                        )?;
 
-                    if let Some((comment_source, comment_is_on_new_line)) =
-                        inline_else_block_comment
-                    {
-                        if comment_is_on_new_line {
-                            write!(
-                                f,
-                                [hard_line_break(), text(comment_source.as_str()), space()]
-                            )?;
-                        } else {
-                            write!(f, [space(), text(comment_source.as_str()), space()])?;
-                        }
-                    } else if !has_line_postfix_slash_on_boundary
-                        && !has_line_postfix_star_on_boundary
-                        && !f.context().has_prefix_annotation(*else_expression)
+                    // keep compact spacing when no deferred boundary annotations or else prefixes force layout
+                    let else_has_effective_prefix_annotation =
+                        expression_has_effective_prefix_annotation(f.context(), *else_expression);
+                    if !wrote_deferred_then_else_boundary_annotations
+                        && !else_has_effective_prefix_annotation
                     {
                         write!(f, [space()])?;
                     }
                     match f.context().tree.get(*else_expression) {
                         // else if
                         Expression::If { .. } => {
-                            if !consume_else_prefix_annotations {
-                                write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
-                            }
+                            write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
                             write!(f, [Keyword::Else, space()])?;
                             // (postfix is covered by the next if above)
                             next_if_id = *else_expression;
                         }
                         // else
                         Expression::Block(else_block_id) => {
-                            if !consume_else_prefix_annotations {
-                                write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
-                            }
+                            write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
                             write!(f, [Keyword::Else, space()])?;
                             format_statement_body_block(f, *else_block_id)?;
                             write!(f, [f.context().any_postfix_annotations(*else_expression)])?;
@@ -427,9 +403,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                         // something else
                         _ => {
                             let directive = directive_for_node(f.context(), *else_expression);
-                            if !consume_else_prefix_annotations {
-                                write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
-                            }
+                            write!(f, [f.context().any_prefix_annotations(*else_expression)])?;
                             write!(f, [Keyword::Else, space()])?;
                             format_expression(
                                 f,

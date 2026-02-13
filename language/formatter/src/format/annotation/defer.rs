@@ -71,6 +71,55 @@ fn annotation_is_comment_or_doc(
 }
 
 /// Collect node annotations that match a predicate.
+/// Return whether annotation is a slash comment.
+fn annotation_is_slash_comment(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+        return false;
+    };
+
+    let comment = context.tree.get::<Comment>(*node);
+    comment.style == CommentStyle::Slash
+}
+
+/// Return whether a slash comment starts on its own source line.
+fn annotation_is_own_line_slash_comment(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if !annotation_is_slash_comment(context, annotation_id) {
+        return false;
+    }
+
+    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    let head_span = Span::new(annotation_span.file, 0, annotation_span.start);
+    let head_source = context.file.get_span_str(head_span).unwrap_or_default();
+    let line_start = head_source.rfind('\n').map_or(0, |index| index + 1);
+    head_source[line_start..].trim().is_empty()
+}
+
+/// Sort annotation ids by source order and deduplicate by annotation spans.
+fn deduplicate_annotations_by_span(
+    context: &DestackFormatContext<'_>,
+    annotation_ids: &mut Vec<LocalNodeId<Annotation>>,
+) {
+    annotation_ids.sort_by_key(|annotation_id| {
+        let span = context.get_span::<Annotation>(*annotation_id);
+        (span.file.0, span.start, span.end, annotation_id.id)
+    });
+
+    annotation_ids.dedup_by(|left_id, right_id| {
+        let left_span = context.get_span::<Annotation>(*left_id);
+        let right_span = context.get_span::<Annotation>(*right_id);
+
+        left_span.file == right_span.file
+            && left_span.start == right_span.start
+            && left_span.end == right_span.end
+    });
+}
+
 fn collect_matching_annotations<T, P>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
@@ -322,6 +371,503 @@ pub(crate) fn declaration_expression_body_boundary_prefix_annotations(
         expression_id,
         is_declaration_body_boundary_prefix_annotation,
     )
+}
+
+/// Return whether annotation position can sit on expression trailing boundaries.
+fn annotation_is_expression_trailing_boundary_position(position: AnnotationPosition) -> bool {
+    matches!(
+        position,
+        AnnotationPosition::BlockPostfix
+            | AnnotationPosition::LinePostfix
+            | AnnotationPosition::LinePostfixBoundary
+    )
+}
+
+/// Return whether annotation position can sit on if boundary seams.
+fn annotation_is_if_boundary_position(position: AnnotationPosition) -> bool {
+    annotation_is_expression_trailing_boundary_position(position)
+        || matches!(
+            position,
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        )
+}
+
+/// Return the end of an if condition head.
+fn if_condition_head_end(
+    context: &DestackFormatContext<'_>,
+    condition: &IfCondition,
+) -> Option<u32> {
+    match condition {
+        IfCondition::Expression { condition } => Some(context.get_span(*condition).end),
+        IfCondition::Let { declarator, .. } => Some(context.get_span(*declarator).end),
+    }
+}
+
+/// Return the if condition expression when condition is expression-based.
+fn if_condition_expression_id(
+    context: &DestackFormatContext<'_>,
+    if_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    let Expression::If {
+        kind, condition, ..
+    } = context.tree.get::<Expression>(if_id)
+    else {
+        return None;
+    };
+    if *kind == IfKind::Ternary {
+        return None;
+    }
+
+    let IfCondition::Expression { condition } = condition else {
+        return None;
+    };
+
+    Some(*condition)
+}
+
+/// Return whether annotation span falls between two expression spans.
+fn annotation_span_is_between_expressions(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+    left_end: u32,
+    right_start: u32,
+) -> bool {
+    let annotation_span = context.get_span::<Annotation>(annotation_id);
+    annotation_span.start >= left_end && annotation_span.end <= right_start
+}
+
+/// Return whether annotation is between if condition head and then expression body.
+fn is_if_head_to_then_boundary_annotation(
+    context: &DestackFormatContext<'_>,
+    if_id: LocalNodeId<Expression>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool {
+    if !annotation_is_if_boundary_position(position) {
+        return false;
+    }
+    if !annotation_is_comment_or_doc(context, annotation_id) {
+        return false;
+    }
+    if annotation_is_own_line_slash_comment(context, annotation_id) {
+        return false;
+    }
+
+    let Expression::If {
+        kind,
+        condition,
+        then_expression,
+        ..
+    } = context.tree.get::<Expression>(if_id)
+    else {
+        return false;
+    };
+    if *kind == IfKind::Ternary {
+        return false;
+    }
+
+    let Some(head_end) = if_condition_head_end(context, condition) else {
+        return false;
+    };
+    let then_span = context.get_span(*then_expression);
+    annotation_span_is_between_expressions(context, annotation_id, head_end, then_span.start)
+}
+
+/// Return whether annotation sits between a condition expression and then body.
+fn is_if_condition_expression_to_then_boundary_annotation(
+    context: &DestackFormatContext<'_>,
+    if_id: LocalNodeId<Expression>,
+    condition_id: LocalNodeId<Expression>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool {
+    if !annotation_is_if_boundary_position(position) {
+        return false;
+    }
+    if !annotation_is_comment_or_doc(context, annotation_id) {
+        return false;
+    }
+    if annotation_is_own_line_slash_comment(context, annotation_id) {
+        return false;
+    }
+    if previous_non_whitespace_before_annotation(context, annotation_id) != Some(')') {
+        return false;
+    }
+
+    let Expression::If {
+        then_expression, ..
+    } = context.tree.get::<Expression>(if_id)
+    else {
+        return false;
+    };
+
+    let condition_span = context.get_span(condition_id);
+    let then_span = context.get_span(*then_expression);
+    annotation_span_is_between_expressions(
+        context,
+        annotation_id,
+        condition_span.end,
+        then_span.start,
+    )
+}
+
+/// Return whether annotation is between a then expression and its else expression.
+fn is_if_then_to_else_boundary_annotation(
+    context: &DestackFormatContext<'_>,
+    then_id: LocalNodeId<Expression>,
+    else_id: LocalNodeId<Expression>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool {
+    if !annotation_is_if_boundary_position(position) {
+        return false;
+    }
+    if !annotation_is_comment_or_doc(context, annotation_id) {
+        return false;
+    }
+    if annotation_is_own_line_slash_comment(context, annotation_id) {
+        return false;
+    }
+
+    let then_span = context.get_span(then_id);
+    let else_span = context.get_span(else_id);
+    annotation_span_is_between_expressions(context, annotation_id, then_span.end, else_span.start)
+}
+
+/// Return whether an if-expression annotation should be deferred to control-flow formatting.
+fn should_defer_if_expression_boundary_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+
+    let if_id = LocalNodeId::<Expression>::new(node_id.id);
+    let Expression::If {
+        kind,
+        then_expression,
+        else_expression,
+        ..
+    } = context.tree.get::<Expression>(if_id)
+    else {
+        return false;
+    };
+    if *kind == IfKind::Ternary {
+        return false;
+    }
+
+    if is_if_head_to_then_boundary_annotation(context, if_id, annotation_id, position) {
+        return true;
+    }
+
+    let Some(else_id) = else_expression else {
+        return false;
+    };
+    is_if_then_to_else_boundary_annotation(
+        context,
+        *then_expression,
+        *else_id,
+        annotation_id,
+        position,
+    )
+}
+
+/// Return whether a condition-expression annotation should defer to if control rendering.
+fn should_defer_if_condition_expression_boundary_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+
+    let condition_id = LocalNodeId::<Expression>::new(node_id.id);
+    let Some((parent_id, parent_type)) = context.get_parent_by_id(condition_id.id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let if_id = LocalNodeId::<Expression>::new(parent_id);
+    let Some(if_condition_id) = if_condition_expression_id(context, if_id) else {
+        return false;
+    };
+    if if_condition_id != condition_id {
+        return false;
+    }
+
+    is_if_condition_expression_to_then_boundary_annotation(
+        context,
+        if_id,
+        condition_id,
+        annotation_id,
+        position,
+    )
+}
+
+/// Return whether a then-expression annotation should be deferred to control-flow formatting.
+fn should_defer_if_then_expression_boundary_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+    if !annotation_is_expression_trailing_boundary_position(position) {
+        return false;
+    }
+    if !annotation_is_comment_or_doc(context, annotation_id) {
+        return false;
+    }
+
+    let then_id = LocalNodeId::<Expression>::new(node_id.id);
+    let Some((parent_id, parent_type)) = context.get_parent_by_id(then_id.id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_if_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::If {
+        kind,
+        then_expression,
+        else_expression,
+        ..
+    } = context.tree.get::<Expression>(parent_if_id)
+    else {
+        return false;
+    };
+    if *kind == IfKind::Ternary {
+        return false;
+    }
+    if *then_expression != then_id {
+        return false;
+    }
+
+    if is_if_head_to_then_boundary_annotation(context, parent_if_id, annotation_id, position) {
+        return true;
+    }
+
+    let Some(else_id) = else_expression else {
+        return false;
+    };
+    is_if_then_to_else_boundary_annotation(context, then_id, *else_id, annotation_id, position)
+}
+
+/// Return whether an else-expression annotation should be deferred to control-flow formatting.
+fn should_defer_if_else_expression_boundary_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+    if !annotation_is_if_boundary_position(position) {
+        return false;
+    }
+    if !annotation_is_comment_or_doc(context, annotation_id) {
+        return false;
+    }
+    if annotation_is_own_line_slash_comment(context, annotation_id) {
+        return false;
+    }
+
+    let else_id = LocalNodeId::<Expression>::new(node_id.id);
+    let Some((parent_id, parent_type)) = context.get_parent_by_id(else_id.id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_if_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::If {
+        kind,
+        then_expression,
+        else_expression,
+        ..
+    } = context.tree.get::<Expression>(parent_if_id)
+    else {
+        return false;
+    };
+    if *kind == IfKind::Ternary {
+        return false;
+    }
+
+    let Some(expected_else_id) = else_expression else {
+        return false;
+    };
+    if *expected_else_id != else_id {
+        return false;
+    }
+
+    is_if_then_to_else_boundary_annotation(
+        context,
+        *then_expression,
+        else_id,
+        annotation_id,
+        position,
+    )
+}
+
+/// Return whether annotation should be deferred to if control-flow rendering.
+fn should_defer_if_control_flow_boundary_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+) -> bool
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let node_index = node_id.id;
+
+    should_defer_if_expression_boundary_annotation(
+        context,
+        LocalNodeId::<T>::new(node_index),
+        annotation_id,
+        position,
+    ) || should_defer_if_condition_expression_boundary_annotation(
+        context,
+        LocalNodeId::<T>::new(node_index),
+        annotation_id,
+        position,
+    ) || should_defer_if_then_expression_boundary_annotation(
+        context,
+        LocalNodeId::<T>::new(node_index),
+        annotation_id,
+        position,
+    ) || should_defer_if_else_expression_boundary_annotation(
+        context,
+        LocalNodeId::<T>::new(node_index),
+        annotation_id,
+        position,
+    )
+}
+
+/// Collect deferred annotations between if condition head and then expression body.
+pub(crate) fn if_head_boundary_annotations(
+    context: &DestackFormatContext<'_>,
+    if_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let mut annotation_ids = Vec::new();
+
+    if let Some(annotations) = context.get_annotations(if_id) {
+        annotation_ids.extend(annotations.into_iter().filter(|annotation_id| {
+            let position = context.tree.get::<Annotation>(*annotation_id).position();
+            is_if_head_to_then_boundary_annotation(context, if_id, *annotation_id, position)
+        }));
+    }
+
+    if let Some(condition_id) = if_condition_expression_id(context, if_id)
+        && let Some(condition_annotations) = context.get_annotations(condition_id)
+    {
+        annotation_ids.extend(condition_annotations.into_iter().filter(|annotation_id| {
+            let position = context.tree.get::<Annotation>(*annotation_id).position();
+            is_if_condition_expression_to_then_boundary_annotation(
+                context,
+                if_id,
+                condition_id,
+                *annotation_id,
+                position,
+            )
+        }));
+    }
+
+    if let Expression::If {
+        then_expression, ..
+    } = context.tree.get::<Expression>(if_id)
+        && let Some(then_annotations) = context.get_annotations(*then_expression)
+    {
+        annotation_ids.extend(then_annotations.into_iter().filter(|annotation_id| {
+            let position = context.tree.get::<Annotation>(*annotation_id).position();
+            is_if_head_to_then_boundary_annotation(context, if_id, *annotation_id, position)
+        }));
+    }
+
+    deduplicate_annotations_by_span(context, &mut annotation_ids);
+    annotation_ids
+}
+
+/// Collect deferred annotations between then expression and else expression.
+pub(crate) fn if_then_else_boundary_annotations(
+    context: &DestackFormatContext<'_>,
+    if_id: LocalNodeId<Expression>,
+    then_id: LocalNodeId<Expression>,
+    else_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let mut annotation_ids = Vec::new();
+
+    if let Some(if_annotations) = context.get_annotations(if_id) {
+        for annotation_id in if_annotations {
+            let position = context.tree.get::<Annotation>(annotation_id).position();
+            if is_if_then_to_else_boundary_annotation(
+                context,
+                then_id,
+                else_id,
+                annotation_id,
+                position,
+            ) {
+                annotation_ids.push(annotation_id);
+            }
+        }
+    }
+
+    if let Some(then_annotations) = context.get_annotations(then_id) {
+        for annotation_id in then_annotations {
+            let position = context.tree.get::<Annotation>(annotation_id).position();
+            if is_if_then_to_else_boundary_annotation(
+                context,
+                then_id,
+                else_id,
+                annotation_id,
+                position,
+            ) {
+                annotation_ids.push(annotation_id);
+            }
+        }
+    }
+
+    if let Some(else_annotations) = context.get_annotations(else_id) {
+        for annotation_id in else_annotations {
+            let position = context.tree.get::<Annotation>(annotation_id).position();
+            if is_if_then_to_else_boundary_annotation(
+                context,
+                then_id,
+                else_id,
+                annotation_id,
+                position,
+            ) {
+                annotation_ids.push(annotation_id);
+            }
+        }
+    }
+
+    deduplicate_annotations_by_span(context, &mut annotation_ids);
+    annotation_ids
 }
 
 /// Return whether a span falls on a ternary separator boundary.
@@ -712,6 +1258,7 @@ fn enclosing_empty_call_position_for_callee(
 /// Ordered rule set for annotation deferral.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AnnotationDeferRule {
+    IfControlFlowBoundary,
     StatementTernaryBoundaryPrefix,
     ParenthesizedBoundary,
     CallBoundary,
@@ -723,7 +1270,8 @@ enum AnnotationDeferRule {
 }
 
 /// Priority-ordered annotation deferral rules.
-const ANNOTATION_DEFER_RULES: [AnnotationDeferRule; 8] = [
+const ANNOTATION_DEFER_RULES: [AnnotationDeferRule; 9] = [
+    AnnotationDeferRule::IfControlFlowBoundary,
     AnnotationDeferRule::StatementTernaryBoundaryPrefix,
     AnnotationDeferRule::ParenthesizedBoundary,
     AnnotationDeferRule::CallBoundary,
@@ -747,6 +1295,14 @@ impl AnnotationDeferRule {
         NodeTree: NodeTreeImpl<T>,
     {
         match self {
+            AnnotationDeferRule::IfControlFlowBoundary => {
+                should_defer_if_control_flow_boundary_annotation(
+                    context,
+                    node_id,
+                    annotation_id,
+                    position,
+                )
+            }
             AnnotationDeferRule::StatementTernaryBoundaryPrefix => {
                 should_defer_statement_ternary_boundary_prefix_annotation(
                     context,
@@ -806,7 +1362,7 @@ impl AnnotationDeferRule {
 }
 
 /// Return whether annotation emission should be deferred to a specialized formatter.
-pub(super) fn annotation_should_defer<T: Node>(
+pub(crate) fn annotation_should_defer<T: Node>(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<T>,
     annotation_id: LocalNodeId<Annotation>,

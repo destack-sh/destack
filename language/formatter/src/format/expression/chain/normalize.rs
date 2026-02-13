@@ -413,6 +413,35 @@ fn merge_argument_short_member_hop_lines(
     lines.insert(0, first_line);
 }
 
+/// Promote a leading direct index line into the chain base.
+fn promote_leading_direct_index_line(
+    context: &DestackFormatContext<'_>,
+    base: &mut ChainExpressionBase,
+    lines: &mut Vec<SmallVec<[ChainExpression; 2]>>,
+) {
+    // only promote when the first grouped line starts with a direct index op
+    let Some(first_line) = lines.first() else {
+        return;
+    };
+    let Some(ChainExpression::Index {
+        node_id,
+        position: PostfixPosition::Direct,
+        ..
+    }) = first_line.first()
+    else {
+        return;
+    };
+
+    // keep annotated index operations isolated to avoid comment churn
+    if chain_node_has_non_inline_annotation(context, *node_id) {
+        return;
+    }
+
+    // move the first line into the base to avoid ASI-sensitive leading `[` lines
+    let first_line = lines.remove(0);
+    base.body.extend(first_line);
+}
+
 /// Apply line-level argument chain promotions after grouping.
 fn apply_argument_chain_line_promotions(
     context: &DestackFormatContext<'_>,
@@ -420,6 +449,9 @@ fn apply_argument_chain_line_promotions(
     base: &mut ChainExpressionBase,
     lines: &mut Vec<SmallVec<[ChainExpression; 2]>>,
 ) {
+    // prevent ASI-sensitive leading `[` lines from splitting the chain
+    promote_leading_direct_index_line(context, base, lines);
+
     // preserve curried direct-call tails after head promotion
     promote_curried_call_tail_line(context, base, lines);
 

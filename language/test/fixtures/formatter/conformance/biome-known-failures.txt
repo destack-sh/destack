@@ -31,7 +31,6 @@ js/module/import/trailing-commas/none/import_trailing_commas.js
 js/module/no-semi/no-semi.js
 js/module/no-semi/semicolons_range.js
 js/module/number/number_with_space.js
-js/module/object/computed_member.js
 js/module/object/octal_literals_key.js
 js/module/parentheses/parentheses.js
 js/module/parentheses/range_parentheses_binary.js
@@ -142,8 +141,6 @@ prettier/js/babel-plugins/jsx.js
 prettier/js/babel-plugins/module-blocks.js
 prettier/js/babel-plugins/module-string-names.js
 prettier/js/babel-plugins/numeric-separator.js
-prettier/js/babel-plugins/object-rest-spread.js
-prettier/js/babel-plugins/optional-chaining.js
 prettier/js/babel-plugins/partial-application.js
 prettier/js/babel-plugins/pipeline-operator-fsharp.js
 prettier/js/babel-plugins/pipeline-operator-hack.js
@@ -296,7 +293,6 @@ prettier/js/cursor/cursor-13.js
 prettier/js/cursor/cursor-2.js
 prettier/js/cursor/cursor-3.js
 prettier/js/cursor/cursor-4.js
-prettier/js/cursor/cursor-6.js
 prettier/js/cursor/cursor-7.js
 prettier/js/cursor/cursor-8.js
 prettier/js/cursor/cursor-9.js
@@ -395,7 +391,6 @@ prettier/js/identifier/for-of/await.js
 prettier/js/identifier/for-of/let.js
 prettier/js/identifier/parentheses/const.js
 prettier/js/identifier/parentheses/let.js
-prettier/js/if/comment_before_else.js
 prettier/js/if/else.js
 prettier/js/if/expr_and_same_line_comments.js
 prettier/js/if/if_comments.js
@@ -518,7 +513,6 @@ prettier/js/multiparser-graphql/graphql.js
 prettier/js/multiparser-graphql/react-relay.js
 prettier/js/multiparser-html/html-template-literals.js
 prettier/js/multiparser-html/issue-10691.js
-prettier/js/multiparser-html/language-comment/not-language-comment.js
 prettier/js/multiparser-html/lit-html.js
 prettier/js/multiparser-invalid/text.js
 prettier/js/multiparser-text/text.js
@@ -778,7 +772,6 @@ prettier/typescript/as/assignment.ts
 prettier/typescript/as/assignment2.ts
 prettier/typescript/as/long-identifiers.ts
 prettier/typescript/as/nested-await-and-as.ts
-prettier/typescript/as/return.ts
 prettier/typescript/as/ternary.ts
 prettier/typescript/assert/comment.ts
 prettier/typescript/assert/index.ts
@@ -840,7 +833,6 @@ prettier/typescript/comments/methods.ts
 prettier/typescript/comments/ts-parameter-proerty.ts
 prettier/typescript/comments/type-parameters.ts
 prettier/typescript/comments/type_literals.ts
-prettier/typescript/comments/types.ts
 prettier/typescript/comments/union.ts
 prettier/typescript/compiler/castOfAwait.ts
 prettier/typescript/compiler/castParentheses.ts
@@ -1025,7 +1017,6 @@ prettier/typescript/satisfies-operators/lhs.ts
 prettier/typescript/satisfies-operators/nested-await-and-satisfies.ts
 prettier/typescript/satisfies-operators/template-literal.ts
 prettier/typescript/satisfies-operators/ternary.ts
-prettier/typescript/satisfies-operators/types-comments.ts
 prettier/typescript/static-blocks/static-blocks.ts
 prettier/typescript/template-literal-types/template-literal-types.ts
 prettier/typescript/template-literals/as-expression.ts
@@ -1069,7 +1060,6 @@ prettier/typescript/union/with-type-params.ts
 prettier/typescript/update-expression/update-expressions.ts
 prettier/typescript/webhost/webtsc.ts
 ts/arrow/arrow_parentheses.ts
-ts/assignment/as_assignment.ts
 ts/assignment/assignment.ts
 ts/assignment/assignment_comments.ts
 ts/assignment/type_assertion_assignment.ts
