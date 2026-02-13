@@ -15,6 +15,8 @@ pub(crate) struct ParenthesizedGroupShape {
     pub has_top_level_parameter_colon: bool,
     /// Whether the group is empty aside from newlines.
     pub is_empty: bool,
+    /// The matching close parenthesis index when known.
+    pub close_index: Option<usize>,
 }
 
 impl Parser {
@@ -126,6 +128,7 @@ impl Parser {
                 has_colon_follow,
                 has_top_level_parameter_colon: false,
                 is_empty: false,
+                close_index: Some(close_pos as usize),
             });
         }
 
@@ -136,6 +139,7 @@ impl Parser {
         // compute follow token shape
         group_shape.has_arrow_follow = has_arrow_follow;
         group_shape.has_colon_follow = has_colon_follow;
+        group_shape.close_index = Some(close_pos as usize);
 
         Ok(group_shape)
     }
@@ -153,6 +157,7 @@ impl Parser {
             has_colon_follow: false,
             has_top_level_parameter_colon: false,
             is_empty: true,
+            close_index: None,
         };
         let mut angle_depth = 0u32;
         let mut token_index = open_pos as usize + 1;

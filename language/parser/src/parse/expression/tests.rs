@@ -4316,6 +4316,51 @@ fn test_parse_async_arrow_with_newline_before_return_type() {
     });
 }
 
+/// Parse async comparisons and generic calls without async function false positives.
+#[test]
+fn test_parse_async_generic_false_positive_in_typescript() {
+    let mut test =
+        TestParser::new_with_options("async < 1;\nasync<T>() == 0;", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    let error_diagnostics: Vec<_> = parser
+        .diagnostics
+        .iter()
+        .into_iter()
+        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        .collect();
+    assert!(
+        error_diagnostics.is_empty(),
+        "unexpected parser diagnostics: {error_diagnostics:#?}"
+    );
+    assert_eq!(expressions.len(), 2);
+
+    assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+        assert_node!(parser.tree, *statement_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::LessThan);
+            assert_expression_path!(parser, parser.tree.get(*left), "async");
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    });
+
+    assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+        assert_node!(parser.tree, *statement_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::Equal);
+            assert_node!(parser.tree, *left, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "async");
+                assert!(dynamic_arguments.is_empty());
+
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "T");
+                });
+            });
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        });
+    });
+}
 /// Parse `type as string` as a cast expression.
 #[test]
 fn test_parse_type_keyword_as_cast_expression() {
