@@ -9,11 +9,11 @@ Tests for dynamic resolution on union receivers.
 > Member access on unions yields a union of member types.
 
 ```ds
-struct User { 
-    id: int32 
+struct User {
+    id: int32
 }
-struct Guest { 
-    id: string 
+struct Guest {
+    id: string
 }
 
 declare function getPerson(): User | Guest;
@@ -27,11 +27,11 @@ id satisfies int32 | string;
 > Member access on unions fails if any variant is missing the member.
 
 ```ds
-struct User { 
-    name: string 
+struct User {
+    name: string
 }
-struct Guest { 
-    id: string 
+struct Guest {
+    id: string
 }
 
 declare function getPerson(): User | Guest;
@@ -65,14 +65,14 @@ getPerson().name;
 
 ```ds
 struct Cat {
-    speak(): string { 
-        "meow" 
+    speak(): string {
+        "meow"
     }
 }
 
 struct Dog {
-    speak(): int32 { 
-        1 
+    speak(): int32 {
+        1
     }
 }
 
@@ -111,7 +111,7 @@ sound satisfies string;
 
 ```ds
 struct Cat {
-    speak(volume: int32): string { 
+    speak(volume: int32): string {
         "meow"
     }
 }

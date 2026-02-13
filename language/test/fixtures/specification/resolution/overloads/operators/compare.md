@@ -27,7 +27,7 @@ const right = getMeasure();
 const isEqual = left == right;
 isEqual satisfies boolean;
 
-const isNotEqual = left != right;   
+const isNotEqual = left != right;
 isNotEqual satisfies boolean;
 
 const isLess = left < right;

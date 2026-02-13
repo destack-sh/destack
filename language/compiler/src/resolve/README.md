@@ -17,7 +17,7 @@ Resolve produces three concrete outcomes that the rest of the pipeline depends o
 Resolve sits between Bind and Analyze and operates per profile.
 Profiles change which libs exist and how specifiers resolve, so we have to fork the DIR for each profile.
 
-```
+```text
 Bind ───► Resolve ───► Analyze ───► Elaborate ───► Execute ───► Lower
   │         │
   │         ├─► module graph, exports, and symbol targets
@@ -28,7 +28,7 @@ Bind ───► Resolve ───► Analyze ───► Elaborate ───�
 
 Resolve is task-driven, and the phase split avoids cycles while keeping dependencies explicit:
 
-```
+```text
 ResolveModulePrepare
     │
     ├─► build export table

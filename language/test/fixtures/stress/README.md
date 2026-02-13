@@ -6,7 +6,7 @@ Unlike fuzz tests (which explore random/malformed inputs), stress tests use **va
 
 ## Structure
 
-```
+```text
 stress/
 ├── generate.sh              # top-level script
 ├── parser/                  # parser throughput: deep nesting, long lines, wide files

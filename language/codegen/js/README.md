@@ -5,7 +5,7 @@ Takes elaborated DIR and produces `.js` or `.ts` source files.
 
 ## Pipeline
 
-```
+```text
 DIR → JS AST → FIR Document → Source Text
       (lower)    (format)      (print)
 ```

@@ -4,7 +4,7 @@ Code formatter for Destack, also supports TypeScript and JavaScript.
 Formats `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx` files using the FIR document model.
 The primary goal is `.ds` files.
 We don't expect anyone to drop Prettier/Biome for their existing `.ts`/`.js` files.
-See the formatter specification tests in [`test/fixtures/formatter/`](../../test/fixtures/formatter/) for examples of specific formatting rules.
+See the formatter specification tests in [`test/fixtures/formatter/`](../test/fixtures/formatter/) for examples of specific formatting rules.
 
 ## Objectives
 
@@ -120,7 +120,7 @@ We tried to make them feel as natural as possible to TS people.
 
 Tuple expressions and types use parentheses:
 
-```
+```ds
 const point: (int32, int32) = (1, 2);
 ```
 
@@ -128,7 +128,7 @@ const point: (int32, int32) = (1, 2);
 
 Match arms are formatted with consistent indentation:
 
-```
+```ds
 const result = match (value) {
     Ok(x) => x,
     Err(e) if (e.retryable) => retry(),
@@ -140,7 +140,7 @@ const result = match (value) {
 
 Named struct construction:
 
-```
+```ds
 Point { x: 1, y: 2 }
 
 Point {
@@ -153,7 +153,7 @@ Point {
 
 Generic constraints format naturally:
 
-```
+```ds
 function merge<T, U>(): T where (
     T: Mergeable,
     U: Comparable<T>,
@@ -166,7 +166,7 @@ function merge<T, U>(): T where (
 
 Ownership annotations stay attached to their types:
 
-```
+```ds
 function process(data: &readonly Buffer, out: ^Result): &readonly Output {
     // ...
 }

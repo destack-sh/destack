@@ -1,19 +1,14 @@
 # fir
 
-Formatting Intermediate Representation for pretty-printing code.
-FIR is a document model that abstracts over layout decisions, letting you describe *what* should be printed and letting the printer figure out *how* to break lines.
+Formatting Intermediate Representation for pretty-printing code-shaped text.
+FIR is a document model that abstracts over layout decisions, describing what should be printed while the printer figures out how and where to break lines.
 
-## Background
-
-This is based on [Ruff's formatter IR](https://github.com/astral-sh/ruff/tree/main/crates/ruff_formatter) (MIT), which itself builds on [Rome's formatter](https://github.com/rome/tools) and [Prettier's algorithm](https://github.com/prettier/prettier/blob/main/docs/technical-details.md).
-The core idea traces back to Wadler's classic ["A prettier printer"](https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf) paper.
-
-The key insight: instead of directly emitting text, you build a document of abstract layout commands.
-The printer then measures the document and decides where to break lines to fit within the configured line width.
+The Destack FIR is heavily based on [Ruff's formatter IR](https://github.com/astral-sh/ruff/tree/main/crates/ruff_formatter) (MIT), which itself builds on [Rome's formatter](https://github.com/rome/tools) and [Prettier's algorithm](https://github.com/prettier/prettier/blob/main/docs/technical-details.md).
+The core idea traces back to Wadler's ["A prettier printer"](https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf) paper.
 
 ## How It Works
 
-You build a `Document` from `FormatNode`s, then print it.
+We build a `Document` of `FormatNode`s, then print it to a string.
 
 ```ds
 // build a document describing an array
@@ -32,7 +27,7 @@ group(
 If it fits on one line: `[a, b]`
 
 If it doesn't fit:
-```
+```text
 [
     a,
     b,
@@ -98,7 +93,7 @@ The printer tries variants in order and picks the first that fits.
 
 `Fill` packs as many items as possible per line:
 
-```
+```text
 [1, 2, 3,
  4, 5, 6,
  7, 8]

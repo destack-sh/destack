@@ -6,8 +6,8 @@ Lower runs after Elaborate and turns high-level "canonical" DIR into low-level, 
 
 The _dream_ is **Rust performance with TypeScript ergonomics**.
 Of course, performance and ergonomics are in some tension, so this isn't fully achievable without breaking the things that make TypeScript great.
-We want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level predictable performance without _requiring_ additional changes. 
-So, basically we want:
+We want to enable *up to* Rust performance with some additional constructs while improving and stabilizing TS performance to be _predictable_ at the level of Go, C# or Java without _requiring_ additional changes.
+So, basically the dream is:
 - **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
 - **Average case (target):** Go-tier performance (efficient GC, good concurrency)
 - **Worst case (target):** Competitive with optimized JS runtimes (V8, JSC, SpiderMonkey)
@@ -22,7 +22,7 @@ We try to keep TS semantics as much as possible, but there are some tradeoffs an
 
 Lower receives patched canonical DIR post-Execute and produces target-specific MIR.
 
-```
+```text
 ... Analyze ───► Elaborate ───► Execute ───► Lower ───► Optimize ───► Generate ───► ...
 ```
 
@@ -168,7 +168,7 @@ language/builtin/
 
 ---
 
-# Data Model
+## Data Model
 
 This section defines the semantic model for lowering: how high-level concepts map to low-level representations.
 
@@ -667,7 +667,7 @@ function area(shape: Shape): float {
 }
 ```
 
-String tags are interned to integers (see [String Tag Interning](#string-tag-interning)).
+String tags are interned to integers (see [String Equality](#string-equality)).
 
 #### Class Layout
 
@@ -1360,7 +1360,7 @@ GC implementation details are target-specific and live in the runtime/codegen la
 The general approach (when GC is enabled) is Go-like: insertion write barriers with a concurrent mark phase.
 
 **Target-dependent behavior:**
-GC features are conditional on target configuration. 
+GC features are conditional on target configuration.
 For targets without GC (freestanding, `@noManaged` code):
 - No write barriers are emitted
 - No stack maps are generated
@@ -1841,7 +1841,7 @@ async function* fetchPages(urls: string[]): AsyncGenerator<Page> {
 Destack preserves JS/TS concurrency semantics by default while enabling native level parallelism on supported targets.
 The core ideas are a single threaded event loop by default, `Promise` and `async` for concurrency, and `Worker` for parallelism.
 
-#### Threading Model
+### Threading Model
 Default behavior is a single threaded event loop with microtask and macrotask queues.
 Native targets support worker threads with the same `Worker` API.
 JS targets map to real JS `Worker` instances.
@@ -1849,7 +1849,7 @@ WASM targets map to host specific workers when available.
 Native targets map to OS threads with message passing.
 Shared memory is explicit and opt-in.
 
-#### Memory Model
+### Memory Model
 Shared memory follows JS Atomics semantics.
 Atomic operations require explicit ordering and scope metadata.
 There are no implicit defaults for atomic ordering in Destack.
@@ -1857,7 +1857,7 @@ Non atomic loads and stores have no cross thread ordering guarantees.
 Data races on shared non atomic memory are undefined behavior on native targets.
 This preserves JS/TS semantics while enabling native performance when code uses atomics.
 
-#### GC and Threads
+### GC and Threads
 GC heaps are per worker by default to match JS semantics and avoid sharing mutable GC objects.
 GC managed objects are not shared across workers unless explicitly frozen or copied.
 Shared memory uses raw pointers or explicit shared buffers.
@@ -1865,7 +1865,7 @@ Native targets may add a shared heap mode when the runtime provides the required
 
 ---
 
-# Target Configuration
+## Target Configuration
 
 Lower behavior is configured by target policies defined in `dsconfig.json` and the target profile.
 See `language/workspace/src/config/target.rs` for the canonical definitions.

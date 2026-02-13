@@ -282,7 +282,7 @@ function compute(input: Result<number, Error>): number {
   const fallback = input ?? 0;
   const handled = try {
     risky()?;
-  } catch match err {
+  } catch match (err) {
     @recover
     _ => fallback,
   };
@@ -417,7 +417,7 @@ const looped = loop {
 };
 const tried = try {
   risky()?;
-} catch match err {
+} catch match (err) {
   _ => 0,
 };
 const evaluated = comptime { 1 + 2 };

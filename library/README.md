@@ -5,15 +5,15 @@ Integrated packages for building full-stack applications with Destack.
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| `entity` | Core entity system, events, and paths |
-| `telemetry` | Logging, metrics, and tracing |
-| `ui` | UI primitives, input handling, styling |
-| `web` | Web platform utilities |
-| `test` | Testing utilities |
-| `napi` | N-API bindings exposing Rust toolchain to JS |
-| `wasm` | WebAssembly bindings exposing Rust toolchain to browser JS |
+| Package | Description | Link |
+|---------|-------------|------|
+| `entity` | Core entity system, events, and paths | [entity/README.md](entity/README.md) |
+| `telemetry` | Logging, metrics, and tracing | [telemetry/README.md](telemetry/README.md) |
+| `ui` | UI primitives, input handling, styling | [ui/README.md](ui/README.md) |
+| `web` | Web platform utilities | [web/README.md](web/README.md) |
+| `test` | Testing utilities | [test/README.md](test/README.md) |
+| `napi` | N-API bindings exposing Rust toolchain to JS | [napi/README.md](napi/README.md) |
+| `wasm` | WebAssembly bindings exposing Rust toolchain to browser JS | [wasm/README.md](wasm/README.md) |
 
 ## Commands
 

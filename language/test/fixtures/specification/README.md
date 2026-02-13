@@ -23,7 +23,7 @@ The core buckets mirror bind, resolve, type, and flow concerns, with modules as 
 
 Tests use markdown with code blocks and expected errors:
 
-```markdown
+````md
 ## Section Name
 
 ### Test Name
@@ -35,7 +35,7 @@ const x: string = 5
 ```
 
 - expected error message
-```
+````
 
 ### Sections (H2)
 

@@ -1,7 +1,7 @@
 # Destack Language Specification
 
 > **The Destack language is a spiritual "TypeScript++" for building optimal, correct, integrated software systems across the _full_ stack.**
-> 
+>
 > This document describes the syntax and semantics of **`.ds` files**, how JS/TS features work, and what exactly the ++ parts are and how they interact with the rest of the language.
 > However, this document is a reference and _not_ a complete or formal language or runtime specification, and is not intended to be.
 > Unless otherwise specified, we follow TypeScript semantics.
@@ -119,8 +119,8 @@ It supports static parameterisation of values and other advanced type features.
 Declaration modules can declare values without providing implementations.
 Nominal declarations introduce both type and value bindings, including in declaration modules.
 
-**TSC, inference and TypeScript pain**: 
-Destack tries very hard to be TSC faithful and support the full modern TS feature set. 
+**TSC, inference and TypeScript pain**:
+Destack tries very hard to be TSC faithful and support the full modern TS feature set.
 Out of necessity and some strong opinions, Destack is stricter in some places, and we want modern TS code to _just work_.
 Further, Destack is a completely different from-scratch compiler architecture, and there are some unavoidable differences in inference ordering and capabilities.
 
@@ -205,7 +205,7 @@ type Point = { x: float32, y: float32 };    // structural (TypeScript)
 newtype SpecialPoint = Point;                     // nominal (distinct type)
 ```
 
-A `newtype` creates a distinct type that structurally assignable types are not assignable to. 
+A `newtype` creates a distinct type that structurally assignable types are not assignable to.
 `UserId` and `OrderId` won't mix even if both are `int64`.
 Newtypes can wrap scalars, tuples, or objects:
 
@@ -270,7 +270,7 @@ int32[N]                   // fixed-size array
 readonly int32[]           // readonly fixed-size array
 ```
 
-Supporting fixed sized arrays with this clean syntax is very nice, but unfortunately overloads T[N] with TypeScript's type indexing. 
+Supporting fixed sized arrays with this clean syntax is very nice, but unfortunately overloads T[N] with TypeScript's type indexing.
 So, `T[N]` has two meanings in Destack: indexed access and fixed-size arrays.
 This can get annoying, but, fortunately, it is _usually_ unambiguous:
 - In `.ts` and `.d.ts`, `T[N]` always uses TypeScript indexed-access semantics.
@@ -394,7 +394,7 @@ Ownership is at the usage site, not the definition site.
 Structs can contain `^T` fields regardless of how the struct itself is stored:
 
 ```ds
-struct Container { 
+struct Container {
     data: ^Data; // Container.data is owned by Container
 }
 
@@ -671,7 +671,7 @@ function merge<T, U>(): T where (
 ## Comptime
 
 It is often useful, especially in statically compiled languages, to denote some expression as evaluatable or evaluated at "compile time".
-There are many ways of doing this (hello `constexpr`), but we find Zig's `comptime` concept to be a natural fit to TypeScript's system (with some modifications). 
+There are many ways of doing this (hello `constexpr`), but we find Zig's `comptime` concept to be a natural fit to TypeScript's system (with some modifications).
 We support `comptime` as a modifier on bindings like `T<comptime N>` to denote that the type `T` is a (value-space) value at compile time, or as an expression form that executes the expression during compilation like `comptime <expression>`.
 
 ### Static vs Dynamic Comptime
@@ -679,7 +679,7 @@ We support `comptime` as a modifier on bindings like `T<comptime N>` to denote t
 To keep language (and compiler) semantics sane, there are two different notions of "compile time"; the distinction basically centering around _when_ during compile time a value is evaluated:
 - **Static comptime execution**: Static parameters like `E` and `N` in `type FixedArray<E, comptime N: int> = E[N]` must be known statically _during analysis_, we require static parameters to be evaluatable statically using a powerful but restricted set of expressions.
 - **Dynamic comptime execution**: Comptime _expressions_  like `let precomputedTable = comptime { ... }`, on the other hand, support the full "comptime world" and basically all expressions. These are executed post-analyze in topological order (no cycles) and then patched into the IR.
- 
+
 
 ### Import Meta
 
@@ -802,9 +802,8 @@ By default, static parameters like `<T>` are type parameters like in TypeScript,
 ```ds
 function repeat<comptime N: int>(value: string): string {
     let result = "";
-    @unroll(N)
-    for (let i = 0; i < N; i++) { 
-        result += value; 
+    for (let i = 0; i < N; i++) {
+        result += value;
     }
     result
 }
@@ -819,8 +818,8 @@ Dynamic parameters can also be marked `comptime` to require compile-time-known a
 ```ds
 function createBuffer(comptime size: int): uint8[] {
     let buf: uint8[size] = [];
-    for (let i = 0; i < size; i++) { 
-        buf[i] = 0; 
+    for (let i = 0; i < size; i++) {
+        buf[i] = 0;
     }
     buf
 }
@@ -853,9 +852,9 @@ For classes and structs, the constructor value doubles as the descriptor, so it 
 Using a type name in value position evaluates to that descriptor value:
 
 ```ds
-struct Point { 
-    x: float32; 
-    y: float32; 
+struct Point {
+    x: float32;
+    y: float32;
 }
 
 const t = Point;              // t: Type<Point>
@@ -933,7 +932,7 @@ Nominal interfaces require explicit ("nominal") `implements` declarations.
 interface Drawable {
     draw(): void;
 }
-const x: Drawable = { 
+const x: Drawable = {
     draw() { };
 };  // OK: structural match
 
@@ -942,15 +941,15 @@ newtype interface Add<T, R = this> {
     add(other: T): R;
 }
 
-struct Vec2 { 
-    x: float; 
+struct Vec2 {
+    x: float;
     y: float;
 }
 const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // ERROR: Vec2 doesn't implement Add
 
 // explicit opt-in required
 extension for Vec2 implements Add<Vec2> {
-    add(other: Vec2): Vec2 { 
+    add(other: Vec2): Vec2 {
         return Vec2 { x: this.x + other.x, y: this.y + other.y };
     }
 }
@@ -958,7 +957,6 @@ const v: Add<Vec2> = Vec2 { x: 1, y: 2 }  // OK: Vec2 implements Add
 ```
 
 Nominal interfaces are used for:
-
 - **Operator interfaces** (`Add`, `Compare`, `Equal`, etc.) to prevent accidental operator overloading
 - **Marker traits** (`Send`, `Sync`, `Copy`) for compile-time capabilities
 
@@ -967,8 +965,8 @@ Extending a nominal interface produces a nominal interface (nominality is inheri
 
 ### Class
 
-Classes work like TypeScript.
-Classes are reference types with identity and prototype-based inheritance:
+Classes work like in TypeScript: reference types with identity and prototype-based inheritance.
+(But, as discussed, no prototype chain black magic. Just static class layouts.)
 
 ```ds
 class MyClass {
@@ -1071,9 +1069,9 @@ struct Point implements Drawable {
     draw(): void { ... }
 }
 
-struct Transform { 
-    position: Vec3; 
-    rotation: Quat; 
+struct Transform {
+    position: Vec3;
+    rotation: Quat;
 }
 
 struct Player {
@@ -1102,7 +1100,7 @@ struct Container<T> {
 Associated types are inherently static because they belong to the type itself, not to instances.
 They can also be accessed via the containing type:
 
-```
+```ds
 const item: Container<int>.Item = 42;  // Item resolves to int
 ```
 
@@ -1249,7 +1247,7 @@ enum Priority {
     isActive(): boolean {
         this == Status.Active
     }
-    
+
     label(): string {
         match (this) {
             Active => "Active"
@@ -1589,12 +1587,12 @@ They receive `this` as an implicit first parameter:
 struct Vector2 {
     x: float32
     y: float32
-    
+
     // instance method
     magnitude(): float32 {
         (this.x * this.x + this.y * this.y).sqrt()
     }
-    
+
     // static method
     static zero(): Vector2 {
         Vector2 { x: 0, y: 0 }
@@ -1633,11 +1631,11 @@ Getters and setters work like TypeScript:
 ```ds
 class Person {
     #name: string
-    
+
     get name(): string {
         this.#name
     }
-    
+
     set name(value: string) {
         this.#name = value
     }
@@ -1660,7 +1658,7 @@ class Person {
 
 #### Rest Parameters and Spread
 
-Rest parameters and spread operators work like TypeScript:
+Rest parameters and spread operators work as in TypeScript:
 
 ```ds
 function sum(...numbers: int32[]): int32 {
@@ -1759,7 +1757,7 @@ const value = outer: {
 
 For disambiguation (e.g., after `if` or `match`), use `do`:
 
-```
+```ds
 const x = if flag { do { compute() } } else { 0 };
 ```
 
@@ -1849,23 +1847,17 @@ match (user) {
 }
 ```
 
-Match exhaustiveness is enforced when the compiler can prove the value set is finite.
-Exhaustive sets include:
-
+Match exhaustiveness is enforced when the compiler can prove the value set is finite:
 - enums
 - literal unions (`"a" | "b" | 1 | 2`)
-- discriminated unions where every member has the same required literal key with a literal value
+- discriminated unions (where every member has the same required literal key with a literal value)
 
 Irrefutable patterns also satisfy exhaustiveness.
 This includes `_`, binding patterns, tagged nominal patterns applied to their exact type, and fixed-size sequence patterns applied to fixed-size sequences.
 
 When the compiler cannot prove exhaustiveness (for example when any arm has a guard, or when the type is not a finite set), a `_` fallback arm is required.
-The match expression type is the union of its case body types.
-`break` is not allowed inside `match` arms.
 
-TypeScript's `switch` also works unchanged in syntax, but it is a statement like expression that yields `void` in Destack.
-Switch cases fall through by default and require `break` to stop.
-`break` in a `switch` cannot carry a value.
+TypeScript's `switch` also works unchanged in syntax.
 
 ```ds
 switch (value) {
@@ -1927,6 +1919,7 @@ do {
 
 #### Loop
 
+A `loop` is basically a nicer `while(true)`. That's it.
 Infinite loop that can be exited only with `break`:
 
 ```ds
@@ -1939,7 +1932,6 @@ loop {
 }
 ```
 `loop` expressions can return a value when exited with `break value`, and the result type is the union of break value types.
-Bare `break` contributes `void` to the loop result type.
 
 #### Traditional For
 
@@ -2084,7 +2076,7 @@ x if x.isValid()     // with method call
 
 Destack uses **Result-first error handling**: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics.
 The builtin `Error` interface is the conventional error shape, but any type can be used as `E`.
-For compatibility with existing JS/TS, we do support `throw` in JS targets.
+For compatibility with existing JS/TS, we also recognize `throw` in JS/TS targets.
 
 #### Try protocol
 
@@ -2098,21 +2090,14 @@ type TryBranch<T, E> =
     | { kind: "err", error: E };
 ```
 
-Structural compatibility refers to structural object types; nominal types like `struct` and `newtype` do not implicitly satisfy `TryBranch`.
-Use object shapes or type aliases for branch values when implementing `Try`.
-
-Implementations must provide `Try.fromError(error: E): this` for uncaught early returns.
-`Try.fromError` is not required when a `?` is inside a `try` with `catch`.
-`Try.fromError` is not required for `??` because it does not return early.
-
 #### Try and the ? Operator
 
-The `?` operator propagates `Try` errors to the caller:
+The `?` operator immediately propagates `Try` error variants to the caller:
 
 ```ds
 function readConfig(path: string): Result<Config, Error> {
-    const text = readFile(path)?    // returns early if Err
-    const json = parseJson(text)?   // returns early if Err
+    const text = readFile(path)?;    // returns early if Err
+    const json = parseJson(text)?;   // returns early if Err
     Result.ok(Config.from(json))
 }
 ```
@@ -2120,14 +2105,11 @@ function readConfig(path: string): Result<Config, Error> {
 When `?` is applied to a `Try<T, E>`:
 - If the branch is ok, extracts and returns the success value.
 - If the branch is err, returns early with `Try.fromError(error)` from the enclosing function.
-The receiver must be a non-nullish `Try` type.
-Unions containing non-`Try` or nullish members are not valid operands for `?`.
-The success type is returned as-is without stripping nullish values.
-The `?` operator unwraps at most one `Try` layer.
+- The receiver must be a non-nullish `Try` type.
+- The `?` operator unwraps at most one `Try` layer.
 
-The enclosing function must return a compatible `Try` type.
+And, of course, The enclosing function must return a compatible `Try` type.
 The error type `E` is unconstrained, but `Error` is the conventional shape.
-Non-`Error` error types should emit a lint, not a hard error.
 
 #### Try and the ?? Operator
 
@@ -2141,25 +2123,16 @@ const port = parsePort(input) ?? 8080;
 When `??` is applied to a `Try<T, E>`:
 - If the branch is ok, extracts and returns the success value.
 - If the branch is err, returns the right-hand default value.
+- If `T` is nullish, returns the right-hand default value.
 
-When `??` is applied to `T | null | undefined`:
-- If nullish, returns the right-hand default value.
-- Otherwise, returns the left-hand value.
-
-Evaluation order is fixed and does not depend on union ordering:
-1. Evaluate the left-hand side
-2. If the value is nullish, return the right-hand side
-3. Else if the value implements `Try`, branch and return the success value or the right-hand side on error
-4. If the resulting value is nullish, return the right-hand side
-5. Otherwise, return the value as-is
-
-`??` performs at most one `Try` unwrap.
+Like `?`, `??` performs at most one `Try` unwrap.
 When the left-hand side is a union of `Try` and non-`Try` values, the result unions the unwrapped success types, non-`Try` members, and the fallback.
-Nullish values are removed from both the union and the `Try` success type before the result is formed.
+Nullish values are removed from both the union and the `Try` success type.
 
 ```ds
+declare const anonymousUser: User;
 const value: Result<User, IOError> | null = loadUser();
-const user = value ?? defaultUser;  // default on null or Err
+const user: User = value ?? anonymousUser;
 ```
 
 #### try/catch with Result and exceptions
@@ -2187,10 +2160,10 @@ A try expression must include a catch or finally block.
 ```ds
 try {
     riskyOperationA()?;
-} catch match e {
-    NumericError(x) => Error(@format("bad number: {x}"))
-    FormatError => Error(@format("bad format {e}"))
-    _ => Error(@format("unknown error: {e}"))
+} catch match (e) {
+    NumericError(x) => Error(`bad number: ${x}`))
+    FormatError => Error(`bad format ${e}`))
+    _ => Error(`unknown error: ${e}`))
 }
 ```
 
@@ -2720,7 +2693,7 @@ import data from "./image.png";
 
 Override the default loader using import attributes:
 
-```
+```ds
 import data from "./file.toml" with { type: "json" };   // parse as JSON
 import raw from "./data.json" with { type: "text" };    // import as string
 import bytes from "./file.txt" with { type: "binary" }; // import as uint8[]

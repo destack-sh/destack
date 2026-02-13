@@ -6,7 +6,7 @@ We welcome bug reports, fixes, and feature suggestions and any other ideas.
 Join our [Discord](https://discord.gg/xUFQ45TWYd) to chat and discuss.
 
 PRs for small fixes are probably fine, but larger unsolicited PRs are unlikely to be accepted - the whole point of the project is tight integration.
-Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
+Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software.
 
 ## Before You Start
 
@@ -57,7 +57,7 @@ To contribute to Destack and build it yourself locally you will need at least `c
 
 ## Commands
 
-We use `justfile`s as the source of truth for all commands: 
+We use `justfile`s as the source of truth for all commands:
 ```sh
 just install 		# setup everything
 just check          # check & lint everything

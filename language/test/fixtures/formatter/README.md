@@ -6,7 +6,7 @@ This directory contains formatter test fixtures with four fixture groups:
 
 MDTest format for verifying formatting transformations. Each test specifies input code and expected formatted output.
 
-```markdown
+````markdown
 ## Section Name
 
 ### test name
@@ -18,7 +18,7 @@ input code here (possibly messy)
 ```expected
 expected formatted output
 ```
-```
+````
 
 
 ## Roundtrip Tests (`.ds` files)

@@ -318,7 +318,7 @@ fn test_highlights_annotations_and_catch_match_keywords() {
 const result = try {
   @step
   value
-} catch match error {
+} catch match (error) {
   _ => @fallback(error),
 };
 "#;
@@ -341,7 +341,7 @@ export struct ApiResult {
 try {
   @step
   value;
-} catch match error {
+} catch match (error) {
   _ => @fallback(error),
 };
 "#;

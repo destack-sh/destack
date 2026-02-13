@@ -5,7 +5,7 @@ For example, parser tests need to parse without errors, and compiler tests need 
 
 ## Layout
 
-```
+```text
 smoke/
 ├── parser/        # parser inputs that must parse cleanly
 └── compiler/      # compiler inputs that must compile cleanly

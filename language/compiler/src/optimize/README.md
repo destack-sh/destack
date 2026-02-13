@@ -5,7 +5,7 @@ Runs after Lower, before Generate.
 
 ## Overview
 
-```
+```text
 ... → DIR → Lower → MIR → Optimize → Generate → ...
                              │
                              ├─ Verify (safety, borrowing, control flow)
@@ -73,7 +73,7 @@ Package and program pipelines reuse module pipelines and add summary driven pass
 
 ### Dependency Graph
 
-```
+```text
            ┌─────────┐
            │   cfg   │
            └────┬────┘

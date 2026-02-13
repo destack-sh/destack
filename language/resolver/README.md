@@ -15,7 +15,7 @@ Nonetheless, it was a great starting point, and we adapted it to integrate with 
 
 Fundamentally, the job of the resolver is to figure out where a module is located based on some contextual specifier (like `import { foo } from "./utils"` or `import { bar } from "@scope/pkg"`).
 
-```
+```ts
 import { foo } from "./utils"        // relative path
 import { bar } from "@scope/pkg"     // node_modules package
 import { baz } from "#internal"      // package.json imports field

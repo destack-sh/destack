@@ -23,10 +23,10 @@ impl Parser {
     ///
     /// try {
     ///     riskyOperationA()?;
-    /// } catch match e {
-    ///     NumericError(x) => Error(@format("bad number: {x}"))
-    ///     FormatError => Error(@format("bad format {e}"))
-    ///     _ => Error(@format("unknown error: {e}"))
+    /// } catch match (e) {
+    ///     NumericError(x) => Error(`bad number: ${x}`)
+    ///     FormatError => Error(`bad format ${e}`)
+    ///     _ => Error(`unknown error: ${e}`)
     /// }
     /// ```
     ///

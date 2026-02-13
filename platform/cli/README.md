@@ -99,7 +99,7 @@ Grouped list payloads use:
 
 Generate the CLI report schema with:
 
-```
+```sh
 just platform/generate-schema
 
 # or
