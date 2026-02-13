@@ -1048,7 +1048,6 @@ impl Parser {
         self.parenthesized_group_shapes.truncate(len);
         self.parenthesized_group_shapes_cached.truncate(len);
     }
-
     /// Invalidate the cached scanner cursor after parser position mutations.
     #[inline]
     fn invalidate_cursor_cache(&mut self) {
@@ -1238,16 +1237,41 @@ impl Parser {
     /// Parse everything as an implicit namespace.
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        self.tokens_prelexed = false;
+        // pre-lex non-tree-literal sources to avoid lazy lexer dispatch in hot loops
+        if !self.allow_tree_literals() {
+            self.token_stream.lex_to_end();
+            self.tokens_prelexed = true;
+            let len = self.tokens().len();
+            self.token_identifiers.clear();
+            self.token_identifiers.resize(len, None);
+            self.token_identifiers_cached.clear();
+            self.token_identifiers_cached.resize(len, false);
+            self.parenthesized_group_shapes.clear();
+            self.parenthesized_group_shapes
+                .resize(len, ParenthesizedGroupShape::default());
+            self.parenthesized_group_shapes_cached.clear();
+            self.parenthesized_group_shapes_cached.resize(len, false);
+            self.invalidate_cursor_cache();
+        } else {
+            self.tokens_prelexed = false;
+        }
 
         // parse the root block body with recovery
         let start = self.mark_span();
-        let expressions = self.with_recovery(
+        let mut expressions = self.with_recovery(
             &start,
             |parser| parser.eat_block_body(BlockFormat::Implicit),
             Vec::new(),
             TokenType::End,
         );
+
+        // comment-only files need one target node
+        self.token_stream.lex_to_end();
+        if expressions.is_empty() && self.has_comment_annotation_tokens() {
+            let stub_span = Span::new(self.file_id, 0, self.file.len);
+            let stub = self.tree.insert(Expression::Stub, stub_span);
+            expressions.push(stub);
+        }
 
         self.is_finished = true;
         expressions
@@ -1259,6 +1283,10 @@ impl Parser {
         self.pos as u32
     }
 
+    /// Attach side annotations after parsing when needed.
+    pub fn finish_annotations(&mut self) {
+        self.attach_annotations();
+    }
     /// Swap parser options and return the previous value.
     #[inline(always)]
     pub(crate) fn swap_options(&mut self, options: ParserOptions) -> ParserOptions {
@@ -1272,7 +1300,6 @@ impl Parser {
     pub(crate) fn restore_options(&mut self, old_options: ParserOptions) {
         self.options = old_options;
     }
-
     /// Execute a function with new parser options.
     /// The previous options are restored after the function returns.
     #[inline(always)]

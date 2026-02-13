@@ -512,7 +512,19 @@ impl NodeTree {
     /// Sort all annotations.
     #[inline]
     pub fn sort_annotations(&mut self) {
-        // parse path keeps per-target annotation order stable
+        let source_map = &self.source_map;
+        for annotation_ids in self.annotations_by_node_id.values_mut() {
+            annotation_ids.sort_by(|left, right| {
+                let left_span = source_map.get(left.id);
+                let right_span = source_map.get(right.id);
+                left_span
+                    .start
+                    .cmp(&right_span.start)
+                    .then(left_span.end.cmp(&right_span.end))
+                    .then(left.id.cmp(&right.id))
+            });
+        }
+
         self.annotations_are_sorted = true;
     }
 

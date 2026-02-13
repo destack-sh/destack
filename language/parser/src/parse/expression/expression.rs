@@ -313,10 +313,12 @@ impl Parser {
     fn try_eat_parenthesized_expression_fast(
         &mut self,
         start: &ParserMark,
+        group_shape: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.parenthesized_expression_fast_calls += 1;
         }
+
         // this fast path only applies to JS and TS value contexts
         if self.language.is_destack()
             || self.options.in_type
@@ -329,23 +331,8 @@ impl Parser {
             return Ok(None);
         }
 
-        // require a known matching close parenthesis
-        let open_index = self.pos_index();
-        let Some(close_index) = self.matching_pair_or_lex(open_index) else {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.parenthesized_expression_fast_misses += 1;
-            }
-            return Ok(None);
-        };
-
         // lambda and typed-lambda forms still need full lookahead handling
-        let follow_start_index = close_index + 1;
-        let follow_cursor = self.non_newline_cursor_from(follow_start_index);
-        let follow_token_type = follow_cursor.token_type;
-        if matches!(
-            follow_token_type,
-            TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
-        ) {
+        if group_shape.has_arrow_follow || group_shape.has_colon_follow {
             if let Some(speculation_stats) = self.speculation_stats.as_mut() {
                 speculation_stats.parenthesized_expression_fast_misses += 1;
             }
@@ -801,52 +788,40 @@ impl Parser {
                     else if token_type == TokenType::OpenParenthesis {
                         let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
 
+                        let group_shape = self.try_lookahead_parenthesized_group_shape()?;
+
                         // fast path for non-lambda grouped expressions
                         if let Some(group_expression_id) =
-                            self.try_eat_parenthesized_expression_fast(&start)?
+                            self.try_eat_parenthesized_expression_fast(&start, group_shape)?
                         {
                             group_expression_id
                         } else {
-                            let mut has_top_level_comma = false;
+                            let has_top_level_comma = group_shape.has_top_level_comma;
                             let mut lambda_expression_id = None;
 
                             // parse direct arrow lambdas without deep group lookahead
-                            if !self.options.in_arrow_return_type {
-                                let open_index = self.pos_index();
-                                if let Some(close_index) = self.matching_pair_or_lex(open_index) {
-                                    let follow_start_index = close_index + 1;
-                                    let follow_cursor =
-                                        self.non_newline_cursor_from(follow_start_index);
-                                    let has_arrow_follow = matches!(
-                                        follow_cursor.token_type,
-                                        TokenType::Arrow | TokenType::ArrowWide
-                                    );
-                                    if has_arrow_follow {
-                                        let lambda_id = self.eat_function(
-                                            &start,
-                                            DeclarationDescriptor::default(),
-                                            false,
-                                            false,
-                                        )?;
-                                        lambda_expression_id = Some(self.tree.insert(
-                                            Expression::Declaration(lambda_id),
-                                            self.get_span_from(&start),
-                                        ));
-                                    }
-                                }
+                            if !self.options.in_arrow_return_type && group_shape.has_arrow_follow {
+                                let lambda_id = self.eat_function(
+                                    &start,
+                                    DeclarationDescriptor::default(),
+                                    false,
+                                    false,
+                                )?;
+                                lambda_expression_id = Some(self.tree.insert(
+                                    Expression::Declaration(lambda_id),
+                                    self.get_span_from(&start),
+                                ));
                             }
 
                             // look ahead for colon lambdas and tuple cues when needed
                             if lambda_expression_id.is_none() {
-                                let group_shape = self.try_lookahead_parenthesized_group_shape()?;
                                 let ParenthesizedGroupShape {
-                                    has_top_level_comma: looked_has_top_level_comma,
                                     has_arrow_follow,
                                     has_colon_follow,
                                     has_top_level_parameter_colon,
                                     is_empty: is_empty_parenthesized_group,
+                                    ..
                                 } = group_shape;
-                                has_top_level_comma = looked_has_top_level_comma;
                                 let has_parenthesized_parameter_shape =
                                     has_top_level_parameter_colon
                                         || has_top_level_comma

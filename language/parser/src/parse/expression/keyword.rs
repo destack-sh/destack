@@ -43,11 +43,16 @@ impl Parser {
             );
         }
 
+        // async <T>(...) must be a real generic arrow head
+        if next_token_type == TokenType::LessThan {
+            let next_index = self.index_for_next();
+            return self.with_pos(next_index, |parser| {
+                parser.peek_generic_arrow_after_type_parameters(false)
+            });
+        }
+
         // non parenthesized non identifier starts are signature candidates
-        if matches!(
-            next_token_type,
-            TokenType::LessThan | TokenType::At | TokenType::Multiply
-        ) {
+        if matches!(next_token_type, TokenType::At | TokenType::Multiply) {
             return true;
         }
 
