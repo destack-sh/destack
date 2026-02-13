@@ -1,5 +1,5 @@
 use super::super::*;
-use destack_ast::TemplateLiteral;
+use destack_ast::{Comment, CommentStyle, TemplateLiteral};
 
 /// Store shared argument simplicity checks for call and chain classifiers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -282,6 +282,79 @@ pub(crate) fn call_arguments_are_multiline_in_source(
     context.has_newline(Span::new(first_span.file, first_span.start, last_span.end))
 }
 
+/// Return whether one span intersects any line-style comment token.
+fn span_has_line_comment_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
+    if span.start >= span.end {
+        return false;
+    }
+
+    let comment_tokens = context.comment_tokens();
+    let first_relevant_index = comment_tokens.partition_point(|token| token.span.end < span.start);
+
+    for token in &comment_tokens[first_relevant_index..] {
+        if token.span.start > span.end {
+            break;
+        }
+
+        if !span.intersects(token.span) {
+            continue;
+        }
+
+        if matches!(
+            token.token.ty,
+            TokenType::LineComment | TokenType::DocLineComment
+        ) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return whether source text around call argument boundaries contains line comments.
+pub(crate) fn call_arguments_have_boundary_comments(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    if dynamic_arguments.is_empty() {
+        return false;
+    }
+
+    // line comments between adjacent arguments are boundary comments
+    for argument_pair in dynamic_arguments.windows(2) {
+        let left_span = context.get_span(argument_pair[0]);
+        let right_span = context.get_span(argument_pair[1]);
+        if left_span.file != right_span.file || left_span.end >= right_span.start {
+            continue;
+        }
+
+        let between_span = Span::new(left_span.file, left_span.end, right_span.start);
+        if span_has_line_comment_token(context, between_span) {
+            return true;
+        }
+    }
+
+    // line comments after the final argument and before the call close are boundary comments
+    let Some(last_argument_id) = dynamic_arguments.last().copied() else {
+        return false;
+    };
+    let last_argument_span = context.get_span(last_argument_id);
+    let call_span = context.get_span(call_node_id);
+    if call_span.file != last_argument_span.file || last_argument_span.end >= call_span.end {
+        return false;
+    }
+
+    span_has_line_comment_token(
+        context,
+        Span::new(
+            last_argument_span.file,
+            last_argument_span.end,
+            call_span.end,
+        ),
+    )
+}
+
 /// Return whether source text between two arguments contains an explicit blank line.
 pub(crate) fn call_arguments_preserve_blank_line_between(
     context: &DestackFormatContext<'_>,
@@ -398,6 +471,42 @@ pub(crate) fn argument_has_prefix_line_comment_annotation(
     context
         .argument_annotation_profile(argument_id)
         .has_prefix_line_comment
+}
+
+/// Return whether an argument has a slash comment annotation preceded by a source comma.
+pub(crate) fn argument_has_source_separator_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    context
+        .with_annotations(argument_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let Annotation::Comment { node, position } =
+                    context.tree.get::<Annotation>(*annotation_id)
+                else {
+                    return false;
+                };
+
+                if !matches!(
+                    position,
+                    AnnotationPosition::LinePrefix
+                        | AnnotationPosition::LinePostfix
+                        | AnnotationPosition::LinePostfixBoundary
+                        | AnnotationPosition::BlockPostfix
+                ) {
+                    return false;
+                }
+
+                let comment = context.tree.get::<Comment>(*node);
+                if comment.style != CommentStyle::Slash {
+                    return false;
+                }
+
+                crate::scan::previous_non_whitespace_before_annotation(context, *annotation_id)
+                    == Some(',')
+            })
+        })
+        .unwrap_or(false)
 }
 
 /// Return whether a call-like expression has static type arguments.

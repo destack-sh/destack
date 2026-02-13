@@ -57,14 +57,21 @@ fn collect_chain_root_parts(
 
         let tail_segments = &segments[1..];
         let tail_len = tail_segments.len();
+        let mut emit_postfix_on_tail =
+            tail_len > 0 && path_postfix_annotations_emit_on_tail(context, root_id, segments.len());
         if tail_len > 0 {
             deferred_boundary_comments =
                 path_deferred_boundary_line_comments(context, root_id, segments.len());
+            if deferred_boundary_comments.is_empty() {
+                deferred_boundary_comments =
+                    path_root_line_postfix_boundary_comments(context, root_id);
+            }
+
+            // line comments before synthetic member tails must render as deferred boundaries
+            if !deferred_boundary_comments.is_empty() {
+                emit_postfix_on_tail = false;
+            }
         }
-
-        let emit_postfix_on_tail =
-            tail_len > 0 && path_postfix_annotations_emit_on_tail(context, root_id, segments.len());
-
         // path base keeps static arguments only when there is no synthetic tail
         let base_static_arguments = if tail_len == 0 {
             static_arguments.clone()

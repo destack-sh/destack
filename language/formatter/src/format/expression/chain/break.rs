@@ -339,8 +339,17 @@ pub(crate) fn analyze_chain_break(
         .copied()
         .any(|expression_id| chain_node_has_breaking_annotation(context, expression_id))
         || chain_node_has_breaking_annotation(context, chain_head);
-    let should_break_for_annotation_or_trivia =
-        has_chain_annotations || (has_chain_intervening_trivia && has_member_access);
+
+    // keep short inline chains stable even when source trivia appears between operations
+    let should_allow_short_inline_chain_with_trivia = has_chain_intervening_trivia
+        && has_member_access
+        && chain.len() <= 3
+        && expression_source_len(context, chain_root) <= line_width;
+
+    let should_break_for_annotation_or_trivia = has_chain_annotations
+        || (has_chain_intervening_trivia
+            && has_member_access
+            && !should_allow_short_inline_chain_with_trivia);
     if should_break_for_annotation_or_trivia {
         return ChainBreakAnalysis {
             should_break: true,
@@ -610,13 +619,11 @@ pub(crate) fn chain_has_intervening_break_or_comment(
     context: &DestackFormatContext<'_>,
     chain: &[LocalNodeId<Expression>],
 ) -> bool {
-    // check adjacent chain nodes directly for source trivia
+    // check adjacent chain nodes directly for source comments
     for adjacent in chain.windows(2) {
         let left_id = adjacent[0];
         let right_id = adjacent[1];
-        if has_newline_between_expressions(context, left_id, right_id)
-            || has_comment_between_expressions(context, left_id, right_id)
-        {
+        if has_comment_between_expressions(context, left_id, right_id) {
             return true;
         }
     }
@@ -686,8 +693,21 @@ pub(crate) fn should_split_chain_root_path_segments(
     }
 
     let has_optional_or_must_tail = path_chain_has_optional_or_must_tail(context, root_id);
-    let has_deferred_boundary_comments =
-        !path_deferred_boundary_line_comments(context, root_id, path.segments.len()).is_empty();
+    let has_root_line_postfix_boundary_comment = context
+        .with_annotations(root_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.tree.get::<Annotation>(*annotation_id),
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePostfixBoundary,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false);
+    let has_deferred_boundary_comments = has_root_line_postfix_boundary_comment
+        || !path_deferred_boundary_line_comments(context, root_id, path.segments.len()).is_empty();
 
     // preserve original path-root ownership for annotated roots
     if context.has_annotation(root_id)
@@ -697,15 +717,14 @@ pub(crate) fn should_split_chain_root_path_segments(
         return false;
     }
 
-    // keep factory style roots merged by default
+    // keep factory style roots merged by default, unless deferred boundary comments need a seam
     let first_segment = context.strings.get(path.segments[0]);
-    if is_factory_like_path_head(first_segment) {
+    if is_factory_like_path_head(first_segment) && !has_deferred_boundary_comments {
         return false;
     }
-    if first_segment == "this" && !has_optional_or_must_tail {
+    if first_segment == "this" && !has_optional_or_must_tail && !has_deferred_boundary_comments {
         return false;
     }
-
     // conditional branches read better with a compact head
     if expression_is_in_conditional_branch(context, root_id) {
         return false;

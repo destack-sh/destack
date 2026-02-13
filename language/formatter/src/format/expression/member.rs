@@ -234,6 +234,8 @@ pub(super) struct HugOptions {
     pub(super) allow_arrow_functions: bool,
     /// Whether to handle annotations.
     pub(super) handle_annotations: bool,
+    /// Whether multiline object and array values can still use hugging.
+    pub(super) allow_multiline_collection: bool,
 }
 
 impl HugOptions {
@@ -244,6 +246,7 @@ impl HugOptions {
         trailing_if_breaks: false,
         allow_arrow_functions: true,
         handle_annotations: true,
+        allow_multiline_collection: true,
     };
 
     pub(super) const ARRAY: Self = Self {
@@ -253,6 +256,7 @@ impl HugOptions {
         trailing_if_breaks: false,
         allow_arrow_functions: false,
         handle_annotations: false,
+        allow_multiline_collection: false,
     };
 
     pub(super) const TUPLE: Self = Self {
@@ -262,6 +266,7 @@ impl HugOptions {
         trailing_if_breaks: false,
         allow_arrow_functions: false,
         handle_annotations: false,
+        allow_multiline_collection: false,
     };
 }
 

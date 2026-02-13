@@ -943,7 +943,11 @@ pub(super) fn format_statement_expression<'ast>(
         Expression::Break { label, value } => {
             write!(f, [Keyword::Break])?;
             if let Some(label) = label {
-                write!(f, [space(), token(":"), label])?;
+                if f.context().options.language_type.is_destack() {
+                    write!(f, [space(), token(":"), label])?;
+                } else {
+                    write!(f, [space(), label])?;
+                }
             }
             if let Some(value) = value {
                 write!(f, [space(), value])?;
@@ -954,7 +958,11 @@ pub(super) fn format_statement_expression<'ast>(
         Expression::Continue { label } => {
             write!(f, [Keyword::Continue])?;
             if let Some(label) = label {
-                write!(f, [space(), token(":"), label])?;
+                if f.context().options.language_type.is_destack() {
+                    write!(f, [space(), token(":"), label])?;
+                } else {
+                    write!(f, [space(), label])?;
+                }
             }
         }
 

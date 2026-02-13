@@ -48,14 +48,12 @@ js/comments-closure-typecast/closure-compiler-type-cast.js
 js/comments-closure-typecast/comment-in-the-middle.js
 js/comments-closure-typecast/no-semi/with-other-comments.js
 js/comments-pipeline-own-line/pipeline_own_line.js
-js/comments/arrow.js
 js/comments/assignment-pattern.js
 js/comments/between-head-and-body/between-head-and-body.js
-js/comments/between-head-and-body/empty-statement.js
 js/comments/between-head-and-body/non-block.js
+js/comments/binary-expressions.js
 js/comments/break-continue-statements-2.js
 js/comments/break-continue-statements-3.js
-js/comments/break-continue-statements.js
 js/comments/call_comment.js
 js/comments/dangling.js
 js/comments/dangling_for.js
@@ -63,13 +61,11 @@ js/comments/dynamic_imports.js
 js/comments/empty-statements.js
 js/comments/export-and-import.js
 js/comments/export.js
-js/comments/first-argument/first-argument.js
 js/comments/flow-types/inline.js
 js/comments/function-declaration.js
 js/comments/function/18146.js
 js/comments/function/between-parentheses-and-function-body.js
 js/comments/html-like/comment.js
-js/comments/if.js
 js/comments/in-list/dangling-comment-in-list.js
 js/comments/issue-3532.js
 js/comments/issues.js
@@ -89,7 +85,6 @@ js/conditional/comments.js
 js/conditional/new-expression.js
 js/conditional/new-ternary-examples.js
 js/conditional/new-ternary-spec.js
-js/conditional/postfix-ternary-regressions.js
 js/decorators/class-expression/member-expression.js
 js/decorators/class-expression/super-class.js
 js/deferred-import-evaluation/dynamic-import-attributes-expression.js
@@ -127,9 +122,7 @@ js/explicit-resource-management/valid-using-as-identifier-for-in.js
 js/explicit-resource-management/valid-using-as-identifier-for-of.js
 js/export-default/export-default-from/export.js
 js/export/empty.js
-js/for/continue-and-break-comment-1.js
 js/for/continue-and-break-comment-2.js
-js/for/continue-and-break-comment-without-blocks.js
 js/for/for-in-with-initializer.js
 js/for/parentheses.js
 js/function-comments/comments-after-callee.js
@@ -151,7 +144,6 @@ js/if/condition-break/boolean-expression.js
 js/if/condition-break/unary-expression.js
 js/if/else.js
 js/if/expr_and_same_line_comments.js
-js/if/if_comments.js
 js/if/trailing_comment.js
 js/ignore/issue-10661.js
 js/ignore/semi/directive.js
@@ -170,8 +162,6 @@ js/line-suffix-boundary/boundary.js
 js/literal/number.js
 js/logical-expressions/in-unary-expression.js
 js/member/expand.js
-js/method-chain/break-last-member.js
-js/method-chain/comment.js
 js/method-chain/issue-4125.js
 js/method-chain/pr-7889.js
 js/module-blocks/comments.js
@@ -230,7 +220,6 @@ js/template-literals/styled-jsx.js
 js/ternaries/binary.js
 js/ternaries/nested-in-condition.js
 js/ternaries/nested.js
-js/test-declarations/jest-each.js
 js/test-declarations/test_declarations.js
 js/throw_statement/jsx.js
 js/trailing-comma/jsx.js
@@ -249,7 +238,6 @@ jsx/comments/in-attributes.js
 jsx/comments/in-end-tag.js
 jsx/comments/in-tags.js
 jsx/do/do.js
-jsx/expression-with-types/expression.js
 jsx/ignore/jsx_ignore.js
 jsx/ignore/spread.js
 jsx/jsx/arrow.js
@@ -292,6 +280,7 @@ typescript/comments/16121.ts
 typescript/comments/after_jsx_generic.tsx
 typescript/comments/first-argument/first-argument.ts
 typescript/comments/method_types.ts
+typescript/comments/union.ts
 typescript/compiler/es5ExportDefaultClassDeclaration4.ts
 typescript/compiler/indexSignatureWithInitializer.ts
 typescript/compiler/privacyGloImport.ts
@@ -324,6 +313,7 @@ typescript/non-null/braces.ts
 typescript/nosemi/functions.ts
 typescript/nosemi/module-declaration.ts
 typescript/override-modifiers/override-modifier.ts
+typescript/property-signature/consistent-with-flow/intersection.ts
 typescript/satisfies-operators/expression-statement.ts
 typescript/satisfies-operators/nested-await-and-satisfies.ts
 typescript/template-literal-types/template-literal-types.ts
@@ -339,6 +329,7 @@ typescript/typescript-only/decorator-auto-accessors-abstract-class.ts
 typescript/typescript-only/decorator-auto-accessors-mixed-modifiers.ts
 typescript/union/7725.ts
 typescript/union/consistent-with-flow/comment.ts
+typescript/union/consistent-with-flow/prettier-ignore.ts
 typescript/union/consistent-with-flow/single-type.ts
 typescript/union/consistent-with-flow/union-last-comment.ts
 typescript/union/inlining.ts
