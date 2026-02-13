@@ -585,8 +585,9 @@ where
                 };
             let is_inline_decorator_prefix = matches!(annotation, Annotation::Decorator { .. })
                 && position == AnnotationPosition::BlockPrefix
-                && f.context().options.language_type.is_typescript()
-                && annotation_next_token_is_on_same_line(f.context(), annotation_id);
+                && annotation_next_token_is_on_same_line(f.context(), annotation_id)
+                && (f.context().options.language_type.is_typescript()
+                    || render_facts.follows_colon);
             let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
             let is_blank_prefix_annotation = matches!(
                 annotation,
@@ -792,7 +793,9 @@ where
                                 write!(f, [space()])?;
                             }
                         } else if is_inline_decorator_prefix {
-                            write!(f, [space()])?;
+                            if !render_facts.follows_colon {
+                                write!(f, [space()])?;
+                            }
                         } else if !is_block_prefix_after_colon {
                             write!(f, [hard_line_break()])?;
                         }
@@ -1644,6 +1647,17 @@ mod tests {
         assert_format!(
             source,
             source,
+            |p| p.eat_block(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Decorator prefixed type annotations should stay inline after a colon when simple.
+    #[test]
+    fn test_format_decorator_type_annotation_stays_inline_after_colon() {
+        assert_format!(
+            "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
+            "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
             |p| p.eat_block(),
             DestackFormatOptions::default()
         );
