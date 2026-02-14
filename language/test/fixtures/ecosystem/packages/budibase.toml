@@ -1,0 +1,11 @@
+[package]
+name = "budibase"
+description = "Budibase app platform"
+repo = "https://github.com/Budibase/budibase"
+ref = "50765f43764b2473030b8281dc67d5d42192b612"
+language = "ts"
+tags = ["application", "low-code", "platform", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

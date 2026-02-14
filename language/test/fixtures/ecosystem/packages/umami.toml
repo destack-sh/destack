@@ -1,0 +1,11 @@
+[package]
+name = "umami"
+description = "Umami analytics platform"
+repo = "https://github.com/umami-software/umami"
+ref = "a3733b0424727ebe02b97aecf732e3891d677b76"
+language = "ts"
+tags = ["application", "analytics", "web"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

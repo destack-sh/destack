@@ -1,0 +1,11 @@
+[package]
+name = "webpack"
+description = "Webpack module bundler"
+repo = "https://github.com/webpack/webpack"
+ref = "655fe2acc9b745baba67ec2f6f0d95a69858b456"
+language = "js"
+tags = ["tooling", "bundler", "build"]
+
+[discovery]
+include = ["lib/**/*.js", "types/**/*.d.ts", "types.d.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "novu"
+description = "Novu notification infrastructure"
+repo = "https://github.com/novuhq/novu"
+ref = "ff93a41a3e24ccaa0fe5400f0b95cd21e523414c"
+language = "ts"
+tags = ["application", "notifications", "fullstack", "monorepo"]
+
+[discovery]
+include = ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

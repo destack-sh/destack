@@ -1,0 +1,11 @@
+[package]
+name = "date-fns"
+description = "date-fns date utility library"
+repo = "https://github.com/date-fns/date-fns"
+ref = "dd66398305c2b015fba3c1b3d31ccff42ee8d4cf"
+language = "ts"
+tags = ["library", "date", "utility"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx", "packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

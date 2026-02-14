@@ -1,0 +1,11 @@
+[package]
+name = "axios"
+description = "Axios HTTP client"
+repo = "https://github.com/axios/axios"
+ref = "335b79ffb6d67336b2c6836893848eb247568b6a"
+language = "js"
+tags = ["library", "http", "network", "node", "browser"]
+
+[discovery]
+include = ["lib/**/*.js", "index.d.ts", "index.d.cts", "index.d.mts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

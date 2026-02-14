@@ -1,0 +1,11 @@
+[package]
+name = "tabby"
+description = "Tabby terminal application"
+repo = "https://github.com/Eugeny/tabby"
+ref = "85061732fa13108a969c19cf59d2cb96ce7c702c"
+language = "ts"
+tags = ["application", "terminal", "desktop", "monorepo"]
+
+[discovery]
+include = ["tabby-*/**/*.ts", "app/**/*.ts", "app/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "material-ui"
+description = "MUI component library"
+repo = "https://github.com/mui/material-ui"
+ref = "a192ac4695dfc790f2a7af2ab0f16dfe2e492554"
+language = "ts"
+tags = ["frontend", "ui", "tsx", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

@@ -3,6 +3,3 @@ ms-lower
 valibot-analyze
 valibot-lower
 valibot-resolve
-zod-analyze
-zod-lower
-zod-resolve

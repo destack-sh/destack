@@ -1,0 +1,11 @@
+[package]
+name = "mattermost"
+description = "Mattermost collaboration platform"
+repo = "https://github.com/mattermost/mattermost"
+ref = "96899133c0945b67555c12e2060764dfaff58043"
+language = "ts"
+tags = ["application", "chat", "collaboration", "monorepo"]
+
+[discovery]
+include = ["webapp/**/*.ts", "webapp/**/*.tsx", "channels/**/*.ts", "channels/**/*.tsx", "client/**/*.ts", "client/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

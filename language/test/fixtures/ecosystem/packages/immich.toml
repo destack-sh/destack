@@ -1,0 +1,11 @@
+[package]
+name = "immich"
+description = "Immich self hosted photo and video management"
+repo = "https://github.com/immich-app/immich"
+ref = "2fb9f84b5662904c73f97bf570bdd7316e10972e"
+language = "ts"
+tags = ["application", "media", "fullstack", "monorepo"]
+
+[discovery]
+include = ["server/**/*.ts", "web/**/*.ts", "web/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

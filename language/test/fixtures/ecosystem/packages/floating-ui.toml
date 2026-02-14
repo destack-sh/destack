@@ -1,0 +1,11 @@
+[package]
+name = "floating-ui"
+description = "Floating UI positioning library"
+repo = "https://github.com/floating-ui/floating-ui"
+ref = "bd6c31cf0d95928f9b1683c41c32201c669a0ffa"
+language = "ts"
+tags = ["library", "frontend", "ui", "positioning", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

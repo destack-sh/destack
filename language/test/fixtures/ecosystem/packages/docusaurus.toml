@@ -1,0 +1,11 @@
+[package]
+name = "docusaurus"
+description = "Docusaurus documentation platform"
+repo = "https://github.com/facebook/docusaurus"
+ref = "b0255cd5434dfab1f1ba0708d9e893918c72edd8"
+language = "ts"
+tags = ["application", "docs", "frontend", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx", "website/**/*.ts", "website/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

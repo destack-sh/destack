@@ -1,0 +1,11 @@
+[package]
+name = "jitsi-meet"
+description = "Jitsi Meet video conferencing application"
+repo = "https://github.com/jitsi/jitsi-meet"
+ref = "56f77926044fa005a2489bff8d91dfce7150a59e"
+language = "ts"
+tags = ["application", "video", "conference", "web"]
+
+[discovery]
+include = ["react/**/*.ts", "react/**/*.tsx", "modules/**/*.ts", "service/**/*.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]
