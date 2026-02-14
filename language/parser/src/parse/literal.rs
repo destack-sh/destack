@@ -609,7 +609,13 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark_span();
         let (strings, spans) = self.eat_template_literal_parts(|parser| {
-            parser.with_options(parser.options.not_in_position().in_type(), |parser| {
+            // reset outer precedence so interpolation unions parse fully
+            let interpolation_options = parser
+                .options
+                .not_in_position()
+                .not_in_left_precedence()
+                .in_type();
+            parser.with_options(interpolation_options, |parser| {
                 parser.eat_expression(parser.options)
             })
         })?;

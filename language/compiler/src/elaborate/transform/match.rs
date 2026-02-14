@@ -673,7 +673,7 @@ impl Compiler {
             // resolve the field pattern id
             let field = tree.get(*field_id).clone();
             let pattern_id = match field {
-                PatternField::Positional { pattern } => Some(pattern),
+                PatternField::Positional { pattern, .. } => Some(pattern),
                 PatternField::Named { pattern, .. } => pattern,
                 PatternField::Alias { .. } => {
                     return Err(ElaborateError::UnsupportedConstruct {
@@ -1704,7 +1704,7 @@ impl Compiler {
         for (i, field_id) in fields.iter().enumerate() {
             let field = tree.get(*field_id).clone();
             match field {
-                PatternField::Positional { pattern } => {
+                PatternField::Positional { pattern, .. } => {
                     // check if the pattern introduces a binding
                     let pat = tree.get(pattern).clone();
                     if let Pattern::Binding {

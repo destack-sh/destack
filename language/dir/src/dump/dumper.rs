@@ -2115,7 +2115,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("symbol", symbol)
                     .end();
             }
-            PatternField::Positional { pattern: _ } => {
+            PatternField::Positional {
+                pattern: _,
+                default: _,
+            } => {
                 self.node("PatternField::Positional", id.id).end();
             }
             PatternField::Spread {

@@ -1530,9 +1530,13 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
-        PatternField::Positional { pattern } => {
+        PatternField::Positional { pattern, default } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
+            if let Some(default) = default {
+                let default_expression = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expression);
+            }
         }
         PatternField::Spread {
             mutability: _,

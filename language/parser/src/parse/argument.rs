@@ -1765,7 +1765,7 @@ mod tests {
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingOperator, Decorator, Expression, IfKind,
         IntType, Mutability, Name, Parameter, Pattern, PatternField, ScalarLiteral, Timing,
-        TypeLiteral, TypeUnaryOperator, Visibility,
+        TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1977,6 +1977,57 @@ mod tests {
                         });
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults() {
+        // ...[src, { id, systemId, input, syncSnapshot = false } = {} as any]: SpawnArguments<...>
+        let mut test = TestParser::new_with_options(
+            r#"...[
+    src,
+    { id, systemId, input, syncSnapshot = false } = {} as any
+]: SpawnArguments<TContext, TExpressionEvent, TEvent, TActor>"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { modifiers: _, pattern, ty: Some(ty) } => {
+            // [src, { ... } = {} as any]
+            assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+                assert_eq!(fields.len(), 2);
+
+                // src
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, default: None, .. } => {
+                    assert_name!(parser, *name, "src");
+                });
+
+                // { id, systemId, input, syncSnapshot = false } = {} as any
+                assert_node!(parser.tree, fields[1], PatternField::Positional { pattern, default: Some(default) } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                        assert_eq!(fields.len(), 4);
+
+                        assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, default: Some(default), .. } => {
+                            assert_name!(parser, *name, "syncSnapshot");
+                            assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+                        });
+                    });
+
+                    assert_node!(parser.tree, *default, Expression::TypeBinary { operator, left, right } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                        assert_node!(parser.tree, *left, Expression::ObjectExpression { properties, .. } => {
+                            assert!(properties.is_empty());
+                        });
+                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Any));
+                    });
+                });
+            });
+
+            // SpawnArguments<TContext, TExpressionEvent, TEvent, TActor>
+            assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_path!(parser, *path, "SpawnArguments");
+                assert_eq!(static_arguments.len(), 4);
             });
         });
     }

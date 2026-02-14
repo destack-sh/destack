@@ -210,7 +210,7 @@ impl Compiler {
                 // handle scalar tagged patterns like `UserId(value)`
                 if fields.len() == 1 {
                     let field = tree.get(fields[0]);
-                    if let PatternField::Positional { pattern } = field {
+                    if let PatternField::Positional { pattern, default } = field {
                         self.infer_pattern(
                             module,
                             *pattern,
@@ -221,6 +221,11 @@ impl Compiler {
                             infer,
                             ctx,
                         )?;
+                        if let Some(default) = default {
+                            self.infer_expression(
+                                module, *default, tree, symbols, types, infer, ctx,
+                            )?;
+                        }
                         return Ok(());
                     }
                 }
@@ -712,7 +717,7 @@ impl Compiler {
         for field_id in fields {
             let field = tree.get(*field_id);
             match field {
-                PatternField::Positional { pattern } => {
+                PatternField::Positional { pattern, .. } => {
                     let Some(field_ty_id) = element_types.get(tuple_index).copied() else {
                         return false;
                     };
@@ -995,7 +1000,7 @@ impl Compiler {
                 for field_id in fields {
                     let field = tree.get(*field_id);
                     let field_ty = match field {
-                        PatternField::Positional { pattern } => {
+                        PatternField::Positional { pattern, .. } => {
                             let field_ty = self.pattern_union_slot_type_for_candidates(
                                 &member_elements,
                                 &candidate_indexes,
@@ -1552,7 +1557,7 @@ impl Compiler {
                     self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                 }
             }
-            PatternField::Positional { pattern } => {
+            PatternField::Positional { pattern, default } => {
                 self.infer_pattern(
                     module,
                     *pattern,
@@ -1563,6 +1568,10 @@ impl Compiler {
                     infer,
                     ctx,
                 )?;
+
+                if let Some(default) = default {
+                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                }
             }
             PatternField::Spread {
                 mutability: _,

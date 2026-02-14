@@ -437,7 +437,7 @@ fn collect_pattern_bindings_field(
         dir::PatternField::Alias { symbol, .. } => {
             bindings.insert(*symbol);
         }
-        dir::PatternField::Positional { pattern } => {
+        dir::PatternField::Positional { pattern, .. } => {
             collect_pattern_bindings(dir_tree, *pattern, bindings);
         }
         dir::PatternField::Computed { pattern, .. } | dir::PatternField::Spread { pattern, .. } => {
@@ -541,7 +541,7 @@ fn pattern_access_path_object_fields(
                     return Some(vec![AccessSegment::Property(name)]);
                 }
             }
-            dir::PatternField::Positional { pattern } => {
+            dir::PatternField::Positional { pattern, .. } => {
                 if let Some(path) = pattern_access_path(session, dir_tree, *pattern, target_symbol)
                 {
                     return Some(path);
@@ -574,7 +574,7 @@ fn pattern_access_path_indexed(
             dir::PatternField::Spread { .. } => {
                 return None;
             }
-            dir::PatternField::Positional { pattern } => {
+            dir::PatternField::Positional { pattern, .. } => {
                 if let Some(path) = pattern_access_path(session, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;

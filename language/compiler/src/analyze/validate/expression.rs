@@ -1069,7 +1069,7 @@ impl Compiler {
             }
 
             // positional fields forward to their pattern
-            PatternField::Positional { pattern } => {
+            PatternField::Positional { pattern, .. } => {
                 self.validate_for_each_assignment_pattern(
                     module, profile, tree, *pattern, is_strict,
                 );

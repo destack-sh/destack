@@ -2023,7 +2023,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 }
                 Some(current_block_id)
             }
-            PatternField::Positional { pattern } => self.build_pattern(*pattern, current_block_id),
+            PatternField::Positional { pattern, default } => {
+                let mut field_block_id = self.build_pattern(*pattern, current_block_id)?;
+                if let Some(default_id) = default {
+                    field_block_id = self.build_expression(*default_id, field_block_id)?;
+                }
+                Some(field_block_id)
+            }
             PatternField::Spread { pattern, .. } => {
                 if let Some(pattern_id) = pattern {
                     self.build_pattern(*pattern_id, current_block_id)

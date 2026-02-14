@@ -598,7 +598,7 @@ impl Compiler {
         {
             let field = tree.get(*field_id);
             match field {
-                PatternField::Positional { pattern } => {
+                PatternField::Positional { pattern, .. } => {
                     if !self.is_irrefutable_pattern_for_type_inner(
                         module,
                         profile,
@@ -718,7 +718,7 @@ impl Compiler {
         if fields.len() == 1 {
             let field = tree.get(fields[0]);
             let nested_pattern = match field {
-                PatternField::Positional { pattern } => Some(*pattern),
+                PatternField::Positional { pattern, .. } => Some(*pattern),
                 PatternField::Named { pattern, .. } => *pattern,
                 PatternField::Alias { .. } | PatternField::Elision => None,
                 PatternField::Computed { .. } | PatternField::Spread { .. } => return false,
@@ -1733,7 +1733,9 @@ impl Compiler {
         tree: &NodeTree,
     ) -> Option<MatchPatternCoverage<MatchLiteral>> {
         match tree.get(field_id) {
-            PatternField::Positional { pattern } => self.literal_pattern_coverage(*pattern, tree),
+            PatternField::Positional { pattern, .. } => {
+                self.literal_pattern_coverage(*pattern, tree)
+            }
             PatternField::Named { pattern, .. } => {
                 if let Some(pattern_id) = pattern {
                     self.literal_pattern_coverage(*pattern_id, tree)
@@ -2153,7 +2155,7 @@ impl Compiler {
             PatternField::Named { pattern, .. } | PatternField::Computed { pattern, .. } => {
                 pattern.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
             }
-            PatternField::Positional { pattern } => {
+            PatternField::Positional { pattern, .. } => {
                 self.pattern_has_definite_assignment(tree, *pattern)
             }
             PatternField::Alias { .. } | PatternField::Elision => false,
