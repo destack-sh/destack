@@ -8,3 +8,4 @@ language = "ts"
 [discovery]
 include = ["library/src/**/*.ts"]
 exclude = ["**/*.test.ts", "**/*.test-d.ts"]
+roots = ["library"]

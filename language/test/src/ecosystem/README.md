@@ -20,16 +20,13 @@ Examples: `valibot-resolve`, `valibot-analyze`, `ms-parse`.
 
 ## Support Tiers
 
-The ecosystem uses support tiers `T0` through `T5`:
+The ecosystem suite uses support tiers `T0` through `T5`:
 - `T0` = "Syntax": we can parse.
-- `T1` = "Import": we can parse and resolve everything (without errors).
-- `T2` = "TSC": we can parse, resolve, and analyze it (without errors).
-- `T3` = "AOT": we can parse, resolve, analyze, and lower it (without errors).
-- `T4` = "Run": we can parse, resolve, analyze, lower, and run it (without errors).
-- `T5` = "Test": we can parse, resolve, analyze, lower, run, and test it fully (without errors).
-
-The default run is `parse`.
-Use explicit phase selection to run larger slices.
+- `T1` = "Import": we can parse and resolve everything.
+- `T2` = "TSC": we can parse, resolve, and analyze it.
+- `T3` = "AOT": we can parse, resolve, analyze, and lower it.
+- `T4` = "Run": we can parse, resolve, analyze, lower, and run it.
+- `T5` = "Test": we can parse, resolve, analyze, lower, run, and test it fully.
 
 ## Status
 
@@ -116,7 +113,7 @@ Package names may include patch markers.
 | medusa  |   ---    |   ---    |   ---    |   ---    |   ---   |  ---   | --- |     4 |       - |     0.00% |
 | mermaid |   ---    |   ---    |   ---    |   ---    |   ---   |  ---   | --- |     4 |       - |     0.00% |
 | mobx    |   ---    |   ---    |   ---    |   ---    |   ---   |  ---   | --- |     4 |       - |     0.00% |
-| ms      |    ✓     |    ✓     |   [--]   |   [--]   |   T1    |  ---   | --- |     4 | 100.00% |    50.00% |
+| ms      |    ✓     |    ✓     |    ✓     |    ✓     |   T3    |  ---   | --- |     4 | 100.00% |   100.00% |
 | mysql2  |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
 | n8n     |   ---    |   ---    |   ---    |   ---    |   ---   |  ---   | --- |     4 |       - |     0.00% |
 | nest    |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
@@ -211,7 +208,7 @@ Package names may include patch markers.
 | unbuild |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
 | undici  |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
 | uuid    |    ✓     |    ✓     |   ---    |   ---    |   T1    |  ---   | --- |     4 | 100.00% |    50.00% |
-| valibot |    ✓     |   [--]   |   [--]   |   [--]   |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
+| valibot |    ✓     |    ✓     |   [--]   |   [--]   |   T1    |  ---   | --- |     4 | 100.00% |    50.00% |
 | vercel-ai |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
 | vite    |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
 | vitepress |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
@@ -226,9 +223,9 @@ Package names may include patch markers.
 | zod     |    ✓     |    ✓     |    ✓     |    ✓     |   T3    |  ---   | --- |     4 | 100.00% |   100.00% |
 | zustand |    ✓     |   ---    |   ---    |   ---    |   T0    |  ---   | --- |     4 | 100.00% |    25.00% |
 |---------|----------|----------|----------|----------|---------|--------|-----|-------|---------|------------|
-| total   | 108/108  |  13/13   |   2/2    |   2/2    |   ---   |  ---   | --- |   724 | 100.00% |    17.27% |
+| total   | 108/108  |  14/14   |   3/3    |   3/3    |   ---   |  ---   | --- |   724 | 100.00% |    17.68% |
 
-Total Blended Pass Rate: **100.00%** (17.27% incl. ignored)
+Total Blended Pass Rate: **100.00%** (17.68% incl. ignored)
 <!-- end:summary-results -->
 
 ## Manifest Schema
@@ -250,6 +247,7 @@ tags = ["framework", "tsx"]
 [discovery]
 include = ["src/**/*.ts", "src/**/*.tsx"]
 exclude = ["**/*.test.ts", "**/__tests__/**"]
+roots = ["packages/core", "packages/web"]
 
 [compiler_options]
 js_as_jsx = true
@@ -279,6 +277,7 @@ message = "unresolved module 'missing-package'"
 Supported values for `package.language` are `js`, `ts`, and `ds`.
 Use `package.target_tier` with one of `T0`, `T1`, `T2`, `T3`, `T4`, or `T5` to track intended coverage.
 Set `patch.dependency_replacement = true` when a package requires dependency patching or replacement.
+Use `discovery.roots` to constrain entrypoint ownership to specific package roots in monorepos.
 Use `[prepare]` with tokenized `commands` to run package setup work like `pnpm build` before selected phases.
 Use `[tsc]` to configure TypeScript parity checks with `tsgo` or `tsc` for selected phases.
 `tsc.mode` supports `off`, `on-failure`, and `always`, and `tsc.tool` supports `auto`, `tsgo`, and `tsc`.
@@ -289,11 +288,8 @@ Use `[tsc]` to configure TypeScript parity checks with `tsgo` or `tsc` for selec
 
 ```txt
 # temporary failures
-ms-parse
-valibot-resolve
-
-# intentional skip
-valibot-analyze # language difference
+valibot-analyze
+valibot-lower
 ```
 
 ## Running

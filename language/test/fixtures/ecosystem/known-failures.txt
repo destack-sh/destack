@@ -316,6 +316,8 @@ undici-lower
 undici-resolve
 uuid-analyze
 uuid-lower
+valibot-analyze
+valibot-lower
 vercel-ai-analyze
 vercel-ai-lower
 vercel-ai-resolve
