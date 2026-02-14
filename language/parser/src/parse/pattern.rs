@@ -392,6 +392,7 @@ impl Parser {
                     self.eat_token(TokenType::CloseBracket)?;
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::Colon)?;
+                    self.eat_newlines_maybe()?;
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                     let default = self.eat_pattern_field_default_maybe()?;
                     PatternField::Computed {
@@ -403,16 +404,27 @@ impl Parser {
                 }
                 // named field variants and spread fields
                 else if can_start_named_or_spread_field {
-                    // field modifiers
-                    let mutability = if is_object_pattern
-                        && self.peek_mutability_is()
-                        && (self.peek_next_is(TokenType::Colon)
+                    let mutability = if is_object_pattern && self.peek_mutability_is() {
+                        // treat mutability keywords as field names when a separator follows
+                        // NOTE #Cleanup: revisit mutability in pattern field list
+                        let has_separator_or_assignment = self.peek_next_is(TokenType::Colon)
                             || self.peek_next_is(seperator)
                             || self.peek_next_is(terminator)
                             || self.peek_next_is(TokenType::Assign)
-                            || self.peek_next_is(TokenType::Maybe))
-                    {
-                        None
+                            || self.peek_next_is(TokenType::Maybe);
+                        let has_separator_or_assignment_after_newline = self
+                            .is_token_after_newlines(self.pos(), TokenType::Colon)
+                            || self.is_token_after_newlines(self.pos(), seperator)
+                            || self.is_token_after_newlines(self.pos(), terminator)
+                            || self.is_token_after_newlines(self.pos(), TokenType::Assign)
+                            || self.is_token_after_newlines(self.pos(), TokenType::Maybe);
+
+                        if has_separator_or_assignment || has_separator_or_assignment_after_newline
+                        {
+                            None
+                        } else {
+                            self.eat_mutability_maybe()?
+                        }
                     } else {
                         self.eat_mutability_maybe()?
                     };
@@ -447,7 +459,9 @@ impl Parser {
                         if has_named_colon_field {
                             let (name, _name_span) =
                                 self.eat_pattern_field_name_with_span(terminator)?;
+                            self.eat_newlines_maybe()?;
                             self.bump(); // eat colon
+                            self.eat_newlines_maybe()?;
 
                             // named alias field
                             if self.peek_identifier_is() {
@@ -1101,6 +1115,19 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_pattern_object_readonly_shorthand_with_newline_javascript() {
+        let mut test = TestParser::new_with_options("{ readonly\n}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                assert_name!(parser, *name, "readonly");
+            });
+        });
+    }
+    #[test]
     fn test_parse_pattern_object_readonly_shorthand_destack() {
         let mut test = TestParser::new("{ readonly }");
         let mut parser = test.prepare();
@@ -1339,6 +1366,46 @@ mod tests {
             // h=i
             assert_node!(parser.tree, fields[3], PatternField::Named { default, .. } => {
                 assert!(default.is_some());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_object_pattern_computed_field_with_newline_after_colon_javascript() {
+        // { [key]:\nvalue }
+        let mut test = TestParser::new_with_options("{ [key]:\nvalue }", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+
+            assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern: Some(pattern), default: None } => {
+                assert_node!(parser.tree, *key, Expression::Path { path, static_arguments: None } => {
+                    assert_path!(parser, *path, "key");
+                });
+
+                assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
+                    assert_string!(parser, *name, "value");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_object_pattern_alias_with_newline_after_colon_javascript() {
+        // { source:\ntarget }
+        let mut test =
+            TestParser::new_with_options("{ source:\ntarget }", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+
+            assert_node!(parser.tree, fields[0], PatternField::Alias { mutability: None, name, alias, default: None } => {
+                assert_name!(parser, *name, "source");
+                assert_string!(parser, *alias, "target");
             });
         });
     }
