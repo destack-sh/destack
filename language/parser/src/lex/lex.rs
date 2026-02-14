@@ -484,11 +484,10 @@ impl Lexer {
                             from_content: true,
                         });
                 }
-                // in tree opening tag mode, { starts an attribute expression container
-                // (e.g., <Component attr={<NestedJSX />} />)
-                else if self.tree_state() == TreeState::OpeningTag {
-                    // don't pop OpeningTag - we're still parsing attributes
-                    // but track the expression so nested JSX is recognized
+                // in tree opening tag mode, the first { starts an attribute expression container
+                else if self.tree_state() == TreeState::OpeningTag
+                    && !self.in_tree_expression_container()
+                {
                     self.options
                         .tree_expression_stack
                         .push(TreeExpressionEntry {
@@ -704,7 +703,7 @@ impl Lexer {
             // less than, shift left, or tree literal opening
             '<' => {
                 let in_tree_opening_tag = self.tree_state() == TreeState::OpeningTag
-                    && !self.in_tree_attribute_expression();
+                    && !self.in_tree_expression_container();
 
                 // static arguments inside opening tag
                 if in_tree_opening_tag {
@@ -801,7 +800,7 @@ impl Lexer {
             '>' => {
                 // in tree opening tag mode, > ends the tag
                 if self.tree_state() == TreeState::OpeningTag
-                    && !self.in_tree_attribute_expression()
+                    && !self.in_tree_expression_container()
                 {
                     if self.options.tree_tag_angle_depth > 0 {
                         self.options.tree_tag_angle_depth -= 1;
@@ -1532,7 +1531,7 @@ impl Lexer {
     /// Return true when quoted strings can span lines in tree opening tag attributes.
     #[inline]
     fn allow_line_terminator_in_tree_attribute_string(&self) -> bool {
-        self.tree_state() == TreeState::OpeningTag && !self.in_tree_attribute_expression()
+        self.tree_state() == TreeState::OpeningTag && !self.in_tree_expression_container()
     }
 
     /// Parse a single-quoted literal (excluding the initial `'`).

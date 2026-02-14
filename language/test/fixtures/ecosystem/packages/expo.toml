@@ -8,5 +8,26 @@ tier = "T2"
 tags = ["application", "mobile", "typescript"]
 
 [discovery]
-include = ["src/**/*.ts", "src/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "**/*.d.ts", "**/*.mts", "**/*.cts"]
-exclude = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/out/**", "**/coverage/**", "**/vendor/**", "**/third_party/**"]
+include = [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "**/*.d.ts",
+    "**/*.mts",
+    "**/*.cts",
+]
+exclude = [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/out/**",
+    "**/coverage/**",
+    "**/vendor/**",
+    "**/third_party/**",
+    "packages/expo-module-template/**",
+    "packages/expo-module-template-local/**",
+    "packages/html-elements/src/ts-declarations/react-native-web.d.ts",
+]

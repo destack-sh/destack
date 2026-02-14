@@ -2696,6 +2696,72 @@ mod tests {
         });
     }
 
+    /// Parse tree attribute objects with callback values that return ternary fragments.
+    #[test]
+    fn test_parse_tree_attribute_object_callback_with_fragment_ternary() {
+        let input = r#"<F
+  values={{
+    resend: (chunks) => (
+      <button>
+        {resendCooldown > 0 ? (
+          <>
+            {chunks} ({resendCooldown})
+          </>
+        ) : (
+          chunks
+        )}
+      </button>
+    )
+  }}
+/>"#;
+
+        // parse one tree literal from the tsx input
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_tree_literal().unwrap();
+
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "F");
+            assert!(elements.is_none());
+
+            let arguments = arguments.as_ref().expect("expected tree arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value, .. } => {
+                assert_string!(parser, *name, "values");
+
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], destack_ast::Property::Field { key: Some(destack_ast::Key::Name(Name::Identifier(key_name))), value: Some(callback), .. } => {
+                        assert_string!(parser, *key_name, "resend");
+                        assert_node!(parser.tree, *callback, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                                assert_eq!(signature.dynamic_parameters.len(), 1);
+                                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                                    assert_string!(parser, *name, "chunks");
+                                });
+
+                                assert_node!(parser.tree, body.expect("expected callback body"), Expression::Parenthesized { expression } => {
+                                    assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(button_left), elements, .. } => {
+                                        assert_expression_path!(parser, parser.tree.get(*button_left), "button");
+                                        let elements = elements.as_ref().expect("expected button children");
+                                        assert_eq!(elements.len(), 1);
+                                        assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                                            assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
+                                                assert_eq!(*kind, IfKind::Ternary);
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse spread attributes with newline and comments after the container open.
     #[test]
     fn test_parse_tree_attribute_spread_with_multiline_comments() {

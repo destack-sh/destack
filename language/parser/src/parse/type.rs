@@ -322,7 +322,7 @@ impl Parser {
             };
 
             // static parameters (speculative: may fail for type expressions like Foo<T[number]>)
-            let static_parameters = match self.eat_static_parameters_maybe() {
+            let static_parameters = match self.eat_static_parameters_maybe(true) {
                 Ok(params) => params,
                 Err(error) => {
                     // keep hard failures for incomplete type parameter lists
@@ -1475,6 +1475,28 @@ mod tests {
                 });
                 assert!(static_parameters.is_some());
                 assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
+            });
+        });
+    }
+
+    /// Parse a TypeScript type alias with an explicit empty generic list.
+    #[test]
+    fn test_parse_type_alias_with_empty_static_parameters_typescript() {
+        let mut test =
+            TestParser::new_with_options("type Box<> = string;", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        // type Box<> = string
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, static_parameters, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Box");
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+
+                let params = static_parameters
+                    .as_ref()
+                    .expect("expected static params");
+                assert!(params.is_empty());
             });
         });
     }

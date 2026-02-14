@@ -1917,6 +1917,37 @@ fn test_lex_tree_nested_with_attr_expression() {
     );
 }
 
+/// Tree opening tag attribute expressions keep `/>` tokenized as tag close after nested object braces.
+#[test]
+fn test_lex_tree_self_closing_after_nested_attribute_object_expression() {
+    let input = r#"<F
+  values={{
+    resend: (chunks) => (
+      <button>
+        {resendCooldown > 0 ? <>{chunks} ({resendCooldown})</> : chunks}
+      </button>
+    ),
+  }}
+/>"#;
+    let (tokens, _, _) = lex_source_with_tree_literals(input, LanguageType::TypeScriptXml);
+    let semantic_types: Vec<TokenType> = tokens
+        .iter()
+        .map(|token| token.token.ty)
+        .filter(|token_type| *token_type != TokenType::Newline)
+        .collect();
+
+    assert!(
+        semantic_types.ends_with(&[
+            TokenType::CloseBrace,
+            TokenType::CloseBrace,
+            TokenType::Divide,
+            TokenType::GreaterThan,
+            TokenType::End,
+        ]),
+        "expected attribute object close followed by self closing tree tag",
+    );
+}
+
 /// Tree literal inside nested callbacks with non-self-closing elements.
 /// Regression test for parentheses balance when closing tags are inside expression containers.
 #[test]

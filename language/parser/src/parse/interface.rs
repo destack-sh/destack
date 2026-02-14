@@ -85,7 +85,7 @@ impl Parser {
             };
 
             // optional static parameters: < ... >
-            let static_parameters = self.eat_static_parameters_maybe()?;
+            let static_parameters = self.eat_static_parameters_maybe(true)?;
 
             // optional extends types
             let extends_types = self.eat_extends_types_maybe()?;
@@ -449,6 +449,30 @@ interface Foo {
                 .as_ref()
                 .expect("expected static params");
             assert_eq!(params.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_parse_interface_with_empty_static_parameters_typescript() {
+        let mut test = TestParser::new_with_options("interface Box<> {}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                &start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Box");
+            let params = generics
+                .static_parameters
+                .as_ref()
+                .expect("expected static params");
+            assert!(params.is_empty());
         });
     }
 
