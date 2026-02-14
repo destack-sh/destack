@@ -28,12 +28,23 @@ if [ -d "$TARGET_DIR" ]; then
     rm -rf "$TARGET_DIR"
 fi
 
-# clone at specific commit
-echo "  cloning..."
-git clone --quiet "$REPO_URL" "$TARGET_DIR"
-cd "$TARGET_DIR"
-git checkout --quiet "$TEST262_COMMIT"
-cd ..
+# clone at specific commit: shallow fetch keeps CI cold starts faster
+echo "  cloning (shallow)..."
+TEMP_DIR=$(mktemp -d)
+cleanup() {
+    rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT
+
+cd "$TEMP_DIR"
+git init --quiet
+git remote add origin "$REPO_URL"
+git fetch --quiet --depth 1 origin "$TEST262_COMMIT"
+git checkout --quiet FETCH_HEAD
+
+mkdir -p "$TARGET_DIR"
+cp -R . "$TARGET_DIR/"
+cd "$SCRIPT_DIR"
 
 # remove .git to save space and avoid nested repo issues
 rm -rf "$TARGET_DIR/.git"

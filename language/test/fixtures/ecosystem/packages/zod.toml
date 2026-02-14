@@ -2,7 +2,7 @@
 name = "zod"
 description = "TypeScript-first schema validation"
 repo = "https://github.com/colinhacks/zod"
-ref = "v3.24.2"
+ref = "e30870369d5b8f31ff4d0130d4439fd997deb523"
 language = "ts"
 
 [discovery]

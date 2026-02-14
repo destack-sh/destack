@@ -24,9 +24,10 @@ If your change introduces new concepts or APIs, update the relevant READMEs and 
 
 ## Code Style
 
-We format code with `just fmt`.
-We run checks with `just check` and tests with `just test`.
-See [TESTING.md](TESTING.md) for the full testing matrix.
+Before opening a PR, run `just precommit` from the repository root.
+This runs the same blocking gates that CI runs for language, library, and platform.
+Use `just fmt` for formatting, `just check` for broad checks, and `just test` for the full local test matrix.
+See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 
 ## Security
 
@@ -59,7 +60,9 @@ To contribute to Destack and build it yourself locally you will need at least `c
 
 We use `justfile`s as the source of truth for all commands:
 ```sh
-just install 		# setup everything
+just precommit      # canonical pre-PR gate, mirrors blocking CI
+just ci             # blocking CI gates only
+just install        # setup everything
 just check          # check & lint everything
 just fmt            # format all code
 just test           # run all tests
@@ -67,4 +70,11 @@ just bench          # run all benchmarks
 just fuzz           # run all fuzzers
 just clean          # clean all build artifacts
 just publish        # publish all packages
+```
+
+If you are working in one area only, use scoped gates:
+```sh
+just language/ci
+just library/ci
+just platform/ci
 ```

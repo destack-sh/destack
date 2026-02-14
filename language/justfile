@@ -8,6 +8,44 @@ linter-test-threads := "2"
 _default:
     @just --list --unsorted
 
+# --- ci ---
+
+# run language format gate
+ci-format:
+    just format-check
+
+# run language lint gate
+ci-lint:
+    just lint
+
+# install fixture sets required by ci language tests
+ci-install:
+    just install-conformance
+    just install-formatter-conformance
+
+# run language test gates used in ci
+ci-tests:
+    cargo test --release -p destack_parser --lib
+    just test-smoke
+    just test-specification
+    just test-query
+    just test-grammar-specification-sweep-positive
+    just test-grammar-overlay
+    just test-grammar-corpus-routing
+    just test-grammar-destack-node-coverage
+    just test-conformance
+    just generate-stress
+    just test-stress
+    just test-formatter
+    just test-formatter-conformance
+
+# run all blocking language ci gates locally
+ci:
+    just ci-format
+    just ci-lint
+    just ci-install
+    just ci-tests
+
 # --- setup ---
 
 # install test fixtures (conformance suites, ecosystem packages, resolver fixtures)
@@ -22,6 +60,13 @@ install:
 
 # alias for install
 install-fixtures := "install"
+
+# install conformance suites
+install-conformance:
+    ./test/fixtures/conformance/test262-fetch.sh
+    ./test/fixtures/conformance/babel-fetch.sh
+    ./test/fixtures/conformance/swc-fetch.sh
+    ./test/fixtures/conformance/biome-fetch.sh
 
 # install formatter conformance sources
 install-formatter-conformance:
@@ -317,23 +362,23 @@ test-specification:
 
 # validate tree sitter overlay coverage
 test-grammar-overlay:
-    node grammar/scripts/check-overlay.mjs
+    bun grammar/scripts/check-overlay.mjs
 
 # validate corpus language routing
 test-grammar-corpus-routing:
-    node grammar/scripts/check-corpus-routing.mjs
+    bun grammar/scripts/check-corpus-routing.mjs
 
 # run TypeScript and TSX tree sitter corpus tests
 test-grammar-typescript-tsx:
-    cd grammar/destack && npx tree-sitter test --rebuild
+    cd grammar/destack && bunx tree-sitter test --rebuild
 
 # run Destack tree sitter corpus tests
 test-grammar-destack:
-    cd grammar/destack/destack && npx tree-sitter test --rebuild
+    cd grammar/destack/destack && bunx tree-sitter test --rebuild
 
 # validate destack-only tree sitter node coverage in corpus
 test-grammar-destack-node-coverage:
-    node grammar/scripts/check-destack-node-coverage.mjs
+    bun grammar/scripts/check-destack-node-coverage.mjs
 
 # run all tree sitter grammar tests
 test-grammar-all:
@@ -346,15 +391,15 @@ test-grammar-all:
 
 # sweep specification markdown fixtures through tree sitter parsers
 test-grammar-specification-sweep args="":
-    node grammar/scripts/specification-parser-sweep.mjs {{args}}
+    bun grammar/scripts/specification-parser-sweep.mjs {{args}}
 
 # fail when specification positive cases produce parser errors
 test-grammar-specification-sweep-positive:
-    node grammar/scripts/specification-parser-sweep.mjs --fail-on-positive
+    bun grammar/scripts/specification-parser-sweep.mjs --fail-on-positive
 
 # profile tree sitter grammar state deltas
 profile-grammar-delta args="--target destack --baseline tsx --top 30":
-    node grammar/scripts/profile-grammar-delta.mjs {{args}}
+    bun grammar/scripts/profile-grammar-delta.mjs {{args}}
 
 # run query tests (IDE/LSP queries)
 test-query:

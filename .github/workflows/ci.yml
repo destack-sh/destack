@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -37,13 +37,13 @@ jobs:
           cargo --version
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run language format check
-        run: just language/format-check
+        run: just language/ci-format
 
   language-lint:
     name: Language Lint
@@ -51,7 +51,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -63,21 +63,21 @@ jobs:
           cargo --version
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run language lint
-        run: just language/lint
+        run: just language/ci-lint
 
   language-tests:
     name: Language Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -89,22 +89,46 @@ jobs:
           cargo --version
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run parser crate tests
-        run: cargo test --release -p destack_parser --lib
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Run smoke tests
-        run: just language/test-smoke
+      - name: Cache conformance fixtures
+        id: language-conformance-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            language/test/fixtures/conformance/test262
+            language/test/fixtures/conformance/babel
+            language/test/fixtures/conformance/swc
+            language/test/fixtures/conformance/biome
+          key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/conformance/*-fetch.sh') }}
 
-      - name: Run specification tests
-        run: just language/test-specification
+      - name: Install conformance fixtures
+        if: steps.language-conformance-cache.outputs.cache-hit != 'true'
+        run: just language/install-conformance
 
-      - name: Run query tests
-        run: just language/test-query
+      - name: Cache formatter conformance fixtures
+        id: language-formatter-conformance-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            language/test/fixtures/formatter/conformance/staging/prettier
+            language/test/fixtures/formatter/conformance/staging/oxfmt
+          key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
+
+      - name: Install formatter conformance fixtures
+        if: steps.language-formatter-conformance-cache.outputs.cache-hit != 'true'
+        run: just language/install-formatter-conformance
+
+      - name: Run language test gates
+        run: just language/ci-tests
 
   library-format:
     name: Library Format
@@ -112,7 +136,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -124,21 +148,21 @@ jobs:
           cargo --version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
       - name: Run library format check
-        run: just library/format-check
+        run: just library/ci-format
 
   library-lint:
     name: Library Lint
@@ -146,7 +170,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -158,21 +182,21 @@ jobs:
           cargo --version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
       - name: Run library lint
-        run: just library/lint
+        run: just library/ci-lint
 
   library-tests:
     name: Library Tests
@@ -180,7 +204,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -192,21 +216,21 @@ jobs:
           cargo --version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
       - name: Run library tests
-        run: just library/test
+        run: just library/ci-tests
 
   platform-format:
     name: Platform Format
@@ -214,7 +238,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -226,13 +250,13 @@ jobs:
           cargo --version
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run platform format check
-        run: just platform/format-check
+        run: just platform/ci-format
 
   platform-lint:
     name: Platform Lint
@@ -240,7 +264,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -252,13 +276,13 @@ jobs:
           cargo --version
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run platform lint
-        run: just platform/lint
+        run: just platform/ci-lint
 
   platform-tests:
     name: Platform Tests
@@ -266,7 +290,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -278,18 +302,18 @@ jobs:
           cargo --version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
       - name: Run platform tests
-        run: just platform/test
+        run: just platform/ci-tests

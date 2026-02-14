@@ -31,6 +31,32 @@ generate-builtin-libs:
 
 # --- build ---
 
+# install js workspace dependencies for ci style gates
+ci-install:
+    bun install --frozen-lockfile
+
+# run language ci gates
+ci-language:
+    just language/ci
+
+# run library ci gates
+ci-library:
+    just library/ci
+
+# run platform ci gates
+ci-platform:
+    just platform/ci
+
+# run all blocking ci gates locally
+ci:
+    just ci-language
+    just ci-library
+    just ci-platform
+
+# canonical pre commit gate
+precommit:
+    just ci
+
 # check everything
 check:
     just language/check

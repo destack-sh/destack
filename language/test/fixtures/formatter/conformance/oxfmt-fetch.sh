@@ -3,7 +3,7 @@ set -euo pipefail
 
 SUITE_NAME="oxfmt"
 SUITE_VERSION="oxc-main"
-SUITE_REF="${OXFMT_REF:-main}"
+SUITE_COMMIT="${OXFMT_COMMIT:-f4fefb6201295f2ba6cef1c1348b4b17c9d6e197}"
 REPO_URL="https://github.com/oxc-project/oxc.git"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 echo "fetching $SUITE_NAME formatter fixtures..."
 echo "  version: $SUITE_VERSION"
-echo "  ref:     $SUITE_REF"
+echo "  commit:  ${SUITE_COMMIT:0:7}"
 echo "  target:  $TARGET_DIR"
 
 if [ -d "$TARGET_DIR" ]; then
@@ -38,7 +38,7 @@ git config core.sparseCheckout true
 for path in "${PATHS[@]}"; do
     echo "$path" >> .git/info/sparse-checkout
 done
-git fetch --quiet --depth 1 origin "$SUITE_REF"
+git fetch --quiet --depth 1 origin "$SUITE_COMMIT"
 git checkout --quiet FETCH_HEAD
 
 FOUND=0
@@ -55,7 +55,7 @@ if [ "$FOUND" -eq 0 ]; then
     exit 1
 fi
 
-printf "%s (%s)\n" "$SUITE_VERSION" "$SUITE_REF" > "$TARGET_DIR/VERSION"
+printf "%s (%s)\n" "$SUITE_VERSION" "$SUITE_COMMIT" > "$TARGET_DIR/VERSION"
 
 JS_COUNT=$(find "$TARGET_DIR" -type f -name "*.js" 2>/dev/null | wc -l | tr -d ' ')
 JSX_COUNT=$(find "$TARGET_DIR" -type f -name "*.jsx" 2>/dev/null | wc -l | tr -d ' ')

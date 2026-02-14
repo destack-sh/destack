@@ -7,6 +7,31 @@ test-packages := "-p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp
 _default:
     @just --list --unsorted
 
+# --- ci ---
+
+# install js dependencies required by platform gates
+ci-install:
+    bun install --frozen-lockfile
+
+# run platform format gate
+ci-format:
+    just format-check
+
+# run platform lint gate
+ci-lint:
+    just lint
+
+# run platform test gate
+ci-tests:
+    just test
+
+# run all blocking platform ci gates locally
+ci:
+    just ci-install
+    just ci-format
+    just ci-lint
+    just ci-tests
+
 # --- build ---
 
 # check (clippy)
@@ -82,7 +107,7 @@ test-lsp-stdio:
 test-zed:
     cd zed && cargo test --release
     cd zed && cargo build --target wasm32-wasip2 --release
-    node ../language/grammar/scripts/check-overlay.mjs
+    bun ../language/grammar/scripts/check-overlay.mjs
 
 # test the core ide integration surface
 test-ide:

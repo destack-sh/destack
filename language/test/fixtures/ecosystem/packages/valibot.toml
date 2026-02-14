@@ -2,7 +2,7 @@
 name = "valibot"
 description = "Modular schema validation library"
 repo = "https://github.com/fabian-hiller/valibot"
-ref = "v1.0.0"
+ref = "15e430e97267711ffd9f0633bc81bb49ce60a247"
 language = "ts"
 
 [discovery]
