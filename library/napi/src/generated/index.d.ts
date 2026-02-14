@@ -671,6 +671,10 @@ export interface ResolveOptions {
   alias: Array<AliasEntry>
   /** Condition names for exports field which defines entry points of a package. */
   conditions: Array<string>
+  /** Whether to resolve package.json exports mappings. */
+  resolvePackageJsonExports: boolean
+  /** Whether to resolve package.json imports mappings. */
+  resolvePackageJsonImports: boolean
   /** Whether and how to enforce file extensions. */
   enforceExtension: EnforceExtension
   /** Attempt to resolve these extensions in order. */
@@ -1050,8 +1054,10 @@ export declare const enum WorkspaceInvalidationKind {
   DsConfig = 1,
   /** Tsconfig changed. */
   TsConfig = 2,
+  /** Package manifest changed. */
+  PackageManifest = 3,
   /** No known mapping for the file. */
-  Unknown = 3
+  Unknown = 4
 }
 
 /** Workspace message payload. */
