@@ -1,0 +1,11 @@
+[package]
+name = "freecodecamp"
+description = "freeCodeCamp learning platform"
+repo = "https://github.com/freeCodeCamp/freeCodeCamp"
+ref = "6affb2b19c70fb7e5456d44dbf78bb2a10702516"
+language = "ts"
+tags = ["application", "web", "education", "monorepo"]
+
+[discovery]
+include = ["curriculum/**/*.ts", "client/**/*.ts", "client/**/*.tsx", "api/**/*.ts", "tools/**/*.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

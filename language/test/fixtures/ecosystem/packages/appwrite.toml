@@ -1,0 +1,11 @@
+[package]
+name = "appwrite"
+description = "Appwrite backend platform"
+repo = "https://github.com/appwrite/appwrite"
+ref = "f0191202a08d156db43d2b14bd6a0a191ef6f996"
+language = "ts"
+tags = ["application", "backend", "platform", "monorepo"]
+
+[discovery]
+include = ["app/**/*.ts", "app/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

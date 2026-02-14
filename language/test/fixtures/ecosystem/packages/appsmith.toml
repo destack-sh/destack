@@ -1,0 +1,11 @@
+[package]
+name = "appsmith"
+description = "Appsmith internal tool platform"
+repo = "https://github.com/appsmithorg/appsmith"
+ref = "81165f493cf82c1f81396379e2aa911e87685409"
+language = "ts"
+tags = ["application", "dashboard", "fullstack", "monorepo"]
+
+[discovery]
+include = ["app/**/*.ts", "app/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

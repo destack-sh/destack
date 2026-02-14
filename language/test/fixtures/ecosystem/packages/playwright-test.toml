@@ -1,0 +1,11 @@
+[package]
+name = "playwright-test"
+description = "Playwright test runner package"
+repo = "https://github.com/microsoft/playwright"
+ref = "0bd37174dea4e6e681902100fb820cbbc537df68"
+language = "ts"
+tags = ["tooling", "testing", "node"]
+
+[discovery]
+include = ["packages/playwright-test/**/*.ts", "packages/playwright-test/**/*.tsx", "packages/playwright-test/**/*.js", "packages/playwright-test/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

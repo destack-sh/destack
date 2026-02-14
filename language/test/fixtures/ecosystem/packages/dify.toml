@@ -1,0 +1,11 @@
+[package]
+name = "dify"
+description = "Dify agentic workflow platform"
+repo = "https://github.com/langgenius/dify"
+ref = "1f74a251f7347c3ea0d29a098c0e4b4556368c4f"
+language = "ts"
+tags = ["application", "ai", "workflow", "monorepo"]
+
+[discovery]
+include = ["web/**/*.ts", "web/**/*.tsx", "sdks/**/*.ts", "packages/**/*.ts", "packages/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

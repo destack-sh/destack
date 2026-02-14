@@ -1,0 +1,11 @@
+[package]
+name = "react-native"
+description = "React Native framework"
+repo = "https://github.com/facebook/react-native"
+ref = "b92d37879e8e6ca5dbb3c0047a50b20ae6286bc5"
+language = "ts"
+tags = ["mobile", "framework", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

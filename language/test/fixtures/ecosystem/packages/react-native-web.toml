@@ -1,0 +1,11 @@
+[package]
+name = "react-native-web"
+description = "React Native for Web"
+repo = "https://github.com/necolas/react-native-web"
+ref = "a9de220ba9e65bdea540fb5322ffb1da2b0bf442"
+language = "js"
+tags = ["frontend", "mobile", "react"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

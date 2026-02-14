@@ -1,0 +1,11 @@
+[package]
+name = "aws-cdk"
+description = "AWS Cloud Development Kit"
+repo = "https://github.com/aws/aws-cdk"
+ref = "aaf9889568ed6c712014bcb5edafebc5dc853ffb"
+language = "ts"
+tags = ["sdk", "cloud", "aws", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

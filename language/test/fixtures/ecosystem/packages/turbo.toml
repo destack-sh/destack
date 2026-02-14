@@ -1,0 +1,11 @@
+[package]
+name = "turbo"
+description = "Turborepo build system"
+repo = "https://github.com/vercel/turbo"
+ref = "a1a3e74bf49b6deccad0ff17ab5f8cc3aee49c74"
+language = "ts"
+tags = ["tooling", "build", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx", "cli/**/*.ts", "cli/**/*.js"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

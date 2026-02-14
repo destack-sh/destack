@@ -1,0 +1,11 @@
+[package]
+name = "nocodb"
+description = "NocoDB open source no code database platform"
+repo = "https://github.com/nocodb/nocodb"
+ref = "6ed843fbfee2849c1717df721c9ef5952ec83ff7"
+language = "ts"
+tags = ["application", "database", "fullstack", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

@@ -1,0 +1,11 @@
+[package]
+name = "chakra-ui"
+description = "Chakra UI React component system"
+repo = "https://github.com/chakra-ui/chakra-ui"
+ref = "59bf8f6a63ba70481160556f16113deb143c34f5"
+language = "ts"
+tags = ["frontend", "ui", "tsx", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

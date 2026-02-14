@@ -1,0 +1,11 @@
+[package]
+name = "superset"
+description = "Apache Superset analytics platform"
+repo = "https://github.com/apache/superset"
+ref = "097f474f24b8867bcf1a9cf9d100cc5a996d6102"
+language = "ts"
+tags = ["application", "analytics", "dashboard", "monorepo"]
+
+[discovery]
+include = ["superset-frontend/**/*.ts", "superset-frontend/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

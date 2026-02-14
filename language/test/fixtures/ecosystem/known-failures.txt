@@ -120,7 +120,6 @@ medusa-analyze
 medusa-lower
 medusa-parse
 medusa-resolve
-ms-analyze
 mysql2-analyze
 mysql2-lower
 mysql2-resolve
@@ -317,8 +316,6 @@ undici-lower
 undici-resolve
 uuid-analyze
 uuid-lower
-valibot-analyze
-valibot-resolve
 vercel-ai-analyze
 vercel-ai-lower
 vercel-ai-resolve
@@ -345,8 +342,6 @@ ws-lower
 yarn-berry-analyze
 yarn-berry-lower
 yarn-berry-resolve
-zod-analyze
-zod-resolve
 zustand-analyze
 zustand-lower
 zustand-resolve

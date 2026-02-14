@@ -1,0 +1,11 @@
+[package]
+name = "d3"
+description = "D3 data visualization library"
+repo = "https://github.com/d3/d3"
+ref = "42ccb63d8f4a4262f78b48aa1431e1f645bcc844"
+language = "js"
+tags = ["library", "visualization", "frontend"]
+
+[discovery]
+include = ["src/**/*.js", "index.d.ts", "types/**/*.d.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

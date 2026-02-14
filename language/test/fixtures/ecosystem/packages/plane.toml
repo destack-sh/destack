@@ -1,0 +1,11 @@
+[package]
+name = "plane"
+description = "Plane project management application"
+repo = "https://github.com/makeplane/plane"
+ref = "e92b835869678be5b99c6445ee87a41b3df19914"
+language = "ts"
+tags = ["application", "project-management", "fullstack", "monorepo"]
+
+[discovery]
+include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx", "web/**/*.ts", "web/**/*.tsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

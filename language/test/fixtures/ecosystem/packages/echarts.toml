@@ -1,0 +1,11 @@
+[package]
+name = "echarts"
+description = "Apache ECharts visualization library"
+repo = "https://github.com/apache/echarts"
+ref = "33cf6e731b2e30436548f13d955847f0ac7f2f8d"
+language = "ts"
+tags = ["library", "visualization", "frontend"]
+
+[discovery]
+include = ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx", "index.d.ts"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

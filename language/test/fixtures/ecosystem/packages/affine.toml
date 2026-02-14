@@ -1,0 +1,11 @@
+[package]
+name = "affine"
+description = "AFFiNE knowledge base application"
+repo = "https://github.com/toeverything/AFFiNE"
+ref = "2b71b3f3455b51aa566b174f3f37a23d986766cd"
+language = "ts"
+tags = ["application", "desktop", "web", "monorepo"]
+
+[discovery]
+include = ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]

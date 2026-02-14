@@ -403,6 +403,7 @@ impl Suite for EcosystemSuite {
                 &self.manifests,
                 &self.phases,
                 &package_rows,
+                &self.ignored_cases,
                 &self.patches_dir,
                 is_partial,
             );
@@ -512,7 +513,7 @@ impl ReadmeCellStatus {
         match self {
             Self::Pass => "✓",
             Self::Fail => "x",
-            Self::Ignored => "---",
+            Self::Ignored => "[--]",
             Self::Unknown => "---",
         }
     }
@@ -522,7 +523,8 @@ impl ReadmeCellStatus {
         match value.as_str() {
             "✓" | "✓✓" | "[✓]" | "v" | "pass" | "ok" | "green" => Self::Pass,
             "x" | "xx" | "[x]" | "fail" | "failed" | "red" => Self::Fail,
-            "---" | "[--]" | "-" | "ignored" | "skip" | "skipped" | "watch" => Self::Ignored,
+            "[--]" | "ignored" | "skip" | "skipped" | "watch" => Self::Ignored,
+            "---" | "-" => Self::Unknown,
             _ => Self::Unknown,
         }
     }
@@ -738,11 +740,11 @@ fn readme_cell_from_result(result: &TestResult) -> ReadmeCellStatus {
         TestResult::Suite { .. } => ReadmeCellStatus::Unknown,
     }
 }
-
 fn update_ecosystem_readme(
     manifests: &[EcosystemManifest],
     phases: &[EcosystemPhase],
     package_rows: &BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>,
+    ignored_cases: &HashSet<String>,
     patches_dir: &Path,
     is_partial: bool,
 ) {
@@ -787,6 +789,8 @@ fn update_ecosystem_readme(
         .collect::<HashSet<_>>();
     merged_rows.retain(|package_name, _| manifest_names.contains(package_name.as_str()));
 
+    // reapply ignored statuses from ignored.txt after parsing old rows
+    apply_ignored_case_statuses(&mut merged_rows, ignored_cases);
     let package_metadata = collect_readme_package_metadata(manifests, patches_dir);
     let summary_section = format_readme_summary_rows(&merged_rows, &package_metadata);
     let Some(new_content) =
@@ -832,6 +836,22 @@ fn empty_readme_phase_row() -> BTreeMap<EcosystemPhase, ReadmeCellStatus> {
     row
 }
 
+/// Apply ignored case statuses from ignored.txt to one merged README row set.
+fn apply_ignored_case_statuses(
+    rows: &mut BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>,
+    ignored_cases: &HashSet<String>,
+) {
+    for case_id in ignored_cases {
+        let Some((package_name, phase)) = parse_case_id(case_id.as_str()) else {
+            continue;
+        };
+
+        let package_row = rows
+            .entry(package_name.to_string())
+            .or_insert_with(empty_readme_phase_row);
+        package_row.insert(phase, ReadmeCellStatus::Ignored);
+    }
+}
 fn format_readme_summary_rows(
     rows: &BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>,
     package_metadata: &BTreeMap<String, ReadmePackageMetadata>,
@@ -857,6 +877,7 @@ fn format_readme_summary_rows(
     let mut total_passed = 0usize;
     let mut total_failed = 0usize;
     let mut total_ignored = 0usize;
+    let mut total_unknown = 0usize;
 
     for (package_name, row) in rows {
         let statuses = phases
@@ -876,13 +897,20 @@ fn format_readme_summary_rows(
             .iter()
             .filter(|status| **status == ReadmeCellStatus::Ignored)
             .count();
-        let total = passed + failed + ignored;
+        let unknown = statuses
+            .iter()
+            .filter(|status| **status == ReadmeCellStatus::Unknown)
+            .count();
+
+        // count all phases in the row total, even if a phase is unknown
+        let total = statuses.len();
         let rate = format_rate(passed, failed);
         let inclusive_rate = format_inclusive_rate(passed, total);
 
         total_passed += passed;
         total_failed += failed;
         total_ignored += ignored;
+        total_unknown += unknown;
 
         let package_label =
             format_readme_package_label(package_name, package_metadata.get(package_name).copied());
@@ -907,7 +935,7 @@ fn format_readme_summary_rows(
         lines.push(row_line);
     }
 
-    let total_cases = total_passed + total_failed + total_ignored;
+    let total_cases = total_passed + total_failed + total_ignored + total_unknown;
     let total_rate = format_rate(total_passed, total_failed);
     let total_inclusive_rate = format_inclusive_rate(total_passed, total_cases);
     let total_phase_cells = phases
@@ -1593,4 +1621,51 @@ pub fn fetch_package(
 /// Fetch all package checkouts declared by ecosystem manifests.
 pub fn fetch_all_packages(options: FetchOptions) -> ExitCode {
     fetch::fetch_all_packages(options)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_readme_cell_status_roundtrips_unknown_and_ignored() {
+        // keep unknown cells distinct from ignored cells
+        let unknown = ReadmeCellStatus::parse(ReadmeCellStatus::Unknown.as_str());
+        let ignored = ReadmeCellStatus::parse(ReadmeCellStatus::Ignored.as_str());
+
+        assert_eq!(unknown, ReadmeCellStatus::Unknown);
+        assert_eq!(ignored, ReadmeCellStatus::Ignored);
+    }
+
+    #[test]
+    fn test_parse_readme_summary_rows_keeps_unknown_cells() {
+        let readme = r#"
+<!-- begin:summary-results -->
+| Package | parse | resolve | analyze | lower | Current | Target | Met | Total |  Rate   | Incl. Rate |
+|:--------|:-----:|:-------:|:-------:|:-----:|:-------:|:------:|:---:|------:|--------:|-----------:|
+| sample  |  ---  |  [--]   |   ✓     |   x   |   ---   |  ---   | --- |     4 |  50.00% |    25.00% |
+<!-- end:summary-results -->
+"#;
+
+        let rows = parse_readme_summary_rows(readme).expect("expected summary rows");
+        let row = rows.get("sample").expect("expected sample row");
+
+        // preserve unknown and ignored meanings when parsing summary rows
+        assert_eq!(
+            row.get(&EcosystemPhase::Parse),
+            Some(&ReadmeCellStatus::Unknown)
+        );
+        assert_eq!(
+            row.get(&EcosystemPhase::Resolve),
+            Some(&ReadmeCellStatus::Ignored)
+        );
+        assert_eq!(
+            row.get(&EcosystemPhase::Analyze),
+            Some(&ReadmeCellStatus::Pass)
+        );
+        assert_eq!(
+            row.get(&EcosystemPhase::Lower),
+            Some(&ReadmeCellStatus::Fail)
+        );
+    }
 }

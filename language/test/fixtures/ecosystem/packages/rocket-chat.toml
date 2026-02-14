@@ -1,0 +1,11 @@
+[package]
+name = "rocket-chat"
+description = "Rocket.Chat communication platform"
+repo = "https://github.com/RocketChat/Rocket.Chat"
+ref = "11e1c51f0867a35c69ce9b6eeca25dbbe2c71872"
+language = "ts"
+tags = ["application", "chat", "fullstack", "monorepo"]
+
+[discovery]
+include = ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]
