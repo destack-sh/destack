@@ -9,4 +9,4 @@ tags = ["library", "state", "frontend", "monorepo"]
 
 [discovery]
 include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
-exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]
+exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**", "**/flow-typed/**", "**/*.flow"]
