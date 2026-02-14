@@ -2,10 +2,10 @@ use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType, IntrinsicType,
-    Keyword, LocalNodeId, Mutability, Name, StringId, TokenType, TypeBinaryOperator, TypeKind,
-    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
-    TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Annotation, Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType,
+    IntrinsicType, Keyword, LocalNodeId, Mutability, Name, StringId, TokenType, TypeBinaryOperator,
+    TypeKind, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
+    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
 
@@ -971,12 +971,21 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // value type
+        let value_cursor = self.normalize_to_scanner_cursor();
         let value = self.eat_expression(
             self.options
                 .not_in_position()
                 .not_in_left_precedence()
                 .in_type(),
         )?;
+        self.attach_boundary(
+            value_cursor.index,
+            value_cursor.skipped_newline_count,
+            value.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                crate::parse::annotation::LeadingAnnotationKind::Expression,
+            ),
+        );
         self.eat_newlines_maybe()?;
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
             self.bump();
@@ -1128,11 +1137,15 @@ impl Parser {
         // parse the type heritage list in super type context
         let options = if enforce_class_extends_head {
             self.options
+                .not_in_position()
                 .in_super_type()
                 .not_in_type()
                 .not_in_new_receiver()
         } else {
-            self.options.in_super_type().not_in_new_receiver()
+            self.options
+                .not_in_position()
+                .in_super_type()
+                .not_in_new_receiver()
         };
         let old_options = self.swap_options(options);
         let types_result = self.eat_super_type_list(terminators, enforce_class_extends_head);
@@ -1250,6 +1263,20 @@ impl Parser {
                 let ty = self.eat_expression(self.options.in_before_block())?;
                 let (ty, is_parenthesized) = self.unwrap_parenthesized_super_expression(ty);
                 let is_parenthesized = starts_with_parenthesis || is_parenthesized;
+                let super_type_span = self.get_span_from(&type_start);
+
+                // decorated class expressions in extends heads should keep explicit grouping
+                let ty = if enforce_class_extends_head
+                    && !is_parenthesized
+                    && self.super_type_requires_parenthesized_decorated_class_head(ty)
+                {
+                    self.tree.insert(
+                        Expression::Parenthesized { expression: ty },
+                        super_type_span,
+                    )
+                } else {
+                    ty
+                };
 
                 if enforce_class_extends_head
                     && !is_parenthesized
@@ -1260,7 +1287,7 @@ impl Parser {
 
                 // record the full type span for super types
                 self.tree
-                    .set_side_span(ty, NodeSpanType::Type, self.get_span_from(&type_start));
+                    .set_side_span(ty, NodeSpanType::Type, super_type_span);
 
                 // record the parsed type
                 types.push(ty);
@@ -1292,6 +1319,27 @@ impl Parser {
                 | Expression::Assign { .. }
                 | Expression::SequenceExpression { .. }
         )
+    }
+
+    /// Return true when a class extends head should keep one explicit parenthesized wrapper.
+    fn super_type_requires_parenthesized_decorated_class_head(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let Expression::Declaration(declaration_id) = self.tree.get(expression_id) else {
+            return false;
+        };
+        let Declaration::Class { .. } = self.tree.get(*declaration_id) else {
+            return false;
+        };
+
+        let annotations = self.tree.get_annotations(expression_id.id);
+        annotations.into_iter().any(|annotation_id| {
+            matches!(
+                self.tree.get::<Annotation>(annotation_id),
+                Annotation::Decorator { .. }
+            )
+        })
     }
 }
 

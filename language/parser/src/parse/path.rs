@@ -7,6 +7,35 @@ use crate::{ParseResult, Parser};
 use destack_ast::{Path, TokenType};
 
 impl Parser {
+    /// Return true when a semantic token has leading comment trivia.
+    #[inline]
+    fn token_has_leading_comment_trivia(&mut self, token_index: usize) -> bool {
+        // fast path: skip side-token scans when no comments exist in the stream
+        if !self.token_stream.has_comment_annotation_tokens() {
+            return false;
+        }
+
+        let (side_start, side_end) = self.token_stream.leading_side_range(token_index);
+        if side_start >= side_end {
+            return false;
+        }
+
+        for side_index in side_start..side_end {
+            let side_token_type = self.token_stream.side_tokens()[side_index].token.ty;
+            if matches!(
+                side_token_type,
+                TokenType::LineComment
+                    | TokenType::DocLineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocBlockComment
+            ) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Eat a path.
     pub fn eat_path(&mut self) -> ParseResult<Path> {
         let _timing = self.timing_scope(tags::PARSE_PATH);
@@ -29,6 +58,15 @@ impl Parser {
             // dot followed by identifier
             if token_type == TokenType::Dot {
                 if self.peek_next_token_type() != TokenType::Identifier {
+                    break;
+                }
+
+                // comment boundaries around `.` must stay in expression continuation parsing
+                let dot_index = self.pos_index();
+                let segment_index = dot_index.saturating_add(1);
+                if self.token_has_leading_comment_trivia(dot_index)
+                    || self.token_has_leading_comment_trivia(segment_index)
+                {
                     break;
                 }
 
@@ -88,6 +126,15 @@ impl Parser {
                     break;
                 }
 
+                // comment boundaries around `.` must stay in expression continuation parsing
+                let dot_index = self.pos_index();
+                let segment_index = dot_index.saturating_add(1);
+                if self.token_has_leading_comment_trivia(dot_index)
+                    || self.token_has_leading_comment_trivia(segment_index)
+                {
+                    break;
+                }
+
                 self.bump(); // eat dot
                 let (segment, segment_span) = self.eat_identifier_with_span()?;
                 segments.push(segment);
@@ -136,6 +183,15 @@ impl Parser {
                     break;
                 }
 
+                // comment boundaries around `.` must stay in expression continuation parsing
+                let dot_index = self.pos_index();
+                let segment_index = dot_index.saturating_add(1);
+                if self.token_has_leading_comment_trivia(dot_index)
+                    || self.token_has_leading_comment_trivia(segment_index)
+                {
+                    break;
+                }
+
                 self.bump(); // eat dot
                 let segment = self.eat_tree_literal_identifier()?;
                 segments.push(segment);
@@ -181,6 +237,15 @@ impl Parser {
             // dot followed by identifier
             if token_type == TokenType::Dot {
                 if self.peek_next_token_type() != TokenType::Identifier {
+                    break;
+                }
+
+                // comment boundaries around `.` must stay in expression continuation parsing
+                let dot_index = self.pos_index();
+                let segment_index = dot_index.saturating_add(1);
+                if self.token_has_leading_comment_trivia(dot_index)
+                    || self.token_has_leading_comment_trivia(segment_index)
+                {
                     break;
                 }
 
@@ -258,5 +323,25 @@ mod tests {
         // ensure next token is the `<` for the generic arguments
         let next = parser.peek().unwrap();
         assert_eq!(next.token.ty, TokenType::LessThan);
+    }
+
+    #[test]
+    fn test_parse_path_stops_before_dot_with_leading_comment() {
+        let mut test = TestParser::new("source /* hop */ .first()");
+        let mut parser = test.prepare();
+        let path = parser.eat_path().unwrap();
+        assert_path!(parser, path, "source");
+        let next = parser.peek().unwrap();
+        assert_eq!(next.token.ty, TokenType::Dot);
+    }
+
+    #[test]
+    fn test_parse_path_stops_before_identifier_with_leading_comment_after_dot() {
+        let mut test = TestParser::new("source. /* hop */ first()");
+        let mut parser = test.prepare();
+        let path = parser.eat_path().unwrap();
+        assert_path!(parser, path, "source");
+        let next = parser.peek().unwrap();
+        assert_eq!(next.token.ty, TokenType::Dot);
     }
 }

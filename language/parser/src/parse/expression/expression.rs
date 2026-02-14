@@ -94,47 +94,6 @@ impl Parser {
         }
     }
 
-    /// Return the contextual keyword at the current identifier with split awareness.
-    #[inline]
-    fn current_identifier_keyword(&mut self, has_active_split: bool) -> Option<Keyword> {
-        if has_active_split {
-            self.peek_any_keyword().ok()
-        } else {
-            self.keyword_for_index_maybe_fast(self.pos_index())
-        }
-    }
-
-    /// Return the contextual keyword allowed in decorator expression positions.
-    #[inline]
-    fn current_decorator_keyword(&mut self, has_active_split: bool) -> Option<Keyword> {
-        let keyword = self.current_identifier_keyword(has_active_split);
-        match keyword {
-            Some(
-                Keyword::Async
-                | Keyword::Await
-                | Keyword::This
-                | Keyword::New
-                | Keyword::Delete
-                | Keyword::Function
-                | Keyword::Class
-                | Keyword::Typeof
-                | Keyword::Void,
-            ) => keyword,
-            _ => None,
-        }
-    }
-
-    /// Return the contextual keyword allowed inside `typeof` type queries.
-    #[inline]
-    fn current_typeof_query_keyword(&mut self, has_active_split: bool) -> Option<Keyword> {
-        let keyword = self.current_identifier_keyword(has_active_split);
-        if matches!(keyword, Some(Keyword::Type | Keyword::Readonly)) {
-            None
-        } else {
-            keyword
-        }
-    }
-
     /// Try to parse a plain identifier expression and continuation in common value contexts.
     pub(crate) fn try_eat_plain_identifier_expression_fast(
         &mut self,
@@ -171,7 +130,7 @@ impl Parser {
         let next_token_type = next_cursor.token_type;
         let next_token_index = next_cursor.index;
 
-        if self.keyword_for_index_maybe_fast(pos_index).is_some() {
+        if self.keyword_for_index(pos_index).is_some() {
             return Ok(None);
         }
 
@@ -194,7 +153,7 @@ impl Parser {
             let is_module_name_start =
                 matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
             let next_keyword = if next_token_type == TokenType::Identifier {
-                self.keyword_for_index_maybe_fast(next_token_index)
+                self.keyword_for_index(next_token_index)
             } else {
                 None
             };
@@ -212,10 +171,13 @@ impl Parser {
             expression_cursor.index,
             expression_cursor.has_line_break_before,
         ) {
-            self.attach_inline_expression_leading_annotations_for_token(
+            self.attach_boundary(
                 expression_cursor.index,
                 expression_cursor.skipped_newline_count,
                 identifier_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Expression,
+                ),
             );
         }
 
@@ -249,7 +211,7 @@ impl Parser {
         }
 
         // type keywords and contextual declarations still use the existing keyword parser
-        let keyword = self.keyword_for_index_maybe_fast(self.pos_index());
+        let keyword = self.keyword_for_index(self.pos_index());
         if matches!(
             keyword,
             Some(
@@ -283,10 +245,13 @@ impl Parser {
             expression_cursor.index,
             expression_cursor.has_line_break_before,
         ) {
-            self.attach_inline_expression_leading_annotations_for_token(
+            self.attach_boundary(
                 expression_cursor.index,
                 expression_cursor.skipped_newline_count,
                 identifier_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Expression,
+                ),
             );
         }
 
@@ -632,7 +597,7 @@ impl Parser {
             let label_target_token = self.token_at(label_target_index);
             let label_target_keyword = label_target_token
                 .filter(|token| token.token.ty == TokenType::Identifier)
-                .and_then(|_| self.keyword_for_index_maybe_fast(label_target_index));
+                .and_then(|_| self.keyword_for_index(label_target_index));
             // label targets that are always expressions
             let is_labelled_expression = matches!(
                 label_target_keyword,
@@ -746,8 +711,9 @@ impl Parser {
                     let descriptor_head_keyword = if has_active_split {
                         self.peek_any_keyword().ok()
                     } else {
-                        self.keyword_for_index_maybe_fast(pos_index)
+                        self.keyword_for_index(pos_index)
                     };
+                    let mut export_head_newline_token_index = None;
                     let can_parse_declaration_descriptor = self.options.in_statement_position
                         || self.options.in_type
                         || self.options.in_variant
@@ -769,8 +735,12 @@ impl Parser {
                             DescriptorHead::Descriptor {
                                 descriptor,
                                 mut decorators,
+                                export_head_newline_token_index:
+                                    descriptor_export_head_newline_token_index,
                             } => {
                                 expression_decorators.append(&mut decorators);
+                                export_head_newline_token_index =
+                                    descriptor_export_head_newline_token_index;
                                 descriptor
                             }
                             DescriptorHead::Expression(expression_id) => {
@@ -806,7 +776,7 @@ impl Parser {
                         let is_module_name_start =
                             matches!(next_token_type, TokenType::Identifier | TokenType::Literal);
                         let next_keyword = if next_token_type == TokenType::Identifier {
-                            self.keyword_for_index_maybe_fast(next_token_index)
+                            self.keyword_for_index(next_token_index)
                         } else {
                             None
                         };
@@ -832,12 +802,36 @@ impl Parser {
                     }
 
                     // keyword and split state
-                    let keyword = if self.options.in_decorator && !self.options.in_type {
-                        self.current_decorator_keyword(has_active_split)
-                    } else if self.options.in_typeof_query {
-                        self.current_typeof_query_keyword(has_active_split)
-                    } else {
-                        self.current_identifier_keyword(has_active_split)
+                    let keyword = {
+                        let keyword = if has_active_split {
+                            self.peek_any_keyword().ok()
+                        } else {
+                            self.keyword_for_index(self.pos_index())
+                        };
+                        if self.options.in_decorator && !self.options.in_type {
+                            match keyword {
+                                Some(
+                                    Keyword::Async
+                                    | Keyword::Await
+                                    | Keyword::This
+                                    | Keyword::New
+                                    | Keyword::Delete
+                                    | Keyword::Function
+                                    | Keyword::Class
+                                    | Keyword::Typeof
+                                    | Keyword::Void,
+                                ) => keyword,
+                                _ => None,
+                            }
+                        } else if self.options.in_typeof_query {
+                            if matches!(keyword, Some(Keyword::Type | Keyword::Readonly)) {
+                                None
+                            } else {
+                                keyword
+                            }
+                        } else {
+                            keyword
+                        }
                     };
                     let is_unary_keyword = matches!(keyword, Some(Keyword::Typeof | Keyword::Void));
                     let is_type_unary_keyword =
@@ -998,6 +992,18 @@ impl Parser {
                     }
 
                     if let Some(primary_expression_id) = primary_expression_id {
+                        if let Some(export_head_newline_token_index) =
+                            export_head_newline_token_index
+                        {
+                            self.attach_boundary(
+                                export_head_newline_token_index,
+                                0,
+                                primary_expression_id.id,
+                                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                    crate::parse::annotation::TrailingAnnotationKind::Default,
+                                ),
+                            );
+                        }
                         primary_expression_id
                     } else {
                         // final fallback for identifier paths
@@ -1330,10 +1336,13 @@ impl Parser {
             expression_token_index,
             expression_cursor.has_line_break_before,
         ) {
-            self.attach_inline_expression_leading_annotations_for_token(
+            self.attach_boundary(
                 expression_token_index,
                 expression_skipped_newline_count,
                 left_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Expression,
+                ),
             );
         }
 

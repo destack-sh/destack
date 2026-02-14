@@ -192,7 +192,7 @@ impl Parser {
                         self.error(&ParseError::unexpected(span));
                     }
                 } else {
-                    if validate_modifier_order && (seen_static || seen_override || seen_readonly) {
+                    if validate_modifier_order && (seen_static || seen_override) {
                         self.error(&ParseError::unexpected(span));
                     }
                     modifiers.visibility = Some(visibility);
@@ -605,30 +605,44 @@ impl Parser {
         self.attach_decorators_to_target(decorators, parameter_id.id);
 
         // attach own-line parameter prefixes with block semantics first
-        self.attach_inline_leading_annotations_for_token(
+        self.attach_boundary(
             parameter_cursor.index,
             parameter_cursor.skipped_newline_count,
             parameter_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                crate::parse::annotation::LeadingAnnotationKind::Statement,
+            ),
         );
 
         // attach parameter-leading annotations at the parameter start boundary
-        self.attach_inline_wrapper_leading_annotations_for_token(
+        self.attach_boundary(
             parameter_cursor.index,
             parameter_cursor.skipped_newline_count,
             parameter_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+            ),
         );
 
         // attach type-separator boundary annotations like `value /* marker */ : Type`
         if let Some(type_annotation_marker_index) = type_annotation_marker_index {
-            self.attach_inline_wrapper_leading_annotations_for_token(
+            self.attach_boundary(
                 type_annotation_marker_index,
                 0,
                 parameter_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                ),
             );
         }
 
         // attach trailing annotations around the parameter tail
-        self.attach_inline_trailing_annotations_for_current_token(parameter_id.id);
+        self.attach_current_boundary(
+            parameter_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                crate::parse::annotation::TrailingAnnotationKind::Default,
+            ),
+        );
 
         Ok(parameter_id)
     }
@@ -713,8 +727,8 @@ impl Parser {
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
 
-            // rest parameters must be terminal
-            if has_variadic_parameter {
+            // rest parameters must be terminal in js, ts compatibility fixtures may allow more
+            if has_variadic_parameter && in_js {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
@@ -1110,10 +1124,11 @@ impl Parser {
                 let value = self
                     .tree
                     .insert(Expression::Stub, self.get_span_from(&start));
-                self.attach_inline_stub_annotations_for_token(
+                self.attach_boundary(
                     close_brace_index,
                     close_brace_skipped_newline_count,
                     value.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Stub,
                 );
 
                 self.bump(); // eat }
@@ -1146,8 +1161,16 @@ impl Parser {
                 }
 
                 // trailing comments before `}` belong to the spread value
-                self.attach_inline_trailing_line_boundary_comments_for_current_token(value.id);
-                self.attach_inline_trailing_annotations_for_current_token(value.id);
+                self.attach_current_boundary(
+                    value.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
+                );
+                self.attach_current_boundary(
+                    value.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
+                );
 
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBrace)?;
@@ -1178,8 +1201,16 @@ impl Parser {
             }
 
             // trailing comments before `}` belong to the container expression value
-            self.attach_inline_trailing_line_boundary_comments_for_current_token(value.id);
-            self.attach_inline_trailing_annotations_for_current_token(value.id);
+            self.attach_current_boundary(
+                value.id,
+                crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
+            );
+            self.attach_current_boundary(
+                value.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                    crate::parse::annotation::TrailingAnnotationKind::Default,
+                ),
+            );
 
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
@@ -1413,35 +1444,50 @@ impl Parser {
             let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_positional_argument()?;
             if arguments.is_empty() {
-                self.attach_inline_leading_annotations_for_token(
+                self.attach_boundary(
                     argument_token_index,
                     argument_skipped_newline_count,
                     argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Statement,
+                    ),
                 );
             }
             if arguments.is_empty()
                 && let Some(leading_boundary_token_index) = leading_boundary_token_index
             {
-                self.attach_inline_wrapper_leading_annotations_for_token(
+                self.attach_boundary(
                     leading_boundary_token_index,
                     0,
                     argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                    ),
                 );
             }
-            self.attach_inline_wrapper_leading_annotations_for_token(
+            self.attach_boundary(
                 argument_token_index,
                 argument_skipped_newline_count,
                 argument_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                ),
             );
 
             // keep trailing comments before `>` attached to the final type argument
             let cursor_after_argument = self.normalize_to_scanner_cursor();
             let is_before_terminator = cursor_after_argument.token_type == TokenType::GreaterThan;
             if !self.is_item_stop() || is_before_terminator {
-                self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                self.attach_current_boundary(
                     argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                 );
-                self.attach_inline_trailing_annotations_for_current_token(argument_id.id);
+                self.attach_current_boundary(
+                    argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
+                );
             }
 
             arguments.push(argument_id);
@@ -1543,8 +1589,11 @@ impl Parser {
         if self.peek_is(TokenType::CloseParenthesis) {
             // keep inline boundary comments inside empty `()` attached to the call target
             if let Some(empty_boundary_target_node_id) = empty_boundary_target_node_id {
-                self.attach_inline_trailing_annotations_for_current_token(
+                self.attach_current_boundary(
                     empty_boundary_target_node_id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
                 );
             }
 
@@ -1594,35 +1643,50 @@ impl Parser {
             let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_positional_argument()?;
             if arguments.is_empty() {
-                self.attach_inline_leading_annotations_for_token(
+                self.attach_boundary(
                     argument_token_index,
                     argument_skipped_newline_count,
                     argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Statement,
+                    ),
                 );
             }
             if arguments.is_empty()
                 && let Some(leading_boundary_token_index) = leading_boundary_token_index
             {
-                self.attach_inline_wrapper_leading_annotations_for_token(
+                self.attach_boundary(
                     leading_boundary_token_index,
                     0,
                     argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                    ),
                 );
             }
-            self.attach_inline_wrapper_leading_annotations_for_token(
+            self.attach_boundary(
                 argument_token_index,
                 argument_skipped_newline_count,
                 argument_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                ),
             );
 
             // keep trailing comments for terminal boundaries and non separated arguments
             let cursor_after_argument = self.normalize_to_scanner_cursor();
             let is_before_terminator = cursor_after_argument.token_type == terminator;
             if !self.is_item_stop() || is_before_terminator {
-                self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                self.attach_current_boundary(
                     argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                 );
-                self.attach_inline_trailing_annotations_for_current_token(argument_id.id);
+                self.attach_current_boundary(
+                    argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
+                );
             }
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
@@ -1660,20 +1724,29 @@ impl Parser {
             let argument_token_index = cursor.index;
             let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_tree_argument()?;
-            self.attach_inline_wrapper_leading_annotations_for_token(
+            self.attach_boundary(
                 argument_token_index,
                 argument_skipped_newline_count,
                 argument_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                ),
             );
 
             // keep trailing comments for terminal boundaries and non separated arguments
             let cursor_after_argument = self.normalize_to_scanner_cursor();
             let is_before_terminator = cursor_after_argument.token_type == terminator;
             if !self.is_item_stop() || is_before_terminator {
-                self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                self.attach_current_boundary(
                     argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                 );
-                self.attach_inline_trailing_annotations_for_current_token(argument_id.id);
+                self.attach_current_boundary(
+                    argument_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
+                );
             }
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;

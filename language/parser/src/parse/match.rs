@@ -89,12 +89,20 @@ impl Parser {
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
                 if let Some(last_case_id) = last_case_id {
-                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                    self.attach_boundary(
                         cursor.index,
                         cursor.skipped_newline_count,
                         last_case_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                            crate::parse::annotation::BlankBoundaryKind::Postfix,
+                        ),
                     );
-                    self.attach_inline_trailing_annotations_for_current_token(last_case_id.id);
+                    self.attach_current_boundary(
+                        last_case_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
                 }
                 break;
             }
@@ -130,10 +138,13 @@ impl Parser {
                     }
                 }
 
-                self.attach_inline_leading_annotations_for_token(
+                self.attach_boundary(
                     case_token_index,
                     case_skipped_newline_count,
                     case.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Statement,
+                    ),
                 );
                 last_case_id = Some(case);
                 cases.push(case);

@@ -135,10 +135,11 @@ impl Parser {
         }
 
         // attach declaration header-to-body boundary annotations before `{`
-        self.attach_inline_infix_annotations_for_token(
+        self.attach_boundary(
             body_cursor.index,
             body_cursor.skipped_newline_count.saturating_add(1),
             declaration_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Infix,
         );
 
         Ok(declaration_id)
@@ -264,6 +265,29 @@ struct Foo extends Bar {}
                 assert_eq!(*operator, BinaryOperator::Add);
                 assert_expression_path!(parser, parser.tree.get(*left), "a");
                 assert_expression_path!(parser, parser.tree.get(*right), "b");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_class_wraps_decorated_class_expression_extends_head() {
+        let mut test = TestParser::new_with_options(
+            "class Outer extends\n@deco\nclass {} {}",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, class_id, Declaration::Class { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
+            assert_eq!(extends_types.len(), 1);
+            assert_node!(parser.tree, extends_types[0], Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Class { .. });
+                });
             });
         });
     }

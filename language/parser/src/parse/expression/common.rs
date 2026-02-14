@@ -65,6 +65,8 @@ pub(super) enum DescriptorHead {
         descriptor: DeclarationDescriptor,
         /// Decorators parsed between declaration modifiers and the declaration head.
         decorators: Vec<LocalNodeId<Decorator>>,
+        /// Optional newline token index right after `export` for boundary annotation ownership.
+        export_head_newline_token_index: Option<usize>,
     },
     /// Parsed expression that consumed the modifiers.
     Expression(LocalNodeId<Expression>),

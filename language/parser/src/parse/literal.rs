@@ -752,15 +752,24 @@ impl Parser {
             // stop at the closing token (trailing commas are allowed, no hole)
             if token_type == close_token {
                 if let Some(last_element) = elements.last().copied() {
-                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                    self.attach_boundary(
                         cursor.index,
                         cursor.skipped_newline_count,
                         last_element.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                            crate::parse::annotation::BlankBoundaryKind::Postfix,
+                        ),
                     );
-                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                    self.attach_current_boundary(
                         last_element.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                     );
-                    self.attach_inline_trailing_annotations_for_current_token(last_element.id);
+                    self.attach_current_boundary(
+                        last_element.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
                 }
                 break;
             }
@@ -771,8 +780,9 @@ impl Parser {
 
                 // line comments before the separator belong to the previous element
                 if let Some(last_element) = elements.last().copied() {
-                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                    self.attach_current_boundary(
                         last_element.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                     );
                 }
 
@@ -804,12 +814,20 @@ impl Parser {
             let element = self
                 .eat_positional_argument()
                 .for_node_type(NodeType::Argument)?;
-            self.attach_inline_expression_leading_annotations_for_token(
+            self.attach_boundary(
                 element_token_index,
                 element_skipped_newline_count,
                 element.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Expression,
+                ),
             );
-            self.attach_inline_trailing_annotations_for_current_token(element.id);
+            self.attach_current_boundary(
+                element.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                    crate::parse::annotation::TrailingAnnotationKind::Default,
+                ),
+            );
             elements.push(element);
             expect_element = false;
         }

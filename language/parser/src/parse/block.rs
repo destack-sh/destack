@@ -87,7 +87,7 @@ impl Parser {
         let label_target_token = self.token_at(label_target_index);
         let label_target_keyword = label_target_token
             .filter(|token| token.token.ty == TokenType::Identifier)
-            .and_then(|_| self.keyword_for_index_maybe_fast(label_target_index));
+            .and_then(|_| self.keyword_for_index(label_target_index));
 
         // label targets that are always expression statements
         let is_labelled_expression = matches!(
@@ -170,7 +170,7 @@ impl Parser {
         }
 
         // direct keyword dispatch in statement position
-        if let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) {
+        if let Some(keyword) = self.keyword_for_index(self.pos_index()) {
             let scanner_lookahead = self.peek_scanner_lookahead();
             let next_raw_token_type = scanner_lookahead.next_raw_token_type;
             let next_cursor = scanner_lookahead.next_cursor;
@@ -270,10 +270,7 @@ impl Parser {
         }
 
         // plain identifier fallbacks avoid statement mode option checks
-        if self
-            .keyword_for_index_maybe_fast(self.pos_index())
-            .is_none()
-        {
+        if self.keyword_for_index(self.pos_index()).is_none() {
             return self.eat_expression_without_statement_position_fast();
         }
 
@@ -413,10 +410,11 @@ impl Parser {
 
         // comments inside empty blocks attach as infix to the block itself
         if is_empty_block {
-            self.attach_inline_infix_annotations_for_token(
+            self.attach_boundary(
                 close_cursor.index,
                 close_cursor.skipped_newline_count,
                 block_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Infix,
             );
         }
 
@@ -459,16 +457,23 @@ impl Parser {
                     let trailing_target =
                         pending_tail_expression.or_else(|| statements.last().copied());
                     if let Some(trailing_target) = trailing_target {
-                        self.attach_inline_postfix_blank_from_skipped_newlines(
+                        self.attach_boundary(
                             cursor.index,
                             cursor.skipped_newline_count,
                             trailing_target.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                                crate::parse::annotation::BlankBoundaryKind::Postfix,
+                            ),
                         );
-                        self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                        self.attach_current_boundary(
                             trailing_target.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                         );
-                        self.attach_inline_trailing_annotations_for_current_token(
+                        self.attach_current_boundary(
                             trailing_target.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                crate::parse::annotation::TrailingAnnotationKind::Default,
+                            ),
                         );
                     }
                     break;
@@ -492,8 +497,9 @@ impl Parser {
                 if let Some(previous_item_id) =
                     pending_tail_expression.or_else(|| statements.last().copied())
                 {
-                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                    self.attach_current_boundary(
                         previous_item_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                     );
                 }
 
@@ -532,25 +538,34 @@ impl Parser {
                     for (decorator_id, decorator_token_index, decorator_skipped_newline_count) in
                         pending_statement_decorators.drain(..)
                     {
-                        self.attach_inline_leading_annotations_for_token(
+                        self.attach_boundary(
                             decorator_token_index,
                             decorator_skipped_newline_count,
                             expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                                crate::parse::annotation::LeadingAnnotationKind::Statement,
+                            ),
                         );
-                        self.attach_inline_wrapper_leading_annotations_for_token(
+                        self.attach_boundary(
                             decorator_token_index,
                             decorator_skipped_newline_count,
                             expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                                crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                            ),
                         );
                         self.attach_decorator_to_target(decorator_id, expression_id.id);
                     }
                 }
 
                 // attach statement-leading trivia on the emitted statement target
-                self.attach_inline_leading_annotations_for_token(
+                self.attach_boundary(
                     statement_token_index,
                     statement_skipped_newline_count,
                     expression_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Statement,
+                    ),
                 );
 
                 // keep at most one tail candidate, emit statements directly
@@ -631,7 +646,10 @@ impl Parser {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
-            self.attach_inline_trailing_line_boundary_comments_for_current_token(expression_id.id);
+            self.attach_current_boundary(
+                expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
+            );
             let expression_id =
                 self.wrap_statement_expression(expression_id, self.get_span_from(start));
             return Ok((expression_id, true));
@@ -652,7 +670,10 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        self.attach_inline_trailing_line_boundary_comments_for_current_token(expression_id.id);
+        self.attach_current_boundary(
+            expression_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
+        );
         Ok((expression_id, is_statement))
     }
 
@@ -786,6 +807,9 @@ impl Parser {
         if is_maybe {
             self.bump(); // eat ?
         }
+
+        // allow multiline await operands
+        self.eat_newlines_maybe()?;
 
         // expression
         let expression_id = self.eat_expression_not_in_position()?;

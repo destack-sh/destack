@@ -575,6 +575,46 @@ impl NodeTree {
         }
     }
 
+    /// Move matching annotations from one node id to another.
+    #[inline]
+    pub fn move_annotations_if(
+        &mut self,
+        from_target_id: u32,
+        to_target_id: u32,
+        mut should_move: impl FnMut(LocalNodeId<Annotation>, &Annotation, Span) -> bool,
+    ) -> usize {
+        if from_target_id == to_target_id {
+            return 0;
+        }
+
+        let Some(mut annotation_ids) = self.annotations_by_node_id.remove(&from_target_id) else {
+            return 0;
+        };
+
+        let mut moved_annotation_ids = Vec::new();
+        annotation_ids.retain(|annotation_id| {
+            let annotation = self.get(*annotation_id);
+            let annotation_span = self.source_map.get(annotation_id.id);
+            if should_move(*annotation_id, annotation, annotation_span) {
+                moved_annotation_ids.push(*annotation_id);
+                return false;
+            }
+            true
+        });
+
+        if !annotation_ids.is_empty() {
+            self.annotations_by_node_id
+                .insert(from_target_id, annotation_ids);
+        }
+
+        let moved_count = moved_annotation_ids.len();
+        for annotation_id in moved_annotation_ids {
+            self.append_annotation(to_target_id, annotation_id);
+        }
+
+        moved_count
+    }
+
     /// Build position index for fast enclosing span lookups.
     /// Call this after parsing is complete.
     #[inline]

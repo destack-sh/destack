@@ -112,6 +112,16 @@ impl Parser {
             static_arguments = self.eat_static_arguments_with_follow_maybe(false, true, true);
         }
 
+        // comments before `(` belong to the new callee boundary, not the first argument
+        if self.peek_is(TokenType::OpenParenthesis) {
+            self.attach_current_boundary(
+                left.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                    crate::parse::annotation::TrailingAnnotationKind::Default,
+                ),
+            );
+        }
+
         // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
         let dynamic_arguments = self
             .eat_dynamic_arguments_maybe(Some(left.id))?

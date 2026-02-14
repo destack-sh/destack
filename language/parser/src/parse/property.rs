@@ -4,7 +4,7 @@ use destack_ast::{
     AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, Decorator,
     Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property,
-    Timing, TokenType,
+    Timing, TokenType, Visibility,
 };
 use destack_source::NodeSpanType;
 
@@ -210,11 +210,17 @@ impl Parser {
         // modifiers postfix
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
-        // private keys cannot have explicit visibility modifiers
+        // private keys usually cannot have explicit visibility modifiers
+        // ts compatibility: allow `private accessor #name` forms
+        let allow_private_accessor_visibility = matches!(key, Some(Key::Private(_)))
+            && modifiers.as_ref().is_some_and(|modifiers| {
+                modifiers.visibility == Some(Visibility::Private) && modifiers.accessor.is_some()
+            });
         if matches!(key, Some(Key::Private(_)))
             && modifiers
                 .as_ref()
                 .is_some_and(|modifiers| modifiers.visibility.is_some())
+            && !allow_private_accessor_visibility
         {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
@@ -339,8 +345,17 @@ impl Parser {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
+                let return_type_cursor = self.normalize_to_scanner_cursor();
                 let return_type =
                     self.eat_expression(self.options.nested().in_type().in_before_block())?;
+                self.attach_boundary(
+                    return_type_cursor.index,
+                    return_type_cursor.skipped_newline_count,
+                    return_type.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Expression,
+                    ),
+                );
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -357,7 +372,12 @@ impl Parser {
             {
                 // attach method return-type boundary annotations before `{`
                 if let Some(return_type_id) = return_type {
-                    self.attach_inline_trailing_annotations_for_current_token(return_type_id.id);
+                    self.attach_current_boundary(
+                        return_type_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
                 }
 
                 self.eat_newlines_maybe()?;
@@ -369,6 +389,14 @@ impl Parser {
                     .with_generator(is_generator);
                 Some(self.eat_expression(options)?)
             } else {
+                if let Some(return_type_id) = return_type {
+                    self.attach_current_boundary(
+                        return_type_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
+                }
                 None
             };
 
@@ -512,15 +540,24 @@ impl Parser {
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if let Some(last_property_id) = last_property_id {
-                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                    self.attach_boundary(
                         cursor.index,
                         cursor.skipped_newline_count,
                         last_property_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                            crate::parse::annotation::BlankBoundaryKind::Postfix,
+                        ),
                     );
-                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                    self.attach_current_boundary(
                         last_property_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                     );
-                    self.attach_inline_trailing_annotations_for_current_token(last_property_id.id);
+                    self.attach_current_boundary(
+                        last_property_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
                 }
                 break;
             }
@@ -547,12 +584,20 @@ impl Parser {
                                 property_id.id,
                             );
                         }
-                        self.attach_inline_expression_leading_annotations_for_token(
+                        self.attach_boundary(
                             property_token_index,
                             property_skipped_newline_count,
                             property_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                                crate::parse::annotation::LeadingAnnotationKind::Expression,
+                            ),
                         );
-                        self.attach_inline_trailing_annotations_for_current_token(property_id.id);
+                        self.attach_current_boundary(
+                            property_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                crate::parse::annotation::TrailingAnnotationKind::Default,
+                            ),
+                        );
                         last_property_id = Some(property_id);
                         properties.push(property_id);
                     }
@@ -859,11 +904,17 @@ impl Parser {
         // modifiers postfix
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
-        // private keys cannot have explicit visibility modifiers
+        // private keys usually cannot have explicit visibility modifiers
+        // ts compatibility: allow `private accessor #name` forms
+        let allow_private_accessor_visibility = matches!(key, Some(Key::Private(_)))
+            && modifiers.as_ref().is_some_and(|modifiers| {
+                modifiers.visibility == Some(Visibility::Private) && modifiers.accessor.is_some()
+            });
         if matches!(key, Some(Key::Private(_)))
             && modifiers
                 .as_ref()
                 .is_some_and(|modifiers| modifiers.visibility.is_some())
+            && !allow_private_accessor_visibility
         {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
@@ -973,8 +1024,17 @@ impl Parser {
                 let type_start = self.mark_span();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
+                let return_type_cursor = self.normalize_to_scanner_cursor();
                 let return_type =
                     self.eat_expression(self.options.nested().in_type().in_before_block())?;
+                self.attach_boundary(
+                    return_type_cursor.index,
+                    return_type_cursor.skipped_newline_count,
+                    return_type.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Expression,
+                    ),
+                );
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -991,7 +1051,12 @@ impl Parser {
             {
                 // attach method return-type boundary annotations before `{`
                 if let Some(return_type_id) = return_type {
-                    self.attach_inline_trailing_annotations_for_current_token(return_type_id.id);
+                    self.attach_current_boundary(
+                        return_type_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
                 }
 
                 self.eat_newlines_maybe()?;
@@ -1003,6 +1068,14 @@ impl Parser {
                     .with_generator(is_generator);
                 Some(self.eat_expression(options)?)
             } else {
+                if let Some(return_type_id) = return_type {
+                    self.attach_current_boundary(
+                        return_type_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
+                }
                 None
             };
 
@@ -1149,15 +1222,24 @@ impl Parser {
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if let Some(last_member_id) = last_member_id {
-                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                    self.attach_boundary(
                         cursor.index,
                         cursor.skipped_newline_count,
                         last_member_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                            crate::parse::annotation::BlankBoundaryKind::Postfix,
+                        ),
                     );
-                    self.attach_inline_trailing_line_boundary_comments_for_current_token(
+                    self.attach_current_boundary(
                         last_member_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
                     );
-                    self.attach_inline_trailing_annotations_for_current_token(last_member_id.id);
+                    self.attach_current_boundary(
+                        last_member_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
                 }
                 break;
             }
@@ -1190,25 +1272,39 @@ impl Parser {
                                 decorator_skipped_newline_count,
                             ) in pending_member_decorators.drain(..)
                             {
-                                self.attach_inline_leading_annotations_for_token(
+                                self.attach_boundary(
                                     decorator_token_index,
                                     decorator_skipped_newline_count,
                                     member_id.id,
+                                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                                        crate::parse::annotation::LeadingAnnotationKind::Statement,
+                                    ),
                                 );
-                                self.attach_inline_wrapper_leading_annotations_for_token(
+                                self.attach_boundary(
                                     decorator_token_index,
                                     decorator_skipped_newline_count,
                                     member_id.id,
+                                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                                        crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                                    ),
                                 );
                                 self.attach_decorator_to_target(decorator_id, member_id.id);
                             }
                         }
-                        self.attach_inline_leading_annotations_for_token(
+                        self.attach_boundary(
                             member_token_index,
                             member_skipped_newline_count,
                             member_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                                crate::parse::annotation::LeadingAnnotationKind::Statement,
+                            ),
                         );
-                        self.attach_inline_trailing_annotations_for_current_token(member_id.id);
+                        self.attach_current_boundary(
+                            member_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                crate::parse::annotation::TrailingAnnotationKind::Default,
+                            ),
+                        );
                         last_member_id = Some(member_id);
                         members.push(member_id);
                     }

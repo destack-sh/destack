@@ -39,7 +39,7 @@ impl Parser {
         // allow statement-start keywords after static args in new receivers
         if self.options.in_new_receiver
             && token_type == TokenType::Identifier
-            && self.keyword_for_index_maybe_fast(index).is_some()
+            && self.keyword_for_index(index).is_some()
         {
             return true;
         }
@@ -80,7 +80,7 @@ impl Parser {
             }
             if token_type == TokenType::Identifier
                 && matches!(
-                    self.keyword_for_index_maybe_fast(index),
+                    self.keyword_for_index(index),
                     Some(Keyword::Implements | Keyword::With | Keyword::Where)
                 )
             {
@@ -105,8 +105,7 @@ impl Parser {
     #[inline]
     pub(super) fn can_follow_type_arguments_with_statement_keyword(&mut self) -> bool {
         let cursor = self.peek_cursor();
-        cursor.token_type == TokenType::Identifier
-            && self.keyword_for_index_maybe_fast(cursor.index).is_some()
+        cursor.token_type == TokenType::Identifier && self.keyword_for_index(cursor.index).is_some()
     }
 
     /// Speculatively eat static arguments and validate a compatible follow token.

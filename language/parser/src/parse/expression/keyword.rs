@@ -58,7 +58,7 @@ impl Parser {
 
         // async function ...
         if next_token_type == TokenType::Identifier
-            && self.keyword_for_index_maybe_fast(self.index_for_next()) == Some(Keyword::Function)
+            && self.keyword_for_index(self.index_for_next()) == Some(Keyword::Function)
         {
             return true;
         }
@@ -134,7 +134,7 @@ impl Parser {
     fn can_start_await_using(&mut self) -> bool {
         let await_index = self.pos_index();
         let using_index = self.next_non_newline_index_from(await_index + 1);
-        self.keyword_for_index_maybe_fast(using_index) == Some(Keyword::Using)
+        self.keyword_for_index(using_index) == Some(Keyword::Using)
     }
 
     /// Try to parse common statement keywords without the full keyword dispatch table.
@@ -189,9 +189,7 @@ impl Parser {
                 if is_declaration_start
                     && !next_has_line_break
                     && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(
-                        self.keyword_for_index_maybe_fast(next_token_index),
-                    ) =>
+                    && !is_type_relation_keyword(self.keyword_for_index(next_token_index)) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -211,7 +209,7 @@ impl Parser {
                     return Ok(None);
                 }
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(next_token_index)
+                    self.keyword_for_index(next_token_index)
                 } else {
                     None
                 };
@@ -345,7 +343,7 @@ impl Parser {
             }
             Keyword::Const => {
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(self.index_for_next())
+                    self.keyword_for_index(self.index_for_next())
                 } else {
                     None
                 };
@@ -388,7 +386,7 @@ impl Parser {
                 }
             }
             Keyword::Async if next_raw_token_type == TokenType::Identifier => {
-                if self.keyword_for_index_maybe_fast(next_token_index) != Some(Keyword::Function) {
+                if self.keyword_for_index(next_token_index) != Some(Keyword::Function) {
                     return Ok(None);
                 }
 
@@ -418,9 +416,7 @@ impl Parser {
                 if is_declaration_start
                     && !next_has_line_break
                     && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(
-                        self.keyword_for_index_maybe_fast(next_token_index),
-                    ) =>
+                    && !is_type_relation_keyword(self.keyword_for_index(next_token_index)) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -458,7 +454,7 @@ impl Parser {
             Keyword::Const => {
                 // look ahead for const enum
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(next_token_index)
+                    self.keyword_for_index(next_token_index)
                 } else {
                     None
                 };
@@ -479,7 +475,7 @@ impl Parser {
             Keyword::Newtype => {
                 // look ahead for newtype interface
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(next_token_index)
+                    self.keyword_for_index(next_token_index)
                 } else {
                     None
                 };
@@ -762,7 +758,7 @@ impl Parser {
                 }
 
                 let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index_maybe_fast(next_token_index)
+                    self.keyword_for_index(next_token_index)
                 } else {
                     None
                 };

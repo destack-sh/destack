@@ -571,11 +571,6 @@ impl TokenStream {
         token_window_start: usize,
         token_window_end_exclusive: usize,
     ) -> bool {
-        debug_assert!(
-            self.is_finished,
-            "has_non_whitespace_side_in_window_cached requires a fully materialized token stream"
-        );
-
         let token_len = self.tokens.len();
         let token_window_start = token_window_start.min(token_len);
         let token_window_end_exclusive = token_window_end_exclusive.min(token_len);

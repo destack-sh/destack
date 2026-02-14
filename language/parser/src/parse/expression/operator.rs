@@ -201,10 +201,27 @@ impl Parser {
     #[inline]
     pub fn peek_type_unary_postfix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
         let token = *self.peek().ok()?;
-        let next_token = *self.peek_next().ok()?;
+        if token.token.ty != TokenType::Identifier {
+            return None;
+        }
+
         let token_str = self.get_span_str(token.span);
-        let next_token_str = self.get_span_str(next_token.span);
-        TypeUnaryOperator::from_postfix_token(token_str, next_token_str, token.token.ty)
+        if token_str != "as" {
+            return None;
+        }
+
+        // allow `as const` and `as comptime` across line breaks
+        let next_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
+        if self.token_type_at(next_index) != TokenType::Identifier {
+            return None;
+        }
+
+        let next_keyword = self.keyword_for_index(next_index);
+        match next_keyword {
+            Some(Keyword::Const) => Some(TypeUnaryOperator::AsConst),
+            Some(Keyword::Comptime) => Some(TypeUnaryOperator::AsComptime),
+            _ => None,
+        }
     }
 
     /// Peek a type unary postfix operator.
