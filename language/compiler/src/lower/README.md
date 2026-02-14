@@ -15,9 +15,6 @@ So, basically the dream is:
 AOT compilation provides predictable performance without warmup; however, astounding engineering efforts have already gone into making modern JS engines' speculative optimization approximate (or even beat!) static compilation on common "dynamic" patterns.
 That said, today nobody would seriously consider writing "systems software" in JS/TS, which is a shame, because modern TS is actually a fantastic language for _full_-stack software.
 
-Our advantage is consistency and control, and, of course, you don't need to ship a JS runtime.
-We try to keep TS semantics as much as possible, but there are some tradeoffs and additional strictness requirements to make TS sound for AOT compilation. (These are noted in the relevant sections below.)
-
 ## Pipeline
 
 Lower receives (patched) canonical profile-specific DIR post-Execute and produces target-specific MIR.

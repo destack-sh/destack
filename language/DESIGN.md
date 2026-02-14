@@ -16,7 +16,7 @@ See [COMPATIBILITY](COMPATIBILITY.md) for the full file type matrix and exclusio
 
 We're very early in software.
 We want to make correct, optimal, integrated full-stack software systems simple and fast to build.
-But that requires unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
+We cannot build the next generation of software without unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
 
 TypeScript is the closest thing we have to a unified software foundation today.
 JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base (i.e., every browser everywhere).
