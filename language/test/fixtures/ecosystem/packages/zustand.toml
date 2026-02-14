@@ -4,6 +4,7 @@ description = "Zustand state management"
 repo = "https://github.com/pmndrs/zustand"
 ref = "b7d29322d12de72a0c538d8a8fdb59afc4238229"
 language = "ts"
+tier = "T5"
 tags = ["state", "frontend", "library"]
 
 [discovery]

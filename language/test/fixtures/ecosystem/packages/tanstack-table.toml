@@ -4,6 +4,7 @@ description = "TanStack Table headless table library"
 repo = "https://github.com/TanStack/table"
 ref = "e172109fca4cc403a07236ed8fa103450ceba5e9"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "ui", "tanstack"]
 
 [discovery]

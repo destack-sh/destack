@@ -4,6 +4,7 @@ description = "Redux state management library"
 repo = "https://github.com/reduxjs/redux"
 ref = "5bc81d95dd23837d275009563d69e25a9fd67f29"
 language = "ts"
+tier = "T5"
 tags = ["library", "state", "frontend", "monorepo"]
 
 [discovery]

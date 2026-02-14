@@ -4,6 +4,7 @@ description = "AFFiNE knowledge base application"
 repo = "https://github.com/toeverything/AFFiNE"
 ref = "2b71b3f3455b51aa566b174f3f37a23d986766cd"
 language = "ts"
+tier = "T2"
 tags = ["application", "desktop", "web", "monorepo"]
 
 [discovery]

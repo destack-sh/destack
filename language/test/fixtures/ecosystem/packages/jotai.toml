@@ -4,6 +4,7 @@ description = "Jotai primitive and flexible state management"
 repo = "https://github.com/pmndrs/jotai"
 ref = "02b4e13dfa2cc458e836c5bdddfd4dd1b7af76a6"
 language = "ts"
+tier = "T5"
 tags = ["state", "frontend", "library"]
 
 [discovery]

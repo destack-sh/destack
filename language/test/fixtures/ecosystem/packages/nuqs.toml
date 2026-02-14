@@ -4,6 +4,7 @@ description = "Type safe URL state management"
 repo = "https://github.com/47ng/nuqs"
 ref = "7f7090fc303a598dfc5b7beade257c3d3df25646"
 language = "ts"
+tier = "T5"
 tags = ["frontend", "react", "typescript"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "node-postgres PostgreSQL client"
 repo = "https://github.com/brianc/node-postgres"
 ref = "d8c5bf65760cc4ebead4614d821cb26c581cff84"
 language = "js"
+tier = "T5"
 tags = ["backend", "database", "server", "monorepo"]
 
 [discovery]

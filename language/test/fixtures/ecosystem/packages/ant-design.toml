@@ -4,6 +4,7 @@ description = "Ant Design React UI library"
 repo = "https://github.com/ant-design/ant-design"
 ref = "95f032bc3d5f99854e5efdffe2d43da15d68bf95"
 language = "ts"
+tier = "T5"
 tags = ["frontend", "ui", "tsx"]
 
 [discovery]

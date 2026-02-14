@@ -4,6 +4,7 @@ description = "LangChain JavaScript and TypeScript framework"
 repo = "https://github.com/langchain-ai/langchainjs"
 ref = "0eed408d8b005564197809e1e8366ee336364371"
 language = "ts"
+tier = "T5"
 tags = ["framework", "ai", "typescript"]
 
 [discovery]

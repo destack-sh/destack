@@ -4,6 +4,7 @@ description = "TypeScript CLI toolkit"
 repo = "https://github.com/unjs/citty"
 ref = "c9673e2fc100d444104a6834d51da989e9bd858b"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "cli", "typescript"]
 
 [discovery]

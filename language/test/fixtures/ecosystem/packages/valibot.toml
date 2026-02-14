@@ -4,6 +4,7 @@ description = "Modular schema validation library"
 repo = "https://github.com/fabian-hiller/valibot"
 ref = "15e430e97267711ffd9f0633bc81bb49ce60a247"
 language = "ts"
+tier = "T5"
 
 [discovery]
 include = ["library/src/**/*.ts"]

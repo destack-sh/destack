@@ -4,6 +4,7 @@ description = "Prettier code formatter"
 repo = "https://github.com/prettier/prettier"
 ref = "456d14dbc2639d5a6b3eb2d8836b30f63597e1d6"
 language = "js"
+tier = "T5"
 tags = ["tooling", "formatter"]
 
 [discovery]

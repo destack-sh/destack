@@ -4,6 +4,7 @@ description = "TanStack Router fully typed router"
 repo = "https://github.com/TanStack/router"
 ref = "4e1f40f2bc12ff8089a59fc15e55779005cf474a"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "routing"]
 
 [discovery]

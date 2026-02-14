@@ -4,6 +4,7 @@ description = "styled-components css in js library"
 repo = "https://github.com/styled-components/styled-components"
 ref = "b5bb591600625b45f2c65297c433ba6a3e1644c3"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "css", "react", "monorepo"]
 
 [discovery]

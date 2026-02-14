@@ -4,6 +4,7 @@ description = "Expo Router package"
 repo = "https://github.com/expo/expo"
 ref = "de7b52b8d18b5abd21fc051255ed2ef40b583d17"
 language = "ts"
+tier = "T2"
 tags = ["mobile", "framework", "router"]
 
 [discovery]

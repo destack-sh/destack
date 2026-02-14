@@ -564,7 +564,7 @@ impl ReadmePatchMarker {
 #[derive(Debug, Clone, Copy, Default)]
 struct ReadmePackageMetadata {
     patch_marker: ReadmePatchMarker,
-    target_tier: Option<EcosystemSupportTier>,
+    tier: Option<EcosystemSupportTier>,
 }
 
 /// Support tier derived from one package phase status row.
@@ -593,7 +593,7 @@ impl ReadmeSupportTier {
         }
     }
 
-    fn from_target_tier(tier: EcosystemSupportTier) -> Self {
+    fn from_tier(tier: EcosystemSupportTier) -> Self {
         match tier {
             EcosystemSupportTier::T0 => Self::T0,
             EcosystemSupportTier::T1 => Self::T1,
@@ -616,11 +616,11 @@ impl ReadmeSupportTier {
         }
     }
 
-    fn meets_target(&self, target_tier: Option<EcosystemSupportTier>) -> Option<bool> {
-        let target_tier = target_tier?;
+    fn meets_target(&self, tier: Option<EcosystemSupportTier>) -> Option<bool> {
+        let tier = tier?;
 
         let current_rank = self.rank()?;
-        let target_rank = Self::from_target_tier(target_tier).rank()?;
+        let target_rank = Self::from_tier(tier).rank()?;
 
         Some(current_rank >= target_rank)
     }
@@ -688,14 +688,11 @@ fn collect_readme_package_metadata(
 
         let patch_marker =
             ReadmePatchMarker::from_flags(has_local_patch, has_dependency_replacement);
-        let target_tier = manifest.package.target_tier;
+        let tier = manifest.package.tier;
 
         package_metadata.insert(
             manifest.package.name.clone(),
-            ReadmePackageMetadata {
-                patch_marker,
-                target_tier,
-            },
+            ReadmePackageMetadata { patch_marker, tier },
         );
     }
 
@@ -861,22 +858,17 @@ fn format_readme_summary_rows(
     for phase in phases {
         header.push_str(&format!("| {} ", phase.name()));
     }
-    header.push_str("| Current | Target | Met | Total |  Rate   | Incl. Rate |");
+    header.push_str("| Current | Target | Met |");
 
     let mut separator = String::from("|:--------");
     for _ in phases {
         separator.push_str("|:--------:");
     }
-    separator.push_str("|:-------:|:------:|:---:|------:|--------:|-----------:|");
+    separator.push_str("|:-------:|:------:|:---:|");
 
     let mut lines = Vec::new();
     lines.push(header);
     lines.push(separator);
-
-    let mut total_passed = 0usize;
-    let mut total_failed = 0usize;
-    let mut total_ignored = 0usize;
-    let mut total_unknown = 0usize;
 
     for (package_name, row) in rows {
         let statuses = phases
@@ -884,43 +876,16 @@ fn format_readme_summary_rows(
             .map(|phase| row.get(phase).copied().unwrap_or_default())
             .collect::<Vec<_>>();
 
-        let passed = statuses
-            .iter()
-            .filter(|status| **status == ReadmeCellStatus::Pass)
-            .count();
-        let failed = statuses
-            .iter()
-            .filter(|status| **status == ReadmeCellStatus::Fail)
-            .count();
-        let ignored = statuses
-            .iter()
-            .filter(|status| **status == ReadmeCellStatus::Ignored)
-            .count();
-        let unknown = statuses
-            .iter()
-            .filter(|status| **status == ReadmeCellStatus::Unknown)
-            .count();
-
-        // count all phases in the row total, even if a phase is unknown
-        let total = statuses.len();
-        let rate = format_rate(passed, failed);
-        let inclusive_rate = format_inclusive_rate(passed, total);
-
-        total_passed += passed;
-        total_failed += failed;
-        total_ignored += ignored;
-        total_unknown += unknown;
-
         let package_label =
             format_readme_package_label(package_name, package_metadata.get(package_name).copied());
         let support_tier = readme_support_tier_from_statuses(&statuses);
-        let target_tier = package_metadata
+        let tier = package_metadata
             .get(package_name)
-            .and_then(|metadata| metadata.target_tier);
+            .and_then(|metadata| metadata.tier);
 
-        let target_label = target_tier.map_or("-?-", |tier| tier.as_str());
+        let target_label = tier.map_or("-?-", |tier| tier.as_str());
         let met_label = support_tier
-            .meets_target(target_tier)
+            .meets_target(tier)
             .map_or("-?-", |is_met| if is_met { "✓" } else { "x" });
 
         let mut row_line = format!("| {package_label:<7} ");
@@ -930,13 +895,10 @@ fn format_readme_summary_rows(
         row_line.push_str(&format!("| {:^7} ", support_tier.as_str()));
         row_line.push_str(&format!("| {:^6} ", target_label));
         row_line.push_str(&format!("| {:^3} ", met_label));
-        row_line.push_str(&format!("| {total:>5} | {rate:>7} | {inclusive_rate:>9} |"));
+        row_line.push('|');
         lines.push(row_line);
     }
 
-    let total_cases = total_passed + total_failed + total_ignored + total_unknown;
-    let total_rate = format_rate(total_passed, total_failed);
-    let total_inclusive_rate = format_inclusive_rate(total_passed, total_cases);
     let total_phase_cells = phases
         .iter()
         .map(|phase| {
@@ -962,7 +924,7 @@ fn format_readme_summary_rows(
     for _ in phases {
         footer_separator.push_str("|----------");
     }
-    footer_separator.push_str("|---------|--------|-----|-------|---------|------------|");
+    footer_separator.push_str("|---------|--------|-----|");
     lines.push(footer_separator);
 
     let mut total_line = format!("| {:<7} ", "total");
@@ -972,27 +934,10 @@ fn format_readme_summary_rows(
     total_line.push_str(&format!("| {:^7} ", "-?-"));
     total_line.push_str(&format!("| {:^6} ", "-?-"));
     total_line.push_str(&format!("| {:^3} ", "-?-"));
-    total_line.push_str(&format!(
-        "| {:>5} | {:>7} | {:>9} |",
-        total_cases, total_rate, total_inclusive_rate
-    ));
+    total_line.push('|');
     lines.push(total_line);
-    lines.push(String::new());
-    lines.push(format!(
-        "Total Blended Pass Rate: **{total_rate}** ({total_inclusive_rate} incl. ignored)"
-    ));
 
     lines.join("\n")
-}
-
-fn format_rate(passed: usize, failed: usize) -> String {
-    let total = passed + failed;
-    if total == 0 {
-        return "-".to_string();
-    }
-
-    let rate = passed as f64 / total as f64 * 100.0;
-    format!("{rate:.2}%")
 }
 
 fn format_phase_total_cell(passed: usize, failed: usize) -> String {
@@ -1003,16 +948,6 @@ fn format_phase_total_cell(passed: usize, failed: usize) -> String {
 
     format!("{passed}/{run_total}")
 }
-
-fn format_inclusive_rate(passed: usize, total: usize) -> String {
-    if total == 0 {
-        return "-".to_string();
-    }
-
-    let rate = passed as f64 / total as f64 * 100.0;
-    format!("{rate:.2}%")
-}
-
 fn parse_readme_summary_rows(
     content: &str,
 ) -> Option<BTreeMap<String, BTreeMap<EcosystemPhase, ReadmeCellStatus>>> {
@@ -1640,9 +1575,9 @@ mod tests {
     fn test_parse_readme_summary_rows_keeps_unknown_cells() {
         let readme = r#"
 <!-- begin:summary-results -->
-| Package | parse | resolve | analyze | lower | Current | Target | Met | Total |  Rate   | Incl. Rate |
-|:--------|:-----:|:-------:|:-------:|:-----:|:-------:|:------:|:---:|------:|--------:|-----------:|
-| sample  |  -?-  |  -/-   |   ✓     |   x   |   -?-   |  -?-   | -?- |     4 |  50.00% |    25.00% |
+| Package | parse | resolve | analyze | lower | Current | Target | Met |
+|:--------|:-----:|:-------:|:-------:|:-----:|:-------:|:------:|:---:|
+| sample  |  -?-  |  -/-   |   ✓     |   x   |   -?-   |  -?-   | -?- |
 <!-- end:summary-results -->
 "#;
 

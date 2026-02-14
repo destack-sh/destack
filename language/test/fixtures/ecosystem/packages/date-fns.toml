@@ -4,6 +4,7 @@ description = "date-fns date utility library"
 repo = "https://github.com/date-fns/date-fns"
 ref = "dd66398305c2b015fba3c1b3d31ccff42ee8d4cf"
 language = "ts"
+tier = "T5"
 tags = ["library", "date", "utility"]
 
 [discovery]

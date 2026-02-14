@@ -4,6 +4,7 @@ description = "Tailwind CSS framework"
 repo = "https://github.com/tailwindlabs/tailwindcss"
 ref = "257dc581ba4a45eb34578eddad69905166bf8388"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "frontend", "css", "monorepo"]
 
 [discovery]

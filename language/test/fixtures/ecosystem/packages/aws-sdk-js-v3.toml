@@ -4,6 +4,7 @@ description = "AWS SDK for JavaScript v3"
 repo = "https://github.com/aws/aws-sdk-js-v3"
 ref = "b037203be0358d33f3c27fb994750dd2c0aa1b9b"
 language = "ts"
+tier = "T5"
 tags = ["sdk", "cloud", "aws", "monorepo"]
 
 [discovery]

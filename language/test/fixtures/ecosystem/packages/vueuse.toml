@@ -4,6 +4,7 @@ description = "TypeScript utility collection for Vue"
 repo = "https://github.com/vueuse/vueuse"
 ref = "7069eb4cc5ffd7d10ac07277db2d4b67967dfc3f"
 language = "ts"
+tier = "T5"
 tags = ["frontend", "vue", "typescript"]
 
 [discovery]

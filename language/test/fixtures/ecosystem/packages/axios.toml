@@ -4,6 +4,7 @@ description = "Axios HTTP client"
 repo = "https://github.com/axios/axios"
 ref = "335b79ffb6d67336b2c6836893848eb247568b6a"
 language = "js"
+tier = "T5"
 tags = ["library", "http", "network", "node", "browser"]
 
 [discovery]

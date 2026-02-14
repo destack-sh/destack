@@ -4,6 +4,7 @@ description = "TypeORM ORM for TypeScript and JavaScript"
 repo = "https://github.com/typeorm/typeorm"
 ref = "24977e3dac6d5d471f73e60371cd54d8627de46c"
 language = "ts"
+tier = "T5"
 tags = ["library", "orm", "database", "backend"]
 
 [discovery]

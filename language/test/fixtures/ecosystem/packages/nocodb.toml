@@ -4,6 +4,7 @@ description = "NocoDB open source no code database platform"
 repo = "https://github.com/nocodb/nocodb"
 ref = "6ed843fbfee2849c1717df721c9ef5952ec83ff7"
 language = "ts"
+tier = "T2"
 tags = ["application", "database", "fullstack", "monorepo"]
 
 [discovery]

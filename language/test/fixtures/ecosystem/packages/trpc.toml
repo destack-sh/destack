@@ -4,6 +4,7 @@ description = "End to end typesafe APIs"
 repo = "https://github.com/trpc/trpc"
 ref = "1d46d0aa8db63d6a49e785c2fd5876babc90cc3f"
 language = "ts"
+tier = "T5"
 tags = ["library", "backend", "types"]
 
 [discovery]

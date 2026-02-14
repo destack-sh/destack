@@ -4,6 +4,7 @@ description = "MobX state management"
 repo = "https://github.com/mobxjs/mobx"
 ref = "29e6e707b302595ad9e9fb87cdd6733998f19b3f"
 language = "ts"
+tier = "T5"
 tags = ["library", "state", "frontend", "monorepo"]
 
 [discovery]

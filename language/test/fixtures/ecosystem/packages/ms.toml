@@ -4,6 +4,7 @@ description = "Tiny millisecond conversion utility"
 repo = "https://github.com/vercel/ms"
 ref = "1304f150b38027e0818cc122106b5c7322d68d0c"
 language = "ts"
+tier = "T5"
 
 [discovery]
 include = ["src/**/*.ts"]

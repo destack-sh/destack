@@ -4,6 +4,7 @@ description = "Chalk terminal string styling library"
 repo = "https://github.com/chalk/chalk"
 ref = "aa06bb5ac3f14df9fda8cfb54274dfc165ddfdef"
 language = "js"
+tier = "T5"
 tags = ["library", "utility"]
 
 [discovery]

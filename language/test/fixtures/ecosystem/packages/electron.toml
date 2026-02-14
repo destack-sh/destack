@@ -4,6 +4,7 @@ description = "Electron desktop application framework"
 repo = "https://github.com/electron/electron"
 ref = "e9faa14cc0c57aad3e446cf32a6ae3599f94b9df"
 language = "ts"
+tier = "T2"
 tags = ["application", "desktop", "typescript"]
 
 [discovery]

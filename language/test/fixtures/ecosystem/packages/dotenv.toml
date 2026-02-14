@@ -4,6 +4,7 @@ description = "dotenv environment variable loader"
 repo = "https://github.com/motdotla/dotenv"
 ref = "fabbdf24c59d0cac3b5acd45daf9fcb2b40dd98d"
 language = "js"
+tier = "T5"
 tags = ["library", "utility", "server"]
 
 [discovery]

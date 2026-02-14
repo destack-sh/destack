@@ -8,8 +8,8 @@ use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, Res
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileSystem,
-    FileType, LanguageType, MemoryFileSystem, ModuleId, PhysicalFileSystem, PrintOptions, Uri,
-    glob,
+    FileType, LanguageType, MemoryFileSystem, ModuleId, PathExt, PhysicalFileSystem, PrintOptions,
+    Uri, glob,
 };
 use destack_workspace::{
     FormatterOptions, LinterOptions, PackageJson, Program, Session, TsConfig, TsConfigId,
@@ -25,6 +25,11 @@ use crate::harness::{TestResult, format_diagnostics};
 
 /// default excludes applied by typescript when `exclude` is omitted.
 const TYPESCRIPT_DEFAULT_EXCLUDES: &[&str] = &["node_modules", "bower_components", "jspm_packages"];
+
+/// Source extensions used for manifest entrypoint candidate expansion.
+const ENTRYPOINT_SOURCE_EXTENSIONS: &[&str] = &[
+    ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".d.ts", ".d.mts", ".d.cts",
+];
 
 /// Run one phase tier for one package workload.
 pub(super) fn run_phase_tier(
@@ -849,10 +854,26 @@ fn select_phase_entrypoints_with_roots(
         return Ok(manifest_entrypoints);
     }
 
+    // supplement candidates with explicit manifest entry target files when filters excluded them
+    let mut expanded_candidates = candidates.clone();
+    include_manifest_target_candidates(&mut expanded_candidates, &manifest_sources);
+    expanded_candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
+    expanded_candidates.dedup();
+
+    // retry manifest entrypoint selection against expanded candidates
+    let manifest_entrypoints = select_manifest_entrypoints_from_sources(
+        package_dir,
+        &expanded_candidates,
+        &manifest_sources,
+    );
+    if !manifest_entrypoints.is_empty() {
+        return Ok(manifest_entrypoints);
+    }
+
     // fall back to tsconfig source roots when manifest targets only point to build outputs
     let tsconfig_entrypoints = select_tsconfig_entrypoints_from_manifest_sources(
         package_dir,
-        &candidates,
+        &expanded_candidates,
         &manifest_sources,
     )?;
     if !tsconfig_entrypoints.is_empty() {
@@ -864,6 +885,62 @@ fn select_phase_entrypoints_with_roots(
         package_dir.display(),
         candidates.len(),
     ))
+}
+
+/// Include explicit manifest entry target files when candidate filters excluded them.
+fn include_manifest_target_candidates(
+    candidates: &mut Vec<PathBuf>,
+    manifest_sources: &[ManifestEntrySource],
+) {
+    let mut keys = candidates
+        .iter()
+        .map(|candidate| normalize_path_key(candidate.as_path()))
+        .collect::<HashSet<_>>();
+
+    for source in manifest_sources {
+        for target in &source.entry_targets {
+            for candidate in manifest_target_candidate_paths(source.package_dir.as_path(), target) {
+                if !candidate.is_file() {
+                    continue;
+                }
+
+                let key = normalize_path_key(candidate.as_path());
+                if keys.insert(key) {
+                    candidates.push(candidate);
+                }
+            }
+        }
+    }
+}
+
+/// Return possible source file paths for one manifest entry target.
+fn manifest_target_candidate_paths(package_dir: &Path, target: &str) -> Vec<PathBuf> {
+    let normalized_target = target.replace('\\', "/");
+    let mut candidates = Vec::new();
+    let target_path = package_dir.normalize_with(&normalized_target);
+
+    candidates.push(target_path.clone());
+
+    // add source extension variants for extensionless targets
+    let target_has_extension = target_path.extension().is_some();
+    if !target_has_extension {
+        for extension in ENTRYPOINT_SOURCE_EXTENSIONS {
+            candidates.push(PathBuf::from(format!(
+                "{}{extension}",
+                target_path.display()
+            )));
+        }
+    }
+
+    // add index file variants for directory-like targets
+    let target_is_directory_like = normalized_target.ends_with('/') || !target_has_extension;
+    if target_is_directory_like {
+        for extension in ENTRYPOINT_SOURCE_EXTENSIONS {
+            candidates.push(target_path.join(format!("index{extension}")));
+        }
+    }
+
+    candidates
 }
 
 /// Build deterministic sort keys for phase entrypoints.
@@ -2165,6 +2242,43 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(selected_relative, vec!["src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_includes_manifest_entry_targets_outside_candidates() {
+        let temp_dir = unique_temp_dir("manifest-entry-target-candidate-expansion");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create package manifest with a root main entrypoint
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "main": "./fastify.js"
+}"#,
+        );
+
+        // create one source entrypoint and a filtered candidate set that excludes it
+        write_text_file(&temp_dir.join("fastify.js"), "module.exports = {};");
+        write_text_file(&temp_dir.join("src/index.ts"), "export const value = 1;");
+        let candidates = vec![temp_dir.join("src/index.ts")];
+
+        // select entrypoints and include package main when candidates excluded it
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["fastify.js"]);
 
         fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
     }

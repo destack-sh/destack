@@ -4,6 +4,7 @@ description = "Apache ECharts visualization library"
 repo = "https://github.com/apache/echarts"
 ref = "33cf6e731b2e30436548f13d955847f0ac7f2f8d"
 language = "ts"
+tier = "T5"
 tags = ["library", "visualization", "frontend"]
 
 [discovery]

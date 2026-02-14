@@ -4,6 +4,7 @@ description = "Babel JavaScript compiler monorepo"
 repo = "https://github.com/babel/babel"
 ref = "b6c765e22b2f9d9e4b096d4c2a8ca5f0e272f3a0"
 language = "js"
+tier = "T5"
 tags = ["tooling", "compiler", "monorepo"]
 
 [discovery]

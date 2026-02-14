@@ -4,6 +4,7 @@ description = "GraphQL reference implementation"
 repo = "https://github.com/graphql/graphql-js"
 ref = "41497220bac9b07e8b72f77bbc29655537867f02"
 language = "ts"
+tier = "T5"
 tags = ["graphql", "backend", "library"]
 
 [discovery]

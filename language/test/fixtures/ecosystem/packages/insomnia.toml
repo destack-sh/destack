@@ -4,6 +4,7 @@ description = "Insomnia API client"
 repo = "https://github.com/Kong/insomnia"
 ref = "a2afc3a2585457832798f6d0d20b70c8b91835d3"
 language = "ts"
+tier = "T2"
 tags = ["application", "api-client", "desktop", "monorepo"]
 
 [discovery]

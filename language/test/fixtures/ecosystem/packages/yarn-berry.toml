@@ -4,6 +4,7 @@ description = "Yarn modern package manager"
 repo = "https://github.com/yarnpkg/berry"
 ref = "60b83ace11bd36270c1ed117319139eaa6971db3"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "package-manager", "monorepo"]
 
 [discovery]

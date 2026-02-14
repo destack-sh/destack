@@ -4,6 +4,7 @@ description = "Auth.js authentication framework"
 repo = "https://github.com/nextauthjs/next-auth"
 ref = "f4570683676039dfa4e47e3fd69224d74dc7f6ca"
 language = "ts"
+tier = "T5"
 tags = ["framework", "auth", "typescript"]
 
 [discovery]

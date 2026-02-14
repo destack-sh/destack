@@ -4,6 +4,7 @@ description = "Joplin note taking application"
 repo = "https://github.com/laurent22/joplin"
 ref = "d3d32fc072933c496211ff9c006de07ae63e535e"
 language = "ts"
+tier = "T2"
 tags = ["application", "desktop", "mobile", "monorepo"]
 
 [discovery]

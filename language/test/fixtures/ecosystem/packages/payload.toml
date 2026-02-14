@@ -4,6 +4,7 @@ description = "Payload TypeScript CMS"
 repo = "https://github.com/payloadcms/payload"
 ref = "d57bc222a6df736d43a73ed0cd27d0cc6a22497b"
 language = "ts"
+tier = "T2"
 tags = ["application", "cms", "typescript"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "Svelte compiler and runtime"
 repo = "https://github.com/sveltejs/svelte"
 ref = "220b526d3aac9db5ba06181165a9c24a663f178b"
 language = "ts"
+tier = "T5"
 tags = ["frontend", "framework", "compiler"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "React Query package within TanStack Query monorepo"
 repo = "https://github.com/TanStack/query"
 ref = "d68845833b19e9168e6f822b413d5124c8c5904c"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "query", "tanstack"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "TypeScript ORM and query builder"
 repo = "https://github.com/drizzle-team/drizzle-orm"
 ref = "e8e6edfef5ca69c6188d320388ad440265911057"
 language = "ts"
+tier = "T5"
 tags = ["database", "backend", "library"]
 
 [discovery]

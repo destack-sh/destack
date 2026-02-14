@@ -4,6 +4,7 @@ description = "Vitest test framework"
 repo = "https://github.com/vitest-dev/vitest"
 ref = "24603e3c462631602be154472815c84f99e262b2"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "test", "monorepo"]
 
 [discovery]

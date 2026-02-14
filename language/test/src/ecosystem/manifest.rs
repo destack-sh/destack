@@ -129,7 +129,7 @@ pub struct PackageInfo {
     #[serde(default)]
     pub tags: Vec<String>,
     /// Intended ecosystem support tier target.
-    pub target_tier: Option<EcosystemSupportTier>,
+    pub tier: Option<EcosystemSupportTier>,
 }
 
 /// Primary source language for one ecosystem package.
@@ -523,7 +523,7 @@ commands = [["pnpm", "build"]]
     }
 
     #[test]
-    fn test_parse_package_target_tier() {
+    fn test_parse_package_tier() {
         let manifest = parse_manifest(
             r#"
 [package]
@@ -531,15 +531,15 @@ name = "demo"
 repo = "https://example.com/repo.git"
 ref = "main"
 language = "ts"
-target_tier = "T3"
+tier = "T3"
 "#,
         );
 
-        assert_eq!(manifest.package.target_tier, Some(EcosystemSupportTier::T3));
+        assert_eq!(manifest.package.tier, Some(EcosystemSupportTier::T3));
     }
 
     #[test]
-    fn test_parse_package_target_tier_default_none() {
+    fn test_parse_package_tier_default_none() {
         let manifest = parse_manifest(
             r#"
 [package]
@@ -550,7 +550,7 @@ language = "ts"
 "#,
         );
 
-        assert_eq!(manifest.package.target_tier, None);
+        assert_eq!(manifest.package.tier, None);
     }
 
     #[test]

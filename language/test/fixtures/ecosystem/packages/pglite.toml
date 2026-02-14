@@ -4,6 +4,7 @@ description = "TypeScript Postgres runtime in process"
 repo = "https://github.com/electric-sql/pglite"
 ref = "5a7b076f76d0f5d53d042f27c7e78f3cf476886f"
 language = "ts"
+tier = "T5"
 tags = ["database", "postgres", "typescript"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "ws WebSocket implementation"
 repo = "https://github.com/websockets/ws"
 ref = "ca533a53f338c4a40a3881dd6dff7e5867d06893"
 language = "js"
+tier = "T5"
 tags = ["backend", "server", "networking"]
 
 [discovery]

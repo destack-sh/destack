@@ -4,6 +4,7 @@ description = "Microsoft Fluent UI component library"
 repo = "https://github.com/microsoft/fluentui"
 ref = "16db0e6234dd1ad6cb234333b75d55f42a85b1c6"
 language = "ts"
+tier = "T5"
 tags = ["library", "ui", "typescript"]
 
 [discovery]

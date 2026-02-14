@@ -4,6 +4,7 @@ description = "Next.js React framework"
 repo = "https://github.com/vercel/next.js"
 ref = "208c4f44b1db7d97dcad84a12bf9ee4ba4810757"
 language = "ts"
+tier = "T5"
 tags = ["framework", "frontend", "monorepo"]
 
 [discovery]

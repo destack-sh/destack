@@ -4,6 +4,7 @@ description = "VS Code in the browser"
 repo = "https://github.com/coder/code-server"
 ref = "9184b645cc7aa41b750e2f2ef956f2896512dd84"
 language = "ts"
+tier = "T2"
 tags = ["application", "developer-tool", "desktop", "web"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "Jitsi Meet video conferencing application"
 repo = "https://github.com/jitsi/jitsi-meet"
 ref = "56f77926044fa005a2489bff8d91dfce7150a59e"
 language = "ts"
+tier = "T2"
 tags = ["application", "video", "conference", "web"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "tslib TypeScript runtime helper library"
 repo = "https://github.com/microsoft/tslib"
 ref = "d72d6f70b36286bc3f94a3dda1e64dcb568b1370"
 language = "js"
+tier = "T5"
 tags = ["library", "utility", "typescript"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "Rollup JavaScript bundler"
 repo = "https://github.com/rollup/rollup"
 ref = "c49fba1e8df6654c8f424350dc6871fa29acb17b"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "bundler", "build"]
 
 [discovery]

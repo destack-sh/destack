@@ -4,6 +4,7 @@ description = "Prisma ORM and toolkit monorepo"
 repo = "https://github.com/prisma/prisma"
 ref = "8410feaa392e798fa8b0602d4504bdee884c78e5"
 language = "ts"
+tier = "T5"
 tags = ["database", "backend", "monorepo"]
 
 [discovery]

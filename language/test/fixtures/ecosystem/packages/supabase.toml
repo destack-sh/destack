@@ -4,6 +4,7 @@ description = "Supabase platform monorepo"
 repo = "https://github.com/supabase/supabase"
 ref = "5c26801396ee09ce2ecd11da0375344ca47de9a6"
 language = "ts"
+tier = "T2"
 tags = ["application", "cloud", "platform", "monorepo"]
 
 [discovery]

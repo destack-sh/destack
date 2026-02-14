@@ -4,6 +4,7 @@ description = "Functional programming primitives for TypeScript"
 repo = "https://github.com/gcanti/fp-ts"
 ref = "09045f5819af260b5a6c4aeabdf2fbc8d9b9e335"
 language = "ts"
+tier = "T5"
 tags = ["library", "functional", "typescript"]
 
 [discovery]

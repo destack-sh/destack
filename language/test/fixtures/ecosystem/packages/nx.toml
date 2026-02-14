@@ -4,6 +4,7 @@ description = "Nx smart monorepo build system"
 repo = "https://github.com/nrwl/nx"
 ref = "f1873b27a8cdd0c230b28343b8c77cbb22713555"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "build", "monorepo"]
 
 [discovery]

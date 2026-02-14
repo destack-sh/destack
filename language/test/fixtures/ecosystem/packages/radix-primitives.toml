@@ -4,6 +4,7 @@ description = "Radix UI primitives monorepo"
 repo = "https://github.com/radix-ui/primitives"
 ref = "907513701a75b11a115563f9554ac6e8147bf2db"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "ui", "accessibility", "monorepo"]
 
 [discovery]

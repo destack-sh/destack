@@ -4,6 +4,7 @@ description = "DefinitelyTyped type declaration repository"
 repo = "https://github.com/DefinitelyTyped/DefinitelyTyped"
 ref = "cdadc548856adf9479ec1984e629bb174f9410d9"
 language = "ts"
+tier = "T0"
 tags = ["types", "declarations", "ecosystem"]
 
 [discovery]

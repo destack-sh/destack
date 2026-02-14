@@ -4,6 +4,7 @@ description = "TypeScript HTTP framework core"
 repo = "https://github.com/h3js/h3"
 ref = "153f268de7aa983fe68825bfd4cfb81ea12740c5"
 language = "ts"
+tier = "T5"
 tags = ["server", "http", "typescript"]
 
 [discovery]

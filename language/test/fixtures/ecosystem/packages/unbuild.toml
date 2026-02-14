@@ -4,6 +4,7 @@ description = "TypeScript first build system"
 repo = "https://github.com/unjs/unbuild"
 ref = "7a4dfe3bfbbfebc29cca5c1bdc2ea7c46e4a1602"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "build", "typescript"]
 
 [discovery]

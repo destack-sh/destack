@@ -4,6 +4,7 @@ description = "Firebase JavaScript SDK"
 repo = "https://github.com/firebase/firebase-js-sdk"
 ref = "e4b2890fd25795d93af6ae209b10ad69a8939b3a"
 language = "ts"
+tier = "T5"
 tags = ["sdk", "cloud", "firebase", "monorepo"]
 
 [discovery]

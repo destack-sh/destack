@@ -4,6 +4,7 @@ description = "Budibase app platform"
 repo = "https://github.com/Budibase/budibase"
 ref = "50765f43764b2473030b8281dc67d5d42192b612"
 language = "ts"
+tier = "T2"
 tags = ["application", "low-code", "platform", "monorepo"]
 
 [discovery]

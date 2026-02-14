@@ -4,6 +4,7 @@ description = "SolidJS reactive UI library"
 repo = "https://github.com/solidjs/solid"
 ref = "a0524c066d8f105e0c6c7b971490b162e9e552b1"
 language = "ts"
+tier = "T5"
 tags = ["frontend", "jsx", "framework"]
 
 [discovery]
