@@ -320,18 +320,21 @@ impl Parser {
 
             // export dependencies handled by export statement parsing
             let next_keyword = self.peek_any_keyword().ok();
-            let next_keyword_after_newlines = {
-                let next_index = self.next_non_newline_index_from(self.pos_index());
-                if self.token_type_at(next_index) == TokenType::Identifier {
-                    self.keyword_for_index(next_index)
+            let next_non_newline_index = self.next_non_newline_index_from(self.pos_index());
+            let next_non_newline_token_type = self.token_type_at(next_non_newline_index);
+            let next_keyword_after_newlines =
+                if next_non_newline_token_type == TokenType::Identifier {
+                    self.keyword_for_index(next_non_newline_index)
                 } else {
                     None
-                }
-            };
+                };
             let has_module_identifier_declaration =
                 !self.has_active_split() && self.is_module_identifier_at(self.pos_index());
+            let has_decorator_declaration_head = next_non_newline_token_type == TokenType::At
+                && export_mode != Some(DependencyMode::Default);
             let has_declaration_keyword = next_keyword.is_some_and(is_declaration_keyword)
                 || next_keyword_after_newlines.is_some_and(is_declaration_keyword)
+                || has_decorator_declaration_head
                 || has_module_identifier_declaration;
 
             // reject export default enum declarations
@@ -388,6 +391,12 @@ impl Parser {
             if is_after_export_import_equals_head || is_after_export_declaration_head {
                 export_head_newline_token_index = Some(export_newline_token_index);
                 self.eat_newlines_maybe()?;
+
+                // parse decorators after export when they follow skipped newlines
+                if self.peek_is(TokenType::At) {
+                    let mut export_decorators = self.eat_decorators_prefix_collect_maybe()?;
+                    decorators.append(&mut export_decorators);
+                }
             }
         }
 

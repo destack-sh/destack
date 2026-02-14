@@ -89,7 +89,7 @@ impl Node for Pattern {
 /// x // named
 /// x: 4  // named
 /// x: int32 // named
-/// x: y  // named alias  
+/// x: y  // named alias
 /// 4     // positional
 /// var y // named explicit mutable
 /// const z // named explicit immutable
@@ -121,8 +121,11 @@ pub enum PatternField {
         alias: StringId,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Positional field with just a pattern (like `4`).
-    Positional { pattern: LocalNodeId<Pattern> },
+    /// Positional field with a pattern and optional default (like `4` or `x = 1`).
+    Positional {
+        pattern: LocalNodeId<Pattern>,
+        default: Option<LocalNodeId<Expression>>,
+    },
     /// Spread field (like `...x` or `...[a, b]`).
     Spread {
         mutability: Option<Mutability>,

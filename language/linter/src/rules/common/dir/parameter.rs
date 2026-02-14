@@ -101,7 +101,7 @@ pub fn collect_pattern_field_value_binding_symbols(
                 collect_pattern_value_binding_symbols(tree, symbols, *pattern_id, bindings);
             }
         }
-        dir::PatternField::Positional { pattern } => {
+        dir::PatternField::Positional { pattern, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
         }
         dir::PatternField::Alias { .. } | dir::PatternField::Elision => {}

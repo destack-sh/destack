@@ -46,8 +46,11 @@ pub enum PatternField {
         alias: StringId,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Positional field with just a pattern (like `4` or `int32`).
-    Positional { pattern: LocalNodeId<Pattern> },
+    /// Positional field with a pattern and optional default (like `4` or `x = 1`).
+    Positional {
+        pattern: LocalNodeId<Pattern>,
+        default: Option<LocalNodeId<Expression>>,
+    },
     /// Spread field (like `...x` or `...[a, b]`).
     Spread {
         mutability: Option<Mutability>,

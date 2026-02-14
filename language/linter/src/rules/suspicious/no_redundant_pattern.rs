@@ -146,7 +146,7 @@ fn field_binds_anything(
         }
 
         // positional field binds if its pattern binds
-        ast::PatternField::Positional { pattern } => binds_anything(ctx, *pattern),
+        ast::PatternField::Positional { pattern, .. } => binds_anything(ctx, *pattern),
 
         // spread binds if its nested pattern binds
         ast::PatternField::Spread { pattern, .. } => {

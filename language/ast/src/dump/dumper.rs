@@ -1738,7 +1738,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::Positional { pattern: _ } => {
+            PatternField::Positional {
+                pattern: _,
+                default: _,
+            } => {
                 self.node("PatternField::Positional", _id.id).end();
             }
             PatternField::Spread {

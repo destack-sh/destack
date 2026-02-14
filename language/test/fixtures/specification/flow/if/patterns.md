@@ -164,6 +164,37 @@ if let Point(x, y) = point {
 }
 ```
 
+### if let scalar newtype patterns accept positional defaults
+
+> Scalar newtype tuple patterns can assign defaults to positional bindings.
+
+```ds
+newtype UserId = int64;
+
+declare const id: UserId;
+
+if let UserId(value = 1) = id {
+    value satisfies int64;
+}
+```
+
+### if let scalar newtype positional defaults are analyzed
+
+> Positional defaults in scalar newtype tuple patterns are analyzed as expressions.
+
+```ds
+newtype UserId = int64;
+
+declare const id: UserId;
+
+if let UserId(value = missing_default) = id {
+    value;
+}
+```
+
+- contains: missing symbol
+
+
 ### if let object newtype patterns require tags
 
 > Object newtypes require tagged object patterns.

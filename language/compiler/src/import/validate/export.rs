@@ -568,7 +568,7 @@ impl Compiler {
             PatternField::Alias { alias, .. } => {
                 names.push(*alias);
             }
-            PatternField::Positional { pattern } => {
+            PatternField::Positional { pattern, .. } => {
                 self.collect_binding_names_from_pattern(tree, *pattern, names);
             }
             PatternField::Spread { pattern, .. } => {

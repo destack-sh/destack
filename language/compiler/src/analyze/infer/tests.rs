@@ -1304,7 +1304,7 @@ function next_id(id: UserId): int64 {
 
     // accept either positional or named binding fields
     let value_symbol = match view.tree().get(fields[0]) {
-        PatternField::Positional { pattern } => {
+        PatternField::Positional { pattern, .. } => {
             let Pattern::Binding { symbol, .. } = view.tree().get(*pattern) else {
                 panic!("positional field should bind a symbol");
             };

@@ -2438,6 +2438,41 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_template_literal_with_union_interpolation_after_outer_union() {
+        let mut test = TestParser::new(
+            "type Issuer =\n  | \"https://oauth.battlenet.com.cn\"\n  | `https://${\"us\" | \"eu\"}.battle.net/oauth`",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        // type Issuer = | "https://oauth.battlenet.com.cn" | `https://${"us" | "eu"}.battle.net/oauth`
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left: _, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_node!(parser.tree, *right, Expression::TypeTemplateLiteral { strings, spans } => {
+                        assert_eq!(strings.len(), 2);
+                        assert_eq!(spans.len(), 1);
+                        assert_string!(parser, strings[0], "https://");
+                        assert_string!(parser, strings[1], ".battle.net/oauth");
+
+                        // ${"us" | "eu"}
+                        assert_node!(parser.tree, spans[0], Expression::Binary { operator, left, right } => {
+                            assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                                assert_string!(parser, *string_id, "us");
+                            });
+                            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                                assert_string!(parser, *string_id, "eu");
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_mapped_expression() {
         let mut test =
             TestParser::new("type T = { readonly [K in keyof T as `foo-${K}`]-?: T[K] }");

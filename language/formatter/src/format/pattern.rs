@@ -71,7 +71,12 @@ fn pattern_field_prefers_multiline(tree: &NodeTree, field_id: LocalNodeId<Patter
         PatternField::Alias { default, .. } => {
             default.is_some_and(|default_id| default_expression_prefers_multiline(tree, default_id))
         }
-        PatternField::Positional { pattern } => pattern_prefers_multiline(tree, *pattern),
+        PatternField::Positional { pattern, default } => {
+            pattern_prefers_multiline(tree, *pattern)
+                || default.is_some_and(|default_id| {
+                    default_expression_prefers_multiline(tree, default_id)
+                })
+        }
         PatternField::Spread { pattern, .. } => {
             pattern.is_some_and(|pattern_id| pattern_prefers_multiline(tree, pattern_id))
         }
@@ -478,7 +483,26 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     }
                 }
             }
-            PatternField::Positional { pattern } => write!(f, [pattern])?,
+            PatternField::Positional { pattern, default } => {
+                write!(f, [pattern])?;
+                if let Some(default) = default {
+                    let should_expand_default =
+                        should_expand_pattern_field_default(f, node_id, *default);
+                    if should_expand_default {
+                        write!(
+                            f,
+                            [
+                                space(),
+                                token("="),
+                                space(),
+                                group(default).should_expand(true)
+                            ]
+                        )?;
+                    } else {
+                        write!(f, [space(), token("="), space(), default])?;
+                    }
+                }
+            }
             PatternField::Spread {
                 mutability,
                 pattern,

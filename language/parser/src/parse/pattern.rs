@@ -377,8 +377,7 @@ impl Parser {
                     && self.peek_identifier_str_is("_")
                     && !self.peek_next_is(TokenType::Colon)
                 {
-                    let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                    PatternField::Positional { pattern }
+                    self.eat_positional_pattern_field()?
                 }
                 // computed property (object patterns only)
                 else if is_object_pattern
@@ -493,8 +492,7 @@ impl Parser {
                 }
                 // positional field
                 else {
-                    let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                    PatternField::Positional { pattern }
+                    self.eat_positional_pattern_field()?
                 }
             };
             let pattern_field_id = self
@@ -528,6 +526,14 @@ impl Parser {
         }
 
         Ok(fields)
+    }
+
+    // eat a positional pattern field with an optional default
+    fn eat_positional_pattern_field(&mut self) -> ParseResult<PatternField> {
+        let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+        let default = self.eat_pattern_field_default_maybe()?;
+
+        Ok(PatternField::Positional { pattern, default })
     }
 
     // eat a pattern field default assignment if present
@@ -723,7 +729,7 @@ mod tests {
             });
 
             // 2
-            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern, default: None } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                 });
@@ -760,7 +766,7 @@ mod tests {
             assert_eq!(fields.len(), 2);
 
             // _
-            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern, default: None } => {
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
             });
 
@@ -843,7 +849,7 @@ mod tests {
             });
 
             // 2
-            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern, default: None } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                 });
@@ -982,7 +988,7 @@ mod tests {
 
         assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
             assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern, default: None } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(5)));
                 });
@@ -1046,7 +1052,7 @@ mod tests {
         assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
             assert_eq!(fields.len(), 2);
             // 1
-            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern, default: None } => {
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                 });

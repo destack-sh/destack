@@ -320,7 +320,7 @@ impl Compiler {
                     default,
                 }
             }
-            dir::PatternField::Positional { pattern } => {
+            dir::PatternField::Positional { pattern, default } => {
                 let pattern = self.unbind_pattern(
                     module,
                     *pattern,
@@ -330,7 +330,10 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::PatternField::Positional { pattern }
+                let default = default.map(|d| {
+                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
+                });
+                ast::PatternField::Positional { pattern, default }
             }
             dir::PatternField::Spread {
                 mutability,

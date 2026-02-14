@@ -135,9 +135,17 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
-            dir::PatternField::Positional { pattern } => {
+            dir::PatternField::Positional { pattern, default } => {
                 let pattern = self.lower_pattern(*pattern)?;
-                let pattern_field = PatternField::Positional { pattern };
+                let default = default
+                    .map(|default| {
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .transpose()?;
+                let pattern_field = PatternField::Positional { pattern, default };
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }

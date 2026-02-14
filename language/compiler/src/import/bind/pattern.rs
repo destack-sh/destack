@@ -709,6 +709,7 @@ impl Compiler {
             }
             ast::PatternField::Positional {
                 pattern: pattern_id,
+                default,
             } => {
                 let pattern = self.bind_pattern(
                     module,
@@ -724,7 +725,20 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                PatternField::Positional { pattern }
+                let default = default.map(|default| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        default,
+                        Some(pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpaceOrder::ValueThenType,
+                    )
+                });
+                PatternField::Positional { pattern, default }
             }
             ast::PatternField::Spread {
                 mutability,

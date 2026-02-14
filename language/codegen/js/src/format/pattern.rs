@@ -96,8 +96,11 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
-            PatternField::Positional { pattern } => {
+            PatternField::Positional { pattern, default } => {
                 write!(f, [pattern])?;
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
             }
             PatternField::Spread {
                 mutability: _,

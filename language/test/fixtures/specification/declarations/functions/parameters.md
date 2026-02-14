@@ -58,6 +58,21 @@ const result = pair(1, "hi");
 result satisfies (int, string);
 ```
 
+### typescript tuple rest destructuring supports nested defaults
+
+> TypeScript tuple rest destructuring supports nested object defaults and a tuple level fallback.
+
+```ts:main.ts
+type SpawnArguments = [string, { syncSnapshot?: boolean }?];
+
+function spawnChild(...[src, { syncSnapshot = false } = {} as any]: SpawnArguments): boolean {
+    return syncSnapshot;
+}
+```
+
+- contains: named fields are not allowed in array or tuple patterns
+
+
 ## invalid parameter properties
 
 ### function parameters cannot be parameter properties
