@@ -7,26 +7,39 @@ fn main() {
         return;
     }
 
-    // compile the canonical destack tree-sitter parser for local tests
-    let grammar_source_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    // compile the canonical tree-sitter parsers for local tests
+    let grammar_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
         .join("language")
-        .join("grammar")
-        .join("destack")
-        .join("destack")
-        .join("src");
+        .join("grammar");
 
+    compile_grammar(
+        "tree-sitter-destack",
+        grammar_root.join("destack").join("destack").join("src"),
+        true,
+    );
+    compile_grammar(
+        "tree-sitter-mir",
+        grammar_root.join("mir").join("src"),
+        false,
+    );
+}
+
+fn compile_grammar(library_name: &str, grammar_source_dir: PathBuf, has_scanner: bool) {
     let parser_path = grammar_source_dir.join("parser.c");
-    let scanner_path = grammar_source_dir.join("scanner.c");
-
     println!("cargo:rerun-if-changed={}", parser_path.display());
-    println!("cargo:rerun-if-changed={}", scanner_path.display());
 
-    cc::Build::new()
-        .include(&grammar_source_dir)
-        .file(parser_path)
-        .file(scanner_path)
-        .warnings(false)
-        .compile("tree-sitter-destack");
+    let mut build = cc::Build::new();
+    build.include(&grammar_source_dir);
+    build.file(parser_path);
+    build.warnings(false);
+
+    if has_scanner {
+        let scanner_path = grammar_source_dir.join("scanner.c");
+        println!("cargo:rerun-if-changed={}", scanner_path.display());
+        build.file(scanner_path);
+    }
+
+    build.compile(library_name);
 }

@@ -1,0 +1,28 @@
+{
+  "grammars": [
+    {
+      "name": "mir",
+      "camelcase": "MIR",
+      "scope": "source.dsmir",
+      "path": ".",
+      "file-types": [
+        "mir"
+      ],
+      "injection-regex": "^(mir|dsmir)$"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Destack MIR grammar for tree-sitter",
+    "authors": [
+      {
+        "name": "Destack"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/destack-sh/destack"
+    }
+  },
+  "bindings": {}
+}

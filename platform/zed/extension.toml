@@ -7,7 +7,7 @@ authors = ["Florian Cäsar <florian@symbol.industries>"]
 repository = "https://github.com/destack-sh/destack"
 themes = []
 icon_themes = []
-languages = ["languages/destack"]
+languages = ["languages/destack", "languages/mir"]
 
 [[capabilities]]
 kind = "process:exec"
@@ -27,6 +27,11 @@ language_ids = { Destack = "destack", JavaScript = "javascript", TypeScript = "t
 repository = "https://github.com/destack-sh/destack"
 rev = "main"
 path = "language/grammar/destack/destack"
+
+[grammars.mir]
+repository = "https://github.com/destack-sh/destack"
+rev = "main"
+path = "language/grammar/mir"
 
 [context_servers]
 

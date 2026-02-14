@@ -35,6 +35,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate zed grammar pins
+        run: python3 platform/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
+
       - name: Install Rust toolchain
         run: |
           rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt --component clippy
