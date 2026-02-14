@@ -3,8 +3,8 @@ use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, DependencyItem, DependencyKind, DependencyMode,
-    Expression, ImportAliasTarget, ImportSource, ImportTarget, Keyword, LocalNodeId, Name,
-    TokenType,
+    Expression, ImportAliasTarget, ImportSource, ImportTarget, Keyword, LiteralType, LocalNodeId,
+    Name, TokenType,
 };
 use destack_base::StringId;
 use destack_source::{NodeSpanType, Span};
@@ -1054,6 +1054,20 @@ impl Parser {
             return self.eat_string_literal_with_span();
         }
 
+        // export specifiers also allow keyword like literal aliases: true, false
+        if allow_literal_alias
+            && self.peek().is_ok_and(|token| {
+                token.token.ty == TokenType::Literal
+                    && matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+            })
+        {
+            let span = self.peek()?.span;
+            let alias = self.get_span_str(span).to_string();
+            let alias = self.strings.intern(&alias);
+            self.bump();
+            return Ok((alias, span));
+        }
+
         // all other forms are invalid aliases
         Err(ParseError::expected(
             self.peek()?.span,
@@ -1962,6 +1976,47 @@ export as namespace Foo"#,
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "viteLegacyPluginCjs");
                 assert_string!(parser, *alias, "module.exports");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_keyword_literal_alias_without_target() {
+        // source: export { true_instance as true, false_instance as false, null_instance as null }
+        let source =
+            "export { true_instance as true, false_instance as false, null_instance as null }";
+        let mut test = TestParser::new(source);
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        // export
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert!(target.is_none());
+            assert_eq!(items.len(), 3);
+
+            // true alias
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "true_instance");
+                assert_string!(parser, *alias, "true");
+            });
+
+            // false alias
+            assert_node!(parser.tree, items[1], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "false_instance");
+                assert_string!(parser, *alias, "false");
+            });
+
+            // null alias
+            assert_node!(parser.tree, items[2], DependencyItem { mode, kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "null_instance");
+                assert_string!(parser, *alias, "null");
             });
         });
     }
