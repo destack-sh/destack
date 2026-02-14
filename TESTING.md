@@ -1,9 +1,22 @@
 # Testing
 
 Our goal is a 100% bullet-proof stack and toolchain with the best possible performance: the Destack language, libraries and platform:
- 1. Destack must never hardcrash
- 2. Destack must never fail in unexpected ways
- 3. Destack must be fast
+1. Destack must never hardcrash
+2. Destack must never fail in unexpected ways
+3. Destack must be fast
+
+## Gate Levels
+
+Use the same gate model locally and in GitHub Actions.
+Run blocking gates before every push.
+Run thorough suites when validating larger or riskier changes.
+
+| Level | Purpose | Local command |
+|-------|---------|---------------|
+| **Blocking CI** | Required for PR merge | `just precommit` (or `just ci`) |
+| **Scoped blocking CI** | Faster local iteration in one area | `just language/ci`, `just library/ci`, `just platform/ci` |
+| **Full local matrix** | Broader validation before larger changes | `just test` |
+| **Nightly depth** | Heavy suites and deeper regression detection | Covered by `.github/workflows/nightly.yml` |
 
 ## Reliability
 

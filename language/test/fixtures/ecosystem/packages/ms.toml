@@ -2,7 +2,7 @@
 name = "ms"
 description = "Tiny millisecond conversion utility"
 repo = "https://github.com/vercel/ms"
-ref = "3.0.0-canary.1"
+ref = "1304f150b38027e0818cc122106b5c7322d68d0c"
 language = "ts"
 
 [discovery]

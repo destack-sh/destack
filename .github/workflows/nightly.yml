@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -36,22 +36,25 @@ jobs:
           cargo --version
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Check formatting
-        run: cargo fmt --all --check
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Run language check
-        run: just language/check
-
-      - name: Run parser crate tests
-        run: cargo test --release -p destack_parser --lib
-
-      - name: Run grammar specification sweep
-        run: just language/test-grammar-specification-sweep-positive
+      - name: Run language fast gates
+        run: |
+          just language/ci-format
+          just language/ci-lint
+          cargo test --release -p destack_parser --lib
+          just language/test-grammar-specification-sweep-positive
+          just language/test-grammar-overlay
+          just language/test-grammar-corpus-routing
+          just language/test-grammar-destack-node-coverage
 
   nightly-integration:
     name: Nightly Integration
@@ -61,7 +64,7 @@ jobs:
       - nightly-core
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
 
@@ -73,21 +76,49 @@ jobs:
           cargo --version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
       - name: Install just
-        run: cargo install just --locked
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install heavy fixture suites
-        run: just language/install
+      - name: Cache conformance fixtures
+        id: language-conformance-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            language/test/fixtures/conformance/test262
+            language/test/fixtures/conformance/babel
+            language/test/fixtures/conformance/swc
+            language/test/fixtures/conformance/biome
+          key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/conformance/*-fetch.sh') }}
+
+      - name: Install conformance fixtures
+        if: steps.language-conformance-cache.outputs.cache-hit != 'true'
+        run: just language/install-conformance
+
+      - name: Cache formatter conformance fixtures
+        id: language-formatter-conformance-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            language/test/fixtures/formatter/conformance/staging/prettier
+            language/test/fixtures/formatter/conformance/staging/oxfmt
+          key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
+
+      - name: Install formatter conformance fixtures
+        if: steps.language-formatter-conformance-cache.outputs.cache-hit != 'true'
+        run: just language/install-formatter-conformance
+
+      - name: Install ecosystem fixtures
+        run: just language/ecosystem-fetch
 
       - name: Run conformance
         run: just language/test-conformance
@@ -104,8 +135,11 @@ jobs:
       - name: Run stress tests
         run: just language/test-stress
 
-      - name: Run library check
-        run: just library/check
+      - name: Run full language crate tests
+        run: just language/test
 
-      - name: Run platform check
-        run: just platform/check
+      - name: Run library ci gates
+        run: just library/ci
+
+      - name: Run platform ci gates
+        run: just platform/ci

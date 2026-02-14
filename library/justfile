@@ -5,6 +5,31 @@ packages := "-p destack_napi -p destack_wasm"
 _default:
     @just --list --unsorted
 
+# --- ci ---
+
+# install js dependencies required by library gates
+ci-install:
+    bun install --frozen-lockfile
+
+# run library format gate
+ci-format:
+    just format-check
+
+# run library lint gate
+ci-lint:
+    just lint
+
+# run library test gate
+ci-tests:
+    just test
+
+# run all blocking library ci gates locally
+ci:
+    just ci-install
+    just ci-format
+    just ci-lint
+    just ci-tests
+
 # build napi bindings
 napi:
     cargo build --release -p destack_napi
