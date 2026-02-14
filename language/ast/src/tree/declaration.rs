@@ -15,6 +15,16 @@ pub enum DeclarationKind {
     Definition,
 }
 
+/// The source keyword used for a namespace declaration.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum NamespaceKind {
+    /// `namespace Foo {}`.
+    #[default]
+    Namespace,
+    /// `module Foo {}` or `module "foo" {}`.
+    Module,
+}
+
 /// The abstraction level of a declaration.
 #[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub enum DeclarationAbstraction {
@@ -175,6 +185,7 @@ pub enum Declaration {
     /// ```
     Namespace {
         descriptor: DeclarationDescriptor,
+        kind: NamespaceKind,
         generics: Generics,
         expressions: Vec<LocalNodeId<Expression>>,
     },

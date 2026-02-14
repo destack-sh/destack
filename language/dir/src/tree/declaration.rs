@@ -15,6 +15,15 @@ pub enum DeclarationKind {
     Definition,
 }
 
+/// The source keyword used for a namespace declaration.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NamespaceKind {
+    /// `namespace Foo {}`.
+    Namespace,
+    /// `module Foo {}` or `module "foo" {}`.
+    Module,
+}
+
 /// The abstraction level of a declaration.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DeclarationAbstraction {
@@ -62,6 +71,7 @@ pub enum Declaration {
     /// Namespace declaration.
     Namespace {
         descriptor: DeclarationDescriptor,
+        kind: NamespaceKind,
         generics: Generics,
         scope: LocalScopeId,
         expressions: Vec<LocalNodeId<Expression>>,
@@ -143,7 +153,10 @@ impl Declaration {
     pub fn kind_name(&self) -> &'static str {
         match self {
             Declaration::Global { .. } => "global",
-            Declaration::Namespace { .. } => "namespace",
+            Declaration::Namespace { kind, .. } => match kind {
+                NamespaceKind::Namespace => "namespace",
+                NamespaceKind::Module => "module",
+            },
             Declaration::Type { .. } => "type",
             Declaration::ImportAlias { .. } => "import alias",
             Declaration::Struct { .. } => "struct",

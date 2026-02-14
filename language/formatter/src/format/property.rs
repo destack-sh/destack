@@ -16,9 +16,9 @@ use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AbstractionModifier, AccessorKind, Annotation, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, Comment, Declaration, Expression, FunctionSignature, Key, Keyword,
-    LocalNodeId, Member, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType, Property,
-    Timing, VarianceModifier,
+    BindingOperator, Comment, Declaration, DeclarationKind, Expression, FunctionSignature, Key,
+    Keyword, LocalNodeId, Member, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType,
+    Property, Timing, VarianceModifier,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
@@ -45,6 +45,10 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     // visibility
     if let Some(visibility) = modifiers.visibility {
         write!(f, [visibility, space()])?;
+    }
+    // declaration
+    if modifiers.declaration == Some(DeclarationKind::Declaration) {
+        write!(f, [Keyword::Declare, space()])?;
     }
     // abstraction
     if let Some(abstraction) = modifiers.abstraction {

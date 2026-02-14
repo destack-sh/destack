@@ -444,6 +444,7 @@ impl_dump_display! {
     CastSource,
     DeclarationAbstraction,
     DeclarationKind,
+    NamespaceKind,
     DependencyKind,
     DependencySource,
     DependencyMode,
@@ -1476,12 +1477,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Namespace {
                 descriptor,
+                kind,
                 generics,
                 expressions: _,
                 scope,
             } => {
                 self.node("Declaration::Module", id.id)
                     .field("descriptor", descriptor)
+                    .field("kind", kind)
                     .field("generics", generics)
                     .field("scope", scope)
                     .end();

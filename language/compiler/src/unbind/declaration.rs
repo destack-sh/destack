@@ -60,6 +60,19 @@ impl Compiler {
         }
     }
 
+    /// Unbind a DIR namespace kind to an AST namespace kind.
+    #[inline]
+    pub(super) fn unbind_namespace_kind(
+        &self,
+        _context: &mut UnbindContext,
+        kind: dir::NamespaceKind,
+    ) -> ast::NamespaceKind {
+        match kind {
+            dir::NamespaceKind::Namespace => ast::NamespaceKind::Namespace,
+            dir::NamespaceKind::Module => ast::NamespaceKind::Module,
+        }
+    }
+
     /// Unbind a DIR declaration descriptor to an AST declaration descriptor.
     pub(super) fn unbind_declaration_descriptor(
         &self,
@@ -162,12 +175,14 @@ impl Compiler {
             }
             dir::Declaration::Namespace {
                 descriptor,
+                kind,
                 generics,
                 expressions,
                 ..
             } => {
                 let descriptor =
                     self.unbind_declaration_descriptor(descriptor, ast_strings, context);
+                let kind = self.unbind_namespace_kind(context, *kind);
                 let generics = self.unbind_generics(
                     module,
                     generics,
@@ -193,6 +208,7 @@ impl Compiler {
                     .collect();
                 ast::Declaration::Namespace {
                     descriptor,
+                    kind,
                     generics,
                     expressions,
                 }

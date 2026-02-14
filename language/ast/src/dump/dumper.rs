@@ -436,6 +436,7 @@ impl_dump_display! {
     CommentStyle,
     DeclarationAbstraction,
     DeclarationKind,
+    NamespaceKind,
     DependencyKind,
     DocStyle,
     DependencyMode,
@@ -1223,11 +1224,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Namespace {
                 descriptor,
+                kind,
                 generics: _,
                 expressions: _,
             } => {
                 self.node("Declaration::Namespace", id.id)
                     .field("descriptor", descriptor)
+                    .field("kind", kind)
                     .end();
             }
             Declaration::Type {

@@ -863,6 +863,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
         }
         Declaration::Namespace {
             descriptor,
+            kind: _,
             generics,
             expressions: statements,
         } => {

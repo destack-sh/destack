@@ -1348,9 +1348,10 @@ mod tests {
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingModifier, BindingOperator, Declaration,
-        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key,
-        Mutability, Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
-        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+        DeclarationKind, Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType,
+        IntrinsicType, Key, Mutability, Name, Parameter, Property, ScalarLiteral,
+        TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypeModifier, TypePredicateSubject,
+        TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
 
@@ -1366,6 +1367,24 @@ mod tests {
             assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
                 assert_string!(parser, descriptor.name.unwrap().string(), "T");
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_declare_type_alias_kind() {
+        let mut test = TestParser::new_with_options(
+            "declare type T = string",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, value, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                assert_string!(parser, descriptor.name.unwrap().string(), "T");
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
             });
         });
     }

@@ -10,7 +10,7 @@ use crate::scan::next_non_whitespace_after_annotation;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Annotation, AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor,
-    Expression, IfKind, Keyword, LocalNodeId, Mutability, Parameter, TypeKind,
+    DeclarationKind, Expression, IfKind, Keyword, LocalNodeId, Mutability, Parameter, TypeKind,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -201,6 +201,11 @@ pub(super) fn format_type_alias_declaration<'ast>(
         // export
         if let Some(export) = descriptor.export {
             write!(f, [export, space()])?;
+        }
+
+        // kind
+        if descriptor.kind == DeclarationKind::Declaration {
+            write!(f, [Keyword::Declare, space()])?;
         }
 
         // keyword
