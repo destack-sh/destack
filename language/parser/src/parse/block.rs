@@ -1,8 +1,9 @@
 use destack_ast::{
-    Block, BlockFormat, Decorator, Expression, Keyword, LetKind, LocalNodeId, NodeType, TokenType,
+    Block, BlockFormat, Expression, Keyword, LetKind, LocalNodeId, NodeType, TokenType,
     YieldCardinality,
 };
 
+use super::annotation::PendingDecorators;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -32,11 +33,9 @@ impl Parser {
         options: ParserOptions,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let options = options.in_statement_position();
-        let old_options = self.options;
-        self.options = options;
-        let result = self.eat_statement_expression_in_current_options();
-        self.options = old_options;
-        result
+        self.with_options(options, |parser| {
+            parser.eat_statement_expression_in_current_options()
+        })
     }
 
     /// Eat an expression in a non-position context.
@@ -308,11 +307,9 @@ impl Parser {
             .nested()
             .in_statement_position()
             .without_expression_leading_annotations();
-        let old_options = self.options;
-        self.options = statement_options;
-        let expression_id = self.eat_statement_expression_in_current_options();
-        self.options = old_options;
-        let expression_id = expression_id?;
+        let expression_id = self.with_options(statement_options, |parser| {
+            parser.eat_statement_expression_in_current_options()
+        })?;
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -410,11 +407,11 @@ impl Parser {
 
         // comments inside empty blocks attach as infix to the block itself
         if is_empty_block {
-            self.attach_boundary(
+            self.bind_annotation_seam(
                 close_cursor.index,
                 close_cursor.skipped_newline_count,
                 block_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Infix,
+                super::annotation::AnnotationSeamKind::Infix,
             );
         }
 
@@ -435,45 +432,27 @@ impl Parser {
             .nested()
             .in_statement_position()
             .without_expression_leading_annotations();
-        let old_options = self.options;
-        self.options = statement_options;
-
-        // parse all statement items and keep at most one tail expression
-        let result = (|| {
+        self.with_options(statement_options, |parser| {
+            // parse all statement items and keep at most one tail expression
             let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
             let mut pending_tail_expression: Option<LocalNodeId<Expression>> = None;
-            let mut pending_statement_decorators: Vec<(LocalNodeId<Decorator>, usize, usize)> =
-                Vec::new();
+            let mut pending_statement_decorators = PendingDecorators::new();
 
             loop {
                 // normalize block body cursor once per iteration
-                let cursor = self.normalize_to_scanner_cursor();
+                let cursor = parser.normalize_to_scanner_cursor();
                 let token_type = cursor.token_type;
 
                 // stop at block terminators
                 // NOTE #Cleanup: recover block parse more explicitly?
-                if self.is_block_body_terminator_token(token_type, format) {
+                if parser.is_block_body_terminator_token(token_type, format) {
                     // attach trailing block annotations before the terminator to the last item
                     let trailing_target =
                         pending_tail_expression.or_else(|| statements.last().copied());
                     if let Some(trailing_target) = trailing_target {
-                        self.attach_boundary(
-                            cursor.index,
-                            cursor.skipped_newline_count,
+                        parser.bind_owner_close_postfix_trailing_line_and_default_seams(
                             trailing_target.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                                crate::parse::annotation::BlankBoundaryKind::Postfix,
-                            ),
-                        );
-                        self.attach_current_boundary(
-                            trailing_target.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                        );
-                        self.attach_current_boundary(
-                            trailing_target.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                                crate::parse::annotation::TrailingAnnotationKind::Default,
-                            ),
+                            cursor,
                         );
                     }
                     break;
@@ -481,15 +460,14 @@ impl Parser {
 
                 // consume statement separators
                 if token_type == TokenType::Semicolon {
-                    self.bump(); // eat semicolon
+                    parser.bump(); // eat semicolon
                     continue;
                 }
 
                 // consume decorator prefixes for the next statement item
                 if token_type == TokenType::At {
-                    let decorators_with_cursors =
-                        self.eat_decorators_prefix_collect_with_cursors_maybe()?;
-                    pending_statement_decorators.extend(decorators_with_cursors);
+                    let decorators = parser.eat_decorators_maybe()?;
+                    pending_statement_decorators.extend(decorators);
                     continue;
                 }
 
@@ -497,75 +475,39 @@ impl Parser {
                 if let Some(previous_item_id) =
                     pending_tail_expression.or_else(|| statements.last().copied())
                 {
-                    self.attach_current_boundary(
-                        previous_item_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                    );
+                    parser.bind_owner_trailing_line_at_current(previous_item_id.id);
                 }
 
                 // previous tail expressions are no longer block tails once a new item starts
                 if let Some(pending_id) = pending_tail_expression.take() {
-                    self.push_block_body_expression(&mut statements, pending_id, false, true);
+                    parser.push_block_body_expression(&mut statements, pending_id, false, true);
                 }
 
-                // keep the semantic token index that starts this statement item
-                let statement_token_index = cursor.index;
-                let statement_skipped_newline_count = cursor.skipped_newline_count;
-
                 // parse and recover one statement item
-                let start = self.mark_span();
-                let (expression_id, is_statement) = match self
+                let start = parser.mark_span();
+                let (expression_id, is_statement) = match parser
                     .eat_statement_expression_in_current_options_from_normalized_token(token_type)
                 {
                     Ok(expression_id) => {
-                        self.finalize_statement_expression_with_flag(&start, expression_id)?
+                        parser.finalize_statement_expression_with_flag(&start, expression_id)?
                     }
                     Err(err) => {
                         let err = err.for_node_type(NodeType::Expression);
                         let span = err.leaf_span();
                         let start = ParserMark::from_span(span);
-                        self.try_recover(&start, TokenType::Newline, Some(err))?;
-                        let error_id = self
+                        parser.try_recover(&start, TokenType::Newline, Some(err))?;
+                        let error_id = parser
                             .tree
-                            .insert(Expression::Error, self.get_span_from(&start));
+                            .insert(Expression::Error, parser.get_span_from(&start));
                         (error_id, true)
                     }
                 };
 
-                // attach any pending decorators to this statement item
-                let had_pending_statement_decorators = !pending_statement_decorators.is_empty();
-                if had_pending_statement_decorators {
-                    for (decorator_id, decorator_token_index, decorator_skipped_newline_count) in
-                        pending_statement_decorators.drain(..)
-                    {
-                        self.attach_boundary(
-                            decorator_token_index,
-                            decorator_skipped_newline_count,
-                            expression_id.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                                crate::parse::annotation::LeadingAnnotationKind::Statement,
-                            ),
-                        );
-                        self.attach_boundary(
-                            decorator_token_index,
-                            decorator_skipped_newline_count,
-                            expression_id.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                                crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                            ),
-                        );
-                        self.attach_decorator_to_target(decorator_id, expression_id.id);
-                    }
-                }
-
-                // attach statement-leading trivia on the emitted statement target
-                self.attach_boundary(
-                    statement_token_index,
-                    statement_skipped_newline_count,
+                // attach statement-leading seams and decorators
+                parser.bind_statement_owner_with_decorators(
                     expression_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Statement,
-                    ),
+                    cursor,
+                    &mut pending_statement_decorators,
                 );
 
                 // keep at most one tail candidate, emit statements directly
@@ -579,7 +521,7 @@ impl Parser {
             // finalize the remaining tail expression
             if let Some(expression_id) = pending_tail_expression {
                 let force_statement = format == BlockFormat::Implicit;
-                self.push_block_body_expression(
+                parser.push_block_body_expression(
                     &mut statements,
                     expression_id,
                     false,
@@ -588,10 +530,7 @@ impl Parser {
             }
 
             Ok(statements)
-        })();
-
-        self.options = old_options;
-        result
+        })
     }
 
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
@@ -604,11 +543,9 @@ impl Parser {
             .nested()
             .in_statement_position()
             .without_expression_leading_annotations();
-        let old_options = self.options;
-        self.options = statement_options;
-        let result = self.try_eat_statement_expression_with_flag_in_statement_position();
-        self.options = old_options;
-        result
+        self.with_options(statement_options, |parser| {
+            parser.try_eat_statement_expression_with_flag_in_statement_position()
+        })
     }
 
     /// Try to eat a statement expression while already in statement position.
@@ -646,16 +583,13 @@ impl Parser {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
-            self.attach_current_boundary(
-                expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-            );
+            self.bind_owner_trailing_line_at_current(expression_id.id);
             let expression_id =
                 self.wrap_statement_expression(expression_id, self.get_span_from(start));
             return Ok((expression_id, true));
         }
 
-        // detect expression kinds that are already statements
+        // detect expression kinds that should stay statement-shaped
         let expression = self.tree.get(expression_id);
         let is_statement =
             matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement();
@@ -670,10 +604,7 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        self.attach_current_boundary(
-            expression_id.id,
-            crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-        );
+        self.bind_owner_trailing_line_at_current(expression_id.id);
         Ok((expression_id, is_statement))
     }
 
@@ -846,11 +777,9 @@ impl Parser {
         self.eat_newlines_maybe()?;
         // parse body with comptime statement options
         let comptime_options = self.options.not_in_position().in_comptime();
-        let old_options = self.options;
-        self.options = comptime_options;
-        let body_id = self.eat_statement_expression_in_current_options();
-        self.options = old_options;
-        let body_id = body_id?;
+        let body_id = self.with_options(comptime_options, |parser| {
+            parser.eat_statement_expression_in_current_options()
+        })?;
 
         // comptime
         let comptime_id = self.tree.insert(
@@ -1028,7 +957,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Expression, IfKind, LetKind, ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
+        Annotation, AnnotationPosition, Comment, CommentStyle, Expression, IfKind, LetKind,
+        ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
     };
     use destack_source::LanguageType;
 
@@ -1555,5 +1485,37 @@ mod tests {
         });
         let value_id = parser.eat_expression(parser.options).unwrap();
         assert_expression_path!(parser, parser.tree.get(value_id), "value");
+    }
+
+    #[test]
+    fn test_parse_throw_trailing_comment_on_statement_wrapper_owner() {
+        let mut test =
+            TestParser::new_with_options("throw error // throw-tail", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let statement_id = expressions[0];
+        assert_node!(parser.tree, statement_id, Expression::Statement(throw_id) => {
+            assert_node!(parser.tree, *throw_id, Expression::Throw { .. } => {});
+            let throw_annotations = parser.tree.get_annotations(throw_id.id);
+            assert_eq!(throw_annotations.len(), 0);
+        });
+
+        let annotations = parser.tree.get_annotations(statement_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(*style, CommentStyle::Slash);
+                assert_string!(parser, *string, "throw-tail");
+            });
+        });
     }
 }

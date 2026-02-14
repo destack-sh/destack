@@ -1,10 +1,11 @@
 use destack_ast::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, Declaration,
-    DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField,
-    EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget, ImportSource,
-    ImportTarget, IntType, Key, Member, Mutability, Name, Parameter, Pattern, PatternField,
-    PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
-    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator,
+    BindingKind, Block, Comment, CommentStyle, Declaration, DeclarationDescriptor, Declarator,
+    DependencyItem, DependencyKind, DependencyMode, EnumField, EnumKind, Expression, FunctionKind,
+    IfCondition, IfKind, ImportAliasTarget, ImportSource, ImportTarget, IntType, Key, Member,
+    Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral,
+    TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator,
+    UnaryOperator, VarianceBound,
 };
 use destack_source::{DiagnosticSeverity, LanguageType};
 
@@ -94,6 +95,56 @@ fn test_parse_call_chain_with_newline_after_dot_typescript() {
             assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
                 assert!(dynamic_arguments.is_empty());
                 assert_expression_path!(parser, parser.tree.get(*left), "receiver");
+            });
+        });
+    });
+}
+
+/// Keep member-hop boundary comments on the hop owner expressions.
+#[test]
+fn test_parse_member_hop_comments_attach_to_boundary_owners() {
+    let mut test = TestParser::new_with_options(
+        "source /* hop-a */ .first() /* hop-b */ .second()",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.finish_annotations();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert!(dynamic_arguments.is_empty());
+
+        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "second");
+
+            let first_call_id = *left;
+            assert_node!(parser.tree, first_call_id, Expression::Call { left, dynamic_arguments, .. } => {
+                assert!(dynamic_arguments.is_empty());
+
+                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "first");
+                    assert_expression_path!(parser, parser.tree.get(*left), "source");
+
+                    let source_annotations = parser.tree.get_annotations(left.id);
+                    assert_eq!(source_annotations.len(), 1);
+                    assert_node!(parser.tree, source_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Star);
+                            assert_string!(parser, *string, "hop-a");
+                        });
+                    });
+                });
+            });
+
+            let first_call_annotations = parser.tree.get_annotations(first_call_id.id);
+            assert_eq!(first_call_annotations.len(), 1);
+            assert_node!(parser.tree, first_call_annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePostfix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Star);
+                    assert_string!(parser, *string, "hop-b");
+                });
             });
         });
     });
@@ -1421,6 +1472,42 @@ fn test_parse_if_ternary_multiline_with_comments() {
     });
 }
 
+/// Keep ternary seam comments on then and else branch owners.
+#[test]
+fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
+    let mut test = TestParser::new_with_options(
+        "cond ? // then-seam\nleft : // else-seam\nright",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.finish_annotations();
+
+    assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
+        let else_expression_id = else_expression.expect("expected ternary else branch");
+
+        let then_annotations = parser.tree.get_annotations(then_expression.id);
+        assert_eq!(then_annotations.len(), 1);
+        assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(*style, CommentStyle::Slash);
+                assert_string!(parser, *string, "then-seam");
+            });
+        });
+
+        let else_annotations = parser.tree.get_annotations(else_expression_id.id);
+        assert_eq!(else_annotations.len(), 1);
+        assert_node!(parser.tree, else_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(*style, CommentStyle::Slash);
+                assert_string!(parser, *string, "else-seam");
+            });
+        });
+    });
+}
+
 /// Parse a ternary if expression with parenthesis (disambiguate from call expression).
 #[test]
 fn test_parse_if_ternary_with_parenthesis() {
@@ -2124,7 +2211,7 @@ fn test_parse_object_property_named_class_expression_value() {
 
 /// Parse class expression values in decorator call arguments.
 #[test]
-fn test_parse_decorator_object_property_named_class_expression_value() {
+fn test_eat_decorator_object_property_named_class_expression_value() {
     let mut test = TestParser::new_with_options(
         "Component({ useClass: class MyExampleClass {} })",
         LanguageType::TypeScript,
@@ -4801,7 +4888,7 @@ fn test_parse_function_parameter_readonly_tuple_type_annotation() {
 
 /// Parse function expressions in decorator call arguments.
 #[test]
-fn test_parse_decorator_call_with_function_expression_argument() {
+fn test_eat_decorator_call_with_function_expression_argument() {
     let mut test = TestParser::new_with_options(
         r#"computed("fullName", function(this: Foo) {
   return this.fullName.toUpperCase();
@@ -5168,6 +5255,45 @@ fn test_parse_labelled_statement_with_newline_before_target() {
     assert_node!(parser.tree, expr_id, Expression::Labelled { label, body } => {
         assert_string!(parser, *label, "outer");
         assert_node!(parser.tree, *body, Expression::While { .. });
+    });
+}
+
+/// Parse newline-separated parenthesized assertion starters as separate statements.
+#[test]
+fn test_parse_statement_newline_before_parenthesized_assertion_prevents_call_continuation() {
+    let mut test = TestParser::new_with_options(
+        "(foo.bar as Baz) = value\n(foo.bar as any)++",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert_eq!(expressions.len(), 2);
+
+    let first_expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, first_expression_id, Expression::Assign { left, operator, right } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                assert_eq!(*operator, TypeBinaryOperator::Cast);
+            });
+        });
+        assert_expression_path!(parser, parser.tree.get(*right), "value");
+    });
+
+    let second_expression_id = parser.unwrap_statement_expression(expressions[1]);
+    assert_node!(parser.tree, second_expression_id, Expression::Unary { operator, right } => {
+        assert_eq!(*operator, UnaryOperator::PostIncrement);
+        assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                assert_eq!(*operator, TypeBinaryOperator::Cast);
+            });
+        });
     });
 }
 

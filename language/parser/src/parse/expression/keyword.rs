@@ -399,6 +399,7 @@ impl Parser {
     }
 
     /// Eat a keyword-led expression when possible.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn eat_keyword_expression(
         &mut self,
         start: &ParserMark,

@@ -67,22 +67,55 @@ fn format_import_expression<'ast>(
     if source == ImportSource::ImportCall {
         write!(f, [Keyword::Import, token("(")])?;
 
-        match target {
-            ImportTarget::String(target) => {
-                write!(f, [token("\""), *target, token("\"")])?;
-            }
+        let should_expand_import_call_arguments = match target {
             ImportTarget::Expression { target } => {
-                write!(f, [*target])?;
+                f.context().has_annotation(*target) || f.context().node_has_newline(*target)
             }
-        }
+            ImportTarget::String(_) => false,
+        };
 
-        if let Some(arguments) = arguments {
-            for argument in arguments {
-                write!(f, [token(","), space(), *argument])?;
+        if should_expand_import_call_arguments {
+            write!(f, [hard_line_break()])?;
+            write!(
+                f,
+                [group(&block_indent(&format_with(|f| {
+                    match target {
+                        ImportTarget::String(target) => {
+                            write!(f, [token("\""), *target, token("\""), token(",")])?;
+                        }
+                        ImportTarget::Expression { target } => {
+                            write!(f, [*target, token(",")])?;
+                        }
+                    }
+
+                    if let Some(arguments) = arguments {
+                        for argument in arguments {
+                            write!(f, [hard_line_break(), *argument, token(",")])?;
+                        }
+                    }
+
+                    Ok(())
+                })))]
+            )?;
+            write!(f, [hard_line_break(), token(")")])?;
+        } else {
+            match target {
+                ImportTarget::String(target) => {
+                    write!(f, [token("\""), *target, token("\"")])?;
+                }
+                ImportTarget::Expression { target } => {
+                    write!(f, [*target])?;
+                }
             }
-        }
 
-        write!(f, [token(")")])?;
+            if let Some(arguments) = arguments {
+                for argument in arguments {
+                    write!(f, [token(","), space(), *argument])?;
+                }
+            }
+
+            write!(f, [token(")")])?;
+        }
         return Ok(());
     }
 
@@ -159,12 +192,12 @@ fn format_import_expression<'ast>(
                 rest_items.to_vec()
             };
             write!(f, [token(","), space()])?;
-            write!(
-                f,
-                [list_like("{", "}", ",", &sorted_rest)
-                    .as_collection()
-                    .include_space()]
-            )?;
+            let mut rest_list = list_like("{", "}", ",", &sorted_rest);
+            rest_list
+                .as_collection()
+                .include_space()
+                .should_expand(items_have_annotations);
+            write!(f, [rest_list])?;
         }
     }
     // named imports
@@ -175,12 +208,12 @@ fn format_import_expression<'ast>(
         } else {
             items.to_vec()
         };
-        write!(
-            f,
-            [list_like("{", "}", ",", &sorted_items)
-                .as_collection()
-                .include_space()]
-        )?;
+        let mut items_list = list_like("{", "}", ",", &sorted_items);
+        items_list
+            .as_collection()
+            .include_space()
+            .should_expand(items_have_annotations);
+        write!(f, [items_list])?;
     }
 
     // from clause
@@ -267,12 +300,12 @@ fn format_export_expression<'ast>(
         } else {
             items.to_vec()
         };
-        write!(
-            f,
-            [list_like("{", "}", ",", &sorted_items)
-                .as_collection()
-                .include_space()]
-        )?;
+        let mut items_list = list_like("{", "}", ",", &sorted_items);
+        items_list
+            .as_collection()
+            .include_space()
+            .should_expand(items_have_annotations);
+        write!(f, [items_list])?;
     }
 
     // target

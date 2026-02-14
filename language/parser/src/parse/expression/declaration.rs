@@ -5,6 +5,7 @@ use destack_ast::{
     DependencyMode, Expression, Keyword, LiteralType, TokenType,
 };
 
+use super::super::annotation::PendingDecorators;
 use super::common::{DescriptorHead, is_declaration_keyword};
 
 impl Parser {
@@ -241,7 +242,7 @@ impl Parser {
         start: &ParserMark,
     ) -> ParseResult<DescriptorHead> {
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
-        let mut decorators = Vec::new();
+        let mut decorators = PendingDecorators::new();
         let mut export_head_newline_token_index = None;
 
         // decorators parse as expressions only
@@ -367,8 +368,8 @@ impl Parser {
 
             // parse decorators after export so descriptor modifiers still parse correctly
             if self.peek_is(TokenType::At) {
-                let mut export_decorators = self.eat_decorators_prefix_collect_maybe()?;
-                decorators.append(&mut export_decorators);
+                let export_decorators = self.eat_decorators_maybe()?;
+                decorators.extend(export_decorators);
             }
         }
 

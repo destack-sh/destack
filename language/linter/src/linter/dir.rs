@@ -338,7 +338,7 @@ impl<'a> LintModuleDirContext<'a> {
 
         while let Some(id) = current {
             for annotation_id in self.tree.get_annotations(id) {
-                if let Some(item) = self.parse_decorator(annotation_id, meta) {
+                if let Some(item) = self.eat_decorator(annotation_id, meta) {
                     overrides.push(item);
                 }
             }
@@ -402,7 +402,7 @@ impl<'a> LintModuleDirContext<'a> {
     }
 
     /// Parse a decorator annotation and return the severity override if it matches this lint.
-    fn parse_decorator(
+    fn eat_decorator(
         &self,
         annotation_id: dir::LocalNodeId<dir::Annotation>,
         meta: &LintMeta,

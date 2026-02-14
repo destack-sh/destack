@@ -5,6 +5,8 @@ pub(crate) enum LeadingAnnotationKind {
     Statement,
     /// Attach as expression style leading trivia.
     Expression,
+    /// Attach as type seam leading trivia.
+    Type,
     /// Attach as wrapper-leading trivia that keeps line comments inline.
     Wrapper,
 }
@@ -30,15 +32,13 @@ pub(crate) enum DotBoundaryKind {
 /// The blank-line attachment side.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum BlankBoundaryKind {
-    /// Attach blank lines as block prefix trivia.
-    Prefix,
     /// Attach blank lines as block postfix trivia.
     Postfix,
 }
 
 /// One parser boundary attachment operation.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum AnnotationBoundaryKind {
+pub(crate) enum AnnotationSeamKind {
     /// Attach leading trivia at a token boundary.
     Leading(LeadingAnnotationKind),
     /// Attach infix trivia at a token boundary.

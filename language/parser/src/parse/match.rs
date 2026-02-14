@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    Block, BlockFormat, Decorator, Expression, Keyword, LocalNodeId, MatchCase, MatchKind,
-    MatchSelector, NodeType, Pattern, TokenType,
+    Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, MatchSelector,
+    NodeType, Pattern, TokenType,
 };
 
 impl Parser {
@@ -42,10 +42,9 @@ impl Parser {
 
         // value
         let value_options = self.options.in_before_block();
-        let old_options = self.swap_options(value_options);
-        let value_result = self.eat_expression_parenthesized_maybe();
-        self.restore_options(old_options);
-        let value_id = value_result?;
+        let value_id = self.with_options(value_options, |parser| {
+            parser.eat_expression_parenthesized_maybe()
+        })?;
 
         // cases
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
@@ -89,20 +88,7 @@ impl Parser {
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
                 if let Some(last_case_id) = last_case_id {
-                    self.attach_boundary(
-                        cursor.index,
-                        cursor.skipped_newline_count,
-                        last_case_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                            crate::parse::annotation::BlankBoundaryKind::Postfix,
-                        ),
-                    );
-                    self.attach_current_boundary(
-                        last_case_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
-                    );
+                    self.bind_owner_close_postfix_default_seams(last_case_id.id, cursor);
                 }
                 break;
             }
@@ -112,9 +98,6 @@ impl Parser {
             }
             // case
             else {
-                let case_token_index = cursor.index;
-                let case_skipped_newline_count = cursor.skipped_newline_count;
-
                 // reject duplicate default selectors in switch blocks
                 if kind == MatchKind::Switch
                     && has_default_case
@@ -138,13 +121,10 @@ impl Parser {
                     }
                 }
 
-                self.attach_boundary(
-                    case_token_index,
-                    case_skipped_newline_count,
+                self.bind_owner_leading_seam_at_cursor(
                     case.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Statement,
-                    ),
+                    cursor,
+                    super::annotation::LeadingAnnotationKind::Statement,
                 );
                 last_case_id = Some(case);
                 cases.push(case);
@@ -165,12 +145,11 @@ impl Parser {
     /// ```
     fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<MatchCase>> {
         // decorators before match arms
-        let mut pending_case_decorators: Vec<LocalNodeId<Decorator>> =
-            if self.peek_is(TokenType::At) {
-                self.eat_decorators_prefix_collect_maybe()?
-            } else {
-                Vec::new()
-            };
+        let mut pending_case_decorators = if self.peek_is(TokenType::At) {
+            self.eat_decorators_maybe()?
+        } else {
+            smallvec::SmallVec::new()
+        };
 
         let start = self.mark_span();
 
@@ -212,10 +191,9 @@ impl Parser {
                             in_before_block: true,
                             ..Default::default()
                         };
-                        let old_options = self.swap_options(guard_options);
-                        let guard_result = self.eat_expression_parenthesized_maybe();
-                        self.restore_options(old_options);
-                        let guard = guard_result?;
+                        let guard = self.with_options(guard_options, |parser| {
+                            parser.eat_expression_parenthesized_maybe()
+                        })?;
                         Some(guard)
                     } else {
                         None
@@ -230,10 +208,7 @@ impl Parser {
             MatchKind::Match => {
                 // pattern
                 let pattern_options = self.options.in_match_case();
-                let old_options = self.swap_options(pattern_options);
-                let pattern_result = self.eat_pattern();
-                self.restore_options(old_options);
-                let pattern = pattern_result?;
+                let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
 
                 // guard
                 let guard = if self.is_keyword(Keyword::If) {
@@ -243,10 +218,9 @@ impl Parser {
                         in_before_block: true,
                         ..Default::default()
                     };
-                    let old_options = self.swap_options(guard_options);
-                    let guard_result = self.eat_expression_parenthesized_maybe();
-                    self.restore_options(old_options);
-                    let guard = guard_result?;
+                    let guard = self.with_options(guard_options, |parser| {
+                        parser.eat_expression_parenthesized_maybe()
+                    })?;
                     Some(guard)
                 } else {
                     None
@@ -288,9 +262,9 @@ impl Parser {
                     self.get_span_from(&start),
                 );
                 if !pending_case_decorators.is_empty() {
-                    self.attach_decorators_to_target(
-                        std::mem::take(&mut pending_case_decorators),
+                    self.attach_decorators(
                         match_case_id.id,
+                        std::mem::take(&mut pending_case_decorators),
                     );
                 }
                 return Ok(match_case_id);
@@ -367,9 +341,9 @@ impl Parser {
                 )
             };
             if !pending_case_decorators.is_empty() {
-                self.attach_decorators_to_target(
-                    std::mem::take(&mut pending_case_decorators),
+                self.attach_decorators(
                     match_case_id.id,
+                    std::mem::take(&mut pending_case_decorators),
                 );
             }
             Ok(match_case_id)
@@ -385,9 +359,9 @@ impl Parser {
                 self.get_span_from(&start),
             );
             if !pending_case_decorators.is_empty() {
-                self.attach_decorators_to_target(
-                    std::mem::take(&mut pending_case_decorators),
+                self.attach_decorators(
                     match_case_id.id,
+                    std::mem::take(&mut pending_case_decorators),
                 );
             }
             Ok(match_case_id)
@@ -403,9 +377,9 @@ impl Parser {
                 self.get_span_from(&start),
             );
             if !pending_case_decorators.is_empty() {
-                self.attach_decorators_to_target(
-                    std::mem::take(&mut pending_case_decorators),
+                self.attach_decorators(
                     match_case_id.id,
+                    std::mem::take(&mut pending_case_decorators),
                 );
             }
             Ok(match_case_id)
@@ -416,7 +390,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Block, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral,
+        Annotation, AnnotationPosition, Block, Comment, CommentStyle, Expression, MatchCase,
+        MatchKind, MatchSelector, Pattern, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -781,6 +756,73 @@ switch (tag) {
                     _ => panic!("expected pattern selector"),
                 };
                 assert_node!(parser.tree, *body, Expression::Return { .. });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_switch_case_boundary_comment_ownership() {
+        let mut test = TestParser::new_with_options(
+            r#"switch (state) {
+  // before-ready
+  case "ready":
+    start() // ready-tail
+    break
+  default:
+    stop() // default-tail
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Match { kind, cases, .. } => {
+            assert_eq!(*kind, MatchKind::Switch);
+            assert_eq!(cases.len(), 2);
+
+            let first_case_annotations = parser.tree.get_annotations(cases[0].id);
+            assert_eq!(first_case_annotations.len(), 1);
+            assert_node!(parser.tree, first_case_annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Slash);
+                    assert_string!(parser, *string, "before-ready");
+                });
+            });
+
+            assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 2);
+                    let start_annotations = parser.tree.get_annotations(expressions[0].id);
+                    assert_eq!(start_annotations.len(), 1);
+                    assert_node!(parser.tree, start_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "ready-tail");
+                        });
+                    });
+                });
+            });
+
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { body, .. } => {
+                let default_annotations = parser.tree.get_annotations(body.id);
+                assert_eq!(default_annotations.len(), 1);
+                assert_node!(parser.tree, default_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "default-tail");
+                    });
+                });
             });
         });
     }

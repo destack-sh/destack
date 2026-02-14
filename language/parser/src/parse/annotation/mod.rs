@@ -1,7 +1,10 @@
-mod attachment;
-mod boundary;
+mod decorator;
+mod owner;
+mod seam;
+mod trivia;
 
 #[cfg(test)]
 mod tests;
 
-pub(crate) use boundary::*;
+pub(crate) use decorator::PendingDecorators;
+pub(crate) use seam::*;

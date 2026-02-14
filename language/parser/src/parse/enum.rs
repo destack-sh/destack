@@ -1,9 +1,10 @@
+use super::annotation::{AnnotationSeamKind, PendingDecorators};
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Declaration, DeclarationDescriptor, Decorator, EnumField, EnumKind, Generics, Heritage,
-    Keyword, LiteralType, LocalNodeId, Member, Name, NodeType, TemplateLiteral, TokenType,
+    Declaration, DeclarationDescriptor, EnumField, EnumKind, Generics, Heritage, Keyword,
+    LiteralType, LocalNodeId, Member, Name, NodeType, TemplateLiteral, TokenType,
 };
 use destack_source::Span;
 
@@ -104,11 +105,11 @@ impl Parser {
         }
 
         // attach declaration header-to-body boundary annotations before `{`
-        self.attach_boundary(
+        self.bind_annotation_seam(
             body_cursor.index,
             body_cursor.skipped_newline_count.saturating_add(1),
             enum_id.id,
-            crate::parse::annotation::AnnotationBoundaryKind::Infix,
+            AnnotationSeamKind::Infix,
         );
 
         Ok(enum_id)
@@ -123,30 +124,22 @@ impl Parser {
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
         let mut last_item_node_id: Option<u32> = None;
-        let mut pending_enum_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
-        let mut pending_enum_decorator_anchor: Option<(usize, usize)> = None;
+        let mut pending_decorators = PendingDecorators::new();
+
         while self.has_more_tokens() {
-            // normalize cursor to the next non newline token
             let cursor = self.normalize_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
+                if !pending_decorators.is_empty() {
+                    let error = ParseError::unexpected(self.peek()?.span);
+                    self.error(&error);
+                    pending_decorators.clear();
+                }
+
                 if let Some(last_item_node_id) = last_item_node_id {
-                    self.attach_boundary(
-                        cursor.index,
-                        cursor.skipped_newline_count,
-                        last_item_node_id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                            crate::parse::annotation::BlankBoundaryKind::Postfix,
-                        ),
-                    );
-                    self.attach_current_boundary(
-                        last_item_node_id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
-                    );
+                    self.bind_owner_close_postfix_default_seams(last_item_node_id, cursor);
                 }
                 break;
             }
@@ -156,93 +149,31 @@ impl Parser {
             }
             // consume decorator prefixes
             else if token_type == TokenType::At {
-                if pending_enum_decorator_anchor.is_none() {
-                    pending_enum_decorator_anchor =
-                        Some((cursor.index, cursor.skipped_newline_count));
-                }
-                let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
-                pending_enum_decorators.append(&mut decorators);
+                let decorators = self.eat_decorators_maybe()?;
+                pending_decorators.extend(decorators);
             }
             // enum field
             else if self.peek_enum_field_is() {
-                let field_token_index = cursor.index;
-                let field_skipped_newline_count = cursor.skipped_newline_count;
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
-                if !pending_enum_decorators.is_empty() {
-                    if let Some((anchor_token_index, anchor_skipped_newline_count)) =
-                        pending_enum_decorator_anchor.take()
-                    {
-                        self.attach_boundary(
-                            anchor_token_index,
-                            anchor_skipped_newline_count,
-                            field.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                                crate::parse::annotation::BlankBoundaryKind::Prefix,
-                            ),
-                        );
-                    }
-                    self.attach_decorators_to_target(
-                        std::mem::take(&mut pending_enum_decorators),
-                        field.id,
-                    );
-                }
-                self.attach_boundary(
-                    field_token_index,
-                    field_skipped_newline_count,
+                self.bind_statement_owner_with_decorators_and_default_trailing_at_current(
                     field.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Statement,
-                    ),
-                );
-                self.attach_current_boundary(
-                    field.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                        crate::parse::annotation::TrailingAnnotationKind::Default,
-                    ),
+                    cursor,
+                    &mut pending_decorators,
                 );
                 last_item_node_id = Some(field.id);
                 fields.push(field);
             }
-            // eat members
+            // (static) members
             else {
-                let member_token_index = cursor.index;
-                let member_skipped_newline_count = cursor.skipped_newline_count;
                 let member_options = self.options.nested().in_variant();
-                let old_options = self.swap_options(member_options);
-                let member_result = self.try_eat_member(TokenType::Newline);
-                self.restore_options(old_options);
-                let member_id = member_result.for_node_type(NodeType::Member)?;
-                if !pending_enum_decorators.is_empty() {
-                    if let Some((anchor_token_index, anchor_skipped_newline_count)) =
-                        pending_enum_decorator_anchor.take()
-                    {
-                        self.attach_boundary(
-                            anchor_token_index,
-                            anchor_skipped_newline_count,
-                            member_id.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                                crate::parse::annotation::BlankBoundaryKind::Prefix,
-                            ),
-                        );
-                    }
-                    self.attach_decorators_to_target(
-                        std::mem::take(&mut pending_enum_decorators),
-                        member_id.id,
-                    );
-                }
-                self.attach_boundary(
-                    member_token_index,
-                    member_skipped_newline_count,
+                let member_result = self.with_options(member_options, |parser| {
+                    parser.try_eat_member(TokenType::Newline)
+                })?;
+                let member_id = member_result;
+                self.bind_statement_owner_with_decorators_and_default_trailing_at_current(
                     member_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Statement,
-                    ),
-                );
-                self.attach_current_boundary(
-                    member_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                        crate::parse::annotation::TrailingAnnotationKind::Default,
-                    ),
+                    cursor,
+                    &mut pending_decorators,
                 );
                 last_item_node_id = Some(member_id.id);
                 members.push(member_id);
@@ -345,7 +276,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Declaration, DeclarationDescriptor, DeclarationKind, EnumField, EnumKind, Expression,
+        Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Declaration,
+        DeclarationDescriptor, DeclarationKind, Decorator, EnumField, EnumKind, Expression,
         Parameter, ScalarLiteral, WhereClause,
     };
 
@@ -574,6 +506,207 @@ enum Foo where Requirement: Interface {
             });
 
             assert_eq!(fields.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_parse_enum_with_dangling_item_decorator_reports_error_and_no_attachment() {
+        let mut test = TestParser::new(
+            r###"
+enum Value {
+    @dangling
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+        assert_eq!(
+            parser.errors.len(),
+            1,
+            "expected one dangling decorator parse error"
+        );
+        assert_eq!(parser.file.span_str(parser.errors[0].leaf_span()), "}");
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert!(
+                parser.tree.get_annotations(declaration_id.id).is_empty(),
+                "expected no annotations on enum declaration owner"
+            );
+            assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, members, .. } => {
+                assert!(fields.is_empty());
+                assert!(members.is_empty());
+            });
+        });
+
+        let decorators = parser.tree.get_nodes::<Decorator>();
+        assert_eq!(
+            decorators.len(),
+            1,
+            "expected one parsed dangling decorator"
+        );
+        assert_node!(parser.tree, decorators[0], Decorator { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "dangling");
+            });
+        });
+
+        assert!(
+            parser.tree.get_nodes::<Annotation>().is_empty(),
+            "expected no attached annotation nodes for dangling decorator"
+        );
+    }
+
+    #[test]
+    fn test_parse_enum_field_interleaved_comments_and_decorators() {
+        let mut test = TestParser::new(
+            r#"enum Value {
+// before-first
+@first
+// between
+@second
+// before-name
+Entry
+}"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, .. } => {
+                assert_eq!(fields.len(), 1);
+
+                let annotations = parser.tree.get_annotations(fields[0].id);
+                assert_eq!(annotations.len(), 5);
+
+                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "before-first");
+                    });
+                });
+                assert_node!(parser.tree, annotations[1], Annotation::Decorator { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+                            assert_path!(parser, *path, "first");
+                        });
+                    });
+                });
+                assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "between");
+                    });
+                });
+                assert_node!(parser.tree, annotations[3], Annotation::Decorator { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
+                            assert_path!(parser, *path, "second");
+                        });
+                    });
+                });
+                assert_node!(parser.tree, annotations[4], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "before-name");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_enum_field_trailing_and_blank_seams() {
+        let mut test = TestParser::new(
+            r#"enum Value {
+A // a-tail
+
+B
+
+}"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, .. } => {
+                assert_eq!(fields.len(), 2);
+
+                let first_annotations = parser.tree.get_annotations(fields[0].id);
+                assert_eq!(first_annotations.len(), 1);
+                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "a-tail");
+                    });
+                });
+
+                let second_annotations = parser.tree.get_annotations(fields[1].id);
+                assert_eq!(second_annotations.len(), 2);
+                assert_node!(parser.tree, second_annotations[0], Annotation::Blank { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Blank { lines } => {
+                        assert_eq!(*lines, 1);
+                    });
+                });
+                assert_node!(parser.tree, second_annotations[1], Annotation::Blank { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                    assert_node!(parser.tree, *node, Blank { lines } => {
+                        assert_eq!(*lines, 1);
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_enum_body_boundary_comment_on_declaration_owner() {
+        let mut test = TestParser::new("enum Value /* enum-body */ { A }");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            let annotations = parser.tree.get_annotations(declaration_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Star);
+                    assert_string!(parser, *string, "enum-body");
+                });
+            });
         });
     }
 }

@@ -1,9 +1,11 @@
 use crate::Parser;
 
 use destack_ast::{
-    BinaryOperator, Declaration, DeclarationDescriptor, Decorator, Expression, FunctionKind,
-    Keyword, LocalNodeId, TokenType,
+    BinaryOperator, Declaration, DeclarationDescriptor, Expression, FunctionKind, Keyword,
+    LocalNodeId, TokenType,
 };
+
+use super::super::annotation::PendingDecorators;
 
 pub static DECLARATION_START_TOKENS: [TokenType; 6] = [
     TokenType::Literal,
@@ -64,7 +66,7 @@ pub(super) enum DescriptorHead {
         /// The parsed declaration descriptor.
         descriptor: DeclarationDescriptor,
         /// Decorators parsed between declaration modifiers and the declaration head.
-        decorators: Vec<LocalNodeId<Decorator>>,
+        decorators: PendingDecorators,
         /// Optional newline token index right after `export` for boundary annotation ownership.
         export_head_newline_token_index: Option<usize>,
     },

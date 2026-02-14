@@ -173,10 +173,9 @@ impl Parser {
             // iterator
             self.eat_newlines_maybe()?;
             let iterator_options = self.options.nested().in_before_block();
-            let old_options = self.swap_options(iterator_options);
-            let iterator_result = self.eat_expression(self.options);
-            self.restore_options(old_options);
-            let iterator_id = iterator_result?;
+            let iterator_id = self.with_options(iterator_options, |parser| {
+                parser.eat_expression(parser.options)
+            })?;
 
             if in_parenthesis {
                 // close parenthesis
@@ -219,10 +218,7 @@ impl Parser {
                 .not_in_position()
                 .in_for_each()
                 .in_before_block();
-            let old_options = self.swap_options(pattern_options);
-            let pattern_result = self.eat_pattern();
-            self.restore_options(old_options);
-            let pattern = pattern_result?;
+            let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
             Ok(ForEachBinding::Using {
                 asynchrony: using_asynchrony,
                 pattern,
@@ -255,10 +251,7 @@ impl Parser {
                     .not_in_position()
                     .in_for_each()
                     .in_before_block();
-                let old_options = self.swap_options(pattern_options);
-                let pattern_result = self.eat_pattern();
-                self.restore_options(old_options);
-                let pattern = pattern_result?;
+                let pattern = self.with_options(pattern_options, |parser| parser.eat_pattern())?;
                 Ok(ForEachBinding::Pattern {
                     pattern,
                     declaration_kind,
@@ -315,10 +308,9 @@ impl Parser {
 
             // condition
             let condition_options = self.options.not_in_position();
-            let old_options = self.swap_options(condition_options);
-            let condition_result = self.eat_expression_parenthesized_maybe();
-            self.restore_options(old_options);
-            let condition_id = condition_result?;
+            let condition_id = self.with_options(condition_options, |parser| {
+                parser.eat_expression_parenthesized_maybe()
+            })?;
 
             // while
             let while_id = self.tree.insert(
@@ -338,10 +330,9 @@ impl Parser {
 
             // condition
             let condition_options = self.options.not_in_position().in_before_block();
-            let old_options = self.swap_options(condition_options);
-            let condition_result = self.eat_expression_parenthesized_maybe();
-            self.restore_options(old_options);
-            let condition_id = condition_result?;
+            let condition_id = self.with_options(condition_options, |parser| {
+                parser.eat_expression_parenthesized_maybe()
+            })?;
 
             // body
             let body_id = self.eat_block_or_statement()?;

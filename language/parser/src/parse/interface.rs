@@ -103,16 +103,10 @@ impl Parser {
             // parse interface members in type context for typescript
             let members = if self.language.is_typescript() {
                 let member_options = self.options.nested().in_variant().in_type();
-                let old_options = self.swap_options(member_options);
-                let members_result = self.eat_members(true);
-                self.restore_options(old_options);
-                members_result.for_node_type(NodeType::Declaration)?
+                self.with_options(member_options, |parser| parser.eat_members(true))?
             } else {
                 let member_options = self.options.nested().in_variant();
-                let old_options = self.swap_options(member_options);
-                let members_result = self.eat_members(true);
-                self.restore_options(old_options);
-                members_result.for_node_type(NodeType::Declaration)?
+                self.with_options(member_options, |parser| parser.eat_members(true))?
             };
             self.eat_token(TokenType::CloseBrace)
                 .for_node_type(NodeType::Declaration)?;
@@ -137,11 +131,11 @@ impl Parser {
             }
 
             // attach declaration header-to-body boundary annotations before `{`
-            self.attach_boundary(
+            self.bind_annotation_seam(
                 body_cursor.index,
                 body_cursor.skipped_newline_count.saturating_add(1),
                 interface_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Infix,
+                super::annotation::AnnotationSeamKind::Infix,
             );
 
             Ok(interface_id)
@@ -158,9 +152,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
-        Expression, FunctionMode, IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral,
-        TypeKind, TypeLiteral, VarianceModifier, WhereClause,
+        Annotation, AnnotationPosition, BinaryOperator, BindingKind, Comment, CommentStyle,
+        Declaration, DeclarationDescriptor, DeclarationKind, Expression, FunctionMode, IntType,
+        Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeKind, TypeLiteral,
+        VarianceModifier, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -924,6 +919,38 @@ interface Add<T, R = Self> {
                 assert_node!(parser.tree, members[4], Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), .. } => {
                     assert_string!(parser, *name, "attributes");
                     assert_expression_path!(parser, parser.tree.get(*ty), "WebIDLExtendedAttributes");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
+        let mut test = TestParser::new_with_options(
+            "interface Shape // interface-head\n{\n  area: number\n}",
+            destack_source::LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Interface { .. } => {});
+
+            let annotations = parser.tree.get_annotations(declaration_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Slash);
+                    assert_string!(parser, *string, "interface-head");
                 });
             });
         });

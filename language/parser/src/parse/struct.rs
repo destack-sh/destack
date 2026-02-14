@@ -1,5 +1,6 @@
 #![allow(clippy::type_complexity)]
 
+use super::annotation::AnnotationSeamKind;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
@@ -71,6 +72,9 @@ impl Parser {
             None
         };
 
+        // declaration head boundary before generics or heritage clauses
+        let declaration_head_cursor = self.normalize_to_scanner_cursor();
+
         // optional static parameters: < ... >
         let static_parameters = self
             .eat_static_parameters_maybe(false)
@@ -102,10 +106,9 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
         let member_options = self.options.nested().in_variant();
-        let old_options = self.swap_options(member_options);
-        let members_result = self.eat_members(false);
-        self.restore_options(old_options);
-        let members = members_result.for_node_type(NodeType::Declaration)?;
+        let members_result =
+            self.with_options(member_options, |parser| parser.eat_members(false))?;
+        let members = members_result;
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
 
@@ -134,12 +137,20 @@ impl Parser {
             self.tree.set_main_span(declaration_id, span);
         }
 
+        // attach declaration-head boundary comments inside the declaration header
+        self.bind_annotation_seam(
+            declaration_head_cursor.index,
+            declaration_head_cursor.skipped_newline_count,
+            declaration_id.id,
+            AnnotationSeamKind::Infix,
+        );
+
         // attach declaration header-to-body boundary annotations before `{`
-        self.attach_boundary(
+        self.bind_annotation_seam(
             body_cursor.index,
             body_cursor.skipped_newline_count.saturating_add(1),
             declaration_id.id,
-            crate::parse::annotation::AnnotationBoundaryKind::Infix,
+            AnnotationSeamKind::Infix,
         );
 
         Ok(declaration_id)
@@ -149,9 +160,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
-        Expression, IntType, Key, Member, Name, Parameter, ScalarLiteral, TypeLiteral, Visibility,
-        WhereClause,
+        Annotation, AnnotationPosition, BinaryOperator, BindingKind, Comment, CommentStyle,
+        Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType, Key, Member,
+        Name, Parameter, ScalarLiteral, TypeLiteral, Visibility, WhereClause,
     };
     use destack_source::{LanguageType, NodeSpanType};
 
@@ -293,6 +304,31 @@ struct Foo extends Bar {}
     }
 
     #[test]
+    fn test_parse_class_preserves_parenthesized_decorated_extends_head() {
+        let mut test = TestParser::new_with_options(
+            "class Outer extends (@deco class Base {}) {}",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
+            .unwrap();
+        assert_node!(parser.tree, class_id, Declaration::Class { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
+            assert_eq!(extends_types.len(), 1);
+            assert_node!(parser.tree, extends_types[0], Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+                        assert_string!(parser, descriptor.name.unwrap().string(), "Base");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_class_with_multiple_extends_for_lineage_validation() {
         let mut test = TestParser::new(
             r###"
@@ -340,6 +376,132 @@ class Counter extends {}
 
             let extends_types = heritage.extends_types.as_ref().expect("expected extends clause");
             assert!(extends_types.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_class_superclass_boundary_comment_on_super_type() {
+        let mut test = TestParser::new_with_options(
+            r"class Child extends Base // extends-tail
+{
+  value = 1
+}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+                let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+                assert_eq!(extends_types.len(), 1);
+
+                let annotations = parser.tree.get_annotations(extends_types[0].id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "extends-tail");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_class_implement_list_comments_on_interface_types() {
+        let mut test = TestParser::new_with_options(
+            r"class Child implements First, // impl-first
+Second // impl-second
+{
+  value = 1
+}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+                let implements_types = heritage
+                    .implements_types
+                    .as_ref()
+                    .expect("expected implements types");
+                assert_eq!(implements_types.len(), 2);
+
+                let first_annotations = parser.tree.get_annotations(implements_types[0].id);
+                assert!(first_annotations.is_empty());
+
+                let second_annotations = parser.tree.get_annotations(implements_types[1].id);
+                assert_eq!(second_annotations.len(), 2);
+
+                assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "impl-first");
+                    });
+                });
+                assert_node!(parser.tree, second_annotations[1], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "impl-second");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() {
+        let mut test = TestParser::new_with_options(
+            r"declare class Box // box-head
+<T> implements Item<T>, Other {
+  value: T
+}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { .. } => {});
+
+            let annotations = parser.tree.get_annotations(declaration_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Slash);
+                    assert_string!(parser, *string, "box-head");
+                });
+            });
         });
     }
 

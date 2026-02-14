@@ -272,22 +272,13 @@ impl Parser {
                     self.tree.set_main_span(pattern_id, name_span);
                     pattern_id
                 } else {
-                    let old_options = self.swap_options(pattern_options);
-                    let pattern_result = self.eat_pattern();
-                    self.restore_options(old_options);
-                    pattern_result?
+                    self.with_options(pattern_options, |parser| parser.eat_pattern())?
                 }
             } else {
-                let old_options = self.swap_options(pattern_options);
-                let pattern_result = self.eat_pattern();
-                self.restore_options(old_options);
-                pattern_result?
+                self.with_options(pattern_options, |parser| parser.eat_pattern())?
             }
         } else {
-            let old_options = self.swap_options(pattern_options);
-            let pattern_result = self.eat_pattern();
-            self.restore_options(old_options);
-            pattern_result?
+            self.with_options(pattern_options, |parser| parser.eat_pattern())?
         };
 
         // declaration declarators must use binding patterns

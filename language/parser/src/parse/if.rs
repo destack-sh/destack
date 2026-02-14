@@ -25,10 +25,9 @@ impl Parser {
         }
 
         let statement_options = self.options.in_before_block();
-        let old_options = self.swap_options(statement_options);
-        let expression_result = self.eat_statement_expression_in_current_options();
-        self.restore_options(old_options);
-        let expression_id = expression_result?;
+        let expression_id = self.with_options(statement_options, |parser| {
+            parser.eat_statement_expression_in_current_options()
+        })?;
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
@@ -91,13 +90,13 @@ impl Parser {
 
         // condition
         let condition_options = self.options.nested().in_before_block();
-        let old_options = self.swap_options(condition_options);
-        let condition_result: ParseResult<IfCondition> =
-            if matches!(self.peek_any_keyword().ok(), Some(Keyword::Let))
-                || self.peek_mutability_is()
+        let condition: IfCondition = self.with_options(condition_options, |parser| {
+            if matches!(parser.peek_any_keyword().ok(), Some(Keyword::Let))
+                || parser.peek_mutability_is()
             {
-                self.eat_let_kind().and_then(|(kind, mutability)| {
-                    self.eat_declarator(true, true)
+                parser.eat_let_kind().and_then(|(kind, mutability)| {
+                    parser
+                        .eat_declarator(true, true)
                         .map(|declarator| IfCondition::Let {
                             kind,
                             mutability,
@@ -105,33 +104,26 @@ impl Parser {
                         })
                 })
             } else {
-                self.eat_expression_parenthesized_maybe()
+                parser
+                    .eat_expression_parenthesized_maybe()
                     .map(|condition| IfCondition::Expression { condition })
-            };
-        self.restore_options(old_options);
-        let condition = condition_result?;
+            }
+        })?;
 
         // keep inline condition-head boundary comments on the parsed condition expression
         if let IfCondition::Expression {
             condition: condition_expression_id,
         } = &condition
         {
-            self.attach_current_boundary(
-                condition_expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                    crate::parse::annotation::TrailingAnnotationKind::PreserveLinePostfix,
-                ),
-            );
+            self.bind_owner_trailing_default_at_current(condition_expression_id.id);
         }
 
         self.eat_newlines_maybe()?;
 
         // then block
         let then_options = self.options.in_statement_position();
-        let old_options = self.swap_options(then_options);
-        let then_expression_result = self.eat_expression_as_block();
-        self.restore_options(old_options);
-        let then_expression_id = then_expression_result?;
+        let then_expression_id =
+            self.with_options(then_options, |parser| parser.eat_expression_as_block())?;
 
         // allow semicolons between then and else branches in JS/TS
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
@@ -142,31 +134,21 @@ impl Parser {
         // if / else if / else node
         let else_expression_id = if self.is_keyword_after_newlines(Keyword::Else) {
             // keep inline then-to-else boundary comments on the then expression
-            self.attach_current_boundary(
-                then_expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                    crate::parse::annotation::TrailingAnnotationKind::Default,
-                ),
-            );
+            self.bind_owner_trailing_default_at_current(then_expression_id.id);
 
             self.eat_newlines_maybe()?;
             let else_cursor = self.peek_cursor();
             self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
             let else_options = self.options.in_statement_position();
-            let old_options = self.swap_options(else_options);
-            let else_expression_result = self.eat_expression_as_block();
-            self.restore_options(old_options);
-            let else_expression_id = else_expression_result?;
+            let else_expression_id =
+                self.with_options(else_options, |parser| parser.eat_expression_as_block())?;
 
             // keep own-line comments before `else` attached to the else branch expression
-            self.attach_boundary(
-                else_cursor.index,
-                else_cursor.skipped_newline_count,
+            self.bind_owner_leading_seam_at_cursor(
                 else_expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Statement,
-                ),
+                else_cursor,
+                super::annotation::LeadingAnnotationKind::Statement,
             );
 
             Some(else_expression_id)
@@ -190,12 +172,14 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Block, Declarator, Expression, IfCondition, LetKind, Mutability, Pattern,
-        PatternField, ScalarLiteral,
+        Annotation, AnnotationPosition, BinaryOperator, Block, Comment, CommentStyle, Declarator,
+        Expression, IfCondition, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_name, assert_node, assert_path};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_if_basic() {
@@ -708,6 +692,72 @@ else
                 });
             });
             assert_node!(parser.tree, *then_expression, Expression::Block(_));
+        });
+    }
+
+    #[test]
+    fn test_parse_if_head_trailing_comment_on_condition_owner() {
+        let mut test = TestParser::new_with_options(
+            "if (ready) // if-head\n    run()",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::If { condition, .. } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+
+            let annotations = parser.tree.get_annotations(condition_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Slash);
+                    assert_string!(parser, *string, "if-head");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_else_boundary_comment_on_else_owner() {
+        let mut test = TestParser::new_with_options(
+            "if (ready) {\n  run()\n}\n// else-boundary\nelse {\n  stop()\n}\n",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
+            let else_expression_id = else_expression.expect("expected else expression");
+            let annotations = parser.tree.get_annotations(else_expression_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Slash);
+                    assert_string!(parser, *string, "else-boundary");
+                });
+            });
         });
     }
 }
