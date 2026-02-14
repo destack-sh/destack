@@ -1,13 +1,16 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, Decorator,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property,
-    Timing, TokenType, Visibility,
+    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, Expression,
+    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property, Timing, TokenType,
+    Visibility,
 };
 use destack_source::NodeSpanType;
 
+use super::annotation::{
+    AnnotationSeamKind, LeadingAnnotationKind, PendingDecorators, TrailingAnnotationKind,
+};
 use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -332,10 +335,8 @@ impl Parser {
                 .options
                 .with_generator(is_generator)
                 .with_forbid_yield(is_generator);
-            let old_options = self.swap_options(parameter_options);
-            let dynamic_parameters_result = self.eat_dynamic_parameters();
-            self.restore_options(old_options);
-            let dynamic_parameters = dynamic_parameters_result?;
+            let dynamic_parameters =
+                self.with_options(parameter_options, |parser| parser.eat_dynamic_parameters())?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -346,15 +347,17 @@ impl Parser {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let return_type_cursor = self.normalize_to_scanner_cursor();
-                let return_type =
-                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
-                self.attach_boundary(
-                    return_type_cursor.index,
-                    return_type_cursor.skipped_newline_count,
+                let return_type = self.eat_expression(
+                    self.options
+                        .nested()
+                        .in_type()
+                        .in_before_block()
+                        .without_expression_leading_annotations(),
+                )?;
+                self.bind_owner_leading_seam_at_cursor(
                     return_type.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Expression,
-                    ),
+                    return_type_cursor,
+                    super::annotation::LeadingAnnotationKind::Wrapper,
                 );
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
@@ -375,12 +378,7 @@ impl Parser {
             {
                 // attach method return-type boundary annotations before `{`
                 if let Some(return_type_id) = return_type {
-                    self.attach_current_boundary(
-                        return_type_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
-                    );
+                    self.bind_owner_trailing_default_at_current(return_type_id.id);
                 }
 
                 self.eat_newlines_maybe()?;
@@ -393,12 +391,7 @@ impl Parser {
                 Some(self.eat_expression(options)?)
             } else {
                 if let Some(return_type_id) = return_type {
-                    self.attach_current_boundary(
-                        return_type_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
-                    );
+                    self.bind_owner_trailing_default_at_current(return_type_id.id);
                 }
                 None
             };
@@ -534,7 +527,7 @@ impl Parser {
         // eat everything
         let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
         let mut last_property_id: Option<LocalNodeId<Property>> = None;
-        let mut pending_property_decorators: Vec<LocalNodeId<Decorator>> = Vec::new();
+        let mut pending_property_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
             let cursor = self.normalize_to_scanner_cursor();
@@ -543,31 +536,35 @@ impl Parser {
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if let Some(last_property_id) = last_property_id {
-                    self.attach_boundary(
-                        cursor.index,
-                        cursor.skipped_newline_count,
+                    self.bind_owner_close_postfix_trailing_line_and_default_seams(
                         last_property_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                            crate::parse::annotation::BlankBoundaryKind::Postfix,
-                        ),
-                    );
-                    self.attach_current_boundary(
-                        last_property_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                    );
-                    self.attach_current_boundary(
-                        last_property_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
+                        cursor,
                     );
                 }
                 break;
             }
             // consume decorator prefixes in type literal properties
             else if self.options.in_type && token_type == TokenType::At {
-                let mut decorators = self.eat_decorators_prefix_collect_maybe()?;
-                pending_property_decorators.append(&mut decorators);
+                let decorators = self.eat_decorators_maybe()?;
+                pending_property_decorators.extend(decorators);
+                continue;
+            }
+            // consume comma separators with explicit boundary ownership for the previous property
+            else if token_type == TokenType::Comma {
+                if let Some(last_property_id) = last_property_id {
+                    self.bind_owner_trailing_line_and_default_at_current(last_property_id.id);
+                }
+
+                self.eat_item_stop_with_newlines()?;
+                if let Some(last_property_id) = last_property_id {
+                    let next_property_cursor = self.normalize_to_scanner_cursor();
+                    self.bind_annotation_seam(
+                        next_property_cursor.index,
+                        next_property_cursor.skipped_newline_count,
+                        last_property_id.id,
+                        AnnotationSeamKind::TrailingLineBoundary,
+                    );
+                }
                 continue;
             }
             // consume any stop
@@ -577,29 +574,14 @@ impl Parser {
             }
             // keep eating properties
             else {
-                let property_token_index = cursor.index;
-                let property_skipped_newline_count = cursor.skipped_newline_count;
                 match self.try_eat_property(TokenType::Newline) {
                     Ok(property_id) => {
-                        if !pending_property_decorators.is_empty() {
-                            self.attach_decorators_to_target(
-                                std::mem::take(&mut pending_property_decorators),
-                                property_id.id,
-                            );
-                        }
-                        self.attach_boundary(
-                            property_token_index,
-                            property_skipped_newline_count,
+                        self.bind_prefixed_owner_with_decorators_and_trailing_at_current(
                             property_id.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                                crate::parse::annotation::LeadingAnnotationKind::Expression,
-                            ),
-                        );
-                        self.attach_current_boundary(
-                            property_id.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                                crate::parse::annotation::TrailingAnnotationKind::Default,
-                            ),
+                            cursor,
+                            LeadingAnnotationKind::Expression,
+                            TrailingAnnotationKind::Default,
+                            &mut pending_property_decorators,
                         );
                         last_property_id = Some(property_id);
                         properties.push(property_id);
@@ -883,10 +865,9 @@ impl Parser {
 
         // key
         let key_options = self.options.allow_private_hash_key();
-        let old_options = self.swap_options(key_options);
-        let key_result = self.eat_key_maybe_with_span();
-        self.restore_options(old_options);
-        let (key, key_span) = if let Some((key, span)) = key_result? {
+        let key_result =
+            self.with_options(key_options, |parser| parser.eat_key_maybe_with_span())?;
+        let (key, key_span) = if let Some((key, span)) = key_result {
             (Some(key), Some(span))
         } else {
             (None, None)
@@ -1014,10 +995,8 @@ impl Parser {
                 .options
                 .with_generator(is_generator)
                 .with_forbid_yield(is_generator);
-            let old_options = self.swap_options(parameter_options);
-            let dynamic_parameters_result = self.eat_dynamic_parameters();
-            self.restore_options(old_options);
-            let dynamic_parameters = dynamic_parameters_result?;
+            let dynamic_parameters =
+                self.with_options(parameter_options, |parser| parser.eat_dynamic_parameters())?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -1028,15 +1007,17 @@ impl Parser {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let return_type_cursor = self.normalize_to_scanner_cursor();
-                let return_type =
-                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
-                self.attach_boundary(
-                    return_type_cursor.index,
-                    return_type_cursor.skipped_newline_count,
+                let return_type = self.eat_expression(
+                    self.options
+                        .nested()
+                        .in_type()
+                        .in_before_block()
+                        .without_expression_leading_annotations(),
+                )?;
+                self.bind_owner_leading_seam_at_cursor(
                     return_type.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Expression,
-                    ),
+                    return_type_cursor,
+                    super::annotation::LeadingAnnotationKind::Wrapper,
                 );
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
@@ -1057,12 +1038,7 @@ impl Parser {
             {
                 // attach method return-type boundary annotations before `{`
                 if let Some(return_type_id) = return_type {
-                    self.attach_current_boundary(
-                        return_type_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
-                    );
+                    self.bind_owner_trailing_default_at_current(return_type_id.id);
                 }
 
                 self.eat_newlines_maybe()?;
@@ -1075,12 +1051,7 @@ impl Parser {
                 Some(self.eat_expression(options)?)
             } else {
                 if let Some(return_type_id) = return_type {
-                    self.attach_current_boundary(
-                        return_type_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
-                    );
+                    self.bind_owner_trailing_default_at_current(return_type_id.id);
                 }
                 None
             };
@@ -1219,7 +1190,7 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
         let mut last_member_id: Option<LocalNodeId<Member>> = None;
-        let mut pending_member_decorators: Vec<(LocalNodeId<Decorator>, usize, usize)> = Vec::new();
+        let mut pending_member_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
             let cursor = self.normalize_to_scanner_cursor();
@@ -1228,23 +1199,9 @@ impl Parser {
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if let Some(last_member_id) = last_member_id {
-                    self.attach_boundary(
-                        cursor.index,
-                        cursor.skipped_newline_count,
+                    self.bind_owner_close_postfix_trailing_line_and_default_seams(
                         last_member_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                            crate::parse::annotation::BlankBoundaryKind::Postfix,
-                        ),
-                    );
-                    self.attach_current_boundary(
-                        last_member_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                    );
-                    self.attach_current_boundary(
-                        last_member_id.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
+                        cursor,
                     );
                 }
                 break;
@@ -1260,56 +1217,18 @@ impl Parser {
             }
             // consume decorator prefixes
             else if token_type == TokenType::At {
-                let decorators_with_cursors =
-                    self.eat_decorators_prefix_collect_with_cursors_maybe()?;
-                pending_member_decorators.extend(decorators_with_cursors);
+                let decorators = self.eat_decorators_maybe()?;
+                pending_member_decorators.extend(decorators);
                 continue;
             }
             // keep eating members
             else {
-                let member_token_index = cursor.index;
-                let member_skipped_newline_count = cursor.skipped_newline_count;
                 match self.try_eat_member(TokenType::Newline) {
                     Ok(member_id) => {
-                        if !pending_member_decorators.is_empty() {
-                            for (
-                                decorator_id,
-                                decorator_token_index,
-                                decorator_skipped_newline_count,
-                            ) in pending_member_decorators.drain(..)
-                            {
-                                self.attach_boundary(
-                                    decorator_token_index,
-                                    decorator_skipped_newline_count,
-                                    member_id.id,
-                                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                                        crate::parse::annotation::LeadingAnnotationKind::Statement,
-                                    ),
-                                );
-                                self.attach_boundary(
-                                    decorator_token_index,
-                                    decorator_skipped_newline_count,
-                                    member_id.id,
-                                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                                        crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                                    ),
-                                );
-                                self.attach_decorator_to_target(decorator_id, member_id.id);
-                            }
-                        }
-                        self.attach_boundary(
-                            member_token_index,
-                            member_skipped_newline_count,
+                        self.bind_statement_owner_with_decorators_and_default_trailing_at_current(
                             member_id.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                                crate::parse::annotation::LeadingAnnotationKind::Statement,
-                            ),
-                        );
-                        self.attach_current_boundary(
-                            member_id.id,
-                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                                crate::parse::annotation::TrailingAnnotationKind::Default,
-                            ),
+                            cursor,
+                            &mut pending_member_decorators,
                         );
                         last_member_id = Some(member_id);
                         members.push(member_id);
@@ -1325,10 +1244,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AbstractionModifier, Argument, Asynchrony, BinaryOperator, BindingAnchor, BindingKind,
-        Block, Declaration, DeclarationKind, Expression, FunctionAbstraction, FunctionKind,
-        FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
-        TypePredicateSubject, Visibility,
+        AbstractionModifier, Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator,
+        BindingAnchor, BindingKind, Block, Comment, CommentStyle, Declaration, DeclarationKind,
+        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name,
+        Parameter, Property, ScalarLiteral, TypeLiteral, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1357,6 +1276,20 @@ mod tests {
             assert_eq!(modifiers.kind, Some(BindingKind::Must));
             assert_string!(parser, *name, "prop");
             assert_expression_path!(parser, parser.tree.get(*value), "Foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_accessor_definite_assignment() {
+        let mut test = TestParser::new_with_options("accessor a!: any", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_eq!(modifiers.accessor, Some(destack_ast::AccessorKind::Accessor));
+            assert_eq!(modifiers.kind, Some(BindingKind::Must));
+            assert_string!(parser, *name, "a");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
         });
     }
 
@@ -1911,6 +1844,53 @@ foo(): string;"#,
                 assert!(!asserts);
                 assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
                 assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_class_member_trailing_comments_stay_on_member_owner() {
+        let mut test = TestParser::new_with_options(
+            r#"class Box {
+  first = 1 // first-tail
+  second = 2 // second-tail
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+                assert_eq!(members.len(), 2);
+
+                let first_annotations = parser.tree.get_annotations(members[0].id);
+                assert_eq!(first_annotations.len(), 1);
+                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "first-tail");
+                    });
+                });
+
+                let second_annotations = parser.tree.get_annotations(members[1].id);
+                assert_eq!(second_annotations.len(), 1);
+                assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "second-tail");
+                    });
+                });
             });
         });
     }

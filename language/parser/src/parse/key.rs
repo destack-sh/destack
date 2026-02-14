@@ -610,10 +610,8 @@ impl Parser {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let key_options = self.options.not_in_left_precedence().in_type();
-                let old_options = self.swap_options(key_options);
-                let key_result = self.eat_expression(self.options);
-                self.restore_options(old_options);
-                let key_type = key_result?;
+                let key_type =
+                    self.with_options(key_options, |parser| parser.eat_expression(parser.options))?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok(Key::NamedExpression {
                     name,
@@ -676,10 +674,8 @@ impl Parser {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let key_options = self.options.not_in_left_precedence().in_type();
-                let old_options = self.swap_options(key_options);
-                let key_result = self.eat_expression(self.options);
-                self.restore_options(old_options);
-                let key_type = key_result?;
+                let key_type =
+                    self.with_options(key_options, |parser| parser.eat_expression(parser.options))?;
                 self.eat_token(TokenType::CloseBracket)?;
                 Ok((
                     Key::NamedExpression {

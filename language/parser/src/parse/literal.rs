@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use super::annotation::{AnnotationSeamKind, LeadingAnnotationKind};
 use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
@@ -728,10 +729,9 @@ impl Parser {
             vec![]
         } else {
             let element_options = self.options.not_in_position().not_in_left_precedence();
-            let old_options = self.swap_options(element_options);
-            let elements_result = self.eat_sequence_literal_body(None, TokenType::CloseBracket);
-            self.restore_options(old_options);
-            elements_result?
+            self.with_options(element_options, |parser| {
+                parser.eat_sequence_literal_body(None, TokenType::CloseBracket)
+            })?
         };
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseBracket)?;
@@ -758,23 +758,9 @@ impl Parser {
             // stop at the closing token (trailing commas are allowed, no hole)
             if token_type == close_token {
                 if let Some(last_element) = elements.last().copied() {
-                    self.attach_boundary(
-                        cursor.index,
-                        cursor.skipped_newline_count,
+                    self.bind_owner_close_postfix_trailing_line_and_default_seams(
                         last_element.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
-                            crate::parse::annotation::BlankBoundaryKind::Postfix,
-                        ),
-                    );
-                    self.attach_current_boundary(
-                        last_element.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                    );
-                    self.attach_current_boundary(
-                        last_element.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                            crate::parse::annotation::TrailingAnnotationKind::Default,
-                        ),
+                        cursor,
                     );
                 }
                 break;
@@ -783,13 +769,11 @@ impl Parser {
             // consume comma separators
             if token_type == TokenType::Comma {
                 let start = self.mark_span();
+                let last_element = elements.last().copied();
 
                 // line comments before the separator belong to the previous element
-                if let Some(last_element) = elements.last().copied() {
-                    self.attach_current_boundary(
-                        last_element.id,
-                        crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                    );
+                if let Some(last_element) = last_element {
+                    self.bind_owner_trailing_line_and_default_at_current(last_element.id);
                 }
 
                 // leading hole: if we expected an element but got separator instead
@@ -810,6 +794,18 @@ impl Parser {
                 // consume optional newlines before comma and then the comma itself
                 self.eat_newlines_maybe()?;
                 self.eat_item_stop_with_newlines()?;
+
+                // separator comments after comma on the same line stay on the previous element
+                if let Some(last_element) = last_element {
+                    let next_element_cursor = self.normalize_to_scanner_cursor();
+                    self.bind_annotation_seam(
+                        next_element_cursor.index,
+                        next_element_cursor.skipped_newline_count,
+                        last_element.id,
+                        AnnotationSeamKind::TrailingLineBoundary,
+                    );
+                }
+
                 expect_element = true;
                 continue;
             }
@@ -820,20 +816,13 @@ impl Parser {
             let element = self
                 .eat_positional_argument()
                 .for_node_type(NodeType::Argument)?;
-            self.attach_boundary(
+            self.bind_annotation_seam(
                 element_token_index,
                 element_skipped_newline_count,
                 element.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Expression,
-                ),
+                AnnotationSeamKind::Leading(LeadingAnnotationKind::Wrapper),
             );
-            self.attach_current_boundary(
-                element.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                    crate::parse::annotation::TrailingAnnotationKind::Default,
-                ),
-            );
+            self.bind_owner_trailing_default_at_current(element.id);
             elements.push(element);
             expect_element = false;
         }
@@ -854,11 +843,7 @@ impl Parser {
         // object literal properties are always expression properties, not variant members
         let mut property_options = self.options;
         property_options.in_variant = false;
-        let old_options = self.options;
-        self.options = property_options;
-        let properties = self.eat_properties();
-        self.options = old_options;
-        let properties = properties?;
+        let properties = self.with_options(property_options, |parser| parser.eat_properties())?;
 
         // JS/TS object shorthand only supports identifier names
         if (self.language.is_javascript() || self.language.is_typescript()) && !self.options.in_type
@@ -1203,10 +1188,7 @@ impl Parser {
             && (self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft))
         {
             let static_options = self.options.not_in_tree_literal();
-            let old_options = self.swap_options(static_options);
-            let static_arguments_result = self.eat_static_arguments();
-            self.restore_options(old_options);
-            Some(static_arguments_result?)
+            Some(self.with_options(static_options, |parser| parser.eat_static_arguments())?)
         } else {
             None
         };
@@ -1228,10 +1210,9 @@ impl Parser {
                         break;
                     }
                     let argument_options = self.options.not_in_position().in_tree_literal();
-                    let old_options = self.swap_options(argument_options);
-                    let argument_result = self.eat_tree_literal_argument();
-                    self.restore_options(old_options);
-                    let argument = argument_result?;
+                    let argument = self.with_options(argument_options, |parser| {
+                        parser.eat_tree_literal_argument()
+                    })?;
                     arguments.push(argument);
                     self.eat_newlines_maybe()?;
                 }
@@ -1328,10 +1309,8 @@ impl Parser {
                         .not_in_position()
                         .in_tree_literal()
                         .in_statement_position();
-                    let old_options = self.swap_options(element_options);
-                    let element_result = self.eat_tree_argument();
-                    self.restore_options(old_options);
-                    let element = element_result?;
+                    let element =
+                        self.with_options(element_options, |parser| parser.eat_tree_argument())?;
                     elements.push(element);
                     self.skip_tree_whitespace()?; // skip whitespace-only tree content
                 }
@@ -1418,9 +1397,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, Declaration, Expression, FloatType, FunctionKind, IfCondition,
-        IfKind, IntType, Name, Parameter, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
-        TypeLiteral,
+        Annotation, AnnotationPosition, Argument, BinaryOperator, Comment, CommentStyle,
+        Declaration, Expression, FloatType, FunctionKind, IfCondition, IfKind, IntType, Name,
+        Parameter, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -3603,5 +3582,57 @@ function app() {
         // reject JSX after expression newline
         let result = parser.eat_expression(parser.options);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_object_property_trailing_comments_on_property_owners() {
+        let mut test = TestParser::new(
+            r#"const config = {
+  first: 1, // first-tail
+  second: 2 /* second-tail */
+}"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let statement_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, statement_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            let value = parser
+                .tree
+                .get(declarators[0])
+                .value
+                .expect("expected declarator value");
+            assert_node!(parser.tree, value, Expression::ObjectExpression { properties, .. } => {
+                assert_eq!(properties.len(), 2);
+
+                let first_annotations = parser.tree.get_annotations(properties[0].id);
+                assert_eq!(first_annotations.len(), 1);
+                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "first-tail");
+                    });
+                });
+
+                let second_annotations = parser.tree.get_annotations(properties[1].id);
+                assert_eq!(second_annotations.len(), 1);
+                assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Star);
+                        assert_string!(parser, *string, "second-tail");
+                    });
+                });
+            });
+        });
     }
 }

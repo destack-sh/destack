@@ -359,11 +359,9 @@ impl Parser {
                 if self.options.in_type_conditional_right {
                     value_options = value_options.in_type_conditional_right();
                 }
-                let old_options = self.swap_options(value_options);
-                let value_id_result =
-                    self.eat_type_expression_with_optional_leading_binary_operator();
-                self.restore_options(old_options);
-                let value_id = value_id_result?;
+                let value_id = self.with_options(value_options, |parser| {
+                    parser.eat_type_expression_with_optional_leading_binary_operator()
+                })?;
                 if let Some(name) = descriptor.name.as_ref() {
                     self.apply_intrinsic_type_literal(name, value_id);
                 }
@@ -393,10 +391,9 @@ impl Parser {
                 if self.options.in_type_conditional_right {
                     right_options = right_options.in_type_conditional_right();
                 }
-                let old_options = self.swap_options(right_options);
-                let right_result = self.eat_type_expression_with_optional_leading_binary_operator();
-                self.restore_options(old_options);
-                let right = right_result?;
+                let right = self.with_options(right_options, |parser| {
+                    parser.eat_type_expression_with_optional_leading_binary_operator()
+                })?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
                 } else if kind == TypeKind::Nominal {
@@ -414,10 +411,9 @@ impl Parser {
             if self.options.in_type_conditional_right {
                 right_options = right_options.in_type_conditional_right();
             }
-            let old_options = self.swap_options(right_options);
-            let right_result = self.eat_type_expression_with_optional_leading_binary_operator();
-            self.restore_options(old_options);
-            let right = right_result?;
+            let right = self.with_options(right_options, |parser| {
+                parser.eat_type_expression_with_optional_leading_binary_operator()
+            })?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
             } else if kind == TypeKind::Nominal {
@@ -662,13 +658,12 @@ impl Parser {
 
         // positional arguments
         let argument_options = self.options.nested().not_in_position();
-        let old_options = self.swap_options(argument_options);
-        let arguments_result = self.eat_positional_arguments_body(
-            TokenType::CloseParenthesis,
-            Some(open_parenthesis_token_index),
-        );
-        self.restore_options(old_options);
-        let arguments = arguments_result?;
+        let arguments = self.with_options(argument_options, |parser| {
+            parser.eat_positional_arguments_body(
+                TokenType::CloseParenthesis,
+                Some(open_parenthesis_token_index),
+            )
+        })?;
 
         // close argument list
         self.eat_newlines_maybe()?;
@@ -713,10 +708,9 @@ impl Parser {
 
         // arguments
         let argument_options = self.options.nested().not_in_position();
-        let old_options = self.swap_options(argument_options);
-        let arguments_result = self.eat_type_import_arguments();
-        self.restore_options(old_options);
-        let arguments = arguments_result?;
+        let arguments = self.with_options(argument_options, |parser| {
+            parser.eat_type_import_arguments()
+        })?;
 
         // target
         if arguments.is_empty() {
@@ -976,15 +970,13 @@ impl Parser {
             self.options
                 .not_in_position()
                 .not_in_left_precedence()
-                .in_type(),
+                .in_type()
+                .without_expression_leading_annotations(),
         )?;
-        self.attach_boundary(
-            value_cursor.index,
-            value_cursor.skipped_newline_count,
+        self.bind_owner_leading_seam_at_cursor(
             value.id,
-            crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                crate::parse::annotation::LeadingAnnotationKind::Expression,
-            ),
+            value_cursor,
+            super::annotation::LeadingAnnotationKind::Wrapper,
         );
         self.eat_newlines_maybe()?;
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
@@ -1068,8 +1060,13 @@ impl Parser {
         }
 
         // parse extends clause
+        let extends_cursor = self.peek_cursor();
         self.bump(); // eat extends
-        self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where], false)
+        self.eat_super_type_list_maybe(
+            &[Keyword::Implements, Keyword::With, Keyword::Where],
+            false,
+            Some((extends_cursor.index, extends_cursor.skipped_newline_count)),
+        )
     }
 
     /// Eat extends expressions maybe.
@@ -1092,8 +1089,13 @@ impl Parser {
         }
 
         // parse extends clause
+        let extends_cursor = self.peek_cursor();
         self.bump(); // eat extends
-        self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where], true)
+        self.eat_super_type_list_maybe(
+            &[Keyword::Implements, Keyword::With, Keyword::Where],
+            true,
+            Some((extends_cursor.index, extends_cursor.skipped_newline_count)),
+        )
     }
 
     /// Eat implements types maybe.
@@ -1115,8 +1117,16 @@ impl Parser {
         }
 
         // parse implements clause
+        let implements_cursor = self.peek_cursor();
         self.bump(); // eat implements
-        self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where], false)
+        self.eat_super_type_list_maybe(
+            &[Keyword::With, Keyword::Where],
+            false,
+            Some((
+                implements_cursor.index,
+                implements_cursor.skipped_newline_count,
+            )),
+        )
     }
 
     /// Eat a super type clause maybe.
@@ -1125,6 +1135,7 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
         enforce_class_extends_head: bool,
+        clause_cursor: Option<(usize, usize)>,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         // type heritage may be wrapped in parentheses as a list container
         let is_parenthesized_type_list =
@@ -1147,10 +1158,9 @@ impl Parser {
                 .in_super_type()
                 .not_in_new_receiver()
         };
-        let old_options = self.swap_options(options);
-        let types_result = self.eat_super_type_list(terminators, enforce_class_extends_head);
-        self.restore_options(old_options);
-        let types = types_result?;
+        let types = self.with_options(options, |parser| {
+            parser.eat_super_type_list(terminators, enforce_class_extends_head, clause_cursor)
+        })?;
 
         // close the optional parenthesized type list
         if is_parenthesized_type_list {
@@ -1188,9 +1198,11 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
         enforce_class_extends_head: bool,
+        clause_cursor: Option<(usize, usize)>,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         // super type list
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
+        let mut last_type_id: Option<LocalNodeId<Expression>> = None;
         let mut expect_type = true;
 
         // TS/JS require explicit comma separators in type heritage lists
@@ -1201,6 +1213,14 @@ impl Parser {
         while self.has_more_tokens() {
             // stop at clause terminators
             if self.is_super_type_clause_terminator(terminators) {
+                // trailing boundary comments before clause terminators belong to the final type
+                if let Some(last_type_id) = last_type_id
+                    && !expect_type
+                {
+                    let cursor = self.normalize_to_scanner_cursor();
+                    self.bind_owner_trailing_line_and_default_at_cursor(last_type_id.id, cursor);
+                }
+
                 // reject trailing commas in heritage clauses
                 if expect_type && !types.is_empty() {
                     return Err(ParseError::unexpected(self.peek()?.span));
@@ -1218,6 +1238,18 @@ impl Parser {
                         .iter()
                         .any(|terminator| self.keyword_for_index(next_index) == Some(*terminator));
                 if is_terminator_after_newline {
+                    // keep clause-tail comments on the final type before terminating newline
+                    if let Some(last_type_id) = last_type_id
+                        && !expect_type
+                    {
+                        let skipped_newline_count = next_index.saturating_sub(current_index);
+                        self.bind_owner_trailing_line_and_default_at_token(
+                            last_type_id.id,
+                            next_index,
+                            skipped_newline_count,
+                        );
+                    }
+
                     // reject trailing commas in heritage clauses
                     if expect_type && !types.is_empty() {
                         return Err(ParseError::unexpected(self.peek()?.span));
@@ -1232,12 +1264,28 @@ impl Parser {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
                 if !expect_type {
+                    // preserve comments before newline-separated heritage entries
+                    if let Some(last_type_id) = last_type_id {
+                        let cursor = self.peek_cursor();
+                        self.bind_owner_trailing_line_and_default_at_cursor(
+                            last_type_id.id,
+                            cursor,
+                        );
+                    }
                     expect_type = true;
                 }
                 continue;
             }
             // consume explicit comma separators
             else if self.peek_is(TokenType::Comma) {
+                // attach pre-comma trailing comments to the preceding super type
+                if let Some(last_type_id) = last_type_id
+                    && !expect_type
+                {
+                    let cursor = self.peek_cursor();
+                    self.bind_owner_trailing_line_and_default_at_cursor(last_type_id.id, cursor);
+                }
+
                 self.eat_item_stop_with_newlines()?;
                 expect_type = true;
             }
@@ -1245,7 +1293,23 @@ impl Parser {
             else if self.is_item_stop() {
                 // end token terminates the clause
                 if self.peek_is(TokenType::End) {
+                    if let Some(last_type_id) = last_type_id
+                        && !expect_type
+                    {
+                        let cursor = self.peek_cursor();
+                        self.bind_owner_trailing_line_and_default_at_cursor(
+                            last_type_id.id,
+                            cursor,
+                        );
+                    }
                     break;
+                }
+
+                if let Some(last_type_id) = last_type_id
+                    && !expect_type
+                {
+                    let cursor = self.peek_cursor();
+                    self.bind_owner_trailing_line_and_default_at_cursor(last_type_id.id, cursor);
                 }
 
                 self.eat_item_stop_with_newlines()?;
@@ -1258,17 +1322,19 @@ impl Parser {
                 }
 
                 // parse the super type expression
+                let type_cursor = self.peek_cursor();
                 let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
                 let type_start = self.mark_span();
                 let ty = self.eat_expression(self.options.in_before_block())?;
                 let (ty, is_parenthesized) = self.unwrap_parenthesized_super_expression(ty);
                 let is_parenthesized = starts_with_parenthesis || is_parenthesized;
                 let super_type_span = self.get_span_from(&type_start);
+                let requires_decorated_class_parenthesized_head = enforce_class_extends_head
+                    && self.super_type_requires_parenthesized_decorated_class_head(ty);
 
                 // decorated class expressions in extends heads should keep explicit grouping
-                let ty = if enforce_class_extends_head
-                    && !is_parenthesized
-                    && self.super_type_requires_parenthesized_decorated_class_head(ty)
+                let ty = if requires_decorated_class_parenthesized_head
+                    && (!is_parenthesized || starts_with_parenthesis)
                 {
                     self.tree.insert(
                         Expression::Parenthesized { expression: ty },
@@ -1289,8 +1355,23 @@ impl Parser {
                 self.tree
                     .set_side_span(ty, NodeSpanType::Type, super_type_span);
 
+                // leading boundary comments at the clause keyword belong to the first type
+                if types.is_empty()
+                    && let Some((clause_index, clause_skipped_newline_count)) = clause_cursor
+                {
+                    self.bind_owner_wrapper_leading_seam_at_token(
+                        ty.id,
+                        clause_index,
+                        clause_skipped_newline_count,
+                    );
+                }
+
+                // type entry boundaries attach to each super type owner
+                self.bind_owner_statement_and_wrapper_leading_seams(ty.id, type_cursor);
+
                 // record the parsed type
                 types.push(ty);
+                last_type_id = Some(ty);
                 expect_type = false;
             }
         }
@@ -1347,11 +1428,11 @@ impl Parser {
 mod tests {
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
     use destack_ast::{
-        Argument, BinaryOperator, BindingKind, BindingModifier, BindingOperator, Declaration,
-        DeclarationKind, Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType,
-        IntrinsicType, Key, Mutability, Name, Parameter, Property, ScalarLiteral,
-        TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypeModifier, TypePredicateSubject,
-        TypeUnaryOperator, UnaryOperator,
+        Annotation, AnnotationPosition, Argument, BinaryOperator, BindingKind, BindingModifier,
+        BindingOperator, Comment, CommentStyle, Declaration, DeclarationKind, Expression,
+        FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
+        Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
 
@@ -4192,5 +4273,83 @@ mod tests {
             "expected no parser errors, got {:?}",
             parser.errors
         );
+    }
+
+    #[test]
+    fn test_parse_type_union_line_comment_on_right_arm_owner() {
+        let mut test = TestParser::new_with_options(
+            "type Value = First | // union-line\nSecond | Third",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*right), "Third");
+                    assert_node!(parser.tree, *left, Expression::Binary { operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        assert_expression_path!(parser, parser.tree.get(*right), "Second");
+
+                        let annotations = parser.tree.get_annotations(right.id);
+                        assert_eq!(annotations.len(), 1);
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(*style, CommentStyle::Slash);
+                                assert_string!(parser, *string, "union-line");
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_intersection_line_comment_on_right_arm_owner() {
+        let mut test = TestParser::new_with_options(
+            "type Value = First & // intersection-line\nSecond",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                    assert_expression_path!(parser, parser.tree.get(*right), "Second");
+
+                    let annotations = parser.tree.get_annotations(right.id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "intersection-line");
+                        });
+                    });
+                });
+            });
+        });
     }
 }

@@ -411,9 +411,9 @@ impl Parser {
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         // collect runtime decorators so validation can check placement
         let decorators = if !self.options.in_type {
-            self.eat_decorators_prefix_collect_maybe()?
+            self.eat_decorators_maybe()?
         } else {
-            Vec::new()
+            smallvec::SmallVec::new()
         };
 
         // capture the parameter start anchor for leading annotation attachment
@@ -602,47 +602,22 @@ impl Parser {
         }
 
         // attach parsed decorators to the parameter node
-        self.attach_decorators_to_target(decorators, parameter_id.id);
+        self.attach_decorators(parameter_id.id, decorators);
 
         // attach own-line parameter prefixes with block semantics first
-        self.attach_boundary(
-            parameter_cursor.index,
-            parameter_cursor.skipped_newline_count,
-            parameter_id.id,
-            crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                crate::parse::annotation::LeadingAnnotationKind::Statement,
-            ),
-        );
-
-        // attach parameter-leading annotations at the parameter start boundary
-        self.attach_boundary(
-            parameter_cursor.index,
-            parameter_cursor.skipped_newline_count,
-            parameter_id.id,
-            crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-            ),
-        );
+        self.bind_owner_statement_and_wrapper_leading_seams(parameter_id.id, parameter_cursor);
 
         // attach type-separator boundary annotations like `value /* marker */ : Type`
         if let Some(type_annotation_marker_index) = type_annotation_marker_index {
-            self.attach_boundary(
+            self.bind_owner_wrapper_leading_seam_at_token(
+                parameter_id.id,
                 type_annotation_marker_index,
                 0,
-                parameter_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                ),
             );
         }
 
         // attach trailing annotations around the parameter tail
-        self.attach_current_boundary(
-            parameter_id.id,
-            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                crate::parse::annotation::TrailingAnnotationKind::Default,
-            ),
-        );
+        self.bind_owner_trailing_default_at_current(parameter_id.id);
 
         Ok(parameter_id)
     }
@@ -655,12 +630,8 @@ impl Parser {
             TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::OpenBrace
         ) || self.language.is_destack() && self.peek_identifier_str_is("_")
         {
-            let pattern = {
-                let old_options = self.swap_options(self.options.in_before_type());
-                let pattern = self.eat_pattern();
-                self.restore_options(old_options);
-                pattern?
-            };
+            let pattern =
+                self.with_options(self.options.in_before_type(), |parser| parser.eat_pattern())?;
             return Ok((Some(pattern), None, None));
         }
 
@@ -814,10 +785,10 @@ impl Parser {
         if self.options.in_type || self.options.in_decorator || self.language.is_typescript() {
             options = options.in_type();
         }
-        let old_options = self.swap_options(options);
-        let parameters = self.eat_parameters_body();
-        self.restore_options(old_options);
-        let parameters = parameters?;
+        let parameters = self.with_options(options, |parser| parser.eat_parameters_body())?;
+        if let Some(last_parameter_id) = parameters.last().copied() {
+            self.bind_owner_trailing_line_and_default_at_current(last_parameter_id.id);
+        }
         self.eat_type_angle_close()?;
         Ok(parameters)
     }
@@ -851,10 +822,11 @@ impl Parser {
         if self.options.in_variant {
             parameter_options = parameter_options.in_variant();
         }
-        let old_options = self.swap_options(parameter_options);
-        let parameters = self.eat_parameters_body();
-        self.restore_options(old_options);
-        let parameters = parameters?;
+        let parameters =
+            self.with_options(parameter_options, |parser| parser.eat_parameters_body())?;
+        if let Some(last_parameter_id) = parameters.last().copied() {
+            self.bind_owner_trailing_line_and_default_at_current(last_parameter_id.id);
+        }
         self.eat_token(TokenType::CloseParenthesis)?;
         Ok(parameters)
     }
@@ -902,9 +874,9 @@ impl Parser {
         let start = self.mark_span();
         let mut modifiers = None;
         let decorators = if !self.options.in_type {
-            self.eat_decorators_prefix_collect_maybe()?
+            self.eat_decorators_maybe()?
         } else {
-            Vec::new()
+            smallvec::SmallVec::new()
         };
 
         // readonly tuple element modifiers in type context
@@ -980,7 +952,7 @@ impl Parser {
             if let Some(label_span) = label_span {
                 self.tree.set_main_span(argument_id, label_span);
             }
-            self.attach_decorators_to_target(decorators, argument_id.id);
+            self.attach_decorators(argument_id.id, decorators);
             return Ok(argument_id);
         }
 
@@ -1017,7 +989,7 @@ impl Parser {
                 self.get_span_from(&start),
             );
             self.tree.set_main_span(argument_id, label_span);
-            self.attach_decorators_to_target(decorators, argument_id.id);
+            self.attach_decorators(argument_id.id, decorators);
             return Ok(argument_id);
         }
 
@@ -1061,7 +1033,7 @@ impl Parser {
             Argument::Positional { modifiers, value },
             self.get_span_from(&start),
         );
-        self.attach_decorators_to_target(decorators, argument_id.id);
+        self.attach_decorators(argument_id.id, decorators);
         Ok(argument_id)
     }
 
@@ -1137,11 +1109,11 @@ impl Parser {
                 let value = self
                     .tree
                     .insert(Expression::Stub, self.get_span_from(&start));
-                self.attach_boundary(
+                self.bind_annotation_seam(
                     close_brace_index,
                     close_brace_skipped_newline_count,
                     value.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Stub,
+                    super::annotation::AnnotationSeamKind::Stub,
                 );
 
                 self.bump(); // eat }
@@ -1174,16 +1146,7 @@ impl Parser {
                 }
 
                 // trailing comments before `}` belong to the spread value
-                self.attach_current_boundary(
-                    value.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                );
-                self.attach_current_boundary(
-                    value.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                        crate::parse::annotation::TrailingAnnotationKind::Default,
-                    ),
-                );
+                self.bind_owner_trailing_line_and_default_at_current(value.id);
 
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBrace)?;
@@ -1214,16 +1177,7 @@ impl Parser {
             }
 
             // trailing comments before `}` belong to the container expression value
-            self.attach_current_boundary(
-                value.id,
-                crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-            );
-            self.attach_current_boundary(
-                value.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                    crate::parse::annotation::TrailingAnnotationKind::Default,
-                ),
-            );
+            self.bind_owner_trailing_line_and_default_at_current(value.id);
 
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
@@ -1355,11 +1309,10 @@ impl Parser {
                 // shorthand array attribute
                 else if self.peek_is(TokenType::OpenBracket) {
                     let value_start = self.mark_span();
-                    let old_options =
-                        self.swap_options(self.options.not_in_position().not_in_tree_literal());
-                    let elements = self.eat_array_literal();
-                    self.restore_options(old_options);
-                    let elements = elements?;
+                    let elements = self.with_options(
+                        self.options.not_in_position().not_in_tree_literal(),
+                        |parser| parser.eat_array_literal(),
+                    )?;
                     self.tree.insert(
                         Expression::ArrayExpression { elements },
                         self.get_span_from(&value_start),
@@ -1370,13 +1323,9 @@ impl Parser {
                     && self.peek_is(TokenType::LessThan)
                     && self.peek_tree_literal().is_ok()
                 {
-                    {
-                        let old_options =
-                            self.swap_options(self.options.not_in_position().in_tree_literal());
-                        let value = self.eat_tree_literal();
-                        self.restore_options(old_options);
-                        value?
-                    }
+                    self.with_options(self.options.not_in_position().in_tree_literal(), |parser| {
+                        parser.eat_tree_literal()
+                    })?
                 }
                 // unexpected attribute value
                 else {
@@ -1466,54 +1415,34 @@ impl Parser {
             }
 
             // parse one type argument
-            let argument_token_index = cursor.index;
-            let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_positional_argument()?;
             if arguments.is_empty() {
-                self.attach_boundary(
-                    argument_token_index,
-                    argument_skipped_newline_count,
+                self.bind_owner_leading_seam_at_cursor(
                     argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Statement,
-                    ),
+                    cursor,
+                    super::annotation::LeadingAnnotationKind::Statement,
                 );
             }
             if arguments.is_empty()
                 && let Some(leading_boundary_token_index) = leading_boundary_token_index
             {
-                self.attach_boundary(
+                self.bind_owner_wrapper_leading_seam_at_token(
+                    argument_id.id,
                     leading_boundary_token_index,
                     0,
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                    ),
                 );
             }
-            self.attach_boundary(
-                argument_token_index,
-                argument_skipped_newline_count,
+            self.bind_owner_leading_seam_at_cursor(
                 argument_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                ),
+                cursor,
+                super::annotation::LeadingAnnotationKind::Wrapper,
             );
 
             // keep trailing comments before `>` attached to the final type argument
             let cursor_after_argument = self.normalize_to_scanner_cursor();
             let is_before_terminator = cursor_after_argument.token_type == TokenType::GreaterThan;
             if !self.is_item_stop() || is_before_terminator {
-                self.attach_current_boundary(
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                );
-                self.attach_current_boundary(
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                        crate::parse::annotation::TrailingAnnotationKind::Default,
-                    ),
-                );
+                self.bind_owner_trailing_line_and_default_at_current(argument_id.id);
             }
 
             arguments.push(argument_id);
@@ -1568,10 +1497,9 @@ impl Parser {
         {
             options = options.in_type();
         }
-        let old_options = self.swap_options(options);
-        let static_arguments = self.eat_static_type_arguments_body(Some(open_angle_token_index));
-        self.restore_options(old_options);
-        let static_arguments = static_arguments?;
+        let static_arguments = self.with_options(options, |parser| {
+            parser.eat_static_type_arguments_body(Some(open_angle_token_index))
+        })?;
 
         // ts expression contexts only close static args on a concrete `>` token
         // (this matches ts disambiguation for cases like `f<T>=x` and `x < y, x >>= y`.. sigh)
@@ -1615,12 +1543,7 @@ impl Parser {
         if self.peek_is(TokenType::CloseParenthesis) {
             // keep inline boundary comments inside empty `()` attached to the call target
             if let Some(empty_boundary_target_node_id) = empty_boundary_target_node_id {
-                self.attach_current_boundary(
-                    empty_boundary_target_node_id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                        crate::parse::annotation::TrailingAnnotationKind::Default,
-                    ),
-                );
+                self.bind_owner_trailing_default_at_current(empty_boundary_target_node_id);
             }
 
             self.bump(); // eat close parenthesis
@@ -1628,14 +1551,12 @@ impl Parser {
         }
 
         // regular dynamic arguments
-        let old_options = self.options;
-        self.options = self.options.nested();
-        let dynamic_arguments = self.eat_positional_arguments_body(
-            TokenType::CloseParenthesis,
-            Some(open_parenthesis_token_index),
-        );
-        self.options = old_options;
-        let dynamic_arguments = dynamic_arguments?;
+        let dynamic_arguments = self.with_options(self.options.nested(), |parser| {
+            parser.eat_positional_arguments_body(
+                TokenType::CloseParenthesis,
+                Some(open_parenthesis_token_index),
+            )
+        })?;
 
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -1665,54 +1586,34 @@ impl Parser {
                 break;
             }
 
-            let argument_token_index = cursor.index;
-            let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_positional_argument()?;
             if arguments.is_empty() {
-                self.attach_boundary(
-                    argument_token_index,
-                    argument_skipped_newline_count,
+                self.bind_owner_leading_seam_at_cursor(
                     argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Statement,
-                    ),
+                    cursor,
+                    super::annotation::LeadingAnnotationKind::Statement,
                 );
             }
             if arguments.is_empty()
                 && let Some(leading_boundary_token_index) = leading_boundary_token_index
             {
-                self.attach_boundary(
+                self.bind_owner_wrapper_leading_seam_at_token(
+                    argument_id.id,
                     leading_boundary_token_index,
                     0,
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                        crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                    ),
                 );
             }
-            self.attach_boundary(
-                argument_token_index,
-                argument_skipped_newline_count,
+            self.bind_owner_leading_seam_at_cursor(
                 argument_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                ),
+                cursor,
+                super::annotation::LeadingAnnotationKind::Wrapper,
             );
 
             // keep trailing comments for terminal boundaries and non separated arguments
             let cursor_after_argument = self.normalize_to_scanner_cursor();
             let is_before_terminator = cursor_after_argument.token_type == terminator;
             if !self.is_item_stop() || is_before_terminator {
-                self.attach_current_boundary(
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                );
-                self.attach_current_boundary(
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                        crate::parse::annotation::TrailingAnnotationKind::Default,
-                    ),
-                );
+                self.bind_owner_trailing_line_and_default_at_current(argument_id.id);
             }
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
@@ -1747,32 +1648,18 @@ impl Parser {
                 break;
             }
 
-            let argument_token_index = cursor.index;
-            let argument_skipped_newline_count = cursor.skipped_newline_count;
             let argument_id = self.eat_tree_argument()?;
-            self.attach_boundary(
-                argument_token_index,
-                argument_skipped_newline_count,
+            self.bind_owner_leading_seam_at_cursor(
                 argument_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
-                ),
+                cursor,
+                super::annotation::LeadingAnnotationKind::Wrapper,
             );
 
             // keep trailing comments for terminal boundaries and non separated arguments
             let cursor_after_argument = self.normalize_to_scanner_cursor();
             let is_before_terminator = cursor_after_argument.token_type == terminator;
             if !self.is_item_stop() || is_before_terminator {
-                self.attach_current_boundary(
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::TrailingLineBoundary,
-                );
-                self.attach_current_boundary(
-                    argument_id.id,
-                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                        crate::parse::annotation::TrailingAnnotationKind::Default,
-                    ),
-                );
+                self.bind_owner_trailing_line_and_default_at_current(argument_id.id);
             }
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;

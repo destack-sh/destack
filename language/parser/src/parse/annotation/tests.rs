@@ -1,9 +1,9 @@
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat, Comment,
     CommentStyle, Declaration, DeclarationAbstraction, DeclarationDescriptor, Declarator,
-    Decorator, Doc, DocStyle, Expression, FunctionKind, FunctionMode, IfCondition, Key,
-    LocalNodeId, Member, Name, Parameter, Property, TypeBinaryOperator, TypeKind, TypeLiteral,
-    TypeUnaryOperator,
+    Decorator, DependencyItem, Doc, DocStyle, Expression, FunctionKind, FunctionMode, IfCondition,
+    ImportTarget, Key, LocalNodeId, Member, Name, Parameter, Property, TypeBinaryOperator,
+    TypeKind, TypeLiteral, TypeUnaryOperator,
 };
 use destack_source::LanguageType;
 
@@ -635,6 +635,170 @@ Cancelled,
                 });
             });
         });
+    });
+}
+
+/// Enum field comments and decorators should preserve source order and ownership.
+#[test]
+fn test_attach_enum_field_interleaved_comments_and_decorators() {
+    let mut test = TestParser::new(
+        r#"enum Value {
+// before-first
+@first
+// between
+@second
+// before-name
+Entry
+}"#,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, .. } => {
+            assert_eq!(fields.len(), 1);
+            let annotations = parser.tree.get_annotations(fields[0].id);
+            assert_eq!(annotations.len(), 5);
+
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "before-first");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+            assert_node!(parser.tree, annotations[1], Annotation::Decorator { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "first");
+                });
+            });
+            assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "between");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+            assert_node!(parser.tree, annotations[3], Annotation::Decorator { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "second");
+                });
+            });
+            assert_node!(parser.tree, annotations[4], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "before-name");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+        });
+    });
+}
+
+/// Enum field trailing and blank-line seams should attach to the correct owners.
+#[test]
+fn test_attach_enum_field_trailing_and_blank_seams() {
+    let mut test = TestParser::new(
+        r#"enum Value {
+A // a-tail
+
+B
+
+}"#,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Enum { fields, .. } => {
+            assert_eq!(fields.len(), 2);
+
+            let first_annotations = parser.tree.get_annotations(fields[0].id);
+            assert_eq!(first_annotations.len(), 1);
+            assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "a-tail");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            });
+
+            let second_annotations = parser.tree.get_annotations(fields[1].id);
+            let mut prefix_blanks = Vec::new();
+            let mut postfix_blanks = Vec::new();
+            for annotation_id in second_annotations {
+                if let Annotation::Blank { node, position } = parser.tree.get::<Annotation>(annotation_id) {
+                    let Blank { lines } = parser.tree.get::<Blank>(*node);
+                    let lines = *lines;
+                    match position {
+                        AnnotationPosition::BlockPrefix => prefix_blanks.push(lines),
+                        AnnotationPosition::BlockPostfix => postfix_blanks.push(lines),
+                        _ => {}
+                    }
+                }
+            }
+
+            assert_eq!(prefix_blanks, vec![1]);
+            assert_eq!(postfix_blanks, vec![1]);
+        });
+    });
+}
+
+/// Enum body-boundary comments should attach to the enum declaration owner.
+#[test]
+fn test_attach_enum_body_boundary_comment_on_declaration_owner() {
+    let mut test = TestParser::new("enum Value /* enum-body */ { A }");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Enum { .. } => {});
+
+        let mut matches = Vec::new();
+        for (owner_id, annotations) in parser.tree.get_all_annotations() {
+            for annotation_id in annotations {
+                let Annotation::Comment { node, position } = parser.tree.get::<Annotation>(*annotation_id) else {
+                    continue;
+                };
+                let comment = parser.tree.get::<Comment>(*node);
+                let text = parser.strings.get(comment.string);
+                if text == "enum-body" {
+                    matches.push((*owner_id, *position, comment.style));
+                }
+            }
+        }
+
+        assert_eq!(matches.len(), 1);
+        let (owner_id, position, style) = matches[0];
+        assert_eq!(owner_id, declaration_id.id);
+        assert_eq!(position, AnnotationPosition::BlockInfix);
+        assert_eq!(style, CommentStyle::Star);
     });
 }
 
@@ -1541,7 +1705,7 @@ fn test_attach_if_head_trailing_comment_in_parse_mode() {
             parser.tree,
             condition_annotations[0],
             Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePostfix);
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_string!(parser, *string, "if-head");
                     assert_eq!(*style, CommentStyle::Slash);
@@ -1590,7 +1754,7 @@ fn test_attach_if_head_trailing_comment_on_direct_if_entrypoint() {
             parser.tree,
             condition_annotations[0],
             Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePostfix);
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_string!(parser, *string, "if-head");
                     assert_eq!(*style, CommentStyle::Slash);
@@ -3125,6 +3289,231 @@ method(): number // method-body-boundary
     );
 }
 
+/// Interface method return-type separator comments should stay attached to the return type.
+#[test]
+fn test_attach_interface_method_return_separator_comment_to_return_type_prefix() {
+    let mut test = TestParser::new_with_options(
+        r"interface Worker {
+  run(): // return-tail
+  Promise<void>
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {
+            assert_eq!(members.len(), 1);
+            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                let return_type_id = signature.return_type.expect("expected return type");
+                assert_expression_path!(parser, parser.tree.get(return_type_id), "Promise");
+            });
+        });
+    });
+    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "return-tail" {
+                comment_matches.push((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    assert_eq!(comment_matches.len(), 1, "expected one return-tail comment");
+    let (owner_id, annotation_id) = comment_matches[0];
+    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
+    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Promise");
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "return-tail");
+        });
+    });
+}
+
+/// Interface method parameter trailing separator comments should stay on the same parameter.
+#[test]
+fn test_attach_interface_method_parameter_trailing_comment_to_parameter_tail() {
+    let mut test = TestParser::new_with_options(
+        r"interface Worker {
+  run(
+    value: string, // value-tail
+  ): number
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {
+            assert_eq!(members.len(), 1);
+            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
+            });
+        });
+    });
+
+    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "value-tail" {
+                comment_matches.push((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    assert_eq!(comment_matches.len(), 1, "expected one value-tail comment");
+    let (owner_id, annotation_id) = comment_matches[0];
+    let owner_parameter_id = LocalNodeId::<Parameter>::new(owner_id);
+    assert_node!(parser.tree, owner_parameter_id, Parameter::Named { name, .. } => {
+        assert_string!(parser, *name, "value");
+    });
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "value-tail");
+        });
+    });
+}
+
+/// Mapped-type value separator comments should stay attached to the mapped value prefix.
+#[test]
+fn test_attach_mapped_type_value_separator_comment_to_value_prefix() {
+    let mut test = TestParser::new_with_options(
+        r"type Flags<T> = {
+  [K in keyof T]: // mapped-line
+  boolean
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::TypeMapped { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
+            });
+        });
+    });
+    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "mapped-line" {
+                comment_matches.push((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    assert_eq!(comment_matches.len(), 1, "expected one mapped-line comment");
+    let (owner_id, annotation_id) = comment_matches[0];
+    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
+    assert_node!(parser.tree, owner_expression_id, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "mapped-line");
+        });
+    });
+}
+
+/// Type-conditional branch comments should stay attached to then and else branch type owners.
+#[test]
+fn test_attach_type_conditional_branch_comments_to_branch_type_prefixes() {
+    let mut test = TestParser::new_with_options(
+        r"type Value<T> = T extends /* extends-note */ string
+  ? /* true-note */ number
+  : /* false-note */ boolean",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::TypeConditional { then_type, else_type, .. } => {
+                assert_node!(parser.tree, *then_type, Expression::TypeLiteral(TypeLiteral::Number) => {});
+                assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
+            });
+        });
+    });
+
+    let mut true_note_match: Option<(u32, LocalNodeId<Annotation>)> = None;
+    let mut false_note_match: Option<(u32, LocalNodeId<Annotation>)> = None;
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "true-note" {
+                true_note_match = Some((*owner_id, *annotation_id));
+            } else if comment_text == "false-note" {
+                false_note_match = Some((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    let (true_owner_id, true_annotation_id) = true_note_match.expect("expected true-note comment");
+    let true_owner_expression_id = LocalNodeId::<Expression>::new(true_owner_id);
+    assert_node!(parser.tree, true_owner_expression_id, Expression::TypeLiteral(TypeLiteral::Number) => {});
+    assert_node!(parser.tree, true_annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Star);
+            assert_string!(parser, *string, "true-note");
+        });
+    });
+
+    let (false_owner_id, false_annotation_id) =
+        false_note_match.expect("expected false-note comment");
+    let false_owner_expression_id = LocalNodeId::<Expression>::new(false_owner_id);
+    assert_node!(parser.tree, false_owner_expression_id, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
+    assert_node!(parser.tree, false_annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Star);
+            assert_string!(parser, *string, "false-note");
+        });
+    });
+}
+
 /// Export-head comments before newline declaration heads should stay attached and parse as declarations.
 #[test]
 fn test_attach_export_head_comment_before_interface_declaration() {
@@ -3153,7 +3542,7 @@ interface Shape {
         });
     });
 
-    // locate the export marker comment and ensure it stays on the declaration expression boundary
+    // locate the export marker comment and ensure it stays on the declaration boundary
     let mut export_head_matches = Vec::new();
     for (owner_id, annotations) in parser.tree.get_all_annotations() {
         for annotation_id in annotations {
@@ -3171,8 +3560,566 @@ interface Shape {
     }
     assert_eq!(export_head_matches.len(), 1);
     let (owner_id, position) = export_head_matches[0];
-    assert_eq!(owner_id, expression_id.id);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_eq!(owner_id, declaration_id.id);
+    });
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+}
+
+/// Class heritage boundary comments should stay on extends and implements owners.
+#[test]
+fn test_attach_class_heritage_boundary_comments_to_super_types() {
+    let mut test = TestParser::new_with_options(
+        r"class Derived extends Base // base-tail
+implements
+// impl-head
+A,
+B // impl-tail
+{}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let (base_type_id, first_implements_type_id, second_implements_type_id, declaration_id) =
+        match parser.tree.get(expression_id) {
+            Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
+                Declaration::Class { heritage, .. } => {
+                    let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+                    let implements_types = heritage
+                        .implements_types
+                        .as_ref()
+                        .expect("expected implements");
+                    assert_eq!(extends_types.len(), 1);
+                    assert_eq!(implements_types.len(), 2);
+                    (
+                        extends_types[0],
+                        implements_types[0],
+                        implements_types[1],
+                        *declaration_id,
+                    )
+                }
+                _ => panic!("expected class declaration"),
+            },
+            _ => panic!("expected declaration expression"),
+        };
+
+    let mut base_tail_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
+    let mut impl_head_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
+    let mut impl_tail_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "base-tail" {
+                base_tail_matches.push((*owner_id, *annotation_id, *position));
+            } else if comment_text == "impl-head" {
+                impl_head_matches.push((*owner_id, *annotation_id, *position));
+            } else if comment_text == "impl-tail" {
+                impl_tail_matches.push((*owner_id, *annotation_id, *position));
+            }
+        }
+    }
+
+    assert_eq!(base_tail_matches.len(), 1, "expected one base-tail comment");
+    assert_eq!(impl_head_matches.len(), 1, "expected one impl-head comment");
+    assert_eq!(impl_tail_matches.len(), 1, "expected one impl-tail comment");
+
+    let (base_owner_id, base_annotation_id, base_position) = base_tail_matches[0];
+    assert_eq!(base_owner_id, base_type_id.id);
+    assert_eq!(base_position, AnnotationPosition::LinePostfixBoundary);
+    assert_node!(parser.tree, base_annotation_id, Annotation::Comment { node, .. } => {
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "base-tail");
+        });
+    });
+
+    let (impl_head_owner_id, impl_head_annotation_id, impl_head_position) = impl_head_matches[0];
+    assert_eq!(impl_head_owner_id, first_implements_type_id.id);
+    assert_eq!(impl_head_position, AnnotationPosition::BlockPrefix);
+    assert_node!(parser.tree, impl_head_annotation_id, Annotation::Comment { node, .. } => {
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "impl-head");
+        });
+    });
+
+    let (impl_tail_owner_id, impl_tail_annotation_id, impl_tail_position) = impl_tail_matches[0];
+    assert_eq!(impl_tail_owner_id, second_implements_type_id.id);
+    assert_eq!(impl_tail_position, AnnotationPosition::LinePostfixBoundary);
+    assert_node!(parser.tree, impl_tail_annotation_id, Annotation::Comment { node, .. } => {
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "impl-tail");
+        });
+    });
+
+    // no declaration-level ownership for heritage seam comments
+    let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
+    for annotation_id in declaration_annotations {
+        assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
+            let comment = parser.tree.get::<Comment>(*node);
+            let text = parser.strings.get(comment.string);
+            assert_ne!(text, "base-tail");
+            assert_ne!(text, "impl-head");
+            assert_ne!(text, "impl-tail");
+        });
+    }
+}
+
+/// Class extends-tail comments should stay attached to the superclass expression.
+#[test]
+fn test_attach_class_superclass_boundary_comment_to_super_type() {
+    let mut test = TestParser::new_with_options(
+        r"class Child extends Base // extends-tail
+{
+  value = 1
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let superclass_type_id = match parser.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
+            Declaration::Class { heritage, .. } => {
+                let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+                assert_eq!(extends_types.len(), 1);
+                extends_types[0]
+            }
+            _ => panic!("expected class declaration"),
+        },
+        _ => panic!("expected declaration expression"),
+    };
+
+    let mut extends_tail_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "extends-tail" {
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                extends_tail_matches.push((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    assert_eq!(
+        extends_tail_matches.len(),
+        1,
+        "expected one extends-tail comment"
+    );
+    let (owner_id, annotation_id) = extends_tail_matches[0];
+    assert_eq!(owner_id, superclass_type_id.id);
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "extends-tail");
+        });
+    });
+}
+
+/// Implement-list comments should keep separator and tail ownership inside the list.
+#[test]
+fn test_attach_class_implement_list_comments_to_interface_types() {
+    let mut test = TestParser::new_with_options(
+        r"class Child implements First, // impl-first
+Second // impl-second
+{
+  value = 1
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let (first_implements_type_id, second_implements_type_id) = match parser.tree.get(expression_id)
+    {
+        Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
+            Declaration::Class { heritage, .. } => {
+                let implements_types = heritage
+                    .implements_types
+                    .as_ref()
+                    .expect("expected implements");
+                assert_eq!(implements_types.len(), 2);
+                (implements_types[0], implements_types[1])
+            }
+            _ => panic!("expected class declaration"),
+        },
+        _ => panic!("expected declaration expression"),
+    };
+
+    let mut impl_first_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> =
+        Vec::new();
+    let mut impl_second_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> =
+        Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "impl-first" {
+                impl_first_matches.push((*owner_id, *annotation_id, *position));
+            } else if comment_text == "impl-second" {
+                impl_second_matches.push((*owner_id, *annotation_id, *position));
+            }
+        }
+    }
+
+    assert_eq!(
+        impl_first_matches.len(),
+        1,
+        "expected one impl-first comment"
+    );
+    assert_eq!(
+        impl_second_matches.len(),
+        1,
+        "expected one impl-second comment"
+    );
+
+    let (impl_first_owner_id, impl_first_annotation_id, impl_first_position) =
+        impl_first_matches[0];
+    assert_eq!(impl_first_owner_id, second_implements_type_id.id);
+    assert_eq!(impl_first_position, AnnotationPosition::BlockPrefix);
+    assert_node!(parser.tree, impl_first_annotation_id, Annotation::Comment { node, .. } => {
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "impl-first");
+        });
+    });
+
+    let (impl_second_owner_id, impl_second_annotation_id, impl_second_position) =
+        impl_second_matches[0];
+    assert_eq!(impl_second_owner_id, second_implements_type_id.id);
+    assert_eq!(
+        impl_second_position,
+        AnnotationPosition::LinePostfixBoundary
+    );
+    assert_node!(parser.tree, impl_second_annotation_id, Annotation::Comment { node, .. } => {
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "impl-second");
+        });
+    });
+
+    // ensure the head type does not receive list-separator comments
+    let first_annotations = parser.tree.get_annotations(first_implements_type_id.id);
+    for annotation_id in first_annotations {
+        assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
+            let comment = parser.tree.get::<Comment>(*node);
+            let text = parser.strings.get(comment.string);
+            assert_ne!(text, "impl-first");
+            assert_ne!(text, "impl-second");
+        });
+    }
+}
+
+/// Declare-class head comments before generics should stay on the declaration owner.
+#[test]
+fn test_attach_declare_class_head_comment_before_generics_to_declaration_owner() {
+    let mut test = TestParser::new_with_options(
+        r"declare class Box // box-head
+<T> implements Item<T>, Other {
+  value: T
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let declaration_id = match parser.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { .. } => {});
+            *declaration_id
+        }
+        _ => panic!("expected declaration expression"),
+    };
+
+    let mut box_head_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "box-head" {
+                box_head_matches.push((*owner_id, *annotation_id, *position));
+            }
+        }
+    }
+
+    assert_eq!(box_head_matches.len(), 1, "expected one box-head comment");
+    let (owner_id, annotation_id, position) = box_head_matches[0];
+    assert_eq!(owner_id, declaration_id.id);
+    assert_eq!(position, AnnotationPosition::BlockInfix);
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "box-head");
+        });
+    });
+}
+
+#[test]
+fn test_attach_type_union_line_comment_before_separator_to_right_operand() {
+    let mut test = TestParser::new_with_options(
+        r"type Value = First
+// union-line
+| Second
+| Third",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            });
+        });
+    });
+
+    let mut union_line_comment_owner_id: Option<u32> = None;
+    let mut union_line_comment_annotation_id: Option<LocalNodeId<Annotation>> = None;
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "union-line" {
+                union_line_comment_owner_id = Some(*owner_id);
+                union_line_comment_annotation_id = Some(*annotation_id);
+                break;
+            }
+        }
+    }
+
+    let union_line_comment_owner_id =
+        union_line_comment_owner_id.expect("expected union line comment owner");
+    let union_line_comment_annotation_id =
+        union_line_comment_annotation_id.expect("expected union line comment annotation");
+    assert_node!(parser.tree, union_line_comment_annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "union-line");
+        });
+    });
+
+    let union_line_owner_expression_id =
+        LocalNodeId::<Expression>::new(union_line_comment_owner_id);
+    assert_expression_path!(
+        parser,
+        parser.tree.get(union_line_owner_expression_id),
+        "Second"
+    );
+}
+
+#[test]
+fn test_attach_type_union_line_comment_after_separator_to_right_operand() {
+    let mut test = TestParser::new_with_options(
+        r"type Value = First | // union-line
+Second | Third",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            });
+        });
+    });
+
+    let mut union_line_comment_owner_id: Option<u32> = None;
+    let mut union_line_comment_annotation_id: Option<LocalNodeId<Annotation>> = None;
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "union-line" {
+                union_line_comment_owner_id = Some(*owner_id);
+                union_line_comment_annotation_id = Some(*annotation_id);
+                break;
+            }
+        }
+    }
+
+    let union_line_comment_owner_id =
+        union_line_comment_owner_id.expect("expected union line comment owner");
+    let union_line_comment_annotation_id =
+        union_line_comment_annotation_id.expect("expected union line comment annotation");
+    assert_node!(parser.tree, union_line_comment_annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "union-line");
+        });
+    });
+
+    let union_line_owner_expression_id =
+        LocalNodeId::<Expression>::new(union_line_comment_owner_id);
+    assert_expression_path!(
+        parser,
+        parser.tree.get(union_line_owner_expression_id),
+        "Second"
+    );
+}
+
+/// Leading-pipe own-line comments should attach once to the right union arm prefix.
+#[test]
+fn test_attach_type_union_leading_pipe_comment_to_right_operand_prefix() {
+    let mut test = TestParser::new_with_options(
+        r"type Value = First
+    // union-line
+    | Second
+    | Third;",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+            });
+        });
+    });
+
+    let mut matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "union-line" {
+                matches.push((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    assert_eq!(matches.len(), 1, "expected one union-line annotation");
+    let (owner_id, annotation_id) = matches[0];
+    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
+    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Second");
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "union-line");
+        });
+    });
+}
+
+#[test]
+fn test_attach_type_union_block_comment_between_arms_to_right_operand_prefix() {
+    let mut test = TestParser::new_with_options(
+        r"type Value = First /* union-block */ | Second",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let mut match_result = None;
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let text = parser.strings.get(comment.string);
+            if text == "union-block" {
+                match_result = Some((*owner_id, *position));
+            }
+        }
+    }
+
+    let (owner_id, position) = match_result.expect("expected union-block annotation");
+    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
+    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Second");
+    assert_eq!(position, AnnotationPosition::BlockPrefix);
+}
+
+#[test]
+fn test_attach_type_intersection_line_comment_between_arms_to_right_operand_prefix() {
+    let mut test = TestParser::new_with_options(
+        r"type Value = First & // intersection-line
+Second",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let mut match_result = None;
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let text = parser.strings.get(comment.string);
+            if text == "intersection-line" {
+                match_result = Some((*owner_id, *position));
+            }
+        }
+    }
+
+    let (owner_id, position) = match_result.expect("expected intersection-line annotation");
+    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
+    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Second");
+    assert_eq!(position, AnnotationPosition::BlockPrefix);
 }
 
 /// Decorator-adjacent comments should preserve stable ownership order on the statement node.
@@ -3234,6 +4181,151 @@ struct Entity {}
                 assert_string!(parser, *string, "comment after foo");
                 assert_eq!(*style, CommentStyle::Slash);
             });
+        });
+    });
+}
+
+/// Import specifier trailing comments should stay on the same specifier item.
+#[test]
+fn test_attach_import_specifier_trailing_comment_to_first_item() {
+    let mut test = TestParser::new_with_options(
+        r#"import {
+  first, // first-spec
+  second,
+} from "mod";"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let first_item_id = match parser.tree.get(expression_id) {
+        Expression::Import { items, .. } => {
+            assert_eq!(items.len(), 2);
+            items[0]
+        }
+        _ => panic!("expected import expression"),
+    };
+
+    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "first-spec" {
+                comment_matches.push((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    assert_eq!(comment_matches.len(), 1);
+    let (owner_id, annotation_id) = comment_matches[0];
+    assert_eq!(owner_id, first_item_id.id);
+    let owner_item_id = LocalNodeId::<DependencyItem>::new(owner_id);
+    assert_node!(parser.tree, owner_item_id, DependencyItem { .. } => {});
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "first-spec");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
+    });
+}
+
+/// Export specifier trailing comments should stay on the same specifier item.
+#[test]
+fn test_attach_export_specifier_trailing_comment_to_first_item() {
+    let mut test = TestParser::new_with_options(
+        r#"export {
+  first, // first-export
+  second,
+};"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let first_item_id = match parser.tree.get(expression_id) {
+        Expression::Export { items, .. } => {
+            assert_eq!(items.len(), 2);
+            items[0]
+        }
+        _ => panic!("expected export expression"),
+    };
+
+    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let comment_text = parser.strings.get(comment.string);
+            if comment_text == "first-export" {
+                comment_matches.push((*owner_id, *annotation_id));
+            }
+        }
+    }
+
+    assert_eq!(comment_matches.len(), 1);
+    let (owner_id, annotation_id) = comment_matches[0];
+    assert_eq!(owner_id, first_item_id.id);
+    let owner_item_id = LocalNodeId::<DependencyItem>::new(owner_id);
+    assert_node!(parser.tree, owner_item_id, DependencyItem { .. } => {});
+    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "first-export");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
+    });
+}
+
+/// Dynamic import source comments should attach to the import target expression.
+#[test]
+fn test_attach_dynamic_import_source_comment_to_target_expression() {
+    let mut test = TestParser::new_with_options(
+        r#"const mod = import(
+  // dynamic-source
+  "module",
+)"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let mut target_expression_id = None;
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+            let value_id = value.expect("expected initializer");
+            assert_node!(parser.tree, value_id, Expression::Import { target, .. } => {
+                if let ImportTarget::Expression { target } = target {
+                    target_expression_id = Some(*target);
+                }
+            });
+        });
+    });
+    let target_expression_id =
+        target_expression_id.expect("expected dynamic import expression target");
+
+    let annotations = parser.tree.get_annotations(target_expression_id.id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "dynamic-source");
+            assert_eq!(*style, CommentStyle::Slash);
         });
     });
 }
@@ -3960,4 +5052,129 @@ fn test_attach_blanks_in_array_elements() {
             });
         });
     });
+}
+
+/// Array boundary comments should attach to stable element owners with stable positions.
+#[test]
+fn test_attach_array_boundary_comment_owners_and_positions() {
+    let mut test = TestParser::new(
+        r"const list = [
+  first, // first-tail
+  /* second-head */ second,
+  third // third-tail
+]",
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let statement_id = parser.unwrap_statement_expression(expressions[0]);
+    let (first_element_id, second_element_id, third_element_id) = assert_node!(parser.tree, statement_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        let value = parser
+            .tree
+            .get(declarators[0])
+            .value
+            .expect("expected declarator value");
+        assert_node!(parser.tree, value, Expression::ArrayExpression { elements } => {
+            assert_eq!(elements.len(), 3);
+            (elements[0], elements[1], elements[2])
+        })
+    });
+
+    let mut first_tail = None;
+    let mut second_head = None;
+    let mut third_tail = None;
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let text = parser.strings.get(comment.string);
+            match text {
+                "first-tail" => first_tail = Some((*owner_id, *position)),
+                "second-head" => second_head = Some((*owner_id, *position)),
+                "third-tail" => third_tail = Some((*owner_id, *position)),
+                _ => {}
+            }
+        }
+    }
+
+    assert_eq!(
+        first_tail,
+        Some((first_element_id.id, AnnotationPosition::LinePostfixBoundary))
+    );
+    assert_eq!(
+        second_head,
+        Some((second_element_id.id, AnnotationPosition::LinePrefix))
+    );
+    assert_eq!(
+        third_tail,
+        Some((third_element_id.id, AnnotationPosition::LinePostfixBoundary))
+    );
+}
+
+/// Object property trailing comments should stay attached to the property boundary owner.
+#[test]
+fn test_attach_object_property_trailing_comment_owners_and_positions() {
+    let mut test = TestParser::new(
+        r"const config = {
+  first: 1, // first-tail
+  second: 2 /* second-tail */
+}",
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let statement_id = parser.unwrap_statement_expression(expressions[0]);
+    let (first_property_id, second_property_id) = assert_node!(parser.tree, statement_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        let value = parser
+            .tree
+            .get(declarators[0])
+            .value
+            .expect("expected declarator value");
+        assert_node!(parser.tree, value, Expression::ObjectExpression { properties, .. } => {
+            assert_eq!(properties.len(), 2);
+            (properties[0], properties[1])
+        })
+    });
+
+    let mut first_tail = None;
+    let mut second_tail = None;
+    for (owner_id, annotations) in parser.tree.get_all_annotations() {
+        for annotation_id in annotations {
+            let Annotation::Comment { node, position } =
+                parser.tree.get::<Annotation>(*annotation_id)
+            else {
+                continue;
+            };
+            let comment = parser.tree.get::<Comment>(*node);
+            let text = parser.strings.get(comment.string);
+            match text {
+                "first-tail" => first_tail = Some((*owner_id, *position)),
+                "second-tail" => second_tail = Some((*owner_id, *position)),
+                _ => {}
+            }
+        }
+    }
+
+    assert_eq!(
+        first_tail,
+        Some((
+            first_property_id.id,
+            AnnotationPosition::LinePostfixBoundary
+        ))
+    );
+    assert_eq!(
+        second_tail,
+        Some((
+            second_property_id.id,
+            AnnotationPosition::LinePostfixBoundary
+        ))
+    );
 }

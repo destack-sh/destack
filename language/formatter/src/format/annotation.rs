@@ -1072,7 +1072,15 @@ where
             // insert space / newline
             match position {
                 AnnotationPosition::LinePrefix => {
-                    if annotation_next_token_is_on_same_line(f.context(), annotation_id) {
+                    let next_token_is_on_same_line =
+                        annotation_next_token_is_on_same_line(f.context(), annotation_id);
+                    if render_facts.is_slash_comment {
+                        if next_token_is_on_same_line {
+                            write!(f, [space()])?;
+                        } else {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    } else if next_token_is_on_same_line {
                         write!(f, [space()])?;
                     }
                 }
@@ -1118,9 +1126,13 @@ where
                     }
                 }
                 AnnotationPosition::LinePostfixBoundary => {
+                    let should_keep_inline_slash_separator_comment =
+                        render_facts.is_slash_comment && render_facts.follows_separator;
                     let should_keep_inline_star_boundary_comment = render_facts.is_star_comment
                         && (render_facts.precedes_separator || render_facts.follows_separator);
-                    if !should_keep_inline_star_boundary_comment {
+                    if should_keep_inline_slash_separator_comment {
+                        write!(f, [space()])?;
+                    } else if !should_keep_inline_star_boundary_comment {
                         write!(f, [soft_line_break()])?;
                     }
                 }

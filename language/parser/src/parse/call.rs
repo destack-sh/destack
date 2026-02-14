@@ -92,10 +92,9 @@ impl Parser {
 
         // receiver
         let receiver_options = self.options.not_in_position().in_new_receiver();
-        let old_options = self.swap_options(receiver_options);
-        let left_result = self.eat_expression(self.options);
-        self.restore_options(old_options);
-        let left = left_result?;
+        let left = self.with_options(receiver_options, |parser| {
+            parser.eat_expression(parser.options)
+        })?;
 
         // hoist static arguments parsed on the receiver
         let mut static_arguments = None;
@@ -114,12 +113,7 @@ impl Parser {
 
         // comments before `(` belong to the new callee boundary, not the first argument
         if self.peek_is(TokenType::OpenParenthesis) {
-            self.attach_current_boundary(
-                left.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                    crate::parse::annotation::TrailingAnnotationKind::Default,
-                ),
-            );
+            self.bind_owner_trailing_default_at_current(left.id);
         }
 
         // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
@@ -156,10 +150,9 @@ impl Parser {
 
         // value
         let value_options = self.options.not_in_position();
-        let old_options = self.swap_options(value_options);
-        let value_result = self.eat_expression(self.options);
-        self.restore_options(old_options);
-        let value = value_result?;
+        let value = self.with_options(value_options, |parser| {
+            parser.eat_expression(parser.options)
+        })?;
 
         // delete
         let delete_id = self

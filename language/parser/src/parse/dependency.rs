@@ -1,3 +1,4 @@
+use super::annotation::{AnnotationSeamKind, LeadingAnnotationKind};
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
@@ -240,16 +241,26 @@ impl Parser {
         }
 
         // parse the first argument as the import target
+        let target_cursor = self.normalize_to_scanner_cursor();
         let target_expression = self.eat_expression(
             self.options
                 .nested()
                 .not_in_position()
                 .not_in_sequence_expression(),
         )?;
+        self.bind_annotation_seam(
+            target_cursor.index,
+            target_cursor.skipped_newline_count,
+            target_expression.id,
+            AnnotationSeamKind::Leading(LeadingAnnotationKind::Expression),
+        );
 
-        // keep static string targets as interned strings
+        // keep static string targets as interned strings when no annotation needs expression ownership
+        let target_has_annotations = !self.tree.get_annotations(target_expression.id).is_empty();
         let target = match self.tree.get(target_expression) {
-            Expression::ScalarLiteral(destack_ast::ScalarLiteral::String(target)) => {
+            Expression::ScalarLiteral(destack_ast::ScalarLiteral::String(target))
+                if !target_has_annotations =>
+            {
                 ImportTarget::String(*target)
             }
             _ => ImportTarget::Expression {
@@ -265,13 +276,12 @@ impl Parser {
                 Some(vec![])
             } else {
                 let argument_options = self.options.nested();
-                let old_options = self.swap_options(argument_options);
-                let arguments_result = self.eat_positional_arguments_body(
-                    TokenType::CloseParenthesis,
-                    Some(open_parenthesis_token_index),
-                );
-                self.restore_options(old_options);
-                let arguments = arguments_result?;
+                let arguments = self.with_options(argument_options, |parser| {
+                    parser.eat_positional_arguments_body(
+                        TokenType::CloseParenthesis,
+                        Some(open_parenthesis_token_index),
+                    )
+                })?;
                 Some(arguments)
             }
         } else {
@@ -352,10 +362,9 @@ impl Parser {
             } else {
                 self.options.not_in_position()
             };
-            let old_options = self.swap_options(value_options);
-            let value_result = self.eat_expression(self.options);
-            self.restore_options(old_options);
-            let value = value_result?;
+            let value = self.with_options(value_options, |parser| {
+                parser.eat_expression(parser.options)
+            })?;
             let descriptor = DeclarationDescriptor::default();
             let target = ImportAliasTarget::Path { value };
             let expression_id =
@@ -537,10 +546,9 @@ impl Parser {
         } else {
             self.options.not_in_position()
         };
-        let old_options = self.swap_options(value_options);
-        let value_result = self.eat_expression(self.options);
-        self.restore_options(old_options);
-        let value = value_result?;
+        let value = self.with_options(value_options, |parser| {
+            parser.eat_expression(parser.options)
+        })?;
         // normalize descriptor export mode
         if descriptor.export.is_none() {
             descriptor.export = Some(DependencyMode::Item);
@@ -767,10 +775,9 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
             let argument_options = self.options.nested();
-            let old_options = self.swap_options(argument_options);
-            let arguments_result = self.eat_arguments_body(TokenType::CloseBrace);
-            self.restore_options(old_options);
-            let arguments = arguments_result?;
+            let arguments = self.with_options(argument_options, |parser| {
+                parser.eat_arguments_body(TokenType::CloseBrace)
+            })?;
             self.eat_token(TokenType::CloseBrace)?;
             Ok(Some(arguments))
         } else {
@@ -881,7 +888,17 @@ impl Parser {
             self.eat_token(TokenType::OpenBrace)?;
             self.eat_newlines_maybe()?;
             while !self.peek_is(TokenType::CloseBrace) {
+                let item_cursor = self.normalize_to_scanner_cursor();
                 let item = self.eat_dependency_item(allow_type_modifier, allow_literal_alias)?;
+
+                self.bind_owner_statement_and_wrapper_leading_seams(item.id, item_cursor);
+
+                let cursor_after_item = self.normalize_to_scanner_cursor();
+                let is_before_terminator = cursor_after_item.token_type == TokenType::CloseBrace;
+                if !self.peek_comma_is() || is_before_terminator {
+                    self.bind_owner_trailing_line_and_default_at_current(item.id);
+                }
+
                 items.push(item);
 
                 self.eat_newlines_maybe()?;
@@ -890,6 +907,15 @@ impl Parser {
                 }
                 if self.peek_comma_is() {
                     self.eat_item_stop_with_newlines()?;
+
+                    // keep same line separator comments on the preceding dependency item
+                    let next_item_cursor = self.normalize_to_scanner_cursor();
+                    self.bind_annotation_seam(
+                        next_item_cursor.index,
+                        next_item_cursor.skipped_newline_count,
+                        item.id,
+                        AnnotationSeamKind::TrailingLineBoundary,
+                    );
                     continue;
                 } else {
                     return Err(ParseError::unexpected(self.peek()?.span));

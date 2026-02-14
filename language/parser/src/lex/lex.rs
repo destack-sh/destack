@@ -1892,13 +1892,12 @@ impl Lexer {
             }
 
             let first_byte = bytes[0];
-            if first_byte == b'\n' || first_byte == b'\r' {
-                has_line_terminator = true;
-            } else if first_byte == 0xE2
+            let is_ascii_line_terminator = first_byte == b'\n' || first_byte == b'\r';
+            let is_unicode_line_terminator = first_byte == 0xE2
                 && bytes.len() >= 3
                 && bytes[1] == 0x80
-                && (bytes[2] == 0xA8 || bytes[2] == 0xA9)
-            {
+                && (bytes[2] == 0xA8 || bytes[2] == 0xA9);
+            if is_ascii_line_terminator || is_unicode_line_terminator {
                 has_line_terminator = true;
             }
 
@@ -1926,13 +1925,12 @@ impl Lexer {
             }
 
             let first_byte = bytes[0];
-            if first_byte == b'\n' || first_byte == b'\r' {
-                has_line_terminator = true;
-            } else if first_byte == 0xE2
+            let is_ascii_line_terminator = first_byte == b'\n' || first_byte == b'\r';
+            let is_unicode_line_terminator = first_byte == 0xE2
                 && bytes.len() >= 3
                 && bytes[1] == 0x80
-                && (bytes[2] == 0xA8 || bytes[2] == 0xA9)
-            {
+                && (bytes[2] == 0xA8 || bytes[2] == 0xA9);
+            if is_ascii_line_terminator || is_unicode_line_terminator {
                 has_line_terminator = true;
             }
 

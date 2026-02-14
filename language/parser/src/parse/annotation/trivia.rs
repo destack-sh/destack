@@ -1,15 +1,12 @@
+use crate::Parser;
 use crate::parse::timing::tags;
-use crate::{ParseResult, Parser};
 use destack_ast::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Key,
-    LocalNodeId, Member, NodeType, Property, TokenSpan, TokenType,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, Key, LocalNodeId,
+    Member, NodeType, Property, TokenSpan, TokenType,
 };
 use destack_source::Span;
 
-use super::{
-    AnnotationBoundaryKind, BlankBoundaryKind, DotBoundaryKind, LeadingAnnotationKind,
-    TrailingAnnotationKind,
-};
+use super::{AnnotationSeamKind, DotBoundaryKind, LeadingAnnotationKind, TrailingAnnotationKind};
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,
@@ -18,7 +15,6 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::BlockComment,
     TokenType::DocBlockComment,
 ];
-const DECORATOR_EXPRESSION_PRECEDENCE: u16 = u16::MAX;
 
 /// Side-token view for inline annotation grouping.
 #[derive(Debug, Copy, Clone)]
@@ -212,182 +208,76 @@ impl Parser {
             });
     }
 
-    /// Eat any leading decorators and return collected decorator ids.
-    pub(crate) fn eat_decorators_prefix_collect_maybe(
-        &mut self,
-    ) -> ParseResult<Vec<LocalNodeId<Decorator>>> {
-        let decorators_with_cursors = self.eat_decorators_prefix_collect_with_cursors_maybe()?;
-        let decorators = decorators_with_cursors
-            .into_iter()
-            .map(|(decorator_id, _, _)| decorator_id)
-            .collect::<Vec<_>>();
-        Ok(decorators)
-    }
-
-    /// Eat any leading decorators and return decorator ids with scanner cursors.
-    pub(crate) fn eat_decorators_prefix_collect_with_cursors_maybe(
-        &mut self,
-    ) -> ParseResult<Vec<(LocalNodeId<Decorator>, usize, usize)>> {
-        let mut decorators_with_cursors = Vec::new();
-        while self.peek_is(TokenType::At) {
-            let decorator_cursor = self.peek_cursor();
-            let start = self.mark_span();
-            let decorator = self.with_recovery(
-                &start,
-                |parser| parser.eat_decorator().map(Some),
-                None,
-                TokenType::Newline,
-            );
-            if let Some(decorator) = decorator {
-                decorators_with_cursors.push((
-                    decorator,
-                    decorator_cursor.index,
-                    decorator_cursor.skipped_newline_count,
-                ));
-            }
-
-            // consume trailing newlines between decorator entries
-            self.eat_newlines_maybe()?;
-        }
-
-        Ok(decorators_with_cursors)
-    }
-
-    /// Eat one decorator expression.
-    fn eat_decorator(&mut self) -> ParseResult<LocalNodeId<Decorator>> {
-        let start = self.mark_span();
-
-        // eat @ marker
-        self.eat_token(TokenType::At)?;
-
-        // decorators always parse as value expressions
-        let mut decorator_options = self
-            .options
-            .not_in_position()
-            .in_left_precedence(DECORATOR_EXPRESSION_PRECEDENCE)
-            .not_in_sequence_expression()
-            .in_decorator();
-        decorator_options.in_type = false;
-        decorator_options.in_static = false;
-        decorator_options.in_super_type = false;
-        decorator_options.in_before_type = false;
-        decorator_options.in_type_conditional_right = false;
-        decorator_options.in_type_mapped_constraint = false;
-
-        // parse decorator target expression
-        let expression = self.eat_expression(decorator_options)?;
-
-        // store decorator side node
-        let decorator = self
-            .tree
-            .insert(Decorator { expression }, self.get_span_from(&start));
-        let main_span = self
-            .tree
-            .get_main_span(expression)
-            .unwrap_or_else(|| self.tree.get_span(expression));
-        self.tree.set_main_span(decorator, main_span);
-        Ok(decorator)
-    }
-
-    /// Attach decorator nodes to a parsed target.
-    pub(crate) fn attach_decorators_to_target(
-        &mut self,
-        decorators: Vec<LocalNodeId<Decorator>>,
-        target_node_id: u32,
-    ) {
-        for decorator_id in decorators {
-            self.attach_decorator_to_target(decorator_id, target_node_id);
-        }
-    }
-
-    /// Attach one decorator node to a parsed target.
-    pub(crate) fn attach_decorator_to_target(
-        &mut self,
-        decorator_id: LocalNodeId<Decorator>,
-        target_node_id: u32,
-    ) {
-        let span = self.tree.get_span(decorator_id);
-        let annotation_id = self.tree.insert(
-            Annotation::Decorator {
-                node: decorator_id,
-                position: AnnotationPosition::BlockPrefix,
-            },
-            span,
-        );
-        self.tree.append_annotation(target_node_id, annotation_id);
-    }
-
     /// Attach annotations for one explicit token boundary.
     #[inline(always)]
-    pub(crate) fn attach_boundary(
+    pub(crate) fn bind_annotation_seam(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
         target_node_id: u32,
-        kind: AnnotationBoundaryKind,
+        kind: AnnotationSeamKind,
     ) {
         match kind {
-            AnnotationBoundaryKind::Leading(mode) => {
-                self.attach_leading_annotations_for_token(
+            AnnotationSeamKind::Leading(mode) => {
+                self.bind_leading_trivia_for_seam_token(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
                     mode,
                 );
             }
-            AnnotationBoundaryKind::Infix => {
-                self.attach_infix_annotations_for_token(
+            AnnotationSeamKind::Infix => {
+                self.bind_infix_trivia_for_seam_token(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
                 );
             }
-            AnnotationBoundaryKind::Stub => {
-                self.attach_stub_annotations_for_token(
+            AnnotationSeamKind::Stub => {
+                self.bind_stub_trivia_for_seam_token(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
                 );
             }
-            AnnotationBoundaryKind::Trailing(mode) => {
+            AnnotationSeamKind::Trailing(mode) => {
                 let preserve_line_postfix =
                     matches!(mode, TrailingAnnotationKind::PreserveLinePostfix);
-                self.attach_trailing_annotations_for_token(
+                self.bind_trailing_trivia_for_seam_token(
                     token_index,
                     target_node_id,
                     preserve_line_postfix,
                 );
             }
-            AnnotationBoundaryKind::TrailingLineBoundary => {
-                self.attach_trailing_line_boundary_comments_for_token(token_index, target_node_id);
+            AnnotationSeamKind::TrailingLineBoundary => {
+                self.bind_trailing_line_boundary_comments_for_seam_token(
+                    token_index,
+                    target_node_id,
+                );
             }
-            AnnotationBoundaryKind::DotBoundary(mode) => {
+            AnnotationSeamKind::DotBoundary(mode) => {
                 let keep_line_comments_on_line_break =
                     matches!(mode, DotBoundaryKind::OptionalCall);
-                self.attach_dot_boundary_annotations_for_token(
+                self.bind_dot_boundary_trivia_for_seam_token(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
                     keep_line_comments_on_line_break,
                 );
             }
-            AnnotationBoundaryKind::DotPrefix => {
-                self.attach_dot_prefix_annotations_for_token(
+            AnnotationSeamKind::DotPrefix => {
+                self.bind_dot_prefix_trivia_for_seam_token(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
                 );
             }
-            AnnotationBoundaryKind::Blank(mode) => {
-                let position = match mode {
-                    BlankBoundaryKind::Prefix => AnnotationPosition::BlockPrefix,
-                    BlankBoundaryKind::Postfix => AnnotationPosition::BlockPostfix,
-                };
-                self.attach_inline_blank_from_skipped_newlines_with_position(
+            AnnotationSeamKind::Blank(_mode) => {
+                self.bind_inline_blank_from_skipped_newlines_with_position(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
-                    position,
+                    AnnotationPosition::BlockPostfix,
                 );
             }
         }
@@ -395,21 +285,21 @@ impl Parser {
 
     /// Attach annotations for the current parser token boundary.
     #[inline(always)]
-    pub(crate) fn attach_current_boundary(
+    pub(crate) fn bind_current_annotation_seam(
         &mut self,
         target_node_id: u32,
-        kind: AnnotationBoundaryKind,
+        kind: AnnotationSeamKind,
     ) {
         let Some(token_index) = self.current_annotation_token_index() else {
             return;
         };
 
-        self.attach_boundary(token_index, 0, target_node_id, kind);
+        self.bind_annotation_seam(token_index, 0, target_node_id, kind);
     }
 
     /// Attach leading annotations for one semantic token.
     #[inline(always)]
-    fn attach_leading_annotations_for_token(
+    fn bind_leading_trivia_for_seam_token(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
@@ -420,10 +310,11 @@ impl Parser {
             match kind {
                 LeadingAnnotationKind::Statement => (AnnotationPosition::BlockPrefix, true, true),
                 LeadingAnnotationKind::Expression => (AnnotationPosition::LinePrefix, false, true),
+                LeadingAnnotationKind::Type => (AnnotationPosition::BlockPrefix, false, true),
                 LeadingAnnotationKind::Wrapper => (AnnotationPosition::LinePrefix, false, false),
             };
 
-        self.attach_inline_leading_annotations_for_token_with_mode(
+        self.bind_inline_leading_trivia_for_seam_token_with_mode(
             token_index,
             skipped_newline_count,
             target_node_id,
@@ -434,13 +325,13 @@ impl Parser {
     }
 
     /// Attach infix annotations for one semantic token in container contexts.
-    fn attach_infix_annotations_for_token(
+    fn bind_infix_trivia_for_seam_token(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
         target_node_id: u32,
     ) {
-        self.attach_inline_blank_from_skipped_newlines_with_position(
+        self.bind_inline_blank_from_skipped_newlines_with_position(
             token_index,
             skipped_newline_count,
             target_node_id,
@@ -463,7 +354,7 @@ impl Parser {
 
             let group_len = group_end_index - group_start_index + 1;
             if self.is_comment_annotation_token_type(token_type) {
-                self.attach_inline_annotation_group(
+                self.bind_inline_annotation_group(
                     token_type,
                     &annotation_tokens,
                     group_start_index,
@@ -479,7 +370,7 @@ impl Parser {
     }
 
     /// Attach leading annotations for a synthetic stub target.
-    fn attach_stub_annotations_for_token(
+    fn bind_stub_trivia_for_seam_token(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
@@ -504,7 +395,7 @@ impl Parser {
 
             let group_len = group_end_index - group_start_index + 1;
             if self.is_comment_annotation_token_type(token_type) {
-                self.attach_inline_annotation_group(
+                self.bind_inline_annotation_group(
                     token_type,
                     &annotation_tokens,
                     group_start_index,
@@ -521,7 +412,7 @@ impl Parser {
 
     /// Attach trailing annotations before one token index.
     #[inline(always)]
-    fn attach_trailing_annotations_for_token(
+    fn bind_trailing_trivia_for_seam_token(
         &mut self,
         token_index: usize,
         target_node_id: u32,
@@ -565,7 +456,7 @@ impl Parser {
             };
 
             // attach the grouped annotation to the target and claim side tokens
-            self.attach_inline_annotation_group(
+            self.bind_inline_annotation_group(
                 token_type,
                 &annotation_tokens,
                 group_start_index,
@@ -775,7 +666,7 @@ impl Parser {
 
     /// Attach trailing line comments before a token as line boundary postfix.
     #[inline(always)]
-    fn attach_trailing_line_boundary_comments_for_token(
+    fn bind_trailing_line_boundary_comments_for_seam_token(
         &mut self,
         token_index: usize,
         target_node_id: u32,
@@ -820,7 +711,7 @@ impl Parser {
                     )) == 0
                 {
                     let group_len = group_end_index - group_start_index + 1;
-                    self.attach_inline_annotation_group(
+                    self.bind_inline_annotation_group(
                         token_type,
                         &annotation_tokens,
                         group_start_index,
@@ -852,7 +743,7 @@ impl Parser {
     }
 
     /// Attach boundary annotations before a dot style boundary token.
-    fn attach_dot_boundary_annotations_for_token(
+    fn bind_dot_boundary_trivia_for_seam_token(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
@@ -914,7 +805,7 @@ impl Parser {
                 };
 
                 // attach eligible comment group at the boundary position
-                self.attach_inline_annotation_group(
+                self.bind_inline_annotation_group(
                     token_type,
                     &annotation_tokens,
                     group_start_index,
@@ -931,7 +822,7 @@ impl Parser {
 
     /// Attach chained line comment prefixes to the following member target.
     #[inline(always)]
-    fn attach_dot_prefix_annotations_for_token(
+    fn bind_dot_prefix_trivia_for_seam_token(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
@@ -943,7 +834,7 @@ impl Parser {
         }
 
         // preserve blank lines between chain segments around prefix comments
-        self.attach_inline_blank_from_skipped_newlines_with_position(
+        self.bind_inline_blank_from_skipped_newlines_with_position(
             token_index,
             skipped_newline_count,
             target_node_id,
@@ -972,7 +863,7 @@ impl Parser {
                 token_type,
                 TokenType::LineComment | TokenType::DocLineComment
             ) {
-                self.attach_inline_annotation_group(
+                self.bind_inline_annotation_group(
                     token_type,
                     &annotation_tokens,
                     group_start_index,
@@ -989,7 +880,7 @@ impl Parser {
 
     /// Attach grouped leading annotations for one semantic token.
     #[inline(always)]
-    fn attach_inline_leading_annotations_for_token_with_mode(
+    fn bind_inline_leading_trivia_for_seam_token_with_mode(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
@@ -1036,7 +927,7 @@ impl Parser {
         }
 
         // attach blank lines from skipped semantic newlines
-        self.attach_inline_blank_from_skipped_newlines_with_position(
+        self.bind_inline_blank_from_skipped_newlines_with_position(
             token_index,
             skipped_newline_count,
             target_node_id,
@@ -1061,15 +952,15 @@ impl Parser {
             if ANNOTATION_TOKEN_TYPES.contains(&token_type)
                 && (token_type != TokenType::Newline || group_len > 1)
             {
-                let position = if token_type == TokenType::Newline {
-                    AnnotationPosition::BlockPrefix
-                } else if has_line_break_before && prefer_block_prefix_on_line_break {
+                let should_use_block_prefix = token_type == TokenType::Newline
+                    || has_line_break_before && prefer_block_prefix_on_line_break;
+                let position = if should_use_block_prefix {
                     AnnotationPosition::BlockPrefix
                 } else {
                     inline_position
                 };
 
-                self.attach_inline_annotation_group(
+                self.bind_inline_annotation_group(
                     token_type,
                     &annotation_tokens,
                     group_start_index,
@@ -1086,7 +977,7 @@ impl Parser {
 
     /// Attach blank annotations from skipped semantic newline tokens.
     #[inline(always)]
-    fn attach_inline_blank_from_skipped_newlines_with_position(
+    fn bind_inline_blank_from_skipped_newlines_with_position(
         &mut self,
         token_index: usize,
         skipped_newline_count: usize,
@@ -1303,12 +1194,17 @@ impl Parser {
         // collect unclaimed semantic annotation tokens in the same window
         self.ensure_claimed_annotation_tokens_capacity();
         let semantic_tokens = self.tokens();
-        for token_index in token_window_start..token_window_end_exclusive {
+        for (token_index, token) in semantic_tokens
+            .iter()
+            .copied()
+            .enumerate()
+            .take(token_window_end_exclusive)
+            .skip(token_window_start)
+        {
             if self.annotation_claimed_tokens[token_index] {
                 continue;
             }
 
-            let token = semantic_tokens[token_index];
             if !self.is_comment_annotation_token_type(token.token.ty) {
                 continue;
             }
@@ -1523,7 +1419,8 @@ impl Parser {
     }
 
     /// Attach one grouped inline annotation to a target node.
-    fn attach_inline_annotation_group(
+    #[allow(clippy::too_many_arguments)]
+    fn bind_inline_annotation_group(
         &mut self,
         token_type: TokenType,
         tokens: &[InlineAnnotationToken],
@@ -1665,11 +1562,9 @@ impl Parser {
                     self.annotation_claimed_side_tokens[side_index] = true;
                     self.annotation_claimed_side_token_log.push(side_index);
                 }
-            } else {
-                if !self.annotation_claimed_tokens[token.token_index] {
-                    self.annotation_claimed_tokens[token.token_index] = true;
-                    self.annotation_claimed_token_log.push(token.token_index);
-                }
+            } else if !self.annotation_claimed_tokens[token.token_index] {
+                self.annotation_claimed_tokens[token.token_index] = true;
+                self.annotation_claimed_token_log.push(token.token_index);
             }
         }
 
@@ -1678,8 +1573,8 @@ impl Parser {
     }
 
     /// Finalize annotations after parsing.
-    pub(crate) fn attach_annotations(&mut self) {
-        if !self.should_attach_annotations() {
+    pub(crate) fn finalize_trivia_projection(&mut self) {
+        if !self.should_finalize_trivia_projection() {
             return;
         }
 
@@ -1692,18 +1587,18 @@ impl Parser {
     }
 
     /// Return true when there are annotations worth attaching.
-    pub(crate) fn should_attach_annotations(&mut self) -> bool {
-        self.has_comment_annotation_tokens() || self.has_blank_annotation_tokens()
+    pub(crate) fn should_finalize_trivia_projection(&mut self) -> bool {
+        self.has_comment_trivia_tokens() || self.has_blank_trivia_tokens()
     }
 
     /// Return true when there are comment or doc tokens.
-    pub(crate) fn has_comment_annotation_tokens(&self) -> bool {
-        self.token_stream.has_comment_annotation_tokens()
+    pub(crate) fn has_comment_trivia_tokens(&self) -> bool {
+        self.token_stream.has_comment_trivia_tokens()
     }
 
     /// Return true when there are blank line tokens.
-    pub(crate) fn has_blank_annotation_tokens(&self) -> bool {
-        self.token_stream.has_blank_annotation_tokens()
+    pub(crate) fn has_blank_trivia_tokens(&self) -> bool {
+        self.token_stream.has_blank_trivia_tokens()
     }
 
     /// Clean annotation tokens into their inner string, preserving intentional spacing.

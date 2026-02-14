@@ -203,16 +203,8 @@ fn parser_files_from_env() -> Option<Vec<PathBuf>> {
 /// Collect parser source files for the workspace benchmark.
 fn collect_workspace_parser_sources(workspace_root: &str) -> Vec<PathBuf> {
     let mut source_files: Vec<PathBuf> = Vec::new();
-    source_files.extend(
-        glob(&format!("{workspace_root}/**/*.ds"))
-            .into_iter()
-            .map(PathBuf::from),
-    );
-    source_files.extend(
-        glob(&format!("{workspace_root}/**/*.d.ds"))
-            .into_iter()
-            .map(PathBuf::from),
-    );
+    source_files.extend(glob(&format!("{workspace_root}/**/*.ds")));
+    source_files.extend(glob(&format!("{workspace_root}/**/*.d.ds")));
     source_files.sort();
     source_files.dedup();
     source_files

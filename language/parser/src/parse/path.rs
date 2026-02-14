@@ -11,7 +11,7 @@ impl Parser {
     #[inline]
     fn token_has_leading_comment_trivia(&mut self, token_index: usize) -> bool {
         // fast path: skip side-token scans when no comments exist in the stream
-        if !self.token_stream.has_comment_annotation_tokens() {
+        if !self.token_stream.has_comment_trivia_tokens() {
             return false;
         }
 

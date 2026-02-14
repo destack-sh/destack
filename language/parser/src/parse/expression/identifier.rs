@@ -4,6 +4,8 @@ use crate::{ParseResult, Parser, ParserMark};
 use destack_ast::{Expression, LocalNodeId, NodeType, Path, PostfixPosition, TokenType};
 use smallvec::smallvec;
 
+use super::super::annotation::{AnnotationSeamKind, DotBoundaryKind};
+
 impl Parser {
     pub(super) fn eat_identifier_expression_path(
         &mut self,
@@ -90,13 +92,11 @@ impl Parser {
                     newline_index -= 1;
                 }
 
-                self.attach_boundary(
+                self.bind_annotation_seam(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
-                    crate::parse::annotation::AnnotationBoundaryKind::DotBoundary(
-                        crate::parse::annotation::DotBoundaryKind::Member,
-                    ),
+                    AnnotationSeamKind::DotBoundary(DotBoundaryKind::Member),
                 );
             }
 

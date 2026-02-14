@@ -349,7 +349,21 @@ pub(crate) fn format_if_else_chain<'ast>(
                 match then_expression {
                     Expression::Block(block_id) => {
                         write!(f, [f.context().any_prefix_annotations(*then_expression_id)])?;
-                        format_statement_body_block(f, *block_id)?;
+                        let should_indent_statement_wrapper_after_head_boundary =
+                            wrote_deferred_head_boundary_annotations
+                                && is_statement_wrapper_block(f.context(), *block_id);
+                        if should_indent_statement_wrapper_after_head_boundary {
+                            write!(
+                                f,
+                                [group(&format_args![block_indent(&format_with(
+                                    |f: &mut DestackFormatter<'ast, '_>| {
+                                        format_statement_body_block(f, *block_id)
+                                    }
+                                )),])]
+                            )?;
+                        } else {
+                            format_statement_body_block(f, *block_id)?;
+                        }
                         write!(
                             f,
                             [f.context()

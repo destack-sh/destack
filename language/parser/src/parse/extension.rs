@@ -105,11 +105,11 @@ impl Parser {
         }
 
         // attach declaration header-to-body boundary annotations before `{`
-        self.attach_boundary(
+        self.bind_annotation_seam(
             body_cursor.index,
             body_cursor.skipped_newline_count.saturating_add(1),
             extension_id.id,
-            crate::parse::annotation::AnnotationBoundaryKind::Infix,
+            super::annotation::AnnotationSeamKind::Infix,
         );
 
         Ok(extension_id)

@@ -80,10 +80,10 @@ impl Parser {
         let expressions = if has_body {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
-            let old_options = self.swap_options(body_options);
-            let expressions_result = self.eat_block_body(BlockFormat::Explicit);
-            self.restore_options(old_options);
-            let expressions = expressions_result.for_node_type(NodeType::Block)?;
+            let expressions_result = self.with_options(body_options, |parser| {
+                parser.eat_block_body(BlockFormat::Explicit)
+            })?;
+            let expressions = expressions_result;
             self.eat_token(TokenType::CloseBrace)
                 .for_node_type(NodeType::Declaration)?;
             expressions

@@ -4,9 +4,11 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BinaryOperator, Block, BlockFormat, Declaration, DeclarationDescriptor, Decorator, Expression,
-    Keyword, LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
+    BinaryOperator, Block, BlockFormat, Declaration, DeclarationDescriptor, Expression, Keyword,
+    LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
 };
+
+use super::super::annotation::{LeadingAnnotationKind, PendingDecorators};
 
 /// The recursion interval for stack growth checks in expression parsing.
 const STACK_GROW_CHECK_INTERVAL: u32 = 256;
@@ -17,15 +19,9 @@ impl Parser {
         &mut self,
         options: ParserOptions,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        if self.options == options {
-            return self.eat_expression_inner_with_stack_guard();
-        }
-
-        let old_options = self.options;
-        self.options = options;
-        let result = self.eat_expression_inner_with_stack_guard();
-        self.options = old_options;
-        result
+        self.with_options(options, |parser| {
+            parser.eat_expression_inner_with_stack_guard()
+        })
     }
 
     /// Eat an expression in the current parser options.
@@ -51,11 +47,11 @@ impl Parser {
             return self.eat_expression_inner_with_stack_guard();
         }
 
-        let old_in_statement_position = self.options.in_statement_position;
-        self.options.in_statement_position = false;
-        let result = self.eat_expression_inner_with_stack_guard();
-        self.options.in_statement_position = old_in_statement_position;
-        result
+        let mut options = self.options;
+        options.in_statement_position = false;
+        self.with_options(options, |parser| {
+            parser.eat_expression_inner_with_stack_guard()
+        })
     }
 
     /// Eat an expression with stack growth checks.
@@ -171,13 +167,10 @@ impl Parser {
             expression_cursor.index,
             expression_cursor.has_line_break_before,
         ) {
-            self.attach_boundary(
-                expression_cursor.index,
-                expression_cursor.skipped_newline_count,
+            self.bind_owner_leading_seam_at_cursor(
                 identifier_expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Expression,
-                ),
+                expression_cursor,
+                LeadingAnnotationKind::Expression,
             );
         }
 
@@ -245,13 +238,10 @@ impl Parser {
             expression_cursor.index,
             expression_cursor.has_line_break_before,
         ) {
-            self.attach_boundary(
-                expression_cursor.index,
-                expression_cursor.skipped_newline_count,
+            self.bind_owner_leading_seam_at_cursor(
                 identifier_expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Expression,
-                ),
+                expression_cursor,
+                LeadingAnnotationKind::Expression,
             );
         }
 
@@ -574,9 +564,9 @@ impl Parser {
         // collect decorator prefixes before parsing the next expression
         let mut expression_decorators = if !self.options.in_decorator && self.peek_is(TokenType::At)
         {
-            self.eat_decorators_prefix_collect_maybe()?
+            self.eat_decorators_maybe()?
         } else {
-            Vec::new()
+            PendingDecorators::new()
         };
 
         // capture expression span and scanner cursor metadata
@@ -995,13 +985,19 @@ impl Parser {
                         if let Some(export_head_newline_token_index) =
                             export_head_newline_token_index
                         {
-                            self.attach_boundary(
+                            // export boundary comments belong to the declaration head owner
+                            let export_boundary_owner_id =
+                                if let Expression::Declaration(declaration_id) =
+                                    self.tree.get(primary_expression_id)
+                                {
+                                    declaration_id.id
+                                } else {
+                                    primary_expression_id.id
+                                };
+                            self.bind_owner_trailing_default_at_token(
+                                export_boundary_owner_id,
                                 export_head_newline_token_index,
                                 0,
-                                primary_expression_id.id,
-                                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                                    crate::parse::annotation::TrailingAnnotationKind::Default,
-                                ),
                             );
                         }
                         primary_expression_id
@@ -1181,10 +1177,10 @@ impl Parser {
                     //
                     // array literal
                     else if token_type == TokenType::OpenBracket {
-                        let old_options = self.swap_options(self.options.not_in_position());
-                        let elements = self.eat_array_literal();
-                        self.restore_options(old_options);
-                        let elements = elements?;
+                        let elements = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_array_literal()
+                            })?;
                         self.tree.insert(
                             Expression::ArrayExpression { elements },
                             self.get_span_from(&start),
@@ -1203,10 +1199,9 @@ impl Parser {
                             } else {
                                 self.options.not_in_position()
                             };
-                            let old_options = self.swap_options(object_options);
-                            let properties = self.eat_object_literal();
-                            self.restore_options(old_options);
-                            let properties = properties?;
+                            let properties = self.with_options(object_options, |parser| {
+                                parser.eat_object_literal()
+                            })?;
                             self.tree.insert(
                                 Expression::ObjectExpression {
                                     ty: None,
@@ -1250,11 +1245,9 @@ impl Parser {
                     }
                     // tree literal
                     else if token_type == TokenType::LessThan && self.can_start_tree_literal() {
-                        let old_options = self.options;
-                        self.options = self.options.not_in_position();
-                        let tree_expression = self.eat_tree_literal();
-                        self.options = old_options;
-                        tree_expression?
+                        self.with_options(self.options.not_in_position(), |parser| {
+                            parser.eat_tree_literal()
+                        })?
                     }
                     // template literal
                     else if self.is_template_literal_start() {
@@ -1336,13 +1329,11 @@ impl Parser {
             expression_token_index,
             expression_cursor.has_line_break_before,
         ) {
-            self.attach_boundary(
+            self.bind_owner_leading_seam_at_token(
+                left_expression_id.id,
                 expression_token_index,
                 expression_skipped_newline_count,
-                left_expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Leading(
-                    crate::parse::annotation::LeadingAnnotationKind::Expression,
-                ),
+                LeadingAnnotationKind::Expression,
             );
         }
 
@@ -1354,11 +1345,11 @@ impl Parser {
     /// Attach pending decorators to the best expression target.
     fn attach_pending_decorators_to_expression(
         &mut self,
-        decorators: &mut Vec<LocalNodeId<Decorator>>,
+        decorators: &mut PendingDecorators,
         expression_id: LocalNodeId<Expression>,
     ) {
         let target_expression_id = self.decorator_target_expression(expression_id);
-        self.attach_decorators_to_target(std::mem::take(decorators), target_expression_id.id);
+        self.attach_decorators(target_expression_id.id, std::mem::take(decorators));
     }
 
     /// Return the expression target that should own prefix decorators.

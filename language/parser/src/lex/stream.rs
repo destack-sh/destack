@@ -811,9 +811,7 @@ impl TokenStream {
     pub fn matching_pair_or_lex(&mut self, index: usize) -> Option<usize> {
         self.ensure_token(index);
 
-        let Some(token) = self.tokens.get(index) else {
-            return None;
-        };
+        let token = self.tokens.get(index)?;
 
         if !matches!(
             token.token.ty,
@@ -982,13 +980,13 @@ impl TokenStream {
 
     /// Return true when comment style side annotation tokens were seen.
     #[inline]
-    pub fn has_comment_annotation_tokens(&self) -> bool {
+    pub fn has_comment_trivia_tokens(&self) -> bool {
         self.has_comment_side_tokens
     }
 
     /// Return true when semantic newline tokens were seen.
     #[inline]
-    pub fn has_blank_annotation_tokens(&self) -> bool {
+    pub fn has_blank_trivia_tokens(&self) -> bool {
         self.has_semantic_newline_tokens
     }
 }

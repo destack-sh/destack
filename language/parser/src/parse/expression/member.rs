@@ -127,12 +127,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
 
             // keep separator-boundary comments before `)` on the inner expression
-            self.attach_current_boundary(
-                expression_id.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
-                    crate::parse::annotation::TrailingAnnotationKind::Default,
-                ),
-            );
+            self.bind_owner_trailing_default_at_current(expression_id.id);
 
             self.eat_token(TokenType::CloseParenthesis)?;
             self.tree

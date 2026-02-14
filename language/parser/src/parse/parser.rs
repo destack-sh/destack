@@ -108,6 +108,8 @@ pub struct ParserOptions {
     /// Whether we're parsing at the start of a "statement".
     /// Disallows object literals.
     pub in_statement_position: bool = false,
+    /// Whether this parse originates from a statement root context.
+    pub in_statement_context: bool = false,
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
     /// Disallows object and typed struct literals at the root level to avoid ambiguity with `expr {}`.
     pub in_before_block: bool = false,
@@ -359,6 +361,7 @@ impl ParserOptions {
     pub(crate) fn in_statement_position(self) -> Self {
         Self {
             in_statement_position: true,
+            in_statement_context: true,
             ..self
         }
     }
@@ -602,6 +605,7 @@ impl ParserOptions {
             in_decorator: self.in_decorator,
             disallow_ambiguous_tree_literal: self.disallow_ambiguous_tree_literal,
             in_declare_context: self.in_declare_context,
+            in_statement_context: self.in_statement_context,
             ..Self::default()
         }
     }
@@ -1356,7 +1360,7 @@ impl Parser {
         let expressions = self.parse_without_finish();
 
         // attach side annotations in the default parse pipeline
-        self.attach_annotations();
+        self.finalize_trivia_projection();
 
         self.is_finished = true;
         expressions
@@ -1380,17 +1384,12 @@ impl Parser {
             expressions.append(&mut body_expressions);
         }
 
-        // insert a stub expression when annotation-only prefixes need one stable attachment target
+        // comment-only and directive-only files need one stable target node
         self.token_stream.lex_to_end();
-        if self.has_comment_annotation_tokens() && (expressions.is_empty() || consumed_to_end) {
+        if self.has_comment_trivia_tokens() && (expressions.is_empty() || consumed_to_end) {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
-            self.attach_boundary(
-                0,
-                0,
-                stub.id,
-                crate::parse::annotation::AnnotationBoundaryKind::Stub,
-            );
+            self.bind_annotation_seam(0, 0, stub.id, super::annotation::AnnotationSeamKind::Stub);
             if expressions.is_empty() {
                 expressions.push(stub);
             } else {
@@ -1409,7 +1408,7 @@ impl Parser {
 
     /// Attach side annotations after parsing when needed.
     pub fn finish_annotations(&mut self) {
-        self.attach_annotations();
+        self.finalize_trivia_projection();
     }
     /// Swap parser options and return the previous value.
     #[inline(always)]
@@ -1430,8 +1429,8 @@ impl Parser {
     pub(crate) fn with_options<T>(
         &mut self,
         options: ParserOptions,
-        func: impl FnOnce(&mut Self) -> ParseResult<T>,
-    ) -> ParseResult<T> {
+        func: impl FnOnce(&mut Self) -> T,
+    ) -> T {
         if self.options == options {
             return func(self);
         }
