@@ -90,10 +90,13 @@ impl Parser {
                     newline_index -= 1;
                 }
 
-                self.attach_inline_dot_boundary_annotations_for_token(
+                self.attach_boundary(
                     token_index,
                     skipped_newline_count,
                     target_node_id,
+                    crate::parse::annotation::AnnotationBoundaryKind::DotBoundary(
+                        crate::parse::annotation::DotBoundaryKind::Member,
+                    ),
                 );
             }
 

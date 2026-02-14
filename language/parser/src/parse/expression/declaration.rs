@@ -242,12 +242,14 @@ impl Parser {
     ) -> ParseResult<DescriptorHead> {
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
         let mut decorators = Vec::new();
+        let mut export_head_newline_token_index = None;
 
         // decorators parse as expressions only
         if self.options.in_decorator {
             return Ok(DescriptorHead::Descriptor {
                 descriptor,
                 decorators,
+                export_head_newline_token_index: None,
             });
         }
 
@@ -256,6 +258,7 @@ impl Parser {
             return Ok(DescriptorHead::Descriptor {
                 descriptor,
                 decorators,
+                export_head_newline_token_index: None,
             });
         }
 
@@ -289,6 +292,7 @@ impl Parser {
             return Ok(DescriptorHead::Descriptor {
                 descriptor,
                 decorators,
+                export_head_newline_token_index: None,
             });
         }
 
@@ -316,9 +320,18 @@ impl Parser {
 
             // export dependencies handled by export statement parsing
             let next_keyword = self.peek_any_keyword().ok();
+            let next_keyword_after_newlines = {
+                let next_index = self.next_non_newline_index_from(self.pos_index());
+                if self.token_type_at(next_index) == TokenType::Identifier {
+                    self.keyword_for_index(next_index)
+                } else {
+                    None
+                }
+            };
             let has_module_identifier_declaration =
                 !self.has_active_split() && self.is_module_identifier_at(self.pos_index());
             let has_declaration_keyword = next_keyword.is_some_and(is_declaration_keyword)
+                || next_keyword_after_newlines.is_some_and(is_declaration_keyword)
                 || has_module_identifier_declaration;
 
             // reject export default enum declarations
@@ -356,12 +369,26 @@ impl Parser {
             }
         }
 
-        // skip newlines before export import equals
-        if descriptor.export.is_some()
-            && self.peek_is(TokenType::Newline)
-            && self.is_keyword_after_newlines(Keyword::Import)
-        {
-            self.eat_newlines_maybe()?;
+        // skip newlines after export before declaration-style heads
+        if descriptor.export.is_some() && self.peek_is(TokenType::Newline) {
+            let export_newline_token_index = self.pos_index();
+            let next_index = self.next_non_newline_index_from(self.pos_index());
+            let next_token_type = self.token_type_at(next_index);
+            let next_keyword = if next_token_type == TokenType::Identifier {
+                self.keyword_for_index(next_index)
+            } else {
+                None
+            };
+            let is_after_export_import_equals_head = next_keyword == Some(Keyword::Import);
+            let is_after_export_declaration_head = next_keyword.is_some_and(is_declaration_keyword)
+                || next_token_type == TokenType::At
+                || (!self.has_active_split()
+                    && (self.is_module_identifier_at(next_index)
+                        || self.is_global_identifier_at(next_index)));
+            if is_after_export_import_equals_head || is_after_export_declaration_head {
+                export_head_newline_token_index = Some(export_newline_token_index);
+                self.eat_newlines_maybe()?;
+            }
         }
 
         // declare modifier
@@ -475,6 +502,7 @@ impl Parser {
         Ok(DescriptorHead::Descriptor {
             descriptor,
             decorators,
+            export_head_newline_token_index,
         })
     }
 

@@ -144,7 +144,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 position: FormatterDirectivePosition::Postfix { .. },
             })
         ) {
-            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+            if matches!(
+                self,
+                Expression::TypeUnary {
+                    operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
+                    ..
+                }
+            ) {
+                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+            } else {
+                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+            }
         }
 
         Ok(())

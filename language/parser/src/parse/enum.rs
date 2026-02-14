@@ -104,10 +104,11 @@ impl Parser {
         }
 
         // attach declaration header-to-body boundary annotations before `{`
-        self.attach_inline_infix_annotations_for_token(
+        self.attach_boundary(
             body_cursor.index,
             body_cursor.skipped_newline_count.saturating_add(1),
             enum_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Infix,
         );
 
         Ok(enum_id)
@@ -132,12 +133,20 @@ impl Parser {
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
                 if let Some(last_item_node_id) = last_item_node_id {
-                    self.attach_inline_postfix_blank_from_skipped_newlines(
+                    self.attach_boundary(
                         cursor.index,
                         cursor.skipped_newline_count,
                         last_item_node_id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                            crate::parse::annotation::BlankBoundaryKind::Postfix,
+                        ),
                     );
-                    self.attach_inline_trailing_annotations_for_current_token(last_item_node_id);
+                    self.attach_current_boundary(
+                        last_item_node_id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
                 }
                 break;
             }
@@ -163,10 +172,13 @@ impl Parser {
                     if let Some((anchor_token_index, anchor_skipped_newline_count)) =
                         pending_enum_decorator_anchor.take()
                     {
-                        self.attach_inline_prefix_blank_from_skipped_newlines(
+                        self.attach_boundary(
                             anchor_token_index,
                             anchor_skipped_newline_count,
                             field.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                                crate::parse::annotation::BlankBoundaryKind::Prefix,
+                            ),
                         );
                     }
                     self.attach_decorators_to_target(
@@ -174,12 +186,20 @@ impl Parser {
                         field.id,
                     );
                 }
-                self.attach_inline_leading_annotations_for_token(
+                self.attach_boundary(
                     field_token_index,
                     field_skipped_newline_count,
                     field.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Statement,
+                    ),
                 );
-                self.attach_inline_trailing_annotations_for_current_token(field.id);
+                self.attach_current_boundary(
+                    field.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
+                );
                 last_item_node_id = Some(field.id);
                 fields.push(field);
             }
@@ -196,10 +216,13 @@ impl Parser {
                     if let Some((anchor_token_index, anchor_skipped_newline_count)) =
                         pending_enum_decorator_anchor.take()
                     {
-                        self.attach_inline_prefix_blank_from_skipped_newlines(
+                        self.attach_boundary(
                             anchor_token_index,
                             anchor_skipped_newline_count,
                             member_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Blank(
+                                crate::parse::annotation::BlankBoundaryKind::Prefix,
+                            ),
                         );
                     }
                     self.attach_decorators_to_target(
@@ -207,12 +230,20 @@ impl Parser {
                         member_id.id,
                     );
                 }
-                self.attach_inline_leading_annotations_for_token(
+                self.attach_boundary(
                     member_token_index,
                     member_skipped_newline_count,
                     member_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                        crate::parse::annotation::LeadingAnnotationKind::Statement,
+                    ),
                 );
-                self.attach_inline_trailing_annotations_for_current_token(member_id.id);
+                self.attach_current_boundary(
+                    member_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
+                );
                 last_item_node_id = Some(member_id.id);
                 members.push(member_id);
             }

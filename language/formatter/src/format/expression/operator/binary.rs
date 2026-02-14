@@ -943,6 +943,128 @@ pub(super) fn format_binary_expression<'ast>(
     Ok(())
 }
 
+/// Return prefix annotation ids attached to the type-binary right operand.
+fn type_binary_right_prefix_annotation_ids(
+    context: &DestackFormatContext<'_>,
+    right: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let Some(annotation_ids) = context.get_annotations(right) else {
+        return Vec::new();
+    };
+
+    annotation_ids
+        .into_iter()
+        .filter(|annotation_id| {
+            matches!(
+                context.tree.get::<Annotation>(*annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            )
+        })
+        .collect()
+}
+
+/// Collect slash seam comments between cast or satisfies operator and right type.
+fn collect_type_binary_right_seam_line_comments(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
+) -> Option<Vec<String>> {
+    let prefix_annotation_ids = type_binary_right_prefix_annotation_ids(context, right);
+    if prefix_annotation_ids.is_empty() {
+        return None;
+    }
+
+    let operator_span = context
+        .tree
+        .get_main_span(node_id)
+        .unwrap_or_else(|| context.get_span(node_id));
+    let right_span = context.get_span(right);
+    let mut comments: Vec<(u32, String)> = Vec::new();
+
+    for annotation_id in prefix_annotation_ids {
+        let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
+            return None;
+        };
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        if comment.style != destack_ast::CommentStyle::Slash {
+            return None;
+        }
+
+        let annotation_span = context.get_span::<Annotation>(annotation_id);
+        if annotation_span.start < operator_span.end || annotation_span.end > right_span.start {
+            return None;
+        }
+
+        let comment_source = context.get_span_str(annotation_span).trim().to_string();
+        if !comment_source.starts_with("//") {
+            return None;
+        }
+
+        comments.push((annotation_span.start, comment_source));
+    }
+
+    comments.sort_by_key(|(start, _)| *start);
+    Some(comments.into_iter().map(|(_, comment)| comment).collect())
+}
+
+/// Format one expression without prefix annotations and keep infix and postfix annotations.
+fn format_expression_without_prefix_annotations<'ast>(
+    expression_id: LocalNodeId<Expression>,
+) -> impl Format<DestackFormatContext<'ast>> {
+    format_with(move |f| {
+        let directive = directive_for_node(f.context(), expression_id);
+        format_expression(
+            f,
+            expression_id,
+            f.context().tree.get(expression_id),
+            directive,
+        )?;
+        if !matches!(
+            directive,
+            Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Postfix { .. },
+            })
+        ) {
+            write!(
+                f,
+                [f.context().any_infix_or_postfix_annotations(expression_id)]
+            )?;
+        }
+        Ok(())
+    })
+}
+
+/// Write a cast or satisfies operator and right operand with optional deferred seam line comments.
+fn write_type_binary_operator_and_right<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    operator: &TypeBinaryOperator,
+    right: LocalNodeId<Expression>,
+    deferred_seam_line_comments: Option<&[String]>,
+) -> FormatResult<()> {
+    write!(f, [operator, space()])?;
+
+    if let Some(comments) = deferred_seam_line_comments {
+        for (comment_index, comment) in comments.iter().enumerate() {
+            if comment_index > 0 {
+                write!(f, [hard_line_break()])?;
+            }
+            write!(f, [text(comment.as_str())])?;
+        }
+
+        write!(
+            f,
+            [
+                hard_line_break(),
+                format_expression_without_prefix_annotations(right)
+            ]
+        )?;
+        return Ok(());
+    }
+
+    write!(f, [right])
+}
+
 /// Format a type-binary expression with chain-aware left-hand expansion.
 pub(super) fn format_type_binary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -973,6 +1095,14 @@ pub(super) fn format_type_binary_expression<'ast>(
         || is_chain_root(f.context().tree, formatted_left);
     let line_width = usize::from(f.context().options.line_width);
     let is_parenthesized_new_callee = type_binary_is_parenthesized_new_callee(f.context(), node_id);
+    let deferred_right_seam_line_comments = if matches!(
+        operator,
+        TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
+    ) {
+        collect_type_binary_right_seam_line_comments(f.context(), node_id, right)
+    } else {
+        None
+    };
     let should_expand_chain_left = matches!(
         operator,
         TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
@@ -994,7 +1124,12 @@ pub(super) fn format_type_binary_expression<'ast>(
                 if !has_postfix {
                     write!(f, [space()])?;
                 }
-                write!(f, [operator, space(), right])
+                write_type_binary_operator_and_right(
+                    f,
+                    operator,
+                    right,
+                    deferred_right_seam_line_comments.as_deref(),
+                )
             }))]
         )?;
     } else {
@@ -1015,7 +1150,12 @@ pub(super) fn format_type_binary_expression<'ast>(
                             write!(f, [soft_line_break_or_space()])?;
                         }
                     }
-                    write!(f, [operator, space(), right])
+                    write_type_binary_operator_and_right(
+                        f,
+                        operator,
+                        right,
+                        deferred_right_seam_line_comments.as_deref(),
+                    )
                 }))
             ])]
         )?;

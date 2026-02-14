@@ -390,15 +390,21 @@ impl Parser {
         }
 
         // keep comments/docs between parameter head and `=>` on the lambda declaration
-        self.attach_inline_wrapper_leading_annotations_for_token(
+        self.attach_boundary(
             arrow_cursor.index,
             arrow_cursor.skipped_newline_count,
             function_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+            ),
         );
-        self.attach_inline_expression_leading_annotations_for_token(
+        self.attach_boundary(
             body_cursor.index,
             body_cursor.skipped_newline_count,
             body.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                crate::parse::annotation::LeadingAnnotationKind::Expression,
+            ),
         );
 
         Ok(Some(function_id))
@@ -472,15 +478,21 @@ impl Parser {
         }
 
         // keep comments/docs between parameter head and `=>` on the lambda declaration
-        self.attach_inline_wrapper_leading_annotations_for_token(
+        self.attach_boundary(
             arrow_cursor.index,
             arrow_cursor.skipped_newline_count,
             function_id.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+            ),
         );
-        self.attach_inline_expression_leading_annotations_for_token(
+        self.attach_boundary(
             body_cursor.index,
             body_cursor.skipped_newline_count,
             body.id,
+            crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                crate::parse::annotation::LeadingAnnotationKind::Expression,
+            ),
         );
 
         Ok(Some(function_id))
@@ -931,19 +943,25 @@ impl Parser {
 
         // keep comments/docs between lambda head and separator on the declaration
         if let Some((separator_index, separator_skipped_newline_count)) = lambda_separator_cursor {
-            self.attach_inline_wrapper_leading_annotations_for_token(
+            self.attach_boundary(
                 separator_index,
                 separator_skipped_newline_count,
                 function_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Wrapper,
+                ),
             );
         }
 
         // keep comments/docs between lambda separator and body on the body expression
         if let Some((body_index, body_skipped_newline_count, body_id)) = lambda_body_cursor {
-            self.attach_inline_expression_leading_annotations_for_token(
+            self.attach_boundary(
                 body_index,
                 body_skipped_newline_count,
                 body_id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Expression,
+                ),
             );
         }
 

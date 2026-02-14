@@ -83,10 +83,13 @@ impl Parser {
 
                 // attach dot boundary trivia before consuming member tokens
                 if token_type == TokenType::Dot && !is_indirect_optional_call_boundary {
-                    self.attach_inline_dot_boundary_annotations_for_token(
+                    self.attach_boundary(
                         cursor_index,
                         cursor.skipped_newline_count,
                         left_expression_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::DotBoundary(
+                            crate::parse::annotation::DotBoundaryKind::Member,
+                        ),
                     );
                 }
                 let dot_member_target = if token_type == TokenType::Dot {
@@ -167,13 +170,25 @@ impl Parser {
                 else if matches!(token_type, TokenType::Maybe | TokenType::Identifier)
                     && let Some(operator) = self.peek_type_unary_postfix_operator_maybe()
                 {
+                    self.attach_boundary(
+                        cursor_index,
+                        0,
+                        left_expression_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                            crate::parse::annotation::TrailingAnnotationKind::Default,
+                        ),
+                    );
+
                     // avoid consuming conditional type ? as a type maybe
                     let operator_start = self.mark_span();
                     self.bump(); // eat type unary operator
+                    let mut secondary_operator_token_index: Option<usize> = None;
                     if matches!(
                         operator,
                         TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime
                     ) {
+                        self.eat_newlines_maybe()?;
+                        secondary_operator_token_index = Some(self.pos_index());
                         self.bump(); // eat second token
                     }
                     let operator_span = self.get_span_from(&operator_start);
@@ -185,6 +200,15 @@ impl Parser {
                         self.get_span_from(start),
                     );
                     self.tree.set_main_span(left_expression_id, operator_span);
+                    if let Some(secondary_operator_token_index) = secondary_operator_token_index {
+                        // keep comments between `as` and `const` or `comptime` on the full type unary node
+                        self.attach_boundary(
+                            secondary_operator_token_index,
+                            0,
+                            left_expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Infix,
+                        );
+                    }
                 }
                 // range (`..`, `..=`)
                 else if token_type == TokenType::Range {
@@ -236,10 +260,11 @@ impl Parser {
                             self.get_span_from(start),
                         );
                         self.tree.set_main_span(left_expression_id, name_span);
-                        self.attach_inline_dot_prefix_annotations_for_token(
+                        self.attach_boundary(
                             cursor_index,
                             cursor.skipped_newline_count,
                             left_expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::DotPrefix,
                         );
                         continue;
                     }
@@ -262,10 +287,11 @@ impl Parser {
                         self.get_span_from(start),
                     );
                     self.tree.set_main_span(left_expression_id, name_span);
-                    self.attach_inline_dot_prefix_annotations_for_token(
+                    self.attach_boundary(
                         cursor_index,
                         cursor.skipped_newline_count,
                         left_expression_id.id,
+                        crate::parse::annotation::AnnotationBoundaryKind::DotPrefix,
                     );
                     continue;
                 }
@@ -274,6 +300,17 @@ impl Parser {
                     && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                     || token_type == TokenType::Dot && next_token_type == TokenType::OpenBracket
                 {
+                    if token_type != TokenType::Dot {
+                        self.attach_boundary(
+                            cursor_index,
+                            0,
+                            left_expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                crate::parse::annotation::TrailingAnnotationKind::Default,
+                            ),
+                        );
+                    }
+
                     if has_pending_newline_tokens {
                         self.advance_to(cursor_index);
                     }
@@ -287,6 +324,17 @@ impl Parser {
                 }
                 // call (like `()`)
                 else if should_parse_call {
+                    if token_type != TokenType::Dot {
+                        self.attach_boundary(
+                            cursor_index,
+                            0,
+                            left_expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                crate::parse::annotation::TrailingAnnotationKind::Default,
+                            ),
+                        );
+                    }
+
                     // unparenthesized arrow functions cannot be direct call receivers
                     if has_direct_call
                         && self.is_unparenthesized_lambda_expression(left_expression_id)
@@ -316,10 +364,13 @@ impl Parser {
                         if let Some((optional_boundary_token_index, skipped_newline_count)) =
                             pending_optional_call_boundary.take()
                         {
-                            self.attach_inline_optional_call_boundary_annotations_for_token(
+                            self.attach_boundary(
                                 optional_boundary_token_index,
                                 skipped_newline_count,
                                 optional_boundary_target.id,
+                                crate::parse::annotation::AnnotationBoundaryKind::DotBoundary(
+                                    crate::parse::annotation::DotBoundaryKind::OptionalCall,
+                                ),
                             );
                         }
                     }
@@ -350,6 +401,17 @@ impl Parser {
                 else if token_type == TokenType::Maybe
                     || token_type == TokenType::Dot && next_token_type == TokenType::Maybe
                 {
+                    if token_type != TokenType::Dot {
+                        self.attach_boundary(
+                            cursor_index,
+                            0,
+                            left_expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                crate::parse::annotation::TrailingAnnotationKind::Default,
+                            ),
+                        );
+                    }
+
                     if has_pending_newline_tokens {
                         self.advance_to(cursor_index);
                     }
@@ -448,6 +510,17 @@ impl Parser {
                 else if token_type == TokenType::Not
                     || token_type == TokenType::Dot && next_token_type == TokenType::Not
                 {
+                    if token_type != TokenType::Dot {
+                        self.attach_boundary(
+                            cursor_index,
+                            0,
+                            left_expression_id.id,
+                            crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                                crate::parse::annotation::TrailingAnnotationKind::Default,
+                            ),
+                        );
+                    }
+
                     let position = if token_type == TokenType::Dot {
                         self.bump(); // eat .
                         PostfixPosition::Indirect
@@ -616,7 +689,12 @@ impl Parser {
                 }
 
                 // trailing annotations before the infix operator belong to the left operand
-                self.attach_inline_trailing_annotations_for_current_token(left_expression_id.id);
+                self.attach_current_boundary(
+                    left_expression_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
+                );
 
                 // capture operator span before eating
                 let operator_start = self.mark_span();
@@ -630,7 +708,8 @@ impl Parser {
                 let mut right_options = self
                     .options
                     .not_in_position()
-                    .in_left_precedence(right_operator.precedence());
+                    .in_left_precedence(right_operator.precedence())
+                    .with_expression_leading_annotations();
                 let parses_value_type_operator_right = !self.options.in_type
                     && matches!(
                         right_operator,
@@ -659,16 +738,13 @@ impl Parser {
                 {
                     right_options = right_options.in_type_conditional_right();
                 }
-
-                // parse the right side and attach inline annotation context around it
-                let right_cursor = self.scanner_cursor();
                 let right_expression_id = self.eat_expression(right_options)?;
-                self.attach_inline_expression_leading_annotations_for_token(
-                    right_cursor.index,
-                    right_cursor.skipped_newline_count,
+                self.attach_current_boundary(
                     right_expression_id.id,
+                    crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                        crate::parse::annotation::TrailingAnnotationKind::Default,
+                    ),
                 );
-                self.attach_inline_trailing_annotations_for_current_token(right_expression_id.id);
 
                 // combine into new left expression
                 let left_expression = self.make_infix_expression(
@@ -717,21 +793,20 @@ impl Parser {
                 .options
                 .not_in_position()
                 .in_ternary_condition()
-                .not_in_sequence_expression()
-                .without_expression_leading_annotations();
+                .not_in_sequence_expression();
             let then_expression_id = self.eat_expression(then_options)?;
-
-            self.attach_inline_expression_leading_annotations_for_token(
-                then_cursor.index,
-                then_cursor.skipped_newline_count,
-                then_expression_id.id,
-            );
 
             // consume the ternary separator after scanner normalization
             let colon_cursor = self.scanner_cursor();
             if colon_cursor.index != self.pos_index() {
                 self.advance_to(colon_cursor.index);
             }
+            self.attach_current_boundary(
+                then_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                    crate::parse::annotation::TrailingAnnotationKind::Default,
+                ),
+            );
             self.eat_colon()?;
 
             // parse the else branch with scanner-derived leading annotation context
@@ -739,17 +814,13 @@ impl Parser {
             if else_cursor.index != self.pos_index() {
                 self.advance_to(else_cursor.index);
             }
-            let else_options = self
-                .options
-                .not_in_position()
-                .not_in_sequence_expression()
-                .without_expression_leading_annotations();
+            let else_options = self.options.not_in_position().not_in_sequence_expression();
             let else_expression_id = self.eat_expression(else_options)?;
-
-            self.attach_inline_expression_leading_annotations_for_token(
-                else_cursor.index,
-                else_cursor.skipped_newline_count,
+            self.attach_current_boundary(
                 else_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                    crate::parse::annotation::TrailingAnnotationKind::PreserveLinePostfix,
+                ),
             );
 
             let expression = Expression::If {

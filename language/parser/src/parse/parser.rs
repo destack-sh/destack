@@ -9,8 +9,8 @@ use std::sync::Arc;
 use super::expression::lookahead::DelimiterAnalysis;
 use crate::{TokenStream, TokenStreamCursor, TokenStreamMark, is_semantic};
 use destack_ast::{
-    BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
-    TokenSpan, TokenType,
+    Annotation, BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId,
+    Token, TokenSpan, TokenType,
 };
 use destack_base::LocalStringPool;
 use destack_source::{
@@ -1227,12 +1227,6 @@ impl Parser {
         self.token_stream.keyword_at(index)
     }
 
-    /// Look up a keyword at a token index.
-    #[inline]
-    pub(crate) fn keyword_for_index_maybe_fast(&mut self, index: usize) -> Option<Keyword> {
-        self.keyword_for_index(index)
-    }
-
     /// Look up a pre interned identifier at a token index.
     #[inline]
     pub(crate) fn identifier_for_index(&mut self, index: usize) -> Option<StringId> {
@@ -1371,7 +1365,12 @@ impl Parser {
         if expressions.is_empty() && self.has_comment_annotation_tokens() {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
-            self.attach_inline_stub_annotations_for_token(0, 0, stub.id);
+            self.attach_boundary(
+                0,
+                0,
+                stub.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Stub,
+            );
             expressions.push(stub);
         }
 
@@ -1569,7 +1568,28 @@ impl Parser {
         expression_id: LocalNodeId<Expression>,
         span: Span,
     ) -> LocalNodeId<Expression> {
-        self.tree.insert(Expression::Statement(expression_id), span)
+        let statement_expression_id = self.tree.insert(Expression::Statement(expression_id), span);
+
+        // move boundary style annotations outside the inner expression span to the wrapper
+        let inner_expression_span = self.tree.get_span(expression_id);
+        self.tree.move_annotations_if(
+            expression_id.id,
+            statement_expression_id.id,
+            |_, annotation, annotation_span| {
+                if matches!(annotation, Annotation::Decorator { .. }) {
+                    return false;
+                }
+
+                if annotation_span.file != inner_expression_span.file {
+                    return false;
+                }
+
+                annotation_span.start < inner_expression_span.start
+                    || annotation_span.end > inner_expression_span.end
+            },
+        );
+
+        statement_expression_id
     }
 
     /// Get a mark and return the span of the current position.

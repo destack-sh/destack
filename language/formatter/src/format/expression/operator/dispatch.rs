@@ -3,7 +3,94 @@ use super::super::*;
 use super::assign::format_assign_expression;
 use super::binary::{format_binary_expression, format_type_binary_expression};
 use super::r#new::format_new_expression;
+use destack_ast::CommentStyle;
 use destack_fir::write;
+
+/// Collect block infix comment sources for one type unary expression node.
+fn collect_type_unary_infix_comment_sources(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> Vec<(CommentStyle, String)> {
+    let Some(annotation_ids) = context.get_annotations(node_id) else {
+        return Vec::new();
+    };
+
+    let mut comments = Vec::new();
+    for annotation_id in annotation_ids {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+        else {
+            continue;
+        };
+        if *position != AnnotationPosition::BlockInfix {
+            continue;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        let annotation_span = context.get_span::<Annotation>(annotation_id);
+        let source = context.get_span_str(annotation_span).trim().to_string();
+        if source.is_empty() {
+            continue;
+        }
+        comments.push((comment.style, source));
+    }
+
+    comments
+}
+
+/// Write a type-unary `as <keyword>` suffix with infix comment seams.
+fn write_type_unary_as_keyword_with_infix_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    keyword: &'static str,
+) -> FormatResult<()> {
+    let infix_comments = collect_type_unary_infix_comment_sources(f.context(), node_id);
+    if infix_comments.is_empty() {
+        write!(f, [space(), token(keyword)])?;
+        return Ok(());
+    }
+
+    if infix_comments.len() == 1
+        && infix_comments[0].0 == CommentStyle::Slash
+        && !infix_comments[0].1.contains('\n')
+    {
+        write!(
+            f,
+            [
+                space(),
+                text(infix_comments[0].1.as_str()),
+                hard_line_break(),
+                token(keyword)
+            ]
+        )?;
+        return Ok(());
+    }
+
+    if infix_comments.len() == 1
+        && infix_comments[0].0 == CommentStyle::Star
+        && !infix_comments[0].1.contains('\n')
+    {
+        write!(
+            f,
+            [
+                space(),
+                text(infix_comments[0].1.as_str()),
+                space(),
+                token(keyword)
+            ]
+        )?;
+        return Ok(());
+    }
+
+    write!(f, [hard_line_break()])?;
+    for (comment_index, (_, comment_source)) in infix_comments.iter().enumerate() {
+        if comment_index > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+        let comment_source = comment_source.as_str();
+        write!(f, [text(comment_source)])?;
+    }
+    write!(f, [hard_line_break(), token(keyword)])
+}
 
 /// Format operator and chain expression variants.
 pub(crate) fn format_operator_expression<'ast>(
@@ -56,10 +143,24 @@ pub(crate) fn format_operator_expression<'ast>(
                 write!(f, [operator, space(), right])?;
             }
             TypeUnaryOperator::AsConst => {
-                write!(f, [right, token(" as const")])?;
+                let right_has_postfix = f.context().has_postfix_annotation(*right);
+                write!(f, [right])?;
+                if right_has_postfix {
+                    write!(f, [token("as")])?;
+                } else {
+                    write!(f, [token(" as")])?;
+                }
+                write_type_unary_as_keyword_with_infix_comments(f, node_id, "const")?;
             }
             TypeUnaryOperator::AsComptime => {
-                write!(f, [right, token(" as comptime")])?;
+                let right_has_postfix = f.context().has_postfix_annotation(*right);
+                write!(f, [right])?;
+                if right_has_postfix {
+                    write!(f, [token("as")])?;
+                } else {
+                    write!(f, [token(" as")])?;
+                }
+                write_type_unary_as_keyword_with_infix_comments(f, node_id, "comptime")?;
             }
         },
 

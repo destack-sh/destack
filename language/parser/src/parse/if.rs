@@ -110,6 +110,20 @@ impl Parser {
             };
         self.restore_options(old_options);
         let condition = condition_result?;
+
+        // keep inline condition-head boundary comments on the parsed condition expression
+        if let IfCondition::Expression {
+            condition: condition_expression_id,
+        } = &condition
+        {
+            self.attach_current_boundary(
+                condition_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                    crate::parse::annotation::TrailingAnnotationKind::PreserveLinePostfix,
+                ),
+            );
+        }
+
         self.eat_newlines_maybe()?;
 
         // then block
@@ -128,7 +142,12 @@ impl Parser {
         // if / else if / else node
         let else_expression_id = if self.is_keyword_after_newlines(Keyword::Else) {
             // keep inline then-to-else boundary comments on the then expression
-            self.attach_inline_trailing_annotations_for_current_token(then_expression_id.id);
+            self.attach_current_boundary(
+                then_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Trailing(
+                    crate::parse::annotation::TrailingAnnotationKind::Default,
+                ),
+            );
 
             self.eat_newlines_maybe()?;
             let else_cursor = self.peek_cursor();
@@ -141,10 +160,13 @@ impl Parser {
             let else_expression_id = else_expression_result?;
 
             // keep own-line comments before `else` attached to the else branch expression
-            self.attach_inline_leading_annotations_for_token(
+            self.attach_boundary(
                 else_cursor.index,
                 else_cursor.skipped_newline_count,
                 else_expression_id.id,
+                crate::parse::annotation::AnnotationBoundaryKind::Leading(
+                    crate::parse::annotation::LeadingAnnotationKind::Statement,
+                ),
             );
 
             Some(else_expression_id)
