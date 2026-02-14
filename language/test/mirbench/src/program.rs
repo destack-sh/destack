@@ -1,5 +1,6 @@
 #![cfg_attr(test, allow(dead_code, unexpected_cfgs))]
 
+use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::Write;
 use std::time::{Duration, Instant};
@@ -1790,7 +1791,7 @@ pub fn quick_bench_with_options(options: &BenchOptions) {
 
 /// Run validation for all programs, printing results like cargo test.
 #[allow(dead_code)]
-pub fn quick_check(filter: Option<Vec<String>>, tags: Option<Vec<String>>) {
+pub fn quick_check(filter: Option<Vec<String>>, tags: Option<Vec<String>>) -> bool {
     let options = BenchOptions::new(
         filter,
         tags,
@@ -1814,6 +1815,7 @@ pub fn quick_check(filter: Option<Vec<String>>, tags: Option<Vec<String>>) {
 
     let start = Instant::now();
     let mut passed = 0;
+    let mut failed: Vec<(String, String)> = Vec::new();
 
     for entry in programs {
         if !matches_filters(&entry, &options) {
@@ -1822,19 +1824,66 @@ pub fn quick_check(filter: Option<Vec<String>>, tags: Option<Vec<String>>) {
 
         print!("test {}::{} ... ", entry.category, entry.program.name);
 
-        entry.program.validate();
-        println!("{GREEN}ok{RESET}");
-        passed += 1;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            entry.program.validate();
+        }));
+
+        if result.is_ok() {
+            println!("{BOLD}{GREEN}ok{RESET}");
+            passed += 1;
+            continue;
+        }
+
+        let full_name = format!("{}::{}", entry.category, entry.program.name);
+        let panic_message = panic_message(result.err().unwrap());
+        println!("{BOLD}{RED}FAILED{RESET}");
+        failed.push((full_name, panic_message));
     }
 
     let elapsed = start.elapsed();
+    let failed_count = failed.len();
     println!();
-    print!("test result: {GREEN}ok{RESET}. ");
+    if failed_count == 0 {
+        print!("test result: {BOLD}{GREEN}ok{RESET}. ");
+        println!(
+            "{BOLD}{GREEN}{passed} passed{RESET}; {BOLD}0 failed{RESET}; finished in {:.2}s",
+            elapsed.as_secs_f64()
+        );
+        println!();
+        return true;
+    }
+
+    print!("test result: {BOLD}{RED}FAILED{RESET}. ");
     println!(
-        "{passed} passed; 0 failed; finished in {:.2}s",
+        "{BOLD}{GREEN}{passed} passed{RESET}; {BOLD}{RED}{failed_count} failed{RESET}; finished in {:.2}s",
         elapsed.as_secs_f64()
     );
     println!();
+    println!("{BOLD}{RED}failures:{RESET}");
+    for (full_name, panic_message) in failed {
+        println!("    {BOLD}{full_name}{RESET}");
+        if !panic_message.is_empty() {
+            println!("    {DIM}{panic_message}{RESET}");
+        }
+    }
+    println!();
+    false
+}
+
+/// Extract the panic payload message when available.
+fn panic_message(payload: Box<dyn Any + Send>) -> String {
+    // string payload
+    if let Some(message) = payload.downcast_ref::<String>() {
+        return message.clone();
+    }
+
+    // str payload
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        return (*message).to_string();
+    }
+
+    // unknown payload
+    String::new()
 }
 
 /// Print detailed execution stats for all programs (single run).
