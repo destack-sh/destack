@@ -1,5 +1,7 @@
 # Compatibility
 
+<!-- FUGU #Broken: revisit Compatibility -->
+
 Destack aims for full **modern TypeScript** compatibility.
 Unfortunately, some dynamic JavaScript features are incompatible with static AOT compilation, even when allowing for generous dynamic dispatch and RTTI: 
  - no dynamic imports/eval 
@@ -24,14 +26,14 @@ Instead of classical exceptions, Destack supports `try/catch` and `?` propagatio
 The divergence on exception handling is the most significant semantic difference between Destack and traditional JavaScript/TypeScript:
 
 ```ts
-// this works in JS/TS:
+// on JS/TS targets
 try {
     throw new Error("oops")
 } catch (e) {
     console.log("caught")  // executes
 }
 
-// on native Destack: process aborts at throw, catch never runs
+// on native targets
 try {
     throw new Error("oops")
 } catch (e) {
@@ -55,7 +57,7 @@ You can still use `try` / `catch` for Result type propagation too, which is usef
 
 ```ds
 try {
-    const config = readConfig();  // propagates to catch block
+    const config = readConfig()?;  // propagates to catch block
     console.log(config);
 } catch (e) {
     console.error("Failed to read config:", e);
