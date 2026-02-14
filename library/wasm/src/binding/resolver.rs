@@ -140,6 +140,12 @@ pub struct ResolveOptions {
     /// Condition names for exports field which defines entry points of a package.
     pub conditions: Vec<String>,
 
+    /// Whether to resolve package.json exports mappings.
+    pub resolve_package_json_exports: bool,
+
+    /// Whether to resolve package.json imports mappings.
+    pub resolve_package_json_imports: bool,
+
     /// Whether and how to enforce file extensions.
     pub enforce_extension: EnforceExtension,
 
@@ -187,6 +193,8 @@ impl Default for ResolveOptions {
             tsconfig: TypeScriptOptions::default(),
             alias: vec![],
             conditions: vec![],
+            resolve_package_json_exports: true,
+            resolve_package_json_imports: true,
             enforce_extension: EnforceExtension::Disabled,
             extensions: vec![
                 ".ds".into(),
@@ -268,6 +276,8 @@ impl From<ResolveOptions> for resolver::ResolveOptions {
             tsconfig,
             alias: convert_alias(options.alias),
             conditions: options.conditions,
+            resolve_package_json_exports: options.resolve_package_json_exports,
+            resolve_package_json_imports: options.resolve_package_json_imports,
             enforce_extension: options.enforce_extension.into(),
             extension_alias: options
                 .extension_alias
@@ -374,6 +384,8 @@ impl From<resolver::ResolveOptions> for ResolveOptions {
             tsconfig,
             alias,
             conditions: options.conditions,
+            resolve_package_json_exports: options.resolve_package_json_exports,
+            resolve_package_json_imports: options.resolve_package_json_imports,
             enforce_extension: match options.enforce_extension {
                 resolver::EnforceExtension::Enabled => EnforceExtension::Enabled,
                 resolver::EnforceExtension::Disabled => EnforceExtension::Disabled,
