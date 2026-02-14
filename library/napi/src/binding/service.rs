@@ -158,6 +158,8 @@ pub enum WorkspaceInvalidationKind {
     DsConfig,
     /// Tsconfig changed.
     TsConfig,
+    /// Package manifest changed.
+    PackageManifest,
     /// No known mapping for the file.
     Unknown,
 }
@@ -594,6 +596,9 @@ fn workspace_update_record_binding(
                     }
                     workspace::InvalidationKind::DsConfig => WorkspaceInvalidationKind::DsConfig,
                     workspace::InvalidationKind::TsConfig => WorkspaceInvalidationKind::TsConfig,
+                    workspace::InvalidationKind::PackageManifest => {
+                        WorkspaceInvalidationKind::PackageManifest
+                    }
                     workspace::InvalidationKind::Unknown => WorkspaceInvalidationKind::Unknown,
                 })
                 .collect(),
