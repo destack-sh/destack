@@ -55,13 +55,13 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Resolve command inputs, falling back to dsconfig when allowed.
-    pub(super) fn resolve_command_inputs(&self) -> Result<Vec<CommandInput>, String> {
+    pub(super) fn resolve_command_inputs(&self) -> super::CommandResult<Vec<CommandInput>> {
         if !self.common.inputs.is_empty() {
             return Ok(self.common.inputs.clone());
         }
 
         if !self.common.allow_dsconfig_fallback {
-            return Err("no input files provided".to_string());
+            return Err("no input files provided".to_string().into());
         }
 
         let dsconfig_path = self.resolve_dsconfig_path(self.common.config_path.as_deref())?;
@@ -69,7 +69,7 @@ impl<'a> CommandContext<'a> {
         let inputs = collect_sources_from_dsconfig(&dsconfig, self.common.target.as_deref());
 
         if inputs.is_empty() {
-            return Err("no input files provided".to_string());
+            return Err("no input files provided".to_string().into());
         }
 
         Ok(inputs
@@ -79,7 +79,10 @@ impl<'a> CommandContext<'a> {
     }
 
     /// Resolve command inputs into module ids.
-    pub(super) fn resolve_modules(&self, inputs: &[CommandInput]) -> Result<Vec<ModuleId>, String> {
+    pub(super) fn resolve_modules(
+        &self,
+        inputs: &[CommandInput],
+    ) -> super::CommandResult<Vec<ModuleId>> {
         let mut seen = HashSet::new();
         let mut modules = Vec::new();
 
@@ -115,7 +118,7 @@ impl<'a> CommandContext<'a> {
         }
 
         if modules.is_empty() {
-            return Err("no input files provided".to_string());
+            return Err("no input files provided".to_string().into());
         }
 
         Ok(modules)
@@ -144,7 +147,7 @@ impl<'a> CommandContext<'a> {
         &self,
         modules: &[ModuleId],
         diagnostics: &DiagnosticCollection,
-    ) -> Result<(), String> {
+    ) -> super::CommandResult<()> {
         // group diagnostics by file id
         let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
         for diagnostic in diagnostics.iter() {
@@ -199,7 +202,7 @@ impl<'a> CommandContext<'a> {
         module_id: ModuleId,
         target_name: &str,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> Result<TargetId, String> {
+    ) -> super::CommandResult<TargetId> {
         let module = self.program.modules.get(module_id);
         let package_id = module.read().package_id;
         let target_id = TargetId::new(package_id, target_name);
@@ -212,7 +215,11 @@ impl<'a> CommandContext<'a> {
             && !overrides.is_empty()
             && existing_target.is_some()
         {
-            return Err("ad-hoc target overrides are not supported for named targets".to_string());
+            return Err(
+                "ad-hoc target overrides are not supported for named targets"
+                    .to_string()
+                    .into(),
+            );
         }
 
         if existing_target.is_none() {
@@ -239,7 +246,7 @@ impl<'a> CommandContext<'a> {
         &self,
         module_id: ModuleId,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> Result<TargetId, String> {
+    ) -> super::CommandResult<TargetId> {
         // honor explicit target override first
         if let Some(target_name) = self.common.target.as_deref() {
             return self.ensure_target_for_module(module_id, target_name, overrides);
@@ -284,7 +291,8 @@ impl<'a> CommandContext<'a> {
         Err(format!(
             "multiple targets configured ({}): specify --target",
             target_names.join(", ")
-        ))
+        )
+        .into())
     }
 
     /// Decide whether optimization should run for a target.
@@ -305,12 +313,12 @@ impl<'a> CommandContext<'a> {
     pub(super) fn resolve_dsconfig_path(
         &self,
         override_path: Option<&Path>,
-    ) -> Result<PathBuf, String> {
+    ) -> super::CommandResult<PathBuf> {
         resolve_dsconfig_path(&self.resolver(), self.program.cwd.as_path(), override_path)
     }
 
     /// Load dsconfig.json for a path.
-    pub(super) fn load_dsconfig(&self, path: &Path) -> Result<DsConfig, String> {
+    pub(super) fn load_dsconfig(&self, path: &Path) -> super::CommandResult<DsConfig> {
         load_dsconfig(&self.resolver(), path)
     }
 
@@ -323,7 +331,7 @@ impl<'a> CommandContext<'a> {
     pub(super) fn load_workspace_dsconfigs(
         &self,
         workspace: &Workspace,
-    ) -> Result<Vec<DsConfig>, String> {
+    ) -> super::CommandResult<Vec<DsConfig>> {
         load_workspace_dsconfigs(&self.resolver(), workspace)
     }
 }
@@ -332,7 +340,7 @@ fn resolve_dsconfig_path(
     resolver: &Resolver,
     cwd: &Path,
     override_path: Option<&Path>,
-) -> Result<PathBuf, String> {
+) -> super::CommandResult<PathBuf> {
     let dsconfig_path = if let Some(config_path) = override_path {
         let resolved = if config_path.is_absolute() {
             config_path.to_path_buf()
@@ -347,7 +355,7 @@ fn resolve_dsconfig_path(
                 resolved
             }
         } else {
-            return Err("dsconfig.json not found".to_string());
+            return Err("dsconfig.json not found".to_string().into());
         }
     } else {
         find_dsconfig(resolver, cwd).ok_or_else(|| "dsconfig.json not found".to_string())?
@@ -356,10 +364,10 @@ fn resolve_dsconfig_path(
     Ok(dsconfig_path)
 }
 
-fn load_dsconfig(resolver: &Resolver, path: &Path) -> Result<DsConfig, String> {
-    resolver
+fn load_dsconfig(resolver: &Resolver, path: &Path) -> super::CommandResult<DsConfig> {
+    Ok(resolver
         .load_dsconfig(path, CachePolicy::UseCache)
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?)
 }
 
 fn find_dsconfig(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
@@ -385,7 +393,7 @@ fn find_dsconfig(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
 fn load_workspace_dsconfigs(
     resolver: &Resolver,
     workspace: &Workspace,
-) -> Result<Vec<DsConfig>, String> {
+) -> super::CommandResult<Vec<DsConfig>> {
     let mut configs = BTreeMap::new();
     for package_path in &workspace.package_paths {
         if let Some(path) = find_dsconfig(resolver, package_path.as_path()) {

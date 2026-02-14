@@ -230,22 +230,22 @@ impl PayloadInbox {
     fn ingest_chunk(&mut self, chunk: PayloadChunkNotification) -> Result<(), ProtocolClientError> {
         // validate chunk metadata
         let total = usize::try_from(chunk.total)
-            .map_err(|_| ProtocolClientError::Payload("chunk total overflow".to_string()))?;
+            .map_err(|_| ProtocolClientError::Payload(PayloadStreamError::ChunkTotalOverflow))?;
         if total == 0 {
             return Err(ProtocolClientError::Payload(
-                "chunk total must be non zero".to_string(),
+                PayloadStreamError::ChunkTotalMustBeNonZero,
             ));
         }
         let index = usize::try_from(chunk.index)
-            .map_err(|_| ProtocolClientError::Payload("chunk index overflow".to_string()))?;
+            .map_err(|_| ProtocolClientError::Payload(PayloadStreamError::ChunkIndexOverflow))?;
         if index >= total {
             return Err(ProtocolClientError::Payload(
-                "chunk index out of range".to_string(),
+                PayloadStreamError::ChunkIndexOutOfRange,
             ));
         }
         if chunk.done && index + 1 != total {
             return Err(ProtocolClientError::Payload(
-                "chunk done marker is inconsistent".to_string(),
+                PayloadStreamError::ChunkDoneMarkerInconsistent,
             ));
         }
 
@@ -257,17 +257,17 @@ impl PayloadInbox {
                 .or_insert_with(|| PendingPayloadState::new(chunk.format, total));
             if state.format != chunk.format {
                 return Err(ProtocolClientError::Payload(
-                    "chunk format mismatch".to_string(),
+                    PayloadStreamError::ChunkFormatMismatch,
                 ));
             }
             if state.total != total {
                 return Err(ProtocolClientError::Payload(
-                    "chunk total mismatch".to_string(),
+                    PayloadStreamError::ChunkTotalMismatch,
                 ));
             }
             if state.chunks[index].is_some() {
                 return Err(ProtocolClientError::Payload(
-                    "duplicate payload chunk".to_string(),
+                    PayloadStreamError::DuplicatePayloadChunk,
                 ));
             }
 
@@ -281,7 +281,9 @@ impl PayloadInbox {
             let state = self
                 .pending
                 .remove(&chunk.id)
-                .ok_or_else(|| ProtocolClientError::Payload("payload state missing".to_string()))?;
+                .ok_or(ProtocolClientError::Payload(
+                    PayloadStreamError::PayloadStateMissing,
+                ))?;
             let format = state.format;
             let bytes = state.merge_chunks().map_err(ProtocolClientError::Payload)?;
             self.completed
@@ -349,12 +351,12 @@ impl PayloadInbox {
         // validate payload metadata
         if completed.format != payload.format {
             return Err(ProtocolClientError::Payload(
-                "payload format mismatch".to_string(),
+                PayloadStreamError::PayloadFormatMismatch,
             ));
         }
         if completed.bytes.len() != total_bytes as usize {
             return Err(ProtocolClientError::Payload(
-                "payload size mismatch".to_string(),
+                PayloadStreamError::PayloadSizeMismatch,
             ));
         }
 
@@ -391,7 +393,7 @@ impl PendingPayloadState {
     }
 
     /// Merge stored chunks into a contiguous byte buffer.
-    fn merge_chunks(self) -> Result<Vec<u8>, String> {
+    fn merge_chunks(self) -> Result<Vec<u8>, PayloadStreamError> {
         // compute total payload size
         let capacity = self
             .chunks
@@ -402,13 +404,67 @@ impl PendingPayloadState {
         // assemble the final payload bytes
         let mut bytes = Vec::with_capacity(capacity);
         for chunk in self.chunks {
-            let chunk = chunk.ok_or_else(|| "payload chunks missing at finalize".to_string())?;
+            let chunk = chunk.ok_or(PayloadStreamError::PayloadChunksMissingAtFinalize)?;
             bytes.extend(chunk);
         }
 
         Ok(bytes)
     }
 }
+
+/// Errors returned while receiving chunked payload streams.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayloadStreamError {
+    /// Chunk total does not fit in memory index space.
+    ChunkTotalOverflow,
+    /// Chunk total is zero.
+    ChunkTotalMustBeNonZero,
+    /// Chunk index does not fit in memory index space.
+    ChunkIndexOverflow,
+    /// Chunk index is out of range for total.
+    ChunkIndexOutOfRange,
+    /// Chunk done marker does not match the final index.
+    ChunkDoneMarkerInconsistent,
+    /// Chunk format differs from the existing stream.
+    ChunkFormatMismatch,
+    /// Chunk total differs from the existing stream.
+    ChunkTotalMismatch,
+    /// Chunk was already received.
+    DuplicatePayloadChunk,
+    /// Payload state is missing at finalize.
+    PayloadStateMissing,
+    /// Payload chunks are missing at finalize.
+    PayloadChunksMissingAtFinalize,
+    /// Completed payload format does not match deferred payload format.
+    PayloadFormatMismatch,
+    /// Completed payload size does not match deferred payload size.
+    PayloadSizeMismatch,
+}
+
+impl std::fmt::Display for PayloadStreamError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ChunkTotalOverflow => write!(formatter, "chunk total overflow"),
+            Self::ChunkTotalMustBeNonZero => write!(formatter, "chunk total must be non zero"),
+            Self::ChunkIndexOverflow => write!(formatter, "chunk index overflow"),
+            Self::ChunkIndexOutOfRange => write!(formatter, "chunk index out of range"),
+            Self::ChunkDoneMarkerInconsistent => {
+                write!(formatter, "chunk done marker is inconsistent")
+            }
+            Self::ChunkFormatMismatch => write!(formatter, "chunk format mismatch"),
+            Self::ChunkTotalMismatch => write!(formatter, "chunk total mismatch"),
+            Self::DuplicatePayloadChunk => write!(formatter, "duplicate payload chunk"),
+            Self::PayloadStateMissing => write!(formatter, "payload state missing"),
+            Self::PayloadChunksMissingAtFinalize => {
+                write!(formatter, "payload chunks missing at finalize")
+            }
+            Self::PayloadFormatMismatch => write!(formatter, "payload format mismatch"),
+            Self::PayloadSizeMismatch => write!(formatter, "payload size mismatch"),
+        }
+    }
+}
+
+impl std::error::Error for PayloadStreamError {}
 
 #[derive(Debug)]
 struct CompletedPayload {
@@ -435,7 +491,7 @@ pub enum ProtocolClientError {
     /// Server returned an error response.
     Server(ProtocolError),
     /// Payload streaming error.
-    Payload(String),
+    Payload(PayloadStreamError),
     /// The response payload was unexpected.
     UnexpectedResponse(String),
 }
@@ -446,7 +502,7 @@ impl std::fmt::Display for ProtocolClientError {
             ProtocolClientError::Codec(error) => write!(f, "protocol codec error: {error}"),
             ProtocolClientError::Transport(error) => write!(f, "transport error: {error}"),
             ProtocolClientError::Server(error) => write!(f, "server error: {error}"),
-            ProtocolClientError::Payload(message) => write!(f, "payload error: {message}"),
+            ProtocolClientError::Payload(error) => write!(f, "payload error: {error}"),
             ProtocolClientError::UnexpectedResponse(message) => {
                 write!(f, "unexpected response: {message}")
             }
@@ -454,7 +510,17 @@ impl std::fmt::Display for ProtocolClientError {
     }
 }
 
-impl std::error::Error for ProtocolClientError {}
+impl std::error::Error for ProtocolClientError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Codec(error) => Some(error),
+            Self::Transport(error) => Some(error),
+            Self::Server(error) => Some(error),
+            Self::Payload(error) => Some(error),
+            Self::UnexpectedResponse(_) => None,
+        }
+    }
+}
 
 impl From<TransportError> for ProtocolClientError {
     fn from(error: TransportError) -> Self {

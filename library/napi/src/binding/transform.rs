@@ -6,8 +6,7 @@ use napi_derive::napi;
 use {destack_ast as ast, destack_compiler as compiler, destack_formatter as formatter};
 
 use {
-    destack_source as source, destack_workspace as workspace,
-    destack_workspace_service as workspace_service,
+    destack_service as workspace_service, destack_source as source, destack_workspace as workspace,
 };
 
 use super::CompilerOptions;
@@ -79,7 +78,7 @@ pub fn transform_sync(
     let roots = transform_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
     let service =
-        workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
+        workspace_service::LanguageService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_transform)?;
 
     // update and analyze the module

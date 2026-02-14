@@ -44,14 +44,13 @@ members = [
 	"language/test",
 	"language/unicode",
 	"language/workspace",
-	"language/workspace/service",
+	"language/service",
 	# library
 	"library/napi",
 	"library/wasm",
 	# platform
 	"platform/cli",
 	"platform/daemon",
-	"platform/test",
 	"platform/lsp",
 	"platform/lsp/server",
 	"platform/lsp/types",
@@ -94,7 +93,7 @@ destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
 destack_workspace = { path = "language/workspace" }
-destack_workspace_service = { path = "language/workspace/service" }
+destack_service = { path = "language/service" }
 
 # library
 destack_napi = { path = "library/napi" }

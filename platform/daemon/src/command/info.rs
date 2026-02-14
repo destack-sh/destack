@@ -59,7 +59,7 @@ impl CommandContext<'_> {
     pub(super) fn run_info_command(
         &mut self,
         options: &CommandInfoOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // build workspace snapshot
         let workspace = self.daemon.session.workspace_snapshot();
         let package_paths: Vec<String> = workspace

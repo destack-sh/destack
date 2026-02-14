@@ -4,17 +4,16 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use {
-    destack_source as source, destack_workspace as workspace,
-    destack_workspace_service as workspace_service,
+    destack_service as workspace_service, destack_source as source, destack_workspace as workspace,
 };
 
 use super::error::{js_error, parse_optional_input, to_js_value};
 use super::{CompilerOptions, Diagnostic, FileType};
 
-/// Options for creating a WorkspaceService.
+/// Options for creating a LanguageService.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceServiceOptions {
+pub struct LanguageServiceOptions {
     /// The current working directory.
     pub cwd: String,
     /// The workspace roots to open initially.
@@ -23,7 +22,7 @@ pub struct WorkspaceServiceOptions {
     pub compiler: Option<CompilerOptions>,
 }
 
-impl Default for WorkspaceServiceOptions {
+impl Default for LanguageServiceOptions {
     fn default() -> Self {
         Self {
             cwd: std::env::current_dir()
@@ -92,7 +91,7 @@ pub struct WorkspaceWatchEvent {
 /// Rescan reason for workspace operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum WorkspaceServiceRescanReason {
+pub enum LanguageServiceRescanReason {
     /// Requested during startup synchronization.
     Startup,
     /// Requested after watcher overflow.
@@ -103,13 +102,13 @@ pub enum WorkspaceServiceRescanReason {
     Update,
 }
 
-impl From<WorkspaceServiceRescanReason> for workspace_service::RescanReason {
-    fn from(reason: WorkspaceServiceRescanReason) -> Self {
+impl From<LanguageServiceRescanReason> for workspace_service::RescanReason {
+    fn from(reason: LanguageServiceRescanReason) -> Self {
         match reason {
-            WorkspaceServiceRescanReason::Startup => workspace_service::RescanReason::Startup,
-            WorkspaceServiceRescanReason::Overflow => workspace_service::RescanReason::Overflow,
-            WorkspaceServiceRescanReason::Manual => workspace_service::RescanReason::Manual,
-            WorkspaceServiceRescanReason::Update => workspace_service::RescanReason::Update,
+            LanguageServiceRescanReason::Startup => workspace_service::RescanReason::Startup,
+            LanguageServiceRescanReason::Overflow => workspace_service::RescanReason::Overflow,
+            LanguageServiceRescanReason::Manual => workspace_service::RescanReason::Manual,
+            LanguageServiceRescanReason::Update => workspace_service::RescanReason::Update,
         }
     }
 }
@@ -117,7 +116,7 @@ impl From<WorkspaceServiceRescanReason> for workspace_service::RescanReason {
 /// Workspace message kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum WorkspaceServiceMessageKind {
+pub enum LanguageServiceMessageKind {
     /// Informational message.
     Info,
     /// Warning message.
@@ -126,14 +125,12 @@ pub enum WorkspaceServiceMessageKind {
     Error,
 }
 
-impl From<workspace_service::WorkspaceMessageKind> for WorkspaceServiceMessageKind {
+impl From<workspace_service::WorkspaceMessageKind> for LanguageServiceMessageKind {
     fn from(kind: workspace_service::WorkspaceMessageKind) -> Self {
         match kind {
-            workspace_service::WorkspaceMessageKind::Info => WorkspaceServiceMessageKind::Info,
-            workspace_service::WorkspaceMessageKind::Warning => {
-                WorkspaceServiceMessageKind::Warning
-            }
-            workspace_service::WorkspaceMessageKind::Error => WorkspaceServiceMessageKind::Error,
+            workspace_service::WorkspaceMessageKind::Info => LanguageServiceMessageKind::Info,
+            workspace_service::WorkspaceMessageKind::Warning => LanguageServiceMessageKind::Warning,
+            workspace_service::WorkspaceMessageKind::Error => LanguageServiceMessageKind::Error,
         }
     }
 }
@@ -223,7 +220,7 @@ pub struct WorkspaceUpdateRecord {
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceMessage {
     /// Message severity.
-    pub kind: WorkspaceServiceMessageKind,
+    pub kind: LanguageServiceMessageKind,
     /// Stable message code.
     pub code: String,
     /// Human-readable message.
@@ -233,7 +230,7 @@ pub struct WorkspaceMessage {
 /// Result payload for workspace service updates.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorkspaceServiceResult {
+pub struct LanguageServiceResult {
     /// Update records produced by the operation.
     pub updates: Vec<WorkspaceUpdateRecord>,
     /// Message records produced by the operation.
@@ -253,24 +250,24 @@ pub struct WorkspaceAnalyzeOutcome {
 /// WASM wrapper for the Rust workspace service.
 #[wasm_bindgen]
 #[derive(Debug)]
-pub struct WorkspaceService {
+pub struct LanguageService {
     /// Session backing this service.
     session: Arc<workspace::Session>,
     /// Workspace service for analysis and updates.
-    inner: workspace_service::WorkspaceService,
+    inner: workspace_service::LanguageService,
 }
 
 #[wasm_bindgen]
-impl WorkspaceService {
-    /// Create a new WorkspaceService.
+impl LanguageService {
+    /// Create a new LanguageService.
     #[wasm_bindgen(constructor)]
     pub fn new(options: Option<JsValue>) -> Result<Self, JsValue> {
-        let options: WorkspaceServiceOptions = parse_optional_input(options)?;
+        let options: LanguageServiceOptions = parse_optional_input(options)?;
         let cwd = PathBuf::from(&options.cwd);
         let roots = roots_from_options(&options, &cwd);
         let compiler = options.compiler.unwrap_or_default();
         let session = Arc::new(workspace::Session::new(cwd));
-        let inner = workspace_service::WorkspaceService::with_options(
+        let inner = workspace_service::LanguageService::with_options(
             session.clone(),
             roots,
             compiler.into(),
@@ -432,8 +429,9 @@ impl WorkspaceService {
     #[cfg(feature = "query")]
     #[wasm_bindgen(js_name = queryForPath)]
     pub fn query_for_path(&self, path: String, request: JsValue) -> Result<JsValue, JsValue> {
-        let request = serde_wasm_bindgen::from_value::<workspace::query::QueryRequest>(request)
-            .map_err(js_error)?;
+        let request =
+            serde_wasm_bindgen::from_value::<workspace_service::query::QueryRequest>(request)
+                .map_err(js_error)?;
         let response = self
             .inner
             .query_for_path(&PathBuf::from(path), request)
@@ -456,8 +454,9 @@ impl WorkspaceService {
         let handle = handle
             .parse::<u64>()
             .map_err(|error| js_error(format!("invalid workspace handle: {error}")))?;
-        let request = serde_wasm_bindgen::from_value::<workspace::query::QueryRequest>(request)
-            .map_err(js_error)?;
+        let request =
+            serde_wasm_bindgen::from_value::<workspace_service::query::QueryRequest>(request)
+                .map_err(js_error)?;
 
         let response = self
             .inner
@@ -476,13 +475,13 @@ impl WorkspaceService {
 }
 
 /// Get the default workspace service options.
-#[wasm_bindgen(js_name = defaultWorkspaceServiceOptions)]
-pub fn default_workspace_service_options() -> Result<JsValue, JsValue> {
-    to_js_value(&WorkspaceServiceOptions::default())
+#[wasm_bindgen(js_name = defaultLanguageServiceOptions)]
+pub fn default_language_service_options() -> Result<JsValue, JsValue> {
+    to_js_value(&LanguageServiceOptions::default())
 }
 
 /// Parse the rescan reason from js input.
-fn parse_rescan_reason(reason: JsValue) -> Result<WorkspaceServiceRescanReason, JsValue> {
+fn parse_rescan_reason(reason: JsValue) -> Result<LanguageServiceRescanReason, JsValue> {
     serde_wasm_bindgen::from_value(reason).map_err(js_error)
 }
 
@@ -493,7 +492,7 @@ fn query_feature_disabled_message() -> &'static str {
 }
 
 /// Resolve roots for workspace service options.
-fn roots_from_options(options: &WorkspaceServiceOptions, cwd: &std::path::Path) -> Vec<PathBuf> {
+fn roots_from_options(options: &LanguageServiceOptions, cwd: &std::path::Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
     } else {
@@ -542,9 +541,9 @@ fn file_watch_event_from_binding(event: WorkspaceWatchEvent) -> source::FileWatc
 
 /// Convert workspace service result into wasm binding payload.
 fn workspace_service_result_binding(
-    result: workspace_service::WorkspaceServiceResult,
-) -> WorkspaceServiceResult {
-    WorkspaceServiceResult {
+    result: workspace_service::LanguageServiceResult,
+) -> LanguageServiceResult {
+    LanguageServiceResult {
         updates: result
             .updates
             .into_iter()

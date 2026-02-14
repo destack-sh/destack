@@ -12,7 +12,9 @@ use destack_source::{
 };
 use destack_workspace::Session;
 
-use crate::common::format::{FormatOptions, LineWriter, format_diagnostics_with_writer};
+use crate::common::format::{
+    FormatOptions, FormatResult, LineWriter, format_diagnostics_with_writer,
+};
 use crate::common::program::ProgramArgs;
 use crate::common::{
     CommandStats, ReportArgs, WatchCompileJson, WatchCompileReason, WatchReporter,
@@ -406,7 +408,7 @@ pub fn print_watch_diagnostics(
     format_options: &FormatOptions,
     module_count: usize,
     line_writer: Option<&LineWriter>,
-) -> crate::common::format::FormatResult {
+) -> FormatResult {
     // emit diagnostics using the shared formatter
     format_diagnostics_with_writer(
         files,

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use destack_service::query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::{ModuleId, ProfileId};
-use destack_workspace::query::{QueryRequestEnvelope, QueryResponseEnvelope};
 
 use super::{BinaryPayload, DiagnosticBatch, WorkspaceHandleId};
 

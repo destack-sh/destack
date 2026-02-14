@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use napi::Error;
 use napi_derive::napi;
-use {destack_workspace as workspace, destack_workspace_service as workspace_service};
+use {destack_service as workspace_service, destack_workspace as workspace};
 
 use super::{CompilerOptions, Diagnostic, diagnostics_have_errors, diagnostics_have_warnings};
 
@@ -67,7 +67,7 @@ pub fn check_sync(
     let roots = check_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
     let service =
-        workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
+        workspace_service::LanguageService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_check)?;
 
     // collect diagnostics from the virtual update
@@ -96,7 +96,7 @@ fn check_roots_from_options(options: &CheckOptions, cwd: &Path) -> Vec<PathBuf> 
 
 /// Collect diagnostics from workspace update records.
 fn check_diagnostics_from_workspace_result(
-    result: workspace_service::WorkspaceServiceResult,
+    result: workspace_service::LanguageServiceResult,
 ) -> Vec<Diagnostic> {
     result
         .updates

@@ -6,7 +6,7 @@ Provides classic IDE features: diagnostics, completions, go-to-definition, seman
 ## Integration
 
 The LSP server owns its workspace session in process.
-It uses `destack_workspace_service` as a local workspace orchestration layer.
+It uses `destack_service` as a local workspace orchestration layer.
 Editor edits are applied to an overlay file system and then analyzed in the same process.
 The LSP crate does not depend on `destack_daemon`.
 

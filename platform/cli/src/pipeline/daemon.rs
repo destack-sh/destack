@@ -16,16 +16,16 @@ use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
     connect_in_process_daemon, connect_ipc_daemon,
 };
+use destack_service::query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
 };
-use destack_workspace::query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_workspace::{DsConfigRuntimeOptionsJson, OptimizeLevel, Session};
 
 use crate::common::report::CommandCacheStats;
 use crate::common::{
-    CommandStats as CliCommandStats, InputSource, ProgramArgs, ReportArgs, TargetArgs,
-    parse_command_payload, print_report, report_from_message_payload,
+    CommandStats as CliCommandStats, CommandTimingTagStats, InputSource, ProgramArgs, ReportArgs,
+    TargetArgs, parse_command_payload, print_report, report_from_message_payload,
 };
 use crate::console;
 use crate::error::{CliError, CliResult};
@@ -643,7 +643,7 @@ pub fn command_stats_from_protocol(stats: &CommandStats, include_timings: bool) 
         }
         let mapped = entries
             .iter()
-            .map(|entry| crate::common::CommandTimingTagStats {
+            .map(|entry| CommandTimingTagStats {
                 name: entry.name.clone(),
                 duration_ms: entry.duration_ms,
                 sample_count: entry.sample_count,

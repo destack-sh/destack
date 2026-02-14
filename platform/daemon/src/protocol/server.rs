@@ -7,10 +7,10 @@ use std::time::{Duration, Instant};
 use destack_source::{ModuleId, ProfileId};
 use parking_lot::Mutex;
 
+use destack_service::{WorkspaceHandleId as ServiceWorkspaceHandleId, query};
 use destack_workspace::{
-    FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program, query,
+    FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program,
 };
-use destack_workspace_service::WorkspaceHandleId as ServiceWorkspaceHandleId;
 
 use crate::{Daemon, DaemonError, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
@@ -644,7 +644,9 @@ impl ProtocolServer {
         let result = self
             .daemon
             .run_command(&root, &request.common, &request.payload)
-            .map_err(|error| self.protocol_error(ProtocolErrorCode::Internal, &error))?;
+            .map_err(|error| {
+                self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
+            })?;
         let data = match result.data {
             Some(payload) => {
                 let binary_payload = BinaryPayload::from_json_value(&payload).map_err(|error| {

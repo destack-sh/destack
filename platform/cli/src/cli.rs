@@ -116,7 +116,7 @@ pub enum Command {
     /// Start the language server (for editor integration).
     Lsp(LspArgs),
 
-    /// Start the daemon service (for CLI/LSP integration).
+    /// Start the daemon service (for CLI integration).
     Daemon(DaemonArgs),
 
     /// Execute workspace queries.
@@ -322,7 +322,7 @@ fn build_commands_help(color_enabled: bool) -> String {
         CommandEntry {
             name: "daemon",
             example: "",
-            help: "Start the daemon service (for CLI/LSP integration)",
+            help: "Start the daemon service (for CLI integration)",
             group: 3,
         },
         CommandEntry {

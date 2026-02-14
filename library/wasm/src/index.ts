@@ -223,7 +223,7 @@ export interface TransformResult {
     code: string;
 }
 
-export interface WorkspaceServiceOptions {
+export interface LanguageServiceOptions {
     cwd: string;
     roots: string[];
     compiler?: CompilerOptions;
@@ -241,7 +241,7 @@ export interface WorkspaceWatchEvent {
     kind: "created" | "modified" | "deleted" | "renamed" | "overflow";
 }
 
-export type WorkspaceServiceRescanReason = "startup" | "overflow" | "manual" | "update";
+export type LanguageServiceRescanReason = "startup" | "overflow" | "manual" | "update";
 
 export interface WorkspaceModuleId {
     packageId: string;
@@ -281,7 +281,7 @@ export interface WorkspaceMessage {
     message: string;
 }
 
-export interface WorkspaceServiceResult {
+export interface LanguageServiceResult {
     updates: WorkspaceUpdateRecord[];
     messages: WorkspaceMessage[];
 }
@@ -319,13 +319,13 @@ type GeneratedModule = {
     parseSync(path: string, content: string, options?: ParseOptions): ParseResult;
     defaultTransformOptions(): TransformOptions;
     transformSync(path: string, content: string, options?: TransformOptions): TransformResult;
-    defaultWorkspaceServiceOptions(): WorkspaceServiceOptions;
-    WorkspaceService: {
-        new (options?: WorkspaceServiceOptions): GeneratedWorkspaceService;
+    defaultLanguageServiceOptions(): LanguageServiceOptions;
+    LanguageService: {
+        new (options?: LanguageServiceOptions): GeneratedLanguageService;
     };
 };
 
-type GeneratedWorkspaceService = {
+type GeneratedLanguageService = {
     readonly cwd: string;
     readonly programHandleCount: number;
     openWorkspaceRoot(root: string): void;
@@ -335,11 +335,11 @@ type GeneratedWorkspaceService = {
     clearCacheAll(): void;
     shutdown(): void;
     handleForRoot(root: string): string;
-    updateVirtualFile(path: string, content: string): WorkspaceServiceResult;
-    applyVirtualUpdate(path: string, update: WorkspaceVirtualUpdate): WorkspaceServiceResult;
-    applyWatchEvents(events: WorkspaceWatchEvent[]): WorkspaceServiceResult;
-    rescanAll(reason: WorkspaceServiceRescanReason): WorkspaceServiceResult;
-    rescanRoots(roots: string[], analyze: boolean): WorkspaceServiceResult;
+    updateVirtualFile(path: string, content: string): LanguageServiceResult;
+    applyVirtualUpdate(path: string, update: WorkspaceVirtualUpdate): LanguageServiceResult;
+    applyWatchEvents(events: WorkspaceWatchEvent[]): LanguageServiceResult;
+    rescanAll(reason: LanguageServiceRescanReason): LanguageServiceResult;
+    rescanRoots(roots: string[], analyze: boolean): LanguageServiceResult;
     analyzePath(path: string): WorkspaceAnalyzeOutcome;
     ensureAnalyzedForPath(path: string): void;
     queryForPath(path: string, request: unknown): unknown;
@@ -426,15 +426,15 @@ export function transformSync(
     return requireGenerated().transformSync(path, content, options);
 }
 
-export function defaultWorkspaceServiceOptions(): WorkspaceServiceOptions {
-    return requireGenerated().defaultWorkspaceServiceOptions();
+export function defaultLanguageServiceOptions(): LanguageServiceOptions {
+    return requireGenerated().defaultLanguageServiceOptions();
 }
 
-export class WorkspaceService {
-    private readonly inner: GeneratedWorkspaceService;
+export class LanguageService {
+    private readonly inner: GeneratedLanguageService;
 
-    public constructor(options?: WorkspaceServiceOptions) {
-        this.inner = new (requireGenerated().WorkspaceService)(options);
+    public constructor(options?: LanguageServiceOptions) {
+        this.inner = new (requireGenerated().LanguageService)(options);
     }
 
     public get cwd(): string {
@@ -473,26 +473,23 @@ export class WorkspaceService {
         return this.inner.handleForRoot(root);
     }
 
-    public updateVirtualFile(path: string, content: string): WorkspaceServiceResult {
+    public updateVirtualFile(path: string, content: string): LanguageServiceResult {
         return this.inner.updateVirtualFile(path, content);
     }
 
-    public applyVirtualUpdate(
-        path: string,
-        update: WorkspaceVirtualUpdate,
-    ): WorkspaceServiceResult {
+    public applyVirtualUpdate(path: string, update: WorkspaceVirtualUpdate): LanguageServiceResult {
         return this.inner.applyVirtualUpdate(path, update);
     }
 
-    public applyWatchEvents(events: WorkspaceWatchEvent[]): WorkspaceServiceResult {
+    public applyWatchEvents(events: WorkspaceWatchEvent[]): LanguageServiceResult {
         return this.inner.applyWatchEvents(events);
     }
 
-    public rescanAll(reason: WorkspaceServiceRescanReason): WorkspaceServiceResult {
+    public rescanAll(reason: LanguageServiceRescanReason): LanguageServiceResult {
         return this.inner.rescanAll(reason);
     }
 
-    public rescanRoots(roots: string[], analyze: boolean): WorkspaceServiceResult {
+    public rescanRoots(roots: string[], analyze: boolean): LanguageServiceResult {
         return this.inner.rescanRoots(roots, analyze);
     }
 

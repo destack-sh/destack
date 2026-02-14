@@ -1,9 +1,9 @@
-use crate::tests::harness::TestWorkspaceService;
+use crate::tests::harness::TestLanguageService;
 
 /// Emit diagnostics after a virtual update with invalid syntax.
 #[test]
 fn test_workspace_service_virtual_update_emits_diagnostics() {
-    let test = TestWorkspaceService::new("workspace_service_update");
+    let test = TestLanguageService::new("workspace_service_update");
     let path = test.path_for("main.ds");
     let valid_source = "export const x: number = 1;\n";
     let invalid_source = "export const x = ;\n";

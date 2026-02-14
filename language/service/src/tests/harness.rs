@@ -7,20 +7,20 @@ use destack_source::{
 };
 use destack_workspace::{MemoryCacheStore, Session, Workspace};
 
-use crate::WorkspaceService;
+use crate::LanguageService;
 
 /// Test harness for workspace service integration tests.
 #[derive(Debug)]
-pub(super) struct TestWorkspaceService {
+pub(super) struct TestLanguageService {
     /// Temporary filesystem root.
     pub fs: TemporaryPhysicalFileSystem,
     /// Workspace service under test.
-    pub service: WorkspaceService,
+    pub service: LanguageService,
     /// Workspace roots registered in the service.
     pub roots: Vec<PathBuf>,
 }
 
-impl TestWorkspaceService {
+impl TestLanguageService {
     /// Create a new harness rooted at a temporary workspace.
     pub(super) fn new(prefix: &str) -> Self {
         Self::new_with_roots(prefix, 1)
@@ -52,7 +52,7 @@ impl TestWorkspaceService {
         for root in &roots {
             session.add_root(root.clone());
         }
-        let service = WorkspaceService::new(session.clone(), roots.clone())
+        let service = LanguageService::new(session.clone(), roots.clone())
             .expect("expected workspace service");
 
         Self { fs, service, roots }

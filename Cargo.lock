@@ -862,6 +862,7 @@ dependencies = [
  "destack_parser",
  "destack_resolver",
  "destack_runtime",
+ "destack_service",
  "destack_source",
  "destack_vm",
  "destack_workspace",
@@ -1002,10 +1003,10 @@ dependencies = [
  "destack_parser",
  "destack_resolver",
  "destack_runtime",
+ "destack_service",
  "destack_source",
  "destack_vm",
  "destack_workspace",
- "destack_workspace_service",
  "fs2",
  "interprocess",
  "parking_lot",
@@ -1124,9 +1125,9 @@ dependencies = [
  "destack_lsp_types",
  "destack_parser",
  "destack_resolver",
+ "destack_service",
  "destack_source",
  "destack_workspace",
- "destack_workspace_service",
  "futures",
  "libc",
  "parking_lot",
@@ -1194,9 +1195,9 @@ dependencies = [
  "destack_formatter",
  "destack_parser",
  "destack_resolver",
+ "destack_service",
  "destack_source",
  "destack_workspace",
- "destack_workspace_service",
  "indexmap",
  "napi",
  "napi-build",
@@ -1219,20 +1220,6 @@ dependencies = [
  "rayon",
  "smallvec",
  "tracing",
-]
-
-[[package]]
-name = "destack_platform_test"
-version = "0.55.0"
-dependencies = [
- "destack_cli",
- "destack_daemon",
- "destack_lsp",
- "destack_source",
- "destack_workspace",
- "serde_json",
- "tokio",
- "url",
 ]
 
 [[package]]
@@ -1281,6 +1268,20 @@ dependencies = [
  "serde",
  "tracing",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "destack_service"
+version = "0.55.0"
+dependencies = [
+ "dashmap",
+ "destack_compiler",
+ "destack_resolver",
+ "destack_source",
+ "destack_workspace",
+ "parking_lot",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1382,9 +1383,9 @@ dependencies = [
  "destack_formatter",
  "destack_parser",
  "destack_resolver",
+ "destack_service",
  "destack_source",
  "destack_workspace",
- "destack_workspace_service",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -1414,18 +1415,6 @@ dependencies = [
  "smallvec",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "destack_workspace_service"
-version = "0.55.0"
-dependencies = [
- "dashmap",
- "destack_compiler",
- "destack_resolver",
- "destack_source",
- "destack_workspace",
- "parking_lot",
 ]
 
 [[package]]
@@ -3183,16 +3172,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
-name = "signal-hook-registry"
-version = "1.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
-dependencies = [
- "errno",
- "libc",
-]
-
-[[package]]
 name = "simd-adler32"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3447,13 +3426,8 @@ version = "1.49.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72a2903cd7736441aac9df9d7688bd0ce48edccaadf181c3b90be801e81d3d86"
 dependencies = [
- "bytes",
- "libc",
- "mio",
  "pin-project-lite",
- "signal-hook-registry",
  "tokio-macros",
- "windows-sys 0.61.2",
 ]
 
 [[package]]

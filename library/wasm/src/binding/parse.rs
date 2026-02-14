@@ -4,8 +4,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use {
-    destack_compiler as compiler, destack_workspace as workspace,
-    destack_workspace_service as workspace_service,
+    destack_compiler as compiler, destack_service as workspace_service,
+    destack_workspace as workspace,
 };
 
 use super::error::{js_error, parse_optional_input, to_js_value};
@@ -87,7 +87,7 @@ pub fn parse_sync(
     let roots = parse_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
     let service =
-        workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
+        workspace_service::LanguageService::with_options(session, roots, options.compiler.into())
             .map_err(js_error)?;
 
     // update virtual content to populate diagnostics and module state
@@ -172,7 +172,7 @@ fn parse_program_for_path(
 
 /// Collect diagnostics from workspace update records.
 fn parse_diagnostics_from_result(
-    result: workspace_service::WorkspaceServiceResult,
+    result: workspace_service::LanguageServiceResult,
 ) -> Vec<Diagnostic> {
     result
         .updates

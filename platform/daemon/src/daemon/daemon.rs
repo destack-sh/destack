@@ -3,18 +3,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions};
+use destack_service::{
+    AnalyzeOutcome, FileSnapshot as WorkspaceFileSnapshot, LanguageService, WorkspaceHandleId,
+};
 use destack_source::{Diagnostic, FileId, ModuleId};
 use destack_workspace::{InvalidationPlan, Session};
-use destack_workspace_service::{
-    AnalyzeOutcome, FileSnapshot as WorkspaceFileSnapshot, WorkspaceHandleId, WorkspaceService,
-};
 use parking_lot::Mutex;
 
 use super::DaemonMessage;
 use crate::DaemonError;
 
 /// Persistent daemon state for toolchain services.
-/// Basically, we wrap WorkspaceServices in a stateful central place.
+/// Basically, we wrap LanguageServices in a stateful central place.
 #[derive(Debug, Clone)]
 pub struct Daemon {
     /// The active session for this daemon.
@@ -22,7 +22,7 @@ pub struct Daemon {
     /// Default compiler options for daemon work.
     pub compiler_options: CompilerOptions,
     /// Shared workspace orchestration service.
-    pub workspace_service: Arc<WorkspaceService>,
+    pub workspace_service: Arc<LanguageService>,
     /// Per-root workspace handle lease counts.
     workspace_leases: Arc<Mutex<HashMap<PathBuf, usize>>>,
 }
@@ -44,7 +44,7 @@ impl Daemon {
             roots.push(session.workspace_root());
         }
         let workspace_service =
-            WorkspaceService::with_options(session.clone(), roots, compiler_options.clone())
+            LanguageService::with_options(session.clone(), roots, compiler_options.clone())
                 .expect("workspace service initialization should not fail");
 
         Self {

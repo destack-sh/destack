@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use destack_compiler::ImportError;
+use destack_service::LanguageServiceError;
 use destack_source::{Diagnostic, FileId};
 use destack_workspace::InvalidationError;
-use destack_workspace_service::WorkspaceServiceError;
 
 /// Diagnostics produced by daemon work.
 #[derive(Debug, Clone, Default)]
@@ -56,7 +56,7 @@ pub enum DaemonError {
     /// Workspace service operation failed.
     Workspace {
         /// The typed workspace service error.
-        error: WorkspaceServiceError,
+        error: LanguageServiceError,
     },
 }
 
@@ -88,8 +88,8 @@ impl std::fmt::Display for DaemonError {
 
 impl std::error::Error for DaemonError {}
 
-impl From<WorkspaceServiceError> for DaemonError {
-    fn from(error: WorkspaceServiceError) -> Self {
+impl From<LanguageServiceError> for DaemonError {
+    fn from(error: LanguageServiceError) -> Self {
         Self::Workspace { error }
     }
 }

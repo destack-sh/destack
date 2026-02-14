@@ -57,7 +57,7 @@ impl CommandContext<'_> {
     pub(super) fn run_run_command(
         &mut self,
         options: &CommandRunOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
@@ -130,7 +130,9 @@ impl CommandContext<'_> {
                     .compiler
                     .stats
                     .snapshot_with_program(self.program.modules.len(), Some(&self.program));
-                let payload = CommandRunPayload::RuntimeError { message: error };
+                let payload = CommandRunPayload::RuntimeError {
+                    message: error.to_string(),
+                };
                 let data = serde_json::to_value(payload)
                     .map_err(|error| format!("invalid run payload: {error}"))?;
                 return Ok(CommandOutcome::new(
@@ -203,7 +205,7 @@ fn run_entry_module(
     run_mode: CommandRunMode,
     runtime_overrides: Option<&DsConfigRuntimeOptionsJson>,
     output: &mut CommandOutputBuffer,
-) -> Result<RunResult, String> {
+) -> super::CommandResult<RunResult> {
     let mut target = target_for_id(program, target_id)
         .ok_or_else(|| format!("target '{target_id:?}' not found"))?;
     if let Some(runtime_overrides) = runtime_overrides {
@@ -358,7 +360,7 @@ fn create_isolate(
     module_id: ModuleId,
     target_id: &TargetId,
     options: IsolateOptions,
-) -> Result<Isolate, String> {
+) -> super::CommandResult<Isolate> {
     let module = program.modules.get(module_id);
     let module = module.read();
     let mir = module
@@ -367,7 +369,7 @@ fn create_isolate(
     let tree = mir.tree.read().clone();
     let strings = mir.strings.clone().into_immutable();
 
-    Isolate::with_options(tree, strings, options).map_err(|error| error.to_string())
+    Ok(Isolate::with_options(tree, strings, options).map_err(|error| error.to_string())?)
 }
 
 /// Create isolate options from target configuration.

@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 /// Binary payload wrapper for query responses.
@@ -20,18 +23,53 @@ impl BinaryPayload {
     }
 
     /// Decode a JSON payload into a serde_json value.
-    pub fn to_json_value(&self) -> Result<serde_json::Value, String> {
+    pub fn to_json_value(&self) -> Result<serde_json::Value, BinaryPayloadDecodeError> {
         if self.format != PayloadFormat::Json {
-            return Err(format!(
-                "expected json payload, got {format:?}",
-                format = self.format
-            ));
+            return Err(BinaryPayloadDecodeError::UnexpectedFormat {
+                format: self.format,
+            });
         }
 
         match &self.body {
-            PayloadBody::Inline { bytes } => serde_json::from_slice(bytes)
-                .map_err(|error| format!("invalid json payload: {error}")),
-            PayloadBody::Deferred { .. } => Err("payload is deferred".to_string()),
+            PayloadBody::Inline { bytes } => {
+                serde_json::from_slice(bytes).map_err(BinaryPayloadDecodeError::InvalidJsonPayload)
+            }
+            PayloadBody::Deferred { .. } => Err(BinaryPayloadDecodeError::PayloadDeferred),
+        }
+    }
+}
+
+/// Error returned when decoding a binary payload into json.
+#[derive(Debug)]
+pub enum BinaryPayloadDecodeError {
+    /// Payload format is not json.
+    UnexpectedFormat {
+        /// Actual payload format.
+        format: PayloadFormat,
+    },
+    /// Payload body is deferred and cannot be decoded yet.
+    PayloadDeferred,
+    /// Payload bytes are not valid json.
+    InvalidJsonPayload(serde_json::Error),
+}
+
+impl fmt::Display for BinaryPayloadDecodeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnexpectedFormat { format } => {
+                write!(formatter, "expected json payload, got {format:?}")
+            }
+            Self::PayloadDeferred => write!(formatter, "payload is deferred"),
+            Self::InvalidJsonPayload(source) => write!(formatter, "invalid json payload: {source}"),
+        }
+    }
+}
+
+impl Error for BinaryPayloadDecodeError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::InvalidJsonPayload(source) => Some(source),
+            _ => None,
         }
     }
 }

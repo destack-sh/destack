@@ -59,7 +59,7 @@ impl CommandContext<'_> {
         &mut self,
         _root: &Path,
         options: &CommandFormatOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // reset diagnostics before formatting
         self.reset_diagnostics();
 
@@ -249,7 +249,7 @@ impl FmtSummary {
 }
 
 /// Build a summary payload for format responses.
-fn summary_payload(summary: &FmtSummary) -> Result<serde_json::Value, String> {
+fn summary_payload(summary: &FmtSummary) -> super::CommandResult<serde_json::Value> {
     let payload = CommandFormatPayload {
         files: summary.files_total,
         changed: summary.files_changed,
@@ -259,7 +259,10 @@ fn summary_payload(summary: &FmtSummary) -> Result<serde_json::Value, String> {
         check: summary.check,
         formatted: summary.formatted_output.clone(),
     };
-    serde_json::to_value(payload).map_err(|error| format!("invalid format payload: {error}"))
+    Ok(
+        serde_json::to_value(payload)
+            .map_err(|error| format!("invalid format payload: {error}"))?,
+    )
 }
 
 /// Print diagnostics and return whether there were errors.
@@ -538,7 +541,7 @@ fn format_single_file(
 }
 
 /// Format JSON content.
-fn format_json_content(content: &str, formatter: FormatterOptions) -> Result<String, String> {
+fn format_json_content(content: &str, formatter: FormatterOptions) -> super::CommandResult<String> {
     let file_id = FileId::new(0);
     let doc = parse_json(content, file_id).map_err(|e| e.to_string())?;
     let options: JsonFormatOptions = formatter.into();

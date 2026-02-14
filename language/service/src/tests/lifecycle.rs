@@ -3,14 +3,13 @@ use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::Duration;
 
-use destack_workspace::query;
-
-use crate::tests::harness::TestWorkspaceService;
+use crate::query;
+use crate::tests::harness::TestLanguageService;
 
 /// Route file queries across multiple workspace roots.
 #[test]
 fn test_workspace_service_routes_queries_across_roots() {
-    let test = TestWorkspaceService::new_with_roots("workspace_service_multi_root", 2);
+    let test = TestLanguageService::new_with_roots("workspace_service_multi_root", 2);
     let path_a = test.path_for_root(0, "main.ds");
     let path_b = test.path_for_root(1, "main.ds");
     let uri_a = test.uri_for_path(&path_a);
@@ -62,7 +61,7 @@ fn test_workspace_service_routes_queries_across_roots() {
 /// Serialize compiler callbacks for concurrent root handle initialization.
 #[test]
 fn test_workspace_service_serializes_concurrent_program_callbacks() {
-    let test = TestWorkspaceService::new("workspace_service_concurrency");
+    let test = TestLanguageService::new("workspace_service_concurrency");
     let path = test.path_for("main.ds");
     let service = Arc::new(test.service);
     let thread_count = 8usize;

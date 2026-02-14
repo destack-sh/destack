@@ -1,11 +1,11 @@
 use destack_source::{FileWatchEvent, FileWatchEventKind};
 
-use crate::tests::harness::TestWorkspaceService;
+use crate::tests::harness::TestLanguageService;
 
 /// Apply modified watch events and surface diagnostics.
 #[test]
 fn test_workspace_service_watch_events_update_diagnostics() {
-    let test = TestWorkspaceService::new("workspace_service_watch_diagnostics");
+    let test = TestLanguageService::new("workspace_service_watch_diagnostics");
     let path = test.path_for("main.ds");
     let source = "export const value = ;\n";
     let _ = test
@@ -35,7 +35,7 @@ fn test_workspace_service_watch_events_update_diagnostics() {
 /// Apply config watch events and include config file updates.
 #[test]
 fn test_workspace_service_watch_events_include_config_updates() {
-    let test = TestWorkspaceService::new("workspace_service_watch_config");
+    let test = TestLanguageService::new("workspace_service_watch_config");
     let path = test.path_for("dsconfig.json");
     let source = r#"{
     "extends": "./missing.dsconfig.json"

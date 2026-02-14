@@ -5,16 +5,15 @@ use napi::Error;
 use napi_derive::napi;
 
 use {
-    destack_source as source, destack_workspace as workspace,
-    destack_workspace_service as workspace_service,
+    destack_service as workspace_service, destack_source as source, destack_workspace as workspace,
 };
 
 use super::{CompilerOptions, Diagnostic};
 
-/// Options for creating a WorkspaceService.
+/// Options for creating a LanguageService.
 #[napi(object)]
 #[derive(Debug, Clone)]
-pub struct WorkspaceServiceOptions {
+pub struct LanguageServiceOptions {
     /// The current working directory.
     pub cwd: String,
     /// The workspace roots to open initially.
@@ -23,7 +22,7 @@ pub struct WorkspaceServiceOptions {
     pub compiler: Option<CompilerOptions>,
 }
 
-impl Default for WorkspaceServiceOptions {
+impl Default for LanguageServiceOptions {
     fn default() -> Self {
         Self {
             cwd: std::env::current_dir()
@@ -92,7 +91,7 @@ pub struct WorkspaceWatchEvent {
 /// Rescan reason for workspace operations.
 #[napi]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WorkspaceServiceRescanReason {
+pub enum LanguageServiceRescanReason {
     /// Requested during startup synchronization.
     Startup,
     /// Requested after watcher overflow.
@@ -103,13 +102,13 @@ pub enum WorkspaceServiceRescanReason {
     Update,
 }
 
-impl From<WorkspaceServiceRescanReason> for workspace_service::RescanReason {
-    fn from(reason: WorkspaceServiceRescanReason) -> Self {
+impl From<LanguageServiceRescanReason> for workspace_service::RescanReason {
+    fn from(reason: LanguageServiceRescanReason) -> Self {
         match reason {
-            WorkspaceServiceRescanReason::Startup => workspace_service::RescanReason::Startup,
-            WorkspaceServiceRescanReason::Overflow => workspace_service::RescanReason::Overflow,
-            WorkspaceServiceRescanReason::Manual => workspace_service::RescanReason::Manual,
-            WorkspaceServiceRescanReason::Update => workspace_service::RescanReason::Update,
+            LanguageServiceRescanReason::Startup => workspace_service::RescanReason::Startup,
+            LanguageServiceRescanReason::Overflow => workspace_service::RescanReason::Overflow,
+            LanguageServiceRescanReason::Manual => workspace_service::RescanReason::Manual,
+            LanguageServiceRescanReason::Update => workspace_service::RescanReason::Update,
         }
     }
 }
@@ -117,7 +116,7 @@ impl From<WorkspaceServiceRescanReason> for workspace_service::RescanReason {
 /// Workspace message kind.
 #[napi]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WorkspaceServiceMessageKind {
+pub enum LanguageServiceMessageKind {
     /// Informational message.
     Info,
     /// Warning message.
@@ -126,14 +125,12 @@ pub enum WorkspaceServiceMessageKind {
     Error,
 }
 
-impl From<workspace_service::WorkspaceMessageKind> for WorkspaceServiceMessageKind {
+impl From<workspace_service::WorkspaceMessageKind> for LanguageServiceMessageKind {
     fn from(kind: workspace_service::WorkspaceMessageKind) -> Self {
         match kind {
-            workspace_service::WorkspaceMessageKind::Info => WorkspaceServiceMessageKind::Info,
-            workspace_service::WorkspaceMessageKind::Warning => {
-                WorkspaceServiceMessageKind::Warning
-            }
-            workspace_service::WorkspaceMessageKind::Error => WorkspaceServiceMessageKind::Error,
+            workspace_service::WorkspaceMessageKind::Info => LanguageServiceMessageKind::Info,
+            workspace_service::WorkspaceMessageKind::Warning => LanguageServiceMessageKind::Warning,
+            workspace_service::WorkspaceMessageKind::Error => LanguageServiceMessageKind::Error,
         }
     }
 }
@@ -223,7 +220,7 @@ pub struct WorkspaceUpdateRecord {
 #[derive(Debug, Clone)]
 pub struct WorkspaceMessage {
     /// Message severity.
-    pub kind: WorkspaceServiceMessageKind,
+    pub kind: LanguageServiceMessageKind,
     /// Stable message code.
     pub code: String,
     /// Human-readable message.
@@ -233,7 +230,7 @@ pub struct WorkspaceMessage {
 /// Result payload for workspace service updates.
 #[napi(object)]
 #[derive(Debug, Clone)]
-pub struct WorkspaceServiceResult {
+pub struct LanguageServiceResult {
     /// Update records produced by the operation.
     pub updates: Vec<WorkspaceUpdateRecord>,
     /// Message records produced by the operation.
@@ -253,18 +250,18 @@ pub struct WorkspaceAnalyzeOutcome {
 /// NAPI wrapper for the Rust workspace service.
 #[napi]
 #[derive(Debug)]
-pub struct WorkspaceService {
+pub struct LanguageService {
     /// Session backing this service.
     session: Arc<workspace::Session>,
     /// Workspace service for analysis and updates.
-    inner: workspace_service::WorkspaceService,
+    inner: workspace_service::LanguageService,
 }
 
 #[napi]
-impl WorkspaceService {
-    /// Create a new WorkspaceService.
+impl LanguageService {
+    /// Create a new LanguageService.
     #[napi(constructor)]
-    pub fn new(options: WorkspaceServiceOptions) -> napi::Result<Self> {
+    pub fn new(options: LanguageServiceOptions) -> napi::Result<Self> {
         // normalize options
         let cwd = PathBuf::from(&options.cwd);
         let roots = roots_from_options(&options, &cwd);
@@ -272,7 +269,7 @@ impl WorkspaceService {
 
         // create backing session and service
         let session = Arc::new(workspace::Session::new(cwd));
-        let inner = workspace_service::WorkspaceService::with_options(
+        let inner = workspace_service::LanguageService::with_options(
             session.clone(),
             roots,
             compiler.into(),
@@ -354,7 +351,7 @@ impl WorkspaceService {
         &self,
         path: String,
         content: String,
-    ) -> napi::Result<WorkspaceServiceResult> {
+    ) -> napi::Result<LanguageServiceResult> {
         self.inner
             .update_virtual_file(&PathBuf::from(path), content)
             .map(workspace_service_result_binding)
@@ -367,7 +364,7 @@ impl WorkspaceService {
         &self,
         path: String,
         update: WorkspaceVirtualUpdate,
-    ) -> napi::Result<WorkspaceServiceResult> {
+    ) -> napi::Result<LanguageServiceResult> {
         // convert binding update payload
         let update = file_update_from_virtual_update(update)?;
 
@@ -383,7 +380,7 @@ impl WorkspaceService {
     pub fn apply_watch_events(
         &self,
         events: Vec<WorkspaceWatchEvent>,
-    ) -> napi::Result<WorkspaceServiceResult> {
+    ) -> napi::Result<LanguageServiceResult> {
         // map watch events into core payloads
         let events = events
             .into_iter()
@@ -401,8 +398,8 @@ impl WorkspaceService {
     #[napi]
     pub fn rescan_all(
         &self,
-        reason: WorkspaceServiceRescanReason,
-    ) -> napi::Result<WorkspaceServiceResult> {
+        reason: LanguageServiceRescanReason,
+    ) -> napi::Result<LanguageServiceResult> {
         self.inner
             .rescan_all(reason.into())
             .map(workspace_service_result_binding)
@@ -415,7 +412,7 @@ impl WorkspaceService {
         &self,
         roots: Vec<String>,
         analyze: bool,
-    ) -> napi::Result<WorkspaceServiceResult> {
+    ) -> napi::Result<LanguageServiceResult> {
         // map root paths
         let roots = roots.into_iter().map(PathBuf::from).collect::<Vec<_>>();
 
@@ -447,7 +444,7 @@ impl WorkspaceService {
     #[napi]
     pub fn query_for_path_json(&self, path: String, request_json: String) -> napi::Result<String> {
         // decode query request
-        let request = serde_json::from_str::<workspace::query::QueryRequest>(&request_json)
+        let request = serde_json::from_str::<workspace_service::query::QueryRequest>(&request_json)
             .map_err(|error| Error::from_reason(format!("invalid query request json: {error}")))?;
 
         // execute query
@@ -473,7 +470,7 @@ impl WorkspaceService {
         let handle = handle
             .parse::<u64>()
             .map_err(|error| Error::from_reason(format!("invalid workspace handle: {error}")))?;
-        let request = serde_json::from_str::<workspace::query::QueryRequest>(&request_json)
+        let request = serde_json::from_str::<workspace_service::query::QueryRequest>(&request_json)
             .map_err(|error| Error::from_reason(format!("invalid query request json: {error}")))?;
 
         // execute query
@@ -490,13 +487,13 @@ impl WorkspaceService {
 }
 
 /// Get the default workspace service options.
-#[napi(js_name = "defaultWorkspaceServiceOptions")]
-pub fn default_workspace_service_options() -> WorkspaceServiceOptions {
-    WorkspaceServiceOptions::default()
+#[napi(js_name = "defaultLanguageServiceOptions")]
+pub fn default_language_service_options() -> LanguageServiceOptions {
+    LanguageServiceOptions::default()
 }
 
 /// Build workspace roots for service options.
-fn roots_from_options(options: &WorkspaceServiceOptions, cwd: &std::path::Path) -> Vec<PathBuf> {
+fn roots_from_options(options: &LanguageServiceOptions, cwd: &std::path::Path) -> Vec<PathBuf> {
     if options.roots.is_empty() {
         vec![cwd.to_path_buf()]
     } else {
@@ -545,9 +542,9 @@ fn file_watch_event_from_binding(event: WorkspaceWatchEvent) -> source::FileWatc
 
 /// Convert a core workspace service result into a binding payload.
 fn workspace_service_result_binding(
-    result: workspace_service::WorkspaceServiceResult,
-) -> WorkspaceServiceResult {
-    WorkspaceServiceResult {
+    result: workspace_service::LanguageServiceResult,
+) -> LanguageServiceResult {
+    LanguageServiceResult {
         updates: result
             .updates
             .into_iter()
@@ -650,6 +647,6 @@ fn workspace_analyze_outcome_binding(
 }
 
 /// Convert workspace service errors into NAPI errors.
-fn napi_error_from_workspace_service(error: workspace_service::WorkspaceServiceError) -> Error {
+fn napi_error_from_workspace_service(error: workspace_service::LanguageServiceError) -> Error {
     Error::from_reason(error.to_string())
 }

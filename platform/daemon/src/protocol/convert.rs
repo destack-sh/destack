@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
+use destack_service::FileSnapshot as WorkspaceFileSnapshot;
 use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
 };
 use destack_workspace::{InvalidationKind, InvalidationPlan, Program};
-use destack_workspace_service::FileSnapshot as WorkspaceFileSnapshot;
 
 use crate::command::{
     DaemonCommandOutputChunk, DaemonCommandStats, DaemonOutputStream as CommandOutputStream,
 };
-use crate::{DaemonMessage, DaemonUpdate, WatchBatch as DaemonWatchBatch};
+use crate::{DaemonMessage, DaemonMessageKind, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
 use super::{
     CommandOutputChunk, CommandStats, CommandTimingTagStats,
@@ -80,9 +80,9 @@ fn protocol_snapshot_from_workspace(snapshot: &WorkspaceFileSnapshot) -> FileSna
 impl From<&DaemonMessage> for DaemonMessageRecord {
     fn from(message: &DaemonMessage) -> Self {
         let kind = match message.kind {
-            crate::DaemonMessageKind::Info => ProtocolMessageKind::Info,
-            crate::DaemonMessageKind::Warning => ProtocolMessageKind::Warning,
-            crate::DaemonMessageKind::Error => ProtocolMessageKind::Error,
+            DaemonMessageKind::Info => ProtocolMessageKind::Info,
+            DaemonMessageKind::Warning => ProtocolMessageKind::Warning,
+            DaemonMessageKind::Error => ProtocolMessageKind::Error,
         };
 
         Self {

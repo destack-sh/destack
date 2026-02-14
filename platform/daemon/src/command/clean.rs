@@ -40,7 +40,7 @@ impl CommandContext<'_> {
         &mut self,
         root: &Path,
         options: &CommandCleanOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         let cwd = options.dir.as_deref().unwrap_or(root);
         let fs = self.daemon.session.fs.clone();
 

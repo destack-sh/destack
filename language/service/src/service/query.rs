@@ -2,19 +2,20 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
+use crate::query::{self, QueryResponseEnvelope};
 use destack_compiler::TaskOutcome;
 use destack_source::{FileId, Span, Uri};
-use destack_workspace::{ModuleContent, Program, QueryResponseEnvelope, query};
+use destack_workspace::{ModuleContent, Program};
 
-use super::{WorkspaceHandleId, WorkspaceService, WorkspaceServiceError};
+use super::{LanguageService, LanguageServiceError, WorkspaceHandleId};
 
-impl WorkspaceService {
+impl LanguageService {
     /// Execute a workspace query for the workspace that owns the path.
     pub fn query_for_path(
         &self,
         path: &Path,
         request: query::QueryRequest,
-    ) -> Result<QueryResponseEnvelope, WorkspaceServiceError> {
+    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
         // resolve the workspace handle for this path
         let handle = self.handle_for_path(path)?;
 
@@ -27,7 +28,7 @@ impl WorkspaceService {
         &self,
         handle: WorkspaceHandleId,
         request: query::QueryRequest,
-    ) -> Result<QueryResponseEnvelope, WorkspaceServiceError> {
+    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
         // resolve the root and owning program
         let root = self.root_for_handle(handle)?;
         let program = self.program_for_root(&root);
@@ -49,7 +50,7 @@ impl WorkspaceService {
         &self,
         program: &Program,
         request: query::QueryRequest,
-    ) -> Result<query::QueryResponse, WorkspaceServiceError> {
+    ) -> Result<query::QueryResponse, LanguageServiceError> {
         // resolve the shared session for query helpers
         let session = self.session_ref();
 
@@ -506,7 +507,7 @@ impl WorkspaceService {
         program: &Program,
         file_id: FileId,
         uri: &Uri,
-    ) -> Result<FileId, WorkspaceServiceError> {
+    ) -> Result<FileId, LanguageServiceError> {
         // return early when semantic query state is already ready
         if self.semantic_query_ready(file_id) {
             return Ok(file_id);
@@ -537,7 +538,7 @@ impl WorkspaceService {
             .or_else(|| uri.to_path_buf());
 
         let Some(path) = path else {
-            return Err(WorkspaceServiceError::SemanticQueryNotReady {
+            return Err(LanguageServiceError::SemanticQueryNotReady {
                 detail: "semantic query state is not ready for the requested uri".to_string(),
             });
         };
@@ -550,7 +551,7 @@ impl WorkspaceService {
             let detail = analyze_result
                 .detail
                 .unwrap_or_else(|| "analysis did not produce a semantic query state".to_string());
-            return Err(WorkspaceServiceError::SemanticQueryNotReady { detail });
+            return Err(LanguageServiceError::SemanticQueryNotReady { detail });
         }
 
         // check original file id after analyze fallback
@@ -609,7 +610,7 @@ impl WorkspaceService {
             })
             .unwrap_or_else(|| format!("file_id={file_id:?} module_id=<missing>"));
 
-        Err(WorkspaceServiceError::SemanticQueryNotReady { detail })
+        Err(LanguageServiceError::SemanticQueryNotReady { detail })
     }
 
     /// Check if semantic query state is ready for the file.

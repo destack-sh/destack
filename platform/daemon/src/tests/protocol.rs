@@ -12,12 +12,13 @@ use crate::protocol::{
     WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
 };
 use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness};
-use destack_source::Uri;
-use destack_workspace::query::{
+use destack_service::query;
+use destack_service::query::{
     DocumentSymbolsRequest, FindReferencesRequest, GotoDefinitionRequest, HoverRequest,
     QueryRequest, QueryRequestEnvelope, QueryResponse,
 };
-use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot, query};
+use destack_source::Uri;
+use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
 
 /// Performs a handshake and ping roundtrip.
 #[test]

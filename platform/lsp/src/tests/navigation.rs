@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolType};
+use destack_service::query;
 use destack_source::{File, FileId, FileType, ModuleId, PackageId, Span, Uri};
-use destack_workspace::{Session, query};
+use destack_workspace::Session;
 
 use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 

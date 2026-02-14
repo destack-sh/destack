@@ -76,7 +76,7 @@ pub struct WorkspaceUpdateRecord {
 
 /// Result of applying local workspace service updates.
 #[derive(Debug, Default)]
-pub struct WorkspaceServiceResult {
+pub struct LanguageServiceResult {
     /// Update records produced by the operation.
     pub updates: Vec<WorkspaceUpdateRecord>,
     /// Message records produced by the operation.

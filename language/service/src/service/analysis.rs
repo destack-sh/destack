@@ -6,11 +6,11 @@ use destack_source::{Diagnostic, DiagnosticStoreUpdate, FileId, ModuleId, Module
 use destack_workspace::{InvalidationKind, InvalidationPlan, ModuleGraphKey, Program};
 
 use super::workspace::{ServiceUpdate, build_update};
-use super::{AnalyzeOutcome, WorkspaceService, WorkspaceServiceError};
+use super::{AnalyzeOutcome, LanguageService, LanguageServiceError};
 
-impl WorkspaceService {
+impl LanguageService {
     /// Ensure the path is analyzed and semantic-query ready.
-    pub fn ensure_analyzed_for_path(&self, path: &Path) -> Result<(), WorkspaceServiceError> {
+    pub fn ensure_analyzed_for_path(&self, path: &Path) -> Result<(), LanguageServiceError> {
         // run a focused analysis for the path
         let outcome = self.analyze_path(path)?;
 
@@ -23,11 +23,11 @@ impl WorkspaceService {
         let detail = outcome
             .detail
             .unwrap_or_else(|| "semantic query state not ready after analyze".to_string());
-        Err(WorkspaceServiceError::AnalyzeFailed { detail })
+        Err(LanguageServiceError::AnalyzeFailed { detail })
     }
 
     /// Analyze a path and update diagnostics.
-    pub fn analyze_path(&self, path: &Path) -> Result<AnalyzeOutcome, WorkspaceServiceError> {
+    pub fn analyze_path(&self, path: &Path) -> Result<AnalyzeOutcome, LanguageServiceError> {
         // resolve and lock the owning program handle
         let handle = self.program_handle_for_path(path);
         let _compile_guard = handle.compile_lock.lock();
@@ -37,7 +37,7 @@ impl WorkspaceService {
         // resolve the module for the requested path
         let module_id = compiler
             .resolve_path_to_module(&path.to_path_buf())
-            .map_err(|error| WorkspaceServiceError::ResolvePathFailed {
+            .map_err(|error| LanguageServiceError::ResolvePathFailed {
                 path: path.to_path_buf(),
                 detail: error.to_string(),
             })?;
@@ -98,7 +98,7 @@ impl WorkspaceService {
             let file = program
                 .files
                 .get_maybe(file_id)
-                .ok_or(WorkspaceServiceError::FileIdNotTracked { file_id })?;
+                .ok_or(LanguageServiceError::FileIdNotTracked { file_id })?;
             store_updates.push(DiagnosticStoreUpdate::new(
                 file_id,
                 file.version,
@@ -121,7 +121,7 @@ impl WorkspaceService {
         program: &Program,
         compiler: &Compiler,
         updates: &mut Vec<ServiceUpdate>,
-    ) -> Result<(), WorkspaceServiceError> {
+    ) -> Result<(), LanguageServiceError> {
         // collect directly updated modules and files
         let mut module_ids = HashSet::new();
         let mut file_ids = HashSet::new();
@@ -208,7 +208,7 @@ impl WorkspaceService {
                     let file = program
                         .files
                         .get_maybe(file_id)
-                        .ok_or(WorkspaceServiceError::FileIdNotTracked { file_id })?;
+                        .ok_or(LanguageServiceError::FileIdNotTracked { file_id })?;
                     let invalidation = InvalidationPlan {
                         file_id,
                         file_version: file.version,
@@ -259,7 +259,7 @@ impl WorkspaceService {
         let mut store_updates = Vec::new();
         for update in updates.iter() {
             let file = program.files.get_maybe(update.file_id).ok_or(
-                WorkspaceServiceError::FileIdNotTracked {
+                LanguageServiceError::FileIdNotTracked {
                     file_id: update.file_id,
                 },
             )?;

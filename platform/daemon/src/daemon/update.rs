@@ -2,12 +2,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use destack_service::{
+    LanguageServiceError, LanguageServiceResult, RescanReason, WorkspaceMessage,
+    WorkspaceMessageKind, WorkspaceUpdateRecord,
+};
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
 use destack_workspace::FileUpdate;
-use destack_workspace_service::{
-    RescanReason, WorkspaceMessage, WorkspaceMessageKind, WorkspaceServiceError,
-    WorkspaceServiceResult, WorkspaceUpdateRecord,
-};
 
 use crate::{
     Daemon, DaemonError, DaemonMessage, DaemonMessageKind, DaemonRescanResult, DaemonUpdate,
@@ -269,7 +269,7 @@ fn rescan_reason_from_watch_reason(reason: &FileWatchRescanReason) -> RescanReas
 }
 
 /// Convert a workspace update result into daemon shape.
-fn daemon_update_result_from_workspace(result: WorkspaceServiceResult) -> DaemonUpdateResult {
+fn daemon_update_result_from_workspace(result: LanguageServiceResult) -> DaemonUpdateResult {
     DaemonUpdateResult {
         updates: result
             .updates
@@ -297,7 +297,7 @@ fn daemon_messages_from_workspace(messages: Vec<WorkspaceMessage>) -> Vec<Daemon
 }
 
 /// Build a daemon message for workspace service failures.
-fn workspace_service_error_message(code: &str, error: &WorkspaceServiceError) -> DaemonMessage {
+fn workspace_service_error_message(code: &str, error: &LanguageServiceError) -> DaemonMessage {
     DaemonMessage::new(DaemonMessageKind::Error, code, error.to_string())
 }
 

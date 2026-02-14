@@ -6,7 +6,7 @@ use super::WorkspaceHandleId;
 
 /// Errors produced by workspace service operations.
 #[derive(Debug)]
-pub enum WorkspaceServiceError {
+pub enum LanguageServiceError {
     /// The workspace handle was not found.
     UnknownWorkspaceHandle {
         /// The unknown handle id.
@@ -65,53 +65,53 @@ pub enum WorkspaceServiceError {
     },
 }
 
-impl std::fmt::Display for WorkspaceServiceError {
+impl std::fmt::Display for LanguageServiceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WorkspaceServiceError::UnknownWorkspaceHandle { handle } => {
+            LanguageServiceError::UnknownWorkspaceHandle { handle } => {
                 write!(formatter, "unknown workspace handle: {handle:?}")
             }
-            WorkspaceServiceError::WorkspaceHandleMissingAfterOpen { root } => {
+            LanguageServiceError::WorkspaceHandleMissingAfterOpen { root } => {
                 write!(
                     formatter,
                     "workspace handle missing after open: {}",
                     root.display()
                 )
             }
-            WorkspaceServiceError::CacheClearFailed { path, detail } => {
+            LanguageServiceError::CacheClearFailed { path, detail } => {
                 write!(
                     formatter,
                     "cache clear failed at {}: {detail}",
                     path.display()
                 )
             }
-            WorkspaceServiceError::ResolvePathFailed { path, detail } => {
+            LanguageServiceError::ResolvePathFailed { path, detail } => {
                 write!(formatter, "resolve failed for {}: {detail}", path.display())
             }
-            WorkspaceServiceError::InvalidatePathFailed { path, detail } => {
+            LanguageServiceError::InvalidatePathFailed { path, detail } => {
                 write!(
                     formatter,
                     "invalidate failed for {}: {detail}",
                     path.display()
                 )
             }
-            WorkspaceServiceError::FileNotTracked { path } => {
+            LanguageServiceError::FileNotTracked { path } => {
                 write!(formatter, "file not tracked: {}", path.display())
             }
-            WorkspaceServiceError::FileIdNotTracked { file_id } => {
+            LanguageServiceError::FileIdNotTracked { file_id } => {
                 write!(formatter, "file id not tracked: {file_id:?}")
             }
-            WorkspaceServiceError::SemanticQueryNotReady { detail } => {
+            LanguageServiceError::SemanticQueryNotReady { detail } => {
                 write!(formatter, "semantic query state is not ready: {detail}")
             }
-            WorkspaceServiceError::AnalyzeFailed { detail } => {
+            LanguageServiceError::AnalyzeFailed { detail } => {
                 write!(formatter, "analyze failed: {detail}")
             }
-            WorkspaceServiceError::Internal { detail } => {
+            LanguageServiceError::Internal { detail } => {
                 write!(formatter, "workspace service internal error: {detail}")
             }
         }
     }
 }
 
-impl std::error::Error for WorkspaceServiceError {}
+impl std::error::Error for LanguageServiceError {}

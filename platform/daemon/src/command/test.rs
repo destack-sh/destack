@@ -14,7 +14,7 @@ impl CommandContext<'_> {
     pub(super) fn run_test_command(
         &mut self,
         _options: &CommandTestOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         let message = "test runner is not implemented yet";
         self.output.push_stderr(format!("{message}\n").into_bytes());
         let payload = CommandMessagePayload {

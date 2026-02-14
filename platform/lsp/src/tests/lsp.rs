@@ -5,11 +5,11 @@ use destack_lsp_server::jsonrpc::Response;
 use destack_lsp_server::{LanguageServer, LspService};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
+use destack_service::LanguageService as LspLanguageService;
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
 };
 use destack_workspace::{MemoryCacheStore, Session, Workspace};
-use destack_workspace_service::WorkspaceService as LspWorkspaceService;
 use futures::{SinkExt, StreamExt};
 use tower::Service;
 
@@ -51,7 +51,7 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
     let session = Arc::new(session.with_workspace(workspace));
     session.add_root(root.clone());
 
-    let workspace_service = LspWorkspaceService::new(session.clone(), vec![root.clone()])
+    let workspace_service = LspLanguageService::new(session.clone(), vec![root.clone()])
         .expect("expected workspace service");
 
     let path = root.join("main.ds");

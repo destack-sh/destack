@@ -62,7 +62,7 @@ impl CommandContext<'_> {
     pub(super) fn run_task_command(
         &mut self,
         options: &CommandTaskOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // resolve dsconfig path
         let dsconfig_path = self.resolve_dsconfig_path(self.common.config_path.as_deref())?;
 
@@ -188,7 +188,7 @@ struct TaskSpec {
 fn load_tasks(
     resolver: &destack_resolver::Resolver,
     dsconfig_path: &Path,
-) -> Result<Vec<TaskSpec>, String> {
+) -> super::CommandResult<Vec<TaskSpec>> {
     let content = resolver
         .fs
         .read_to_string(dsconfig_path)
@@ -222,7 +222,7 @@ fn load_tasks(
         }
 
         let Some(command) = value.get("command").and_then(|v| v.as_str()) else {
-            return Err(format!("task '{name}' is missing a command"));
+            return Err(format!("task '{name}' is missing a command").into());
         };
         let description = value
             .get("description")

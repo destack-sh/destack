@@ -1,6 +1,6 @@
 use destack_lsp_types as lsp;
+use destack_service::query;
 use destack_source::File;
-use destack_workspace::query;
 
 use super::common::{byte_span_to_range, byte_to_utf16_position};
 
