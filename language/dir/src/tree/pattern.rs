@@ -78,14 +78,12 @@ impl Pattern {
 /// Field resolution (which struct field it maps to) is in ResolutionTable.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternField {
-    /// Named field, maybe with a pattern (like `x` or `x: 4` or `x: int32`).
-    /// `symbol` is the LOCAL binding created by this field.
+    /// Named field, maybe with a nested pattern (like `x` or `x: 4` or `x: int32`).
     Named {
         mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
         default: Option<LocalNodeId<Expression>>,
-        symbol: LocalSymbolId,
     },
     /// Computed field (like `[key]: value`).
     Computed {
@@ -95,7 +93,6 @@ pub enum PatternField {
         default: Option<LocalNodeId<Expression>>,
     },
     /// Named field with an alias (like `x: y` where `x` is the field name, `y` is the binding).
-    /// `symbol` is the LOCAL binding created by the alias.
     Alias {
         mutability: Option<Mutability>,
         name: StringId,
@@ -122,7 +119,7 @@ impl PatternField {
     /// Get the symbol of the pattern field (the local binding it creates).
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
-            PatternField::Named { symbol, .. } => Some(*symbol),
+            PatternField::Named { .. } => None,
             PatternField::Computed { .. } => None,
             PatternField::Alias { symbol, .. } => Some(*symbol),
             PatternField::Positional { .. } => None,

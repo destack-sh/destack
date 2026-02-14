@@ -3068,6 +3068,31 @@ mod tests {
     use crate::tests::TestProgram;
     use destack_dir::Expression;
 
+    /// Allow exhaustive matches over fixed arrays with repeated element types.
+    #[test]
+    fn test_allow_exhaustive_match_fixed_array_with_repeated_element_type() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+declare const pair: int32[2];
+
+match (pair) {
+    [left, right] => {
+        left satisfies int32;
+        right satisfies int32;
+    }
+}
+"#,
+        );
+
+        test.analyze_module(module_id);
+        test.compile();
+
+        // exhaustive fixed-array match should not raise EA400
+        test.check_no_diagnostic_code("EA400");
+    }
+
     /// Reject assignments to instantiation expressions.
     #[test]
     fn test_reject_instantiation_assignment_target() {

@@ -2085,12 +2085,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 default: _,
                 pattern: _,
-                symbol,
             } => {
                 self.node("PatternField::Named", id.id)
                     .field("name", name)
                     .field_optional("mutability", mutability)
-                    .field("symbol", symbol)
                     .end();
             }
             PatternField::Computed {

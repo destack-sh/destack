@@ -1660,6 +1660,29 @@ impl Compiler {
         Ok(expr_id)
     }
 
+    /// Resolve a direct binding tuple or object field pattern.
+    fn direct_binding_from_pattern(
+        &self,
+        pattern_id: LocalNodeId<Pattern>,
+        tree: &NodeTree,
+    ) -> Option<(StringId, LocalSymbolId, Option<Mutability>)> {
+        let pattern = tree.get(pattern_id);
+
+        // extract direct binding patterns without nested sub-patterns
+        if let Pattern::Binding {
+            mutability,
+            name,
+            pattern,
+            symbol,
+        } = pattern
+            && pattern.is_none()
+        {
+            return Some((*name, *symbol, *mutability));
+        }
+
+        None
+    }
+
     /// Wrap body with let bindings for tuple field extractions.
     ///
     /// For each field in the pattern, creates `let <binding> = value[i]`.
@@ -1697,15 +1720,17 @@ impl Compiler {
                     }
                     // #Incomplete: handle nested patterns in positional fields
                 }
-                PatternField::Named {
-                    name,
-                    symbol,
-                    mutability,
-                    ..
-                } => {
+                PatternField::Named { pattern, .. } => {
                     // named field in tuple position, use index access
                     let access = self.build_index_access(match_id, value, i, tree, scope, types)?;
-                    bindings.push((name, symbol, mutability, access));
+
+                    // bind only direct nested binding patterns
+                    if let Some(pattern_id) = pattern
+                        && let Some((name, symbol, mutability)) =
+                            self.direct_binding_from_pattern(pattern_id, tree)
+                    {
+                        bindings.push((name, symbol, mutability, access));
+                    }
                 }
                 PatternField::Spread { .. }
                 | PatternField::Alias { .. }
@@ -1740,15 +1765,17 @@ impl Compiler {
         for field_id in fields.iter() {
             let field = tree.get(*field_id).clone();
             match field {
-                PatternField::Named {
-                    name,
-                    symbol,
-                    mutability,
-                    ..
-                } => {
+                PatternField::Named { name, pattern, .. } => {
                     let access =
                         self.build_member_access(match_id, value, name, tree, scope, types)?;
-                    bindings.push((name, symbol, mutability, access));
+
+                    // bind only direct nested binding patterns
+                    if let Some(pattern_id) = pattern
+                        && let Some((binding_name, symbol, mutability)) =
+                            self.direct_binding_from_pattern(pattern_id, tree)
+                    {
+                        bindings.push((binding_name, symbol, mutability, access));
+                    }
                 }
                 PatternField::Alias {
                     name,

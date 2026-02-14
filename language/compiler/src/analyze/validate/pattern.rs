@@ -395,7 +395,7 @@ impl Compiler {
             return false;
         }
 
-        match tree.get(pattern_id) {
+        let is_irrefutable = match tree.get(pattern_id) {
             Pattern::Wildcard => true,
             Pattern::Binding { pattern, .. } => match pattern {
                 None => {
@@ -524,7 +524,12 @@ impl Compiler {
                 visited,
             ),
             Pattern::Must(_) | Pattern::Expression { .. } | Pattern::Range { .. } => false,
-        }
+        };
+
+        // clear the path marker after finishing this branch
+        visited.remove(&value_type_id);
+
+        is_irrefutable
     }
 
     /// Check if a sequence pattern matches all values of a fixed-size sequence type.

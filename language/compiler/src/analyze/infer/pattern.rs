@@ -785,7 +785,6 @@ impl Compiler {
                     pattern,
                     default: _,
                     mutability: _,
-                    symbol: _,
                 } => {
                     let Some(field_ty_id) = self.pattern_member_type_for_narrowing(
                         module,
@@ -1475,7 +1474,6 @@ impl Compiler {
                 mutability: _,
                 name,
                 default,
-                symbol,
                 pattern,
             } => {
                 // resolve the field type from the binding type when possible
@@ -1487,9 +1485,6 @@ impl Compiler {
                     types,
                     ctx,
                 )?;
-                if let Some(ty_id) = field_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), ty_id);
-                }
 
                 // infer default expressions for named fields
                 if let Some(default) = default {

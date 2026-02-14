@@ -1310,9 +1310,16 @@ function next_id(id: UserId): int64 {
             };
             symbol.into_global(module_id)
         }
-        PatternField::Named { symbol, .. } | PatternField::Alias { symbol, .. } => {
+        PatternField::Named { pattern, .. } => {
+            let Some(pattern_id) = pattern else {
+                panic!("named field should contain a nested binding pattern");
+            };
+            let Pattern::Binding { symbol, .. } = view.tree().get(*pattern_id) else {
+                panic!("named field pattern should be a binding");
+            };
             symbol.into_global(module_id)
         }
+        PatternField::Alias { symbol, .. } => symbol.into_global(module_id),
         other => panic!("unexpected tagged tuple field: {other:?}"),
     };
 

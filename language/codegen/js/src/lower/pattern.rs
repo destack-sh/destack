@@ -55,7 +55,6 @@ impl ModuleLowerer<'_> {
                 name,
                 pattern,
                 default,
-                symbol: _,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
                 let name = self.strings.intern_from(&self.ast.strings, *name);
