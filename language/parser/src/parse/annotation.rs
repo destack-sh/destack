@@ -154,6 +154,35 @@ impl Parser {
             return;
         }
 
+        // skip remap when no attached annotation actually crosses a computed key wrapper boundary
+        let has_computed_key_owner_remap =
+            self.tree
+                .get_all_annotations()
+                .iter()
+                .any(|(target_node_id, annotation_ids)| {
+                    let Some(candidates) = owner_candidates.get(*target_node_id as usize) else {
+                        return false;
+                    };
+                    if candidates.is_empty() {
+                        return false;
+                    }
+
+                    annotation_ids.iter().any(|annotation_id| {
+                        let annotation = self.tree.get::<Annotation>(*annotation_id);
+                        let annotation_span = self.tree.get_span(*annotation_id);
+                        candidates.iter().any(|candidate| {
+                            Self::annotation_needs_computed_key_owner(
+                                annotation,
+                                annotation_span,
+                                candidate.key_wrapper_span,
+                            )
+                        })
+                    })
+                });
+        if !has_computed_key_owner_remap {
+            return;
+        }
+
         // remap annotations before `[` from key expressions to owner nodes
         self.tree
             .remap_annotation_targets(|target_node_id, _, annotation, annotation_span| {
@@ -1701,6 +1730,36 @@ impl Parser {
                     })
                 });
         if !has_remappable_annotations {
+            return;
+        }
+
+        // skip remap when all current owners already match statement wrapper boundaries
+        let has_statement_wrapper_remap =
+            self.tree
+                .get_all_annotations()
+                .iter()
+                .any(|(target_node_id, annotation_ids)| {
+                    let Some(candidates) = statement_candidates.get(*target_node_id as usize)
+                    else {
+                        return false;
+                    };
+                    if candidates.is_empty() {
+                        return false;
+                    }
+
+                    annotation_ids.iter().any(|annotation_id| {
+                        let annotation = self.tree.get::<Annotation>(*annotation_id);
+                        let annotation_span = self.tree.get_span(*annotation_id);
+                        candidates.iter().any(|candidate| {
+                            Self::annotation_needs_statement_wrapper(
+                                annotation,
+                                annotation_span,
+                                candidate.inner_expression_span,
+                            )
+                        })
+                    })
+                });
+        if !has_statement_wrapper_remap {
             return;
         }
 

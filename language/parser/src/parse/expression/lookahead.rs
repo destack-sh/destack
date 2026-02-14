@@ -23,19 +23,19 @@ pub(crate) struct DelimiterAnalysis {
 pub(crate) type ParenthesizedGroupShape = DelimiterAnalysis;
 
 impl Parser {
-    /// Return the non-newline token type that follows the current parenthesized group.
-    pub(super) fn parenthesized_follow_token_type(&mut self) -> Option<TokenType> {
+    /// Return the raw token type that follows the current parenthesized group.
+    pub(super) fn parenthesized_follow_raw_token_type(&mut self) -> Option<TokenType> {
         if self.peek_token_type() != TokenType::OpenParenthesis {
             return None;
         }
 
         let open_index = self.pos_index();
         let close_index = self.matching_pair_or_lex(open_index)?;
-        let follow_cursor = self.non_newline_cursor_from(close_index + 1);
-        if follow_cursor.token_type == TokenType::End {
+        let follow_token_type = self.token_type_at(close_index + 1);
+        if follow_token_type == TokenType::End {
             None
         } else {
-            Some(follow_cursor.token_type)
+            Some(follow_token_type)
         }
     }
 
