@@ -171,8 +171,9 @@ impl Parser {
 
         // direct keyword dispatch in statement position
         if let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) {
-            let next_raw_token_type = self.peek_next_token_type();
-            let next_cursor = self.non_newline_cursor_from(self.index_for_next());
+            let scanner_lookahead = self.peek_scanner_lookahead();
+            let next_raw_token_type = scanner_lookahead.next_raw_token_type;
+            let next_cursor = scanner_lookahead.next_cursor;
             if let Some(expression_id) = self.try_eat_direct_statement_keyword_expression(
                 start,
                 keyword,

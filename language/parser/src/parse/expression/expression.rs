@@ -148,7 +148,8 @@ impl Parser {
             return Ok(None);
         }
 
-        if !self.peek_is(TokenType::Identifier) {
+        let scanner_lookahead = self.peek_scanner_lookahead();
+        if scanner_lookahead.current_raw_token_type != TokenType::Identifier {
             return Ok(None);
         }
 
@@ -158,7 +159,8 @@ impl Parser {
             return Ok(None);
         }
 
-        let next_raw_token_type = self.peek_next_token_type();
+        let next_raw_token_type = scanner_lookahead.next_raw_token_type;
+        let next_cursor = scanner_lookahead.next_cursor;
         if matches!(next_raw_token_type, TokenType::Arrow | TokenType::ArrowWide) {
             return Ok(None);
         }
@@ -166,8 +168,6 @@ impl Parser {
         if self.options.in_statement_position && next_raw_token_type == TokenType::Colon {
             return Ok(None);
         }
-
-        let next_cursor = self.non_newline_cursor_from(self.index_for_next());
         let next_token_type = next_cursor.token_type;
         let next_token_index = next_cursor.index;
 
@@ -787,8 +787,9 @@ impl Parser {
 
                     // identifier context setup
                     let pos_index = self.pos_index();
-                    let next_raw_token_type = self.peek_next_token_type();
-                    let next_cursor = self.non_newline_cursor_from(self.index_for_next());
+                    let scanner_lookahead = self.peek_scanner_lookahead();
+                    let next_raw_token_type = scanner_lookahead.next_raw_token_type;
+                    let next_cursor = scanner_lookahead.next_cursor;
                     let next_token_type = next_cursor.token_type;
                     let next_token_index = next_cursor.index;
                     let next_has_line_break = next_cursor.has_line_break_before;
@@ -1054,7 +1055,8 @@ impl Parser {
                             && !self.options.in_arrow_return_type
                             && !self.has_active_split();
                         if can_use_follow_fast_path
-                            && let Some(follow_token_type) = self.parenthesized_follow_token_type()
+                            && let Some(follow_token_type) =
+                                self.parenthesized_follow_raw_token_type()
                         {
                             // direct arrow after ')' means this is a lambda head
                             if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide)

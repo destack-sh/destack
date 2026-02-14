@@ -619,8 +619,8 @@ pub struct Parser {
     /// The token stream driving the parser.
     pub(crate) token_stream: TokenStream,
 
-    /// The current position in the tokens.
-    pos: usize,
+    /// Scanner owned parser cursor and lookahead cache state.
+    scanner: ParserScannerState,
     /// Whether the parser is finished.
     is_finished: bool,
     /// Expression recursion depth for periodic stack growth checks.
@@ -652,8 +652,6 @@ pub struct Parser {
     pub(crate) delimiter_analyses: Vec<DelimiterAnalysis>,
     /// Cached state bits for delimiter analysis entries.
     pub(crate) delimiter_analyses_cached: Vec<bool>,
-    /// Cached non-newline cursor keyed by parser token position.
-    pub(crate) cursor_cache: Option<(usize, NonNewlineTokenCursor)>,
     /// Claimed side token flags for inline annotation attachment.
     pub(crate) annotation_claimed_side_tokens: Vec<bool>,
     /// Claimed semantic token flags for inline annotation attachment.
@@ -677,6 +675,92 @@ pub(crate) struct NonNewlineTokenCursor {
     pub skipped_newline_count: usize,
     /// Whether this cursor position is preceded by a line break.
     pub has_line_break_before: bool,
+}
+
+/// Scanner lookahead facts at the current parser position.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct ScannerLookahead {
+    /// The current raw token type without newline normalization.
+    pub current_raw_token_type: TokenType,
+    /// The next raw token type after the current parser position.
+    pub next_raw_token_type: TokenType,
+    /// The normalized non-newline cursor from the next raw index.
+    pub next_cursor: NonNewlineTokenCursor,
+}
+
+/// Scanner owned cursor and cached lookahead facts.
+#[derive(Debug, Copy, Clone)]
+struct ParserScannerState {
+    /// The current parser cursor index in the semantic token stream.
+    pos: usize,
+    /// Cached current scanner facts keyed by parser token position.
+    current_scanner_cache: Option<(usize, TokenType, NonNewlineTokenCursor)>,
+    /// Cached scanner lookahead facts keyed by parser token position.
+    scanner_lookahead_cache: Option<(usize, ScannerLookahead)>,
+}
+
+impl ParserScannerState {
+    /// Create a scanner state at the start of the token stream.
+    #[inline]
+    fn new() -> Self {
+        Self {
+            pos: 0,
+            current_scanner_cache: None,
+            scanner_lookahead_cache: None,
+        }
+    }
+
+    /// Reset scanner state to the first token.
+    #[inline]
+    fn reset(&mut self) {
+        self.pos = 0;
+        self.invalidate_cached_facts();
+    }
+
+    /// Return the current parser cursor index.
+    #[inline]
+    fn pos(&self) -> usize {
+        self.pos
+    }
+
+    /// Set the parser cursor index and invalidate cached facts.
+    #[inline]
+    fn set_pos(&mut self, pos: usize) {
+        self.pos = pos;
+        self.invalidate_cached_facts();
+    }
+
+    /// Advance the parser cursor by one token and invalidate cached facts.
+    #[inline]
+    fn advance_one(&mut self) {
+        self.pos += 1;
+        self.invalidate_cached_facts();
+    }
+
+    /// Advance the parser cursor by `distance` tokens and invalidate cached facts.
+    #[inline]
+    fn advance_by(&mut self, distance: usize) {
+        self.pos += distance;
+        self.invalidate_cached_facts();
+    }
+
+    /// Return a lookahead index adjusted for split token state.
+    #[inline]
+    fn lookahead_index(&self, delta: usize, has_active_split: bool) -> usize {
+        let offset = if has_active_split {
+            delta.saturating_sub(1)
+        } else {
+            delta
+        };
+        self.pos + offset
+    }
+
+    /// Invalidate cached scanner facts after token stream or cursor mutations.
+    #[inline]
+    fn invalidate_cached_facts(&mut self) {
+        self.current_scanner_cache = None;
+        self.scanner_lookahead_cache = None;
+    }
 }
 
 impl Debug for Parser {
@@ -704,7 +788,7 @@ impl Parser {
             file,
             file_id,
             token_stream,
-            pos: 0,
+            scanner: ParserScannerState::new(),
             is_finished: false,
             expression_stack_depth: 0,
             options: ParserOptions::default(),
@@ -721,7 +805,6 @@ impl Parser {
             token_identifiers_cached: Vec::with_capacity(estimated_tokens),
             delimiter_analyses: Vec::with_capacity(estimated_tokens),
             delimiter_analyses_cached: Vec::with_capacity(estimated_tokens),
-            cursor_cache: None,
             annotation_claimed_side_tokens: Vec::with_capacity(estimated_tokens),
             annotation_claimed_tokens: Vec::with_capacity(estimated_tokens),
             annotation_claimed_side_token_log: Vec::with_capacity(estimated_tokens / 8),
@@ -772,9 +855,8 @@ impl Parser {
     /// Reset the parser.
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
-        self.pos = 0;
+        self.scanner.reset();
         self.token_stream.clear_split_token();
-        self.cursor_cache = None;
         self.expression_stack_depth = 0;
         self.options = ParserOptions {
             disallow_ambiguous_tree_literal: self.language.supports_jsx()
@@ -852,6 +934,7 @@ impl Parser {
     #[inline]
     pub(crate) fn set_allow_tree_literals(&mut self, allow: bool) {
         self.token_stream.set_allow_tree_literals(allow);
+        self.invalidate_scanner_lookahead_cache();
     }
 
     /// Return true when lexing is currently inside a tree literal.
@@ -870,6 +953,7 @@ impl Parser {
     #[inline]
     pub(crate) fn enter_tree_opening_tag(&mut self) {
         self.token_stream.enter_tree_opening_tag();
+        self.invalidate_scanner_lookahead_cache();
     }
 
     /// Return the next non newline token index from a start index.
@@ -928,37 +1012,10 @@ impl Parser {
         }
     }
 
-    /// Return cursor information for the next non-newline token at the current position.
-    #[inline]
-    pub(crate) fn peek_non_newline_cursor(&mut self) -> NonNewlineTokenCursor {
-        if self.has_active_split() {
-            return NonNewlineTokenCursor {
-                index: self.pos,
-                token_type: self.peek_token_type(),
-                skipped_newline_count: 0,
-                has_line_break_before: self.line_terminator_before_index(self.pos),
-            };
-        }
-
-        self.non_newline_cursor_from(self.pos_index())
-    }
-
     /// Return scanner-style cursor information at the current parser position.
     #[inline]
     pub(crate) fn peek_cursor(&mut self) -> NonNewlineTokenCursor {
-        if self.has_active_split() {
-            return self.peek_non_newline_cursor();
-        }
-
-        if let Some((cached_pos, cursor)) = self.cursor_cache
-            && cached_pos == self.pos
-        {
-            return cursor;
-        }
-
-        let cursor = self.peek_non_newline_cursor();
-        self.cursor_cache = Some((self.pos, cursor));
-        cursor
+        self.peek_current_scanner_facts().1
     }
 
     /// Return scanner style cursor information at the current parser position.
@@ -971,7 +1028,7 @@ impl Parser {
     #[inline]
     pub(crate) fn normalize_to_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
         let cursor = self.peek_cursor();
-        if cursor.index != self.pos {
+        if cursor.index != self.scanner.pos() {
             self.advance_to(cursor.index);
         }
         cursor
@@ -1111,10 +1168,45 @@ impl Parser {
         self.delimiter_analyses_cached.resize(new_len, false);
     }
 
-    /// Invalidate the cached scanner cursor after parser position mutations.
+    /// Invalidate cached scanner lookahead after parser state mutations.
     #[inline]
-    fn invalidate_cursor_cache(&mut self) {
-        self.cursor_cache = None;
+    fn invalidate_scanner_lookahead_cache(&mut self) {
+        self.scanner.invalidate_cached_facts();
+    }
+
+    /// Return current scanner token facts for the parser position.
+    #[inline]
+    fn peek_current_scanner_facts(&mut self) -> (TokenType, NonNewlineTokenCursor) {
+        let pos = self.scanner.pos();
+        if let Some((cached_pos, token_type, cursor)) = self.scanner.current_scanner_cache
+            && cached_pos == pos
+        {
+            return (token_type, cursor);
+        }
+
+        let has_active_split = self.has_active_split();
+        let current_raw_token_type = if has_active_split {
+            self.token_stream
+                .active_split_token()
+                .expect("active split token should exist")
+                .token
+                .ty
+        } else {
+            self.token_type_at(pos)
+        };
+        let current_cursor = if has_active_split {
+            NonNewlineTokenCursor {
+                index: pos,
+                token_type: current_raw_token_type,
+                skipped_newline_count: 0,
+                has_line_break_before: self.line_terminator_before_index(pos),
+            }
+        } else {
+            self.non_newline_cursor_from(pos)
+        };
+
+        self.scanner.current_scanner_cache = Some((pos, current_raw_token_type, current_cursor));
+        (current_raw_token_type, current_cursor)
     }
 
     /// Return true when a split token is active.
@@ -1126,7 +1218,7 @@ impl Parser {
     /// Get the current token index.
     #[inline]
     pub(crate) fn pos_index(&self) -> usize {
-        self.pos
+        self.scanner.pos()
     }
 
     /// Look up a keyword at a token index.
@@ -1199,12 +1291,7 @@ impl Parser {
     /// Return a lookahead index adjusted for an active split token.
     #[inline]
     fn lookahead_index(&self, delta: usize) -> usize {
-        let offset = if self.has_active_split() {
-            delta.saturating_sub(1)
-        } else {
-            delta
-        };
-        self.pos + offset
+        self.scanner.lookahead_index(delta, self.has_active_split())
     }
 
     /// Get the token index used by peek_next.
@@ -1223,6 +1310,30 @@ impl Parser {
     #[inline]
     pub(crate) fn index_for_next_next_next(&self) -> usize {
         self.lookahead_index(3)
+    }
+
+    /// Return scanner lookahead facts for the current parser position.
+    #[inline]
+    pub(crate) fn peek_scanner_lookahead(&mut self) -> ScannerLookahead {
+        let pos = self.scanner.pos();
+        if let Some((cached_pos, scanner_lookahead)) = self.scanner.scanner_lookahead_cache
+            && cached_pos == pos
+        {
+            return scanner_lookahead;
+        }
+
+        let (current_raw_token_type, _) = self.peek_current_scanner_facts();
+        let next_raw_index = self.index_for_next();
+        let next_raw_token_type = self.token_type_at(next_raw_index);
+        let next_cursor = self.non_newline_cursor_from(next_raw_index);
+        let scanner_lookahead = ScannerLookahead {
+            current_raw_token_type,
+            next_raw_token_type,
+            next_cursor,
+        };
+
+        self.scanner.scanner_lookahead_cache = Some((pos, scanner_lookahead));
+        scanner_lookahead
     }
 
     /// Ensure token caches align with the current token stream after a rewind.
@@ -1274,7 +1385,7 @@ impl Parser {
     /// Get the current position in the tokens.
     #[inline]
     pub fn pos(&self) -> u32 {
-        self.pos as u32
+        self.scanner.pos() as u32
     }
 
     /// Attach side annotations after parsing when needed.
@@ -1335,7 +1446,7 @@ impl Parser {
             || self.token_stream.has_split_state();
         let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
         ParserMark::new(
-            self.pos,
+            self.scanner.pos(),
             self.tree.mark(),
             token_stream_mark,
             self.errors.len(),
@@ -1353,7 +1464,7 @@ impl Parser {
             || self.token_stream.has_split_state();
         let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
         ParserMark {
-            pos: self.pos,
+            pos: self.scanner.pos(),
             tree_mark: None,
             token_stream_mark,
             error_count: None,
@@ -1368,7 +1479,7 @@ impl Parser {
     #[inline(always)]
     pub fn mark_span(&self) -> ParserMark {
         ParserMark {
-            pos: self.pos,
+            pos: self.scanner.pos(),
             tree_mark: None,
             token_stream_mark: None,
             error_count: None,
@@ -1382,8 +1493,7 @@ impl Parser {
     /// Run a closure at a temporary token position and restore parser state afterward.
     pub(crate) fn with_pos<T>(&mut self, pos: usize, func: impl FnOnce(&mut Self) -> T) -> T {
         let mark = self.mark_rewind();
-        self.pos = pos;
-        self.invalidate_cursor_cache();
+        self.scanner.set_pos(pos);
         let result = func(self);
         self.rewind(mark);
         result
@@ -1395,8 +1505,7 @@ impl Parser {
             speculation_stats.rewind_calls += 1;
         }
         self.rollback_annotation_claims_to_mark(&mark);
-        self.pos = mark.pos;
-        self.invalidate_cursor_cache();
+        self.scanner.set_pos(mark.pos);
         if let Some(token_stream_mark) = mark.token_stream_mark {
             self.token_stream.restore(token_stream_mark);
             self.reset_token_caches_after_rewind();
@@ -1409,8 +1518,7 @@ impl Parser {
             speculation_stats.restore_calls += 1;
         }
         self.rollback_annotation_claims_to_mark(&mark);
-        self.pos = mark.pos;
-        self.invalidate_cursor_cache();
+        self.scanner.set_pos(mark.pos);
         if let Some(tree_mark) = mark.tree_mark {
             debug_assert_eq!(tree_mark.next_global_id(), idx);
             self.tree.restore_to_mark(tree_mark);
@@ -1477,7 +1585,8 @@ impl Parser {
             return self.eof_span();
         }
 
-        let end_index = if self.pos > 0 { self.pos - 1 } else { 0 }.min(token_count - 1);
+        let pos = self.scanner.pos();
+        let end_index = if pos > 0 { pos - 1 } else { 0 }.min(token_count - 1);
         let start_token = unsafe { tokens.get_unchecked(mark.pos) };
         let end_token = unsafe { tokens.get_unchecked(end_index) };
         Span {
@@ -1511,8 +1620,9 @@ impl Parser {
     /// Get the previous Token.
     #[inline]
     pub fn prev(&self) -> Option<&TokenSpan> {
-        if self.pos > 0 {
-            self.tokens().get(self.pos - 1)
+        let pos = self.scanner.pos();
+        if pos > 0 {
+            self.tokens().get(pos - 1)
         } else {
             None
         }
@@ -1539,49 +1649,29 @@ impl Parser {
 
         if self.token_stream.has_split_state() {
             self.token_stream.clear_split_token();
+            self.invalidate_scanner_lookahead_cache();
         }
 
-        if self.pos >= self.tokens().len() {
-            self.ensure_token(self.pos);
+        let pos = self.scanner.pos();
+        if pos >= self.tokens().len() {
+            self.ensure_token(pos);
         }
 
         self.tokens()
-            .get(self.pos)
+            .get(pos)
             .ok_or(ParseError::unexpected(self.eof_span()))
     }
 
     /// Peek the next token type, defaulting to End at EOF.
     #[inline]
     pub fn peek_token_type(&mut self) -> TokenType {
-        if let Some(split) = self.token_stream.active_split_token() {
-            return split.token.ty;
-        }
-
-        if let Some(token) = self.tokens().get(self.pos) {
-            return token.token.ty;
-        }
-
-        self.ensure_token(self.pos);
-        self.tokens()
-            .get(self.pos)
-            .map(|token| token.token.ty)
-            .unwrap_or(TokenType::End)
+        self.peek_current_scanner_facts().0
     }
 
     /// Peek the next token type, skipping an active split token.
     #[inline]
     pub fn peek_next_token_type(&mut self) -> TokenType {
-        let index = self.lookahead_index(1);
-
-        if let Some(token) = self.tokens().get(index) {
-            return token.token.ty;
-        }
-
-        self.ensure_token(index);
-        self.tokens()
-            .get(index)
-            .map(|token| token.token.ty)
-            .unwrap_or(TokenType::End)
+        self.peek_scanner_lookahead().next_raw_token_type
     }
 
     /// Return true when the next token matches the given type.
@@ -1679,7 +1769,7 @@ impl Parser {
     pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
         // if there's an active split token, consume it and return reference
         if self.token_stream.mark_split_token_consumed() {
-            self.invalidate_cursor_cache();
+            self.scanner.invalidate_cached_facts();
             return Ok(self
                 .token_stream
                 .split_token_ref()
@@ -1692,14 +1782,13 @@ impl Parser {
         }
 
         // normal case: consume from token stream
-        if self.pos >= self.tokens().len() {
-            self.ensure_token(self.pos);
+        let pos = self.scanner.pos();
+        if pos >= self.tokens().len() {
+            self.ensure_token(pos);
         }
 
-        if self.pos < self.tokens().len() {
-            let pos = self.pos;
-            self.pos += 1;
-            self.invalidate_cursor_cache();
+        if pos < self.tokens().len() {
+            self.scanner.advance_one();
             self.tokens()
                 .get(pos)
                 .ok_or(ParseError::unexpected(self.eof_span()))
@@ -1716,7 +1805,7 @@ impl Parser {
         // if there's an active split token, mark it as consumed instead of advancing
         if self.has_active_split() {
             self.token_stream.mark_split_token_consumed();
-            self.invalidate_cursor_cache();
+            self.scanner.invalidate_cached_facts();
             return;
         }
 
@@ -1725,13 +1814,13 @@ impl Parser {
             self.token_stream.clear_split_token();
         }
 
-        if self.pos >= self.tokens().len() {
-            self.ensure_token(self.pos);
+        let pos = self.scanner.pos();
+        if pos >= self.tokens().len() {
+            self.ensure_token(pos);
         }
 
-        debug_assert!(self.pos < self.tokens().len(), "bump past end of tokens");
-        self.pos += 1;
-        self.invalidate_cursor_cache();
+        debug_assert!(pos < self.tokens().len(), "bump past end of tokens");
+        self.scanner.advance_one();
     }
 
     /// Bump the Token position by a given distance.
@@ -1743,14 +1832,13 @@ impl Parser {
             self.token_stream.clear_split_token();
         }
 
-        let next_pos = self.pos + (distance as usize);
+        let next_pos = self.scanner.pos() + (distance as usize);
         if next_pos >= self.tokens().len() {
             self.ensure_token(next_pos);
         }
 
         debug_assert!(next_pos < self.tokens().len(), "bump past end of tokens");
-        self.pos = next_pos;
-        self.invalidate_cursor_cache();
+        self.scanner.advance_by(distance as usize);
     }
 
     /// Advance the token position to a specific index.
@@ -1767,16 +1855,16 @@ impl Parser {
         }
 
         debug_assert!(pos <= self.tokens().len(), "advance past end of tokens");
-        self.pos = pos;
-        self.invalidate_cursor_cache();
+        self.scanner.set_pos(pos);
     }
 
     /// Split a `<<` (ShiftLeft) token into two `<` tokens.
     /// Consumes the ShiftLeft and stores a synthetic `<` as the pending split token.
     /// Used when `<<` needs to become `<` + `<` in generic contexts like `Extends<<T>()...>`.
     pub fn split_shift_left(&mut self) {
-        self.ensure_token(self.pos);
-        let current = &self.tokens()[self.pos];
+        let pos = self.scanner.pos();
+        self.ensure_token(pos);
+        let current = &self.tokens()[pos];
         debug_assert_eq!(
             current.token.ty,
             TokenType::ShiftLeft,
@@ -1801,8 +1889,7 @@ impl Parser {
         });
 
         // advance past the ShiftLeft token
-        self.pos += 1;
-        self.invalidate_cursor_cache();
+        self.scanner.advance_one();
     }
 
     /// Eat a single `>` token in generic close contexts.
@@ -1837,8 +1924,7 @@ impl Parser {
             },
             span: split_span,
         });
-        self.pos += 1;
-        self.invalidate_cursor_cache();
+        self.scanner.advance_one();
         Ok(())
     }
 
@@ -1855,7 +1941,7 @@ impl Parser {
         delta: u32,
         token_type: TokenType,
     ) -> ParseResult<&TokenSpan> {
-        let index = self.pos + (delta as usize);
+        let index = self.scanner.pos() + (delta as usize);
         self.ensure_token(index);
         self.tokens()
             .get(index)
