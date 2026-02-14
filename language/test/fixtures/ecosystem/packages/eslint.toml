@@ -4,6 +4,7 @@ description = "Linting utility for JS/TS"
 repo = "https://github.com/eslint/eslint"
 ref = "da7cd0e79197ad16e17052eef99df141de6dbfb1"
 language = "js"
+tier = "T5"
 tags = ["tooling", "lint", "monorepo"]
 
 [discovery]

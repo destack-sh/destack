@@ -4,6 +4,7 @@ description = "Novu notification infrastructure"
 repo = "https://github.com/novuhq/novu"
 ref = "ff93a41a3e24ccaa0fe5400f0b95cd21e523414c"
 language = "ts"
+tier = "T2"
 tags = ["application", "notifications", "fullstack", "monorepo"]
 
 [discovery]

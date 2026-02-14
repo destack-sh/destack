@@ -4,6 +4,7 @@ description = "Nuxt full stack framework"
 repo = "https://github.com/nuxt/nuxt"
 ref = "b9151429bd31d5701a8c1cc13ab2d6cb7151074d"
 language = "ts"
+tier = "T5"
 tags = ["framework", "frontend", "monorepo"]
 
 [discovery]

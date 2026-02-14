@@ -4,6 +4,7 @@ description = "Tabby terminal application"
 repo = "https://github.com/Eugeny/tabby"
 ref = "85061732fa13108a969c19cf59d2cb96ce7c702c"
 language = "ts"
+tier = "T2"
 tags = ["application", "terminal", "desktop", "monorepo"]
 
 [discovery]

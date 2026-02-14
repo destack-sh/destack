@@ -4,6 +4,7 @@ description = "Large type utility library"
 repo = "https://github.com/millsp/ts-toolbelt"
 ref = "b8a49285e3ed3a7d8bb8e0b433389eac46a5f140"
 language = "ts"
+tier = "T5"
 tags = ["types", "library"]
 
 [discovery]

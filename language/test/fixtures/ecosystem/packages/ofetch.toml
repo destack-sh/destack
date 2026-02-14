@@ -4,6 +4,7 @@ description = "TypeScript fetch utility"
 repo = "https://github.com/unjs/ofetch"
 ref = "d50a2047d431ce7b1202d09d75a4bd611768c11c"
 language = "ts"
+tier = "T5"
 tags = ["library", "http", "typescript"]
 
 [discovery]

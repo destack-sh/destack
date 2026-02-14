@@ -4,6 +4,7 @@ description = "Vercel AI SDK monorepo"
 repo = "https://github.com/vercel/ai"
 ref = "574d73fc4b88c5dfd4ba141e7ab7e39b63a2d871"
 language = "ts"
+tier = "T5"
 tags = ["library", "ai", "vercel", "monorepo"]
 
 [discovery]

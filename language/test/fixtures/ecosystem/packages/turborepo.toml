@@ -4,6 +4,7 @@ description = "Turbo monorepo build system"
 repo = "https://github.com/vercel/turborepo"
 ref = "2656caf4cf876e26591a59098e0077e076635b38"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "build", "monorepo"]
 
 [discovery]

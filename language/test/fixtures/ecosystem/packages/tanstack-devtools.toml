@@ -4,6 +4,7 @@ description = "TanStack Devtools inspection and debugging packages"
 repo = "https://github.com/TanStack/devtools"
 ref = "47298b6869e8ded19b4b48c4454b5abdea493804"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "debugging", "tanstack"]
 
 [discovery]

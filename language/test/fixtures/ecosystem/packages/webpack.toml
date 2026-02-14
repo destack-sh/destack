@@ -4,6 +4,7 @@ description = "Webpack module bundler"
 repo = "https://github.com/webpack/webpack"
 ref = "655fe2acc9b745baba67ec2f6f0d95a69858b456"
 language = "js"
+tier = "T5"
 tags = ["tooling", "bundler", "build"]
 
 [discovery]

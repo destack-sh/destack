@@ -4,6 +4,7 @@ description = "TanStack Pacer scheduling and control flow utilities"
 repo = "https://github.com/TanStack/pacer"
 ref = "8ab49d959a134c31f6a5a099bc9eba0145a6ca2d"
 language = "ts"
+tier = "T5"
 tags = ["library", "utilities", "tanstack"]
 
 [discovery]

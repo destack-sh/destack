@@ -4,6 +4,7 @@ description = "XState statecharts and actor based state management"
 repo = "https://github.com/statelyai/xstate"
 ref = "2406e138fa250b874c26e86f8d37afc2b8b3726f"
 language = "ts"
+tier = "T5"
 tags = ["library", "state", "actor", "frontend", "monorepo"]
 
 [discovery]

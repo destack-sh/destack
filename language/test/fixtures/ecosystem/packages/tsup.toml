@@ -4,6 +4,7 @@ description = "TypeScript bundler"
 repo = "https://github.com/egoist/tsup"
 ref = "b906f86102c02f1ef66ebd4a3f7ff50bdc07af65"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "bundler", "typescript"]
 
 [discovery]

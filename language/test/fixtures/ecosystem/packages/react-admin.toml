@@ -4,6 +4,7 @@ description = "React Admin framework"
 repo = "https://github.com/marmelab/react-admin"
 ref = "b3303e286ffe420de3a6d96a1622e6d5ba04d595"
 language = "ts"
+tier = "T5"
 tags = ["framework", "frontend", "typescript"]
 
 [discovery]

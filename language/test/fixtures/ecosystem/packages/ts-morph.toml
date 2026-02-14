@@ -4,6 +4,7 @@ description = "TypeScript AST wrapper and project tooling"
 repo = "https://github.com/dsherret/ts-morph"
 ref = "0dd1adc87da3a423f8796f77c2c41c2598170a48"
 language = "ts"
+tier = "T5"
 tags = ["typescript", "ast", "tooling"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "TanStack Virtual headless virtualization utilities"
 repo = "https://github.com/TanStack/virtual"
 ref = "5d6acc953f62e892ce9eefa2bcc5340614efab15"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "ui", "tanstack"]
 
 [discovery]

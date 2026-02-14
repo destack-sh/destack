@@ -4,6 +4,7 @@ description = "Strapi headless CMS"
 repo = "https://github.com/strapi/strapi"
 ref = "e5475e965ebee98a8b25d9315d522dbbe2c00942"
 language = "ts"
+tier = "T2"
 tags = ["application", "cms", "backend", "monorepo"]
 
 [discovery]

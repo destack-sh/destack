@@ -4,6 +4,7 @@ description = "Tiptap rich text editor framework"
 repo = "https://github.com/ueberdosis/tiptap"
 ref = "d77192b70f62a5a3df98bb4c58729b630a002e23"
 language = "ts"
+tier = "T5"
 tags = ["library", "editor", "frontend", "monorepo"]
 
 [discovery]

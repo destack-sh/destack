@@ -4,6 +4,7 @@ description = "Hoppscotch API platform"
 repo = "https://github.com/hoppscotch/hoppscotch"
 ref = "ff906b7c969c84dd42f913fed594fbd96d16463d"
 language = "ts"
+tier = "T2"
 tags = ["application", "api", "typescript"]
 
 [discovery]

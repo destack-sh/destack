@@ -4,6 +4,7 @@ description = "MUI component library"
 repo = "https://github.com/mui/material-ui"
 ref = "a192ac4695dfc790f2a7af2ab0f16dfe2e492554"
 language = "ts"
+tier = "T5"
 tags = ["frontend", "ui", "tsx", "monorepo"]
 
 [discovery]

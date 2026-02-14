@@ -4,6 +4,7 @@ description = "Cloudflare Workers SDK and tooling monorepo"
 repo = "https://github.com/cloudflare/workers-sdk"
 ref = "fee554961a41a3113e954669ff2511d0293a8813"
 language = "ts"
+tier = "T5"
 tags = ["framework", "edge", "cloudflare", "monorepo"]
 
 [discovery]

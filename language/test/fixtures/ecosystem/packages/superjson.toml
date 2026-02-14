@@ -4,6 +4,7 @@ description = "Type safe JSON transport format"
 repo = "https://github.com/blitz-js/superjson"
 ref = "dbf102469bf0c4dade1b2888696ffae9943f758c"
 language = "ts"
+tier = "T5"
 tags = ["library", "serialization", "typescript"]
 
 [discovery]

@@ -1,6 +1,5 @@
 ajv-analyze
 ajv-lower
-ajv-resolve
 angular-analyze
 angular-lower
 angular-resolve
@@ -32,7 +31,6 @@ changesets-lower
 changesets-resolve
 citty-analyze
 citty-lower
-citty-resolve
 cloudflare-workers-sdk-analyze
 cloudflare-workers-sdk-lower
 cloudflare-workers-sdk-resolve
@@ -40,7 +38,6 @@ commander-analyze
 commander-lower
 consola-analyze
 consola-lower
-consola-resolve
 debug-analyze
 debug-lower
 definitelytyped-analyze
@@ -214,7 +211,6 @@ sentry-javascript-lower
 sentry-javascript-resolve
 socket-io-analyze
 socket-io-lower
-socket-io-resolve
 solid-analyze
 solid-lower
 solid-resolve

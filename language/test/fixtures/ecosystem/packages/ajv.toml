@@ -4,6 +4,7 @@ description = "AJV JSON schema validator"
 repo = "https://github.com/ajv-validator/ajv"
 ref = "82735a15826a30cc51e97a1bbfb59b3d388e4b98"
 language = "ts"
+tier = "T5"
 tags = ["library", "utility", "validation", "monorepo"]
 
 [discovery]

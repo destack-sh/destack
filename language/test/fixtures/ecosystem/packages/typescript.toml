@@ -4,6 +4,7 @@ description = "TypeScript compiler and language service"
 repo = "https://github.com/microsoft/TypeScript"
 ref = "87aa917befa8f6182f5535df3c77287209692a04"
 language = "ts"
+tier = "T5"
 tags = ["compiler", "tooling", "typescript"]
 
 [discovery]

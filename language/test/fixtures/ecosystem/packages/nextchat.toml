@@ -4,6 +4,7 @@ description = "NextChat AI assistant application"
 repo = "https://github.com/ChatGPTNextWeb/NextChat"
 ref = "c3b8c1587c04fff05f7b42276a43016e87771527"
 language = "ts"
+tier = "T2"
 tags = ["application", "ai", "chat", "web"]
 
 [discovery]

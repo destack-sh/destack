@@ -4,6 +4,7 @@ description = "Vite frontend tooling"
 repo = "https://github.com/vitejs/vite"
 ref = "613b847eacc8e5e107eb6a7d0d27c13d545ba6e6"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "frontend", "build"]
 
 [discovery]

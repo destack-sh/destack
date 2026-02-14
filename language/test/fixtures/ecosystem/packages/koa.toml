@@ -4,6 +4,7 @@ description = "Koa web framework"
 repo = "https://github.com/koajs/koa"
 ref = "fecd464ae7be82bd71b275c1faa746dd1c45ef5b"
 language = "js"
+tier = "T5"
 tags = ["backend", "framework", "server"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "Playwright test runner package"
 repo = "https://github.com/microsoft/playwright"
 ref = "0bd37174dea4e6e681902100fb820cbbc537df68"
 language = "ts"
+tier = "T2"
 tags = ["tooling", "testing", "node"]
 
 [discovery]

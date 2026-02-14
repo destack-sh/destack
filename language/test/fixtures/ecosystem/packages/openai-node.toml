@@ -4,6 +4,7 @@ description = "OpenAI JavaScript and TypeScript SDK"
 repo = "https://github.com/openai/openai-node"
 ref = "2ffe3ea754ba4b24b0311957bc5bc6f67f43b3a1"
 language = "ts"
+tier = "T5"
 tags = ["library", "sdk", "typescript"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "GraphQL Code Generator monorepo"
 repo = "https://github.com/dotansimha/graphql-code-generator"
 ref = "62c76188d4e660efa50dcf486921804adc70e1b5"
 language = "ts"
+tier = "T5"
 tags = ["graphql", "tooling", "monorepo"]
 
 [discovery]

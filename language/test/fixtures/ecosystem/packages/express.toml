@@ -4,6 +4,7 @@ description = "Express web framework"
 repo = "https://github.com/expressjs/express"
 ref = "1140301f6a0ed5a05bc1ef38d48294f75a49580c"
 language = "js"
+tier = "T5"
 tags = ["backend", "framework", "server"]
 
 [discovery]

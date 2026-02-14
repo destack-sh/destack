@@ -4,6 +4,7 @@ description = "Storybook UI component workshop"
 repo = "https://github.com/storybookjs/storybook"
 ref = "5f5ad4e5f3bc90aebce5c241a71ef00cb24bc689"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "frontend", "monorepo"]
 
 [discovery]

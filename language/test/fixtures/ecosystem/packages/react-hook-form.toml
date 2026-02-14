@@ -4,6 +4,7 @@ description = "React Hook Form performant forms library"
 repo = "https://github.com/react-hook-form/react-hook-form"
 ref = "319b3eddf657802aaf58f17c61cf72b9aa854c51"
 language = "ts"
+tier = "T5"
 tags = ["forms", "frontend", "library"]
 
 [discovery]

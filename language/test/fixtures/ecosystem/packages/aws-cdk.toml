@@ -4,6 +4,7 @@ description = "AWS Cloud Development Kit"
 repo = "https://github.com/aws/aws-cdk"
 ref = "aaf9889568ed6c712014bcb5edafebc5dc853ffb"
 language = "ts"
+tier = "T5"
 tags = ["sdk", "cloud", "aws", "monorepo"]
 
 [discovery]

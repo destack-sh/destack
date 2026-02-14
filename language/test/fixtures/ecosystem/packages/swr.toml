@@ -4,6 +4,7 @@ description = "SWR React data fetching library"
 repo = "https://github.com/vercel/swr"
 ref = "acd241eb66d2a4381afe1d51a977809079f4c67a"
 language = "ts"
+tier = "T5"
 tags = ["library", "frontend", "react", "vercel"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "Slate rich text editor framework"
 repo = "https://github.com/ianstormtaylor/slate"
 ref = "d211122d582c19d51023b27ce4940c66f3d205b3"
 language = "ts"
+tier = "T5"
 tags = ["library", "editor", "frontend", "react", "monorepo"]
 
 [discovery]

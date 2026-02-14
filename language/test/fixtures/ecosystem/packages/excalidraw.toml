@@ -4,6 +4,7 @@ description = "Excalidraw whiteboard application"
 repo = "https://github.com/excalidraw/excalidraw"
 ref = "89a9badc27d30947882be7f2d6230d95141dd18b"
 language = "ts"
+tier = "T2"
 tags = ["application", "frontend", "canvas", "monorepo"]
 
 [discovery]

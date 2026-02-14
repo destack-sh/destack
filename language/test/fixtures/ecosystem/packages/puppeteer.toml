@@ -4,6 +4,7 @@ description = "Puppeteer browser automation library"
 repo = "https://github.com/puppeteer/puppeteer"
 ref = "eee111bedbbf719ce27f356f4f5307646b13b0eb"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "testing", "automation", "monorepo"]
 
 [discovery]

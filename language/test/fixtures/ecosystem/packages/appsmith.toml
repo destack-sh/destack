@@ -4,6 +4,7 @@ description = "Appsmith internal tool platform"
 repo = "https://github.com/appsmithorg/appsmith"
 ref = "81165f493cf82c1f81396379e2aa911e87685409"
 language = "ts"
+tier = "T2"
 tags = ["application", "dashboard", "fullstack", "monorepo"]
 
 [discovery]

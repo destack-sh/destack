@@ -178,3 +178,21 @@ import encoded from "./data.txt" with { type: "base64" };
 
 encoded satisfies string;
 ```
+
+### TypeScript namespace import from JSON is typed
+
+> TypeScript namespace JSON imports resolve and expose JSON object members directly.
+
+```json:data.json
+{
+    "name": "Alice",
+    "age": 30
+}
+```
+
+```ts:main.ts
+import * as data from "./data.json";
+
+data.name satisfies string;
+data.age satisfies number;
+```

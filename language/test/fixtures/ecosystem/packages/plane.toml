@@ -4,6 +4,7 @@ description = "Plane project management application"
 repo = "https://github.com/makeplane/plane"
 ref = "e92b835869678be5b99c6445ee87a41b3df19914"
 language = "ts"
+tier = "T2"
 tags = ["application", "project-management", "fullstack", "monorepo"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "Fast disk space efficient package manager"
 repo = "https://github.com/pnpm/pnpm"
 ref = "861dd2a8a82e99c19835491db280685dcbeb1d24"
 language = "ts"
+tier = "T5"
 tags = ["tooling", "package-manager", "monorepo"]
 
 [discovery]

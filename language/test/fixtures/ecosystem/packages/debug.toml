@@ -4,6 +4,7 @@ description = "debug logging utility"
 repo = "https://github.com/debug-js/debug"
 ref = "6704cea64eb6943f74fc82159401731acb170b3c"
 language = "js"
+tier = "T5"
 tags = ["library", "utility"]
 
 [discovery]

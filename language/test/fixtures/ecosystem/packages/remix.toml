@@ -4,6 +4,7 @@ description = "Remix full stack web framework"
 repo = "https://github.com/remix-run/remix"
 ref = "3921f065331f6b28e0c29750f1e757a4e09feebc"
 language = "ts"
+tier = "T5"
 tags = ["framework", "frontend", "fullstack"]
 
 [discovery]

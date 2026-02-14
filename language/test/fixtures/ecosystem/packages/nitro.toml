@@ -4,6 +4,7 @@ description = "Nitro server runtime toolkit"
 repo = "https://github.com/nitrojs/nitro"
 ref = "09d6aa6d2effd1ee8cec362ebbf57373a99c75c8"
 language = "ts"
+tier = "T5"
 tags = ["server", "runtime", "typescript"]
 
 [discovery]

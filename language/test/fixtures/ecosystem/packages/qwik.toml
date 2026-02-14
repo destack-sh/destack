@@ -4,6 +4,7 @@ description = "Qwik resumable framework"
 repo = "https://github.com/QwikDev/qwik"
 ref = "de54c382b2351756daa1fff95e414f2c560001c2"
 language = "ts"
+tier = "T5"
 tags = ["framework", "frontend", "monorepo"]
 
 [discovery]

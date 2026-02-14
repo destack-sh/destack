@@ -4,6 +4,7 @@ description = "Chakra UI React component system"
 repo = "https://github.com/chakra-ui/chakra-ui"
 ref = "59bf8f6a63ba70481160556f16113deb143c34f5"
 language = "ts"
+tier = "T5"
 tags = ["frontend", "ui", "tsx", "monorepo"]
 
 [discovery]

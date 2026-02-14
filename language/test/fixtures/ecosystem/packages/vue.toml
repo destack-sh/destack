@@ -4,6 +4,7 @@ description = "Vue core framework"
 repo = "https://github.com/vuejs/core"
 ref = "68dbcf7261ec57804eafaa5c00a96958d59197c9"
 language = "ts"
+tier = "T5"
 tags = ["framework", "frontend", "monorepo"]
 
 [discovery]

@@ -4,6 +4,7 @@ description = "Mattermost collaboration platform"
 repo = "https://github.com/mattermost/mattermost"
 ref = "96899133c0945b67555c12e2060764dfaff58043"
 language = "ts"
+tier = "T2"
 tags = ["application", "chat", "collaboration", "monorepo"]
 
 [discovery]

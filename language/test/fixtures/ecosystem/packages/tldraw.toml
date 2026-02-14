@@ -4,6 +4,7 @@ description = "tldraw collaborative drawing app"
 repo = "https://github.com/tldraw/tldraw"
 ref = "5c85f9625ee06cfd2263ae4b8e46913bd82f45d3"
 language = "ts"
+tier = "T2"
 tags = ["application", "editor", "typescript"]
 
 [discovery]

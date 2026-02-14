@@ -4,6 +4,7 @@ description = "Cypress end to end testing framework"
 repo = "https://github.com/cypress-io/cypress"
 ref = "05b951c48054b9a7c28b565b869cd31a9c375e6e"
 language = "js"
+tier = "T2"
 tags = ["tooling", "testing", "monorepo"]
 
 [discovery]

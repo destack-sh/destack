@@ -4,6 +4,7 @@ description = "Outline knowledge base application"
 repo = "https://github.com/outline/outline"
 ref = "4f6ee1a00bf7a99f9e8efdb07de12a8df4e3bab5"
 language = "ts"
+tier = "T2"
 tags = ["application", "knowledge-base", "web"]
 
 [discovery]

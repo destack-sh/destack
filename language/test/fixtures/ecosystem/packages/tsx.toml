@@ -4,6 +4,7 @@ description = "TypeScript execute runtime"
 repo = "https://github.com/privatenumber/tsx"
 ref = "3a3a0071c78eee94b7c73776729389e38056c21a"
 language = "ts"
+tier = "T5"
 tags = ["runtime", "tooling", "typescript"]
 
 [discovery]

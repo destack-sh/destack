@@ -4,6 +4,7 @@ description = "Runtypes runtime validation for static types"
 repo = "https://github.com/runtypes/runtypes"
 ref = "16d83ca56a54569e4a2375a965567b31191c0035"
 language = "ts"
+tier = "T5"
 tags = ["types", "validation", "library"]
 
 [discovery]

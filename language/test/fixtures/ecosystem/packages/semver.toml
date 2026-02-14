@@ -4,6 +4,7 @@ description = "semver version parsing and range utility"
 repo = "https://github.com/npm/node-semver"
 ref = "5993c2e42bdf17c5f03e6360da51bc707fcee460"
 language = "js"
+tier = "T5"
 tags = ["library", "utility"]
 
 [discovery]

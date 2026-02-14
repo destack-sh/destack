@@ -4,6 +4,7 @@ description = "Commander command line utility framework"
 repo = "https://github.com/tj/commander.js"
 ref = "8247364da749736570161e95682b07fc2d72497b"
 language = "js"
+tier = "T5"
 tags = ["library", "utility", "cli"]
 
 [discovery]
