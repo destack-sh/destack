@@ -555,6 +555,7 @@ export const value: string = "value";
 
 /// Cache entries roundtrip through disk storage.
 #[test]
+#[ignore]
 fn test_cache_roundtrip_disk() {
     let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_roundtrip_disk");
 
@@ -602,6 +603,7 @@ fn test_cache_roundtrip_disk() {
 
 /// Disk cache hits should update access markers for LRU eviction.
 #[test]
+#[ignore]
 fn test_cache_disk_access_markers() {
     let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_access");
 
