@@ -2427,6 +2427,30 @@ mod tests {
         });
     }
 
+    /// Parse a tree fragment with keyword text followed by an expression container.
+    #[test]
+    fn test_parse_tree_fragment_with_keyword_text_and_expression() {
+        let mut test = TestParser::new_with_options("<>for {x}</>", LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left, elements, .. } => {
+            assert!(left.is_none());
+            let elements = elements.as_ref().expect("expected fragment children");
+            assert_eq!(elements.len(), 2);
+
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                    assert_string!(parser, *string_id, "for ");
+                });
+            });
+
+            assert_node!(parser.tree, elements[1], Argument::Positional { modifiers: _, value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "x");
+            });
+        });
+    }
+
     /// Parse tree fragment with comments between the angle brackets.
     #[test]
     fn test_parse_tree_fragment_with_comments() {
@@ -2669,6 +2693,35 @@ mod tests {
                     });
                 });
             });
+        });
+    }
+
+    /// Parse spread attributes with newline and comments after the container open.
+    #[test]
+    fn test_parse_tree_attribute_spread_with_multiline_comments() {
+        let mut test = TestParser::new_with_options(
+            r#"<Tag
+  {
+    // comment before spread
+    ...(rootProps as any)
+  }
+/>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "Tag");
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Spread { modifiers: _, label: None, value } => {
+                assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    });
+                });
+            });
+            assert!(elements.is_none());
         });
     }
 
@@ -3252,6 +3305,44 @@ mod tests {
                             assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
                                 assert_eq!(*kind, IfKind::Ternary);
                             });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse a fragment that starts with keyword text before an expression container.
+    #[test]
+    fn test_parse_tsx_fragment_with_keyword_text_before_expression() {
+        let input = r#"<strong>{componentNameJsx && <>for {componentNameJsx}</>}</strong>"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        // strong element with one expression child
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), elements, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "strong");
+            let elements = elements.as_ref().expect("expected strong children");
+            assert_eq!(elements.len(), 1);
+
+            // componentNameJsx && <>{...}</>
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
+                    assert_eq!(*operator, BinaryOperator::And);
+                    assert_expression_path!(parser, parser.tree.get(*left), "componentNameJsx");
+
+                    // fragment children: "for " and componentNameJsx
+                    assert_node!(parser.tree, *right, Expression::TreeExpression { left: None, elements, .. } => {
+                        let elements = elements.as_ref().expect("expected fragment children");
+                        assert_eq!(elements.len(), 2);
+                        assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                                assert_string!(parser, *string_id, "for ");
+                            });
+                        });
+                        assert_node!(parser.tree, elements[1], Argument::Positional { modifiers: _, value } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "componentNameJsx");
                         });
                     });
                 });

@@ -164,6 +164,7 @@ mod tests {
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use destack_source::LanguageType;
 
     #[test]
     fn test_parse_interface_anonymous_empty() {
@@ -718,6 +719,50 @@ interface Iterator<T, TReturn = any, TNext = any> {
                     assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Any));
                 });
                 assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "IteratorResult");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_interface_method_overloads_named_where_typescript() {
+        let mut test = TestParser::new_with_options(
+            r#"interface Query {
+where(where: string, parameters?: ObjectLiteral): this
+where(where: Brackets, parameters?: ObjectLiteral): this
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                &start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { members, .. } => {
+            assert_eq!(members.len(), 2);
+
+            // where(where: string, parameters?: ObjectLiteral): this
+            assert_node!(parser.tree, members[0], Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+                assert_string!(parser, *name, "where");
+                assert_eq!(signature.dynamic_parameters.len(), 2);
+                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { modifiers: Some(modifiers), name, .. } => {
+                    assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                    assert_string!(parser, *name, "parameters");
+                });
+            });
+
+            // where(where: Brackets, parameters?: ObjectLiteral): this
+            assert_node!(parser.tree, members[1], Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+                assert_string!(parser, *name, "where");
+                assert_eq!(signature.dynamic_parameters.len(), 2);
+                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { modifiers: Some(modifiers), name, .. } => {
+                    assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                    assert_string!(parser, *name, "parameters");
+                });
             });
         });
     }
