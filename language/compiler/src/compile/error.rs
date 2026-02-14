@@ -2,8 +2,8 @@ use destack_workspace::{ProfileId, Program};
 
 use crate::{
     AnalyzeError, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError, GenerateError,
-    ImportError, LinkError, LintError, LowerError, OptimizeError, ResolveError, TaskDependency,
-    TaskId, TaskPhase,
+    ImportError, LinkError, LintError, LowerError, OptimizeError, ResolveError, Task, TaskDebug,
+    TaskDependency, TaskId, TaskPhase,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
@@ -47,7 +47,12 @@ pub enum InternalError {
         dependency: TaskDependency,
     },
     /// Task exceeded maximum yield count.
-    ExcessiveYield { task_id: TaskId, yield_count: u32 },
+    ExcessiveYield {
+        task_id: TaskId,
+        task: Task,
+        dependency: TaskDependency,
+        yield_count: u32,
+    },
     /// Circular dependency detected in task graph.
     CircularDependency { task_id: TaskId, cycle: Vec<TaskId> },
     /// Missing profile data for a profile id.
@@ -80,11 +85,30 @@ impl InternalError {
             }
             Self::ExcessiveYield {
                 task_id,
+                task,
+                dependency,
                 yield_count,
                 ..
             } => {
-                format!("internal error: task {task_id} yielded {yield_count} times")
+                let dependency_description = match dependency {
+                    TaskDependency::Complete { task, .. } => {
+                        let args = task.trace_args(_program);
+                        format!("{}.{} {args}", task.phase().name(), task.name())
+                    }
+                    TaskDependency::CompleteAll { dependencies } => {
+                        format!("all({} dependencies)", dependencies.len())
+                    }
+                    TaskDependency::CompleteAny { dependencies } => {
+                        format!("any({} dependencies)", dependencies.len())
+                    }
+                };
+
+                format!(
+                    "internal error: task {task_id} ({}) yielded {yield_count} times on {dependency_description}",
+                    task.name(),
+                )
             }
+
             Self::CircularDependency { task_id, cycle, .. } => {
                 let cycle_str = cycle
                     .iter()

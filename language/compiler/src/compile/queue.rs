@@ -139,10 +139,15 @@ impl TaskQueue {
     pub(super) fn set_status(&self, task_id: TaskId, status: TaskStatus) {
         let mut tasks = self.tasks.lock();
         if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
-            if matches!(status, TaskStatus::Yielded { .. }) {
-                handle.yield_count += 1;
-            }
             handle.status = status;
+        }
+    }
+
+    /// Increment the yield counter for a task.
+    pub(super) fn increment_yield_count(&self, task_id: TaskId) {
+        let mut tasks = self.tasks.lock();
+        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
+            handle.yield_count += 1;
         }
     }
 

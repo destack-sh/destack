@@ -371,8 +371,7 @@ impl Compiler {
                     return;
                 }
 
-                // yield
-                self.stats.record_yield();
+                // mark yielded and register dependency waits
                 self.queue.set_status(
                     task_id,
                     TaskStatus::Yielded {
@@ -380,6 +379,12 @@ impl Compiler {
                     },
                 );
                 requeued = self.yield_dependency(task_id, dependency);
+
+                // count only yields that actually wait: immediate requeues do not block
+                if !requeued {
+                    self.stats.record_yield();
+                    self.queue.increment_yield_count(task_id);
+                }
 
                 // emit task yielded event
                 self.emit_event(CompilerEvent::TaskYielded {
@@ -418,6 +423,8 @@ impl Compiler {
         if handle.yield_count >= MAX_TOTAL_YIELD_COUNT {
             return Some(InternalError::ExcessiveYield {
                 task_id,
+                task: handle.task.clone(),
+                dependency: dependency.clone(),
                 yield_count: handle.yield_count,
             });
         }
