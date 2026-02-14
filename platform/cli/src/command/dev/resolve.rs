@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use destack_compiler::{ImportResolveRequest, materialize_import_resolve_options};
+use destack_compiler::{ImportResolveContext, materialize_import_resolve_options};
 use destack_dir::DependencyKind;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::LanguageType;
+use destack_workspace::ImportEdgeKind;
 
 use crate::common::ProgramArgs;
 use crate::console;
@@ -88,7 +89,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
     options.prefer_relative = args.prefer_relative;
     options.prefer_absolute = args.prefer_absolute;
     options.resolve_to_context = args.resolve_directory;
-    let request = ImportResolveRequest {
+    let context = ImportResolveContext {
         dependency_kind: if args.type_dependency {
             DependencyKind::Type
         } else {
@@ -99,8 +100,9 @@ pub fn run(args: &ResolveArgs) -> i32 {
         } else {
             None
         },
+        edge_kind: ImportEdgeKind::Import,
     };
-    options = materialize_import_resolve_options(&options, request);
+    options = materialize_import_resolve_options(&options, context);
 
     let resolver = Resolver::from_program(&program, options);
 
