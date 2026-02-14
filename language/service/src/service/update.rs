@@ -8,7 +8,7 @@ use super::workspace::{
     ProgramHandle, ServiceUpdate, build_update, warning_message, workspace_update_record,
 };
 use super::{
-    RescanReason, WorkspaceMessage, WorkspaceService, WorkspaceServiceError, WorkspaceServiceResult,
+    LanguageService, LanguageServiceError, LanguageServiceResult, RescanReason, WorkspaceMessage,
 };
 
 /// Result of a low level virtual update.
@@ -19,13 +19,13 @@ struct VirtualUpdateResult {
     messages: Vec<WorkspaceMessage>,
 }
 
-impl WorkspaceService {
+impl LanguageService {
     /// Apply a virtual file update through the service.
     pub fn update_virtual_file(
         &self,
         path: &Path,
         content: String,
-    ) -> Result<WorkspaceServiceResult, WorkspaceServiceError> {
+    ) -> Result<LanguageServiceResult, LanguageServiceError> {
         self.apply_virtual_update(path, FileUpdate::Text { content })
     }
 
@@ -34,12 +34,12 @@ impl WorkspaceService {
         &self,
         path: &Path,
         update: FileUpdate,
-    ) -> Result<WorkspaceServiceResult, WorkspaceServiceError> {
+    ) -> Result<LanguageServiceResult, LanguageServiceError> {
         // apply the low level update
         let update_result = self.apply_virtual_file_update(path, update)?;
 
         // map internal updates to public records
-        Ok(WorkspaceServiceResult {
+        Ok(LanguageServiceResult {
             updates: update_result
                 .updates
                 .into_iter()
@@ -53,9 +53,9 @@ impl WorkspaceService {
     pub fn apply_watch_events(
         &self,
         events: Vec<FileWatchEvent>,
-    ) -> Result<WorkspaceServiceResult, WorkspaceServiceError> {
+    ) -> Result<LanguageServiceResult, LanguageServiceError> {
         // prepare an empty result payload
-        let mut result = WorkspaceServiceResult::default();
+        let mut result = LanguageServiceResult::default();
         if events.is_empty() {
             return Ok(result);
         }
@@ -188,7 +188,7 @@ impl WorkspaceService {
     pub fn rescan_all(
         &self,
         _reason: RescanReason,
-    ) -> Result<WorkspaceServiceResult, WorkspaceServiceError> {
+    ) -> Result<LanguageServiceResult, LanguageServiceError> {
         // collect all opened root paths
         let roots: Vec<PathBuf> = self
             .handles_by_root
@@ -205,8 +205,8 @@ impl WorkspaceService {
         &self,
         roots: &[PathBuf],
         analyze: bool,
-    ) -> Result<WorkspaceServiceResult, WorkspaceServiceError> {
-        let mut result = WorkspaceServiceResult::default();
+    ) -> Result<LanguageServiceResult, LanguageServiceError> {
+        let mut result = LanguageServiceResult::default();
 
         // rescan each requested root with compile serialization
         for root in roots {
@@ -224,7 +224,7 @@ impl WorkspaceService {
     fn remove_virtual_file(
         &self,
         path: &Path,
-    ) -> Result<VirtualUpdateResult, WorkspaceServiceError> {
+    ) -> Result<VirtualUpdateResult, LanguageServiceError> {
         self.apply_virtual_file_update(path, FileUpdate::Removed)
     }
 
@@ -233,7 +233,7 @@ impl WorkspaceService {
         &self,
         path: &Path,
         update: FileUpdate,
-    ) -> Result<VirtualUpdateResult, WorkspaceServiceError> {
+    ) -> Result<VirtualUpdateResult, LanguageServiceError> {
         // resolve and lock the owning program handle
         let handle = self.program_handle_for_path(path);
         let _compile_guard = handle.compile_lock.lock();
@@ -271,7 +271,7 @@ impl WorkspaceService {
                     if program.files.get_id_by_path(path).is_some() {
                         None
                     } else {
-                        return Err(WorkspaceServiceError::ResolvePathFailed {
+                        return Err(LanguageServiceError::ResolvePathFailed {
                             path: path.to_path_buf(),
                             detail: error.to_string(),
                         });
@@ -287,7 +287,7 @@ impl WorkspaceService {
             match module_id {
                 Some(module_id) => program.modules.get(module_id).read().file_id,
                 None => program.files.get_id_by_path(path).ok_or_else(|| {
-                    WorkspaceServiceError::FileNotTracked {
+                    LanguageServiceError::FileNotTracked {
                         path: path.to_path_buf(),
                     }
                 })?,
@@ -296,7 +296,7 @@ impl WorkspaceService {
 
         // invalidate file content and module state
         let invalidation = program.invalidate_file(file_id, update).map_err(|error| {
-            WorkspaceServiceError::InvalidatePathFailed {
+            LanguageServiceError::InvalidatePathFailed {
                 path: path.to_path_buf(),
                 detail: error.to_string(),
             }
@@ -321,7 +321,7 @@ impl WorkspaceService {
         &self,
         handle: &ProgramHandle,
         analyze: bool,
-    ) -> Result<WorkspaceServiceResult, WorkspaceServiceError> {
+    ) -> Result<LanguageServiceResult, LanguageServiceError> {
         let program = handle.program.as_ref();
 
         // gather all tracked file ids for this root
@@ -394,7 +394,7 @@ impl WorkspaceService {
         }
 
         // map internal updates to public records
-        Ok(WorkspaceServiceResult {
+        Ok(LanguageServiceResult {
             updates: updates.into_iter().map(workspace_update_record).collect(),
             messages,
         })

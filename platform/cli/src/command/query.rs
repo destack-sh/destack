@@ -2,12 +2,11 @@ use std::io::{IsTerminal, Read};
 use std::path::{Path, PathBuf};
 
 use clap::Args;
-use destack_source::{DiagnosticOptions, Uri};
-use destack_workspace::query::api::{
-    QueryMethod, QueryMethodId, QueryRequestEnvelope, parse_query_request, query_method,
-    query_methods,
+use destack_service::query::{
+    QueryMethod, QueryMethodId, QueryRequest, QueryRequestEnvelope, assist, navigation,
+    parse_query_request, query_method, query_methods, refactor,
 };
-use destack_workspace::query::{QueryRequest, assist, navigation, refactor};
+use destack_source::{DiagnosticOptions, Uri};
 use serde_json::Value;
 
 use crate::common::ProgramArgs;
@@ -565,7 +564,7 @@ fn run_method_mode(
             };
             parse_json_value("params", &input)?
         };
-        parse_query_request(method_name, params)?
+        parse_query_request(method_name, params).map_err(|error| error.to_string())?
     } else if let Some(position) = resolve_position_args(args)? {
         build_position_request(method, position, args)?
     } else if let Some(uri) = resolve_target_uri(args)? {

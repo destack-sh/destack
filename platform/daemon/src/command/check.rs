@@ -33,7 +33,7 @@ impl CommandContext<'_> {
     pub(super) fn run_check_command(
         &mut self,
         options: &CommandCheckOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
@@ -68,7 +68,7 @@ impl CommandContext<'_> {
     pub(super) fn run_lint_command(
         &mut self,
         options: &CommandLintOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;

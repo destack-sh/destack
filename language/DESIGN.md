@@ -691,11 +691,21 @@ Destack supports importing various file types beyond code modules, following Bun
 
 Data files are parsed at compile time and typed structurally:
 
-```ds
+```json:config.json
+{ 
+    server: { 
+        host: "127.0.0.1", 
+        port: 8080 
+    }, 
+    debug: false
+}
+```
+
+```ds:main.ds
 import config from "./config.json";
-// config: { server: { host: string, port: number }, debug: boolean }
 
 config.server.host satisfies string;
+config.server.port satisfies number;
 config.debug satisfies boolean;
 ```
 
@@ -712,8 +722,8 @@ Types are inferred from the data:
 Text files (markdown, CSS, HTML, plain text) import as `string`:
 
 ```ds
-import readme from "./README.md";
-// readme: string
+import README from "./README.md";
+README satisfies string;
 ```
 
 ### Binary Modules
@@ -722,7 +732,7 @@ Binary files (images, fonts, wasm, etc.) import as `uint8[]`:
 
 ```ds
 import icon from "./icon.png";
-// icon: uint8[]
+icon satisfies uint8[];
 ```
 
 ### Import Attributes

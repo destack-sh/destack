@@ -9,13 +9,13 @@ use destack_formatter::{
 };
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
+use destack_service::{
+    FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError, query,
+};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, Span, WATCHABLE_FILE_TYPES,
 };
-use destack_workspace::{FormatterOptions, Session, query};
-use destack_workspace_service::{
-    FileSnapshot, WorkspaceService as LspWorkspaceService, WorkspaceServiceError,
-};
+use destack_workspace::{FormatterOptions, Session};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
@@ -164,8 +164,8 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
 pub(super) fn create_workspace_service(
     session: Arc<Session>,
     root: PathBuf,
-) -> Result<LspWorkspaceService, WorkspaceServiceError> {
-    LspWorkspaceService::new(session, vec![root])
+) -> Result<LspLanguageService, LanguageServiceError> {
+    LspLanguageService::new(session, vec![root])
 }
 
 /// Convert completion kind to LSP completion item kind.

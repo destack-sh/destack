@@ -5,8 +5,8 @@ use std::sync::Arc;
 use napi::Error;
 use napi_derive::napi;
 use {
-    destack_compiler as compiler, destack_workspace as workspace,
-    destack_workspace_service as workspace_service,
+    destack_compiler as compiler, destack_service as workspace_service,
+    destack_workspace as workspace,
 };
 
 use super::{CompilerOptions, Diagnostic, diagnostics_have_errors, diagnostics_have_warnings};
@@ -526,7 +526,7 @@ pub fn lint_sync(
     let roots = lint_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd).with_linter(options.linter.into()));
     let service =
-        workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
+        workspace_service::LanguageService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_lint)?;
 
     // collect update diagnostics
@@ -590,7 +590,7 @@ fn lint_module_diagnostics(
 
 /// Collect diagnostics from workspace update records.
 fn lint_diagnostics_from_workspace_result(
-    result: workspace_service::WorkspaceServiceResult,
+    result: workspace_service::LanguageServiceResult,
 ) -> Vec<Diagnostic> {
     result
         .updates

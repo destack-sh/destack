@@ -9,7 +9,7 @@ use super::instance::{DaemonInstance, DaemonLaunchConfig};
 use crate::ipc::{DaemonIpcError, connect_ipc};
 use crate::protocol::{
     DaemonRequest, ProtocolClient, ProtocolClientError, ProtocolClientOptions,
-    ProtocolServerOptions, loopback_transport_pair,
+    ProtocolServerOptions, Transport, loopback_transport_pair,
 };
 use crate::{DaemonService, DaemonServiceError, DaemonServiceOptions};
 
@@ -142,7 +142,7 @@ fn wait_for_socket(
     instance: &DaemonInstance,
     options: &DaemonConnectOptions,
     error: DaemonIpcError,
-) -> Result<Arc<dyn crate::protocol::Transport>, DaemonConnectError> {
+) -> Result<Arc<dyn Transport>, DaemonConnectError> {
     // compute the deadline for connection attempts
     let deadline = Instant::now() + options.timeout;
     let mut last_error = error;

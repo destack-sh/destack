@@ -44,7 +44,7 @@ impl CommandContext<'_> {
     pub(super) fn run_targets_command(
         &mut self,
         options: &CommandTargetsOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // resolve workspace context
         let workspace = self.daemon.session.workspace_snapshot();
 
@@ -57,7 +57,7 @@ impl CommandContext<'_> {
         };
 
         if dsconfigs.is_empty() {
-            return Err("no targets found".to_string());
+            return Err("no targets found".to_string().into());
         }
 
         // collect target details
@@ -79,7 +79,7 @@ impl CommandContext<'_> {
         }
 
         if entries.is_empty() {
-            return Err("no targets found".to_string());
+            return Err("no targets found".to_string().into());
         }
 
         let payload = CommandTargetsPayload { targets: entries };

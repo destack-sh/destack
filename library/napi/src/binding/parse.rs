@@ -4,8 +4,8 @@ use std::sync::Arc;
 use napi::Error;
 use napi_derive::napi;
 use {
-    destack_compiler as compiler, destack_workspace as workspace,
-    destack_workspace_service as workspace_service,
+    destack_compiler as compiler, destack_service as workspace_service,
+    destack_workspace as workspace,
 };
 
 use super::{CompilerOptions, Diagnostic, diagnostics_have_errors};
@@ -86,7 +86,7 @@ pub fn parse_sync(
     let roots = parse_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
     let service =
-        workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
+        workspace_service::LanguageService::with_options(session, roots, options.compiler.into())
             .map_err(napi_error_from_parse)?;
 
     // apply virtual update and gather diagnostics
@@ -174,7 +174,7 @@ fn parse_program_for_path(
 
 /// Collect diagnostics from workspace update records.
 fn parse_diagnostics_from_result(
-    result: workspace_service::WorkspaceServiceResult,
+    result: workspace_service::LanguageServiceResult,
 ) -> Vec<Diagnostic> {
     result
         .updates

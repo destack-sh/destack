@@ -1,6 +1,3 @@
-#[cfg(all(feature = "versions-all", feature = "versions-latest"))]
-compile_error!("enable only one version mode: versions-all or versions-latest");
-
 #[cfg(all(
     any(
         feature = "lib-bun",

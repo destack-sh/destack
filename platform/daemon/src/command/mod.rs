@@ -9,6 +9,7 @@ mod context;
 mod dispatch;
 mod doc;
 mod doctor;
+mod error;
 mod format;
 mod info;
 mod payload;
@@ -31,6 +32,7 @@ pub use doctor::{
     CommandDoctorOptions, CommandDoctorPayload, CommandDoctorTool, CommandDoctorToolStatus,
     CommandDoctorWorkspace,
 };
+pub use error::{CommandResult, DaemonCommandError};
 pub use format::{CommandFormatOptions, CommandFormatPayload};
 pub use info::{CommandInfoOptions, CommandInfoPayload, CommandInfoTarget, CommandInfoWorkspace};
 pub use payload::*;

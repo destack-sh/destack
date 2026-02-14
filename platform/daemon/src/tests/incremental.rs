@@ -1,8 +1,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_service::query;
 use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::{MemoryCacheStore, ModuleGraphKey, Session, query};
+use destack_workspace::{MemoryCacheStore, ModuleGraphKey, Session};
 
 use crate::Daemon;
 use crate::tests::TestDaemon;

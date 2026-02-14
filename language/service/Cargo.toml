@@ -1,6 +1,6 @@
 [package]
-name = "destack_workspace_service"
-description = "Destack Workspace Service"
+name = "destack_service"
+description = "Destack Service"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,14 +13,16 @@ doctest = false
 
 [dependencies]
 # language
-destack_compiler = { path = "../../compiler", default-features = false }
+destack_compiler = { path = "../compiler", default-features = false }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { path = "..", default-features = false }
+destack_workspace = { path = "../workspace", default-features = false }
 
 # general
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
 [features]
 default = ["full"]

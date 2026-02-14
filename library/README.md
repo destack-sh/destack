@@ -12,6 +12,7 @@ Integrated packages for building full-stack applications with Destack.
 | `ui` | UI primitives, input handling, styling | [ui/README.md](ui/README.md) |
 | `web` | Web platform utilities | [web/README.md](web/README.md) |
 | `test` | Testing utilities | [test/README.md](test/README.md) |
+| `schema` | Shared schemas for cross-package contracts | [schema/README.md](schema/README.md) |
 | `napi` | N-API bindings exposing Rust toolchain to JS | [napi/README.md](napi/README.md) |
 | `wasm` | WebAssembly bindings exposing Rust toolchain to browser JS | [wasm/README.md](wasm/README.md) |
 

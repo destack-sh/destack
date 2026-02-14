@@ -184,7 +184,7 @@ impl Daemon {
         root: &Path,
         common: &CommonCommandOptions,
         payload: &CommandPayload,
-    ) -> Result<DaemonCommandResult, String> {
+    ) -> super::CommandResult<DaemonCommandResult> {
         self.workspace_service
             .with_program_for_path(root, |program, compiler| {
                 // gather shared context

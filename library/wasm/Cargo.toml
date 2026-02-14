@@ -14,29 +14,29 @@ doctest = false
 
 [features]
 default = ["core"]
-query = ["destack_workspace/query", "destack_workspace_service/query"]
-parallel = ["destack_compiler/parallel", "destack_workspace_service/parallel"]
+query = ["destack_workspace/query", "destack_service/query"]
+parallel = ["destack_compiler/parallel", "destack_service/parallel"]
 native-codegen = [
     "destack_compiler/native-codegen",
-    "destack_workspace_service/native-codegen",
+    "destack_service/native-codegen",
 ]
 deadlock-detection = [
     "destack_compiler/deadlock-detection",
-    "destack_workspace_service/deadlock-detection",
+    "destack_service/deadlock-detection",
 ]
-lint = ["destack_compiler/lint", "destack_workspace_service/lint"]
-optimize = ["destack_compiler/optimize", "destack_workspace_service/optimize"]
+lint = ["destack_compiler/lint", "destack_service/lint"]
+optimize = ["destack_compiler/optimize", "destack_service/optimize"]
 format-api = ["dep:destack_ast", "dep:destack_fir", "dep:destack_formatter", "dep:destack_parser"]
 transform-api = ["dep:destack_ast", "dep:destack_fir", "dep:destack_formatter"]
 builtin-full = [
     "destack_compiler/builtin-full",
     "destack_workspace/builtin-full",
-    "destack_workspace_service/builtin-full",
+    "destack_service/builtin-full",
 ]
 builtin-core = [
     "destack_compiler/builtin-core",
     "destack_workspace/builtin-core",
-    "destack_workspace_service/builtin-core",
+    "destack_service/builtin-core",
 ]
 core = ["builtin-core"]
 ide = ["builtin-core", "query", "lint", "format-api"]
@@ -63,7 +63,7 @@ destack_parser = { workspace = true, optional = true }
 destack_resolver = { workspace = true }
 destack_source = { workspace = true }
 destack_workspace = { path = "../../language/workspace", default-features = false }
-destack_workspace_service = { path = "../../language/workspace/service", default-features = false }
+destack_service = { path = "../../language/service", default-features = false }
 
 # general
 serde = { workspace = true, features = ["derive"] }

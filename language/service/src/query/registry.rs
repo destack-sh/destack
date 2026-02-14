@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 use serde_json::Value;
 
 use super::request::QueryRequest;
@@ -80,6 +83,50 @@ pub struct QueryMethod {
     pub params_type: &'static str,
     /// Result type name for help output.
     pub result_type: &'static str,
+}
+
+/// Query request parse error.
+#[derive(Debug)]
+pub enum QueryRequestParseError {
+    /// Unknown method name.
+    UnknownMethod {
+        /// Method name from the caller.
+        method: String,
+    },
+    /// Invalid params payload for a known method.
+    InvalidParams {
+        /// Canonical method name.
+        method: &'static str,
+        /// Expected params type name.
+        params_type: &'static str,
+        /// Json decode error.
+        source: serde_json::Error,
+    },
+}
+
+impl fmt::Display for QueryRequestParseError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnknownMethod { method } => write!(formatter, "unknown query method: {method}"),
+            Self::InvalidParams {
+                method,
+                params_type,
+                source,
+            } => write!(
+                formatter,
+                "invalid params for query method `{method}` ({params_type}): {source}"
+            ),
+        }
+    }
+}
+
+impl Error for QueryRequestParseError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::UnknownMethod { .. } => None,
+            Self::InvalidParams { source, .. } => Some(source),
+        }
+    }
 }
 
 static QUERY_METHODS: &[QueryMethod] = &[
@@ -414,66 +461,95 @@ pub fn query_method(name: &str) -> Option<&'static QueryMethod> {
 }
 
 /// Parse a query request for a method name and params.
-pub fn parse_query_request(method: &str, params: Value) -> Result<QueryRequest, String> {
+pub fn parse_query_request(
+    method: &str,
+    params: Value,
+) -> Result<QueryRequest, QueryRequestParseError> {
     let Some(method) = query_method(method) else {
-        return Err(format!("unknown query method: {method}"));
+        return Err(QueryRequestParseError::UnknownMethod {
+            method: method.to_string(),
+        });
     };
 
     let request = match method.id {
-        QueryMethodId::Completion => QueryRequest::Completion(parse_params(params)?),
-        QueryMethodId::Hover => QueryRequest::Hover(parse_params(params)?),
-        QueryMethodId::SignatureHelp => QueryRequest::SignatureHelp(parse_params(params)?),
-        QueryMethodId::InlayHints => QueryRequest::InlayHints(parse_params(params)?),
-        QueryMethodId::CodeLenses => QueryRequest::CodeLenses(parse_params(params)?),
-        QueryMethodId::ResolveCodeLens => QueryRequest::ResolveCodeLens(parse_params(params)?),
-        QueryMethodId::FoldingRanges => QueryRequest::FoldingRanges(parse_params(params)?),
-        QueryMethodId::SemanticTokens => QueryRequest::SemanticTokens(parse_params(params)?),
+        QueryMethodId::Completion => QueryRequest::Completion(parse_params(method, params)?),
+        QueryMethodId::Hover => QueryRequest::Hover(parse_params(method, params)?),
+        QueryMethodId::SignatureHelp => QueryRequest::SignatureHelp(parse_params(method, params)?),
+        QueryMethodId::InlayHints => QueryRequest::InlayHints(parse_params(method, params)?),
+        QueryMethodId::CodeLenses => QueryRequest::CodeLenses(parse_params(method, params)?),
+        QueryMethodId::ResolveCodeLens => {
+            QueryRequest::ResolveCodeLens(parse_params(method, params)?)
+        }
+        QueryMethodId::FoldingRanges => QueryRequest::FoldingRanges(parse_params(method, params)?),
+        QueryMethodId::SemanticTokens => {
+            QueryRequest::SemanticTokens(parse_params(method, params)?)
+        }
         QueryMethodId::SemanticTokensRange => {
-            QueryRequest::SemanticTokensRange(parse_params(params)?)
+            QueryRequest::SemanticTokensRange(parse_params(method, params)?)
         }
-        QueryMethodId::DocumentSymbols => QueryRequest::DocumentSymbols(parse_params(params)?),
-        QueryMethodId::WorkspaceSymbols => QueryRequest::WorkspaceSymbols(parse_params(params)?),
-        QueryMethodId::DocumentLinks => QueryRequest::DocumentLinks(parse_params(params)?),
+        QueryMethodId::DocumentSymbols => {
+            QueryRequest::DocumentSymbols(parse_params(method, params)?)
+        }
+        QueryMethodId::WorkspaceSymbols => {
+            QueryRequest::WorkspaceSymbols(parse_params(method, params)?)
+        }
+        QueryMethodId::DocumentLinks => QueryRequest::DocumentLinks(parse_params(method, params)?),
         QueryMethodId::ResolveDocumentLink => {
-            QueryRequest::ResolveDocumentLink(parse_params(params)?)
+            QueryRequest::ResolveDocumentLink(parse_params(method, params)?)
         }
-        QueryMethodId::DocumentHighlight => QueryRequest::DocumentHighlight(parse_params(params)?),
-        QueryMethodId::SelectionRanges => QueryRequest::SelectionRanges(parse_params(params)?),
-        QueryMethodId::GotoDefinition => QueryRequest::GotoDefinition(parse_params(params)?),
-        QueryMethodId::GotoDeclaration => QueryRequest::GotoDeclaration(parse_params(params)?),
+        QueryMethodId::DocumentHighlight => {
+            QueryRequest::DocumentHighlight(parse_params(method, params)?)
+        }
+        QueryMethodId::SelectionRanges => {
+            QueryRequest::SelectionRanges(parse_params(method, params)?)
+        }
+        QueryMethodId::GotoDefinition => {
+            QueryRequest::GotoDefinition(parse_params(method, params)?)
+        }
+        QueryMethodId::GotoDeclaration => {
+            QueryRequest::GotoDeclaration(parse_params(method, params)?)
+        }
         QueryMethodId::GotoTypeDefinition => {
-            QueryRequest::GotoTypeDefinition(parse_params(params)?)
+            QueryRequest::GotoTypeDefinition(parse_params(method, params)?)
         }
         QueryMethodId::GotoImplementation => {
-            QueryRequest::GotoImplementation(parse_params(params)?)
+            QueryRequest::GotoImplementation(parse_params(method, params)?)
         }
-        QueryMethodId::FindReferences => QueryRequest::FindReferences(parse_params(params)?),
+        QueryMethodId::FindReferences => {
+            QueryRequest::FindReferences(parse_params(method, params)?)
+        }
         QueryMethodId::PrepareCallHierarchy => {
-            QueryRequest::PrepareCallHierarchy(parse_params(params)?)
+            QueryRequest::PrepareCallHierarchy(parse_params(method, params)?)
         }
         QueryMethodId::CallHierarchyIncoming => {
-            QueryRequest::CallHierarchyIncoming(parse_params(params)?)
+            QueryRequest::CallHierarchyIncoming(parse_params(method, params)?)
         }
         QueryMethodId::CallHierarchyOutgoing => {
-            QueryRequest::CallHierarchyOutgoing(parse_params(params)?)
+            QueryRequest::CallHierarchyOutgoing(parse_params(method, params)?)
         }
         QueryMethodId::PrepareTypeHierarchy => {
-            QueryRequest::PrepareTypeHierarchy(parse_params(params)?)
+            QueryRequest::PrepareTypeHierarchy(parse_params(method, params)?)
         }
         QueryMethodId::TypeHierarchySupertypes => {
-            QueryRequest::TypeHierarchySupertypes(parse_params(params)?)
+            QueryRequest::TypeHierarchySupertypes(parse_params(method, params)?)
         }
         QueryMethodId::TypeHierarchySubtypes => {
-            QueryRequest::TypeHierarchySubtypes(parse_params(params)?)
+            QueryRequest::TypeHierarchySubtypes(parse_params(method, params)?)
         }
-        QueryMethodId::PrepareRename => QueryRequest::PrepareRename(parse_params(params)?),
-        QueryMethodId::Rename => QueryRequest::Rename(parse_params(params)?),
-        QueryMethodId::RenameFiles => QueryRequest::RenameFiles(parse_params(params)?),
-        QueryMethodId::ExtractFunction => QueryRequest::ExtractFunction(parse_params(params)?),
-        QueryMethodId::ExtractVariable => QueryRequest::ExtractVariable(parse_params(params)?),
-        QueryMethodId::Inline => QueryRequest::Inline(parse_params(params)?),
-        QueryMethodId::ChangeSignature => QueryRequest::ChangeSignature(parse_params(params)?),
-        QueryMethodId::CodeActions => QueryRequest::CodeActions(parse_params(params)?),
+        QueryMethodId::PrepareRename => QueryRequest::PrepareRename(parse_params(method, params)?),
+        QueryMethodId::Rename => QueryRequest::Rename(parse_params(method, params)?),
+        QueryMethodId::RenameFiles => QueryRequest::RenameFiles(parse_params(method, params)?),
+        QueryMethodId::ExtractFunction => {
+            QueryRequest::ExtractFunction(parse_params(method, params)?)
+        }
+        QueryMethodId::ExtractVariable => {
+            QueryRequest::ExtractVariable(parse_params(method, params)?)
+        }
+        QueryMethodId::Inline => QueryRequest::Inline(parse_params(method, params)?),
+        QueryMethodId::ChangeSignature => {
+            QueryRequest::ChangeSignature(parse_params(method, params)?)
+        }
+        QueryMethodId::CodeActions => QueryRequest::CodeActions(parse_params(method, params)?),
     };
 
     Ok(request)
@@ -483,6 +559,13 @@ fn normalize_method_name(name: &str) -> String {
     name.trim().to_ascii_lowercase()
 }
 
-fn parse_params<T: serde::de::DeserializeOwned>(params: Value) -> Result<T, String> {
-    serde_json::from_value(params).map_err(|error| error.to_string())
+fn parse_params<T: serde::de::DeserializeOwned>(
+    method: &QueryMethod,
+    params: Value,
+) -> Result<T, QueryRequestParseError> {
+    serde_json::from_value(params).map_err(|source| QueryRequestParseError::InvalidParams {
+        method: method.name,
+        params_type: method.params_type,
+        source,
+    })
 }

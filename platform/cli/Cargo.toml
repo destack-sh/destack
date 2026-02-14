@@ -58,6 +58,7 @@ destack_vm = { workspace = true }
 # platform
 destack_daemon = { workspace = true }
 destack_lsp = { workspace = true }
+destack_service = { workspace = true }
 
 # general
 clap = { version = "4.5.54", features = ["derive"] }

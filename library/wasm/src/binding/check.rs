@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
-use {destack_workspace as workspace, destack_workspace_service as workspace_service};
+use {destack_service as workspace_service, destack_workspace as workspace};
 
 use super::error::{js_error, parse_optional_input, to_js_value};
 use super::{CompilerOptions, Diagnostic, diagnostics_have_errors, diagnostics_have_warnings};
@@ -68,7 +68,7 @@ pub fn check_sync(
     let roots = check_roots_from_options(&options, &cwd);
     let session = Arc::new(workspace::Session::new(cwd));
     let service =
-        workspace_service::WorkspaceService::with_options(session, roots, options.compiler.into())
+        workspace_service::LanguageService::with_options(session, roots, options.compiler.into())
             .map_err(js_error)?;
 
     // update the virtual file and collect diagnostics
@@ -97,7 +97,7 @@ fn check_roots_from_options(options: &CheckOptions, cwd: &Path) -> Vec<PathBuf> 
 
 /// Collect diagnostics from workspace update records.
 fn check_diagnostics_from_workspace_result(
-    result: workspace_service::WorkspaceServiceResult,
+    result: workspace_service::LanguageServiceResult,
 ) -> Vec<Diagnostic> {
     result
         .updates

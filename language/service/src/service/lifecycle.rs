@@ -13,20 +13,15 @@ use destack_source::FileId;
 use destack_workspace::{Program, Session};
 
 use super::workspace::ProgramHandle;
-use super::{WorkspaceHandleId, WorkspaceService, WorkspaceServiceError};
+use super::{LanguageService, LanguageServiceError, WorkspaceHandleId};
 
-impl WorkspaceService {
-    /// Create a local workspace service for the provided roots.
-    pub fn new(session: Arc<Session>, roots: Vec<PathBuf>) -> Result<Self, WorkspaceServiceError> {
-        Self::with_options(session, roots, CompilerOptions::default())
-    }
-
+impl LanguageService {
     /// Create a local workspace service with explicit compiler options.
     pub fn with_options(
         session: Arc<Session>,
         roots: Vec<PathBuf>,
         compiler_options: CompilerOptions,
-    ) -> Result<Self, WorkspaceServiceError> {
+    ) -> Result<Self, LanguageServiceError> {
         // construct the service shell
         let workspace = Self {
             session,
@@ -46,7 +41,7 @@ impl WorkspaceService {
     }
 
     /// Ensure the workspace root is opened.
-    pub fn open_workspace_root(&self, root: PathBuf) -> Result<(), WorkspaceServiceError> {
+    pub fn open_workspace_root(&self, root: PathBuf) -> Result<(), LanguageServiceError> {
         // ensure handle registration is atomic per root
         match self.handles_by_root.entry(root.clone()) {
             Entry::Occupied(_) => return Ok(()),
@@ -66,7 +61,7 @@ impl WorkspaceService {
     }
 
     /// Close an opened workspace root.
-    pub fn close_workspace_root(&self, root: &Path) -> Result<(), WorkspaceServiceError> {
+    pub fn close_workspace_root(&self, root: &Path) -> Result<(), LanguageServiceError> {
         // ignore roots that are not open
         let Some((_, handle)) = self.handles_by_root.remove(root) else {
             return Ok(());
@@ -85,7 +80,7 @@ impl WorkspaceService {
     }
 
     /// Remove an opened workspace root and report whether it existed.
-    pub fn remove_workspace_root(&self, root: &Path) -> Result<bool, WorkspaceServiceError> {
+    pub fn remove_workspace_root(&self, root: &Path) -> Result<bool, LanguageServiceError> {
         // capture presence before closing
         let existed = self.has_workspace_root(root);
 
@@ -96,7 +91,7 @@ impl WorkspaceService {
     }
 
     /// Clear all cache entries for every workspace handle.
-    pub fn clear_cache_all(&self) -> Result<(), WorkspaceServiceError> {
+    pub fn clear_cache_all(&self) -> Result<(), LanguageServiceError> {
         // resolve the cache directory for this session
         let cache_dir = self.session.workspace_cache_dir();
 
@@ -107,7 +102,7 @@ impl WorkspaceService {
 
         // remove the full cache tree
         std::fs::remove_dir_all(&cache_dir).map_err(|error| {
-            WorkspaceServiceError::CacheClearFailed {
+            LanguageServiceError::CacheClearFailed {
                 path: cache_dir.clone(),
                 detail: error.to_string(),
             }
@@ -137,7 +132,7 @@ impl WorkspaceService {
     pub(crate) fn handle_for_path(
         &self,
         path: &Path,
-    ) -> Result<WorkspaceHandleId, WorkspaceServiceError> {
+    ) -> Result<WorkspaceHandleId, LanguageServiceError> {
         // resolve the owning root from session routing
         let program = self.session.find_program_for_path(path);
         let root = program.cwd.clone();
@@ -154,11 +149,11 @@ impl WorkspaceService {
         self.handles_by_root
             .get(&root)
             .map(|entry| *entry.value())
-            .ok_or(WorkspaceServiceError::WorkspaceHandleMissingAfterOpen { root })
+            .ok_or(LanguageServiceError::WorkspaceHandleMissingAfterOpen { root })
     }
 
     /// Resolve the workspace handle for a root.
-    pub fn handle_for_root(&self, root: &Path) -> Result<WorkspaceHandleId, WorkspaceServiceError> {
+    pub fn handle_for_root(&self, root: &Path) -> Result<WorkspaceHandleId, LanguageServiceError> {
         // use the existing handle when present
         if let Some(handle) = self.handles_by_root.get(root) {
             return Ok(*handle.value());
@@ -172,7 +167,7 @@ impl WorkspaceService {
         self.handles_by_root
             .get(&root)
             .map(|entry| *entry.value())
-            .ok_or(WorkspaceServiceError::WorkspaceHandleMissingAfterOpen { root })
+            .ok_or(LanguageServiceError::WorkspaceHandleMissingAfterOpen { root })
     }
 
     /// Resolve or create a program handle for a root.
@@ -221,11 +216,11 @@ impl WorkspaceService {
     pub(crate) fn root_for_handle(
         &self,
         handle: WorkspaceHandleId,
-    ) -> Result<PathBuf, WorkspaceServiceError> {
+    ) -> Result<PathBuf, LanguageServiceError> {
         self.roots_by_handle
             .get(&handle)
             .map(|entry| entry.value().clone())
-            .ok_or(WorkspaceServiceError::UnknownWorkspaceHandle { handle })
+            .ok_or(LanguageServiceError::UnknownWorkspaceHandle { handle })
     }
 
     /// Resolve or create a program for a workspace root.

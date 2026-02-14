@@ -37,7 +37,7 @@ impl CommandContext<'_> {
     pub(super) fn run_cache_command(
         &mut self,
         options: &CommandCacheOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         let workspace = self.daemon.session.workspace_snapshot();
 
         // resolve dsconfigs based on scope

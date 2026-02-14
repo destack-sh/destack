@@ -8,9 +8,9 @@ use destack_workspace::{
 };
 
 use super::workspace::warning_message;
-use super::{WorkspaceMessage, WorkspaceService};
+use super::{LanguageService, WorkspaceMessage};
 
-impl WorkspaceService {
+impl LanguageService {
     /// Build a file update by reading the latest content from disk.
     pub(super) fn rescan_file_update(
         &self,

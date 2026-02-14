@@ -9,15 +9,15 @@ use dashmap::{DashMap, DashSet};
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
+use destack_service::{
+    LanguageService as LspLanguageService, RescanReason, WorkspaceMessage,
+    WorkspaceMessageKind as ProtocolMessageKind, WorkspaceUpdateRecord, query,
+};
 use destack_source::{
     BatchEdit, Diagnostic, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind,
     OverlayFileSystem, PhysicalFileSystem, Uri,
 };
-use destack_workspace::{Session, Workspace, WorkspaceKind, query};
-use destack_workspace_service::{
-    RescanReason, WorkspaceMessage, WorkspaceMessageKind as ProtocolMessageKind,
-    WorkspaceService as LspWorkspaceService, WorkspaceUpdateRecord,
-};
+use destack_workspace::{Session, Workspace, WorkspaceKind};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 
@@ -27,8 +27,8 @@ use crate::query::diagnostic::{code_action_to_lsp, diagnostic_to_lsp_diagnostic}
 use crate::query::navigation::{
     call_hierarchy_item_to_lsp, definition_to_location, document_highlight_to_lsp,
     document_link_to_lsp, document_symbol_to_lsp, implementation_to_location, incoming_call_to_lsp,
-    outgoing_call_to_lsp, selection_range_to_lsp, type_hierarchy_item_to_lsp,
-    workspace_symbol_to_lsp,
+    outgoing_call_to_lsp, query_call_hierarchy_item_from_lsp, query_type_hierarchy_item_from_lsp,
+    selection_range_to_lsp, type_hierarchy_item_to_lsp, workspace_symbol_to_lsp,
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
@@ -136,7 +136,7 @@ pub struct DestackLanguageServer {
     /// The session.
     session: OnceLock<Arc<Session>>,
     /// The workspace service.
-    workspace_service: OnceLock<Arc<LspWorkspaceService>>,
+    workspace_service: OnceLock<Arc<LspLanguageService>>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
     /// The latest diagnostics for open virtual documents.
@@ -190,7 +190,7 @@ impl DestackLanguageServer {
 
     /// Get the workspace service (must be called after initialize).
     #[inline]
-    fn workspace_service(&self) -> &Arc<LspWorkspaceService> {
+    fn workspace_service(&self) -> &Arc<LspLanguageService> {
         self.workspace_service
             .get()
             .expect("workspace service not initialized")
@@ -3558,8 +3558,7 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
         // extract query item from lsp data
         let session = self.session();
-        let Some(item) = crate::query::navigation::query_call_hierarchy_item_from_lsp(&params.item)
-        else {
+        let Some(item) = query_call_hierarchy_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
 
@@ -3590,8 +3589,7 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
         // extract query item from lsp data
         let session = self.session();
-        let Some(item) = crate::query::navigation::query_call_hierarchy_item_from_lsp(&params.item)
-        else {
+        let Some(item) = query_call_hierarchy_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
 
@@ -3670,8 +3668,7 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract query item from lsp data
         let session = self.session();
-        let Some(item) = crate::query::navigation::query_type_hierarchy_item_from_lsp(&params.item)
-        else {
+        let Some(item) = query_type_hierarchy_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
 
@@ -3702,8 +3699,7 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract query item from lsp data
         let session = self.session();
-        let Some(item) = crate::query::navigation::query_type_hierarchy_item_from_lsp(&params.item)
-        else {
+        let Some(item) = query_type_hierarchy_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
 
@@ -3733,7 +3729,7 @@ impl LanguageServer for DestackLanguageServer {
 mod tests {
     use super::DestackLanguageServer;
     use destack_lsp_types as lsp;
-    use destack_workspace::query;
+    use destack_service::query;
 
     /// Map umbrella refactor kinds to all workspace refactor buckets.
     #[test]

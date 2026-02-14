@@ -14,7 +14,7 @@ impl CommandContext<'_> {
     pub(super) fn run_repl_command(
         &mut self,
         _options: &CommandReplOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         let message = "repl is not implemented yet";
         self.output.push_stderr(format!("{message}\n").into_bytes());
         let payload = CommandMessagePayload {

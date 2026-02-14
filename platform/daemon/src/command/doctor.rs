@@ -88,7 +88,7 @@ impl CommandContext<'_> {
     pub(super) fn run_doctor_command(
         &mut self,
         options: &CommandDoctorOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // collect static environment info
         let os = std::env::consts::OS;
         let arch = std::env::consts::ARCH;

@@ -35,7 +35,7 @@ impl CommandContext<'_> {
     pub(super) fn run_config_command(
         &mut self,
         options: &CommandConfigOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // resolve config path overrides
         let config_override = options
             .path
@@ -74,10 +74,10 @@ impl CommandContext<'_> {
 fn read_config_json(
     resolver: &destack_resolver::Resolver,
     path: &Path,
-) -> Result<serde_json::Value, String> {
+) -> super::CommandResult<serde_json::Value> {
     let content = resolver
         .fs
         .read_to_string(path)
         .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-    serde_json::from_str(&content).map_err(|error| format!("invalid dsconfig: {error}"))
+    Ok(serde_json::from_str(&content).map_err(|error| format!("invalid dsconfig: {error}"))?)
 }

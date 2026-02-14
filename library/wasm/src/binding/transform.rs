@@ -8,8 +8,7 @@ use wasm_bindgen::prelude::*;
 #[cfg(feature = "transform-api")]
 use {
     destack_ast as ast, destack_compiler as compiler, destack_formatter as formatter,
-    destack_source as source, destack_workspace as workspace,
-    destack_workspace_service as workspace_service,
+    destack_service as workspace_service, destack_source as source, destack_workspace as workspace,
 };
 
 use super::CompilerOptions;
@@ -86,7 +85,7 @@ pub fn transform_sync(
         let cwd = PathBuf::from(&options.cwd);
         let roots = transform_roots_from_options(&options, &cwd);
         let session = Arc::new(workspace::Session::new(cwd));
-        let service = workspace_service::WorkspaceService::with_options(
+        let service = workspace_service::LanguageService::with_options(
             session,
             roots,
             options.compiler.into(),

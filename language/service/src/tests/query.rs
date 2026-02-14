@@ -1,11 +1,10 @@
-use destack_workspace::query;
-
-use crate::tests::harness::TestWorkspaceService;
+use crate::query;
+use crate::tests::harness::TestLanguageService;
 
 /// Resolve document symbols through workspace queries.
 #[test]
 fn test_workspace_service_query_document_symbols() {
-    let test = TestWorkspaceService::new("workspace_service_query");
+    let test = TestLanguageService::new("workspace_service_query");
     let path = test.path_for("main.ds");
     let uri = test.uri_for_path(&path);
     let source = r#"export function add(a: number, b: number) {

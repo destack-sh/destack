@@ -1,7 +1,7 @@
 set shell := ["bash", "-cu"]
 
 # all platform crates
-packages := "-p destack_cli -p destack_daemon -p destack_platform_test -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
+packages := "-p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
 test-packages := "-p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
 
 _default:
@@ -77,7 +77,6 @@ clean:
 # run all tests
 test:
     cargo test --release --all-targets {{ test-packages }}
-    just test-lsp-stdio
     just test-vscode
     just test-zed
 
@@ -98,11 +97,6 @@ test-vscode:
 test-vscode-host:
     cd vscode && bun run test:host
 
-# test out of process lsp stdio smoke flow
-test-lsp-stdio:
-    cargo build -p destack_cli
-    cargo test -p destack_platform_test --test lsp_stdio
-
 # test zed extension and shared tree sitter overlays
 test-zed:
     cd zed && cargo test --release
@@ -111,7 +105,6 @@ test-zed:
 
 # test the core ide integration surface
 test-ide:
-    just test-lsp-stdio
     just test-vscode
     just test-vscode-host
     just test-zed

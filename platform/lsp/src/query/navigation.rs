@@ -1,7 +1,8 @@
 use destack_dir::GlobalSymbolId;
 use destack_lsp_types as lsp;
+use destack_service::query;
 use destack_source::{File, ModuleId, PackageId};
-use destack_workspace::{Session, query};
+use destack_workspace::Session;
 use serde_json::{from_value, json, to_value};
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};

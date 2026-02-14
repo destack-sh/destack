@@ -18,7 +18,7 @@ impl CommandContext<'_> {
     pub(super) fn run_build_command(
         &mut self,
         _options: &CommandBuildOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;

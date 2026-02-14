@@ -14,7 +14,7 @@ impl CommandContext<'_> {
     pub(super) fn run_doc_command(
         &mut self,
         _options: &CommandDocOptions,
-    ) -> Result<CommandOutcome, String> {
+    ) -> super::CommandResult<CommandOutcome> {
         let message = "documentation generator is not implemented yet";
         self.output.push_stderr(format!("{message}\n").into_bytes());
         let payload = CommandMessagePayload {

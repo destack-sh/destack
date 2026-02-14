@@ -1,15 +1,12 @@
-use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 
-use dashmap::DashMap;
-use destack_compiler::{Compiler, CompilerOptions};
+use destack_compiler::Compiler;
 use destack_source::{Diagnostic, File, FileContent, FileId, ModuleId};
-use destack_workspace::{InvalidationPlan, Program, Session};
+use destack_workspace::{InvalidationPlan, Program};
 use parking_lot::Mutex;
 
 use super::{
-    FileSnapshot, WorkspaceHandleId, WorkspaceMessage, WorkspaceMessageKind, WorkspaceServiceError,
+    FileSnapshot, LanguageServiceError, WorkspaceMessage, WorkspaceMessageKind,
     WorkspaceUpdateRecord,
 };
 
@@ -39,30 +36,13 @@ pub(super) struct ServiceUpdate {
     pub(super) diagnostics: Vec<Diagnostic>,
 }
 
-/// Local workspace backed service used by tooling integrations.
-#[derive(Debug)]
-pub struct WorkspaceService {
-    /// Session for workspace resolution.
-    pub(super) session: Arc<Session>,
-    /// Compiler options for local analysis.
-    pub(super) compiler_options: CompilerOptions,
-    /// Program handles keyed by root path.
-    pub(super) program_handles: DashMap<PathBuf, Arc<ProgramHandle>>,
-    /// Handle ids keyed by root path.
-    pub(super) handles_by_root: DashMap<PathBuf, WorkspaceHandleId>,
-    /// Root paths keyed by handle id.
-    pub(super) roots_by_handle: DashMap<WorkspaceHandleId, PathBuf>,
-    /// Next handle id.
-    pub(super) next_handle_id: AtomicU64,
-}
-
 /// Build an internal update from program state.
 pub(super) fn build_update(
     program: &Program,
     module_id: Option<ModuleId>,
     file_id: FileId,
     invalidation: InvalidationPlan,
-) -> Result<ServiceUpdate, WorkspaceServiceError> {
+) -> Result<ServiceUpdate, LanguageServiceError> {
     let file = file_snapshot_for_id(program, file_id)?;
     Ok(ServiceUpdate {
         module_id,
@@ -88,11 +68,11 @@ pub(super) fn workspace_update_record(update: ServiceUpdate) -> WorkspaceUpdateR
 pub(super) fn file_snapshot_for_id(
     program: &Program,
     file_id: FileId,
-) -> Result<FileSnapshot, WorkspaceServiceError> {
+) -> Result<FileSnapshot, LanguageServiceError> {
     let file = program
         .files
         .get_maybe(file_id)
-        .ok_or(WorkspaceServiceError::FileIdNotTracked { file_id })?;
+        .ok_or(LanguageServiceError::FileIdNotTracked { file_id })?;
 
     Ok(file_snapshot_from_file(&file))
 }
