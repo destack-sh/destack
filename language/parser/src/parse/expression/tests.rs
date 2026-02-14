@@ -4263,6 +4263,160 @@ fn test_parse_type_unary_postfix_as_comptime_expression() {
     });
 }
 
+/// Parse comparisons against members on an identifier named `as`.
+#[test]
+fn test_parse_comparison_with_as_identifier_member_access() {
+    let mut test = TestParser::new_with_options("i > as.length", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // i > as.length
+    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::GreaterThan);
+        assert_expression_path!(parser, parser.tree.get(*left), "i");
+        assert_expression_path!(parser, parser.tree.get(*right), "as.length");
+    });
+}
+
+/// Parse comparisons against members on an identifier named `satisfies`.
+#[test]
+fn test_parse_comparison_with_satisfies_identifier_member_access() {
+    let mut test = TestParser::new_with_options("i > satisfies.length", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // i > satisfies.length
+    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::GreaterThan);
+        assert_expression_path!(parser, parser.tree.get(*left), "i");
+        assert_expression_path!(parser, parser.tree.get(*right), "satisfies.length");
+    });
+}
+
+/// Parse comparisons against optional members on an identifier named `as`.
+#[test]
+fn test_parse_comparison_with_as_identifier_optional_member_access() {
+    let mut test = TestParser::new_with_options("i > as?.length", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // i > as?.length
+    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::GreaterThan);
+        assert_expression_path!(parser, parser.tree.get(*left), "i");
+        assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "length");
+            assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "as");
+            });
+        });
+    });
+}
+
+/// Parse typed arrow bodies that reference a parameter named `as`.
+#[test]
+fn test_parse_typed_arrow_body_with_as_parameter_member_access() {
+    let mut test = TestParser::new_with_options(
+        "(as: Array<number>) => i > as.length",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // (as: Array<number>) => i > as.length
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+
+            // (as: Array<number>)
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "as");
+                assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                    assert_path!(parser, *path, "Array");
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+
+            // i > as.length
+            assert_node!(parser.tree, body.expect("expected body"), Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+                assert_expression_path!(parser, parser.tree.get(*left), "i");
+                assert_expression_path!(parser, parser.tree.get(*right), "as.length");
+            });
+        });
+    });
+}
+
+/// Parse nested typed arrows with an `as` parameter used in a ternary condition.
+#[test]
+fn test_parse_typed_arrow_with_as_parameter_in_ternary_condition() {
+    let source = r#"<A>(i: number, a: A) =>
+  (as: Array<A>): Option<NonEmptyArray<A>> =>
+    i < 0 || i > as.length ? _.none : _.some(unsafeInsertAt(i, a, as))"#;
+    let mut test = TestParser::new_with_options(source, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // outer typed lambda
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.dynamic_parameters.len(), 2);
+
+            // (i: number, a: A)
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "i");
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+            });
+            assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "a");
+                assert_expression_path!(parser, parser.tree.get(*ty), "A");
+            });
+
+            // inner typed lambda
+            assert_node!(parser.tree, body.expect("expected body"), Expression::Declaration(inner_declaration_id) => {
+                assert_node!(parser.tree, *inner_declaration_id, Declaration::Function { signature, body, .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.dynamic_parameters.len(), 1);
+                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                        assert_string!(parser, *name, "as");
+                    });
+
+                    // i < 0 || i > as.length ? _.none : _.some(...)
+                    assert_node!(parser.tree, body.expect("expected body"), Expression::If { condition, then_expression, else_expression, .. } => {
+                        let condition_id = match condition {
+                            IfCondition::Expression { condition } => *condition,
+                            IfCondition::Let { .. } => panic!("expected expression condition"),
+                        };
+                        assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
+                            assert_eq!(*operator, BinaryOperator::Or);
+                            assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
+                                assert_eq!(*operator, BinaryOperator::LessThan);
+                                assert_expression_path!(parser, parser.tree.get(*left), "i");
+                                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                            });
+                            assert_node!(parser.tree, *right, Expression::Binary { left, operator, right } => {
+                                assert_eq!(*operator, BinaryOperator::GreaterThan);
+                                assert_expression_path!(parser, parser.tree.get(*left), "i");
+                                assert_expression_path!(parser, parser.tree.get(*right), "as.length");
+                            });
+                        });
+
+                        assert_expression_path!(parser, parser.tree.get(*then_expression), "_.none");
+                        assert_node!(parser.tree, else_expression.expect("expected else expression"), Expression::Call { left, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "_.some");
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
 /// Parse async identifiers with `as` casts.
 #[test]
 fn test_parse_async_as_cast() {

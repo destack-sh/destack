@@ -104,7 +104,7 @@ Package names may include patch markers.
 | jotai   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | kibana  |   -?-    |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
 | koa     |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
-| kysely  |   -?-    |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
+| kysely  |   -/-    |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
 | langchainjs |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | lodash  |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | material-ui |   -?-    |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
@@ -169,7 +169,7 @@ Package names may include patch markers.
 | supabase-js |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | superjson |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | superset |   -?-    |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
-| svelte  |   -?-    |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
+| svelte  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | sveltekit |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | swr     |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | tabby   |   -?-    |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
@@ -222,7 +222,7 @@ Package names may include patch markers.
 | zod     |    ✓     |    ✓     |    ✓     |    ✓     |   T3    |   T5   |  x  |
 | zustand |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 |---------|----------|----------|----------|----------|---------|--------|-----|
-| total   | 108/108  |  18/18   |   3/3    |   3/3    |   -?-   |  -?-   | -?- |
+| total   | 109/109  |  18/18   |   3/3    |   3/3    |   -?-   |  -?-   | -?- |
 <!-- end:summary-results -->
 
 ## Manifest Schema

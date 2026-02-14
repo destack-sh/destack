@@ -68,6 +68,53 @@ impl Parser {
         }
     }
 
+    /// Return true when contextual cast keywords continue as identifiers.
+    #[inline]
+    fn contextual_cast_keyword_continues_identifier(
+        &self,
+        keyword: Keyword,
+        next_token_type: TokenType,
+        next_next_token_type: TokenType,
+    ) -> bool {
+        // only `as` and `satisfies` are contextual type operators in value expressions
+        if !matches!(keyword, Keyword::As | Keyword::Satisfies) {
+            return false;
+        }
+
+        // direct and newline member access keep the keyword as an identifier
+        let has_member_after_keyword = next_token_type == TokenType::Dot
+            || (next_token_type == TokenType::Newline && next_next_token_type == TokenType::Dot);
+
+        // optional chain member access keeps the keyword as an identifier
+        let has_optional_member_after_keyword =
+            next_token_type == TokenType::Maybe && next_next_token_type == TokenType::Dot;
+
+        has_member_after_keyword || has_optional_member_after_keyword
+    }
+
+    /// Return true when a contextual cast keyword should parse as an identifier.
+    #[inline]
+    fn contextual_type_operator_is_identifier_continuation(
+        &self,
+        type_binary_operator: TypeBinaryOperator,
+        next_token_type: TokenType,
+        next_next_token_type: TokenType,
+    ) -> bool {
+        let keyword = match type_binary_operator {
+            TypeBinaryOperator::Cast => Some(Keyword::As),
+            TypeBinaryOperator::Satisfies => Some(Keyword::Satisfies),
+            _ => None,
+        };
+
+        keyword.is_some_and(|keyword| {
+            self.contextual_cast_keyword_continues_identifier(
+                keyword,
+                next_token_type,
+                next_next_token_type,
+            )
+        })
+    }
+
     /// Make an infix operator from the current parser context.
     fn to_infix_operator(
         &self,
@@ -125,6 +172,21 @@ impl Parser {
                     )))
             && (self.language.is_destack() || !has_newline)
         {
+            // contextual type operators must not steal identifier continuations like `as.length`
+            let next_token_type = next_token
+                .map(|next| next.token.ty)
+                .unwrap_or(TokenType::End);
+            let next_next_token_type = next_next_token
+                .map(|next| next.token.ty)
+                .unwrap_or(TokenType::End);
+            if self.contextual_type_operator_is_identifier_continuation(
+                type_binary_operator,
+                next_token_type,
+                next_next_token_type,
+            ) {
+                return Err(ParseError::unexpected(token.span));
+            }
+
             return Ok((InfixOperator::TypeBinary(type_binary_operator), 1));
         }
 
@@ -273,17 +335,31 @@ impl Parser {
         if self.has_active_split() {
             return false;
         }
+        // only identifiers mapped to contextual operator keywords can act as infix operators
+        let Some(keyword) = self.keyword_for_index(index) else {
+            return false;
+        };
+
+        // `as` and `satisfies` followed by member access continue as identifiers
+        let next_token_type = self.token_type_at(index.saturating_add(1));
+        let next_next_token_type = self.token_type_at(index.saturating_add(2));
+        if self.contextual_cast_keyword_continues_identifier(
+            keyword,
+            next_token_type,
+            next_next_token_type,
+        ) {
+            return false;
+        }
+
         matches!(
-            self.keyword_for_index(index),
-            Some(
-                Keyword::In
-                    | Keyword::InstanceOf
-                    | Keyword::As
-                    | Keyword::Is
-                    | Keyword::Satisfies
-                    | Keyword::Extends
-                    | Keyword::Implements
-            )
+            keyword,
+            Keyword::In
+                | Keyword::InstanceOf
+                | Keyword::As
+                | Keyword::Is
+                | Keyword::Satisfies
+                | Keyword::Extends
+                | Keyword::Implements
         )
     }
 
@@ -295,7 +371,10 @@ impl Parser {
         has_newline: bool,
     ) -> Option<(InfixOperator, u8)> {
         let token = *self.token_ref_at(index)?;
-        let (next_token, next_next_token) = if token.token.ty == TokenType::GreaterThan {
+        let (next_token, next_next_token) = if matches!(
+            token.token.ty,
+            TokenType::GreaterThan | TokenType::Identifier
+        ) {
             (self.token_at(index + 1), self.token_at(index + 2))
         } else {
             (None, None)
