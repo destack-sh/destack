@@ -513,18 +513,17 @@ impl ReadmeCellStatus {
         match self {
             Self::Pass => "✓",
             Self::Fail => "x",
-            Self::Ignored => "[--]",
-            Self::Unknown => "---",
+            Self::Ignored => "-/-",
+            Self::Unknown => "-?-",
         }
     }
 
     fn parse(value: &str) -> Self {
-        let value = value.trim().trim_end_matches('*').to_ascii_lowercase();
-        match value.as_str() {
-            "✓" | "✓✓" | "[✓]" | "v" | "pass" | "ok" | "green" => Self::Pass,
-            "x" | "xx" | "[x]" | "fail" | "failed" | "red" => Self::Fail,
-            "[--]" | "ignored" | "skip" | "skipped" | "watch" => Self::Ignored,
-            "---" | "-" => Self::Unknown,
+        match value.trim().trim_end_matches('*') {
+            "✓" => Self::Pass,
+            "x" => Self::Fail,
+            "-/-" => Self::Ignored,
+            "-?-" => Self::Unknown,
             _ => Self::Unknown,
         }
     }
@@ -590,7 +589,7 @@ impl ReadmeSupportTier {
             Self::T3 => "T3",
             Self::T4 => "T4",
             Self::T5 => "T5",
-            Self::None => "---",
+            Self::None => "-?-",
         }
     }
 
@@ -919,10 +918,10 @@ fn format_readme_summary_rows(
             .get(package_name)
             .and_then(|metadata| metadata.target_tier);
 
-        let target_label = target_tier.map_or("---", |tier| tier.as_str());
+        let target_label = target_tier.map_or("-?-", |tier| tier.as_str());
         let met_label = support_tier
             .meets_target(target_tier)
-            .map_or("---", |is_met| if is_met { "✓" } else { "x" });
+            .map_or("-?-", |is_met| if is_met { "✓" } else { "x" });
 
         let mut row_line = format!("| {package_label:<7} ");
         for status in &statuses {
@@ -970,9 +969,9 @@ fn format_readme_summary_rows(
     for phase_cell in total_phase_cells {
         total_line.push_str(&format!("| {:^8} ", phase_cell));
     }
-    total_line.push_str(&format!("| {:^7} ", "---"));
-    total_line.push_str(&format!("| {:^6} ", "---"));
-    total_line.push_str(&format!("| {:^3} ", "---"));
+    total_line.push_str(&format!("| {:^7} ", "-?-"));
+    total_line.push_str(&format!("| {:^6} ", "-?-"));
+    total_line.push_str(&format!("| {:^3} ", "-?-"));
     total_line.push_str(&format!(
         "| {:>5} | {:>7} | {:>9} |",
         total_cases, total_rate, total_inclusive_rate
@@ -999,7 +998,7 @@ fn format_rate(passed: usize, failed: usize) -> String {
 fn format_phase_total_cell(passed: usize, failed: usize) -> String {
     let run_total = passed + failed;
     if run_total == 0 {
-        return "---".to_string();
+        return "-?-".to_string();
     }
 
     format!("{passed}/{run_total}")
@@ -1643,7 +1642,7 @@ mod tests {
 <!-- begin:summary-results -->
 | Package | parse | resolve | analyze | lower | Current | Target | Met | Total |  Rate   | Incl. Rate |
 |:--------|:-----:|:-------:|:-------:|:-----:|:-------:|:------:|:---:|------:|--------:|-----------:|
-| sample  |  ---  |  [--]   |   ✓     |   x   |   ---   |  ---   | --- |     4 |  50.00% |    25.00% |
+| sample  |  -?-  |  -/-   |   ✓     |   x   |   -?-   |  -?-   | -?- |     4 |  50.00% |    25.00% |
 <!-- end:summary-results -->
 "#;
 
