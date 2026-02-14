@@ -1,14 +1,14 @@
 # zed
 
 Zed extension for Destack language support.
-This extension provides `.ds` and `.d.ds` language configuration, Tree-sitter highlighting, and LSP wiring.
-The language server is registered for Destack plus Zed JavaScript, TypeScript, and TSX buffers.
+This extension provides `.ds`, `.d.ds`, and `.mir` language configuration and Tree-sitter highlighting.
+It wires LSP for Destack, JavaScript, TypeScript, and TSX buffers.
 
 ## Grammar Source
 
-The grammar source is the canonical fork at `language/grammar/destack`.
-`extension.toml` points at the Destack repository path `language/grammar/destack/destack`.
-The current grammar ref is `main` and should be pinned to a commit for release branches.
+The grammar sources are `language/grammar/destack/destack` for Destack and `language/grammar/mir` for Destack MIR.
+`extension.toml` points at those repository paths.
+The current grammar refs are `main` and should be pinned to a commit for release branches.
 
 ## Development
 

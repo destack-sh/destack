@@ -5,9 +5,11 @@ use tree_sitter_language::LanguageFn;
 
 extern "C" {
     fn tree_sitter_destack() -> *const ();
+    fn tree_sitter_mir() -> *const ();
 }
 
 const LANGUAGE_DESTACK: LanguageFn = unsafe { LanguageFn::from_raw(tree_sitter_destack) };
+const LANGUAGE_MIR: LanguageFn = unsafe { LanguageFn::from_raw(tree_sitter_mir) };
 const QUERY_BRACKETS: &str = include_str!("../languages/destack/brackets.scm");
 const QUERY_DEBUGGER: &str = include_str!("../languages/destack/debugger.scm");
 const QUERY_HIGHLIGHTS: &str = include_str!("../languages/destack/highlights.scm");
@@ -18,16 +20,23 @@ const QUERY_OUTLINE: &str = include_str!("../languages/destack/outline.scm");
 const QUERY_OVERRIDES: &str = include_str!("../languages/destack/overrides.scm");
 const QUERY_RUNNABLES: &str = include_str!("../languages/destack/runnables.scm");
 const QUERY_TEXTOBJECTS: &str = include_str!("../languages/destack/textobjects.scm");
+const QUERY_MIR_BRACKETS: &str = include_str!("../languages/mir/brackets.scm");
+const QUERY_MIR_HIGHLIGHTS: &str = include_str!("../languages/mir/highlights.scm");
+const QUERY_MIR_INDENTS: &str = include_str!("../languages/mir/indents.scm");
+const QUERY_MIR_OUTLINE: &str = include_str!("../languages/mir/outline.scm");
 const EXTENSION_TOML: &str = include_str!("../extension.toml");
 const LANGUAGE_CONFIG_TOML: &str = include_str!("../languages/destack/config.toml");
+const LANGUAGE_MIR_CONFIG_TOML: &str = include_str!("../languages/mir/config.toml");
 const ROOT_VERSION: &str = include_str!("../../../version.txt");
 
-fn collect_query_captures(source: &str, query_source: &str) -> Vec<(String, String)> {
+fn collect_query_captures_for_language(
+    language_function: LanguageFn,
+    source: &str,
+    query_source: &str,
+) -> Vec<(String, String)> {
     let mut parser = Parser::new();
-    let language = LANGUAGE_DESTACK.into();
-    parser
-        .set_language(&language)
-        .expect("destack grammar should load");
+    let language = language_function.into();
+    parser.set_language(&language).expect("grammar should load");
 
     let tree = parser.parse(source, None).expect("source should parse");
     let query = Query::new(&language, query_source).expect("query should compile");
@@ -50,8 +59,16 @@ fn collect_query_captures(source: &str, query_source: &str) -> Vec<(String, Stri
     captures
 }
 
+fn collect_query_captures(source: &str, query_source: &str) -> Vec<(String, String)> {
+    collect_query_captures_for_language(LANGUAGE_DESTACK, source, query_source)
+}
+
 fn collect_highlight_captures(source: &str) -> Vec<(String, String)> {
     collect_query_captures(source, QUERY_HIGHLIGHTS)
+}
+
+fn collect_mir_query_captures(source: &str, query_source: &str) -> Vec<(String, String)> {
+    collect_query_captures_for_language(LANGUAGE_MIR, source, query_source)
 }
 
 fn has_capture(captures: &[(String, String)], capture_name: &str, text: &str) -> bool {
@@ -103,6 +120,22 @@ fn test_compile_all_language_queries() {
 }
 
 #[test]
+fn test_compile_all_mir_queries() {
+    let language = LANGUAGE_MIR.into();
+    let query_files = [
+        ("brackets.scm", QUERY_MIR_BRACKETS),
+        ("highlights.scm", QUERY_MIR_HIGHLIGHTS),
+        ("indents.scm", QUERY_MIR_INDENTS),
+        ("outline.scm", QUERY_MIR_OUTLINE),
+    ];
+
+    for (query_name, query_source) in query_files {
+        Query::new(&language, query_source)
+            .unwrap_or_else(|error| panic!("{query_name} should compile: {error}"));
+    }
+}
+
+#[test]
 fn test_extension_manifest_registers_multilanguage_lsp() {
     assert!(
         EXTENSION_TOML.contains(r#"languages = ["Destack", "JavaScript", "TypeScript", "TSX"]"#)
@@ -115,9 +148,10 @@ fn test_extension_manifest_registers_multilanguage_lsp() {
 
 #[test]
 fn test_extension_manifest_declares_listing_sections() {
-    assert!(EXTENSION_TOML.contains(r#"languages = ["languages/destack"]"#));
+    assert!(EXTENSION_TOML.contains(r#"languages = ["languages/destack", "languages/mir"]"#));
     assert!(EXTENSION_TOML.contains("[language_servers.destack-lsp]"));
     assert!(EXTENSION_TOML.contains("[grammars.destack]"));
+    assert!(EXTENSION_TOML.contains("[grammars.mir]"));
 }
 
 #[test]
@@ -140,6 +174,13 @@ fn test_extension_manifest_uses_destack_grammar_source() {
 }
 
 #[test]
+fn test_extension_manifest_uses_mir_grammar_source() {
+    assert!(EXTENSION_TOML.contains(r#"[grammars.mir]"#));
+    assert!(EXTENSION_TOML.contains(r#"repository = "https://github.com/destack-sh/destack""#));
+    assert!(EXTENSION_TOML.contains(r#"path = "language/grammar/mir""#));
+}
+
+#[test]
 fn test_extension_manifest_version_matches_repo_version() {
     let version = ROOT_VERSION.trim();
     let needle = format!(r#"version = "{version}""#);
@@ -157,6 +198,13 @@ fn test_language_config_has_destack_defaults() {
     );
     assert!(LANGUAGE_CONFIG_TOML
         .contains(r#"opt_into_language_servers = ["tailwindcss-language-server"]"#));
+}
+
+#[test]
+fn test_language_config_has_mir_defaults() {
+    assert!(LANGUAGE_MIR_CONFIG_TOML.contains(r#"grammar = "mir""#));
+    assert!(LANGUAGE_MIR_CONFIG_TOML.contains(r#"path_suffixes = ["mir"]"#));
+    assert!(LANGUAGE_MIR_CONFIG_TOML.contains(r#"line_comments = ["// "]"#));
 }
 
 #[test]
@@ -238,6 +286,28 @@ fn test_resolve_command_args_keeps_existing_lsp_subcommand() {
     );
 
     assert_eq!(args, vec!["lsp", "--stdio"]);
+}
+
+#[test]
+fn test_mir_highlights_core_tokens() {
+    let source = r#"
+function @fib(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = iconst 2i64
+    branch v1, block1, block2
+    return v1
+}
+"#;
+    let captures = collect_mir_query_captures(source, QUERY_MIR_HIGHLIGHTS);
+
+    assert!(has_capture(&captures, "keyword", "function"));
+    assert!(has_capture(&captures, "function", "@fib"));
+    assert!(has_capture(&captures, "variable", "v0"));
+    assert!(has_capture(&captures, "type.builtin", "i64"));
+    assert!(has_capture(&captures, "function.builtin", "iconst"));
+    assert!(has_capture(&captures, "keyword.control", "branch"));
+    assert!(has_capture(&captures, "keyword.control", "return"));
+    assert!(has_capture(&captures, "label", "block0"));
 }
 
 #[test]

@@ -1,7 +1,9 @@
 # Grammar
 
-The canonical `tree-sitter-destack` hard-fork of TSX tree-sitter adjusted for and maintained by Destack.
-Generated parser artifacts in `src/` are checked in for reproducible bindings and editor integrations.
+Destack maintains two Tree-sitter grammars in this workspace, both intended for interaction and performance, _not_ for full correctness.
+- `language/grammar/destack` is the canonical `tree-sitter-destack` hard-fork of TSX Tree-sitter adjusted for Destack source code.
+- `language/grammar/mir` is the canonical `tree-sitter-mir` grammar used for MIR editor highlighting.
+Generated parser artifacts in each grammar `src/` directory are checked in for reproducible bindings and editor integrations.
 
 ## Corpus layout
 
@@ -15,6 +17,7 @@ Those files use explicit `:language(typescript)` and `:language(tsx)` directives
 Run `just -f language/justfile test-grammar-corpus-routing` to ensure corpus sections are routed to the intended grammar.
 Run `just -f language/justfile test-grammar-typescript-tsx` for TS and TSX corpus compatibility.
 Run `just -f language/justfile test-grammar-destack` for Destack corpus coverage.
+Run `just -f language/justfile test-grammar-mir` for MIR corpus coverage.
 Run `just -f language/justfile test-grammar-destack-node-coverage` to enforce coverage of all Destack-only named nodes in Destack corpus expected trees.
 Run `just -f language/justfile test-grammar-specification-sweep` to parse specification markdown fixture code fences with the tree-sitter grammars and report parse errors.
 Run `just -f language/justfile test-grammar-specification-sweep-positive` to fail when parser errors appear in positive specification cases.

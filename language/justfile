@@ -29,6 +29,7 @@ ci-tests:
     just test-smoke
     just test-specification
     just test-query
+    just test-grammar-mir
     just test-grammar-specification-sweep-positive
     just test-grammar-overlay
     just test-grammar-corpus-routing
@@ -376,6 +377,10 @@ test-grammar-typescript-tsx:
 test-grammar-destack:
     cd grammar/destack/destack && bunx tree-sitter test --rebuild
 
+# run MIR tree sitter corpus tests
+test-grammar-mir:
+    cd grammar/mir && bunx tree-sitter-cli@0.24.4 test --rebuild
+
 # validate destack-only tree sitter node coverage in corpus
 test-grammar-destack-node-coverage:
     bun grammar/scripts/check-destack-node-coverage.mjs
@@ -385,6 +390,7 @@ test-grammar-all:
     just test-grammar-corpus-routing
     just test-grammar-typescript-tsx
     just test-grammar-destack
+    just test-grammar-mir
     just test-grammar-destack-node-coverage
     just test-grammar-specification-sweep-positive
     just test-grammar-overlay

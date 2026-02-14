@@ -1,0 +1,8 @@
+{
+  "name": "tree-sitter-mir",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Destack MIR grammar for tree-sitter",
+  "license": "MIT",
+  "type": "commonjs"
+}

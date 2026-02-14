@@ -23,6 +23,7 @@ ci-lint:
 
 # run platform test gate
 ci-tests:
+    just check-zed-grammars
     just test
 
 # run all blocking platform ci gates locally
@@ -102,6 +103,14 @@ test-zed:
     cd zed && cargo test --release
     cd zed && cargo build --target wasm32-wasip2 --release
     bun ../language/grammar/scripts/check-overlay.mjs
+
+# validate zed grammar references
+check-zed-grammars:
+    python3 zed/scripts/check_grammar_sources.py
+
+# validate zed grammar references in strict release mode
+check-zed-grammars-pinned:
+    python3 zed/scripts/check_grammar_sources.py --require-pinned
 
 # test the core ide integration surface
 test-ide:
