@@ -1,7 +1,7 @@
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Argument, Expression, Keyword, LocalNodeId, Path, TokenType, TypeBinaryOperator,
+    Argument, Expression, Keyword, LocalNodeId, TokenType, TypeBinaryOperator, TypeUnaryOperator,
 };
 
 impl Parser {
@@ -205,43 +205,30 @@ impl Parser {
         let operator_start = self.mark_span();
 
         // parse `<const>` with dedicated ts assertion behavior
-        let const_assertion = {
+        let is_const_assertion = {
             let const_mark = self.mark();
             let const_tree_start = self.tree.next_id();
-            let parse_const_assertion = (|| -> ParseResult<LocalNodeId<Expression>> {
+            let parse_const_assertion = (|| -> ParseResult<()> {
                 self.eat_token(TokenType::LessThan)?;
                 self.eat_newlines_maybe()?;
-                let const_span = self.peek()?.span;
                 self.eat_keyword(Keyword::Const)?;
                 self.eat_newlines_maybe()?;
                 self.eat_type_angle_close()?;
-
-                let const_id = self.strings.intern("const");
-                let const_path = Path {
-                    segments: smallvec::smallvec![const_id],
-                };
-                let asserted_type = self.tree.insert(
-                    Expression::Path {
-                        path: const_path,
-                        static_arguments: None,
-                    },
-                    const_span,
-                );
-                Ok(asserted_type)
+                Ok(())
             })();
 
             match parse_const_assertion {
-                Ok(asserted_type) => Some(asserted_type),
+                Ok(()) => true,
                 Err(_) => {
                     self.restore(const_mark, const_tree_start);
-                    None
+                    false
                 }
             }
         };
 
         // parse standard `<Type>` assertions
-        let asserted_type = if let Some(asserted_type) = const_assertion {
-            asserted_type
+        let asserted_type = if is_const_assertion {
+            None
         } else {
             let static_arguments = self.eat_static_arguments()?;
 
@@ -260,7 +247,7 @@ impl Parser {
                 Argument::Positional {
                     modifiers: None,
                     value,
-                } => *value,
+                } => Some(*value),
                 _ => {
                     return Err(ParseError::unexpected(
                         self.tree.get_span(static_arguments[0]),
@@ -296,15 +283,31 @@ impl Parser {
             return Err(ParseError::unexpected(self.tree.get_span(asserted_value)));
         }
 
-        // lower to the same cast node used by `as`
-        let expression_id = self.tree.insert(
-            Expression::TypeBinary {
-                left: asserted_value,
-                operator: TypeBinaryOperator::Cast,
-                right: asserted_type,
-            },
-            self.get_span_from(start),
-        );
+        // lower const assertions to the same unary node used by `as const`
+        let expression_id = if is_const_assertion {
+            self.tree.insert(
+                Expression::TypeUnary {
+                    operator: TypeUnaryOperator::AsConst,
+                    right: asserted_value,
+                },
+                self.get_span_from(start),
+            )
+        }
+        // lower type assertions to the same cast node used by `as`
+        else {
+            let Some(asserted_type) = asserted_type else {
+                return Err(ParseError::unexpected(operator_span));
+            };
+
+            self.tree.insert(
+                Expression::TypeBinary {
+                    left: asserted_value,
+                    operator: TypeBinaryOperator::Cast,
+                    right: asserted_type,
+                },
+                self.get_span_from(start),
+            )
+        };
         self.tree.set_main_span(expression_id, operator_span);
         Ok(expression_id)
     }

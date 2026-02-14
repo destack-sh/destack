@@ -1352,26 +1352,18 @@ impl Parser {
     /// Parse everything as an implicit namespace.
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        // parse main expressions without finalization
+        // parse main expressions without final annotations
         let expressions = self.parse_without_finish();
 
-        // finalize annotations and indexes
-        self.finish();
+        // attach side annotations in the default parse pipeline
+        self.attach_annotations();
 
+        self.is_finished = true;
         expressions
     }
 
-    /// Parse everything as an implicit namespace without attaching annotations or indexes.
-    /// Call `finish` to attach annotations and build the position index.
+    /// Parse everything as an implicit namespace without attaching annotations.
     pub fn parse_without_finish(&mut self) -> Vec<LocalNodeId<Expression>> {
-        // pre-lex non-tree-literal sources to reduce ensure_token overhead in hot parse loops
-        if !self.allow_tree_literals() {
-            self.lex_to_end();
-            self.tokens_prelexed = true;
-        } else {
-            self.tokens_prelexed = false;
-        }
-
         // parse leading triple-slash reference path directives
         let (mut expressions, consumed_to_end) =
             self.parse_leading_triple_slash_reference_imports();
@@ -1389,7 +1381,7 @@ impl Parser {
         }
 
         // insert a stub expression when annotation-only prefixes need one stable attachment target
-        self.lex_to_end();
+        self.token_stream.lex_to_end();
         if self.has_comment_annotation_tokens() && (expressions.is_empty() || consumed_to_end) {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
@@ -1406,10 +1398,6 @@ impl Parser {
             }
         }
 
-        // attach side annotations in the default parse pipeline
-        self.attach_annotations();
-
-        self.is_finished = true;
         expressions
     }
 
