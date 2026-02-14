@@ -946,6 +946,7 @@ impl Parser {
                 (Some(label), Some(label_span), value)
             } else {
                 // spread positional value
+                self.eat_newlines_maybe()?;
                 let mut value_options = self.options.not_in_position().not_in_sequence_expression();
                 if self.options.in_arrow_return_type {
                     value_options = value_options.not_in_arrow_return_type();
@@ -1283,8 +1284,9 @@ impl Parser {
             Ok(argument_id)
         }
         // spread expression container (like {...expr} in tree literals for #Compatibility)
-        else if self.peek_is(TokenType::OpenBrace) && self.peek_next_is(TokenType::Spread) {
+        else if self.peek_tree_literal_spread_expression_container() {
             self.bump(); // eat open brace
+            self.eat_newlines_maybe()?;
             self.bump(); // eat spread
             self.eat_newlines_maybe()?;
             let value = self.eat_expression(
@@ -1387,6 +1389,18 @@ impl Parser {
             );
             Ok(argument_id)
         }
+    }
+
+    /// Return true when the current tree literal argument starts with `{ ...`.
+    fn peek_tree_literal_spread_expression_container(&mut self) -> bool {
+        // must begin at an expression container
+        if !self.peek_is(TokenType::OpenBrace) {
+            return false;
+        }
+
+        // skip newline trivia before checking for spread
+        let spread_index = self.first_non_newline_index_from(self.pos_index() + 1);
+        self.token_type_at(spread_index) == TokenType::Spread
     }
 
     /// Eat static arguments (including the `<` and `>` tokens) if they exist.
@@ -2226,6 +2240,24 @@ class Test {
         let argument_id = parser.eat_positional_argument().unwrap();
         assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
             // ...args
+            assert!(label.is_none());
+            assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "args");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_spread_argument_with_comment_newline() {
+        // .../** @type {number[]} */\nargs
+        let mut test = TestParser::new_with_options(
+            ".../** @type {number[]} */\nargs",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_positional_argument().unwrap();
+
+        assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
             assert!(label.is_none());
             assert_node!(parser.tree, *value, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "args");
