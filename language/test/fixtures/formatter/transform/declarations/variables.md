@@ -15,7 +15,7 @@ const   x   =   1
 The formatter produces a single space around `=` and adds a trailing semicolon.
 
 ```ds expected
-const buffer: @addrspace("shared") &Buffer = value;
+const x = 1;
 ```
 
 ### const with type annotation

@@ -1,1 +1,0 @@
-const view = <Widget disabled />;
