@@ -757,14 +757,17 @@ impl Parser {
     }
 
     /// Eat static parameters (including the `<` and `>` tokens) if they exist.
+    ///
+    /// `allow_empty_parameters` accepts `<>` as an empty parameter list.
     pub fn eat_static_parameters_maybe(
         &mut self,
+        allow_empty_parameters: bool,
     ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
         if self.has_active_split() {
             let mark = self.mark_rewind();
             self.eat_newlines_maybe()?;
             if self.peek_is(TokenType::LessThan) {
-                return Ok(Some(self.eat_static_parameters()?));
+                return Ok(Some(self.eat_static_parameters(allow_empty_parameters)?));
             }
             self.rewind(mark);
             return Ok(None);
@@ -780,17 +783,26 @@ impl Parser {
             self.eat_newlines_maybe()?;
         }
 
-        Ok(Some(self.eat_static_parameters()?))
+        Ok(Some(self.eat_static_parameters(allow_empty_parameters)?))
     }
 
     /// Eat static parameters (including the `<` and `>` tokens).
-    pub fn eat_static_parameters(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
+    ///
+    /// `allow_empty_parameters` accepts `<>` as an empty parameter list.
+    pub fn eat_static_parameters(
+        &mut self,
+        allow_empty_parameters: bool,
+    ) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         let start = self.mark_span();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
-        // empty static parameters are not allowed
+        // optionally accept empty static parameters
         if self.peek_is(TokenType::GreaterThan) {
+            self.bump();
+            if allow_empty_parameters {
+                return Ok(vec![]);
+            }
             return Err(ParseError::expected(
                 self.get_span_from(&start),
                 TokenType::Identifier,

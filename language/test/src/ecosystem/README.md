@@ -45,8 +45,8 @@ Package names may include patch markers.
 | angular |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | ant-design |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | apollo-client |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| appsmith |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
-| appwrite |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| appsmith |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
+| appwrite |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | arktype |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | astro   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | authjs  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
@@ -80,7 +80,7 @@ Package names may include patch markers.
 | electron |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | eslint  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | excalidraw |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
-| expo    |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| expo    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | expo-router |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
 | express |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | fastify |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
@@ -184,7 +184,7 @@ Package names may include patch markers.
 | tanstack-virtual |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | threejs |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | tiptap  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| tldraw  |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| tldraw  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | trpc    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | ts-morph |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | ts-pattern |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
@@ -222,7 +222,7 @@ Package names may include patch markers.
 | zod     |    ✓     |    ✓     |    ✓     |    ✓     |   T3    |   T5   |  x  |
 | zustand |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 |---------|----------|----------|----------|----------|---------|--------|-----|
-| total   | 147/181  |  18/181  | 3/180 (+1) | 3/180 (+1) |   -?-   |  -?-   | -?- |
+| total   | 151/181  |  18/181  | 3/180 (+1) | 3/180 (+1) |   -?-   |  -?-   | -?- |
 <!-- end:summary-results -->
 
 ## Manifest Schema

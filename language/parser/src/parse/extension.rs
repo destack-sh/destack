@@ -45,12 +45,12 @@ impl Parser {
             // named extension
             if self.peek_name_is() && !self.is_keyword(Keyword::For) {
                 let (name, span) = self.eat_name_with_span()?;
-                let static_parameters = self.eat_static_parameters_maybe()?;
+                let static_parameters = self.eat_static_parameters_maybe(false)?;
                 (static_parameters, Some(name), Some(span))
             }
             // anonymous extension
             else {
-                let static_parameters = self.eat_static_parameters_maybe()?;
+                let static_parameters = self.eat_static_parameters_maybe(false)?;
                 (static_parameters, None, None)
             };
 

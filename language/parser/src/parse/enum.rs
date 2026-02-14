@@ -58,7 +58,7 @@ impl Parser {
 
         // optional static parameters: < ... >
         let static_parameters = self
-            .eat_static_parameters_maybe()
+            .eat_static_parameters_maybe(false)
             .for_node_type(NodeType::Declaration)?;
 
         // optional extends types

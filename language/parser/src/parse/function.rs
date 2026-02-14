@@ -649,14 +649,14 @@ impl Parser {
 
                 // static parameters
                 let static_parameters = self
-                    .eat_static_parameters_maybe()
+                    .eat_static_parameters_maybe(false)
                     .for_node_type(NodeType::Declaration)?;
 
                 (name, name_span, static_parameters)
             } else {
                 // static parameters
                 let static_parameters = self
-                    .eat_static_parameters_maybe()
+                    .eat_static_parameters_maybe(false)
                     .for_node_type(NodeType::Declaration)?;
 
                 (None, None, static_parameters)

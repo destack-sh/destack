@@ -6,8 +6,6 @@ angular-resolve
 apollo-client-analyze
 apollo-client-lower
 apollo-client-resolve
-appsmith-parse
-appwrite-parse
 arktype-analyze
 arktype-lower
 arktype-resolve
@@ -69,7 +67,6 @@ eslint-resolve
 excalidraw-parse
 expo-analyze
 expo-lower
-expo-parse
 expo-resolve
 expo-router-parse
 express-analyze
@@ -280,7 +277,6 @@ threejs-lower
 threejs-resolve
 tldraw-analyze
 tldraw-lower
-tldraw-parse
 tldraw-resolve
 trpc-analyze
 trpc-lower

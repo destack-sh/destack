@@ -325,7 +325,7 @@ impl Parser {
             };
 
             // static parameters
-            let static_parameters = self.eat_static_parameters_maybe()?;
+            let static_parameters = self.eat_static_parameters_maybe(false)?;
 
             // dynamic parameters
             let parameter_options = self
@@ -722,7 +722,7 @@ impl Parser {
             let (name, _name_span) = self.eat_identifier_with_span()?;
 
             // parse optional static parameters and where clauses
-            let static_parameters = self.eat_static_parameters_maybe()?;
+            let static_parameters = self.eat_static_parameters_maybe(false)?;
             let where_clauses = self.eat_where_maybe()?;
 
             // optional type bound: `: Bound`
@@ -1007,7 +1007,7 @@ impl Parser {
             };
 
             // static parameters
-            let static_parameters = self.eat_static_parameters_maybe()?;
+            let static_parameters = self.eat_static_parameters_maybe(false)?;
 
             // dynamic parameters
             let parameter_options = self
