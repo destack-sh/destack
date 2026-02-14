@@ -156,6 +156,9 @@ pub struct DiscoveryConfig {
     /// Glob patterns to exclude when discovering files.
     #[serde(default)]
     pub exclude: Vec<String>,
+    /// Package roots used for entrypoint ownership and manifest resolution.
+    #[serde(default)]
+    pub roots: Vec<String>,
 }
 
 /// Parser behavior overrides.
@@ -419,6 +422,24 @@ language = "ts"
         );
 
         assert!(!manifest.compiler_options.js_as_jsx());
+    }
+
+    #[test]
+    fn test_parse_discovery_roots() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[discovery]
+roots = ["library", "packages/core"]
+"#,
+        );
+
+        assert_eq!(manifest.discovery.roots, vec!["library", "packages/core"]);
     }
 
     #[test]

@@ -85,12 +85,13 @@ fn run_compiler_phase(
     default_tsc_mode: EcosystemTscMode,
     default_tsc_tool: EcosystemTscTool,
 ) -> TestResult {
-    let entrypoints = match select_phase_entrypoints(package_dir, files) {
-        Ok(entrypoints) => entrypoints,
-        Err(message) => {
-            return TestResult::Failed { message };
-        }
-    };
+    let entrypoints =
+        match select_phase_entrypoints_with_roots(package_dir, files, &manifest.discovery.roots) {
+            Ok(entrypoints) => entrypoints,
+            Err(message) => {
+                return TestResult::Failed { message };
+            }
+        };
 
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let session = Arc::new(Session::new(package_dir.to_path_buf()).with_fs(file_system));
@@ -814,7 +815,17 @@ fn enqueue_phase_task(
 }
 
 /// Select phase entrypoints from package manifests.
+#[cfg(test)]
 fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
+    select_phase_entrypoints_with_roots(package_dir, files, &[])
+}
+
+/// Select phase entrypoints from package manifests with optional root overrides.
+fn select_phase_entrypoints_with_roots(
+    package_dir: &Path,
+    files: &[PathBuf],
+    roots: &[String],
+) -> Result<Vec<PathBuf>, String> {
     let mut candidates = files.to_vec();
 
     // filter declaration files for semantic and lowering phases
@@ -822,7 +833,7 @@ fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Result<Vec
     candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
 
     // load manifest sources once for deterministic selection
-    let manifest_sources = load_manifest_entry_sources(package_dir)?;
+    let manifest_sources = load_manifest_entry_sources(package_dir, &candidates, roots)?;
     if manifest_sources.is_empty() {
         return Err(format!(
             "no entrypoints discovered from package manifest entries in {} ({} candidate source files)",
@@ -1264,7 +1275,11 @@ fn normalize_tsconfig_pattern(pattern: &str) -> String {
 }
 
 /// Load package manifest entry sources from root and workspace package manifests.
-fn load_manifest_entry_sources(package_dir: &Path) -> Result<Vec<ManifestEntrySource>, String> {
+fn load_manifest_entry_sources(
+    package_dir: &Path,
+    candidates: &[PathBuf],
+    roots: &[String],
+) -> Result<Vec<ManifestEntrySource>, String> {
     let root_manifest_path = package_dir.join("package.json");
     let Some(root_package_json) = load_package_json(root_manifest_path.as_path())? else {
         return Ok(Vec::new());
@@ -1273,45 +1288,78 @@ fn load_manifest_entry_sources(package_dir: &Path) -> Result<Vec<ManifestEntrySo
     let mut sources = Vec::new();
     let mut seen_manifest_paths = HashSet::new();
 
-    // add the root package manifest even when entry targets are empty
-    let root_entry_targets = root_package_json.entry_targets();
-    seen_manifest_paths.insert(normalize_path_key(root_manifest_path.as_path()));
-    sources.push(ManifestEntrySource {
-        package_dir: package_dir.to_path_buf(),
-        entry_targets: root_entry_targets,
-    });
+    // include root and workspace manifests when roots are not explicitly configured
+    if roots.is_empty() {
+        let root_entry_targets = root_package_json.entry_targets();
+        seen_manifest_paths.insert(normalize_path_key(root_manifest_path.as_path()));
+        sources.push(ManifestEntrySource {
+            package_dir: package_dir.to_path_buf(),
+            entry_targets: root_entry_targets,
+        });
 
-    // add workspace package manifests when configured
-    if let Some(workspaces) = root_package_json.workspaces.as_ref() {
-        let workspace_manifest_paths =
-            collect_workspace_manifest_paths(package_dir, workspaces.patterns());
+        if let Some(workspaces) = root_package_json.workspaces.as_ref() {
+            let workspace_manifest_paths =
+                collect_workspace_manifest_paths(package_dir, workspaces.patterns());
 
-        for workspace_manifest_path in workspace_manifest_paths {
-            let workspace_manifest_key = normalize_path_key(workspace_manifest_path.as_path());
-            if !seen_manifest_paths.insert(workspace_manifest_key) {
-                continue;
+            for workspace_manifest_path in workspace_manifest_paths {
+                let workspace_manifest_key = normalize_path_key(workspace_manifest_path.as_path());
+                if !seen_manifest_paths.insert(workspace_manifest_key) {
+                    continue;
+                }
+
+                let Some(workspace_package_json) =
+                    load_package_json(workspace_manifest_path.as_path())?
+                else {
+                    continue;
+                };
+
+                let workspace_entry_targets = workspace_package_json.entry_targets();
+
+                let Some(workspace_package_dir) = workspace_manifest_path.parent() else {
+                    continue;
+                };
+                if !workspace_package_dir.starts_with(package_dir) {
+                    continue;
+                }
+
+                sources.push(ManifestEntrySource {
+                    package_dir: workspace_package_dir.to_path_buf(),
+                    entry_targets: workspace_entry_targets,
+                });
             }
-
-            let Some(workspace_package_json) =
-                load_package_json(workspace_manifest_path.as_path())?
-            else {
-                continue;
-            };
-
-            let workspace_entry_targets = workspace_package_json.entry_targets();
-
-            let Some(workspace_package_dir) = workspace_manifest_path.parent() else {
-                continue;
-            };
-            if !workspace_package_dir.starts_with(package_dir) {
-                continue;
-            }
-
-            sources.push(ManifestEntrySource {
-                package_dir: workspace_package_dir.to_path_buf(),
-                entry_targets: workspace_entry_targets,
-            });
         }
+    }
+
+    // include package manifests from explicit roots or candidate owned roots
+    let candidate_manifest_paths = if roots.is_empty() {
+        collect_candidate_manifest_paths(package_dir, candidates)
+    } else {
+        collect_root_manifest_paths(package_dir, roots)?
+    };
+
+    for candidate_manifest_path in candidate_manifest_paths {
+        let candidate_manifest_key = normalize_path_key(candidate_manifest_path.as_path());
+        if !seen_manifest_paths.insert(candidate_manifest_key) {
+            continue;
+        }
+
+        let Some(candidate_package_json) = load_package_json(candidate_manifest_path.as_path())?
+        else {
+            continue;
+        };
+
+        let candidate_entry_targets = candidate_package_json.entry_targets();
+        let Some(candidate_package_dir) = candidate_manifest_path.parent() else {
+            continue;
+        };
+        if !candidate_package_dir.starts_with(package_dir) {
+            continue;
+        }
+
+        sources.push(ManifestEntrySource {
+            package_dir: candidate_package_dir.to_path_buf(),
+            entry_targets: candidate_entry_targets,
+        });
     }
 
     sources.sort_by_key(|source| normalize_path_key(source.package_dir.as_path()));
@@ -1338,6 +1386,95 @@ fn normalize_path_key(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
+/// Collect package manifest paths from explicit discovery roots.
+fn collect_root_manifest_paths(
+    package_dir: &Path,
+    roots: &[String],
+) -> Result<Vec<PathBuf>, String> {
+    let mut manifest_paths = Vec::new();
+    let mut manifest_keys = HashSet::new();
+
+    // resolve each configured root to one package manifest
+    for root in roots {
+        let trimmed_root = root.trim();
+        if trimmed_root.is_empty() {
+            return Err("discovery root cannot be empty".to_string());
+        }
+
+        let root_path = Path::new(trimmed_root);
+        if root_path.is_absolute() {
+            return Err(format!(
+                "discovery root '{}' must be relative",
+                trimmed_root
+            ));
+        }
+
+        if root_path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+        {
+            return Err(format!(
+                "discovery root '{}' cannot contain '..'",
+                trimmed_root,
+            ));
+        }
+
+        let root_directory = package_dir.join(root_path);
+        let manifest_path = root_directory.join("package.json");
+        if !manifest_path.is_file() {
+            return Err(format!(
+                "discovery root '{}' missing package.json at {}",
+                trimmed_root,
+                manifest_path.display(),
+            ));
+        }
+
+        let manifest_key = normalize_path_key(manifest_path.as_path());
+        if manifest_keys.insert(manifest_key) {
+            manifest_paths.push(manifest_path);
+        }
+    }
+
+    manifest_paths.sort_by_key(|path| normalize_path_key(path.as_path()));
+
+    Ok(manifest_paths)
+}
+
+/// Collect one nearest package manifest for each discovered candidate source file.
+fn collect_candidate_manifest_paths(package_dir: &Path, candidates: &[PathBuf]) -> Vec<PathBuf> {
+    let mut manifest_paths = Vec::new();
+    let mut manifest_keys = HashSet::new();
+
+    // discover one nearest package manifest while walking each candidate ancestor chain
+    for candidate in candidates {
+        let mut current_directory = candidate.parent();
+        while let Some(directory) = current_directory {
+            if !directory.starts_with(package_dir) {
+                break;
+            }
+
+            let manifest_path = directory.join("package.json");
+            if manifest_path.is_file() {
+                let manifest_key = normalize_path_key(manifest_path.as_path());
+                if manifest_keys.insert(manifest_key) {
+                    manifest_paths.push(manifest_path);
+                }
+
+                break;
+            }
+
+            if directory == package_dir {
+                break;
+            }
+
+            current_directory = directory.parent();
+        }
+    }
+
+    manifest_paths.sort_by_key(|path| normalize_path_key(path.as_path()));
+
+    manifest_paths
+}
 /// Collect workspace package manifest paths from npm style workspace patterns.
 fn collect_workspace_manifest_paths(package_dir: &Path, patterns: &[String]) -> Vec<PathBuf> {
     let mut selected_paths: Vec<PathBuf> = Vec::new();
@@ -1511,7 +1648,8 @@ mod tests {
 
     use super::{
         ExpectedDiagnosticConfig, ObservedPhaseDiagnostic, match_expected_phase_diagnostics,
-        normalize_path_fragment, select_phase_entrypoints, tsconfig_path_matches_pattern,
+        normalize_path_fragment, select_phase_entrypoints, select_phase_entrypoints_with_roots,
+        tsconfig_path_matches_pattern,
     };
     use crate::ecosystem::manifest::EcosystemPhase;
 
@@ -1705,6 +1843,139 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(selected_relative, vec!["packages/a/src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_from_candidate_manifest_sources() {
+        let temp_dir = unique_temp_dir("candidate-manifest-sources");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create root package manifest without workspace configuration
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "private": true
+}"#,
+        );
+
+        // create nested publish package manifest with build output entries
+        write_text_file(
+            &temp_dir.join("library/package.json"),
+            r#"{
+  "name": "library",
+  "main": "./dist/index.js"
+}"#,
+        );
+
+        // create nested tsconfig with explicit source files
+        write_text_file(
+            &temp_dir.join("library/tsconfig.json"),
+            r#"{
+  "files": ["src/index.ts"]
+}"#,
+        );
+
+        // create source candidates inside the nested package
+        let candidates = vec![
+            temp_dir.join("library/src/index.ts"),
+            temp_dir.join("library/src/extra.ts"),
+        ];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select entrypoints through candidate discovered package manifests
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["library/src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_uses_discovery_roots() {
+        let temp_dir = unique_temp_dir("entrypoint-roots");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create root and nested package manifests with source entry targets
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "main": "./src/root.ts"
+}"#,
+        );
+        write_text_file(
+            &temp_dir.join("library/package.json"),
+            r#"{
+  "name": "library",
+  "main": "./src/index.ts"
+}"#,
+        );
+
+        // create source candidates from both roots
+        let candidates = vec![
+            temp_dir.join("src/root.ts"),
+            temp_dir.join("library/src/index.ts"),
+        ];
+        for path in &candidates {
+            write_text_file(path, "export {};");
+        }
+
+        // select only entrypoints from configured discovery roots
+        let roots = vec!["library".to_string()];
+        let selected = select_phase_entrypoints_with_roots(&temp_dir, &candidates, &roots)
+            .expect("expected entrypoints");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["library/src/index.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_errors_on_invalid_discovery_root() {
+        let temp_dir = unique_temp_dir("entrypoint-roots-invalid");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create one root package manifest and source candidate
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "main": "./src/index.ts"
+}"#,
+        );
+        let candidates = vec![temp_dir.join("src/index.ts")];
+        write_text_file(&candidates[0], "export {};");
+
+        // fail loudly when configured roots do not contain a package manifest
+        let roots = vec!["library".to_string()];
+        let error = select_phase_entrypoints_with_roots(&temp_dir, &candidates, &roots)
+            .expect_err("expected invalid discovery root error");
+
+        assert!(error.contains("discovery root 'library' missing package.json"));
 
         fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
     }
