@@ -314,7 +314,6 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, Diagnos
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    parser.finish();
     let diagnostics = parser.diagnostics.clone();
 
     let side_span = parser.compute_side_span();
