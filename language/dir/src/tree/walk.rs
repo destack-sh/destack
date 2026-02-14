@@ -1489,7 +1489,6 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         PatternField::Named {
             mutability: _,
             name: _,
-            symbol: _,
             pattern,
             default,
         } => {

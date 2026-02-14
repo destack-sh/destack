@@ -429,10 +429,7 @@ fn collect_pattern_bindings_field(
     // walk pattern fields and collect binding symbols
     let field = dir_tree.get::<dir::PatternField>(field_id);
     match field {
-        dir::PatternField::Named {
-            symbol, pattern, ..
-        } => {
-            bindings.insert(*symbol);
+        dir::PatternField::Named { pattern, .. } => {
             if let Some(pattern) = pattern {
                 collect_pattern_bindings(dir_tree, *pattern, bindings);
             }
@@ -527,23 +524,15 @@ fn pattern_access_path_object_fields(
     for field_id in fields {
         let field = dir_tree.get::<dir::PatternField>(*field_id);
         match field {
-            dir::PatternField::Named {
-                name,
-                pattern,
-                symbol,
-                ..
-            } => {
+            dir::PatternField::Named { name, pattern, .. } => {
                 let name = session.strings.get(*name).to_string();
-                if let Some(pattern) = pattern {
-                    if let Some(path) =
+                if let Some(pattern) = pattern
+                    && let Some(path) =
                         pattern_access_path(session, dir_tree, *pattern, target_symbol)
-                    {
-                        let mut path = path;
-                        path.insert(0, AccessSegment::Property(name));
-                        return Some(path);
-                    }
-                } else if *symbol == target_symbol {
-                    return Some(vec![AccessSegment::Property(name)]);
+                {
+                    let mut path = path;
+                    path.insert(0, AccessSegment::Property(name));
+                    return Some(path);
                 }
             }
             dir::PatternField::Alias { name, symbol, .. } => {
@@ -594,9 +583,7 @@ fn pattern_access_path_indexed(
                 }
                 index += 1;
             }
-            dir::PatternField::Named {
-                pattern, symbol, ..
-            } => {
+            dir::PatternField::Named { pattern, .. } => {
                 if let Some(pattern) = pattern
                     && let Some(path) =
                         pattern_access_path(session, dir_tree, *pattern, target_symbol)
@@ -604,8 +591,6 @@ fn pattern_access_path_indexed(
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
                     return Some(path);
-                } else if *symbol == target_symbol {
-                    return Some(vec![AccessSegment::Index(index)]);
                 }
                 index += 1;
             }

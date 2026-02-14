@@ -217,3 +217,32 @@ fn test_extend_tsconfig_preserves_child_settings() {
     assert_eq!(compiler_options.jsx, Some("preserve".to_string())); // Child value
     assert_eq!(compiler_options.target, Some("ES2020".to_string())); // Inherited from parent
 }
+
+/// Prefer tsconfig paths aliases over package exports subpath mappings.
+#[test]
+fn test_paths_prefer_over_package_exports_subpath() {
+    let fixture = super::fixture_root().join("tsconfig/cases/paths-prefer-over-exports");
+
+    let resolver = Resolver::physical(ResolveOptions {
+        tsconfig: Some(TypeScriptOptionsDiscovery::Manual(
+            TypeScriptOptionsLocation {
+                config_file: fixture.join("tsconfig.json"),
+                references: TypeScriptOptionsReferences::Automatic,
+            },
+        )),
+        extensions: vec![".ts".into(), ".d.ts".into(), ".js".into()],
+        ..ResolveOptions::default()
+    });
+
+    let resolved_path = resolver
+        .resolve(
+            fixture.join("src"),
+            "@angular/compiler-cli/private/localize",
+        )
+        .map(|resolution| resolution.full_path());
+
+    assert_eq!(
+        resolved_path,
+        Ok(fixture.join("packages/compiler-cli/private/localize.ts"))
+    );
+}

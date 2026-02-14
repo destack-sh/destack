@@ -3,7 +3,8 @@ use destack_ast as ast;
 use destack_dir::{
     BindingCategory, DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
     LocalSymbolId, Mutability, NodeTree, NodeType, Pattern, PatternField, ScopeKind, StaticKey,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
+    StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
+    TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -461,6 +462,57 @@ impl Compiler {
         }
     }
 
+    /// Bind a shorthand object field to one explicit binding pattern.
+    fn bind_shorthand_named_pattern_for_field(
+        &self,
+        module: &Module,
+        ast: &ModuleAst,
+        scope: (LocalScopeId, LocalScopeMark),
+        export: Option<DependencyMode>,
+        binding: SymbolBinding,
+        binding_scope: (LocalScopeId, LocalScopeMark),
+        binding_mutability: Option<Mutability>,
+        binding_category: Option<BindingCategory>,
+        field_mutability: Option<Mutability>,
+        field_name: StringId,
+        parent_id: LocalNodeIdAny,
+        tree: &mut NodeTree,
+        symbols: &mut SymbolTable,
+    ) -> LocalNodeId<Pattern> {
+        // bind the shorthand field name as a regular local symbol
+        let (symbol, _) = self.bind_named_symbol_with_binding(
+            module,
+            ast,
+            SymbolSpace::Value,
+            StaticKey::Name(field_name),
+            binding,
+            binding_scope,
+            export,
+            symbols,
+        );
+
+        // apply binding metadata from the enclosing binding context
+        let symbol_mutability =
+            self.resolve_binding_mutability(module, field_mutability, binding_mutability);
+        self.apply_binding_mutability(symbols, symbol, symbol_mutability);
+        if let Some(binding_category) = binding_category {
+            self.apply_binding_category(symbols, symbol, binding_category);
+        }
+
+        // canonicalize shorthand as an explicit nested binding pattern
+        let pattern_id = tree.reserve_from(NodeType::Pattern, parent_id, scope, Some(parent_id));
+        let pattern = Pattern::Binding {
+            mutability: field_mutability,
+            name: field_name,
+            pattern: None,
+            symbol,
+        };
+        let pattern_id = tree.insert(pattern_id, pattern);
+        symbols.get_symbol_mut(symbol).declare_primary(pattern_id);
+
+        pattern_id
+    }
+
     /// Bind a pattern field to a DIR pattern field.
     pub(super) fn bind_pattern_field(
         &self,
@@ -498,8 +550,8 @@ impl Compiler {
                     .program
                     .strings
                     .intern_from(&ast.strings, name.string());
-                let pattern = pattern.map(|pattern| {
-                    self.bind_pattern(
+                let pattern = if let Some(pattern) = pattern {
+                    Some(self.bind_pattern(
                         module,
                         ast,
                         scope,
@@ -507,13 +559,31 @@ impl Compiler {
                         binding,
                         binding_mutability,
                         binding_category,
-                        pattern,
+                        *pattern,
                         Some(pattern_field_id),
                         tree,
                         symbols,
                         types,
-                    )
-                });
+                    ))
+                }
+                // canonicalize shorthand object fields to explicit nested bindings
+                else {
+                    Some(self.bind_shorthand_named_pattern_for_field(
+                        module,
+                        ast,
+                        scope,
+                        export,
+                        binding,
+                        binding_scope,
+                        binding_mutability,
+                        binding_category,
+                        mutability,
+                        name,
+                        pattern_field_id,
+                        tree,
+                        symbols,
+                    ))
+                };
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
@@ -527,28 +597,11 @@ impl Compiler {
                         SymbolSpaceOrder::ValueThenType,
                     )
                 });
-                let (symbol, _) = self.bind_named_symbol_with_binding(
-                    module,
-                    ast,
-                    SymbolSpace::Value,
-                    StaticKey::Name(name),
-                    binding,
-                    binding_scope,
-                    export,
-                    symbols,
-                );
-                let symbol_mutability =
-                    self.resolve_binding_mutability(module, mutability, binding_mutability);
-                self.apply_binding_mutability(symbols, symbol, symbol_mutability);
-                if let Some(binding_category) = binding_category {
-                    self.apply_binding_category(symbols, symbol, binding_category);
-                }
                 PatternField::Named {
                     mutability,
                     name,
                     pattern,
                     default,
-                    symbol,
                 }
             }
             ast::PatternField::Computed {

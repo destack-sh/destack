@@ -1428,14 +1428,6 @@ impl Compiler {
     ) -> ResolveResult<GlobalSymbolId> {
         match target {
             ModuleTarget::Module(module_id) => {
-                // non-code modules (data, text, binary) don't have a namespace symbol
-                if !self.is_code_module(module_id) {
-                    return Err(ResolveError::DataModuleNamespace {
-                        node: node.into_anchored(Some(profile)),
-                        module: module_id,
-                    });
-                }
-
                 // ensure the target module is prepared
                 self.require_resolve_module_prepare_if_needed(
                     origin_module_id,

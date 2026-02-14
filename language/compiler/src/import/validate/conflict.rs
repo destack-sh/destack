@@ -862,6 +862,15 @@ mod tests {
         assert_import_conflicting_binding_in("test.js", "({a}) => { const a = 1; }");
     }
 
+    /// JavaScript nested object patterns do not bind property names.
+    #[test]
+    fn test_javascript_parameter_nested_object_pattern_does_not_bind_property_name() {
+        assert_import_no_conflicting_binding_in(
+            "test.js",
+            "function a({it: {gen}, it}){ it; gen; }",
+        );
+    }
+
     /// JavaScript allows nested block lexical shadowing of function parameters.
     #[test]
     fn test_javascript_parameter_allows_nested_block_lexical_shadowing() {
