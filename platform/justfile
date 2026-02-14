@@ -2,6 +2,7 @@ set shell := ["bash", "-cu"]
 
 # all platform crates
 packages := "-p destack_cli -p destack_daemon -p destack_platform_test -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
+test-packages := "-p destack_cli -p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_vscode -p destack_zed"
 
 _default:
     @just --list --unsorted
@@ -50,7 +51,7 @@ clean:
 
 # run all tests
 test:
-    cargo test --release --all-targets {{ packages }}
+    cargo test --release --all-targets {{ test-packages }}
     just test-lsp-stdio
     just test-vscode
     just test-zed

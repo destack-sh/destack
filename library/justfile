@@ -41,6 +41,7 @@ lint:
 test:
     cargo test --release --all-targets -p destack_napi
     cargo test --release --all-targets -p destack_wasm
+    cd napi && bun run build
     bun test
 
 # format code

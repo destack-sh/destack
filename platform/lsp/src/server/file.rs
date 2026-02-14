@@ -258,7 +258,6 @@ pub(super) fn format_file(
     // fallback if module doesn't have AST yet, parse file
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    parser.finish();
 
     // bail if parse errors (don't format broken code)
     if parser
@@ -321,7 +320,6 @@ pub(super) fn format_range(
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
-    parser.finish();
 
     // bail if parse errors
     if parser
