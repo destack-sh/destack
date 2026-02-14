@@ -4,8 +4,8 @@ use destack_dir::{
     BindingAnchor, BindingCategory, Declaration, DeclarationAbstraction, DeclarationDescriptor,
     DeclarationKind, DependencyItem, DependencyKind, DependencyMode, DependencySource, EnumField,
     EnumKind, Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding,
-    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
+    LocalScopeMark, ModuleBinding, Name, NamespaceKind, NodeTree, NodeType, ScopeKind, StaticKey,
+    SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst, ModuleBindingReference};
 
@@ -64,6 +64,15 @@ impl Compiler {
         match kind {
             ast::EnumKind::Enum => EnumKind::Enum,
             ast::EnumKind::Const => EnumKind::Const,
+        }
+    }
+
+    /// Bind namespace kind to DIR namespace kind.
+    #[inline]
+    pub(super) fn bind_namespace_kind(&self, kind: ast::NamespaceKind) -> NamespaceKind {
+        match kind {
+            ast::NamespaceKind::Namespace => NamespaceKind::Namespace,
+            ast::NamespaceKind::Module => NamespaceKind::Module,
         }
     }
 
@@ -420,9 +429,11 @@ impl Compiler {
 
             ast::Declaration::Namespace {
                 descriptor,
+                kind,
                 generics,
                 expressions,
             } => {
+                let kind = self.bind_namespace_kind(*kind);
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
                     ast,
@@ -498,6 +509,7 @@ impl Compiler {
 
                 Declaration::Namespace {
                     descriptor,
+                    kind,
                     generics,
                     scope: scope_id,
                     expressions,

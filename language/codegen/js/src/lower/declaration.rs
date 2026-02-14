@@ -104,6 +104,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Declaration::Namespace {
                 descriptor,
+                kind: _,
                 scope: _,
                 generics: _,
                 expressions,

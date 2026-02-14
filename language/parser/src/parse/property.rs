@@ -1320,9 +1320,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         AbstractionModifier, Argument, Asynchrony, BinaryOperator, BindingAnchor, BindingKind,
-        Block, Declaration, Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType,
-        Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral, TypePredicateSubject,
-        Visibility,
+        Block, Declaration, DeclarationKind, Expression, FunctionAbstraction, FunctionKind,
+        FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
+        TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1351,6 +1351,23 @@ mod tests {
             assert_eq!(modifiers.kind, Some(BindingKind::Must));
             assert_string!(parser, *name, "prop");
             assert_expression_path!(parser, parser.tree.get(*value), "Foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_declare_accessor_private_hash() {
+        let mut test = TestParser::new_with_options(
+            "private declare accessor #value: string",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Field { modifiers: Some(modifiers), key: Some(Key::Private(name)), value: Some(value), default: None, .. } => {
+            assert_string!(parser, *name, "value");
+            assert_eq!(modifiers.visibility, Some(Visibility::Private));
+            assert_eq!(modifiers.declaration, Some(DeclarationKind::Declaration));
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
         });
     }
 

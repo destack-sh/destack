@@ -6,7 +6,7 @@ use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatter, empty_block_with_infix_annotations};
 use destack_ast::{
     Declaration, DeclarationDescriptor, DeclarationKind, DependencyKind, Expression, Generics,
-    Heritage, ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Name,
+    Heritage, ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Name, NamespaceKind,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -59,6 +59,7 @@ pub(super) fn format_namespace_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
+    kind: NamespaceKind,
     generics: &Generics,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
@@ -73,7 +74,11 @@ pub(super) fn format_namespace_declaration<'ast>(
     }
 
     // keyword
-    write!(f, [Keyword::Namespace])?;
+    if kind == NamespaceKind::Module {
+        write!(f, [token("module")])?;
+    } else {
+        write!(f, [Keyword::Namespace])?;
+    }
 
     // name / key
     if let Some(name) = descriptor.name {

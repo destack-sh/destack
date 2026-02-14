@@ -139,6 +139,7 @@ impl Compiler {
             // namespace
             Declaration::Namespace {
                 descriptor: _,
+                kind: _,
                 generics,
                 scope: _,
                 expressions,

@@ -147,10 +147,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             // module
             Declaration::Namespace {
                 descriptor,
+                kind,
                 generics,
                 expressions,
             } => {
-                format_namespace_declaration(f, node_id, descriptor, generics, expressions)?;
+                format_namespace_declaration(f, node_id, descriptor, *kind, generics, expressions)?;
             }
 
             // type alias
