@@ -732,7 +732,16 @@ fn readme_cell_from_result(result: &TestResult) -> ReadmeCellStatus {
     match result {
         TestResult::Passed => ReadmeCellStatus::Pass,
         TestResult::Failed { .. } => ReadmeCellStatus::Fail,
-        TestResult::Skipped { .. } => ReadmeCellStatus::Ignored,
+        TestResult::Skipped { reason } => {
+            // known failures should count as failures in status tables
+            if reason == "known failure" {
+                ReadmeCellStatus::Fail
+            }
+            // explicit ignored entries stay in the ignored bucket
+            else {
+                ReadmeCellStatus::Ignored
+            }
+        }
         TestResult::Suite { .. } => ReadmeCellStatus::Unknown,
     }
 }
@@ -904,8 +913,12 @@ fn format_readme_summary_rows(
         .map(|phase| {
             let mut phase_passed = 0usize;
             let mut phase_failed = 0usize;
+            let mut phase_ignored = 0usize;
+            let mut phase_unknown = 0usize;
             for row in rows.values() {
                 let status = row.get(phase).copied().unwrap_or_default();
+
+                // aggregate all status kinds: unknown contributes to denominator, ignored is reported separately
                 match status {
                     ReadmeCellStatus::Pass => {
                         phase_passed += 1;
@@ -913,10 +926,15 @@ fn format_readme_summary_rows(
                     ReadmeCellStatus::Fail => {
                         phase_failed += 1;
                     }
-                    ReadmeCellStatus::Ignored | ReadmeCellStatus::Unknown => {}
+                    ReadmeCellStatus::Ignored => {
+                        phase_ignored += 1;
+                    }
+                    ReadmeCellStatus::Unknown => {
+                        phase_unknown += 1;
+                    }
                 }
             }
-            format_phase_total_cell(phase_passed, phase_failed)
+            format_phase_total_cell(phase_passed, phase_failed, phase_unknown, phase_ignored)
         })
         .collect::<Vec<_>>();
 
@@ -940,13 +958,21 @@ fn format_readme_summary_rows(
     lines.join("\n")
 }
 
-fn format_phase_total_cell(passed: usize, failed: usize) -> String {
-    let run_total = passed + failed;
-    if run_total == 0 {
-        return "-?-".to_string();
-    }
+fn format_phase_total_cell(passed: usize, failed: usize, unknown: usize, ignored: usize) -> String {
+    // unknown cells still represent one package and should count toward coverage denominator
+    let run_total = passed + failed + unknown;
+    let base = if run_total == 0 {
+        "-?-".to_string()
+    } else {
+        format!("{passed}/{run_total}")
+    };
 
-    format!("{passed}/{run_total}")
+    // ignored cells are displayed separately, they are intentionally excluded from denominator
+    if ignored == 0 {
+        base
+    } else {
+        format!("{base} (+{ignored})")
+    }
 }
 fn parse_readme_summary_rows(
     content: &str,
@@ -1601,5 +1627,35 @@ mod tests {
             row.get(&EcosystemPhase::Lower),
             Some(&ReadmeCellStatus::Fail)
         );
+    }
+
+    #[test]
+    fn test_format_phase_total_cell_counts_unknown_and_reports_ignored() {
+        // unknown contributes to denominator and ignored is shown as a suffix
+        assert_eq!(format_phase_total_cell(109, 0, 72, 7), "109/181 (+7)");
+
+        // ignored still shows when there is no pass, fail, or unknown run data
+        assert_eq!(format_phase_total_cell(0, 0, 0, 2), "-?- (+2)");
+
+        // no ignored suffix when there are none
+        assert_eq!(format_phase_total_cell(3, 1, 2, 0), "3/6");
+    }
+
+    #[test]
+    fn test_readme_cell_from_result_maps_known_failure_to_fail() {
+        // known failures should be counted as failures, not ignored
+        let known_failure = TestResult::Skipped {
+            reason: "known failure".to_string(),
+        };
+        assert_eq!(
+            readme_cell_from_result(&known_failure),
+            ReadmeCellStatus::Fail
+        );
+
+        // explicitly ignored cases remain ignored
+        let ignored = TestResult::Skipped {
+            reason: "marked as skipped".to_string(),
+        };
+        assert_eq!(readme_cell_from_result(&ignored), ReadmeCellStatus::Ignored);
     }
 }
