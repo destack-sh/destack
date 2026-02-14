@@ -362,8 +362,11 @@ impl Parser {
             };
 
             // where clauses
-            let where_clauses = self.eat_where_maybe()?;
-
+            let where_clauses = if self.language.is_destack() {
+                self.eat_where_maybe()?
+            } else {
+                None
+            };
             let generics = Generics::new(static_parameters, where_clauses).into_option();
 
             // body
@@ -1040,9 +1043,12 @@ impl Parser {
                 (None, None)
             };
 
-            // where clauses
-            let where_clauses = self.eat_where_maybe()?;
-
+            // where clauses are a destack only feature
+            let where_clauses = if self.language.is_destack() {
+                self.eat_where_maybe()?
+            } else {
+                None
+            };
             let generics = Generics::new(static_parameters, where_clauses).into_option();
 
             // body
