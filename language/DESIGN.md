@@ -10,7 +10,7 @@ But they all fall short in interoperability, usefulness and - ultimately - adopt
 We feel that now is the time to try this again, and have made some different tradeoffs to enable TypeScript to cover many more usage scenarios.
 
 See [SPECIFICATION](SPECIFICATION.md) for the fine-grained language definition.
-See [INTEROPERABILITY](INTEROPERABILITY.md) for the full file type matrix and exclusions.
+See [COMPATIBILITY](COMPATIBILITY.md) for the full file type matrix and exclusions.
 
 ## "TypeScript++"
 
