@@ -552,7 +552,7 @@ impl Parser {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
 
             // resolve the current token with prelexed fast path when available
-            let token_type = if self.tokens_prelexed && !self.has_active_split() {
+            let token_type = if self.is_prelex_mode() && !self.has_active_split() {
                 self.peek_token_type_prelexed_fast()
             } else {
                 self.peek_token_type()
@@ -614,7 +614,7 @@ impl Parser {
 
                     // identifier context setup
                     let pos_index = self.pos_index();
-                    let next_raw_token_type = if self.tokens_prelexed && !self.has_active_split() {
+                    let next_raw_token_type = if self.is_prelex_mode() && !self.has_active_split() {
                         self.peek_next_token_type_prelexed_fast()
                     } else {
                         self.peek_next_token_type()

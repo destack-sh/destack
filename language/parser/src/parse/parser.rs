@@ -810,9 +810,15 @@ impl Parser {
     /// Ensure a token exists at the given index.
     #[inline]
     pub(crate) fn ensure_token(&mut self, index: usize) {
-        if !self.tokens_prelexed {
+        if !self.is_prelex_mode() {
             self.token_stream.ensure_token(index);
         }
+    }
+
+    /// Return true when parser fast-path prelex mode is active.
+    #[inline]
+    pub(crate) fn is_prelex_mode(&self) -> bool {
+        self.tokens_prelexed && self.token_stream.is_finished() && !self.allow_tree_literals()
     }
 
     /// Return true when tree literal lexing is enabled.
@@ -975,7 +981,7 @@ impl Parser {
     /// Ensure a token exists at the given index and return it.
     #[inline]
     pub(crate) fn token_at(&mut self, index: usize) -> Option<TokenSpan> {
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             self.tokens().get(index).copied()
         } else {
             self.token_stream.token(index)
@@ -1109,7 +1115,7 @@ impl Parser {
     /// Look up a keyword at a token index with a prelexed fast path.
     #[inline]
     pub(crate) fn keyword_for_index_maybe_fast(&mut self, index: usize) -> Option<Keyword> {
-        if self.tokens_prelexed && !self.has_active_split() {
+        if self.is_prelex_mode() && !self.has_active_split() {
             self.keyword_for_index_prelexed_fast(index)
         } else {
             self.keyword_for_index(index)
@@ -1120,8 +1126,8 @@ impl Parser {
     #[inline]
     pub(crate) fn keyword_for_index_prelexed_fast(&self, index: usize) -> Option<Keyword> {
         debug_assert!(
-            self.tokens_prelexed,
-            "keyword fast path requires prelexed tokens"
+            self.is_prelex_mode(),
+            "keyword fast path requires prelex mode"
         );
         debug_assert!(
             !self.has_active_split(),
@@ -1134,8 +1140,8 @@ impl Parser {
     #[inline]
     pub(crate) fn token_type_at_prelexed_fast(&self, index: usize) -> TokenType {
         debug_assert!(
-            self.tokens_prelexed,
-            "token type fast path requires prelexed tokens"
+            self.is_prelex_mode(),
+            "token type fast path requires prelex mode"
         );
         debug_assert!(
             !self.has_active_split(),
@@ -1163,7 +1169,7 @@ impl Parser {
     #[inline]
     pub(crate) fn identifier_for_index(&mut self, index: usize) -> Option<StringId> {
         // prelexed mode resolves identifiers from tokens with lazy cache growth
-        if self.tokens_prelexed && !self.has_active_split() {
+        if self.is_prelex_mode() && !self.has_active_split() {
             if index >= self.tokens().len() {
                 return None;
             }
@@ -1266,6 +1272,11 @@ impl Parser {
     fn reset_token_caches_after_rewind(&mut self) {
         self.truncate_token_caches();
         self.truncate_claimed_annotation_side_tokens();
+    }
+
+    /// Synchronize prelexed fast-path mode with token stream state.
+    fn sync_prelexed_state_after_rewind(&mut self) {
+        self.tokens_prelexed = self.token_stream.is_finished() && !self.allow_tree_literals();
     }
 
     /// Truncate claimed side token flags to the current side token length.
@@ -1437,6 +1448,7 @@ impl Parser {
         if let Some(token_stream_mark) = mark.token_stream_mark {
             self.token_stream.restore(token_stream_mark);
             self.reset_token_caches_after_rewind();
+            self.sync_prelexed_state_after_rewind();
         }
     }
 
@@ -1462,6 +1474,7 @@ impl Parser {
         if let Some(token_stream_mark) = mark.token_stream_mark {
             self.token_stream.restore(token_stream_mark);
             self.reset_token_caches_after_rewind();
+            self.sync_prelexed_state_after_rewind();
         }
     }
 
@@ -1563,7 +1576,7 @@ impl Parser {
         }
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             if self.pos < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(self.pos) };
@@ -1586,7 +1599,7 @@ impl Parser {
         }
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             if self.pos < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(self.pos) };
@@ -1608,7 +1621,7 @@ impl Parser {
         let index = self.lookahead_index(1);
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             if index < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(index) };
@@ -1633,7 +1646,7 @@ impl Parser {
         );
 
         // prelexed fast path: avoid repeated helper dispatch
-        if self.tokens_prelexed && !self.has_active_split() {
+        if self.is_prelex_mode() && !self.has_active_split() {
             if self.pos < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(self.pos) };
@@ -1654,7 +1667,7 @@ impl Parser {
         );
 
         // prelexed fast path: avoid repeated helper dispatch
-        if self.tokens_prelexed && !self.has_active_split() {
+        if self.is_prelex_mode() && !self.has_active_split() {
             let index = self.pos + 1;
             if index < self.tokens().len() {
                 // bounds checked above
@@ -1690,7 +1703,7 @@ impl Parser {
     /// Return true when more tokens remain before End.
     #[inline]
     pub fn has_more_tokens(&mut self) -> bool {
-        if self.tokens_prelexed && !self.has_active_split() {
+        if self.is_prelex_mode() && !self.has_active_split() {
             if self.pos < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(self.pos) };
@@ -1708,7 +1721,7 @@ impl Parser {
         let index = self.lookahead_index(1);
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             if index < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(index) };
@@ -1729,7 +1742,7 @@ impl Parser {
         let index = self.lookahead_index(2);
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             if index < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(index) };
@@ -1750,7 +1763,7 @@ impl Parser {
         let index = self.lookahead_index(3);
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             if index < self.tokens().len() {
                 // bounds checked above
                 let token = unsafe { self.tokens().get_unchecked(index) };
@@ -1783,7 +1796,7 @@ impl Parser {
         }
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             if self.pos < self.tokens().len() {
                 let pos = self.pos;
                 self.pos = pos + 1;
@@ -1827,7 +1840,7 @@ impl Parser {
         }
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             debug_assert!(self.pos < self.tokens().len(), "bump past end of tokens");
             self.pos += 1;
             self.invalidate_cursor_cache();
@@ -1850,7 +1863,7 @@ impl Parser {
         }
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             debug_assert!(
                 self.pos + (distance as usize) < self.tokens().len(),
                 "bump past end of tokens"
@@ -1879,7 +1892,7 @@ impl Parser {
         }
 
         // prelexed fast path: avoid ensure_token churn in hot parse loops
-        if self.tokens_prelexed {
+        if self.is_prelex_mode() {
             debug_assert!(pos <= self.tokens().len(), "advance past end of tokens");
             self.pos = pos;
             self.invalidate_cursor_cache();
