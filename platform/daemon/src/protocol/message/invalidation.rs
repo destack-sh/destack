@@ -32,6 +32,8 @@ pub enum InvalidationKind {
     DsConfig,
     /// Tsconfig invalidation.
     TsConfig,
+    /// Package manifest invalidation.
+    PackageManifest,
     /// Unknown invalidation.
     Unknown,
 }

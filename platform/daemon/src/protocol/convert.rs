@@ -28,6 +28,7 @@ impl From<InvalidationKind> for ProtocolInvalidationKind {
             InvalidationKind::ModuleSource => ProtocolInvalidationKind::ModuleSource,
             InvalidationKind::DsConfig => ProtocolInvalidationKind::DsConfig,
             InvalidationKind::TsConfig => ProtocolInvalidationKind::TsConfig,
+            InvalidationKind::PackageManifest => ProtocolInvalidationKind::PackageManifest,
             InvalidationKind::Unknown => ProtocolInvalidationKind::Unknown,
         }
     }
