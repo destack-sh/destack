@@ -689,7 +689,7 @@ impl Parser {
 
     /// Return the side-token range for one semantic token index.
     fn side_range_for_token(&mut self, token_index: usize) -> (usize, usize) {
-        if self.tokens_prelexed && !self.has_active_split() {
+        if self.is_prelex_mode() && !self.has_active_split() {
             return self.token_stream.leading_side_range_prelexed(token_index);
         }
 
@@ -803,7 +803,7 @@ impl Parser {
         token_window_start: usize,
         token_window_end_exclusive: usize,
     ) -> bool {
-        if self.tokens_prelexed && !self.has_active_split() {
+        if self.is_prelex_mode() && !self.has_active_split() {
             self.token_stream
                 .has_non_whitespace_side_in_window_prelexed(
                     token_window_start,

@@ -604,11 +604,44 @@ impl TokenStream {
         token_window_start: usize,
         token_window_end_exclusive: usize,
     ) -> bool {
-        debug_assert!(
-            self.is_finished,
-            "has_non_whitespace_side_in_window_prelexed requires prelexed tokens"
-        );
+        self.has_non_whitespace_side_in_window_materialized(
+            token_window_start,
+            token_window_end_exclusive,
+        )
+    }
 
+    /// Return true when a semantic token window has any non-whitespace side trivia.
+    #[inline]
+    pub fn has_non_whitespace_side_in_window(
+        &mut self,
+        token_window_start: usize,
+        token_window_end_exclusive: usize,
+    ) -> bool {
+        if self.is_finished {
+            return self.has_non_whitespace_side_in_window_materialized(
+                token_window_start,
+                token_window_end_exclusive,
+            );
+        }
+
+        if token_window_end_exclusive == 0 {
+            return false;
+        }
+
+        self.ensure_token(token_window_end_exclusive.saturating_sub(1));
+        self.has_non_whitespace_side_in_window_materialized(
+            token_window_start,
+            token_window_end_exclusive,
+        )
+    }
+
+    /// Return true when a semantic token window has any non-whitespace side trivia.
+    #[inline]
+    fn has_non_whitespace_side_in_window_materialized(
+        &self,
+        token_window_start: usize,
+        token_window_end_exclusive: usize,
+    ) -> bool {
         let token_len = self.tokens.len();
         let token_window_start = token_window_start.min(token_len);
         let token_window_end_exclusive = token_window_end_exclusive.min(token_len);
@@ -627,31 +660,6 @@ impl TokenStream {
             .copied()
             .unwrap_or(start);
         end > start
-    }
-
-    /// Return true when a semantic token window has any non-whitespace side trivia.
-    #[inline]
-    pub fn has_non_whitespace_side_in_window(
-        &mut self,
-        token_window_start: usize,
-        token_window_end_exclusive: usize,
-    ) -> bool {
-        if self.is_finished {
-            return self.has_non_whitespace_side_in_window_prelexed(
-                token_window_start,
-                token_window_end_exclusive,
-            );
-        }
-
-        if token_window_end_exclusive == 0 {
-            return false;
-        }
-
-        self.ensure_token(token_window_end_exclusive.saturating_sub(1));
-        self.has_non_whitespace_side_in_window_prelexed(
-            token_window_start,
-            token_window_end_exclusive,
-        )
     }
 
     /// Look up the next non-newline token index from a start index.

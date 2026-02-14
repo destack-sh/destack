@@ -171,7 +171,7 @@ impl Parser {
 
         // direct keyword dispatch in statement position
         if let Some(keyword) = self.keyword_for_index_maybe_fast(self.pos_index()) {
-            let next_raw_token_type = if self.tokens_prelexed && !self.has_active_split() {
+            let next_raw_token_type = if self.is_prelex_mode() && !self.has_active_split() {
                 self.peek_next_token_type_prelexed_fast()
             } else {
                 self.peek_next_token_type()
