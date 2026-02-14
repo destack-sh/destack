@@ -1,18 +1,19 @@
-# Interoperability
+# Compatibility
 
 Destack aims for full **modern TypeScript** compatibility.
-Some dynamic JavaScript features are incompatible with static ahead-of-time compilation, even when allowing for generous dynamic dispatch and RTTI.
-Thus, dynamic features that interfere with AOT compilation like dynamic imports/eval or shape modification are restricted on native targets (but still supported in JS/TS targets).
-Fortunately, most modern TS code already avoids such highly dynamic patterns as a best practice.
+Unfortunately, some dynamic JavaScript features are incompatible with static AOT compilation, even when allowing for generous dynamic dispatch and RTTI: 
+ - no dynamic imports/eval 
+ - no shape modification
+ - no prototype modification
+Fortunately, most modern TS code already avoids most of these dynamic patterns as a best practice.
 
 ## Restrictions
 
 JavaScript, as originally designed, is a highly dynamic language with dynamic everything and essentially no typing guarantees.
 Over time, like in many highly dynamic languages, much of the JavaScript community has come around to a restricted, statically typed variant of the language in "modern" TypeScript.
 
-Destack aims to enable native compilation of **modern TypeScript**.
-We deliberately consider arbitrary untyped and dynamic JavaScript to be out of scope (for analysis and lowering, we can still parse and resolve it, but still).
-There are other projects that attempt AOT compilation for full ECMAScript with varying degrees of success; in general, that use case is very well served by existing JS engines (V8, JSC) or projects that aim to leverage _some_ type information like Static Hermes.
+We consider arbitrary untyped, dynamic JavaScript to be out of scope for AOT compilation.
+There are other projects that attempt AOT compilation for full ECMAScript with varying degrees of success; in general, that use case is already well served by existing JS engines (V8, JSC) or projects that aim to leverage _some_ type information like Static Hermes.
 
 ### Exception Handling
 
@@ -34,7 +35,7 @@ try {
 try {
     throw new Error("oops")
 } catch (e) {
-    console.log("abort")  // does not execute!
+    console.log("caught")  // does not execute!
 }
 ```
 
@@ -83,7 +84,7 @@ Some of these features are already discouraged in modern TypeScript (strict mode
 
 ### Object.prototype Methods
 
-Object prototype methods that depend on a dynamic prototype chain are emulated using RTTI, comptime, or just not available if there is no obvious semantic equivalent:
+Object prototype methods that depend on a dynamic prototype chain are emulated using RTTI where possible, and just not available where not:
 
 | Method | Status | Alternative |
 |--------|--------|-------------|
@@ -167,7 +168,7 @@ config[key]              // ERROR: runtime key on static shape
 config[someVariable]     // ERROR: even if variable holds "host"
 ```
 
-For truly dynamic keys, use `Map<K, V>` or `Record<K, V>` (which aliases to Map on native).
+For truly dynamic keys, use `Map<K, V>` or `Record<K, V>` (`Record` aliases to `Map` on native).
 
 ### Choosing Between Index Signatures and Map
 
@@ -395,69 +396,4 @@ function standalone() { return this; }  // undefined
 ```ds
 fn.call(obj, arg);   // lowers to: fn(obj, arg)
 fn.bind(obj);        // lowers to: closure capturing obj as this
-```
-
-## FFI and Calling Conventions
-
-FFI uses the C ABI for interoperability with native libraries.
-
-**Calling conventions:**
-
-| Convention | Use |
-|------------|-----|
-| `Destack` | Internal ABI (can change between versions) |
-| `C` | C ABI for FFI with native libraries |
-| `System` | Platform default (Windows: stdcall, Unix: C) |
-
-**External functions** use `@extern`:
-```ds
-@extern("C")
-declare function printf(format: *uint8, ...args: unknown[]): int32;
-```
-
-Note: Variadic FFI args use `unknown[]` but are passed as raw C values per the calling convention.
-This is inherently unsafe; the compiler trusts the format string matches the argument types.
-
-**Exports** use `@export`:
-```ds
-@export("C")
-function add(a: int32, b: int32): int32 { a + b }
-```
-
-### FFI Error Handling
-
-Exceptions don't cross FFI boundaries (like Rust).
-Wrap C error codes in `Result`; for WASM/JS interop, wrap throwing JS functions on the JS side.
-
-**C function with error code:**
-```ds
-@extern("C")
-declare function open(path: *uint8, flags: int32): int32;
-
-function openFile(path: string): Result<FileHandle, Error> {
-    const fd = open(path.cstr(), O_RDONLY);
-    if (fd < 0) {
-        Result.err(Error.fromErrno(errno()))
-    } else {
-        Result.ok(FileHandle.new(fd))
-    }
-}
-```
-
-**WASM/JS interop:**
-```js
-// JS side: wrap throwing function
-export function safeFetch(url) {
-    try {
-        return { ok: true, value: fetch(url) }
-    } catch (e) {
-        return { ok: false, error: e.message }
-    }
-}
-```
-
-```ds
-// Destack side: receives Result-like object
-@extern("JS")
-declare function safeFetch(url: string): { ok: boolean, value?: Promise<Response>, error?: string };
 ```

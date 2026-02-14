@@ -53,7 +53,7 @@ Reserved binding diagnostics belong in analysis, not parse errors, so parser sui
 
 ## Support Boundaries
 
-Conformance expectations follow `language/INTEROPERABILITY.md`.
+Conformance expectations follow `language/COMPATIBILITY.md`.
 All files parse as strict modules and script mode is out of scope.
 TypeScript syntax is rejected in `.js` and `.jsx` by default.
 JSDoc typing and `@ts-check` semantics are out of scope.

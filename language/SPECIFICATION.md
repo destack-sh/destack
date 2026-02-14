@@ -7,7 +7,7 @@
 > Unless otherwise specified, we follow TypeScript semantics.
 
 See [DESIGN](DESIGN.md) for the high-level design principles and objectives.
-See [INTEROPERABILITY](INTEROPERABILITY.md) for the full file type matrix and exclusions.
+See [COMPATIBILITY](COMPATIBILITY.md) for the full file type matrix and exclusions.
 
 ## Literals
 
