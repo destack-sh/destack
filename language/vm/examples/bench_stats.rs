@@ -159,7 +159,10 @@ fn main() {
 
     // run validation mode
     if args.validate {
-        program::quick_check(filter, tags);
+        let is_ok = program::quick_check(filter, tags);
+        if !is_ok {
+            std::process::exit(1);
+        }
     }
     // otherwise show stats
     else if args.stats {

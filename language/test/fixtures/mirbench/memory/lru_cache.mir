@@ -65,9 +65,9 @@ block7:
 block8(v51: i64, v52: i64, v53: i64, v54: i64, v55: i64, v56: i64, v57: ref<managed i64>, v58: ref<managed i64>, v59: i64):
     v60: ref<borrowed i64> = element.addr v58, v51
     v61: i64 = load v60
-    v62: i64 = iadd v55, v61
-    store v60, v56
-    jump block12(v56, v52, v62, v56, v57, v58, v59)
+    v62: i64 = iadd v54, v61
+    store v60, v55
+    jump block12(v56, v52, v62, v55, v57, v58, v59)
 
 // scan advance
 block9:
@@ -84,7 +84,7 @@ block10(v65: i64, v66: i64, v67: i64, v68: i64, v69: i64, v70: ref<managed i64>,
 block11(v74: i64, v75: i64, v76: i64, v77: i64, v78: i64, v79: ref<managed i64>, v80: ref<managed i64>, v81: i64):
     v82: i64 = iconst 1i64
     v83: i64 = iadd v76, v82
-    jump block15(v76, v75, v83, v77, v74, v77, v79, v80, v81)
+    jump block15(v76, v75, v83, v78, v74, v77, v79, v80, v81)
 
 // init eviction search
 block13(v84: i64, v85: i64, v86: i64, v87: i64, v88: i64, v89: ref<managed i64>, v90: ref<managed i64>, v91: i64):
@@ -97,7 +97,7 @@ block13(v84: i64, v85: i64, v86: i64, v87: i64, v88: i64, v89: ref<managed i64>,
 // eviction scan condition
 block14(v96: i64, v97: i64, v98: i64, v99: i64, v100: i64, v101: i64, v102: i64, v103: i64, v104: ref<managed i64>, v105: ref<managed i64>, v106: i64):
     v107: bool = icmp_sge v96, v106
-    branch v107, block15(v97, v100, v101, v102, v99, v102, v104, v105, v106), block16
+    branch v107, block15(v97, v100, v101, v103, v99, v102, v104, v105, v106), block16
 
 // compare age
 block16:
