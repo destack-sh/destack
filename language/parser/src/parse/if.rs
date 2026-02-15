@@ -172,8 +172,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, BinaryOperator, Block, Comment, CommentStyle, Declarator,
-        Expression, IfCondition, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
+        Annotation, AnnotationPosition, BinaryOperator, Block, Comment, CommentStyle, Declaration,
+        Declarator, Expression, FunctionKind, IfCondition, LetKind, Mutability, Pattern,
+        PatternField, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -619,6 +620,52 @@ else
                         assert_eq!(expressions.len(), 1);
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_else_with_typed_parenthesized_arrow_statement_typescript() {
+        let mut test = TestParser::new_with_options(
+            r###"
+if (payments) res.status(200).json({ payments });
+else
+  (error: Error) =>
+    res.status(404).json({
+      message: "No Payments were found",
+      error,
+    });
+"###,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { else_expression, .. } => {
+            let else_expression_id = else_expression.expect("expected else expression");
+            assert_node!(parser.tree, else_expression_id, Expression::Block(block_id) => {
+                let block = parser.tree.get(*block_id);
+                assert_eq!(block.expressions.len(), 1);
+
+                let else_item = block.expressions[0];
+                match parser.tree.get(else_item) {
+                    Expression::Declaration(declaration_id) => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                            assert_eq!(signature.kind, FunctionKind::Lambda);
+                            assert_eq!(signature.dynamic_parameters.len(), 1);
+                        });
+                    }
+                    Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                                assert_eq!(signature.dynamic_parameters.len(), 1);
+                            });
+                        });
+                    }
+                    _ => panic!("expected lambda declaration in else branch"),
+                }
             });
         });
     }

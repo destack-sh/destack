@@ -872,6 +872,7 @@ impl Parser {
                     .not_in_decorator()
                     .with_generator(is_generator);
                 options.allow_sequence_expression = true;
+                options.forbid_await = options.forbid_await && !is_async;
                 let body_start = self.mark_span();
                 let block_id = self.with_options(options, |parser| parser.eat_block())?;
                 let body = self
@@ -900,6 +901,7 @@ impl Parser {
                         .with_generator(is_generator);
                     // block bodies are delimited, so sequence expressions stay local
                     options.allow_sequence_expression = true;
+                    options.forbid_await = options.forbid_await && !is_async;
                     let block_id = self.with_options(options, |parser| parser.eat_block())?;
                     self.tree
                         .insert(Expression::Block(block_id), self.get_span_from(&body_start))
@@ -912,6 +914,7 @@ impl Parser {
                         .with_generator(is_generator);
                     // avoid swallowing commas from surrounding contexts
                     options.allow_sequence_expression = false;
+                    options.forbid_await = options.forbid_await && !is_async;
                     self.eat_expression(options)?
                 };
                 lambda_body_cursor = Some((

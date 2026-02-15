@@ -302,6 +302,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_variant=false`.
+    #[inline]
+    pub(crate) fn not_in_variant(self) -> Self {
+        Self {
+            in_variant: false,
+            ..self
+        }
+    }
+
     /// Set `in_before_type=true`.
     #[inline]
     pub(crate) fn in_before_type(self) -> Self {

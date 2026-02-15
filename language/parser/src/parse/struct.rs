@@ -380,6 +380,47 @@ class Counter extends {}
     }
 
     #[test]
+    fn test_parse_class_member_method_parameter_type_then_default_value_typescript() {
+        let mut test = TestParser::new_with_options(
+            r#"class LicensingStore {
+  usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {
+    return userCount >= userLimit
+  }
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let class_id = parser
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
+            .unwrap();
+
+        // parse one class method that mixes typed and defaulted parameters
+        assert_node!(parser.tree, class_id, Declaration::Class { members, .. } => {
+            assert_eq!(members.len(), 1);
+
+            // usersLimitReached(userCount: number, userLimit = get(this.store).userLimit)
+            assert_node!(parser.tree, members[0], Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(_), .. } => {
+                assert_string!(parser, *name, "usersLimitReached");
+                assert_eq!(signature.dynamic_parameters.len(), 2);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), default, .. } => {
+                    assert_string!(parser, *name, "userCount");
+                    assert!(default.is_none());
+                    assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+                });
+                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, ty, default: Some(_), .. } => {
+                    assert_string!(parser, *name, "userLimit");
+                    assert!(ty.is_none());
+                });
+            });
+        });
+
+        // parsing this class should not emit recovery diagnostics
+        assert!(parser.errors.is_empty());
+    }
+
+    #[test]
     fn test_parse_class_superclass_boundary_comment_on_super_type() {
         let mut test = TestParser::new_with_options(
             r"class Child extends Base // extends-tail

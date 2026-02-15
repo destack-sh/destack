@@ -1,6 +1,6 @@
 use destack_ast::{
-    Block, BlockFormat, Expression, Keyword, LetKind, LocalNodeId, NodeType, TokenType,
-    YieldCardinality,
+    Block, BlockFormat, Declaration, Expression, FunctionKind, Keyword, LetKind, LocalNodeId,
+    NodeType, TokenType, YieldCardinality,
 };
 
 use super::annotation::PendingDecorators;
@@ -342,8 +342,12 @@ impl Parser {
 
         // detect declaration expressions that are invalid in single statement contexts
         match self.tree.get(current) {
-            Expression::Declaration(_)
-            | Expression::Using { .. }
+            Expression::Declaration(declaration_id) => !matches!(
+                self.tree.get(*declaration_id),
+                Declaration::Function { signature, .. }
+                    if signature.kind == FunctionKind::Lambda
+            ),
+            Expression::Using { .. }
             | Expression::Import { .. }
             | Expression::Export { .. }
             | Expression::ExportNamespace { .. } => true,
@@ -1462,6 +1466,50 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_block_statement_before_close_brace_without_semicolon_javascript() {
+        let mut test = TestParser::new_with_options("{ process.exit(1)}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let block_id = parser.eat_block().unwrap();
+        let block = parser.tree.get(block_id);
+
+        // block should contain one statement expression
+        assert_eq!(block.expressions.len(), 1);
+        assert_node!(parser.tree, block.expressions[0], Expression::Call { .. });
+    }
+
+    #[test]
+    fn test_parse_javascript_block_sequence_statement_with_newlines_after_commas() {
+        let mut test = TestParser::new_with_options(
+            r#"{
+  callA(),
+  callB(),
+  callC()
+}"#,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let block_id = parser.eat_block().unwrap();
+        let block = parser.tree.get(block_id);
+
+        // block should contain one statement expression
+        assert_eq!(block.expressions.len(), 1);
+
+        // statement should wrap one sequence expression
+        assert_node!(parser.tree, block.expressions[0], Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 3);
+            assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "callA");
+            });
+            assert_node!(parser.tree, expressions[1], Expression::Call { left, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "callB");
+            });
+            assert_node!(parser.tree, expressions[2], Expression::Call { left, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "callC");
+            });
+        });
+    }
+
+    #[test]
     fn test_return_no_value_before_close_brace() {
         let mut test = TestParser::new("return }");
         let mut parser = test.prepare();
@@ -1629,5 +1677,4 @@ mod tests {
             });
         });
     }
-
 }

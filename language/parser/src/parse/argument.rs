@@ -511,7 +511,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
 
                 // value
-                let value_options = if self.options.in_static {
+                let mut value_options = if self.options.in_static {
                     self.options
                         .not_in_position()
                         .not_in_sequence_expression()
@@ -525,6 +525,9 @@ impl Parser {
                         .without_expression_leading_annotations()
                         .forbid_await()
                 };
+
+                // parameter defaults are value expressions, even in class or variant scopes
+                value_options.in_variant = false;
                 let value = self
                     .eat_expression(value_options)
                     .for_node_type(NodeType::Parameter)?;
@@ -1676,9 +1679,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, BindingKind, BindingOperator, Decorator, Expression, IfKind,
-        IntType, Mutability, Name, Parameter, Pattern, PatternField, ScalarLiteral, Timing,
-        TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
+        Argument, Asynchrony, BinaryOperator, BindingKind, BindingOperator, Declaration, Decorator,
+        Expression, IfKind, IntType, Mutability, Name, Parameter, Pattern, PatternField,
+        ScalarLiteral, Timing, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1739,6 +1742,35 @@ mod tests {
             assert_string!(parser, *name, "validate");
             assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
             assert!(default.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_default_async_lambda_with_await_body_typescript() {
+        let mut test = TestParser::new_with_options(
+            "loadFonts: () => Promise<void> = async () => { await Fonts.loadElementsFonts(elements); }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+
+        // parameter default should parse as an async lambda value
+        assert_node!(parser.tree, parameter_id, Parameter::Named { name, ty: Some(_), default: Some(default), .. } => {
+            assert_string!(parser, *name, "loadFonts");
+            assert_node!(parser.tree, *default, Expression::Declaration(default_declaration_id) => {
+                assert_node!(parser.tree, *default_declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                    assert_eq!(signature.asynchrony, Asynchrony::Async);
+                    assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                        let block = parser.tree.get(*block_id);
+                        assert_eq!(block.expressions.len(), 1);
+                        assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                            assert_node!(parser.tree, *statement_id, Expression::Await { expression } => {
+                                assert_node!(parser.tree, *expression, Expression::Call { .. });
+                            });
+                        });
+                    });
+                });
+            });
         });
     }
 

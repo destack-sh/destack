@@ -331,6 +331,7 @@ impl Parser {
             let static_parameters = self.eat_static_parameters_maybe(false)?;
 
             // dynamic parameters
+            self.eat_newlines_maybe()?;
             let parameter_options = self
                 .options
                 .with_generator(is_generator)
@@ -342,9 +343,13 @@ impl Parser {
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
             // return type
-            let (return_type, return_type_span) = if self.peek_colon_is() {
+            let has_return_type_marker = self.peek_colon_is()
+                || self.peek_is(TokenType::Newline)
+                    && self.is_token_after_newlines(self.pos(), TokenType::Colon);
+            let (return_type, return_type_span) = if has_return_type_marker {
                 let type_start = self.mark_span();
-                self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
+                self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
                 let return_type_cursor = self.normalize_to_scanner_cursor();
                 let return_type = self.eat_expression(
@@ -382,12 +387,13 @@ impl Parser {
                 }
 
                 self.eat_newlines_maybe()?;
-                let options = self
+                let mut options = self
                     .options
                     .not_in_position()
                     .in_statement_position()
                     .not_in_decorator()
                     .with_generator(is_generator);
+                options.allow_sequence_expression = true;
                 Some(self.eat_expression(options)?)
             } else {
                 if let Some(return_type_id) = return_type {
@@ -990,6 +996,9 @@ impl Parser {
             // static parameters
             let static_parameters = self.eat_static_parameters_maybe(false)?;
 
+            // allow line breaks before the parameter list
+            self.eat_newlines_maybe()?;
+
             // dynamic parameters
             let parameter_options = self
                 .options
@@ -1002,9 +1011,13 @@ impl Parser {
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
             // return type
-            let (return_type, return_type_span) = if self.peek_colon_is() {
+            let has_return_type_marker = self.peek_colon_is()
+                || self.peek_is(TokenType::Newline)
+                    && self.is_token_after_newlines(self.pos(), TokenType::Colon);
+            let (return_type, return_type_span) = if has_return_type_marker {
                 let type_start = self.mark_span();
-                self.bump(); // eat colon
+                self.eat_newlines_maybe()?;
+                self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
                 let return_type_cursor = self.normalize_to_scanner_cursor();
                 let return_type = self.eat_expression(
@@ -1042,12 +1055,13 @@ impl Parser {
                 }
 
                 self.eat_newlines_maybe()?;
-                let options = self
+                let mut options = self
                     .options
                     .not_in_position()
                     .in_statement_position()
                     .not_in_decorator()
                     .with_generator(is_generator);
+                options.allow_sequence_expression = true;
                 Some(self.eat_expression(options)?)
             } else {
                 if let Some(return_type_id) = return_type {
@@ -1406,6 +1420,106 @@ port2 = {
             assert_string!(parser, *name, "foo");
             assert_eq!(signature.abstraction, FunctionAbstraction::ConcreteOverride);
             assert_eq!(signature.asynchrony, Asynchrony::Async);
+        });
+    }
+
+    #[test]
+    fn test_parse_member_method_parameter_type_then_default_value_typescript() {
+        let mut test = TestParser::new_with_options(
+            "usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+
+        // parse one method where a typed parameter is followed by a defaulted parameter
+        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(_), .. } => {
+            assert_string!(parser, *name, "usersLimitReached");
+            assert_eq!(signature.dynamic_parameters.len(), 2);
+
+            // first parameter: userCount: number
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), default, .. } => {
+                assert_string!(parser, *name, "userCount");
+                assert!(default.is_none());
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+            });
+
+            // second parameter: userLimit = get(this.store).userLimit
+            assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, ty, default: Some(default), .. } => {
+                assert_string!(parser, *name, "userLimit");
+                assert!(ty.is_none());
+                assert_node!(parser.tree, *default, Expression::Member { name, .. } => {
+                    assert_string!(parser, *name, "userLimit");
+                });
+            });
+        });
+
+        // parsing this signature should not emit recovery diagnostics
+        assert!(parser.errors.is_empty());
+    }
+
+    #[test]
+    fn test_parse_member_method_generic_with_newline_before_parameters_typescript() {
+        let mut test = TestParser::new_with_options(
+            "private method<T>\n(value: T): T { return value }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+
+        // parse one method with a generic parameter and a newline before dynamic parameters
+        assert_node!(parser.tree, member, Member::Method { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(body) } => {
+            assert_eq!(modifiers.visibility, Some(Visibility::Private));
+            assert_string!(parser, *name, "method");
+
+            // parse the generic, dynamic parameter, and return type as one coherent signature
+            let generics = signature.generics.as_ref().expect("expected generics");
+            let static_parameters = generics
+                .static_parameters
+                .as_ref()
+                .expect("expected static parameters");
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, .. } => {
+                assert_string!(parser, *name, "T");
+            });
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "value");
+                assert_expression_path!(parser, parser.tree.get(*ty), "T");
+            });
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "T");
+
+            // keep a method body attached after the multiline signature
+            assert_node!(parser.tree, *body, Expression::Block(_));
+        });
+    }
+
+    #[test]
+    fn test_parse_member_method_with_newline_before_return_type_typescript() {
+        let mut test = TestParser::new_with_options(
+            "method(value: string)\n: string { return value }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+
+        // parse one method with a newline before return type marker
+        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(body), .. } => {
+            assert_string!(parser, *name, "method");
+
+            // keep the dynamic parameter and return type attached to the same method signature
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "value");
+                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
+            });
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::TypeLiteral(TypeLiteral::String));
+
+            // keep a method body attached after the multiline return type annotation
+            assert_node!(parser.tree, *body, Expression::Block(_));
         });
     }
 

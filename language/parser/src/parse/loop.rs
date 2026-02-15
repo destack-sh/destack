@@ -893,6 +893,38 @@ for (start = 0, end = 10; start < end; start++, end--) {}
         });
     }
 
+    /// Parse JavaScript for of loops with `type` as an identifier binding.
+    #[test]
+    fn test_parse_for_of_with_type_identifier_binding_javascript() {
+        let mut test = TestParser::new_with_options(
+            r###"
+for (type of values) {}
+"###,
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding, kind, iterator, .. } => {
+            // for of
+            assert_eq!(*kind, ForEachKind::Of);
+
+            // binding
+            assert!(matches!(binding, ForEachBinding::Pattern { .. }));
+            let ForEachBinding::Pattern { pattern, declaration_kind } = binding else {
+                panic!("expected for each pattern binding");
+            };
+            assert!(declaration_kind.is_none());
+            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "type");
+            });
+
+            // iterator
+            assert_expression_path!(parser, parser.tree.get(*iterator), "values");
+        });
+    }
+
     #[test]
     fn test_parse_while_loop() {
         let mut test = TestParser::new(

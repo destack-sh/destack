@@ -5540,6 +5540,38 @@ fn test_parse_sequence_expression_in_lambda_block_body() {
     });
 }
 
+/// Parse sequence expression statements inside object literal method bodies in JavaScript.
+#[test]
+fn test_parse_javascript_object_method_body_sequence_expression_statement() {
+    let options = LanguageType::JavaScript;
+    let mut test = TestParser::new_with_options(
+        "objectType({ definition (t) { t.callA(), t.callB(), t.callC() } })",
+        options,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // objectType({ definition(t) { ... } })
+    assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value: object_id, .. } => {
+            assert_node!(parser.tree, *object_id, Expression::ObjectExpression { properties, .. } => {
+                assert_eq!(properties.len(), 1);
+                assert_node!(parser.tree, properties[0], Property::Method { body, .. } => {
+                    let body = body.expect("expected method body");
+                    assert_node!(parser.tree, body, Expression::Block(block_id) => {
+                        let block = parser.tree.get(*block_id);
+                        assert_eq!(block.expressions.len(), 1);
+                        assert_node!(parser.tree, block.expressions[0], Expression::SequenceExpression { expressions } => {
+                            assert_eq!(expressions.len(), 3);
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
 #[test]
 fn test_parse_sequence_expression_with_ternary_tail() {
     let options = LanguageType::TypeScript;

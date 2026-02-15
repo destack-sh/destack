@@ -186,8 +186,7 @@ impl Parser {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::CloseParenthesis
-                || token.token.ty == TokenType::CloseBracket
-                || token.token.ty == TokenType::CloseBrace)
+                || token.token.ty == TokenType::CloseBracket)
         {
             Ok(token)
         } else {
@@ -201,8 +200,7 @@ impl Parser {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek_next()
             && (token.token.ty == TokenType::CloseParenthesis
-                || token.token.ty == TokenType::CloseBracket
-                || token.token.ty == TokenType::CloseBrace)
+                || token.token.ty == TokenType::CloseBracket)
         {
             Ok(token)
         } else {
