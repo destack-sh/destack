@@ -23,7 +23,6 @@ pub enum ElaborateTask {
 
     /// Semantic transforms: simplify control flow and syntax.
     /// - Pattern matching → decision trees
-    /// - Range expressions → iterator construction
     /// - Maybe/Must → explicit error handling
     #[task(code = 2, trace = "module={module} profile={profile}")]
     ElaborateModuleTransform {

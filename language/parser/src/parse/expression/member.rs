@@ -1,20 +1,17 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use destack_ast::{Expression, Keyword, LiteralType, LocalNodeId, TokenType};
+use destack_ast::{Expression, Keyword, LiteralType, LocalNodeId, NumberBase, TokenType};
 use destack_base::StringId;
 
 impl Parser {
-    /// Return true when a decimal integer uses member access without a separator.
+    /// Return true when an expression is a decimal integer token directly before `.`.
     #[inline]
-    pub(super) fn invalid_decimal_integer_member_access(
+    pub(super) fn expression_is_decimal_integer_before_dot(
         &mut self,
         left_expression_id: LocalNodeId<Expression>,
-        distance: u8,
+        dot_index: usize,
     ) -> bool {
-        if distance != 2 {
-            return false;
-        }
-
+        // only integer scalar literals can use decimal separators for member access
         if !matches!(
             self.tree.get(left_expression_id),
             Expression::ScalarLiteral(destack_ast::ScalarLiteral::Integer(_))
@@ -22,29 +19,51 @@ impl Parser {
             return false;
         }
 
+        // the candidate must be a dot token adjacent to the literal span
         let left_span = self.tree.get_span(left_expression_id);
-        let Some(dot_token) = self.prev().copied() else {
+        let Some(dot_token) = self.token_ref_at(dot_index).copied() else {
             return false;
         };
-        if dot_token.token.ty != TokenType::Dot {
-            return false;
-        }
-        if left_span.end != dot_token.span.start {
+        if dot_token.token.ty != TokenType::Dot || left_span.end != dot_token.span.start {
             return false;
         }
 
-        let literal = self.file.span_str(left_span);
-        let is_non_decimal_prefix = literal.starts_with("0x")
-            || literal.starts_with("0X")
-            || literal.starts_with("0o")
-            || literal.starts_with("0O")
-            || literal.starts_with("0b")
-            || literal.starts_with("0B");
-        if is_non_decimal_prefix {
+        // the left expression must map to one decimal integer literal token
+        let Some(literal_index) = dot_index.checked_sub(1) else {
+            return false;
+        };
+        let Some(literal_token) = self.token_ref_at(literal_index).copied() else {
+            return false;
+        };
+        if literal_token.span != left_span || literal_token.token.ty != TokenType::Literal {
             return false;
         }
 
-        true
+        matches!(
+            literal_token.token.literal,
+            Some(LiteralType::Int {
+                base: NumberBase::Decimal,
+                is_bigint: false,
+                ..
+            })
+        )
+    }
+
+    /// Return true when a decimal integer uses member access without a separator.
+    #[inline]
+    pub(super) fn invalid_decimal_integer_member_access(
+        &mut self,
+        left_expression_id: LocalNodeId<Expression>,
+        distance: u8,
+    ) -> bool {
+        // only direct `.name` member access needs the separator rule
+        if distance != 2 {
+            return false;
+        }
+
+        // reject direct member access when the receiver is a decimal integer
+        let dot_index = self.pos_index().saturating_sub(1);
+        self.expression_is_decimal_integer_before_dot(left_expression_id, dot_index)
     }
 
     /// Eat a static member name and return both the name and its span.

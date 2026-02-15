@@ -15,7 +15,6 @@ impl Compiler {
     /// - Implicit conversions → explicit cast nodes.
     /// - Operators → resolved method calls (`a + b` → `a.add(b)`).
     /// - Tree literals → constructor/function calls (`<div>` → `createElement(div, ...)`).
-    /// - Range expressions → core range struct literals.
     /// - Nominal constructor calls → tagged expressions.
     pub(crate) fn elaborate_module_reify(
         &self,

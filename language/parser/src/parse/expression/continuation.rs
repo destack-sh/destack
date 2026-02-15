@@ -120,7 +120,7 @@ impl Parser {
                     );
                 }
                 let dot_member_target = if token_type == TokenType::Dot {
-                    self.peek_dot_member_target(cursor_index)
+                    self.peek_dot_member_target(cursor_index, left_expression_id)
                 } else {
                     None
                 };
@@ -965,7 +965,11 @@ impl Parser {
     }
 
     /// Return a valid dot-member target after `.` from a scanner cursor index.
-    fn peek_dot_member_target(&mut self, dot_index: usize) -> Option<(usize, bool)> {
+    fn peek_dot_member_target(
+        &mut self,
+        dot_index: usize,
+        left_expression_id: LocalNodeId<Expression>,
+    ) -> Option<(usize, bool)> {
         let member_index = self.next_non_newline_index_from(dot_index.saturating_add(1));
         let member_token_type = self.token_type_at(member_index);
 
@@ -975,23 +979,49 @@ impl Parser {
             let has_identifier = self.token_type_at(identifier_index) == TokenType::Identifier;
             let has_adjacent_hash_identifier =
                 has_identifier && self.tokens_are_adjacent(member_index, identifier_index);
+
             if has_adjacent_hash_identifier {
                 return Some((member_index, true));
             }
+
             return None;
         }
 
         // static member: .name or .true / .false
-        let is_member_name = member_token_type == TokenType::Identifier
-            || member_token_type == TokenType::Literal
-                && self.token_ref_at(member_index).is_some_and(|token| {
-                    matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
-                });
-        if is_member_name {
+        if self.token_is_static_member_name(member_index) {
             return Some((member_index, false));
         }
 
+        // decimal member separator: 0..a and 123..a
+        let has_decimal_separator = member_token_type == TokenType::Dot
+            && self.tokens_are_adjacent(dot_index, member_index)
+            && self.expression_is_decimal_integer_before_dot(left_expression_id, dot_index);
+
+        // parse second-dot member target when the receiver is a decimal integer literal
+        if has_decimal_separator {
+            let separated_member_index =
+                self.next_non_newline_index_from(member_index.saturating_add(1));
+            if self.token_is_static_member_name(separated_member_index) {
+                return Some((separated_member_index, false));
+            }
+        }
+
         None
+    }
+
+    /// Return true when a token index holds a valid static member name.
+    #[inline]
+    fn token_is_static_member_name(&mut self, token_index: usize) -> bool {
+        let token_type = self.token_type_at(token_index);
+
+        if token_type == TokenType::Identifier {
+            return true;
+        }
+
+        token_type == TokenType::Literal
+            && self.token_ref_at(token_index).is_some_and(|token| {
+                matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
+            })
     }
 
     /// Check whether the current token sequence can start postfix static arguments.
