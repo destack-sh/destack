@@ -2,7 +2,7 @@
     "name": "destack",
     "displayName": "Destack",
     "description": "Destack for VSCode (.ds, .d.ds, .mir)",
-    "version": "0.55.0",
+    "version": "0.55.1",
     "license": "MIT",
     "engines": {
         "vscode": "^1.90.0"
