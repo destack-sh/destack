@@ -164,6 +164,20 @@ declare namespace Runtime {}
 var Runtime = 1;
 ```
 
+### type only namespace declarations can coexist with runtime values
+
+> TypeScript allows namespaces with only type members to share names with runtime value declarations.
+
+```ts:main.ts
+interface Runtime {}
+
+namespace Runtime {
+    export type Inner = string;
+}
+
+const Runtime = 1;
+```
+
 ### ambient class and value declarations conflict
 
 > TypeScript declaration files reject ambient class and value declarations with one name.
