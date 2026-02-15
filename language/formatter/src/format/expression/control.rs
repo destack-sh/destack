@@ -1,11 +1,7 @@
 use super::*;
-use crate::annotation::{
-    annotation_should_defer, if_head_boundary_annotations, if_then_else_boundary_annotations,
-};
 use crate::r#match::{MatchCaseStyle, format_match_case_with_style};
 use destack_ast::BlockFormat;
 use destack_fir::{format_args, write};
-use destack_source::Span;
 
 /// Format a statement body block, preserving wrapper semantics.
 pub(super) fn format_statement_body_block<'ast>(
@@ -155,7 +151,7 @@ fn expression_has_line_prefix_annotation(
     })
 }
 
-/// Return whether expression has any prefix annotation that is not deferred away.
+/// Return whether expression has any prefix annotation.
 fn expression_has_effective_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -165,16 +161,10 @@ fn expression_has_effective_prefix_annotation(
     };
 
     annotations.into_iter().any(|annotation_id| {
-        let position = context.tree.get::<Annotation>(annotation_id).position();
-        let is_prefix = matches!(
-            position,
+        matches!(
+            context.tree.get::<Annotation>(annotation_id).position(),
             AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-        );
-        if !is_prefix {
-            return false;
-        }
-
-        !annotation_should_defer(context, expression_id, annotation_id, position)
+        )
     })
 }
 
@@ -197,98 +187,6 @@ fn if_branch_head_requires_space(
     }
 
     !then_is_empty_statement
-}
-
-/// Return whether annotation is a slash comment.
-fn annotation_is_slash_comment(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
-        return false;
-    };
-
-    let comment = context.tree.get::<destack_ast::Comment>(*node);
-    comment.style == destack_ast::CommentStyle::Slash
-}
-
-/// Return whether an annotation starts on its own source line.
-fn annotation_starts_on_own_line(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let annotation_span = context.get_span::<Annotation>(annotation_id);
-    let head_span = Span::new(annotation_span.file, 0, annotation_span.start);
-    let head_source = context.file.get_span_str(head_span).unwrap_or_default();
-    let line_start = head_source.rfind('\n').map_or(0, |index| index + 1);
-    head_source[line_start..].trim().is_empty()
-}
-
-/// Write deferred if boundary annotations with stable separator spacing.
-fn write_deferred_if_boundary_annotation_cluster<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    annotation_ids: &[LocalNodeId<Annotation>],
-) -> FormatResult<()> {
-    if annotation_ids.is_empty() {
-        return Ok(());
-    }
-
-    let mut previous_was_slash = false;
-    for (index, annotation_id) in annotation_ids.iter().copied().enumerate() {
-        let is_slash = annotation_is_slash_comment(f.context(), annotation_id);
-        let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id);
-
-        // separate each deferred boundary annotation with stable seam spacing
-        if starts_on_own_line {
-            write!(f, [hard_line_break()])?;
-        } else if index == 0 || !previous_was_slash {
-            write!(f, [space()])?;
-        }
-
-        let annotation_span = f.context().get_span::<Annotation>(annotation_id);
-        let annotation_source = f.context().get_span_str(annotation_span);
-        write!(f, [text(annotation_source.trim())])?;
-        if is_slash {
-            write!(f, [hard_line_break()])?;
-        }
-        previous_was_slash = is_slash;
-    }
-
-    if !previous_was_slash {
-        write!(f, [space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write deferred boundary annotations between if head and then body.
-fn write_deferred_if_head_boundary_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    if_id: LocalNodeId<Expression>,
-) -> FormatResult<bool> {
-    let annotation_ids = if_head_boundary_annotations(f.context(), if_id);
-    if annotation_ids.is_empty() {
-        return Ok(false);
-    }
-
-    write_deferred_if_boundary_annotation_cluster(f, annotation_ids.as_slice())?;
-    Ok(true)
-}
-
-/// Write deferred boundary annotations between then body and else branch.
-fn write_deferred_if_then_else_boundary_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    if_id: LocalNodeId<Expression>,
-    then_id: LocalNodeId<Expression>,
-    else_id: LocalNodeId<Expression>,
-) -> FormatResult<bool> {
-    let annotation_ids = if_then_else_boundary_annotations(f.context(), if_id, then_id, else_id);
-    if annotation_ids.is_empty() {
-        return Ok(false);
-    }
-
-    write_deferred_if_boundary_annotation_cluster(f, annotation_ids.as_slice())?;
-    Ok(true)
 }
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
@@ -335,12 +233,8 @@ pub(crate) fn format_if_else_chain<'ast>(
                     }
                 }
 
-                // write deferred boundary annotations between the condition head and body
-                let wrote_deferred_head_boundary_annotations =
-                    write_deferred_if_head_boundary_annotations(f, next_if_id)?;
-
-                // insert canonical spacing before the then expression when no deferred boundary exists
-                if then_requires_head_space && !wrote_deferred_head_boundary_annotations {
+                // insert canonical spacing before the then expression
+                if then_requires_head_space {
                     write!(f, [space()])?;
                 }
 
@@ -349,21 +243,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                 match then_expression {
                     Expression::Block(block_id) => {
                         write!(f, [f.context().any_prefix_annotations(*then_expression_id)])?;
-                        let should_indent_statement_wrapper_after_head_boundary =
-                            wrote_deferred_head_boundary_annotations
-                                && is_statement_wrapper_block(f.context(), *block_id);
-                        if should_indent_statement_wrapper_after_head_boundary {
-                            write!(
-                                f,
-                                [group(&format_args![block_indent(&format_with(
-                                    |f: &mut DestackFormatter<'ast, '_>| {
-                                        format_statement_body_block(f, *block_id)
-                                    }
-                                )),])]
-                            )?;
-                        } else {
-                            format_statement_body_block(f, *block_id)?;
-                        }
+                        format_statement_body_block(f, *block_id)?;
                         write!(
                             f,
                             [f.context()
@@ -381,21 +261,10 @@ pub(crate) fn format_if_else_chain<'ast>(
 
                 // next node
                 if let Some(else_expression) = else_expression_id {
-                    // write deferred boundary annotations between then and else
-                    let wrote_deferred_then_else_boundary_annotations =
-                        write_deferred_if_then_else_boundary_annotations(
-                            f,
-                            next_if_id,
-                            *then_expression_id,
-                            *else_expression,
-                        )?;
-
-                    // keep compact spacing when no deferred boundary annotations or else prefixes force layout
+                    // keep compact spacing when else prefixes do not force layout
                     let else_has_effective_prefix_annotation =
                         expression_has_effective_prefix_annotation(f.context(), *else_expression);
-                    if !wrote_deferred_then_else_boundary_annotations
-                        && !else_has_effective_prefix_annotation
-                    {
+                    if !else_has_effective_prefix_annotation {
                         write!(f, [space()])?;
                     }
                     match f.context().tree.get(*else_expression) {

@@ -82,7 +82,7 @@ impl Parser {
             return Ok(());
         }
 
-        let _cursor = self.normalize_to_scanner_cursor();
+        self.sync_to_scanner_cursor();
 
         Ok(())
     }

@@ -137,69 +137,6 @@ fn write_space_after_binary_left_if_needed<'ast>(
     write!(f, [space()])
 }
 
-/// Collect right operand prefix comment or doc annotations that belong to one type seam.
-fn collect_type_operand_right_seam_prefix_annotation_ids(
-    context: &DestackFormatContext<'_>,
-    left: LocalNodeId<Expression>,
-    right: LocalNodeId<Expression>,
-) -> Option<Vec<LocalNodeId<Annotation>>> {
-    let Some(annotation_ids) = context.get_annotations(right) else {
-        return None;
-    };
-
-    let left_span = context.get_span(left);
-    let right_span = context.get_span(right);
-    let mut seam_annotation_ids = Vec::new();
-
-    for annotation_id in annotation_ids {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        let is_prefix = matches!(
-            annotation.position(),
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-        );
-        if !is_prefix {
-            continue;
-        }
-
-        if !matches!(
-            annotation,
-            Annotation::Comment { .. } | Annotation::Doc { .. }
-        ) {
-            return None;
-        }
-
-        let annotation_span = context.get_span::<Annotation>(annotation_id);
-        let is_seam_prefix =
-            annotation_span.start >= left_span.end && annotation_span.end <= right_span.start;
-        if !is_seam_prefix {
-            return None;
-        }
-
-        seam_annotation_ids.push(annotation_id);
-    }
-
-    if seam_annotation_ids.is_empty() {
-        return None;
-    }
-
-    seam_annotation_ids.sort_by_key(|annotation_id| {
-        let span = context.get_span::<Annotation>(*annotation_id);
-        (span.start, span.end, annotation_id.id)
-    });
-
-    Some(seam_annotation_ids)
-}
-
-/// Write one annotation node by id.
-#[inline]
-fn write_annotation_by_id<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> FormatResult<()> {
-    let annotation = f.context().tree.get::<Annotation>(annotation_id);
-    annotation.format_node(annotation_id, f)
-}
-
 /// Return whether type binary operands contain any slash-style comments.
 fn type_binary_operands_have_slash_comments(
     context: &DestackFormatContext<'_>,
@@ -459,72 +396,6 @@ struct LeadingPipeUnionLayoutPolicy {
     prefer_space_before_first_pipe: bool,
 }
 
-/// Return prefix annotation ids for one expression in source order.
-fn expression_prefix_annotation_ids(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Vec<LocalNodeId<Annotation>> {
-    let Some(annotation_ids) = context.get_annotations(expression_id) else {
-        return Vec::new();
-    };
-
-    annotation_ids
-        .into_iter()
-        .filter(|annotation_id| {
-            matches!(
-                context.tree.get::<Annotation>(*annotation_id).position(),
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            )
-        })
-        .collect()
-}
-
-/// Return whether seam annotation ids cover all current operand prefix annotations.
-fn seam_annotations_cover_operand_prefix_annotations(
-    context: &DestackFormatContext<'_>,
-    seam_annotation_ids: &[LocalNodeId<Annotation>],
-    operand_expression: LocalNodeId<Expression>,
-) -> bool {
-    let prefix_annotation_ids = expression_prefix_annotation_ids(context, operand_expression);
-    prefix_annotation_ids.len() == seam_annotation_ids.len()
-        && prefix_annotation_ids
-            .iter()
-            .zip(seam_annotation_ids.iter())
-            .all(|(left_id, right_id)| left_id.id == right_id.id)
-}
-
-/// Format one leading-pipe union operand without prefix annotations.
-fn format_leading_pipe_operand_without_prefix<'ast>(
-    operator: BinaryOperator,
-    operand_expression: LocalNodeId<Expression>,
-) -> impl Format<DestackFormatContext<'ast>> {
-    format_with(move |f| {
-        let operand_expression =
-            normalize_type_binary_operand_expression(f.context(), operand_expression, operator);
-        let directive = directive_for_node(f.context(), operand_expression);
-        format_expression(
-            f,
-            operand_expression,
-            f.context().tree.get(operand_expression),
-            directive,
-        )?;
-        if !matches!(
-            directive,
-            Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Postfix { .. },
-            })
-        ) {
-            write!(
-                f,
-                [f.context()
-                    .any_infix_or_postfix_annotations(operand_expression)]
-            )?;
-        }
-        Ok(())
-    })
-}
-
 /// Return whether a union should use leading-pipe multiline style.
 fn should_use_leading_pipe_union_style(
     context: &DestackFormatContext<'_>,
@@ -636,68 +507,12 @@ fn write_trailing_leading_pipe_union_operand<'ast>(
     let has_line_postfix_slash_comment = prev_expression.is_some_and(|expression_id| {
         expression_has_line_postfix_slash_comment(f.context(), expression_id)
     });
-    let seam_annotation_ids = prev_expression.and_then(|expression_id| {
-        collect_type_operand_right_seam_prefix_annotation_ids(
-            f.context(),
-            expression_id,
-            operand_expression,
-        )
-    });
-    let can_emit_inline_seam_annotations = seam_annotation_ids.as_ref().is_some_and(|ids| {
-        seam_annotations_cover_operand_prefix_annotations(f.context(), ids, operand_expression)
-    });
-    let operand_without_prefix = format_leading_pipe_operand_without_prefix(
-        BinaryOperator::ElementwiseOr,
-        operand_expression,
-    );
-
-    if can_emit_inline_seam_annotations {
-        let seam_annotation_ids = seam_annotation_ids.expect("checked as some");
-        if has_line_postfix_slash_comment {
-            write!(f, [hard_line_break()])?;
-        }
-        for annotation_id in seam_annotation_ids {
-            write!(f, [space()])?;
-            write_annotation_by_id(f, annotation_id)?;
-        }
-
-        if policy.should_indent_operands {
-            write!(
-                f,
-                [indent(&format_with(|f| {
-                    write!(
-                        f,
-                        [
-                            hard_line_break(),
-                            token("|"),
-                            space(),
-                            operand_without_prefix
-                        ]
-                    )
-                }))]
-            )?;
-            return Ok(());
-        }
-
-        write!(
-            f,
-            [
-                hard_line_break(),
-                token("|"),
-                space(),
-                operand_without_prefix
-            ]
-        )?;
-        return Ok(());
-    }
 
     if policy.should_indent_operands {
         write!(
             f,
             [indent(&format_with(|f| {
-                if has_line_postfix_slash_comment {
-                    write!(f, [hard_line_break()])?;
-                } else if has_postfix {
+                if has_line_postfix_slash_comment || has_postfix {
                     write!(f, [hard_line_break()])?;
                 } else {
                     write!(f, [soft_line_break_or_space()])?;
@@ -708,9 +523,7 @@ fn write_trailing_leading_pipe_union_operand<'ast>(
         return Ok(());
     }
 
-    if has_line_postfix_slash_comment {
-        write!(f, [hard_line_break()])?;
-    } else if has_postfix {
+    if has_line_postfix_slash_comment || has_postfix {
         write!(f, [hard_line_break()])?;
     } else {
         write!(f, [soft_line_break_or_space()])?;
@@ -1035,7 +848,6 @@ pub(super) fn format_binary_expression<'ast>(
         f,
         [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
             let mut prev_expression: Option<LocalNodeId<Expression>> = None;
-            let mut force_line_break_for_union_operands = false;
             // emit each flattened operand with operator-aware spacing
             for operand in &operands {
                 // non-head operands write their leading operator
@@ -1080,121 +892,6 @@ pub(super) fn format_binary_expression<'ast>(
                         });
                     let previous_requires_type_grouping_break =
                         (is_type_union || is_type_intersection) && has_postfix;
-                    let deferred_type_right_seam_annotation_ids =
-                        if is_type_union || is_type_intersection {
-                            prev_expression.and_then(|previous_expression| {
-                                collect_type_operand_right_seam_prefix_annotation_ids(
-                                    f.context(),
-                                    previous_expression,
-                                    operand.expression,
-                                )
-                            })
-                        } else {
-                            None
-                        };
-                    if let Some(seam_annotation_ids) = deferred_type_right_seam_annotation_ids {
-                        if is_type_union {
-                            force_line_break_for_union_operands = true;
-                        }
-
-                        write!(
-                            f,
-                            [indent(&format_with(
-                                |f: &mut DestackFormatter<'ast, '_>| {
-                                    let allow_space_after_line_comment = prev_expression
-                                        .is_some_and(|expression_id| {
-                                            logical_left_has_line_postfix_slash_comment(
-                                                f.context(),
-                                                op,
-                                                expression_id,
-                                            )
-                                        });
-                                    if !has_postfix {
-                                        if preserve_source_operator_break {
-                                            write!(f, [hard_line_break()])?;
-                                        } else if previous_is_parenthesized_multiline
-                                            && is_logical_binary_operator(op)
-                                        {
-                                            write!(f, [space()])?;
-                                        } else {
-                                            write!(f, [soft_line_break_or_space()])?;
-                                        }
-                                    } else if allow_space_after_line_comment {
-                                        write!(f, [space()])?;
-                                    } else if previous_requires_type_grouping_break {
-                                        write!(f, [hard_line_break()])?;
-                                    } else if previous_has_line_postfix_slash_comment {
-                                        write!(f, [hard_line_break()])?;
-                                    }
-
-                                    if is_type_union {
-                                        for annotation_id in &seam_annotation_ids {
-                                            write_annotation_by_id(f, *annotation_id)?;
-                                            write!(f, [hard_line_break()])?;
-                                        }
-                                        write!(
-                                            f,
-                                            [
-                                                op,
-                                                space(),
-                                                format_expression_without_prefix_annotations(
-                                                    operand.expression
-                                                ),
-                                            ]
-                                        )?;
-                                    } else {
-                                        write!(f, [op])?;
-                                        for (index, annotation_id) in
-                                            seam_annotation_ids.iter().enumerate()
-                                        {
-                                            write!(f, [space()])?;
-                                            write_annotation_by_id(f, *annotation_id)?;
-                                            if index + 1 < seam_annotation_ids.len() {
-                                                write!(f, [hard_line_break()])?;
-                                            }
-                                        }
-                                        write!(
-                                            f,
-                                            [
-                                                hard_line_break(),
-                                                format_expression_without_prefix_annotations(
-                                                    operand.expression
-                                                ),
-                                            ]
-                                        )?;
-                                    }
-
-                                    Ok(())
-                                }
-                            ))]
-                        )?;
-                        prev_expression = Some(operand.expression);
-                        continue;
-                    }
-                    if is_type_union && force_line_break_for_union_operands {
-                        write!(
-                            f,
-                            [indent(&format_with(
-                                |f: &mut DestackFormatter<'ast, '_>| {
-                                    if !has_postfix {
-                                        write!(f, [hard_line_break()])?;
-                                    } else if previous_requires_type_grouping_break {
-                                        write!(f, [hard_line_break()])?;
-                                    } else if previous_has_line_postfix_slash_comment {
-                                        write!(f, [hard_line_break()])?;
-                                    }
-                                    write!(f, [op, space()])?;
-                                    format_binary_operand_with_grouping_parentheses(
-                                        f,
-                                        *operator,
-                                        operand.expression,
-                                    )
-                                }
-                            ))]
-                        )?;
-                        prev_expression = Some(operand.expression);
-                        continue;
-                    }
                     if op == BinaryOperator::ElementwiseAnd
                         && previous_is_parenthesized_or_grouped_multiline
                     {
@@ -1235,9 +932,9 @@ pub(super) fn format_binary_expression<'ast>(
                             });
                         if !has_postfix || allow_space_after_line_comment {
                             write!(f, [space()])?;
-                        } else if previous_requires_type_grouping_break {
-                            write!(f, [hard_line_break()])?;
-                        } else if previous_has_line_postfix_slash_comment {
+                        } else if previous_requires_type_grouping_break
+                            || previous_has_line_postfix_slash_comment
+                        {
                             write!(f, [hard_line_break()])?;
                         }
                         write!(
@@ -1267,9 +964,9 @@ pub(super) fn format_binary_expression<'ast>(
                             });
                         if !has_postfix || allow_space_after_line_comment {
                             write!(f, [space()])?;
-                        } else if previous_requires_type_grouping_break {
-                            write!(f, [hard_line_break()])?;
-                        } else if previous_has_line_postfix_slash_comment {
+                        } else if previous_requires_type_grouping_break
+                            || previous_has_line_postfix_slash_comment
+                        {
                             write!(f, [hard_line_break()])?;
                         }
                         write!(f, [op, space()])?;
@@ -1303,9 +1000,9 @@ pub(super) fn format_binary_expression<'ast>(
                                         }
                                     } else if allow_space_after_line_comment {
                                         write!(f, [space()])?;
-                                    } else if previous_requires_type_grouping_break {
-                                        write!(f, [hard_line_break()])?;
-                                    } else if previous_has_line_postfix_slash_comment {
+                                    } else if previous_requires_type_grouping_break
+                                        || previous_has_line_postfix_slash_comment
+                                    {
                                         write!(f, [hard_line_break()])?;
                                     }
                                     write!(f, [op, space()])?;
@@ -1354,125 +1051,13 @@ pub(super) fn format_binary_expression<'ast>(
     Ok(())
 }
 
-/// Return prefix annotation ids attached to the type-binary right operand.
-fn type_binary_right_prefix_annotation_ids(
-    context: &DestackFormatContext<'_>,
-    right: LocalNodeId<Expression>,
-) -> Vec<LocalNodeId<Annotation>> {
-    let Some(annotation_ids) = context.get_annotations(right) else {
-        return Vec::new();
-    };
-
-    annotation_ids
-        .into_iter()
-        .filter(|annotation_id| {
-            matches!(
-                context.tree.get::<Annotation>(*annotation_id).position(),
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            )
-        })
-        .collect()
-}
-
-/// Collect slash seam comments between cast or satisfies operator and right type.
-fn collect_type_binary_right_seam_line_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    right: LocalNodeId<Expression>,
-) -> Option<Vec<String>> {
-    let prefix_annotation_ids = type_binary_right_prefix_annotation_ids(context, right);
-    if prefix_annotation_ids.is_empty() {
-        return None;
-    }
-
-    let operator_span = context
-        .tree
-        .get_main_span(node_id)
-        .unwrap_or_else(|| context.get_span(node_id));
-    let right_span = context.get_span(right);
-    let mut comments: Vec<(u32, String)> = Vec::new();
-
-    for annotation_id in prefix_annotation_ids {
-        let Annotation::Comment { node, .. } = context.tree.get::<Annotation>(annotation_id) else {
-            return None;
-        };
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
-        if comment.style != destack_ast::CommentStyle::Slash {
-            return None;
-        }
-
-        let annotation_span = context.get_span::<Annotation>(annotation_id);
-        if annotation_span.start < operator_span.end || annotation_span.end > right_span.start {
-            return None;
-        }
-
-        let comment_source = context.get_span_str(annotation_span).trim().to_string();
-        if !comment_source.starts_with("//") {
-            return None;
-        }
-
-        comments.push((annotation_span.start, comment_source));
-    }
-
-    comments.sort_by_key(|(start, _)| *start);
-    Some(comments.into_iter().map(|(_, comment)| comment).collect())
-}
-
-/// Format one expression without prefix annotations and keep infix and postfix annotations.
-fn format_expression_without_prefix_annotations<'ast>(
-    expression_id: LocalNodeId<Expression>,
-) -> impl Format<DestackFormatContext<'ast>> {
-    format_with(move |f| {
-        let directive = directive_for_node(f.context(), expression_id);
-        format_expression(
-            f,
-            expression_id,
-            f.context().tree.get(expression_id),
-            directive,
-        )?;
-        if !matches!(
-            directive,
-            Some(FormatterDirective {
-                kind: FormatterDirectiveKind::IgnoreFormat,
-                position: FormatterDirectivePosition::Postfix { .. },
-            })
-        ) {
-            write!(
-                f,
-                [f.context().any_infix_or_postfix_annotations(expression_id)]
-            )?;
-        }
-        Ok(())
-    })
-}
-
-/// Write a cast or satisfies operator and right operand with optional deferred seam line comments.
+/// Write a cast or satisfies operator and right operand.
 fn write_type_binary_operator_and_right<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     operator: &TypeBinaryOperator,
     right: LocalNodeId<Expression>,
-    deferred_seam_line_comments: Option<&[String]>,
 ) -> FormatResult<()> {
     write!(f, [operator, space()])?;
-
-    if let Some(comments) = deferred_seam_line_comments {
-        for (comment_index, comment) in comments.iter().enumerate() {
-            if comment_index > 0 {
-                write!(f, [hard_line_break()])?;
-            }
-            write!(f, [text(comment.as_str())])?;
-        }
-
-        write!(
-            f,
-            [
-                hard_line_break(),
-                format_expression_without_prefix_annotations(right)
-            ]
-        )?;
-        return Ok(());
-    }
-
     write!(f, [right])
 }
 
@@ -1506,14 +1091,6 @@ pub(super) fn format_type_binary_expression<'ast>(
         || is_chain_root(f.context().tree, formatted_left);
     let line_width = usize::from(f.context().options.line_width);
     let is_parenthesized_new_callee = type_binary_is_parenthesized_new_callee(f.context(), node_id);
-    let deferred_right_seam_line_comments = if matches!(
-        operator,
-        TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-    ) {
-        collect_type_binary_right_seam_line_comments(f.context(), node_id, right)
-    } else {
-        None
-    };
     let should_expand_chain_left = matches!(
         operator,
         TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
@@ -1535,12 +1112,7 @@ pub(super) fn format_type_binary_expression<'ast>(
                 if !has_postfix {
                     write!(f, [space()])?;
                 }
-                write_type_binary_operator_and_right(
-                    f,
-                    operator,
-                    right,
-                    deferred_right_seam_line_comments.as_deref(),
-                )
+                write_type_binary_operator_and_right(f, operator, right)
             }))]
         )?;
     } else {
@@ -1561,12 +1133,7 @@ pub(super) fn format_type_binary_expression<'ast>(
                             write!(f, [soft_line_break_or_space()])?;
                         }
                     }
-                    write_type_binary_operator_and_right(
-                        f,
-                        operator,
-                        right,
-                        deferred_right_seam_line_comments.as_deref(),
-                    )
+                    write_type_binary_operator_and_right(f, operator, right)
                 }))
             ])]
         )?;

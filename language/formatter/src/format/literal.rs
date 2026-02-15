@@ -230,7 +230,7 @@ fn template_argument_should_force_inline(
         return false;
     }
 
-    // avoid inline forcing when boundary annotations need formatter ownership
+    // boundary annotations should block aggressive inline forcing
     let has_boundary_annotation = context.has_postfix_annotation(expression_id)
         || context.has_postfix_annotation(argument_id)
         || context.has_infix_annotation(expression_id)

@@ -5,12 +5,10 @@ use crate::directive::{
 };
 use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
 use crate::signature::{
-    FunctionHeaderStyle, collect_deferred_function_boundary_line_comments,
-    format_function_body_block_with_deferred_boundary_line_comments,
-    function_body_has_deferred_boundary_line_comments, signature_parameters_should_expand,
-    signature_return_type_is_multiline, signature_should_elide_space_before_body,
-    single_parameter_should_hug, write_function_header_prefix,
-    write_signature_dynamic_parameter_list,
+    FunctionHeaderStyle, signature_parameters_should_expand,
+    signature_return_type_has_line_postfix_boundary_annotation, signature_return_type_is_multiline,
+    signature_should_elide_space_before_body, single_parameter_should_hug,
+    write_function_header_prefix, write_signature_dynamic_parameter_list,
 };
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -103,9 +101,7 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
     // kind
-    if modifiers.kind == Some(BindingKind::Must)
-        && modifiers.accessor != Some(AccessorKind::Accessor)
-    {
+    if modifiers.kind == Some(BindingKind::Must) {
         write!(f, [token("!")])?;
     } else if modifiers.kind == Some(BindingKind::Maybe) {
         write!(f, [token("?")])?;
@@ -438,20 +434,21 @@ fn format_method_like<'ast>(
     }
 
     // dynamic parameters
+    let should_expand_parameters = signature_parameters_should_expand(
+        f.context(),
+        signature.mode,
+        &signature.dynamic_parameters,
+        signature.return_type,
+        false,
+    );
     if signature.dynamic_parameters.len() == 1
+        && !should_expand_parameters
         && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
         && !signature_return_type_is_multiline(f.context(), signature.return_type)
         && !signature_source_is_multiline
     {
         write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
     } else {
-        let should_expand_parameters = signature_parameters_should_expand(
-            f.context(),
-            signature.mode,
-            &signature.dynamic_parameters,
-            signature.return_type,
-            false,
-        );
         write_signature_dynamic_parameter_list(
             f,
             &signature.dynamic_parameters,
@@ -477,18 +474,11 @@ fn format_method_like<'ast>(
 
     // body
     if let Some(body) = body {
-        if function_body_has_deferred_boundary_line_comments(
+        if signature_return_type_has_line_postfix_boundary_annotation(
             f.context(),
             signature.return_type,
-            Some(body),
         ) {
-            let comments = collect_deferred_function_boundary_line_comments(
-                f.context(),
-                signature.return_type,
-                body,
-            );
-            write!(f, [space()])?;
-            format_function_body_block_with_deferred_boundary_line_comments(f, body, &comments)?;
+            write!(f, [hard_line_break(), body])?;
         } else if signature_should_elide_space_before_body(f.context(), signature.return_type) {
             write!(f, [body])?;
         } else {

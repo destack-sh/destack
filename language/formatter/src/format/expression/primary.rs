@@ -701,9 +701,9 @@ pub(super) fn format_primary_expression<'ast>(
                     write!(f, [token("("), expression, token(")")])?;
                 }
 
-                let deferred_boundary_comments =
+                let boundary_comments =
                     collect_parenthesized_boundary_comments(f.context(), node_id, *expression);
-                for comment in deferred_boundary_comments {
+                for comment in boundary_comments {
                     write!(f, [space(), text(comment.as_str())])?;
                 }
             }

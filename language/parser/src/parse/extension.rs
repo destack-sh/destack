@@ -78,7 +78,6 @@ impl Parser {
         let where_clauses = self.eat_where_maybe()?;
 
         // body
-        let body_cursor = self.normalize_to_scanner_cursor();
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
@@ -103,14 +102,6 @@ impl Parser {
         if let Some(span) = name_span {
             self.tree.set_main_span(extension_id, span);
         }
-
-        // attach declaration header-to-body boundary annotations before `{`
-        self.bind_annotation_seam(
-            body_cursor.index,
-            body_cursor.skipped_newline_count.saturating_add(1),
-            extension_id.id,
-            super::annotation::AnnotationSeamKind::Infix,
-        );
 
         Ok(extension_id)
     }

@@ -14,7 +14,6 @@ pub(crate) fn format_expression_chain<'ast>(
     let ChainLayoutPlan {
         base,
         lines,
-        deferred_path_boundary_comments,
         should_break: chain_should_break,
         has_calls: chain_has_calls,
         in_template_literal_interpolation,
@@ -46,10 +45,6 @@ pub(crate) fn format_expression_chain<'ast>(
             // this keeps semicolons on the same line as the last chain element
             if !lines.is_empty() {
                 let format_lines = format_with(|f| {
-                    for comment in &deferred_path_boundary_comments {
-                        write!(f, [hard_line_break(), text(comment.as_str())])?;
-                    }
-
                     // each chain line renders in isolation to mirror prettier style
                     for (line_index, line) in lines.iter().enumerate() {
                         if line_index == 0
@@ -78,7 +73,6 @@ pub(crate) fn format_expression_chain<'ast>(
         chain_should_break,
         chain_has_calls,
         in_template_literal_interpolation,
-        has_deferred_path_boundary_comments: !deferred_path_boundary_comments.is_empty(),
     };
     let render_inputs = build_chain_render_inputs(f.context(), &base, &lines, render_options);
 
@@ -223,11 +217,7 @@ fn format_chain_expression<'ast>(
             if let Some(arguments) = static_arguments {
                 format_static_argument_list(f, arguments)?;
             }
-            format_call_dynamic_arguments_with_deferred_comments(
-                f,
-                *call_node_id,
-                dynamic_arguments,
-            )?;
+            format_call_arguments(f, *call_node_id, dynamic_arguments)?;
         }
         ChainExpression::Index {
             position, index, ..

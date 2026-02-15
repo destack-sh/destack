@@ -1,18 +1,15 @@
-use crate::annotation::is_lambda_arrow_prefix_annotation;
 use crate::argument::list_like;
 use crate::signature::{
-    FunctionHeaderStyle, collect_deferred_function_boundary_line_comments,
-    format_function_body_block_with_deferred_boundary_line_comments,
-    function_body_has_deferred_boundary_line_comments, parameter_is_variadic,
-    signature_parameters_should_expand, signature_should_elide_space_before_body,
-    single_parameter_should_hug, write_function_header_prefix,
-    write_signature_dynamic_parameter_list,
+    FunctionHeaderStyle, parameter_is_variadic, signature_parameters_should_expand,
+    signature_return_type_has_line_postfix_boundary_annotation,
+    signature_should_elide_space_before_body, single_parameter_should_hug,
+    write_function_header_prefix, write_signature_dynamic_parameter_list,
 };
 use crate::r#where::format_where_clause_with_break;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Annotation, Argument, Declaration, DeclarationDescriptor, Expression, FunctionCardinality,
-    FunctionKind, FunctionSignature, Keyword, LocalNodeId, Parameter, Pattern,
+    Declaration, DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind,
+    FunctionSignature, Keyword, LocalNodeId, Parameter, Pattern,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -61,86 +58,6 @@ fn lambda_parameter_is_simple_tail(
     )
 }
 
-/// Append lambda arrow prefix annotations for a node into the output list.
-fn append_lambda_arrow_prefix_annotations<T: destack_ast::Node + Clone>(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-    output: &mut Vec<LocalNodeId<Annotation>>,
-) where
-    destack_ast::NodeTree: destack_ast::NodeTreeImpl<T>,
-{
-    let Some(annotations) = context.get_annotations(node_id) else {
-        return;
-    };
-
-    for annotation_id in annotations {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        let should_defer = is_lambda_arrow_prefix_annotation(
-            context,
-            node_id,
-            annotation_id,
-            annotation.position(),
-        );
-        if should_defer {
-            output.push(annotation_id);
-        }
-    }
-}
-
-/// Collect deferred prefix annotations that belong between lambda parameters and arrow token.
-fn collect_lambda_arrow_prefix_annotations(
-    context: &DestackFormatContext<'_>,
-    declaration_id: LocalNodeId<Declaration>,
-    expression_id: Option<LocalNodeId<Expression>>,
-    argument_id: Option<LocalNodeId<Argument>>,
-) -> Vec<LocalNodeId<Annotation>> {
-    let mut annotations = Vec::new();
-    append_lambda_arrow_prefix_annotations(context, declaration_id, &mut annotations);
-
-    if let Some(expression_id) = expression_id {
-        append_lambda_arrow_prefix_annotations(context, expression_id, &mut annotations);
-    }
-
-    if let Some(argument_id) = argument_id {
-        append_lambda_arrow_prefix_annotations(context, argument_id, &mut annotations);
-    }
-
-    annotations.sort_by_key(|annotation_id| {
-        let span = context.get_span::<Annotation>(*annotation_id);
-        (span.start, span.end, annotation_id.id)
-    });
-    annotations.dedup_by_key(|annotation_id| annotation_id.id);
-    annotations
-}
-
-/// Write deferred prefix annotations between lambda parameters and arrow token.
-fn write_deferred_lambda_arrow_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    declaration_id: LocalNodeId<Declaration>,
-    expression_id: Option<LocalNodeId<Expression>>,
-    argument_id: Option<LocalNodeId<Argument>>,
-) -> FormatResult<bool> {
-    let annotations = collect_lambda_arrow_prefix_annotations(
-        f.context(),
-        declaration_id,
-        expression_id,
-        argument_id,
-    );
-
-    if annotations.is_empty() {
-        return Ok(false);
-    }
-
-    for annotation_id in annotations {
-        write!(f, [space()])?;
-        let annotation = f.context().tree.get::<Annotation>(annotation_id);
-        annotation.format_node(annotation_id, f)?;
-    }
-
-    write!(f, [space()])?;
-    Ok(true)
-}
-
 /// Format a function declaration.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn format_function_declaration<'ast>(
@@ -149,11 +66,6 @@ pub(super) fn format_function_declaration<'ast>(
     descriptor: &DeclarationDescriptor,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
-    is_lambda_declaration: bool,
-    deferred_lambda_expression: Option<LocalNodeId<Expression>>,
-    deferred_lambda_argument: Option<LocalNodeId<Argument>>,
-    lambda_is_nested_in_lambda_body: bool,
-    lambda_has_argument_ancestor: bool,
 ) -> FormatResult<()> {
     let generics = signature.generics.as_ref();
 
@@ -282,29 +194,10 @@ pub(super) fn format_function_declaration<'ast>(
         )?;
     }
 
-    // block and line prefix comments between parameters and arrow are emitted here
-    let has_deferred_lambda_arrow_prefix_annotations = if is_lambda_declaration {
-        write_deferred_lambda_arrow_prefix_annotations(
-            f,
-            node_id,
-            deferred_lambda_expression,
-            deferred_lambda_argument,
-        )?
-    } else {
-        false
-    };
-
-    let has_deferred_lambda_arrow_boundary_annotations =
-        has_deferred_lambda_arrow_prefix_annotations;
-
     // return type
     if let Some(return_type) = signature.return_type {
         if signature.kind == FunctionKind::Lambda && body.is_none() {
-            if has_deferred_lambda_arrow_boundary_annotations {
-                write!(f, [token("=>"), space(), return_type])?;
-            } else {
-                write!(f, [space(), token("=>"), space(), return_type])?;
-            }
+            write!(f, [space(), token("=>"), space(), return_type])?;
         } else {
             write!(f, [token(":"), space(), return_type])?;
         }
@@ -331,30 +224,12 @@ pub(super) fn format_function_declaration<'ast>(
                         Expression::TreeExpression { .. }
                     )
             );
-            let body_is_lambda_declaration = matches!(
-                body_expression,
-                Expression::Declaration(nested_declaration_id)
-                    if matches!(
-                        f.context().tree.get(*nested_declaration_id),
-                        Declaration::Function { signature, .. }
-                            if signature.kind == FunctionKind::Lambda
-                    )
-            );
             let force_break =
                 crate::expression::lambda_expression_should_break(f.context(), node_id);
 
             // arrow is fine since lambdas can only have return type or body
             if body_is_block {
-                if has_deferred_lambda_arrow_boundary_annotations
-                    && lambda_is_nested_in_lambda_body
-                    && lambda_has_argument_ancestor
-                {
-                    write!(f, [token("=>"), space(), dedent(&body)])?;
-                } else if has_deferred_lambda_arrow_boundary_annotations {
-                    write!(f, [token("=>"), space(), body])?;
-                } else {
-                    write!(f, [space(), token("=>"), space(), body])?;
-                }
+                write!(f, [space(), token("=>"), space(), body])?;
             } else if body_is_tree {
                 // tree bodies need conditional parentheses when they break
                 let body_group_id = f.group_id("lambda_body");
@@ -371,61 +246,19 @@ pub(super) fn format_function_declaration<'ast>(
                     Ok(())
                 });
 
-                if has_deferred_lambda_arrow_boundary_annotations {
-                    write!(
-                        f,
-                        [group(&format_args![token("=>"), space(), body_break])
-                            .with_id(Some(body_group_id))
-                            .should_expand(force_break)]
-                    )?;
-                } else {
-                    write!(
-                        f,
-                        [
-                            group(&format_args![space(), token("=>"), space(), body_break])
-                                .with_id(Some(body_group_id))
-                                .should_expand(force_break)
-                        ]
-                    )?;
-                }
-            } else if body_is_lambda_declaration
-                && has_deferred_lambda_arrow_boundary_annotations
-                && lambda_is_nested_in_lambda_body
-            {
-                // nested lambda chains keep body lambda aligned with current indent
-                let body_break = format_with(|f| write!(f, [body]));
-
                 write!(
                     f,
-                    [group(&format_args![
-                        token("=>"),
-                        soft_line_break_or_space(),
-                        body_break
-                    ])
-                    .should_expand(force_break)]
+                    [
+                        group(&format_args![space(), token("=>"), space(), body_break])
+                            .with_id(Some(body_group_id))
+                            .should_expand(force_break)
+                    ]
                 )?;
             } else {
                 // default expression body formatting
                 let body_break = format_with(|f| write!(f, [body]));
 
-                if has_deferred_lambda_arrow_boundary_annotations {
-                    if body_is_parenthesized_tree {
-                        write!(
-                            f,
-                            [group(&format_args![token("=>"), space(), body_break])
-                                .should_expand(force_break)]
-                        )?;
-                    } else {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                token("=>"),
-                                indent(&format_args![soft_line_break_or_space(), body_break])
-                            ])
-                            .should_expand(force_break)]
-                        )?;
-                    }
-                } else if body_is_parenthesized_tree {
+                if body_is_parenthesized_tree {
                     write!(
                         f,
                         [
@@ -445,18 +278,11 @@ pub(super) fn format_function_declaration<'ast>(
                     )?;
                 }
             }
-        } else if function_body_has_deferred_boundary_line_comments(
+        } else if signature_return_type_has_line_postfix_boundary_annotation(
             f.context(),
             signature.return_type,
-            Some(*body),
         ) {
-            let comments = collect_deferred_function_boundary_line_comments(
-                f.context(),
-                signature.return_type,
-                *body,
-            );
-            write!(f, [space()])?;
-            format_function_body_block_with_deferred_boundary_line_comments(f, *body, &comments)?;
+            write!(f, [hard_line_break(), body])?;
         } else if signature_should_elide_space_before_body(f.context(), signature.return_type) {
             write!(f, [body])?;
         } else {

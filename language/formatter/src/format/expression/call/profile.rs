@@ -26,18 +26,8 @@ fn call_argument_comments_force_expanded_layout(
         return false;
     }
 
-    let has_deferred_boundary_prefix_annotations = comment_profile
-        .deferred_boundary_prefix_annotations
-        .as_ref()
-        .is_some_and(|comments_by_index| {
-            comments_by_index
-                .iter()
-                .any(|comments| !comments.is_empty())
-        });
-
     comment_profile.has_line_comment_annotations
         || comment_profile.has_prefix_line_comment_annotations
-        || has_deferred_boundary_prefix_annotations
 }
 /// Return whether trailing collection comments should force list expansion.
 fn call_argument_trailing_collection_comment_force_expand(
@@ -92,12 +82,7 @@ fn resolve_call_argument_comment_profile(
     if has_any_argument_annotation || has_call_infix_annotations {
         let _timing = context.timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_COMMENT_PROFILE);
         context.increment_counter("profile.call.arguments.comment_profile.calls", 1);
-        let include_deferred_boundary_comments = dynamic_arguments.len() > 1;
-        return collect_call_argument_comment_profile(
-            context,
-            dynamic_arguments,
-            include_deferred_boundary_comments,
-        );
+        return collect_call_argument_comment_profile(context, dynamic_arguments);
     }
 
     context.increment_counter(
@@ -356,7 +341,6 @@ fn format_default_call_argument_list<'ast>(
 fn format_comment_expanded_call_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-    comment_profile: &CallArgumentCommentProfile,
 ) -> FormatResult<()> {
     let has_trailing_collection_with_source_comment =
         trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
@@ -365,9 +349,6 @@ fn format_comment_expanded_call_argument_list<'ast>(
     let use_trailing_comma = f.context().options.trailing_comma == TrailingComma::All
         && !has_trailing_collection_with_source_comment
         && !has_single_argument_source_separator_line_comment_annotation;
-    let deferred_boundary_prefix_annotations = comment_profile
-        .deferred_boundary_prefix_annotations
-        .as_ref();
 
     write!(f, [token("("), hard_line_break()])?;
     let format_result = write!(
@@ -376,17 +357,6 @@ fn format_comment_expanded_call_argument_list<'ast>(
             |f: &mut DestackFormatter<'ast, '_>| {
                 for (index, argument_id) in dynamic_arguments.iter().enumerate() {
                     if index > 0 {
-                        let deferred_boundary_comments = deferred_boundary_prefix_annotations
-                            .and_then(|comments_by_index| comments_by_index.get(index))
-                            .map(|annotations| annotations.as_slice())
-                            .unwrap_or(&[]);
-                        for annotation_id in deferred_boundary_comments {
-                            let content = format_with(|f| {
-                                write!(f, [space(), *annotation_id])?;
-                                Ok(())
-                            });
-                            write!(f, [line_postfix(&content, 0)])?;
-                        }
                         let left_argument_id = dynamic_arguments[index - 1];
                         if call_arguments_preserve_blank_line_between(
                             f.context(),
@@ -445,8 +415,8 @@ fn format_call_argument_layout_decision<'ast>(
             };
             write_single_call_argument_inline_wrapped(f, argument_id)
         }
-        CallArgumentLayoutDecision::CommentExpanded(comment_profile) => {
-            format_comment_expanded_call_argument_list(f, dynamic_arguments, &comment_profile)
+        CallArgumentLayoutDecision::CommentExpanded(_comment_profile) => {
+            format_comment_expanded_call_argument_list(f, dynamic_arguments)
         }
         CallArgumentLayoutDecision::ListDefault {
             force_expand,

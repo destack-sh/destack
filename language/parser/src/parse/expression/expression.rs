@@ -8,7 +8,7 @@ use destack_ast::{
     LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
 };
 
-use super::super::annotation::{LeadingAnnotationKind, PendingDecorators};
+use super::super::annotation::PendingDecorators;
 
 /// The recursion interval for stack growth checks in expression parsing.
 const STACK_GROW_CHECK_INTERVAL: u32 = 256;
@@ -161,18 +161,7 @@ impl Parser {
             return Ok(None);
         }
 
-        let expression_cursor = self.scanner_cursor();
         let identifier_expression_id = self.eat_identifier_expression_path(start)?;
-        if self.should_attach_expression_leading_annotations(
-            expression_cursor.index,
-            expression_cursor.has_line_break_before,
-        ) {
-            self.bind_owner_leading_seam_at_cursor(
-                identifier_expression_id.id,
-                expression_cursor,
-                LeadingAnnotationKind::Expression,
-            );
-        }
 
         let expression_id = self.eat_expression_continuation(start, identifier_expression_id)?;
 
@@ -232,18 +221,7 @@ impl Parser {
             return Ok(None);
         }
 
-        let expression_cursor = self.scanner_cursor();
         let identifier_expression_id = self.eat_identifier_expression_path(start)?;
-        if self.should_attach_expression_leading_annotations(
-            expression_cursor.index,
-            expression_cursor.has_line_break_before,
-        ) {
-            self.bind_owner_leading_seam_at_cursor(
-                identifier_expression_id.id,
-                expression_cursor,
-                LeadingAnnotationKind::Expression,
-            );
-        }
 
         let expression_id = self.eat_expression_continuation(start, identifier_expression_id)?;
 
@@ -355,9 +333,6 @@ impl Parser {
         inner_options.allow_sequence_expression = true;
         let expression_id = self.eat_expression(inner_options)?;
         self.eat_newlines_maybe()?;
-
-        // keep separator-boundary comments before `)` on the inner expression
-        self.bind_owner_trailing_default_at_current(expression_id.id);
 
         self.eat_token(TokenType::CloseParenthesis)?;
 
@@ -534,9 +509,6 @@ impl Parser {
         let expression_id = self.eat_expression(inner_options)?;
         self.eat_newlines_maybe()?;
 
-        // keep separator-boundary comments before `)` on the inner expression
-        self.bind_owner_trailing_default_at_current(expression_id.id);
-
         self.eat_token(TokenType::CloseParenthesis)?;
         let inner_token_type = self.token_type_at(inner_start as usize);
         let expression_id = match self.tree.get(expression_id) {
@@ -579,9 +551,6 @@ impl Parser {
 
         // capture expression span and scanner cursor metadata
         let start = self.mark_span();
-        let expression_cursor = self.scanner_cursor();
-        let expression_token_index = expression_cursor.index;
-        let expression_skipped_newline_count = expression_cursor.skipped_newline_count;
 
         // labelled statement or expression (like `label: while(...)` or `label: loop {}`)
         // decorators treat keywords as identifiers, so skip label parsing there
@@ -711,7 +680,6 @@ impl Parser {
                     } else {
                         self.keyword_for_index(pos_index)
                     };
-                    let mut export_head_newline_token_index = None;
                     let can_parse_declaration_descriptor = self.options.in_statement_position
                         || self.options.in_type
                         || self.options.in_variant
@@ -733,12 +701,8 @@ impl Parser {
                             DescriptorHead::Descriptor {
                                 descriptor,
                                 mut decorators,
-                                export_head_newline_token_index:
-                                    descriptor_export_head_newline_token_index,
                             } => {
                                 expression_decorators.append(&mut decorators);
-                                export_head_newline_token_index =
-                                    descriptor_export_head_newline_token_index;
                                 descriptor
                             }
                             DescriptorHead::Expression(expression_id) => {
@@ -990,24 +954,6 @@ impl Parser {
                     }
 
                     if let Some(primary_expression_id) = primary_expression_id {
-                        if let Some(export_head_newline_token_index) =
-                            export_head_newline_token_index
-                        {
-                            // export boundary comments belong to the declaration head owner
-                            let export_boundary_owner_id =
-                                if let Expression::Declaration(declaration_id) =
-                                    self.tree.get(primary_expression_id)
-                                {
-                                    declaration_id.id
-                                } else {
-                                    primary_expression_id.id
-                                };
-                            self.bind_owner_trailing_default_at_token(
-                                export_boundary_owner_id,
-                                export_head_newline_token_index,
-                                0,
-                            );
-                        }
                         primary_expression_id
                     } else {
                         // final fallback for identifier paths
@@ -1346,19 +1292,6 @@ impl Parser {
             left_expression_id,
         );
 
-        // attach leading annotations from scanner context before continuation parsing
-        if self.should_attach_expression_leading_annotations(
-            expression_token_index,
-            expression_cursor.has_line_break_before,
-        ) {
-            self.bind_owner_leading_seam_at_token(
-                left_expression_id.id,
-                expression_token_index,
-                expression_skipped_newline_count,
-                LeadingAnnotationKind::Expression,
-            );
-        }
-
         // parse postfix and infix continuation for the primary expression
         let expression_id = self.eat_expression_continuation(&start, left_expression_id)?;
         Ok(expression_id)
@@ -1395,33 +1328,5 @@ impl Parser {
         }
 
         expression_id
-    }
-
-    /// Return whether expression-leading annotations should attach in the current context.
-    fn should_attach_expression_leading_annotations(
-        &mut self,
-        expression_token_index: usize,
-        has_line_break_before: bool,
-    ) -> bool {
-        // wrapper-owned contexts control expression boundary attachments directly
-        if !self.options.allow_expression_leading_annotations {
-            return false;
-        }
-
-        // expression contexts always permit leading attachment
-        if !self.options.in_statement_position {
-            return true;
-        }
-
-        // nested type parsing inside statement contexts still needs expression-leading attachments
-        // for seam ownership like `type T = /** doc */ | A | B`
-        if self.options.in_type {
-            return true;
-        }
-
-        // statement wrappers own leading comment attachment
-        let _ = expression_token_index;
-        let _ = has_line_break_before;
-        false
     }
 }

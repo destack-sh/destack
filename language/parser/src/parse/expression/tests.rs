@@ -109,7 +109,7 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
         assert!(dynamic_arguments.is_empty());
@@ -1532,7 +1532,7 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected ternary else branch");
@@ -5955,8 +5955,10 @@ fn test_parse_javascript_object_method_body_sequence_expression_statement() {
                     assert_node!(parser.tree, body, Expression::Block(block_id) => {
                         let block = parser.tree.get(*block_id);
                         assert_eq!(block.expressions.len(), 1);
-                        assert_node!(parser.tree, block.expressions[0], Expression::SequenceExpression { expressions } => {
-                            assert_eq!(expressions.len(), 3);
+                        assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                            assert_node!(parser.tree, *statement_id, Expression::SequenceExpression { expressions } => {
+                                assert_eq!(expressions.len(), 3);
+                            });
                         });
                     });
                 });

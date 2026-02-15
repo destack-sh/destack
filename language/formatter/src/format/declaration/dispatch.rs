@@ -1,7 +1,7 @@
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, Declaration, DependencyMode, Expression,
-    FunctionKind, Keyword, LocalNodeId, NodeType, Visibility,
+    Annotation, AnnotationPosition, Declaration, DependencyMode, Expression, FunctionKind, Keyword,
+    LocalNodeId, NodeType, Visibility,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -89,50 +89,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             } else {
                 None
             };
-        let deferred_lambda_expression = if is_lambda_declaration {
-            declaration_expression_id
-        } else {
-            None
-        };
-        let deferred_lambda_argument = if let Some(expression_id) = deferred_lambda_expression {
-            if let Some((parent_id, parent_type)) = f.context().get_parent(expression_id) {
-                if parent_type == NodeType::Argument {
-                    Some(LocalNodeId::<Argument>::new(parent_id))
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        let lambda_is_nested_in_lambda_body = if is_lambda_declaration {
-            if let Some(expression_id) = deferred_lambda_expression {
-                if let Some((container_id, container_type)) = f.context().get_parent(expression_id)
-                {
-                    if container_type == NodeType::Declaration {
-                        let container_declaration_id =
-                            LocalNodeId::<Declaration>::new(container_id);
-                        matches!(
-                            f.context().tree.get(container_declaration_id),
-                            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
-                        )
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-        let lambda_has_argument_ancestor = is_lambda_declaration
-            && f.context()
-                .any_ancestor(node_id, |_, node_type| node_type == NodeType::Argument);
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
         match self {
@@ -272,18 +228,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 signature,
                 body,
             } => {
-                format_function_declaration(
-                    f,
-                    node_id,
-                    descriptor,
-                    signature,
-                    body,
-                    is_lambda_declaration,
-                    deferred_lambda_expression,
-                    deferred_lambda_argument,
-                    lambda_is_nested_in_lambda_body,
-                    lambda_has_argument_ancestor,
-                )?;
+                format_function_declaration(f, node_id, descriptor, signature, body)?;
             }
         }
 

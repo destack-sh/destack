@@ -110,15 +110,8 @@ impl Parser {
             static_arguments = self.eat_static_arguments_with_follow_maybe(false, true, true);
         }
 
-        // comments before `(` belong to the new callee boundary, not the first argument
-        if self.peek_is(TokenType::OpenParenthesis) {
-            self.bind_owner_trailing_default_at_current(left.id);
-        }
-
         // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
-        let dynamic_arguments = self
-            .eat_dynamic_arguments_maybe(Some(left.id))?
-            .unwrap_or_default();
+        let dynamic_arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call
         let call_id = self.tree.insert(
@@ -186,7 +179,7 @@ impl Parser {
         };
 
         // dynamic arguments (may be empty)
-        let dynamic_arguments = self.eat_dynamic_arguments(Some(receiver_id.id))?;
+        let dynamic_arguments = self.eat_dynamic_arguments()?;
 
         // call
         let call_id = self.tree.insert(

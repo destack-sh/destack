@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 use destack_fir::format::{FormatResult, GroupId};
 use destack_workspace::TrailingComma;
 
-use crate::annotation::parameter_type_separator_prefix_annotations;
 use crate::directive::{collect_ignore_ranges_for_nodes, ignored_span_source, write_ignored_span};
 use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
@@ -573,7 +572,6 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
                 if let Some(ty) = ty {
-                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -599,7 +597,6 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
                 if let Some(ty) = ty {
-                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -624,7 +621,6 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [name])?;
                 // type
                 if let Some(ty) = ty {
-                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -645,7 +641,6 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 write!(f, [pattern])?;
                 // type
                 if let Some(ty) = ty {
-                    format_deferred_parameter_type_separator_annotations(f, node_id)?;
                     if parameter_is_static {
                         write!(f, [space(), Keyword::Extends, space(), ty])?;
                     } else {
@@ -710,26 +705,6 @@ fn parameter_is_static(
         }
         _ => false,
     }
-}
-
-/// Format deferred prefix annotations that belong between parameter names and type separators.
-fn format_deferred_parameter_type_separator_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parameter_id: LocalNodeId<Parameter>,
-) -> FormatResult<()> {
-    let annotations = parameter_type_separator_prefix_annotations(f.context(), parameter_id);
-    if annotations.is_empty() {
-        return Ok(());
-    }
-
-    write!(f, [space()])?;
-    let joiner_separator = space();
-    let mut joiner = f.join_with(&joiner_separator);
-    joiner.entries(&annotations);
-    joiner.finish()?;
-    write!(f, [space()])?;
-
-    Ok(())
 }
 
 /// Return whether an argument should emit its prefix annotations.
@@ -962,7 +937,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             }
         }
 
-        // lambda argument comments are deferred to the lambda arrow site
+        // lambda argument comments are handled at the lambda arrow site
         let should_emit_prefix_annotations =
             argument_should_emit_prefix_annotations(f.context(), node_id);
         let should_preserve_blank_line_before_prefix_comment =

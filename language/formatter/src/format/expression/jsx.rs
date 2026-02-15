@@ -504,6 +504,7 @@ fn collect_hugged_arrow_layout_signals(
 }
 
 /// Choose between inline and hugged candidate docs for one single hugged argument.
+#[allow(clippy::too_many_arguments)]
 fn choose_hugged_argument_layout<'ast, InlineDoc, HuggedDoc>(
     f: &mut DestackFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,

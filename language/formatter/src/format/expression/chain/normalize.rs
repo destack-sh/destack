@@ -8,7 +8,6 @@ use super::line_group::{
 struct ChainRootParts {
     head: ChainExpressionBaseHead,
     operations: Vec<ChainExpression>,
-    deferred_boundary_comments: Vec<String>,
 }
 
 /// Store normalized chain inputs before layout scoring.
@@ -17,14 +16,12 @@ struct NormalizedChainLayout {
     root_id: LocalNodeId<Expression>,
     base: ChainExpressionBase,
     body: Vec<ChainExpression>,
-    deferred_path_boundary_comments: Vec<String>,
 }
 
 /// Store planned chain layout used by render-only formatting.
 pub(super) struct ChainLayoutPlan {
     pub(super) base: ChainExpressionBase,
     pub(super) lines: Vec<SmallVec<[ChainExpression; 2]>>,
-    pub(super) deferred_path_boundary_comments: Vec<String>,
     pub(super) should_break: bool,
     pub(super) has_calls: bool,
     pub(super) in_template_literal_interpolation: bool,
@@ -38,7 +35,6 @@ fn collect_chain_root_parts(
     let tree = context.tree;
     let mut head = ChainExpressionBaseHead::Expression(root_id);
     let mut operations = Vec::new();
-    let mut deferred_boundary_comments = Vec::new();
 
     // split root path segments into explicit member chain operations
     if let Expression::Path {
@@ -57,21 +53,9 @@ fn collect_chain_root_parts(
 
         let tail_segments = &segments[1..];
         let tail_len = tail_segments.len();
-        let mut emit_postfix_on_tail =
+        let emit_postfix_on_tail =
             tail_len > 0 && path_postfix_annotations_emit_on_tail(context, root_id, segments.len());
-        if tail_len > 0 {
-            deferred_boundary_comments =
-                path_deferred_boundary_line_comments(context, root_id, segments.len());
-            if deferred_boundary_comments.is_empty() {
-                deferred_boundary_comments =
-                    path_root_line_postfix_boundary_comments(context, root_id);
-            }
 
-            // line comments before synthetic member tails must render as deferred boundaries
-            if !deferred_boundary_comments.is_empty() {
-                emit_postfix_on_tail = false;
-            }
-        }
         // path base keeps static arguments only when there is no synthetic tail
         let base_static_arguments = if tail_len == 0 {
             static_arguments.clone()
@@ -82,8 +66,7 @@ fn collect_chain_root_parts(
             node_id: root_id,
             segment: first_segment,
             static_arguments: base_static_arguments,
-            emit_postfix_annotations: (tail_len == 0 || !emit_postfix_on_tail)
-                && deferred_boundary_comments.is_empty(),
+            emit_postfix_annotations: tail_len == 0 || !emit_postfix_on_tail,
         };
 
         // append synthetic member operations for remaining path segments
@@ -104,11 +87,7 @@ fn collect_chain_root_parts(
         }
     }
 
-    Ok(ChainRootParts {
-        head,
-        operations,
-        deferred_boundary_comments,
-    })
+    Ok(ChainRootParts { head, operations })
 }
 
 /// Append operation nodes from chain body expressions.
@@ -194,19 +173,12 @@ fn chain_head_promotion_remaining_width(
 
 /// Return whether non-head callback signals should block head promotion.
 fn chain_should_avoid_head_promotion_for_nonhead_callbacks(
-    context: &DestackFormatContext<'_>,
-    normalized: &NormalizedChainLayout,
     has_nonhead_nonlambda_function_call_argument: bool,
     has_multiline_nonhead_call: bool,
     has_chain_intervening_trivia: bool,
-    has_path_tail_deferred_empty_call_boundary_comment: bool,
 ) -> bool {
-    let root_has_annotation = context.has_annotation(normalized.root_id);
-
     has_nonhead_nonlambda_function_call_argument
         || (has_multiline_nonhead_call && has_chain_intervening_trivia)
-        || has_path_tail_deferred_empty_call_boundary_comment
-        || root_has_annotation
 }
 
 /// Promote head operations from body to base when head policy allows it.
@@ -488,7 +460,6 @@ fn normalize_chain_layout(
         head: root_parts.head,
         body: Vec::new(),
     };
-    let deferred_path_boundary_comments = root_parts.deferred_boundary_comments;
 
     // append operation nodes from the original chain
     append_chain_operations(tree, &chain, &mut body)?;
@@ -512,7 +483,6 @@ fn normalize_chain_layout(
         root_id,
         base,
         body,
-        deferred_path_boundary_comments,
     })
 }
 
@@ -529,7 +499,6 @@ pub(super) fn plan_chain_layout(
         should_break: break_analysis_should_break,
         call_summaries: chain_call_summaries,
         has_chain_intervening_trivia,
-        has_path_tail_deferred_empty_call_boundary_comment,
     } = analyze_chain_break(context, &normalized.chain);
     let has_multiline_nonhead_call = chain_call_summaries
         .iter()
@@ -557,12 +526,9 @@ pub(super) fn plan_chain_layout(
     // promote eligible head operations from body into base
     let should_avoid_head_promotion_for_nonhead_callbacks =
         chain_should_avoid_head_promotion_for_nonhead_callbacks(
-            context,
-            &normalized,
             has_nonhead_nonlambda_function_call_argument,
             has_multiline_nonhead_call,
             has_chain_intervening_trivia,
-            has_path_tail_deferred_empty_call_boundary_comment,
         );
     promote_chain_head_operations(
         context,
@@ -579,7 +545,6 @@ pub(super) fn plan_chain_layout(
     Ok(ChainLayoutPlan {
         base: normalized.base,
         lines,
-        deferred_path_boundary_comments: normalized.deferred_path_boundary_comments,
         should_break,
         has_calls: !chain_call_summaries.is_empty(),
         in_template_literal_interpolation: expression_is_in_template_literal_interpolation(

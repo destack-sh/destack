@@ -302,11 +302,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
-            let value_options = self
-                .options
-                .not_in_position()
-                .not_in_sequence_expression()
-                .with_expression_leading_annotations();
+            let value_options = self.options.not_in_position().not_in_sequence_expression();
             Some(self.eat_expression(value_options)?)
         } else if require_value {
             return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));

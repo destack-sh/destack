@@ -14,7 +14,6 @@ pub(super) struct ChainRenderInputs {
     pub(super) chain_should_break: bool,
     pub(super) chain_has_calls: bool,
     pub(super) in_template_literal_interpolation: bool,
-    pub(super) has_deferred_path_boundary_comments: bool,
     is_chain_call_like_argument: bool,
     is_chain_conditional_branch: bool,
     is_assignment_like_rhs: bool,
@@ -126,8 +125,6 @@ pub(super) struct ChainRenderInputOptions {
     pub(super) chain_has_calls: bool,
     /// Whether this chain is in a template literal interpolation.
     pub(super) in_template_literal_interpolation: bool,
-    /// Whether deferred path comments must be emitted before chain lines.
-    pub(super) has_deferred_path_boundary_comments: bool,
 }
 
 /// Build normalized chain render inputs once from layout plan and source context.
@@ -177,7 +174,6 @@ pub(super) fn build_chain_render_inputs(
         chain_should_break: options.chain_should_break,
         chain_has_calls: options.chain_has_calls,
         in_template_literal_interpolation: options.in_template_literal_interpolation,
-        has_deferred_path_boundary_comments: options.has_deferred_path_boundary_comments,
         is_chain_call_like_argument,
         is_chain_conditional_branch,
         is_assignment_like_rhs: assignment_like_width.is_some(),
@@ -199,7 +195,6 @@ pub(super) fn decide_chain_render(
     }
 
     let can_use_inline_fast_path = !inputs.chain_should_break
-        && !inputs.has_deferred_path_boundary_comments
         && !inputs.chain_has_source_newline
         && lines_len <= 2
         && inputs.operation_facts.inline_chain_len <= inputs.inline_budget;
@@ -211,9 +206,8 @@ pub(super) fn decide_chain_render(
         return ChainRenderDecision::ForcedBreak;
     }
 
-    let prefer_conditional_inline_chain = inputs.is_chain_conditional_branch
-        && !inputs.has_deferred_path_boundary_comments
-        && inputs.first_line_has_non_empty_dynamic_call;
+    let prefer_conditional_inline_chain =
+        inputs.is_chain_conditional_branch && inputs.first_line_has_non_empty_dynamic_call;
     if prefer_conditional_inline_chain {
         return ChainRenderDecision::ConditionalInline;
     }
@@ -222,8 +216,7 @@ pub(super) fn decide_chain_render(
         inputs.operation_facts.has_optional_chain_operation
             && inputs.operation_facts.has_call_with_dynamic_arguments
             && inputs.chain_has_source_newline;
-    let can_inline_multiline_call_argument_chain = !inputs.has_deferred_path_boundary_comments
-        && !inputs.chain_should_break
+    let can_inline_multiline_call_argument_chain = !inputs.chain_should_break
         && !should_avoid_inline_optional_call_chain
         && (inputs.is_chain_call_like_argument
             || inputs.in_template_literal_interpolation
@@ -242,8 +235,7 @@ pub(super) fn decide_chain_render(
         return ChainRenderDecision::BreakForOverflow;
     }
 
-    let should_inline = !inputs.has_deferred_path_boundary_comments
-        && !inputs.chain_should_break
+    let should_inline = !inputs.chain_should_break
         && !should_avoid_inline_optional_call_chain
         && inputs.operation_facts.inline_chain_len <= inputs.inline_budget;
     if should_inline {

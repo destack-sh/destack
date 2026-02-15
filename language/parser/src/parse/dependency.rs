@@ -1,4 +1,3 @@
-use super::annotation::{AnnotationSeamKind, LeadingAnnotationKind};
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
@@ -61,12 +60,8 @@ impl Parser {
                     }
                 }
             }
-            // skip empty lines before declarations
-            else if trimmed.is_empty() {
-                // nothing to do
-            }
-            // skip shebang at the top of the file
-            else if line_start == 0 && trimmed.starts_with("#!") {
+            // skip empty lines and top level shebang before declarations
+            else if trimmed.is_empty() || line_start == 0 && trimmed.starts_with("#!") {
                 // nothing to do
             }
             // parse triple slash reference directives
@@ -83,7 +78,12 @@ impl Parser {
             }
             // skip block comments before declarations
             else if trimmed.starts_with("/*") {
-                if trimmed.find("*/").is_none() {
+                if let Some(end_index) = trimmed.find("*/") {
+                    let after = trimmed[end_index + 2..].trim_start();
+                    if !after.is_empty() {
+                        consume_line = false;
+                    }
+                } else {
                     in_block_comment = true;
                 }
             }
@@ -147,9 +147,7 @@ impl Parser {
     /// Parse one triple slash directive line.
     fn triple_slash_directive(line: &str) -> Option<TripleSlashDirective<'_>> {
         let directive = line.strip_prefix("///")?.trim_start();
-        let Some(directive) = directive.strip_prefix("<reference") else {
-            return None;
-        };
+        let directive = directive.strip_prefix("<reference")?;
 
         // parse a path directive
         if let Some(path) = Self::triple_slash_reference_attribute_value(directive, "path") {
@@ -183,9 +181,7 @@ impl Parser {
 
         // scan matching attributes with stable boundaries
         while search_start < directive.len() {
-            let Some(relative_index) = directive[search_start..].find(name) else {
-                return None;
-            };
+            let relative_index = directive[search_start..].find(name)?;
             let index = search_start + relative_index;
 
             // require a stable attribute boundary before the name
@@ -206,9 +202,7 @@ impl Parser {
             remainder = without_equals.trim_start();
 
             // require one quoted value
-            let Some(quote) = remainder.chars().next() else {
-                return None;
-            };
+            let quote = remainder.chars().next()?;
             if quote != '"' && quote != '\'' {
                 search_start = index + name.len();
                 continue;
@@ -231,7 +225,6 @@ impl Parser {
         self.eat_keyword(Keyword::Import)?;
 
         // open call
-        let open_parenthesis_token_index = self.pos_index();
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
@@ -241,21 +234,14 @@ impl Parser {
         }
 
         // parse the first argument as the import target
-        let target_cursor = self.normalize_to_scanner_cursor();
         let target_expression = self.eat_expression(
             self.options
                 .nested()
                 .not_in_position()
                 .not_in_sequence_expression(),
         )?;
-        self.bind_annotation_seam(
-            target_cursor.index,
-            target_cursor.skipped_newline_count,
-            target_expression.id,
-            AnnotationSeamKind::Leading(LeadingAnnotationKind::Expression),
-        );
 
-        // keep static string targets as interned strings when no annotation needs expression ownership
+        // keep static string targets interned when no annotations are attached
         let target_has_annotations = !self.tree.get_annotations(target_expression.id).is_empty();
         let target = match self.tree.get(target_expression) {
             Expression::ScalarLiteral(destack_ast::ScalarLiteral::String(target))
@@ -277,10 +263,7 @@ impl Parser {
             } else {
                 let argument_options = self.options.nested();
                 let arguments = self.with_options(argument_options, |parser| {
-                    parser.eat_positional_arguments_body(
-                        TokenType::CloseParenthesis,
-                        Some(open_parenthesis_token_index),
-                    )
+                    parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
                 })?;
                 Some(arguments)
             }
@@ -928,16 +911,7 @@ impl Parser {
             self.eat_token(TokenType::OpenBrace)?;
             self.eat_newlines_maybe()?;
             while !self.peek_is(TokenType::CloseBrace) {
-                let item_cursor = self.normalize_to_scanner_cursor();
                 let item = self.eat_dependency_item(allow_type_modifier, allow_literal_alias)?;
-
-                self.bind_owner_statement_and_wrapper_leading_seams(item.id, item_cursor);
-
-                let cursor_after_item = self.normalize_to_scanner_cursor();
-                let is_before_terminator = cursor_after_item.token_type == TokenType::CloseBrace;
-                if !self.peek_comma_is() || is_before_terminator {
-                    self.bind_owner_trailing_line_and_default_at_current(item.id);
-                }
 
                 items.push(item);
 
@@ -947,15 +921,6 @@ impl Parser {
                 }
                 if self.peek_comma_is() {
                     self.eat_item_stop_with_newlines()?;
-
-                    // keep same line separator comments on the preceding dependency item
-                    let next_item_cursor = self.normalize_to_scanner_cursor();
-                    self.bind_annotation_seam(
-                        next_item_cursor.index,
-                        next_item_cursor.skipped_newline_count,
-                        item.id,
-                        AnnotationSeamKind::TrailingLineBoundary,
-                    );
                     continue;
                 } else {
                     return Err(ParseError::unexpected(self.peek()?.span));
@@ -1910,7 +1875,7 @@ export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        let expressions = parser.parse_without_finish();
+        let expressions = parser.parse_without_trivia();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Import { source, kind, target, items, arguments } => {
@@ -1935,7 +1900,7 @@ export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        let expressions = parser.parse_without_finish();
+        let expressions = parser.parse_without_trivia();
 
         assert_eq!(expressions.len(), 1);
         assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
@@ -1953,7 +1918,7 @@ export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        let expressions = parser.parse_without_finish();
+        let expressions = parser.parse_without_trivia();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Import { source, kind, target, items, arguments } => {
@@ -1978,7 +1943,7 @@ export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        let expressions = parser.parse_without_finish();
+        let expressions = parser.parse_without_trivia();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Import { source, kind, target, items, arguments } => {
@@ -2003,7 +1968,7 @@ export as namespace Foo"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        let expressions = parser.parse_without_finish();
+        let expressions = parser.parse_without_trivia();
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Stub => {});

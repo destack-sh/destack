@@ -7,10 +7,6 @@ use destack_ast::{
     TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 
-use super::super::annotation::{
-    AnnotationSeamKind, DotBoundaryKind, LeadingAnnotationKind, TrailingAnnotationKind,
-};
-
 impl Parser {
     /// Return whether a newline direct call should terminate in statement position.
     #[inline]
@@ -86,12 +82,10 @@ impl Parser {
                     self.get_span_from(start),
                 );
             }
-            let mut pending_optional_call_boundary: Option<(usize, usize)> = None;
-
             // eat all regular postfix operators
             loop {
                 // load scanner state for this postfix step
-                let cursor = self.scanner_cursor();
+                let cursor = self.peek_scanner_cursor();
                 let token_type = cursor.token_type;
 
                 if token_type == TokenType::End {
@@ -106,19 +100,6 @@ impl Parser {
                 } else {
                     TokenType::End
                 };
-                let is_indirect_optional_call_boundary = token_type == TokenType::Dot
-                    && next_token_type == TokenType::OpenParenthesis
-                    && matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
-
-                // attach dot boundary trivia before consuming member tokens
-                if token_type == TokenType::Dot && !is_indirect_optional_call_boundary {
-                    self.bind_annotation_seam(
-                        cursor_index,
-                        cursor.skipped_newline_count,
-                        left_expression_id.id,
-                        AnnotationSeamKind::DotBoundary(DotBoundaryKind::Member),
-                    );
-                }
                 let dot_member_target = if token_type == TokenType::Dot {
                     self.peek_dot_member_target(cursor_index, left_expression_id)
                 } else {
@@ -163,7 +144,7 @@ impl Parser {
                     continue;
                 }
 
-                // call parsing flags
+                // call
                 let has_direct_call =
                     token_type == TokenType::OpenParenthesis && !has_line_break_before;
                 let has_direct_call_after_newlines =
@@ -200,22 +181,14 @@ impl Parser {
                 else if matches!(token_type, TokenType::Maybe | TokenType::Identifier)
                     && let Some(operator) = self.peek_type_unary_postfix_operator_maybe()
                 {
-                    self.bind_owner_trailing_default_at_token(
-                        left_expression_id.id,
-                        cursor_index,
-                        0,
-                    );
-
                     // avoid consuming conditional type ? as a type maybe
                     let operator_start = self.mark_span();
                     self.bump(); // eat type unary operator
-                    let mut secondary_operator_token_index: Option<usize> = None;
                     if matches!(
                         operator,
                         TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime
                     ) {
                         self.eat_newlines_maybe()?;
-                        secondary_operator_token_index = Some(self.pos_index());
                         self.bump(); // eat second token
                     }
                     let operator_span = self.get_span_from(&operator_start);
@@ -227,15 +200,6 @@ impl Parser {
                         self.get_span_from(start),
                     );
                     self.tree.set_main_span(left_expression_id, operator_span);
-                    if let Some(secondary_operator_token_index) = secondary_operator_token_index {
-                        // keep comments between `as` and `const` or `comptime` on the full type unary node
-                        self.bind_annotation_seam(
-                            secondary_operator_token_index,
-                            0,
-                            left_expression_id.id,
-                            AnnotationSeamKind::Infix,
-                        );
-                    }
                 }
                 // dot member and private member dispatch via scanner cursor
                 else if let Some((member_index, is_private_member)) = dot_member_target {
@@ -267,12 +231,6 @@ impl Parser {
                             self.get_span_from(start),
                         );
                         self.tree.set_main_span(left_expression_id, name_span);
-                        self.bind_annotation_seam(
-                            cursor_index,
-                            cursor.skipped_newline_count,
-                            left_expression_id.id,
-                            AnnotationSeamKind::DotPrefix,
-                        );
                         continue;
                     }
 
@@ -294,12 +252,6 @@ impl Parser {
                         self.get_span_from(start),
                     );
                     self.tree.set_main_span(left_expression_id, name_span);
-                    self.bind_annotation_seam(
-                        cursor_index,
-                        cursor.skipped_newline_count,
-                        left_expression_id.id,
-                        AnnotationSeamKind::DotPrefix,
-                    );
                     continue;
                 }
                 // index (like `[]`)
@@ -307,14 +259,6 @@ impl Parser {
                     && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                     || token_type == TokenType::Dot && next_token_type == TokenType::OpenBracket
                 {
-                    if token_type != TokenType::Dot {
-                        self.bind_owner_trailing_default_at_token(
-                            left_expression_id.id,
-                            cursor_index,
-                            0,
-                        );
-                    }
-
                     if has_pending_newline_tokens {
                         self.advance_to(cursor_index);
                     }
@@ -328,14 +272,6 @@ impl Parser {
                 }
                 // call (like `()`)
                 else if should_parse_call {
-                    if token_type != TokenType::Dot {
-                        self.bind_owner_trailing_default_at_token(
-                            left_expression_id.id,
-                            cursor_index,
-                            0,
-                        );
-                    }
-
                     // unparenthesized arrow functions cannot be direct call receivers
                     if has_direct_call
                         && self.is_unparenthesized_lambda_expression(left_expression_id)
@@ -353,26 +289,7 @@ impl Parser {
                     } else {
                         PostfixPosition::Direct
                     };
-                    let call_receiver_id = left_expression_id;
                     left_expression_id = self.eat_call(left_expression_id, None, position)?;
-
-                    // optional call boundaries should attach to the full call expression
-                    if is_indirect_optional_call_boundary {
-                        let optional_boundary_target = match self.tree.get(call_receiver_id) {
-                            Expression::Maybe { left, .. } => *left,
-                            _ => call_receiver_id,
-                        };
-                        if let Some((optional_boundary_token_index, skipped_newline_count)) =
-                            pending_optional_call_boundary.take()
-                        {
-                            self.bind_annotation_seam(
-                                optional_boundary_token_index,
-                                skipped_newline_count,
-                                optional_boundary_target.id,
-                                AnnotationSeamKind::DotBoundary(DotBoundaryKind::OptionalCall),
-                            );
-                        }
-                    }
                 }
                 // statically parameterized call or instantiation expression (like `(expr)<T>()` or `(expr)<T>`)
                 else if self.can_start_postfix_static_arguments(left_expression_id) {
@@ -400,14 +317,6 @@ impl Parser {
                 else if token_type == TokenType::Maybe
                     || token_type == TokenType::Dot && next_token_type == TokenType::Maybe
                 {
-                    if token_type != TokenType::Dot {
-                        self.bind_owner_trailing_default_at_token(
-                            left_expression_id.id,
-                            cursor_index,
-                            0,
-                        );
-                    }
-
                     if has_pending_newline_tokens {
                         self.advance_to(cursor_index);
                     }
@@ -432,15 +341,6 @@ impl Parser {
 
                     // postfix maybe
                     if is_postfix_maybe {
-                        let is_direct_optional_call = token_type == TokenType::Maybe
-                            && next_token_type == TokenType::Dot
-                            && self.token_type_at(cursor_index.saturating_add(2))
-                                == TokenType::OpenParenthesis;
-                        if is_direct_optional_call {
-                            pending_optional_call_boundary =
-                                Some((cursor_index, cursor.skipped_newline_count));
-                        }
-
                         self.bump(); // eat ?
                         // (don't consume delimiter/stop)
                         left_expression_id = self.tree.insert(
@@ -506,14 +406,6 @@ impl Parser {
                 else if token_type == TokenType::Not
                     || token_type == TokenType::Dot && next_token_type == TokenType::Not
                 {
-                    if token_type != TokenType::Dot {
-                        self.bind_owner_trailing_default_at_token(
-                            left_expression_id.id,
-                            cursor_index,
-                            0,
-                        );
-                    }
-
                     let position = if token_type == TokenType::Dot {
                         self.bump(); // eat .
                         PostfixPosition::Indirect
@@ -609,7 +501,7 @@ impl Parser {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
             let left_precedence = self.options.left_precedence;
             loop {
-                let cursor = self.scanner_cursor();
+                let cursor = self.peek_scanner_cursor();
                 let token_type = cursor.token_type;
                 if token_type == TokenType::End {
                     break;
@@ -680,36 +572,19 @@ impl Parser {
                     self.advance_to(cursor_index);
                 }
 
-                let type_binary_operator_prefers_right_leading_seam = self.options.in_type
-                    && matches!(
-                        right_operator,
-                        InfixOperator::Binary(
-                            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                        )
-                    );
-
-                // trailing annotations before the infix operator belong to the left operand
-                self.bind_owner_trailing_default_at_current(left_expression_id.id);
-
                 // capture operator span before eating
                 let operator_start = self.mark_span();
                 self.bump_by(operator_offset); // eat infix operator
                 let operator_span = self.get_span_from(&operator_start);
 
                 self.eat_newlines_maybe()?; // allow newlines after infix operator
-                let right_boundary_cursor = if type_binary_operator_prefers_right_leading_seam {
-                    Some(self.scanner_cursor())
-                } else {
-                    None
-                };
 
                 // eat right expression
                 let subject_id = left_expression_id;
                 let mut right_options = self
                     .options
                     .not_in_position()
-                    .in_left_precedence(right_operator.precedence())
-                    .with_expression_leading_annotations();
+                    .in_left_precedence(right_operator.precedence());
                 let parses_value_type_operator_right = !self.options.in_type
                     && matches!(
                         right_operator,
@@ -739,15 +614,6 @@ impl Parser {
                     right_options = right_options.in_type_conditional_right();
                 }
                 let right_expression_id = self.eat_expression(right_options)?;
-                if let Some(right_boundary_cursor) = right_boundary_cursor {
-                    self.bind_owner_leading_seam_at_token(
-                        right_expression_id.id,
-                        right_boundary_cursor.index,
-                        right_boundary_cursor.skipped_newline_count,
-                        LeadingAnnotationKind::Type,
-                    );
-                }
-                self.bind_owner_trailing_default_at_current(right_expression_id.id);
 
                 // combine into new left expression
                 let left_expression = self.make_infix_expression(
@@ -776,7 +642,7 @@ impl Parser {
 
         // value ternary after infix to keep lowest precedence
         // NOTE #Cleanup: having multiple ternary parse locations feels icky (but non-trivial to "fix")
-        let ternary_cursor = self.peek_cursor();
+        let ternary_cursor = self.peek_scanner_cursor();
         if !self.options.in_type
             && self.options.left_precedence.is_none()
             && ternary_cursor.token_type == TokenType::Maybe
@@ -787,8 +653,8 @@ impl Parser {
             }
             self.bump(); // eat ?
 
-            // parse the then branch with scanner-derived leading annotation context
-            let then_cursor = self.scanner_cursor();
+            // normalize scanner state before parsing the then branch
+            let then_cursor = self.peek_scanner_cursor();
             if then_cursor.index != self.pos_index() {
                 self.advance_to(then_cursor.index);
             }
@@ -796,43 +662,23 @@ impl Parser {
                 .options
                 .not_in_position()
                 .in_ternary_condition()
-                .not_in_sequence_expression()
-                .without_expression_leading_annotations();
+                .not_in_sequence_expression();
             let then_expression_id = self.eat_expression(then_options)?;
-            self.bind_owner_wrapper_leading_seam_at_token(
-                then_expression_id.id,
-                then_cursor.index,
-                then_cursor.skipped_newline_count,
-            );
 
             // consume the ternary separator after scanner normalization
-            let colon_cursor = self.scanner_cursor();
+            let colon_cursor = self.peek_scanner_cursor();
             if colon_cursor.index != self.pos_index() {
                 self.advance_to(colon_cursor.index);
             }
-            self.bind_owner_trailing_default_at_current(then_expression_id.id);
             self.eat_colon()?;
 
-            // parse the else branch with scanner-derived leading annotation context
-            let else_cursor = self.scanner_cursor();
+            // normalize scanner state before parsing the else branch
+            let else_cursor = self.peek_scanner_cursor();
             if else_cursor.index != self.pos_index() {
                 self.advance_to(else_cursor.index);
             }
-            let else_options = self
-                .options
-                .not_in_position()
-                .not_in_sequence_expression()
-                .without_expression_leading_annotations();
+            let else_options = self.options.not_in_position().not_in_sequence_expression();
             let else_expression_id = self.eat_expression(else_options)?;
-            self.bind_owner_wrapper_leading_seam_at_token(
-                else_expression_id.id,
-                else_cursor.index,
-                else_cursor.skipped_newline_count,
-            );
-            self.bind_owner_trailing_seam_at_current(
-                else_expression_id.id,
-                TrailingAnnotationKind::PreserveLinePostfix,
-            );
 
             let expression = Expression::If {
                 kind: IfKind::Ternary,
@@ -846,7 +692,7 @@ impl Parser {
         }
 
         // sequence expression (comma operator) in JS/TS
-        let sequence_cursor = self.peek_cursor();
+        let sequence_cursor = self.peek_scanner_cursor();
         if !self.options.in_type
             && self.options.left_precedence.is_none()
             && self.options.allow_sequence_expression
@@ -856,7 +702,7 @@ impl Parser {
             // gather comma-separated expressions into a sequence expression
             let mut expressions = vec![left_expression_id];
             loop {
-                let comma_cursor = self.peek_cursor();
+                let comma_cursor = self.peek_scanner_cursor();
                 if comma_cursor.token_type != TokenType::Comma {
                     break;
                 }
@@ -876,7 +722,7 @@ impl Parser {
         }
 
         // type conditional expression
-        let type_conditional_cursor = self.peek_cursor();
+        let type_conditional_cursor = self.peek_scanner_cursor();
         if self.options.in_type && type_conditional_cursor.token_type == TokenType::Maybe {
             // align cursor at conditional marker and split operands
             if type_conditional_cursor.index != self.pos_index() {
@@ -906,7 +752,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.bump(); // eat ?
             self.eat_newlines_maybe()?;
-            let then_cursor = self.scanner_cursor();
+            let then_cursor = self.peek_scanner_cursor();
             if then_cursor.index != self.pos_index() {
                 self.advance_to(then_cursor.index);
             }
@@ -914,44 +760,25 @@ impl Parser {
                 .options
                 .not_in_position()
                 .in_type()
-                .in_ternary_condition()
-                .without_expression_leading_annotations();
+                .in_ternary_condition();
             let then_expression_id = self.eat_expression(then_options)?;
-            self.bind_owner_wrapper_leading_seam_at_token(
-                then_expression_id.id,
-                then_cursor.index,
-                then_cursor.skipped_newline_count,
-            );
 
-            let colon_cursor = self.scanner_cursor();
+            let colon_cursor = self.peek_scanner_cursor();
             if colon_cursor.index != self.pos_index() {
                 self.advance_to(colon_cursor.index);
             }
-            self.bind_owner_trailing_default_at_current(then_expression_id.id);
             self.eat_colon()?;
             self.eat_newlines_maybe()?;
-            let else_cursor = self.scanner_cursor();
+            let else_cursor = self.peek_scanner_cursor();
             if else_cursor.index != self.pos_index() {
                 self.advance_to(else_cursor.index);
             }
-            let mut else_options = self
-                .options
-                .not_in_position()
-                .in_type()
-                .without_expression_leading_annotations();
+            let mut else_options = self.options.not_in_position().in_type();
             if self.options.in_type_conditional_right {
                 else_options = else_options.in_type_conditional_right();
             }
             let else_expression_id = self.eat_expression(else_options)?;
-            self.bind_owner_wrapper_leading_seam_at_token(
-                else_expression_id.id,
-                else_cursor.index,
-                else_cursor.skipped_newline_count,
-            );
-            self.bind_owner_trailing_seam_at_current(
-                else_expression_id.id,
-                TrailingAnnotationKind::PreserveLinePostfix,
-            );
+
             let expression = Expression::TypeConditional {
                 left,
                 right,

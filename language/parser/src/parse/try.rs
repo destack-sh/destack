@@ -355,8 +355,10 @@ try {
             assert_node!(parser.tree, *catch_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
-                        assert_expression_path!(parser, parser.tree.get(*left), "bar");
+                    assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Call { left, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "bar");
+                        });
                     });
                 });
             });
@@ -412,8 +414,10 @@ try {
             assert_node!(parser.tree, *catch_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
-                        assert_expression_path!(parser, parser.tree.get(*left), "bar");
+                    assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Call { left, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "bar");
+                        });
                     });
                 });
             });

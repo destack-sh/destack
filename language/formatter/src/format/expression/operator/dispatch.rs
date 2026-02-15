@@ -351,9 +351,7 @@ fn format_call_or_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if is_expression_chain(f.context().tree, node_id)
-        || call_prefers_chain_format(f.context(), node_id)
-    {
+    if is_expression_chain(f.context().tree, node_id) {
         let _timing = f
             .context()
             .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);

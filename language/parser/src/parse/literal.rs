@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use super::annotation::{AnnotationSeamKind, LeadingAnnotationKind};
 use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
@@ -849,29 +848,17 @@ impl Parser {
         // track whether we expect an element (at start or after comma)
         let mut expect_element = first_element.is_none();
         while self.has_more_tokens() {
-            let cursor = self.normalize_to_scanner_cursor();
+            let cursor = self.sync_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop at the closing token (trailing commas are allowed, no hole)
             if token_type == close_token {
-                if let Some(last_element) = elements.last().copied() {
-                    self.bind_owner_close_postfix_trailing_line_and_default_seams(
-                        last_element.id,
-                        cursor,
-                    );
-                }
                 break;
             }
 
             // consume comma separators
             if token_type == TokenType::Comma {
                 let start = self.mark_span();
-                let last_element = elements.last().copied();
-
-                // line comments before the separator belong to the previous element
-                if let Some(last_element) = last_element {
-                    self.bind_owner_trailing_line_and_default_at_current(last_element.id);
-                }
 
                 // leading hole: if we expected an element but got separator instead
                 if expect_element {
@@ -892,34 +879,15 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_item_stop_with_newlines()?;
 
-                // separator comments after comma on the same line stay on the previous element
-                if let Some(last_element) = last_element {
-                    let next_element_cursor = self.normalize_to_scanner_cursor();
-                    self.bind_annotation_seam(
-                        next_element_cursor.index,
-                        next_element_cursor.skipped_newline_count,
-                        last_element.id,
-                        AnnotationSeamKind::TrailingLineBoundary,
-                    );
-                }
-
                 expect_element = true;
                 continue;
             }
 
             // keep eating elements (positional/spread only)
-            let element_token_index = cursor.index;
-            let element_skipped_newline_count = cursor.skipped_newline_count;
             let element = self
                 .eat_positional_argument()
                 .for_node_type(NodeType::Argument)?;
-            self.bind_annotation_seam(
-                element_token_index,
-                element_skipped_newline_count,
-                element.id,
-                AnnotationSeamKind::Leading(LeadingAnnotationKind::Wrapper),
-            );
-            self.bind_owner_trailing_default_at_current(element.id);
+
             elements.push(element);
             expect_element = false;
         }

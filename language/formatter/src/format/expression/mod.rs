@@ -36,7 +36,6 @@ use self::scan::*;
 use self::sort::*;
 use self::statement::*;
 use self::ternary::*;
-use crate::annotation::call_argument_inline_boundary_prefix_annotations;
 use crate::argument::list_like;
 use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
@@ -44,9 +43,6 @@ use crate::directive::{
 };
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::property::format_block_of_properties;
-use crate::scan::{
-    next_non_whitespace_after_annotation, previous_non_whitespace_before_annotation,
-};
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
