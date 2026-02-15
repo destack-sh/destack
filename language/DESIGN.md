@@ -124,8 +124,9 @@ loop {
 
 ### Using
 
-`using` is explicit resource management, mirroring JS/TS semantics.
-Resources are disposed at lexical scope exit in LIFO order, and `await using` calls the async disposer.
+`using` is explicit protocol based resource disposal, mirroring JS/TS semantics.
+Resources are disposed at lexical scope exit in LIFO order, and `await using` calls the async disposer when available.
+`using` is independent from ownership: use `using` for `Disposable` or `AsyncDisposable`, and use `^T` when you need single owner memory lifetime control.
 
 ```ds
 using file = openFile(path);
@@ -657,24 +658,29 @@ Extension methods participate in member resolution, too.
 ## Ownership
 
 TypeScript does not encode "ownership" in its type system: all reference types are implicitly GC managed, and all value types are copied by default.
-Destack adds opt-in explicit ownership for (more) manual memory management.
+Destack keeps those defaults for plain `T`, and adds opt in ownership for performance critical paths.
+In practice, this gives you single owner values and explicit borrows without changing normal TS style code.
 
 ### Ownership Modifiers
 
 In addition to the default `T`, there are four other ownership options:
 ```ds
 T            // type default (value or managed reference)
-&T           // borrow (read only reference)
-&mut T       // borrow (mutable reference)
-^T           // owned reference (move-only)
-^mut T       // owned reference (explicitly mutable)
+&readonly T  // shared borrow (read only reference)
+&T           // exclusive borrow (mutable reference)
+^T           // single owner handle (move-only)
+^readonly T  // single owner handle (move-only, readonly)
 ```
 
 Raw pointers are separate from ownership modifiers:
 ```ds
-*T           // raw pointer (unsafe)
-*mut T       // raw pointer (mutable, unsafe)
+*readonly T  // raw pointer (readonly, unsafe)
+*T           // raw pointer (mutable, unsafe)
 ```
+
+Passing `^T` transfers ownership, so the previous binding becomes invalid.
+Owned values are cleaned up at their last proven use, not only at lexical scope end.
+Borrowed references must stay valid for their full lifetime, and strict mode rejects borrows held across suspension points like `await` and `yield`.
 
 ## Module Imports
 

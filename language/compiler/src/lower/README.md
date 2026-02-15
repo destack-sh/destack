@@ -1366,22 +1366,22 @@ The runtime provides the actual GC implementation; Lower just emits the hooks.
 #### Raw Allocation
 
 `raw.alloc` creates manually-managed heap memory for owned values (`^T`).
-Cleanup uses `raw.drop` (with dispose) or `raw.free` (without dispose).
+Cleanup uses `raw.drop` (ownership end + deallocate) or `raw.free` (manual deallocate).
 
 ```mir
 type @SomeType = struct { i64 }
 
 v0 = raw.alloc @SomeType -> ref<raw readonly @SomeType>
 ; ... use v0 ...
-raw.drop v0    ; drop glue: dispose + deallocate
+raw.drop v0    ; ownership end + deallocate
 ```
 
-For manual deallocation without dispose (FFI, low-level code):
+For manual deallocation without ownership drop semantics (FFI, low-level code):
 
 ```mir
 v0 = raw.alloc @SomeType -> ref<raw readonly @SomeType>
 ; ... use v0 ...
-raw.free v0    ; just deallocate, no dispose
+raw.free v0    ; just deallocate
 ```
 
 No GC overhead.
@@ -1391,14 +1391,14 @@ In debug builds, a tracing allocator (like Zig's) can detect leaks, double-frees
 #### Stack Allocation
 
 `stack.alloc` creates frame-local storage.
-Cleanup uses `stack.drop` for dispose; deallocation happens automatically when the frame exits.
+Cleanup uses `stack.drop` for ownership end; deallocation happens automatically when the frame exits.
 
 ```mir
 type @SomeType = struct { i64 }
 
 v0 = stack.alloc @SomeType -> ref<raw addrspace(stack) readonly @SomeType>
 ; ... use v0 ...
-stack.drop v0    ; drop glue: dispose only, frame handles memory
+stack.drop v0    ; ownership end only, frame handles memory
 ```
 
 No heap allocation.
@@ -1409,8 +1409,7 @@ The optimizer promotes `raw.alloc` to `stack.alloc` via escape analysis when the
 The drop instructions (`raw.drop`, `stack.drop`) perform **drop glue**:
 
 1. **Drop owned fields** in reverse declaration order (LIFO, like Rust/C++)
-2. **Call dispose** (`Symbol.dispose`) if the type implements `Drop`
-3. **Deallocate** (only for `raw.drop`; `stack.drop` skips this)
+2. **Deallocate** (only for `raw.drop`; `stack.drop` skips this)
 
 **Field drop order:** Fields are dropped in reverse declaration order.
 This matches C++ and Rust destruction semantics: last declared, first destroyed.
@@ -1426,16 +1425,18 @@ class Resource {
 ```
 
 Drop glue metadata is attached to MIR type definitions during lowering.
-Lower has full DIR type information (including `Drop` trait bounds) and generates the appropriate drop glue for each type.
+Lower has full DIR type information and generates the appropriate ownership cleanup behavior for each type.
 
 **Important:** Lower only *marks* ownership on types and values (via `^T` modifiers and allocation instructions).
 The actual drop instruction insertion happens in Optimize's `drop-insert` pass, which runs as part of the Verify phase.
 This separation ensures drops are placed at precise last use points after all control flow is lowered.
+`drop-insert` handles ownership lifetime cleanup only.
+`using` protocol disposal is lowered independently of `raw.drop` and `stack.drop`.
 
 | Instruction | Drop Fields | Call Dispose | Deallocate |
 |-------------|-------------|--------------|------------|
-| `raw.drop` | Yes (LIFO) | If `Drop` | Yes |
-| `stack.drop` | Yes (LIFO) | If `Drop` | No (frame) |
+| `raw.drop` | Yes (LIFO) | No | Yes |
+| `stack.drop` | Yes (LIFO) | No | No (frame) |
 | `raw.free` | No | No | Yes |
 
 For managed allocations (`managed.alloc`), there is no drop instruction.
@@ -1446,6 +1447,7 @@ The GC handles cleanup, with finalizers for any `^T` fields (nondeterministic).
 Destack aims to cover the "managedness" spectrum from TS to Go to Rust: implicit GC by default, explicit ownership when needed.
 Most code just uses the default, and that should still be plenty fast thanks to real AOT compilation and fixed layouts (more like Go, Java, C#).
 Performance critical code adds these ownership modifiers for manual control.
+Source level ownership semantics are defined in [language/SPECIFICATION.md](../../../SPECIFICATION.md).
 
 **Explicit Ownership:**
 
@@ -1456,7 +1458,7 @@ To preserve TypeScript semantics, a plain type `T` always follows the same rules
 | `T` | GC managed (implicit) | `x` still valid | GC |
 | `&readonly T` | Borrow (read only) | `x` still valid | Original owner |
 | `&T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
-| `^T` | Owned reference (move-only) | `x` **invalid** | New owner (or GC fallback) |
+| `^T` | Owned reference (move-only) | `x` **invalid** | New owner |
 
 For the default (`T`), the compiler optimizes automatically:
 - Small values are passed by copy (registers)
@@ -1487,8 +1489,6 @@ function process() {
 }
 ```
 
-`Drop` is a marker interface that opts a type into last use cleanup when possible.
-(Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue).
 Optimize's `drop-insert` pass inserts drops at last use points (non lexical), including before
 control flow merges and before coroutine suspension when the value is not used after resume.
 
@@ -1507,7 +1507,7 @@ Lowers to (conceptual):
 type @Point = struct { f32, f32 }
 
 function @process(v0: ref<borrowed readonly @Point>) -> void { ... }
-function @mutate(v0: ref<borrowed readonly @Point>) -> void { ... }
+function @mutate(v0: ref<borrowed @Point>) -> void { ... }
 ```
 
 Lower treats locals, `this`, globals, and member or index access as addressable places for `&expr`.
@@ -1525,7 +1525,7 @@ In lenient mode, the same situations produce warnings.
 #### Raw pointers
 
 `*T` and `*readonly T` are unsafe pointers with no borrow tracking.
-They lower directly to `ref<raw readonly T>` and `ref<raw readonly T>`.
+They lower directly to `ref<raw T>` and `ref<raw readonly T>`.
 Deref and mutation use explicit `load`/`store` and pointer operations.
 Conversions between borrowed references and raw pointers are explicit.
 

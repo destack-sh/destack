@@ -4,7 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{Instruction, Value};
 
-use crate::optimize::common::{ValueTypeMap, build_signature_type};
+use crate::optimize::common::ValueTypeMap;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis, OwnershipMap,
     PipelineContext,
@@ -30,7 +30,7 @@ declare_pass! {
     /// Modifies MIR and invalidates all analyses.
     #[pass(id = "drop-insert")]
     pub DropInsert,
-    "Insert drop calls at last-use points"
+    "Insert drop instructions at last-use points"
 }
 
 /// Run drop insertion on a function.
@@ -158,7 +158,7 @@ fn run_drop_insert(
     }
 
     // insert drops (process in reverse to maintain indices)
-    insert_drops(function, tree, &drops_to_insert, ownership, &value_types);
+    insert_drops(function, tree, &drops_to_insert, ownership);
 
     true
 }
@@ -213,7 +213,7 @@ enum DropInsertionPoint {
     },
 }
 
-/// Find all values in the function that need Drop calls using ownership analysis.
+/// Find all values in the function that need Drop instructions using ownership analysis.
 ///
 /// Uses the value type table for accurate value type tracking, which handles
 /// field.set/element.set without inference.
@@ -357,33 +357,13 @@ fn last_use_moves_value(
     state.is_moved(value)
 }
 
-/// Emit the drop sequence for a value.
-///
-/// If the value's type has a drop function in the metadata table, emits a call
-/// to the drop function first. Then emits the drop instruction.
+/// Emit the drop instruction for a value.
 fn emit_drop_sequence(
     tree: &mut mir::NodeTree,
     ownership: &OwnershipAnalysis,
-    value_types: &ValueTypeMap,
     value: Value,
     instructions: &mut Vec<mir::LocalNodeId<Instruction>>,
 ) {
-    // check if value's type has a drop function
-    let type_id = value_types.require_value_type(value);
-    if let Some(&drop_fn) = tree.type_table.drop_function_by_type_id.get(&type_id) {
-        let arguments = tree.add_arguments(&[value]);
-        let signature = build_signature_type(drop_fn, tree);
-        let call = Instruction::Call {
-            destination: None,
-            function: drop_fn,
-            arguments,
-            signature,
-            effects: None,
-        };
-        let call_id = tree.insert(call);
-        instructions.push(call_id);
-    }
-
     // emit the drop instruction based on allocation kind
     let drop_instruction = if ownership.is_stack_allocated(value) {
         Instruction::StackDrop { value }
@@ -395,15 +375,11 @@ fn emit_drop_sequence(
 }
 
 /// Insert Drop instructions at the specified points.
-///
-/// For each drop, if the value's type has a drop function registered in the
-/// metadata table, emits a call to the drop function before the drop instruction.
 fn insert_drops(
     _function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     drops: &[DropInsertionPoint],
     ownership: &OwnershipAnalysis,
-    value_types: &ValueTypeMap,
 ) {
     // group by block for efficient insertion
     let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<&DropInsertionPoint>> =
@@ -451,14 +427,14 @@ fn insert_drops(
             // insert drops after this instruction
             if let Some(values) = drops_after.get(&idx) {
                 for &value in values {
-                    emit_drop_sequence(tree, ownership, value_types, value, &mut new_instructions);
+                    emit_drop_sequence(tree, ownership, value, &mut new_instructions);
                 }
             }
         }
 
         // insert drops before terminator
         for value in drops_before_terminator {
-            emit_drop_sequence(tree, ownership, value_types, value, &mut new_instructions);
+            emit_drop_sequence(tree, ownership, value, &mut new_instructions);
         }
 
         // update block
@@ -862,54 +838,5 @@ block0:
         test.run_pass(&DropInsert);
         test.assert_no_errors();
         test.assert_unchanged(input);
-    }
-
-    /// Type with drop function gets call emitted before raw.drop.
-    #[test]
-    fn test_drop_function_called_before_raw_drop() {
-        let input = r#"function @my_drop(v0: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>):
-    return
-}
-
-function @test(v0: ref<owned i32>) -> i32 {
-block0(v0: ref<owned i32>):
-    v1: i32 = load v0
-    return v1
-}"#;
-
-        let mut test = TestProgram::new(input);
-        let drop_fn = test
-            .tree
-            .iter_nodes::<mir::Function>()
-            .find(|(_, f)| test.get_string(f.name) == "my_drop")
-            .map(|(id, _)| id)
-            .expect("drop function not found");
-
-        test.register_drop_function_for(drop_fn, |ty| {
-            matches!(
-                ty,
-                mir::Type::Reference {
-                    kind: mir::ReferenceKind::Owned,
-                    ..
-                }
-            )
-        });
-
-        test.run_pass(&DropInsert);
-        test.assert_no_errors();
-
-        let expected = r#"function @my_drop(v0: ref<raw i32>) -> void {
-block0(v0: ref<raw i32>):
-    return
-}
-function @test(v0: ref<owned i32>) -> i32 {
-block0(v0: ref<owned i32>):
-    v1: i32 = load v0
-    call @my_drop(v0) -> fn(ref<raw i32>) -> void
-    raw.drop v0
-    return v1
-}"#;
-        test.assert_output(expected);
     }
 }

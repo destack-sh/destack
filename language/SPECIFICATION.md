@@ -12,6 +12,8 @@ See [COMPATIBILITY](COMPATIBILITY.md) for the full file type matrix and exclusio
 ## Literals
 
 Destack supports all JS/TS literals, as well as some additions.
+See [Types](#types) for literal type behavior and assignability rules.
+See [Trees](#trees) for tree literal syntax and routing rules.
 
 ### Numeric Literals
 
@@ -76,79 +78,6 @@ Destack adds tuples:
 ();                    // empty tuple
 ```
 
-### Tree Literals
-
-Tree literals generalize TSX/JSX syntax for any tree-shaped data beyond UIs with a superset of JSX/TSX syntax.
-
-```ds
-// Wall.ds
-<Wall id={1}>
-    <Block name="foo" color={Color.RED} />
-    <Block name="bar" color={Color.BLUE} />
-</Wall>
-
-// Prompt.ds
-<Prompt>
-    <System>You are a helpful assistant.</System>
-    <User>{userMessage}</User>
-</Prompt>
-
-// Level.ds
-<Level difficulty={3}>
-    <Player position={spawn} />
-    {enemies.map(e => <Enemy {...e} />)}
-</Level>
-```
-
-#### Tag Kinds And Resolution
-
-Like in TSX, Destack's tree literals come in two main forms:
-- **Value tags** via `TreeTag`: uppercase qualified tags like `<Button />` and `<UI.Button />` resolve in the normal value namespace.
-- **Intrinsic tags** via `TreeTagBuilder`: lowercase unqualified tags like `<div />` and `<span />` resolve through the active `TreeTagBuilder`.
-
-Value tag resolution follows normal symbol resolution rules, including import and member lookup semantics, just like in regular TS/TSX.
-Intrinsic tags resolve through the active `TreeTagBuilder` as compile-time string names.
-Namespaced XML tags like `<svg:path />` keep their lexical name and route as intrinsic tag names (`"svg:path"`).
-
-#### Value tags (TreeTag)
-
-Most "custom" tags are value tags, i.e., the uppercase `<Component />`s that are defined as actual types somewhere.
-Value tree tag construction is defined by the `TreeTag` interface.
-Compatible types automatically get a `TreeTag` implementation when possible, and all (nominal) types can implement `TreeTag` manually to customize tree construction behavior.
-
-```ds
-/// A tree tag.
-newtype interface TreeTag {
-    /// The associated Props type.
-    type Props;
-    /// The associated Node type.
-    type Node;
-
-    /// Create a Node from props and children.
-    static fromTree(props: this.Props, children: readonly this.Node[]): this.Node;
-}
-```
-
-#### Intrinsic tags (TreeTagBuilder)
-
-Like JSX/TSX, Destack also supports "intrinsic" lowercase tags that resolve to a generic tag instead of a specific type.
-Lowercase tags and fragment construction are defined by the `TreeTagBuilder` interface.
-
-```ds
-/// A tree tag builder for intrinsic string tags (like `<div />` or `<svg:path />`)
-newtype interface TreeTagBuilder {
-    /// The associated Node type for all routed intrinsic tags.
-    type Node;
-    /// The tag with the given name.
-    type Tag<comptime Name: string>: TreeTag;
-    /// The fragment type (for `<> ... </>`).
-    type Fragment: TreeTag;
-}
-```
-
-The active tree tag builder can be configured at workspace, project, and module level.
-Destack also recognizes `jsx`, `jsxFactory`, `jsxFragmentFactory`, and `jsxImportSource` options for TSX ecosystem compatibility.
-
 ## Types
 
 Destack extends TypeScript's type system with precise primitives.
@@ -156,6 +85,8 @@ It adds explicit reference semantics and types as values.
 It supports static parameterisation of values and other advanced type features.
 Declaration modules can declare values without providing implementations.
 Nominal declarations introduce both type and value bindings, including in declaration modules.
+See [Ownership](#ownership) for explicit ownership and borrow semantics.
+See [Declarations](#declarations) for declaration forms that introduce type and value symbols.
 
 **TSC, inference and TypeScript pain**:
 Destack tries very hard to be TSC faithful and support the full modern TS feature set.
@@ -334,259 +265,6 @@ arrayFixed[3]; // ERROR at compile time
 Fixed-size arrays are assignable to dynamic arrays when their element types are compatible.
 Tuples are fixed-length value types and are assignable to arrays when their element types are compatible.
 
-### References and Values
-
-Like in TypeScript, a plain `T` follows the default semantics of its type: objects are GC-managed references, primitives are copied values.
-Ownership is orthogonal to identity semantics, which are determined by the base type.
-Ownership modifiers change storage and lifetime but do not change whether a type has identity.
-This keeps `struct` value semantics and `class` identity semantics consistent across all ownership modes.
-Destack additionally supports explicit ownership control:
-
-```ds
-T            // type default (value or managed reference)
-&T           // borrow (mutable, exclusive reference)
-&readonly T  // borrow (read only reference)
-^T           // owning handle (move-only)
-^readonly T  // owning handle (move-only, readonly)
-```
-
-Raw pointers are also supported:
-```ds
-*T           // raw pointer (mutable, unsafe)
-*readonly T  // raw pointer (readonly, unsafe)
-```
-
-**Raw pointers:**
-- `*T` and `*readonly T` are unsafe pointers with no borrow tracking.
-- Raw pointers may be null or dangling and allow pointer arithmetic.
-- Converting between borrowed references and raw pointers is always explicit.
-- Raw pointers do not imply ownership or drop behavior.
-- Raw pointers only support equality and inequality comparisons.
-- `&const T` and `*const T` are accepted but redundant and format as `&readonly T` and `*readonly T`.
-
-| Modifier | Meaning | After `foo(x)` | Who cleans up? |
-|----------|---------|----------------|----------------|
-| `T` | Type default (value or managed reference) | `x` still valid | Type default |
-| `&readonly T` | Borrow (read) | `x` still valid | Original owner |
-| `&T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
-| `^T` | Owning handle (move-only) | `x` **invalid** | New owner (raw allocation) |
-| `^readonly T` | Owned reference (read only) | `x` **invalid** | New owner (raw allocation) |
-
-Managed reference types are collected by the GC.
-Value types only drop when owned or used with `using`.
-For value types, `T` is an inline value with copy or move semantics, while `^T` is an owning handle that allocates and transfers ownership.
-Use `^T` when you need explicit ownership transfer, deterministic drop, or to avoid copying large value types.
-Use `^readonly T` when ownership transfer is required but mutation must be forbidden.
-
-**Implicit managed defaults:**
-`noImplicitManaged` requires explicit ownership operators anywhere a type or value would otherwise use managed defaults.
-Managed defaults include classes, interfaces, structural object types, arrays, functions, and string-like literals.
-Explicit ownership operators (`^T`, `&T`, `*T`) satisfy the requirement for both type annotations and inferred values.
-`noManaged` forbids GC-managed defaults and allocations.
-Explicit ownership operators remain valid and use raw allocation.
-
-Native and WASM outputs force strict defaults plus soundness defaults regardless of configuration.
-The soundness defaults enforce:
-- noAny.
-- noImprecisePrimitives.
-- noImplicitConversions and noUnsafeTypeAssertions.
-- noImplicitManaged and noManaged.
-- borrowMode = strict.
-- noDynamicEvaluation, noDynamicImport, noProxy, noDynamicShapes, noExceptions, and noGlobalThis.
-
-**Use after move:**
-
-```ds
-const node = AstNode { ... };
-consume(^node);    // ownership transferred
-print(node.value); // error: use after ownership transfer
-```
-
-`^T` is the owning handle type.
-Passing a `^T` by value transfers ownership to the callee.
-Use `^expr` to convert a value `T` into an owning handle `^T`.
-If you already have `^T`, pass it directly instead of writing `^expr`.
-
-Using a value after ownership transfer is an error (suppressible to warning).
-
-**Drop as soon as possible:**
-
-`^T` values are dropped at their last proven use (non lexical).
-The compiler inserts a drop as soon as it can prove the value is no longer needed,
-even if the lexical scope continues.
-
-```ds
-function process() {
-    const data = ^LargeData { ... };  // we own this
-    doWork(&readonly data);            // borrow it
-    log("done");                       // data can be dropped before this line
-}
-```
-
-References can also target explicit address spaces for native and accelerator memory.
-The default is `generic`, which maps to the target's normal memory.
-
-**Nested ownership:**
-
-Ownership is at the usage site, not the definition site.
-Structs can contain `^T` fields regardless of how the struct itself is stored:
-
-```ds
-struct Container {
-    data: ^Data; // Container.data is owned by Container
-}
-
-const value: Container = ...;          // value semantics container
-const owned: ^Container = ...;         // owned container
-```
-
-When the container is `^Container`:
-- Drop is deterministic
-- Fields drop in reverse declaration order, then the container
-
-When the container is boxed into managed storage:
-- Drop is nondeterministic (GC finalizer)
-- A warning is emitted in strict mode for `^T` fields in managed types
-
-### Ownership Conversions
-
-Ownership conversions are explicit, except for borrows inserted at reference boundaries.
-Implicit ownership conversions only create borrows and never transfer ownership.
-Struct boxing at reference boundaries is a value to reference conversion, not an ownership conversion.
-
-Implicit conversions:
-- `T` → `&T` or `&readonly T` when a reference is required and the value is addressable
-- `^T` → `&T` or `&readonly T` when a reference is required
-- `&T` → `&readonly T` to reborrow as shared
-
-Explicit conversions:
-- `T` ↔ `^T` require explicit ownership operators or helper calls (use `^expr` for `T` → `^T`)
-- `&T` → `T` requires `Copy` or an explicit clone
-- `&T` → `^T` requires an explicit clone and ownership transfer
-- `*T` conversions require explicit unsafe operations
-
-Example (implicit borrow):
-
-```ds
-function read(item: &readonly Item): int { item.size() }
-
-const value = Item { size: 10 };
-read(value);
-```
-
-Example (explicit ownership conversion):
-
-```ds
-function consume(value: ^Item) { ... }
-
-const value = Item { size: 10 };
-consume(^value);
-```
-
-If you already have `^Item`, pass it directly without `^`.
-
-Example (scope-end drop):
-
-```ds
-using file: ^File = File.open(path);
-file.write("hello");
-```
-
-**Returning references:**
-
-Functions can return `&readonly T`.
-Borrowed returns use lifetime inference and `@lifetime` annotations to track which inputs they borrow from.
-In strict mode, returning a borrow that may outlive its origin is an error.
-(In lenient mode, the same situation produces a warning).
-
-```ds
-function get(c: &readonly Container): &readonly Item { &readonly c.item }  // ok
-
-function bad(): &readonly Point {
-    const p = Point { x: 1, y: 2 }
-    &readonly p  // WARNING: returning reference to local
-}
-```
-
-By default, `&T` and `&readonly T` are compiler hints; violations of the aliasing rules produce warnings, not errors.
-
-### Lifetime Annotations
-
-When a function returns `&readonly T` or a type containing borrowed references, the compiler tracks which input parameters the return value borrows from.
-This is usually inferred automatically:
-
-| Input Parameters | Inference |
-|------------------|-----------|
-| Single `&readonly T` parameter | Return borrows from it |
-| `&readonly self` or `&readonly this` receiver | Return borrows from receiver |
-| Multiple `&readonly T` parameters | Return borrows from all (conservative) |
-
-When conservative inference is too restrictive, use `@lifetime` to specify exactly
-which parameters the return borrows from:
-
-```ds
-@lifetime("param")          // borrows from single parameter
-@lifetime("a", "b")           // may borrow from a or b
-@lifetime("static")       // borrows from static/global data only (static is a reserved name anyway)
-```
-
-**Examples:**
-
-```ds
-// only borrows from 'a', caller knows 'b' can be a local
-function first(a: &string, b: &string): @lifetime("a") &string {
-    return a;
-}
-
-// may borrow from either parameter
-function pick(a: &string, b: &string): @lifetime("a", "b") &string {
-    if (condition) { return a; }
-    return b;
-}
-
-// static lifetime: string literal never dies
-function constant(): @lifetime("static") &string {
-    return &"hello";
-}
-
-// struct containing borrowed reference
-struct Tokenizer { source: &string, pos: int }
-
-function makeTokenizer(source: &string): @lifetime("source") Tokenizer {
-    return Tokenizer { source, pos: 0 };
-}
-```
-
-**Verification:**
-
-The compiler verifies that the annotation is correct. Returning a value that doesn't
-actually borrow from the declared parameters is a compile error:
-
-```ds
-function wrong(a: &string, b: &string): @lifetime("a") &string {
-    return b;  // ERROR: return borrows from 'b', not 'a'
-}
-```
-
-**Call site tracking:**
-
-At call sites, the compiler uses lifetime information to check safety:
-
-```ds
-function caller(x: &string): &string {
-    const local = "hello";
-    return first(x, &local);  // OK: first only borrows from 'x'
-}
-
-function bad(): Tokenizer {
-    const local = "hello";
-    return makeTokenizer(&local);  // ERROR: Tokenizer borrows from local
-}
-```
-
-This design provides precise borrow tracking without requiring Rust-style `<'a>`
-lifetime parameters on every function signature.
-
 ### Dynamic Parameterisation
 
 Functions and methods work exactly like in JS/TS.
@@ -706,239 +384,11 @@ function merge<T, U>(): T where (
 }
 ```
 
-## Comptime
-
-It is often useful, especially in statically compiled languages, to denote some expression as evaluatable or evaluated at "compile time".
-There are many ways of doing this (hello `constexpr`), but we find Zig's `comptime` concept to be a natural fit to TypeScript's system (with some modifications).
-We support `comptime` as a modifier on bindings like `T<comptime N>` to denote that the type `T` is a (value-space) value at compile time, or as an expression form that executes the expression during compilation like `comptime <expression>`.
-
-### Static vs Dynamic Comptime
-
-To keep language (and compiler) semantics sane, there are two different notions of "compile time"; the distinction basically centering around _when_ during compile time a value is evaluated:
-- **Static comptime execution**: Static parameters like `E` and `N` in `type FixedArray<E, comptime N: int> = E[N]` must be known statically _during analysis_, we require static parameters to be evaluatable statically using a powerful but restricted set of expressions.
-- **Dynamic comptime execution**: Comptime _expressions_  like `let precomputedTable = comptime { ... }`, on the other hand, support the full "comptime world" and basically all expressions. These are executed post-analyze in topological order (no cycles) and then patched into the IR.
-
-
-### Import Meta
-
-`import.meta` exposes per-profile metadata during static and comptime evaluation.
-The values are fixed for the profile and are not runtime dependent:
-
-```ds
-/// Metadata about the current module and build configuration.
-export interface ImportMeta {
-    /// The URL of the current module (file:// for local, https:// for remote).
-    readonly url: string,
-    /// The file system path of the current module (only for local files).
-    readonly path: string | undefined,
-    /// Alias of `path`.
-    readonly file: string | undefined,
-    /// Alias of `file`.
-    readonly filename: string | undefined,
-    /// The directory containing the current module (only for local files).
-    readonly dir: string | undefined,
-    /// Alias of `dir`.
-    readonly dirname: string | undefined,
-    /// The output format being compiled.
-    readonly output: Output,
-    /// The target platform (OS) being compiled for.
-    readonly platform: Platform,
-    /// The runtime environment that will execute the code.
-    readonly runtime: Runtime,
-    /// True if this is a debug/development build (from target.debug).
-    readonly debug: boolean,
-    /// True if this is a test build.
-    readonly test: boolean,
-    /// Environment variables (from build configuration).
-    readonly env: ImportMetaEnv,
-}
-```
-
-### Static Ifs
-
-The `@if(...)` decorator gates declarations and declaration members based on a static comptime expression.
-(The condition must evaluate to a boolean using static execution, and  must not depend on static parameters.)
-When the condition is false, the annotated item is (conceptually) removed from the symbol table for the active profile.
-Multiple `@if` decorators are combined with logical AND.
-The decorator is allowed on module declarations, class and struct members, interface members, and enum fields.
-
-```ds
-enum OperatingSystem {
-    @if(import.meta.platform == "windows")
-    Windows,
-    @if(import.meta.platform == "macos")
-    Mac,
-}
-```
-
-### Comptime Expressions
-
-The `comptime` keyword wraps an expression or block, forcing compile-time evaluation.
-Comptime expressions infer their result type like any other expression, though it is recommended to annotate the type explicitly.
-
-```ds
-const VALUE: int = comptime 1 + 2 + 3;
-const RESULT: int = comptime factorial(10);
-const TABLE: uint8[] = comptime {
-    let t = [];
-    for (let i = 0; i < 256; i++) {
-        t.push(computeCRC(i));
-    }
-    t
-};
-```
-
-### Comptime Blocks
-
-Comptime blocks can appear as struct/class members or at module top-level.
-Unlike static blocks (inherited naming from TypeScript), comptime blocks run during compilation rather than at initialization time.
-
-#### Member-level Comptime Blocks
-
-Comptime blocks inside structs or classes run once per instantiation of the type at compile time.
-They are useful for compile-time assertions on static parameters:
-
-```ds
-struct Buffer<comptime size: uint> {
-    comptime {
-        assert(size > 0, "buffer size must be positive");
-        assert(size <= 65536, "buffer size too large");
-    }
-
-    data: uint8[size],
-}
-```
-
-Member comptime blocks have no return value (they evaluate to `void`).
-They execute after the type's static parameters are resolved but before any instances are created.
-
-#### Module-Level Comptime Blocks
-
-Module-level comptime blocks run during module compilation:
-
-```ds
-comptime {
-    // validation or initialization logic
-    assert(TARGET_ARCH == "x64" || TARGET_ARCH == "arm64");
-}
-
-// or to compute a value
-const LOOKUP_TABLE: uint8[256] = comptime {
-    let table: uint8[] = [];
-    for (let i = 0; i < 256; i++) {
-        table.push(computeCRC(i));
-    }
-    table
-};
-```
-
-### Static Parameters
-
-Static parameters support both type parameters and (static) comptime value parameters.
-By default, static parameters like `<T>` are type parameters like in TypeScript, so comptime value parameters must be marked unambiguously with `comptime`.
-
-```ds
-function repeat<comptime N: int>(value: string): string {
-    let result = "";
-    for (let i = 0; i < N; i++) {
-        result += value;
-    }
-    result
-}
-
-const greeting = repeat<3>("hello ");  // N is comptime
-```
-
-### Comptime Dynamic Parameters
-
-Dynamic parameters can also be marked `comptime` to require compile-time-known arguments:
-
-```ds
-function createBuffer(comptime size: int): uint8[] {
-    let buf: uint8[size] = [];
-    for (let i = 0; i < size; i++) {
-        buf[i] = 0;
-    }
-    buf
-}
-
-createBuffer(1024);           // ok: literal is comptime-known
-createBuffer(config.size);    // error: config.size not comptime-known
-
-const N = comptime 1024;      // ok: redundant but valid
-createBuffer(N);              // ok: N is comptime-known
-```
-
-This works exactly like static parameters.
-
-### Comptime Conditions
-
-`if (comptime ...)` evaluates the condition as a static expression.
-There is nothing really special about comptime conditions, they just dead code eliminate like any statically evaluatable expression.
-Type relations like `T extends U` are valid inside comptime conditions, which is quite useful.
-However, both branches must type check even when the condition is statically known (unless statically excluded with `@if`).
-}
-
-## Reflection
-
-Destack supports reflection of `type`s as first-class values, i.e., you can introspect the fields of a type.
-
-### Type Descriptors
-
-Every nominal type `T` has a corresponding runtime descriptor value of type `Type<T>`.
-For classes and structs, the constructor value doubles as the descriptor, so it is both constructable and reflective.
-Using a type name in value position evaluates to that descriptor value:
-
-```ds
-struct Point {
-    x: float32;
-    y: float32;
-}
-
-const t = Point;              // t: Type<Point>
-const t: Type<Point> = Point; // explicit annotation
-```
-
-The `typeOf` function returns a descriptor for a value's type (unlike the runtime `typeof`, which returns a coarse-grained string like `"object"`).
-The type-level `typeof` operator returns the value type of an expression, including constructor signatures and static members for classes and structs:
-The `typeof` operator is type-only, and type aliases are not values in expression position.
-
-```ds
-const p = Point { x: 1, y: 2 };
-const t = typeOf(p);          // Type<Point>
-```
-
-### Decorator Metadata
-
-Decorator information is accessible at runtime on-demand:
-
-```ds
-@deprecated("use newAPI")
-function myOldMethod() {}
-
-myOldMethod.decorators  // [{ name: "deprecated", args: ["use newAPI"] }]
-```
-
-### Standard Library
-
-The built-in `Type<T>` interface provides basic reflection.
-The standard library `@destack-sh/schema` extends it for general schema use:
-
-```ds
-// built-in (always available with Reflection feature)
-Point.name        // "Point"
-Point.fields      // [{ name: "x", ... }, { name: "y", ... }]
-Point.is(value)   // type guard
-
-// standard library (requires import)
-import { parse } from "@destack-sh/schema";
-parse(Point, data)      // runtime validation
-Point.parse(data)       // shorthand via extension
-```
-
 ## Declarations
 
 Declaration forms in Destack match TypeScript, with the addition of richer static parameterisation and our concept of nominal typing (like with `newtype` behavior for `enum`s).
+See [Dispatch](#dispatch) for overload and dynamic resolution rules.
+See [Operators](#operators) for operator interface declarations and desugaring.
 
 ### Interface
 
@@ -1499,6 +949,8 @@ async function fetchData(url: string): Promise<Response> {
 }
 ```
 
+Ownership and borrow behavior across `await` and `yield` follows the rules in [References and Values](#references-and-values).
+
 #### Generator Functions
 
 Generator functions use `function*` and `yield`:
@@ -1528,87 +980,6 @@ Arrow functions work like TypeScript:
     }
 }
 ```
-
-#### Function Overloading
-
-Destack supports function overloading without the clumsy type-only declarations:
-
-```ds
-function parse(input: string): int32 {
-    parseInt(input)
-}
-
-function parse(input: int32): int32 {
-    input
-}
-
-// both are callable
-parse("42")   // calls first
-parse(42)     // calls second
-```
-
-##### Overload Resolution
-
-Overloads are resolved using **declaration order**: the first matching overload wins (like in TypeScript).
-Applicability includes static parameter inference and validation, including `comptime` value parameters.
-Overload order is defined at the declaring module and is forwarded unchanged across exports, reexports, and namespace imports.
-
-The process has two phases:
-
-- Applicability: a candidate is applicable only when its static and dynamic parameters can be satisfied at the call site
-- Selection: among applicable candidates, the first candidate in declaration order wins
-
-```ds
-// Good: specific overloads before general ones
-function format(x: "json"): JsonFormatter;
-function format(x: "xml"): XmlFormatter;
-function format(x: string): Formatter;
-
-format("json")    // calls first overload
-format("xml")     // calls second overload
-format("csv")     // calls third overload
-```
-
-```ds
-// bad: general overload shadows specific ones
-function format(x: string): Formatter;
-function format(x: "json"): JsonFormatter;  // warning: shadowed by first overload
-
-format("json")    // calls first overload (not second!)
-```
-
-The compiler warns when an overload is shadowed by an "earlier" declaration that always matches first.
-For union argument types, the argument must be assignable to a single overload:
-
-```ds
-function handle(x: string): string;
-function handle(x: number): number;
-
-const y: string | number = getValue();
-handle(y);  // error: union argument not assignable to any overload
-```
-
-```ds
-function handle(x: string | number): string | number;
-
-const y: string | number = getValue();
-handle(y);  // ok
-```
-
-##### Dynamic Resolution on Unions
-
-When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
-Dynamic resolution applies when **all** union variants expose the member and the resolved targets differ across variants.
-- If any union variant lacks the member, the access is an error.
-- If all variants resolve to the same target symbol and resolved signature, the compiler may treat the resolution as static.
-- If the target symbols or resolved signatures differ, the resolution is dynamic and dispatches on the receiver type.
-- Extension methods participate in member resolution for each variant.
-
-For method calls on unions, the call must be valid for every candidate signature:
-- Arguments must satisfy each candidate signature.
-- The return type is the union of per-candidate return types (after substitutions).
-
-Dynamic resolution is implemented by reifying the call into `if (receiver is Type)` branches with statically resolved calls in each branch.
 
 #### Methods
 
@@ -1720,10 +1091,11 @@ Visibility modifiers work like TypeScript:
 
 ```ds
 class MyClass {
-    public field: int32;
-    private field: int32;
-    protected field: int32;
-    #field: int32;
+    field: int32; // visible everywhere
+    public field: int32; // visible everywhere
+    private field: int32; // visible only within the class
+    protected field: int32; // visible within the class and subclasses
+    #field: int32; // visible only within the class
 }
 ```
 
@@ -2235,15 +1607,12 @@ using second = getSecond();
 #### Type requirements
 `using` requires `Disposable | null | undefined`.
 `await using` requires `AsyncDisposable | Disposable | null | undefined`.
-Types implementing `Drop` satisfy `Disposable` implicitly.
-On JS targets, `Drop` lowers to a `[Symbol.dispose]()` wrapper.
+`Disposable` is structural and requires a `[Symbol.dispose](): void` method.
+`AsyncDisposable` is structural and requires a `[Symbol.asyncDispose](): PromiseLike<void> | void` method.
 
 ```ds
-struct File implements Drop {
-    drop(): void { close(this) }
-}
-
-using file: ^File = File.open(path);
+declare const resource: Disposable;
+using value = resource;
 ```
 
 #### Loops
@@ -2265,22 +1634,12 @@ using log = openLog();
 await run();
 ```
 
-#### Drop and ownership
-In `.ds` files, `^T` values that implement `Drop` are disposed at their last proven use.
-`using` pins disposal to scope exit even if the value would otherwise drop earlier.
-`using` bindings are not movable, so `^x` from a `using` binding is an error.
-Use `^T` without `using` when you want eager drop.
-
-```ds
-using buffer: ^Buffer = allocate();
-use(&buffer);
-```
-
 ## Operators
 
 Destack operators match TypeScript with additional precision for integer arithmetic.
 Many operators can be overloaded via extensions implementing the corresponding interface.
 Operators with an interface in the table below desugar to method calls on the left operand (receiver-based dispatch).
+See [Dispatch](#dispatch) for overload ordering and union based dynamic resolution.
 
 The receiver type determines which implementation "family" to look at, and the right operand type selects the specific overload within that family.
 For example, `Vector2` can implement both `Add<Vector2>` and `Add<float>` for vector addition and scalar addition respectively.
@@ -2455,25 +1814,12 @@ The `in` operator returns a boolean literal when the key is assignable to `keyof
 For unions, `keyof (A | B)` is the intersection of keys present on every union member.
 For intersections, `keyof (A & B)` is the union of keys from all intersected types.
 The `in` operator follows the same `keyof` rules for unions and intersections.
-The `extends` and `implements` operators return boolean literals when assignability is decidable and `boolean` otherwise.
-
-Conditional types allow `infer` bindings inside the `extends` pattern.
-The inferred bindings are scoped to the conditional type and available in the true branch.
-
-Repeated `infer` bindings union candidates in covariant positions and intersect candidates in contravariant positions (such as function parameters).
-
-Conditional types distribute over unions only when the left side is a naked type parameter.
-Distributive conditionals treat `never` as an empty union and evaluate to `never`.
-
-When the checked type is `any`, the result is the union of the true and false branches.
-Wrapping the type parameter (for example, in a tuple) disables distributive behavior.
-
-When `never` is matched against an `infer` pattern, inference yields `never` for structural and template literal patterns.
+The `extends` and `implements` operators return boolean literals (`true` or `false`) when assignability is decidable and `boolean` otherwise.
 
 ### Mapped Types
 
 Mapped types construct new object types by iterating over keys.
-They follow TypeScript semantics and are primarily used by utility types like `Partial` and `Readonly`.
+Destack supports all the TS built-in mapped types:
 
 ```ds
 type Flags<T> = { [K in keyof T]: boolean };
@@ -2526,9 +1872,273 @@ Destack also provides (optional) operator overloading for standard library types
 
 These overloads transpile to explicit method calls in the generated TypeScript.
 
+
+## Dispatch
+
+See [Declarations](#declarations) for function and method declaration forms.
+See [Operators](#operators) for operator specific dispatch behavior.
+
+### Function Overloading
+
+Destack supports function overloading without the clumsy type-only declarations:
+
+```ds
+function parse(input: string): int32 {
+    parseInt(input)
+}
+
+function parse(input: int32): int32 {
+    input
+}
+
+// both are callable
+parse("42")   // calls first
+parse(42)     // calls second
+```
+
+### Overload Resolution
+
+Overloads are resolved using **declaration order**: the first matching overload wins (like in TypeScript).
+Applicability includes static parameter inference and validation, including `comptime` value parameters.
+Overload order is defined at the declaring module and is forwarded unchanged across exports, reexports, and namespace imports.
+
+The process has two phases:
+
+- Applicability: a candidate is applicable only when its static and dynamic parameters can be satisfied at the call site
+- Selection: among applicable candidates, the first candidate in declaration order wins
+
+```ds
+// good: specific overloads before general ones
+function format(x: "json"): JsonFormatter;
+function format(x: "xml"): XmlFormatter;
+function format(x: string): Formatter;
+
+format("json")    // calls first overload
+format("xml")     // calls second overload
+format("csv")     // calls third overload
+```
+
+```ds
+// bad: general overload shadows specific ones
+function format(x: string): Formatter;
+function format(x: "json"): JsonFormatter;  // warning: shadowed by first overload
+
+format("json")    // calls first overload (not second!)
+```
+
+The compiler warns when an overload is shadowed by an "earlier" declaration that always matches first.
+For union argument types, the argument must be assignable to a single overload:
+
+```ds
+function handle(x: string): string;
+function handle(x: number): number;
+
+const y: string | number = getValue();
+handle(y);  // error: union argument not assignable to any overload
+```
+
+```ds
+function handle(x: string | number): string | number;
+
+const y: string | number = getValue();
+handle(y);  // ok
+```
+
+#### Dynamic Resolution on Unions
+
+When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
+Dynamic resolution applies when **all** union variants expose the member and the resolved targets differ across variants.
+- If any union variant lacks the member, the access is an error.
+- If all variants resolve to the same target symbol and resolved signature, the compiler may treat the resolution as static.
+- If the target symbols or resolved signatures differ, the resolution is dynamic and dispatches on the receiver type.
+- Extension methods participate in member resolution for each variant.
+
+For method calls on unions, the call must be valid for every candidate signature:
+- Arguments must satisfy each candidate signature.
+- The return type is the union of per-candidate return types (after substitutions).
+
+Dynamic resolution is implemented by reifying the call into `if (receiver is Type)` branches with statically resolved calls in each branch.
+
+## Annotations
+
+Destack has three kinds of annotations: comments, documentation, and decorators.
+All annotations are preserved in the AST and available to tooling.
+(The Destack AST is a superset of the TypeScript AST that also contains whitespace and concrete info like a traditional CST).
+See [Reflection](#reflection) for runtime metadata access.
+
+### Decorators
+
+Decorators generalize TypeScript decorator semantics to enable decorators both as metadata and as transforms on most language constructs: declarations, statements, members, parameters, match arms, and more (not just classes and class members).
+
+```ds
+@memoize                           // decorator: memoize(target)
+@route("/api/users")               // factory: route("/api/users")(target)
+@service.middleware                // member access: service.middleware(target)
+```
+
+The decorator LHS-expression can be any expression (path, member access, call):
+- `@foo` → calls `foo(target)`
+- `@foo(args)` → calls `foo(args)(target)` (factory pattern)
+- `@obj.method` → calls `obj.method(target)`
+
+Decorators can be applied to most language constructs:
+
+```ds
+// on declarations
+@deprecated("use newAPI")
+function oldAPI() { }
+
+// on statements
+@unroll
+for (let i = 0; i < 4; i++) { }
+
+// on struct/class members
+struct Config {
+    @env("DEBUG")
+    debug: boolean,
+}
+
+// on function parameters
+function greet(@validate name: string) { }
+
+// on reference types
+function kernel(data: @addrspace("shared") &Point) { }
+
+// on match arms
+match (event) {
+    @likely
+    Click(pos) => handleClick(pos),
+    @cold
+    Error(e) => logError(e),
+}
+```
+
+#### Decorator Resolution
+
+Decorator behavior depends on what the decorator resolves to:
+
+| Resolves to | Behavior |
+|-------------|----------|
+| **Function** | Transforms target at runtime (standard decorator semantics) |
+| **Newtype** | Compile-time metadata only, stripped in output |
+
+Newtype-based decorators enable compiler hints without runtime overhead:
+
+```ds
+newtype unroll = void;
+newtype inline = void;
+newtype deprecated = string;
+newtype addrspace = (string,) | (int,);
+
+@unroll                    // hint to compiler, stripped in JS output
+for (let i = 0; i < 4; i++) { }
+
+@deprecated("use newAPI")  // compile-time warning, stripped in JS output
+function oldAPI() { }
+
+@addrspace("shared")       // type metadata, lowered to explicit address space
+function kernel(data: @addrspace("shared") &Point) { }
+```
+
+### Comments
+
+Standard JS/TS comments:
+
+```ds
+// line comment
+/* block comment */
+```
+
+### Documentation
+
+Documentation comments are attached to the following declaration and used for generated docs:
+
+```ds
+/// Line documentation comment.
+/// Can span multiple lines.
+
+/**
+ * Block documentation comment.
+ * Supports markdown formatting.
+ */
+```
+
+## Trees
+
+Tree literals generalize TSX/JSX syntax for any tree-shaped data beyond UIs with a superset of JSX/TSX syntax.
+
+```ds
+// Wall.ds
+<Wall id={1}>
+    <Block name="foo" color={Color.RED} />
+    <Block name="bar" color={Color.BLUE} />
+</Wall>
+
+// Prompt.ds
+<Prompt>
+    <System>You are a helpful assistant.</System>
+    <User>{userMessage}</User>
+</Prompt>
+
+// Level.ds
+<Level difficulty={3}>
+    <Player position={spawn} />
+    {enemies.map(e => <Enemy {...e} />)}
+</Level>
+```
+
+Like in TSX, Destack's tree literals come in two main forms:
+- **Value tags** via `TreeTag`: uppercase qualified tags like `<Button />` and `<UI.Button />` resolve in the normal value namespace.
+- **Intrinsic tags** via `TreeTagBuilder`: lowercase unqualified tags like `<div />` and `<span />` resolve through the active `TreeTagBuilder`.
+
+Value tag resolution follows normal symbol resolution rules, including import and member lookup semantics, just like in regular TS/TSX.
+Intrinsic tags resolve through the active `TreeTagBuilder` as compile-time string names.
+Namespaced XML tags like `<svg:path />` keep their lexical name and route as intrinsic tag names (`"svg:path"`).
+
+### Value tags (TreeTag)
+
+Most "custom" tags are value tags, i.e., the uppercase `<Component />`s that are defined as actual types somewhere.
+Value tree tag construction is defined by the `TreeTag` interface.
+Compatible types automatically get a `TreeTag` implementation when possible, and all (nominal) types can implement `TreeTag` manually to customize tree construction behavior.
+
+```ds
+/// A tree tag.
+newtype interface TreeTag {
+    /// The associated Props type.
+    type Props;
+    /// The associated Node type.
+    type Node;
+
+    /// Create a Node from props and children.
+    static fromTree(props: this.Props, children: readonly this.Node[]): this.Node;
+}
+```
+
+### Intrinsic tags (TreeTagBuilder)
+
+Like JSX/TSX, Destack also supports "intrinsic" lowercase tags that resolve to a generic tag instead of a specific type.
+Lowercase tags and fragment construction are defined by the `TreeTagBuilder` interface.
+
+```ds
+/// A tree tag builder for intrinsic string tags (like `<div />` or `<svg:path />`)
+newtype interface TreeTagBuilder {
+    /// The associated Node type for all routed intrinsic tags.
+    type Node;
+    /// The tag with the given name.
+    type Tag<comptime Name: string>: TreeTag;
+    /// The fragment type (for `<> ... </>`).
+    type Fragment: TreeTag;
+}
+```
+
+The active tree tag builder can be configured at workspace, project, and module level.
+Destack also recognizes `jsx`, `jsxFactory`, `jsxFragmentFactory`, and `jsxImportSource` options for TSX ecosystem compatibility.
+
 ## Modules
 
 Module syntax matches JS/TS exactly.
+See [Targets](#targets) for target specific module behavior.
+See [Compatibility](#compatibility) for supported file type matrix details.
 
 ### Imports
 
@@ -2742,115 +2352,530 @@ import b from "./data.json" with { type: "text" };    // raw string
 // a and b are different modules
 ```
 
-## Annotations
+## Ownership
 
-Destack has three kinds of annotations: comments, documentation, and decorators.
-All annotations are preserved in the AST and available to tooling.
-(The Destack AST is a superset of the TypeScript AST that also contains whitespace and concrete info like a traditional CST).
+See [Types](#types) for base type forms and generic constraints.
+See [Expressions](#expressions) for control flow forms that interact with lifetimes.
+See [Targets](#targets) for strict target defaults that affect ownership checking.
 
-### Decorators
+### References and Values
 
-Decorators generalize TypeScript decorator semantics to enable decorators both as metadata and as transforms on most language constructs: declarations, statements, members, parameters, match arms, and more (not just classes and class members).
+Like in TypeScript, a plain `T` follows the default semantics of its type: objects are GC-managed references, primitives are copied values.
+Ownership is orthogonal to identity semantics, which are determined by the base type.
+Ownership modifiers change storage and lifetime but do not change whether a type has identity.
+This keeps `struct` value semantics and `class` identity semantics consistent across all ownership modes.
+Destack additionally supports explicit ownership control:
 
 ```ds
-@memoize                           // decorator: memoize(target)
-@route("/api/users")               // factory: route("/api/users")(target)
-@service.middleware                // member access: service.middleware(target)
+T            // type default (value or managed reference)
+&T           // borrow (mutable, exclusive reference)
+&readonly T  // borrow (read only reference)
+^T           // owning handle (move-only)
+^readonly T  // owning handle (move-only, readonly)
 ```
 
-The decorator LHS-expression can be any expression (path, member access, call):
-- `@foo` → calls `foo(target)`
-- `@foo(args)` → calls `foo(args)(target)` (factory pattern)
-- `@obj.method` → calls `obj.method(target)`
+### Raw pointers
 
-Decorators can be applied to most language constructs:
+Raw pointers are also supported:
+```ds
+*T           // raw pointer (mutable, unsafe)
+*readonly T  // raw pointer (readonly, unsafe)
+```
+
+- `*T` and `*readonly T` are unsafe pointers with no borrow tracking.
+- Raw pointers may be null or dangling and allow pointer arithmetic.
+- Converting between borrowed references and raw pointers is always explicit.
+- Raw pointers do not imply ownership or drop behavior.
+- Raw pointers only support equality and inequality comparisons.
+- `&const T` and `*const T` are accepted but redundant and format as `&readonly T` and `*readonly T`.
+
+| Modifier | Meaning | After `foo(x)` | Who cleans up? |
+|----------|---------|----------------|----------------|
+| `T` | Type default (value or managed reference) | `x` still valid | Type default |
+| `&readonly T` | Borrow (read) | `x` still valid | Original owner |
+| `&T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
+| `^T` | Owning handle (move-only) | `x` **invalid** | New owner (raw allocation) |
+| `^readonly T` | Owned reference (read only) | `x` **invalid** | New owner (raw allocation) |
+
+Managed reference types are collected by the GC.
+Value types only drop when owned or used with `using`.
+For value types, `T` is an inline value with copy or move semantics, while `^T` is an owning handle that allocates and transfers ownership.
+Use `^T` when you need explicit ownership transfer, deterministic drop, or to avoid copying large value types.
+Use `^readonly T` when ownership transfer is required but mutation must be forbidden.
+
+**Implicit managed defaults:**
+`noImplicitManaged` requires explicit ownership operators anywhere a type or value would otherwise use managed defaults.
+Managed defaults include classes, interfaces, structural object types, arrays, functions, and string-like literals.
+Explicit ownership operators (`^T`, `&T`, `*T`) satisfy the requirement for both type annotations and inferred values.
+`noManaged` forbids GC-managed defaults and allocations.
+Explicit ownership operators remain valid and use raw allocation.
+
+Native and WASM outputs force strict defaults plus soundness defaults regardless of configuration.
+The soundness defaults enforce:
+- noAny.
+- noImprecisePrimitives.
+- noImplicitConversions and noUnsafeTypeAssertions.
+- noImplicitManaged and noManaged.
+- borrowMode = strict.
+- noDynamicEvaluation, noDynamicImport, noProxy, noDynamicShapes, noExceptions, and noGlobalThis.
+
+**Use after move:**
 
 ```ds
-// on declarations
+const node = AstNode { ... };
+consume(^node);    // ownership transferred
+print(node.value); // error: use after ownership transfer
+```
+
+`^T` is the owning handle type.
+`^T` follows affine semantics: an owned value can be moved at most once and cleaned up at most once.
+Passing a `^T` by value transfers ownership to the callee.
+Use `^expr` to convert a value `T` into an owning handle `^T`.
+If you already have `^T`, pass it directly instead of writing `^expr`.
+
+Using a value after ownership transfer is an error (suppressible to warning).
+
+**Cleanup as soon as possible:**
+
+`^T` values are dropped at their last proven use (non lexical).
+The compiler inserts a drop as soon as it can prove the value is no longer needed,
+even if the lexical scope continues.
+
+```ds
+function process() {
+    const data = ^LargeData { ... };  // we own this
+    doWork(&readonly data);            // borrow it
+    log("done");                       // data can be dropped before this line
+}
+```
+
+**Suspension points (`await` and `yield`):**
+
+A suspension point is any `await` or `yield` boundary.
+Owned values (`^T`) may cross suspension points by moving into the coroutine frame.
+Borrowed references (`&T`, `&readonly T`) must not remain live across suspension points in strict mode.
+In lenient mode, the same rule violations are warnings.
+If an owned value is dead before suspension, cleanup is inserted before the suspend edge.
+
+```ds
+async function bad(parent: ^Parent) {
+    const child: &readonly Child = &readonly parent.child;
+    await tick();
+    use(child); // error in strict mode: borrow held across await
+}
+```
+
+References can also target explicit address spaces for native and accelerator memory.
+The default is `generic`, which maps to the target's normal memory.
+
+**Nested ownership:**
+
+Ownership is at the usage site, not the definition site.
+Structs can contain `^T` fields regardless of how the struct itself is stored:
+
+```ds
+struct Container {
+    data: ^Data; // Container.data is owned by Container
+}
+
+const value: Container = ...;          // value semantics container
+const owned: ^Container = ...;         // owned container
+```
+
+Moving the owner of a container also moves any owned fields inside that container.
+
+When the container is `^Container`, cleanup is deterministic and fields are cleaned up in reverse declaration order before the container itself.
+When the container is boxed into managed storage, cleanup timing is nondeterministic and follows GC behavior.
+In strict mode, the compiler warns for `^T` fields inside managed container shapes.
+
+### Ownership Conversions
+
+Ownership conversions are explicit, except for borrows inserted at reference boundaries.
+Implicit ownership conversions only create borrows and never transfer ownership.
+Struct boxing at reference boundaries is a value to reference conversion, not an ownership conversion.
+
+Implicit conversions:
+- `T` → `&T` or `&readonly T` when a reference is required and the value is addressable
+- `^T` → `&T` or `&readonly T` when a reference is required
+- `&T` → `&readonly T` to reborrow as shared
+
+Explicit conversions:
+- `T` ↔ `^T` require explicit ownership operators or helper calls (use `^expr` for `T` → `^T`)
+- `&T` → `T` requires `Copy` or an explicit clone
+- `&T` → `^T` requires an explicit clone and ownership transfer
+- `*T` conversions require explicit unsafe operations
+
+Example (implicit borrow):
+
+```ds
+function read(item: &readonly Item): int { item.size() }
+
+const value = Item { size: 10 };
+read(value);
+```
+
+Example (explicit ownership conversion):
+
+```ds
+function consume(value: ^Item) { ... }
+
+const value = Item { size: 10 };
+consume(^value);
+```
+
+If you already have `^Item`, pass it directly without `^`.
+
+Example (scope-end drop):
+
+```ds
+using file: ^File = File.open(path);
+file.write("hello");
+```
+
+**Returning references:**
+
+Functions can return `&readonly T`.
+Borrowed returns use lifetime inference and `@lifetime` annotations to track which inputs they borrow from.
+In strict mode, returning a borrow that may outlive its origin is an error.
+(In lenient mode, the same situation produces a warning).
+
+```ds
+function get(c: &readonly Container): &readonly Item { &readonly c.item }  // ok
+
+function bad(): &readonly Point {
+    const p = Point { x: 1, y: 2 }
+    &readonly p  // WARNING: returning reference to local
+}
+```
+
+By default, `&T` and `&readonly T` are compiler hints.
+Violations of aliasing or suspension rules produce warnings instead of errors.
+
+### Lifetime Annotations
+
+When a function returns `&readonly T` or a type containing borrowed references, the compiler tracks which input parameters the return value borrows from.
+This is usually inferred automatically:
+
+| Input Parameters | Inference |
+|------------------|-----------|
+| Single `&readonly T` parameter | Return borrows from it |
+| `&readonly self` or `&readonly this` receiver | Return borrows from receiver |
+| Multiple `&readonly T` parameters | Return borrows from all (conservative) |
+
+When conservative inference is too restrictive, use `@lifetime` to specify exactly
+which parameters the return borrows from:
+
+```ds
+@lifetime("param")          // borrows from single parameter
+@lifetime("a", "b")           // may borrow from a or b
+@lifetime("static")       // borrows from static/global data only (static is a reserved name anyway)
+```
+
+**Examples:**
+
+```ds
+// only borrows from 'a', caller knows 'b' can be a local
+function first(a: &string, b: &string): @lifetime("a") &string {
+    return a;
+}
+
+// may borrow from either parameter
+function pick(a: &string, b: &string): @lifetime("a", "b") &string {
+    if (condition) { return a; }
+    return b;
+}
+
+// static lifetime: string literal never dies
+function constant(): @lifetime("static") &string {
+    return &"hello";
+}
+
+// struct containing borrowed reference
+struct Tokenizer { source: &string, pos: int }
+
+function makeTokenizer(source: &string): @lifetime("source") Tokenizer {
+    return Tokenizer { source, pos: 0 };
+}
+```
+
+**Verification:**
+
+The compiler verifies that the annotation is correct. Returning a value that doesn't
+actually borrow from the declared parameters is a compile error:
+
+```ds
+function wrong(a: &string, b: &string): @lifetime("a") &string {
+    return b;  // ERROR: return borrows from 'b', not 'a'
+}
+```
+
+**Call site tracking:**
+
+At call sites, the compiler uses lifetime information to check safety:
+
+```ds
+function caller(x: &string): &string {
+    const local = "hello";
+    return first(x, &local);  // OK: first only borrows from 'x'
+}
+
+function bad(): Tokenizer {
+    const local = "hello";
+    return makeTokenizer(&local);  // ERROR: Tokenizer borrows from local
+}
+```
+
+This design provides precise borrow tracking without requiring Rust-style `<'a>`
+lifetime parameters on every function signature.
+
+### Ownership and using
+In `.ds` files, `^T` values are cleaned up at their last proven use.
+`using` pins cleanup to scope exit even if the value would otherwise be cleaned up earlier.
+This pinning remains lexical even when the scope contains `await` or `yield`.
+`using` bindings are not movable, so `^x` from a `using` binding is an error.
+Use `^T` without `using` when you want eager cleanup.
+
+Ownership and `using` are intentionally separate mechanisms:
+- `^T` controls memory ownership and lifetime.
+- NLL cleanup for `^T` is compiler inserted.
+- `using` controls resource protocol disposal through `Disposable` or `AsyncDisposable`.
+- `using` does not require `^T`, and `^T` does not imply `Disposable`.
+
+```ds
+using buffer: ^Buffer = allocate();
+use(&buffer);
+```
+
+## Comptime
+
+It is often useful, especially in statically compiled languages, to denote some expression as evaluatable or evaluated at "compile time".
+There are many ways of doing this (hello `constexpr`), but we find Zig's `comptime` concept to be a natural fit to TypeScript's system (with some modifications).
+We support `comptime` as a modifier on bindings like `T<comptime N>` to denote that the type `T` is a (value-space) value at compile time, or as an expression form that executes the expression during compilation like `comptime <expression>`.
+See [Types](#types) for static parameter declarations and constraints.
+See [Targets](#targets) for profile context used during comptime evaluation.
+
+### Static vs Dynamic Comptime
+
+To keep language (and compiler) semantics sane, there are two different notions of "compile time"; the distinction basically centering around _when_ during compile time a value is evaluated:
+- **Static comptime execution**: Static parameters like `E` and `N` in `type FixedArray<E, comptime N: int> = E[N]` must be known statically _during analysis_, we require static parameters to be evaluatable statically using a powerful but restricted set of expressions.
+- **Dynamic comptime execution**: Comptime _expressions_  like `let precomputedTable = comptime { ... }`, on the other hand, support the full "comptime world" and basically all expressions. These are executed post-analyze in topological order (no cycles) and then patched into the IR.
+
+
+### Import Meta
+
+`import.meta` exposes per-profile metadata during static and comptime evaluation.
+The values are fixed for the profile and are not runtime dependent:
+
+```ds
+/// Metadata about the current module and build configuration.
+export interface ImportMeta {
+    /// The URL of the current module (file:// for local, https:// for remote).
+    readonly url: string,
+    /// The file system path of the current module (only for local files).
+    readonly path: string | undefined,
+    /// Alias of `path`.
+    readonly file: string | undefined,
+    /// Alias of `file`.
+    readonly filename: string | undefined,
+    /// The directory containing the current module (only for local files).
+    readonly dir: string | undefined,
+    /// Alias of `dir`.
+    readonly dirname: string | undefined,
+    /// The output format being compiled.
+    readonly output: Output,
+    /// The target platform (OS) being compiled for.
+    readonly platform: Platform,
+    /// The runtime environment that will execute the code.
+    readonly runtime: Runtime,
+    /// True if this is a debug/development build (from target.debug).
+    readonly debug: boolean,
+    /// True if this is a test build.
+    readonly test: boolean,
+    /// Environment variables (from build configuration).
+    readonly env: ImportMetaEnv,
+}
+```
+
+### Static Ifs
+
+The `@if(...)` decorator gates declarations and declaration members based on a static comptime expression.
+(The condition must evaluate to a boolean using static execution, and  must not depend on static parameters.)
+When the condition is false, the annotated item is (conceptually) removed from the symbol table for the active profile.
+Multiple `@if` decorators are combined with logical AND.
+The decorator is allowed on module declarations, class and struct members, interface members, and enum fields.
+
+```ds
+enum OperatingSystem {
+    @if(import.meta.platform == "windows")
+    Windows,
+    @if(import.meta.platform == "macos")
+    Mac,
+}
+```
+
+### Comptime Expressions
+
+The `comptime` keyword wraps an expression or block, forcing compile-time evaluation.
+Comptime expressions infer their result type like any other expression, though it is recommended to annotate the type explicitly.
+
+```ds
+const VALUE: int = comptime 1 + 2 + 3;
+const RESULT: int = comptime factorial(10);
+const TABLE: uint8[] = comptime {
+    let t = [];
+    for (let i = 0; i < 256; i++) {
+        t.push(computeCRC(i));
+    }
+    t
+};
+```
+
+### Comptime Blocks
+
+Comptime blocks can appear as struct/class members or at module top-level.
+Unlike static blocks (inherited naming from TypeScript), comptime blocks run during compilation rather than at initialization time.
+
+#### Member-level Comptime Blocks
+
+Comptime blocks inside structs or classes run once per instantiation of the type at compile time.
+They are useful for compile-time assertions on static parameters:
+
+```ds
+struct Buffer<comptime size: uint> {
+    comptime {
+        assert(size > 0, "buffer size must be positive");
+        assert(size <= 65536, "buffer size too large");
+    }
+
+    data: uint8[size],
+}
+```
+
+Member comptime blocks have no return value (they evaluate to `void`).
+They execute after the type's static parameters are resolved but before any instances are created.
+
+#### Module-Level Comptime Blocks
+
+Module-level comptime blocks run during module compilation:
+
+```ds
+comptime {
+    // validation or initialization logic
+    assert(TARGET_ARCH == "x64" || TARGET_ARCH == "arm64");
+}
+
+// or to compute a value
+const LOOKUP_TABLE: uint8[256] = comptime {
+    let table: uint8[] = [];
+    for (let i = 0; i < 256; i++) {
+        table.push(computeCRC(i));
+    }
+    table
+};
+```
+
+### Static Parameters
+
+Static parameters support both type parameters and (static) comptime value parameters.
+By default, static parameters like `<T>` are type parameters like in TypeScript, so comptime value parameters must be marked unambiguously with `comptime`.
+
+```ds
+function repeat<comptime N: int>(value: string): string {
+    let result = "";
+    for (let i = 0; i < N; i++) {
+        result += value;
+    }
+    result
+}
+
+const greeting = repeat<3>("hello ");  // N is comptime
+```
+
+### Comptime Dynamic Parameters
+
+Dynamic parameters can also be marked `comptime` to require compile-time-known arguments:
+
+```ds
+function createBuffer(comptime size: int): uint8[] {
+    let buf: uint8[size] = [];
+    for (let i = 0; i < size; i++) {
+        buf[i] = 0;
+    }
+    buf
+}
+
+createBuffer(1024);           // ok: literal is comptime-known
+createBuffer(config.size);    // error: config.size not comptime-known
+
+const N = comptime 1024;      // ok: redundant but valid
+createBuffer(N);              // ok: N is comptime-known
+```
+
+This works exactly like static parameters.
+
+### Comptime Conditions
+
+`if (comptime ...)` evaluates the condition as a static expression.
+There is nothing really special about comptime conditions, they just dead code eliminate like any statically evaluatable expression.
+Type relations like `T extends U` are valid inside comptime conditions, which is quite useful.
+However, both branches must type check even when the condition is statically known (unless statically excluded with `@if`).
+}
+
+## Reflection
+
+Destack supports reflection of `type`s as first-class values, i.e., you can introspect the fields of a type.
+See [Annotations](#annotations) for decorator syntax and annotation attachment points.
+See [Modules](#modules) for schema and metadata related imports.
+
+### Type Descriptors
+
+Every nominal type `T` has a corresponding runtime descriptor value of type `Type<T>`.
+For classes and structs, the constructor value doubles as the descriptor, so it is both constructable and reflective.
+Using a type name in value position evaluates to that descriptor value:
+
+```ds
+struct Point {
+    x: float32;
+    y: float32;
+}
+
+const t = Point;              // t: Type<Point>
+const t: Type<Point> = Point; // explicit annotation
+```
+
+The `typeOf` function returns a descriptor for a value's type (unlike the runtime `typeof`, which returns a coarse-grained string like `"object"`).
+The type-level `typeof` operator returns the value type of an expression, including constructor signatures and static members for classes and structs:
+The `typeof` operator is type-only, and type aliases are not values in expression position.
+
+```ds
+const p = Point { x: 1, y: 2 };
+const t = typeOf(p);          // Type<Point>
+```
+
+### Decorator Metadata
+
+Decorator information is accessible at runtime on-demand:
+
+```ds
 @deprecated("use newAPI")
-function oldAPI() { }
+function myOldMethod() {}
 
-// on statements
-@unroll
-for (let i = 0; i < 4; i++) { }
-
-// on struct/class members
-struct Config {
-    @env("DEBUG")
-    debug: boolean,
-}
-
-// on function parameters
-function greet(@validate name: string) { }
-
-// on reference types
-function kernel(data: @addrspace("shared") &Point) { }
-
-// on match arms
-match (event) {
-    @likely
-    Click(pos) => handleClick(pos),
-    @cold
-    Error(e) => logError(e),
-}
+myOldMethod.decorators  // [{ name: "deprecated", args: ["use newAPI"] }]
 ```
 
-### @require
+### Standard Library
 
-The `@require` decorator declares platform capabilities required by a declaration.
-It is allowed on functions, methods, and binding declarations.
-The decorator takes one or more string capability names.
-Capabilities are hierarchical using `:` separators.
-Requiring `net:tcp` implies `net`.
-The compiler validates that the active target profile provides all required capabilities.
-If a requirement is not met, compilation fails with a hard error.
-
-#### Decorator Resolution
-
-Decorator behavior depends on what the decorator resolves to:
-
-| Resolves to | Behavior |
-|-------------|----------|
-| **Function** | Transforms target at runtime (standard decorator semantics) |
-| **Newtype** | Compile-time metadata only, stripped in output |
-
-Newtype-based decorators enable compiler hints without runtime overhead:
+The built-in `Type<T>` interface provides basic reflection.
+The standard library `@destack-sh/schema` extends it for general schema use:
 
 ```ds
-newtype unroll = void;
-newtype inline = void;
-newtype deprecated = string;
-newtype addrspace = (string,) | (int,);
+// built-in (always available with Reflection feature)
+Point.name        // "Point"
+Point.fields      // [{ name: "x", ... }, { name: "y", ... }]
+Point.is(value)   // type guard
 
-@unroll                    // hint to compiler, stripped in JS output
-for (let i = 0; i < 4; i++) { }
-
-@deprecated("use newAPI")  // compile-time warning, stripped in JS output
-function oldAPI() { }
-
-@addrspace("shared")       // type metadata, lowered to explicit address space
-function kernel(data: @addrspace("shared") &Point) { }
-```
-
-### Comments
-
-Standard JS/TS comments:
-
-```ds
-// line comment
-/* block comment */
-```
-
-### Documentation
-
-Documentation comments are attached to the following declaration and used for generated docs:
-
-```ds
-/// Line documentation comment.
-/// Can span multiple lines.
-
-/**
- * Block documentation comment.
- * Supports markdown formatting.
- */
+// standard library (requires import)
+import { parse } from "@destack-sh/schema";
+parse(Point, data)      // runtime validation
+Point.parse(data)       // shorthand via extension
 ```
