@@ -234,6 +234,73 @@ fn test_parse_parenthesized_integer_member_access_in_destack() {
     });
 }
 
+/// Parse decimal member access with a separator in javascript.
+#[test]
+fn test_parse_decimal_member_access_with_separator_in_javascript() {
+    let mut test = TestParser::new_with_options("0..a", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+
+    // 0..a
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
+        assert_string!(parser, *name, "a");
+        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+    });
+}
+
+/// Parse decimal member call with a separator in javascript.
+#[test]
+fn test_parse_decimal_member_call_with_separator_in_javascript() {
+    let mut test = TestParser::new_with_options("123..a(1)", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+
+    // 123..a(1)
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+
+        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "a");
+            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(123)));
+        });
+    });
+}
+
+/// Parse decimal member access with a separator in destack.
+#[test]
+fn test_parse_decimal_member_access_with_separator_in_destack() {
+    let mut test = TestParser::new_with_options("0..a", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+
+    // 0..a
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
+        assert_string!(parser, *name, "a");
+        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+    });
+}
+
+/// Reject non decimal separator member syntax for hexadecimal integers in javascript.
+#[test]
+fn test_reject_hex_integer_member_separator_in_javascript() {
+    let mut test = TestParser::new_with_options("0x1..a", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let _ = parser.parse();
+
+    // parser should not reinterpret `..` as a decimal separator for non decimal integers
+    assert!(!parser.errors.is_empty(), "expected parser errors");
+    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), ".");
+}
+
 /// Parse this member access in variant context.
 #[test]
 fn test_parse_this_member_expression_in_variant_context() {

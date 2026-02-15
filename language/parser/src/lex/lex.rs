@@ -393,19 +393,11 @@ impl Lexer {
             ';' => (TokenType::Semicolon, None),
             ',' => (TokenType::Comma, None),
             '.' => {
-                // ..
-                if self.peek() == '.' {
-                    // ...
-                    if self.peek_next() == '.' {
-                        self.eat();
-                        self.eat();
-                        (TokenType::Spread, None)
-                    }
-                    // ..
-                    else {
-                        self.eat();
-                        (TokenType::Range, None)
-                    }
+                // ...
+                if self.peek() == '.' && self.peek_next() == '.' {
+                    self.eat();
+                    self.eat();
+                    (TokenType::Spread, None)
                 }
                 // decimal literal starting with .
                 else if self.peek().is_ascii_digit() {

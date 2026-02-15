@@ -262,8 +262,10 @@ fn test_lex_random_symbols() {
         "a..b => c->d x _ : ? ! @ ~",
         // a
         Token::new(TokenType::Identifier, 1, None),
-        // ..
-        Token::new(TokenType::Range, 2, None),
+        // .
+        Token::new(TokenType::Dot, 1, None),
+        // .
+        Token::new(TokenType::Dot, 1, None),
         // b
         Token::new(TokenType::Identifier, 1, None),
         // (space)

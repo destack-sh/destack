@@ -439,10 +439,13 @@ fn ternary_should_use_compact_tree_layout(
         .iter()
         .any(|comments| !comments.is_empty())
         || colon_comments.iter().any(|comments| !comments.is_empty());
-    let has_colon_line_comments = colon_line_comments.iter().any(|comments| !comments.is_empty());
-    let has_branch_prefix_annotations = branches.iter().any(|(_, then_expr)| {
-        context.has_prefix_annotation(*then_expr)
-    }) || final_else.is_some_and(|final_else_id| context.has_prefix_annotation(final_else_id));
+    let has_colon_line_comments = colon_line_comments
+        .iter()
+        .any(|comments| !comments.is_empty());
+    let has_branch_prefix_annotations = branches
+        .iter()
+        .any(|(_, then_expr)| context.has_prefix_annotation(*then_expr))
+        || final_else.is_some_and(|final_else_id| context.has_prefix_annotation(final_else_id));
 
     !has_separator_comments
         && !has_colon_line_comments

@@ -2,8 +2,7 @@ use destack_ast::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat, Comment,
     CommentStyle, Declaration, DeclarationAbstraction, DeclarationDescriptor, Declarator,
     Decorator, DependencyItem, Doc, DocStyle, Expression, FunctionKind, FunctionMode, IfCondition,
-    IfKind,
-    ImportTarget, Key, LocalNodeId, Member, Name, Parameter, Property, TypeBinaryOperator,
+    IfKind, ImportTarget, Key, LocalNodeId, Member, Name, Parameter, Property, TypeBinaryOperator,
     TypeKind, TypeLiteral, TypeUnaryOperator,
 };
 use destack_source::LanguageType;
