@@ -76,7 +76,7 @@ Package names may include patch markers.
 | dotenv  |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | drizzle-orm |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | echarts |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
-| effect  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
+| effect  |    ✓     |    x     |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | electron |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | eslint  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | excalidraw |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |

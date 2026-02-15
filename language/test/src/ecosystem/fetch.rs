@@ -159,6 +159,15 @@ enum EcosystemPackageManager {
     Bun,
 }
 
+/// Yarn mode used for fixture dependency installation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EcosystemYarnFlavor {
+    /// Use yarn classic arguments.
+    Classic,
+    /// Use yarn modern arguments.
+    Berry,
+}
+
 /// Install dependencies for one fetched ecosystem package checkout.
 fn ensure_package_dependencies_installed(package_dir: &Path) -> Result<(), String> {
     // skip non-node packages
@@ -173,27 +182,11 @@ fn ensure_package_dependencies_installed(package_dir: &Path) -> Result<(), Strin
 
     // choose package manager from lockfiles and workspace metadata
     let package_manager = detect_package_manager(package_dir);
-    let (command, args): (&str, &[&str]) = match package_manager {
-        EcosystemPackageManager::Pnpm => (
-            "pnpm",
-            &["install", "--ignore-scripts", "--frozen-lockfile"],
-        ),
-        EcosystemPackageManager::Yarn => ("yarn", &["install", "--ignore-scripts"]),
-        EcosystemPackageManager::Npm => {
-            if package_dir.join("package-lock.json").is_file()
-                || package_dir.join("npm-shrinkwrap.json").is_file()
-            {
-                ("npm", &["ci", "--ignore-scripts"])
-            } else {
-                ("npm", &["install", "--ignore-scripts"])
-            }
-        }
-        EcosystemPackageManager::Bun => ("bun", &["install", "--ignore-scripts"]),
-    };
+    let (command, args) = install_command_for_package_manager(package_dir, package_manager);
 
     // run install with deterministic ci environment
     let status = Command::new(command)
-        .args(args)
+        .args(args.iter().copied())
         .current_dir(package_dir)
         .env("CI", "1")
         .status()
@@ -244,6 +237,53 @@ fn detect_package_manager(package_dir: &Path) -> EcosystemPackageManager {
 
     // default to npm
     EcosystemPackageManager::Npm
+}
+
+/// Select the install command for one package manager.
+fn install_command_for_package_manager(
+    package_dir: &Path,
+    package_manager: EcosystemPackageManager,
+) -> (&'static str, Vec<&'static str>) {
+    // use frozen lockfile installs for pnpm packages
+    if package_manager == EcosystemPackageManager::Pnpm {
+        return (
+            "pnpm",
+            vec!["install", "--ignore-scripts", "--frozen-lockfile"],
+        );
+    }
+
+    // use yarn classic or berry compatible script-suppression flags
+    if package_manager == EcosystemPackageManager::Yarn {
+        if detect_yarn_flavor(package_dir) == EcosystemYarnFlavor::Berry {
+            return ("yarn", vec!["install", "--mode", "skip-build"]);
+        }
+
+        return ("yarn", vec!["install", "--ignore-scripts"]);
+    }
+
+    // prefer npm ci when lockfiles exist
+    if package_manager == EcosystemPackageManager::Npm {
+        if package_dir.join("package-lock.json").is_file()
+            || package_dir.join("npm-shrinkwrap.json").is_file()
+        {
+            return ("npm", vec!["ci", "--ignore-scripts"]);
+        }
+
+        return ("npm", vec!["install", "--ignore-scripts"]);
+    }
+
+    // default bun install command
+    ("bun", vec!["install", "--ignore-scripts"])
+}
+
+/// Detect yarn flavor from checkout metadata.
+fn detect_yarn_flavor(package_dir: &Path) -> EcosystemYarnFlavor {
+    // berry repositories define modern yarn config or release directory
+    if package_dir.join(".yarnrc.yml").is_file() || package_dir.join(".yarn").is_dir() {
+        return EcosystemYarnFlavor::Berry;
+    }
+
+    EcosystemYarnFlavor::Classic
 }
 /// Auto fetch missing package checkouts before running tests.
 pub(super) fn auto_fetch_missing_checkouts(
