@@ -629,26 +629,65 @@ export default function convert(value: string | number): string | number {
         test.check_no_diagnostic_code("EI201");
     }
 
-    /// Allow class and namespace exports that merge under TypeScript rules.
+    /// Allow class and runtime namespace exports when class appears first.
     #[test]
-    fn test_allow_class_namespace_export_merge() {
+    fn test_allow_class_then_runtime_namespace_export_merge() {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ts",
-            "export class Client {} export namespace Client { export interface Options {} }",
+            "export class Client {} export namespace Client { export const value = 1; }",
         );
         test.import_module(module_id);
         test.compile();
         test.check_no_diagnostic_code("EI201");
     }
 
-    /// Reject namespace and class exports when namespace appears first.
+    /// Reject runtime namespace and class exports when namespace appears first.
     #[test]
-    fn test_reject_namespace_class_export_merge_wrong_order() {
+    fn test_reject_runtime_namespace_then_class_export_merge() {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ts",
-            "export namespace Client {} export class Client {}",
+            "export namespace Client { export const value = 1; } export class Client {}",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EI201");
+    }
+
+    /// Allow type only namespace and class exports in either order.
+    #[test]
+    fn test_allow_type_only_namespace_then_class_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export namespace Client { export interface Options {} } export class Client {}",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Allow type only namespace and function exports in either order.
+    #[test]
+    fn test_allow_type_only_namespace_then_function_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export namespace Factory { export interface Options {} } export function Factory() {}",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Reject runtime namespace and function exports when namespace appears first.
+    #[test]
+    fn test_reject_runtime_namespace_then_function_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export namespace Factory { export const value = 1; } export function Factory() {}",
         );
         test.import_module(module_id);
         test.compile();

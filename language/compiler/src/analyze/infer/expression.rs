@@ -21,9 +21,8 @@ use destack_dir::{
     InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind, MatchCase,
     MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
     NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ScalarLiteral, StaticKey,
-    StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type,
-    TypeBinaryOperator, TypeElement, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
-    WellKnownSymbol, YieldCardinality,
+    StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type, TypeBinaryOperator, TypeElement,
+    TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImportEdgeKind, Module, ModuleSource, ProfileId};

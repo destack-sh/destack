@@ -1573,10 +1573,11 @@ impl Compiler {
                 .static_expression_object_type(
                     module, profile, error_node, properties, tree, symbols, types,
                 )?,
-            StaticExpression::Declaration { .. }
-            | StaticExpression::Unevaluated { .. } => Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
+            StaticExpression::Declaration { .. } | StaticExpression::Unevaluated { .. } => {
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                }
+            }
         };
 
         Ok(types.insert_type_from_any(ty, error_node.local_id))

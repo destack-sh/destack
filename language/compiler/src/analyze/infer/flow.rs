@@ -8,9 +8,8 @@ use destack_dir::{
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
     GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType,
     NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind,
-    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
-    TypeLiteral, TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator,
-    walk_expression,
+    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField, TypeLiteral,
+    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
