@@ -725,8 +725,7 @@ pub enum Instruction {
         pointer: Value,
     },
     /// Drop an owned heap value (raw.drop).
-    /// Compiler-inserted to deallocate heap memory at ownership end.
-    /// Dispose and field drops are explicit calls preceding this.
+    /// Compiler-inserted at ownership end to run owned cleanup and deallocate heap memory.
     RawDrop {
         /// The value to drop.
         value: Value,
@@ -744,7 +743,7 @@ pub enum Instruction {
         result_type: LocalNodeId<Type>,
     },
     /// Mark a stack value's lifetime as ended (stack.drop).
-    /// Compiler-inserted for NLL. No deallocation (frame handles it).
+    /// Compiler-inserted for NLL owned cleanup. No deallocation (frame handles it).
     StackDrop {
         /// The value to drop.
         value: Value,

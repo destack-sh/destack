@@ -205,9 +205,6 @@ pub enum TypeCacheEntry {
 /// Table of type metadata entries.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TypeTable {
-    /// Drop function for each type that implements Drop.
-    /// Maps type id → drop function id.
-    pub drop_function_by_type_id: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
     /// Cached primitive type ids.
     pub type_cache: TypeCache,
     /// Layout metadata table for aggregate types.

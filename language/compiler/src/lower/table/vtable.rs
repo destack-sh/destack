@@ -143,21 +143,10 @@ impl ModuleLowerer<'_> {
         })?;
         let mir_type = self.lower_type(instance_type_id, anchor)?;
 
-        // resolve drop glue when available
-        let drop_function = self
-            .builder
-            .tree()
-            .type_table
-            .drop_function_by_type_id
-            .get(&mir_type)
-            .copied();
-
         // build vtable slots with fixed prefix
         let mut slots = Vec::with_capacity(virtual_slots.len() + 2);
         slots.push(mir::DispatchSlot::TypeTag);
-        slots.push(mir::DispatchSlot::Destructor {
-            function: drop_function,
-        });
+        slots.push(mir::DispatchSlot::Destructor { function: None });
         for method in virtual_slots {
             let function = self.method_function_id(method.member_id, method.symbol)?;
             slots.push(mir::DispatchSlot::Method { function });

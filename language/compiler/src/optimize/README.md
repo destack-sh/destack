@@ -168,6 +168,10 @@ These run before optimization passes.
 | `lifetime-check` | LifetimeCheck | function | V | ✓ | cfg, lifetime | Verify explicit lifetime annotations against returned borrows |
 | `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness, ownership | Insert `raw.drop`/`stack.drop` at last-use points for owned refs |
 
+`drop-insert` is the ownership lifetime placement pass.
+It inserts ownership cleanup markers only, and does not implement `using` protocol disposal.
+`using` disposal is lowered separately before MIR optimization.
+
 ### Scalar (S)
 
 Local and global optimizations within a single function.

@@ -98,8 +98,11 @@ Pointer-producing instructions (`local.addr`, `global.addr`, `function.env`, `ma
 `call` instructions include a signature type argument for dispatch and verification.
 Typed destinations are required for Core MIR and enable precise alias and ownership analysis.
 
-`raw.drop` invokes the type-specific drop glue for owned values.
-Drop glue calls `Symbol.dispose` when the type implements the `Drop` marker.
+`raw.drop` ends the lifetime of an owned value and deallocates owned heap storage.
+`stack.drop` ends the lifetime of an owned stack value (without explicit deallocation).
+These instructions model ownership lifetime ends, not `using` protocol disposal.
+`using` lowering is handled separately through disposable protocol calls.
+Source language ownership and `using` rules are specified in [language/SPECIFICATION.md](../SPECIFICATION.md).
 
 ## Memory Semantics and Metadata
 

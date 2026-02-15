@@ -52,7 +52,6 @@ builtin_source!(CORE_PRELUDE, "prelude.ds");
 // memory
 builtin_source!(MEMORY_INDEX, "memory", "index.ds");
 builtin_source!(MEMORY_BYTES, "memory", "bytes.ds");
-builtin_source!(MEMORY_DROP, "memory", "drop.ds");
 builtin_source!(MEMORY_COPY, "memory", "copy.ds");
 builtin_source!(MEMORY_THREAD, "memory", "thread.ds");
 
@@ -95,7 +94,6 @@ builtin_source!(INTRINSIC_VECTOR, "intrinsic", "vector.ds");
 /// Dependencies should be loaded before dependents.
 pub const CORE_SOURCES: &[BuiltinSource] = &[
     // memory
-    MEMORY_DROP,
     MEMORY_COPY,
     MEMORY_THREAD,
     MEMORY_BYTES,

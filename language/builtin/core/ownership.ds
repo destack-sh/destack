@@ -1,12 +1,3 @@
-/// Mark a type as eligible for last use cleanup.
-///
-/// Types that implement Drop must also implement Symbol.dispose.
-/// The drop glue calls Symbol.dispose when a ^T value is dropped.
-export newtype interface Drop {
-    // NOTE #Incomplete: define (some?) well-known symbols in builtin/core
-    // [Symbol.dispose](): void;
-}
-
 /// Mark a type as copyable without ownership transfer.
 export newtype interface Copy {}
 

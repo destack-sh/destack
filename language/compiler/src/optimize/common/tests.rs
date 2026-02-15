@@ -124,30 +124,6 @@ impl TestProgram {
         function.return_lifetime = lifetime;
     }
 
-    /// Register a drop function for all types matching a predicate.
-    pub(crate) fn register_drop_function_for<F>(
-        &mut self,
-        drop_fn: mir::LocalNodeId<mir::Function>,
-        predicate: F,
-    ) where
-        F: Fn(&mir::Type) -> bool,
-    {
-        // collect matching type ids
-        let type_ids: Vec<_> = self
-            .tree
-            .iter_nodes::<mir::Type>()
-            .filter_map(|(id, ty)| if predicate(ty) { Some(id) } else { None })
-            .collect();
-
-        // register the drop function for each type
-        for type_id in type_ids {
-            self.tree
-                .type_table
-                .drop_function_by_type_id
-                .insert(type_id, drop_fn);
-        }
-    }
-
     /// Return the entry block id for a function.
     pub(crate) fn entry_block_id(
         &self,
