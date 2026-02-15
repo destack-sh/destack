@@ -269,24 +269,6 @@ impl Compiler {
                 });
             }
 
-            // range expressions to core range structs
-            Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                self.reify_range_expression(
-                    module_id,
-                    profile,
-                    expression_id,
-                    start,
-                    end,
-                    is_inclusive,
-                    tree,
-                    symbols,
-                )?;
-            }
-
             // nominal constructor calls to tagged expressions
             Expression::Call {
                 left,

@@ -47,15 +47,6 @@ pub fn collect_pattern_value_binding_symbols(
         | dir::Pattern::ValueOf { right: inner, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *inner, bindings);
         }
-        dir::Pattern::Range { start, end, .. } => {
-            if let Some(start) = start {
-                collect_pattern_value_binding_symbols(tree, symbols, *start, bindings);
-            }
-
-            if let Some(end) = end {
-                collect_pattern_value_binding_symbols(tree, symbols, *end, bindings);
-            }
-        }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
         | dir::Pattern::Array { fields }

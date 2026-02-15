@@ -207,10 +207,6 @@ pub fn walk_static_expression<V: TypeVisitor + ?Sized>(
         StaticExpression::Type { ty } => {
             visitor.visit_type_id(types, *ty);
         }
-        StaticExpression::RangeExpression { start, end, .. } => {
-            visitor.visit_static_expression(types, start);
-            visitor.visit_static_expression(types, end);
-        }
         StaticExpression::ArrayExpression { elements } => {
             for element in elements {
                 visitor.visit_static_expression(types, element);

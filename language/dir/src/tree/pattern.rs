@@ -28,12 +28,6 @@ pub enum Pattern {
     },
     /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
     Expression { value: LocalNodeId<Expression> },
-    /// Range pattern (like `1..3`).
-    Range {
-        start: Option<LocalNodeId<Pattern>>,
-        end: Option<LocalNodeId<Pattern>>,
-        is_inclusive: bool,
-    },
     /// Anonymous tuple pattern (like `(x, 0)`).
     Tuple {
         fields: Vec<LocalNodeId<PatternField>>,

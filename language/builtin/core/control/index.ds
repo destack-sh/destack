@@ -2,7 +2,6 @@
 //
 // Types and interfaces for control flow operations:
 // - Error handling: Result, Try
-// - Iteration: Range types
 
 export { type Try, type TryBranch } from "./try.ds";
 export { type Error } from "./error.ds";
@@ -15,13 +14,3 @@ export {
     type Iterable,
     type IterableIterator,
 } from "./iterable.ds";
-export {
-    Bound,
-    type RangeBounds,
-    Range,
-    RangeInclusive,
-    RangeFrom,
-    RangeTo,
-    RangeToInclusive,
-    RangeFull,
-} from "./range.ds";

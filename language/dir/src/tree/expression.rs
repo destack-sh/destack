@@ -292,12 +292,6 @@ pub enum Expression {
         tag: LocalNodeId<Expression>,
         value: TemplateLiteral,
     },
-    /// Range expression.
-    RangeExpression {
-        start: LocalNodeId<Expression>,
-        end: LocalNodeId<Expression>,
-        is_inclusive: bool,
-    },
     /// Array expression (anonymous).
     ArrayExpression {
         elements: Vec<LocalNodeId<Argument>>,
@@ -519,7 +513,6 @@ impl Expression {
             Expression::TemplateExpression { .. } => "template expression",
             Expression::TaggedTemplateExpression { .. } => "tagged template expression",
             Expression::TypeLiteral { .. } => "type literal",
-            Expression::RangeExpression { .. } => "range expression",
             Expression::ArrayExpression { .. } => "array expression",
             Expression::TupleExpression { .. } => "tuple expression",
             Expression::SequenceExpression { .. } => "sequence expression",
@@ -643,12 +636,6 @@ pub enum StaticExpression {
     },
     /// Type.
     Type { ty: LocalTypeId },
-    /// Range expression.
-    RangeExpression {
-        start: Box<StaticExpression>,
-        end: Box<StaticExpression>,
-        is_inclusive: bool,
-    },
     /// Array expression.
     ArrayExpression { elements: Vec<StaticExpression> },
     /// Tuple expression.
@@ -671,9 +658,6 @@ impl StaticExpression {
                 .as_ref()
                 .map(|args| args.iter().all(StaticArgument::is_evaluated))
                 .unwrap_or(true),
-            StaticExpression::RangeExpression { start, end, .. } => {
-                start.is_evaluated() && end.is_evaluated()
-            }
             StaticExpression::ArrayExpression { elements } => {
                 elements.iter().all(StaticExpression::is_evaluated)
             }

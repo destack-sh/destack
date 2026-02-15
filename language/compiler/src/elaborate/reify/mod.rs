@@ -2,7 +2,6 @@ mod cast;
 mod expression;
 mod operator;
 mod process;
-mod range;
 mod resolution;
 mod tagged;
 mod tree;

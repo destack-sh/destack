@@ -251,49 +251,6 @@ impl Compiler {
                 );
                 Pattern::Expression { value }
             }
-            ast::Pattern::Range {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start = start.map(|start| {
-                    self.bind_pattern(
-                        module,
-                        ast,
-                        scope,
-                        export,
-                        binding,
-                        binding_mutability,
-                        binding_category,
-                        start,
-                        Some(pattern_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
-                let end = end.map(|end| {
-                    self.bind_pattern(
-                        module,
-                        ast,
-                        scope,
-                        export,
-                        binding,
-                        binding_mutability,
-                        binding_category,
-                        end,
-                        Some(pattern_id),
-                        tree,
-                        symbols,
-                        types,
-                    )
-                });
-                Pattern::Range {
-                    start,
-                    end,
-                    is_inclusive: *is_inclusive,
-                }
-            }
             ast::Pattern::Tuple { fields } => {
                 let fields = fields
                     .iter()

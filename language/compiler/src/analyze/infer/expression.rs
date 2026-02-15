@@ -20,8 +20,8 @@ use destack_dir::{
     FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition, InferOrigin, InferScope,
     InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind, MatchCase,
     MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
-    NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type,
+    NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ScalarLiteral, StaticKey,
+    StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type,
     TypeBinaryOperator, TypeElement, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
     WellKnownSymbol, YieldCardinality,
 };
@@ -3160,50 +3160,6 @@ impl Compiler {
                     infer,
                     ctx,
                 )?
-            }
-
-            // range expression: analyze bounds, type is Range<T> or RangeInclusive<T>
-            Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start_ty_id =
-                    self.infer_expression(module, *start, tree, symbols, types, infer, ctx)?;
-                let end_ty_id =
-                    self.infer_expression(module, *end, tree, symbols, types, infer, ctx)?;
-
-                let element_ty_id = self.best_common_type_for_pair(
-                    module,
-                    symbols,
-                    types,
-                    ctx,
-                    expression_id.into_any(),
-                    start_ty_id,
-                    end_ty_id,
-                    None,
-                    true,
-                );
-                let range_symbol = if *is_inclusive {
-                    self.get_language_symbol(ctx.profile, LanguageSymbol::RangeInclusive)
-                } else {
-                    self.get_language_symbol(ctx.profile, LanguageSymbol::Range)
-                };
-                let Some(range_symbol) = range_symbol else {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    return Ok(types.insert_type_from(ty, expression_id));
-                };
-                let static_arguments = vec![StaticArgument::Evaluated {
-                    name: None,
-                    value: StaticExpression::Type { ty: element_ty_id },
-                }];
-                let ty = Type::Reference {
-                    symbol: range_symbol,
-                    static_arguments: Some(static_arguments),
-                };
-                types.insert_type_from(ty, expression_id)
             }
 
             // tagged expressions for newtype construction

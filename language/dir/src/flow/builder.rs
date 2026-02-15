@@ -1761,10 +1761,6 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 let tag_block_id = self.build_expression(*tag, current_block_id)?;
                 self.build_template_literal(value, tag_block_id)
             }
-            Expression::RangeExpression { start, end, .. } => {
-                let start_block_id = self.build_expression(*start, current_block_id)?;
-                self.build_expression(*end, start_block_id)
-            }
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 self.build_arguments(Some(elements.as_slice()), current_block_id)
             }
@@ -1939,16 +1935,6 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 Some(current_block_id)
             }
             Pattern::Expression { value } => self.build_expression(*value, current_block_id),
-            Pattern::Range { start, end, .. } => {
-                let mut range_block_id = current_block_id;
-                if let Some(start_id) = start {
-                    range_block_id = self.build_pattern(*start_id, range_block_id)?;
-                }
-                if let Some(end_id) = end {
-                    return self.build_pattern(*end_id, range_block_id);
-                }
-                Some(range_block_id)
-            }
             Pattern::Tuple { fields } | Pattern::Array { fields } | Pattern::Object { fields } => {
                 self.build_pattern_fields(fields, current_block_id)
             }

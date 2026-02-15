@@ -1376,17 +1376,6 @@ impl<'a> SignatureHasher<'a> {
                 self.hash_type_id_in_tables(module_id, *ty, types)
                     .hash(&mut hasher);
             }
-            StaticExpression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                self.hash_static_expression(module_id, types, start)
-                    .hash(&mut hasher);
-                self.hash_static_expression(module_id, types, end)
-                    .hash(&mut hasher);
-                is_inclusive.hash(&mut hasher);
-            }
             StaticExpression::ArrayExpression { elements } => {
                 elements.len().hash(&mut hasher);
                 for element in elements {

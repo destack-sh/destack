@@ -1435,39 +1435,6 @@ impl Compiler {
                 let value = self.bind_type_literal(value);
                 Expression::TypeLiteral { value }
             }
-            ast::Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start = self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *start,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let end = self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *end,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                Expression::RangeExpression {
-                    start,
-                    end,
-                    is_inclusive: *is_inclusive,
-                }
-            }
             ast::Expression::ObjectExpression { ty, properties } => {
                 let properties = properties
                     .iter()

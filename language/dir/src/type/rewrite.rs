@@ -771,27 +771,6 @@ fn rewrite_static_expression_inner<V: TypeRewriter + ?Sized>(
                 (StaticExpression::Type { ty: mapped_ty }, true)
             }
         }
-        StaticExpression::RangeExpression {
-            start,
-            end,
-            is_inclusive,
-        } => {
-            let (mapped_start, start_changed) =
-                rewrite_static_expression_inner(rewriter, types, start);
-            let (mapped_end, end_changed) = rewrite_static_expression_inner(rewriter, types, end);
-            if !start_changed && !end_changed {
-                (expression.clone(), false)
-            } else {
-                (
-                    StaticExpression::RangeExpression {
-                        start: Box::new(mapped_start),
-                        end: Box::new(mapped_end),
-                        is_inclusive: *is_inclusive,
-                    },
-                    true,
-                )
-            }
-        }
         StaticExpression::ArrayExpression { elements } => {
             let (mapped_elements, changed) = rewrite_static_expressions(rewriter, types, elements);
             if !changed {

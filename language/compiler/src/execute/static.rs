@@ -75,32 +75,6 @@ impl Compiler {
                 value: value.clone(),
             }),
             dir::StaticExpression::Type { ty } => Ok(dir::Expression::Type { value: *ty }),
-            dir::StaticExpression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                // build expressions for range bounds
-                let start_any =
-                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
-                let start_expression = self.static_expression_to_expression(
-                    tree, module_id, profile_id, anchor_id, start_any, scope, start,
-                )?;
-                let start_id = tree.insert(start_any, start_expression);
-
-                let end_any =
-                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
-                let end_expression = self.static_expression_to_expression(
-                    tree, module_id, profile_id, anchor_id, end_any, scope, end,
-                )?;
-                let end_id = tree.insert(end_any, end_expression);
-
-                Ok(dir::Expression::RangeExpression {
-                    start: start_id,
-                    end: end_id,
-                    is_inclusive: *is_inclusive,
-                })
-            }
             dir::StaticExpression::ArrayExpression { elements } => {
                 // build positional arguments for array elements
                 let mut argument_ids = Vec::with_capacity(elements.len());

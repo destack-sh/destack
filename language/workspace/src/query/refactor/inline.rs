@@ -394,14 +394,6 @@ fn collect_pattern_bindings(
         | dir::Pattern::ValueOf { right: inner, .. } => {
             collect_pattern_bindings(dir_tree, *inner, bindings);
         }
-        dir::Pattern::Range { start, end, .. } => {
-            if let Some(start) = start {
-                collect_pattern_bindings(dir_tree, *start, bindings);
-            }
-            if let Some(end) = end {
-                collect_pattern_bindings(dir_tree, *end, bindings);
-            }
-        }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
         | dir::Pattern::Array { fields }
@@ -473,19 +465,6 @@ fn pattern_access_path(
         | dir::Pattern::ReferenceOf { right: inner, .. }
         | dir::Pattern::ValueOf { right: inner, .. } => {
             pattern_access_path(session, dir_tree, *inner, target_symbol)
-        }
-        dir::Pattern::Range { start, end, .. } => {
-            if let Some(start) = start
-                && let Some(path) = pattern_access_path(session, dir_tree, *start, target_symbol)
-            {
-                return Some(path);
-            }
-            if let Some(end) = end
-                && let Some(path) = pattern_access_path(session, dir_tree, *end, target_symbol)
-            {
-                return Some(path);
-            }
-            None
         }
         dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { fields, .. } => {
             pattern_access_path_object_fields(session, dir_tree, fields, target_symbol)

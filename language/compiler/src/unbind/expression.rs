@@ -671,12 +671,6 @@ impl Compiler {
                     ast::Expression::TaggedTemplateExpression { tag, value }
                 }
 
-                dir::Expression::RangeExpression { start, end, is_inclusive } => {
-                    let start = self.unbind_expression(module, *start, tree, symbols, ast_tree, ast_strings, context);
-                    let end = self.unbind_expression(module, *end, tree, symbols, ast_tree, ast_strings, context);
-                    ast::Expression::RangeExpression { start, end, is_inclusive: *is_inclusive }
-                }
-
                 dir::Expression::ArrayExpression { elements } => {
                     let elements = elements.iter().map(|el| {
                         self.unbind_argument(module, *el, tree, symbols, ast_tree, ast_strings, context)

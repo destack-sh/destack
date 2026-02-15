@@ -722,16 +722,6 @@ pub fn format_static_expression(
             let ty = types.get_type(*ty);
             format_type(ty, types, modules, strings)
         }
-        dir::StaticExpression::RangeExpression {
-            start,
-            end,
-            is_inclusive,
-        } => {
-            let start_str = format_static_expression(start, types, modules, strings);
-            let end_str = format_static_expression(end, types, modules, strings);
-            let op = if *is_inclusive { "..=" } else { ".." };
-            format!("{start_str}{op}{end_str}")
-        }
         dir::StaticExpression::ArrayExpression { elements } => {
             let elements: Vec<_> = elements
                 .iter()

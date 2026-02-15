@@ -366,20 +366,20 @@ match (x) {
 }
 ```
 
-## Range Patterns
+## Union Patterns
 
-### numeric range
+### numeric unions
 
-Ranges can be used as patterns to match value ranges.
+Union patterns can match multiple literal values in one arm.
 
 ```ds
-match (n) { 1..10 => "small"; 10..100 => "medium"; _ => "large" }
+match (n) { 1 | 2 | 3 => "small"; 4 | 5 => "medium"; _ => "large" }
 ```
 
 ```ds expected
 match (n) {
-    1..10 => "small"
-    10..100 => "medium"
+    1 | 2 | 3 => "small"
+    4 | 5 => "medium"
     _ => "large"
 }
 ```

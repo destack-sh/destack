@@ -75,22 +75,6 @@ if let { enabled, ...rest } = config {
 }
 ```
 
-## Range patterns
-
-### if let range patterns narrow numeric values
-
-> Range patterns narrow to the covered range.
-
-```ds
-declare const value: 1 | 2 | 3 | 4;
-
-if let 1..3 = value {
-    value satisfies 1 | 2;
-} else {
-    value satisfies 3 | 4;
-}
-```
-
 ## Must patterns
 
 ### if let must patterns unwrap non nullish values

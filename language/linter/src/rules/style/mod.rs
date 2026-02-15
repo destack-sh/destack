@@ -45,7 +45,6 @@ mod prefer_flat_map;
 mod prefer_fragment_shorthand;
 mod prefer_if_else_over_match_bool;
 mod prefer_implicit_return;
-mod prefer_inclusive_range;
 mod prefer_loop;
 mod prefer_match;
 mod prefer_named_extension;
@@ -56,8 +55,6 @@ mod prefer_object_spread;
 mod prefer_pattern_over_guard;
 mod prefer_precise_numeric;
 mod prefer_promise_reject_errors;
-mod prefer_range_contains;
-mod prefer_range_literal;
 mod prefer_readonly;
 mod prefer_self_closing_tree;
 mod prefer_set_over_empty_map;
@@ -126,7 +123,6 @@ pub use prefer_flat_map::*;
 pub use prefer_fragment_shorthand::*;
 pub use prefer_if_else_over_match_bool::*;
 pub use prefer_implicit_return::*;
-pub use prefer_inclusive_range::*;
 pub use prefer_loop::*;
 pub use prefer_match::*;
 pub use prefer_named_extension::*;
@@ -137,8 +133,6 @@ pub use prefer_object_spread::*;
 pub use prefer_pattern_over_guard::*;
 pub use prefer_precise_numeric::*;
 pub use prefer_promise_reject_errors::*;
-pub use prefer_range_contains::*;
-pub use prefer_range_literal::*;
 pub use prefer_readonly::*;
 pub use prefer_self_closing_tree::*;
 pub use prefer_set_over_empty_map::*;
@@ -208,13 +202,11 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferFragmentShorthand),
         boxed(PreferIfElseOverMatchBool),
         boxed(PreferImplicitReturn),
-        boxed(PreferInclusiveRange),
         boxed(PreferLoop),
         boxed(PreferMatch),
         boxed(PreferPatternOverGuard),
         boxed(PreferPromiseRejectErrors),
         boxed(PreferReadonly),
-        boxed(PreferRangeContains),
         boxed(PreferSelfClosingTree),
         boxed(PreferObjectSpread),
         boxed(PreferStruct),
@@ -229,7 +221,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferNumericLiterals),
         boxed(PreferObjectHasOwn),
         boxed(PreferPreciseNumeric),
-        boxed(PreferRangeLiteral),
         boxed(PreferTemplate),
         boxed(PreferUnaryNegation),
         boxed(PromiseFunctionAsync),

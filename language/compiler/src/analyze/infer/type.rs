@@ -3609,31 +3609,6 @@ impl Compiler {
                     static_arguments: local_arguments,
                 }
             }
-            StaticExpression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let mapped_start = self.import_static_expression_from_remote_for_node(
-                    node_id,
-                    start,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                let mapped_end = self.import_static_expression_from_remote_for_node(
-                    node_id,
-                    end,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                StaticExpression::RangeExpression {
-                    start: Box::new(mapped_start),
-                    end: Box::new(mapped_end),
-                    is_inclusive: *is_inclusive,
-                }
-            }
             StaticExpression::ArrayExpression { elements } => {
                 let mapped_elements = elements
                     .iter()
@@ -4533,21 +4508,6 @@ impl Compiler {
                 StaticExpression::Declaration {
                     declaration: *declaration,
                     static_arguments: mapped_arguments,
-                }
-            }
-            StaticExpression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let mapped_start =
-                    self.substitute_this_static_expression(start, this_ty_id, types, cache);
-                let mapped_end =
-                    self.substitute_this_static_expression(end, this_ty_id, types, cache);
-                StaticExpression::RangeExpression {
-                    start: Box::new(mapped_start),
-                    end: Box::new(mapped_end),
-                    is_inclusive: *is_inclusive,
                 }
             }
             StaticExpression::ArrayExpression { elements } => {

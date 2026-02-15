@@ -245,7 +245,7 @@ function* gen() {
             "require_yield/test_allows_generator_with_yield_in_loop.ds",
             r#"
 function* gen() {
-    for (const i of 0..10) {
+    for (const i of [0, 1, 2]) {
         yield i
     }
 }

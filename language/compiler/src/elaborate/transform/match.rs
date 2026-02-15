@@ -361,32 +361,6 @@ impl Compiler {
                 match_type_id,
             );
         }
-        // range patterns: emit range check
-        else if let Pattern::Range {
-            start,
-            end,
-            is_inclusive,
-        } = &pattern
-        {
-            return self.handle_range_pattern(
-                match_id,
-                module,
-                profile,
-                symbols,
-                value,
-                body,
-                start,
-                end,
-                *is_inclusive,
-                guard,
-                cases,
-                index,
-                tree,
-                scope,
-                types,
-                match_type_id,
-            );
-        }
         // union patterns: emit or check
         else if let Pattern::Union { patterns } = &pattern {
             return self.handle_union_pattern(
@@ -731,37 +705,6 @@ impl Compiler {
                         types,
                     )?;
                 }
-                Pattern::Range {
-                    start,
-                    end,
-                    is_inclusive,
-                } => {
-                    // check range bounds for range patterns
-                    let access =
-                        self.build_index_access(match_id, value, index, tree, scope, types)?;
-                    let range_condition = self.build_range_check(
-                        match_id,
-                        access,
-                        start
-                            .as_ref()
-                            .map(|pattern_id| tree.get(*pattern_id).clone()),
-                        end.as_ref().map(|pattern_id| tree.get(*pattern_id).clone()),
-                        is_inclusive,
-                        tree,
-                        scope,
-                        types,
-                    );
-                    if let Some(range_condition) = range_condition {
-                        condition = self.combine_with_guard(
-                            match_id,
-                            condition,
-                            Some(range_condition),
-                            tree,
-                            scope,
-                            types,
-                        )?;
-                    }
-                }
                 _ => {
                     // reject unsupported field patterns
                     return Err(ElaborateError::UnsupportedConstruct {
@@ -893,37 +836,6 @@ impl Compiler {
                         types,
                     )?;
                 }
-                Pattern::Range {
-                    start,
-                    end,
-                    is_inclusive,
-                } => {
-                    // check range bounds for range patterns
-                    let access =
-                        self.build_member_access(match_id, value, field_name, tree, scope, types)?;
-                    let range_condition = self.build_range_check(
-                        match_id,
-                        access,
-                        start
-                            .as_ref()
-                            .map(|pattern_id| tree.get(*pattern_id).clone()),
-                        end.as_ref().map(|pattern_id| tree.get(*pattern_id).clone()),
-                        is_inclusive,
-                        tree,
-                        scope,
-                        types,
-                    );
-                    if let Some(range_condition) = range_condition {
-                        condition = self.combine_with_guard(
-                            match_id,
-                            condition,
-                            Some(range_condition),
-                            tree,
-                            scope,
-                            types,
-                        )?;
-                    }
-                }
                 _ => {
                     // reject unsupported field patterns
                     return Err(ElaborateError::UnsupportedConstruct {
@@ -1054,91 +966,6 @@ impl Compiler {
         Ok(Some(body_with_bindings))
     }
 
-    /// Handle a range pattern by emitting bound checks.
-    #[allow(clippy::too_many_arguments)]
-    fn handle_range_pattern(
-        &self,
-        match_id: LocalNodeId<Expression>,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        value: LocalNodeId<Expression>,
-        body: LocalNodeId<Expression>,
-        start: &Option<LocalNodeId<Pattern>>,
-        end: &Option<LocalNodeId<Pattern>>,
-        is_inclusive: bool,
-        guard: Option<LocalNodeId<Expression>>,
-        cases: &[LocalNodeId<MatchCase>],
-        index: usize,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
-        match_type_id: LocalTypeId,
-    ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
-        // build the range condition
-        let condition = self.build_range_check(
-            match_id,
-            value,
-            start
-                .as_ref()
-                .map(|pattern_id| tree.get(*pattern_id).clone()),
-            end.as_ref().map(|pattern_id| tree.get(*pattern_id).clone()),
-            is_inclusive,
-            tree,
-            scope,
-            types,
-        );
-
-        // handle bounded ranges with a condition
-        if let Some(condition) = condition {
-            let condition =
-                self.combine_with_guard(match_id, condition, guard, tree, scope, types)?;
-            let then_block = self.wrap_in_block(match_id, body, scope, tree, types)?;
-            let if_expr = self.build_case_if(
-                match_id,
-                module,
-                profile,
-                symbols,
-                condition,
-                then_block,
-                value,
-                cases,
-                index,
-                tree,
-                scope,
-                types,
-                match_type_id,
-            )?;
-            return Ok(Some(if_expr));
-        }
-
-        // handle unbounded ranges
-        if guard.is_none() {
-            let body = self.wrap_in_block(match_id, body, scope, tree, types)?;
-            return Ok(Some(body));
-        }
-
-        // handle guard only ranges
-        let then_block = self.wrap_in_block(match_id, body, scope, tree, types)?;
-        let if_expr = self.build_case_if(
-            match_id,
-            module,
-            profile,
-            symbols,
-            guard.unwrap(),
-            then_block,
-            value,
-            cases,
-            index,
-            tree,
-            scope,
-            types,
-            match_type_id,
-        )?;
-
-        Ok(Some(if_expr))
-    }
-
     /// Handle a union pattern by ORing the individual checks.
     #[allow(clippy::too_many_arguments)]
     fn handle_union_pattern(
@@ -1248,87 +1075,6 @@ impl Compiler {
         let body = self.wrap_in_block(match_id, body, scope, tree, types)?;
 
         Ok(Some(body))
-    }
-
-    /// Build a range check: value >= start && value <= end (or < for exclusive).
-    fn build_range_check(
-        &self,
-        match_id: LocalNodeId<Expression>,
-        value: LocalNodeId<Expression>,
-        start: Option<Pattern>,
-        end: Option<Pattern>,
-        is_inclusive: bool,
-        tree: &mut NodeTree,
-        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
-        types: &mut TypeTable,
-    ) -> Option<LocalNodeId<Expression>> {
-        // build the start bound check
-        let start_check = start.and_then(|p| {
-            if let Pattern::Expression { value: start_val } = p {
-                // value >= start
-                let cmp_id =
-                    tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-                let expr_id = tree.insert(
-                    cmp_id,
-                    Expression::Binary {
-                        left: value,
-                        operator: destack_dir::BinaryOperator::GreaterThanOrEqual,
-                        right: start_val,
-                    },
-                );
-                self.set_boolean_expression_type(types, tree.module_id, expr_id);
-                Some(expr_id)
-            } else {
-                None
-            }
-        });
-
-        // build the end bound check
-        let end_check = end.and_then(|p| {
-            if let Pattern::Expression { value: end_val } = p {
-                // value <= end, or value < end for exclusive ranges
-                let op = if is_inclusive {
-                    destack_dir::BinaryOperator::LessThanOrEqual
-                } else {
-                    destack_dir::BinaryOperator::LessThan
-                };
-                let cmp_id =
-                    tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-                let expr_id = tree.insert(
-                    cmp_id,
-                    Expression::Binary {
-                        left: value,
-                        operator: op,
-                        right: end_val,
-                    },
-                );
-                self.set_boolean_expression_type(types, tree.module_id, expr_id);
-                Some(expr_id)
-            } else {
-                None
-            }
-        });
-
-        // combine the bound checks
-        match (start_check, end_check) {
-            (Some(start), Some(end)) => {
-                // combine with and
-                let and_id =
-                    tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-                let expr_id = tree.insert(
-                    and_id,
-                    Expression::Binary {
-                        left: start,
-                        operator: destack_dir::BinaryOperator::And,
-                        right: end,
-                    },
-                );
-                self.set_boolean_expression_type(types, tree.module_id, expr_id);
-                Some(expr_id)
-            }
-            (Some(check), None) | (None, Some(check)) => Some(check),
-            (None, None) => None,
-        }
     }
 
     /// Build a union check: matches any of the patterns.
@@ -2150,40 +1896,6 @@ function always(x: number): number {
             r#"
 function always(x): number {
     return 42;
-}
-"#,
-        );
-    }
-
-    #[test]
-    fn test_transform_match_range_pattern() {
-        // range patterns transform to nested if else
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.ds",
-            r#"
-function grade(score: number): string {
-    match (score) {
-        90..100 => "A"
-        80..90 => "B"
-        _ => "C"
-    }
-}
-"#,
-        );
-        test.elaborate_module(module_id);
-        test.compile_check_clean();
-        test.assert_elaborated(
-            module_id,
-            r#"
-function grade(score): string {
-    if (score >= 90 && score < 100) {
-        return 'A';
-    } else if (score >= 80 && score < 90) {
-        return 'B';
-    } else {
-        return 'C';
-    }
 }
 "#,
         );

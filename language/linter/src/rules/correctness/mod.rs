@@ -12,7 +12,6 @@ mod no_constant_condition;
 mod no_control_regex;
 mod no_deprecated;
 mod no_duplicate_case;
-mod no_empty_range;
 mod no_fallthrough;
 mod no_floating_point_equality;
 mod no_floating_promises;
@@ -62,7 +61,6 @@ pub use no_constant_condition::*;
 pub use no_control_regex::*;
 pub use no_deprecated::*;
 pub use no_duplicate_case::*;
-pub use no_empty_range::*;
 pub use no_fallthrough::*;
 pub use no_floating_point_equality::*;
 pub use no_floating_promises::*;
@@ -113,7 +111,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoControlRegex),
         boxed(NoDeprecated),
         boxed(NoDuplicateCase),
-        boxed(NoEmptyRange),
         boxed(NoFallthrough),
         boxed(NoFloatingPromises),
         boxed(NoFloatingPointEquality),

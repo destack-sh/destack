@@ -103,7 +103,6 @@ High-confidence issues that are almost always wrong.
 | `LC011` | `no-deprecated` | TS-ESLint | DIR | ✓ | No | None | Disallow use of `@deprecated` APIs |
 | `LC012` | `no-duplicate-case` | ESLint | AST | ✓ | Always | Unsafe | Disallow duplicate case labels |
 | `LC015` | `no-floating-point-equality` | Clippy | DIR | ✓ | No | None | Disallow direct `==` comparison of floats |
-| `LC013` | `no-empty-range` | Destack | AST | ✓ | Sometimes | Unsafe | Disallow empty ranges where start > end |
 | `LC014` | `no-fallthrough` | ESLint | AST | ✓ | Always | Suggestion | Disallow fallthrough of case statements |
 | `LC016` | `no-floating-promises` | TS-ESLint | DIR | ✓ | Sometimes | Suggestion | Require Promises to be awaited or returned |
 | `LC017` | `no-for-in-array` | TS-ESLint | DIR | ✓ | Sometimes | Unsafe | Disallow iterating over arrays with for-in |
@@ -162,7 +161,6 @@ Code that is likely unintentional but may occasionally be intentional.
 | `LU016` | `no-ex-assign` | ESLint | AST | ✓ | Sometimes | Suggestion | Disallow reassigning exceptions in catch clauses |
 | `LU017` | `no-extra-non-null-assertion` | TS-ESLint | AST | ✓ | Always | Safe | Disallow extra non-null assertions |
 | `LU018` | `no-identical-branches` | SonarQube | AST | ✓ | No | None | Warn when all branches of if/switch have identical bodies |
-| `LU019` | `no-incomplete-range` | Destack | AST | ✓ | Sometimes | Safe | Warn on exclusive ranges that are likely meant to be inclusive |
 | `LU020` | `no-inner-declarations` | ESLint | AST | ✓ | No | None | Disallow variable or function declarations in nested blocks |
 | `LU021` | `no-large-try-block` | DeepSource | AST | ✓ | No | None | Warn when try block contains much more than throwing code |
 | `LU046` | `no-loop-func` | ESLint | DIR | ✓ | No | None | Disallow functions that capture loop variables |
@@ -295,7 +293,6 @@ Subjective preferences for consistent coding style.
 | `LY039` | `prefer-fragment-shorthand` | Destack | AST | ✓ | Always | Safe | Prefer `<>` shorthand over `<Fragment>` |
 | `LY040` | `prefer-if-else-over-match-bool` | Destack | AST | ✓ | Sometimes | Safe | Suggest using if/else instead of match on booleans |
 | `LY041` | `prefer-implicit-return` | Destack | AST | ✓ | Sometimes | Safe | Prefer implicit returns in expression-bodied functions |
-| `LY042` | `prefer-inclusive-range` | Destack | AST | ✓ | Always | Safe | Prefer inclusive range syntax where applicable |
 | `LY043` | `prefer-loop` | Destack | AST | ✓ | Always | Safe | Prefer `loop` keyword over `while(true)` or `for(;;)` |
 | `LY045` | `prefer-named-extension` | Destack | AST | ✓ | No | None | Prefer named extensions for foreign types |
 | `LY046` | `prefer-nullish-coalescing` | TS-ESLint | DIR | ✓ | Sometimes | Safe | Prefer `??` over `\ |
@@ -306,8 +303,6 @@ Subjective preferences for consistent coding style.
 | `LY050` | `prefer-precise-numeric` | Destack | AST | ✓ | Always | Suggestion | Prefer precise numeric types over `number` |
 | `LY076` | `prefer-promise-reject-errors` | TS-ESLint | DIR | ✓ | No | None | Require Error objects in Promise rejections |
 | `LY077` | `prefer-propagate-operator` | Destack | DIR |  |  | Safe | Prefer `?` propagation over manual Result matching |
-| `LY051` | `prefer-range-contains` | Destack | AST | ✓ | Sometimes | Safe | Prefer range contains method over comparison chains |
-| `LY052` | `prefer-range-literal` | Destack | AST | ✓ | Sometimes | Unsafe | Prefer range literals over C-style for loops |
 | `LY078` | `prefer-readonly` | TS-ESLint | DIR | ✓ | No | None | Prefer `readonly` for non-mutated fields |
 | `LY053` | `prefer-self-closing-tree` | Destack | AST | ✓ | Always | Safe | Prefer self-closing tree elements when possible |
 | `LY079` | `prefer-set-over-empty-map` | Destack | DIR | ✓ | No | None | Suggest `Set<K>` over `Map<K, void>` |

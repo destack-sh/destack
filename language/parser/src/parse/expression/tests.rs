@@ -1261,22 +1261,6 @@ const shapes = (
     });
 }
 
-/// Parse a range literal.
-#[test]
-fn test_parse_range_literal() {
-    let mut test = TestParser::new("1..3");
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::RangeExpression { start, end, .. } => {
-        assert_node!(parser.tree, *start, Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
-            assert_eq!(*val, 1);
-        });
-        assert_node!(parser.tree, *end, Expression::ScalarLiteral(ScalarLiteral::Integer(val)) => {
-            assert_eq!(*val, 3);
-        });
-    });
-}
-
 /// Parse an anonymous block.
 #[test]
 fn test_parse_anonymous_struct_literal() {

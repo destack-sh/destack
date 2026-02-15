@@ -974,38 +974,6 @@ impl Compiler {
                 let value = self.unbind_type_literal(value, context);
                 ast::Expression::TypeLiteral(value)
             }
-            dir::StaticExpression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                // lower the range bounds
-                let start = self.unbind_static_expression(
-                    module,
-                    start,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let end = self.unbind_static_expression(
-                    module,
-                    end,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                ast::Expression::RangeExpression {
-                    start,
-                    end,
-                    is_inclusive: *is_inclusive,
-                }
-            }
             dir::StaticExpression::ArrayExpression { elements } => {
                 // lower elements into positional arguments
                 let elements = elements

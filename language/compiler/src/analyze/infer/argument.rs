@@ -1573,8 +1573,7 @@ impl Compiler {
                 .static_expression_object_type(
                     module, profile, error_node, properties, tree, symbols, types,
                 )?,
-            StaticExpression::RangeExpression { .. }
-            | StaticExpression::Declaration { .. }
+            StaticExpression::Declaration { .. }
             | StaticExpression::Unevaluated { .. } => Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
@@ -1971,10 +1970,6 @@ impl Compiler {
                     }
                 })
             }),
-            StaticExpression::RangeExpression { start, end, .. } => {
-                self.static_value_argument_is_static(start, types)
-                    && self.static_value_argument_is_static(end, types)
-            }
             StaticExpression::ArrayExpression { elements } => elements
                 .iter()
                 .all(|element| self.static_value_argument_is_static(element, types)),
@@ -4711,21 +4706,6 @@ impl Compiler {
                 StaticExpression::Declaration {
                     declaration: *declaration,
                     static_arguments: mapped_arguments,
-                }
-            }
-            StaticExpression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let mapped_start =
-                    self.substitute_static_expression(start, substitutions, types, cache);
-                let mapped_end =
-                    self.substitute_static_expression(end, substitutions, types, cache);
-                StaticExpression::RangeExpression {
-                    start: Box::new(mapped_start),
-                    end: Box::new(mapped_end),
-                    is_inclusive: *is_inclusive,
                 }
             }
             StaticExpression::ArrayExpression { elements } => {

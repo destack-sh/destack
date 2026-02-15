@@ -276,16 +276,16 @@ for (const key in obj) {
 }
 ```
 
-### for of with range
+### for of with array literal
 
-Ranges can be used as the iterable in for-of loops.
+For-of loops can iterate inline array literals.
 
 ```ds
-for (const i of 0..10) { print(i) }
+for (const i of [0,1,2]) { print(i) }
 ```
 
 ```ds expected
-for (const i of 0..10) {
+for (const i of [0, 1, 2]) {
     print(i)
 }
 ```

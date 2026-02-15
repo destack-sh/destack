@@ -930,14 +930,6 @@ impl Compiler {
                     }
                 }
             }
-            StaticExpression::RangeExpression { start, end, .. } => {
-                self.collect_type_reference_symbols_in_static_expression(
-                    start, types, symbols, visited,
-                );
-                self.collect_type_reference_symbols_in_static_expression(
-                    end, types, symbols, visited,
-                );
-            }
             StaticExpression::ArrayExpression { elements }
             | StaticExpression::TupleExpression { elements } => {
                 for element in elements {

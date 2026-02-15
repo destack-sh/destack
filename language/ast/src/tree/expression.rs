@@ -207,7 +207,7 @@ pub enum Expression {
     ///
     /// Examples:
     /// ```
-    /// for (const x in 1..10) {
+    /// for (const x of items) {
     ///     y = 2
     /// }
     ///
@@ -215,7 +215,7 @@ pub enum Expression {
     ///     y = 2
     /// }
     ///
-    /// for (const x in 1..10) {
+    /// for (const x in items) {
     ///     if y > 5 {
     ///         continue
     ///     }
@@ -467,20 +467,6 @@ pub enum Expression {
     TaggedTemplateExpression {
         tag: LocalNodeId<Expression>,
         value: TemplateLiteral,
-    },
-
-    /// A RangeExpression constructs a range of values.
-    ///
-    /// Examples:
-    /// ```
-    /// 1..3
-    /// 1..n // exclusive
-    /// 1..=n // inclusive
-    /// ```
-    RangeExpression {
-        start: LocalNodeId<Expression>,
-        end: LocalNodeId<Expression>,
-        is_inclusive: bool,
     },
 
     /// An ArrayExpression constructs an array of homogeneous elements.
@@ -788,9 +774,9 @@ pub enum Expression {
     /// ```
     /// T[] // declarative form
     /// foo[1]
-    /// foo[1..3]
     /// foo["bar"]
     /// foo().result[0][variable+1]
+    /// ```
     Index {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,

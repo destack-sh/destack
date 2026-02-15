@@ -9,8 +9,6 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-const MAX_RANGE_MATCH_LITERAL_COUNT: i64 = 256;
-
 /// Coverage summary for a match pattern.
 #[derive(Debug)]
 enum MatchPatternCoverage<T> {
@@ -523,7 +521,7 @@ impl Compiler {
                 types,
                 visited,
             ),
-            Pattern::Must(_) | Pattern::Expression { .. } | Pattern::Range { .. } => false,
+            Pattern::Must(_) | Pattern::Expression { .. } => false,
         };
 
         // clear the path marker after finishing this branch
@@ -1606,20 +1604,6 @@ impl Compiler {
                 let literal = self.match_literal_from_expression(*value, tree)?;
                 Some(MatchPatternCoverage::Values(vec![literal]))
             }
-            Pattern::Range {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                // expand range patterns into literal coverage
-                let start_id = (*start)?;
-                let end_id = (*end)?;
-                let start_literal = self.match_literal_from_pattern(start_id, tree)?;
-                let end_literal = self.match_literal_from_pattern(end_id, tree)?;
-                let literals =
-                    self.match_literal_range(&start_literal, &end_literal, *is_inclusive)?;
-                Some(MatchPatternCoverage::Values(literals))
-            }
             _ => None,
         }
     }
@@ -1826,21 +1810,6 @@ impl Compiler {
         }
     }
 
-    /// Extract a literal value from a pattern.
-    fn match_literal_from_pattern(
-        &self,
-        pattern_id: LocalNodeId<Pattern>,
-        tree: &NodeTree,
-    ) -> Option<MatchLiteral> {
-        match tree.get(pattern_id) {
-            Pattern::Expression { value } => self.match_literal_from_expression(*value, tree),
-            Pattern::Binding { pattern, .. } => {
-                pattern.and_then(|inner| self.match_literal_from_pattern(inner, tree))
-            }
-            _ => None,
-        }
-    }
-
     /// Extract a literal value from an expression.
     fn match_literal_from_expression(
         &self,
@@ -1896,87 +1865,6 @@ impl Compiler {
             ScalarLiteral::Character(value) => Some(MatchLiteral::Character(*value)),
             ScalarLiteral::String(value) => Some(MatchLiteral::String(*value)),
             ScalarLiteral::RegexString { .. } => None,
-        }
-    }
-
-    /// Expand a scalar literal range into match literals.
-    fn match_literal_range(
-        &self,
-        start: &MatchLiteral,
-        end: &MatchLiteral,
-        is_inclusive: bool,
-    ) -> Option<Vec<MatchLiteral>> {
-        match (start, end) {
-            (MatchLiteral::Integer(start), MatchLiteral::Integer(end)) => {
-                // normalize bounds
-                let end_value = if is_inclusive { *end } else { end - 1 };
-                if end_value < *start {
-                    return None;
-                }
-
-                // guard against large literal ranges
-                let count = end_value - *start + 1;
-                if count > MAX_RANGE_MATCH_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit the literal range
-                let mut literals = Vec::with_capacity(count as usize);
-                for value in *start..=end_value {
-                    literals.push(MatchLiteral::Integer(value));
-                }
-                Some(literals)
-            }
-            (MatchLiteral::Bigint(start), MatchLiteral::Bigint(end)) => {
-                // normalize bounds
-                let end_value = if is_inclusive { *end } else { end - 1 };
-                if end_value < *start {
-                    return None;
-                }
-
-                // guard against large literal ranges
-                let count = end_value - *start + 1;
-                if count > MAX_RANGE_MATCH_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit the literal range
-                let mut literals = Vec::with_capacity(count as usize);
-                for value in *start..=end_value {
-                    literals.push(MatchLiteral::Bigint(value));
-                }
-                Some(literals)
-            }
-            (MatchLiteral::Character(start), MatchLiteral::Character(end)) => {
-                // normalize bounds
-                let start_value = *start as u32;
-                let end_value = *end as u32;
-                let end_value = if is_inclusive {
-                    end_value
-                } else if end_value == 0 {
-                    return None;
-                } else {
-                    end_value - 1
-                };
-                if end_value < start_value {
-                    return None;
-                }
-
-                // guard against large literal ranges
-                let count = (end_value - start_value) as i64 + 1;
-                if count > MAX_RANGE_MATCH_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit the literal range
-                let mut literals = Vec::with_capacity(count as usize);
-                for value in start_value..=end_value {
-                    let character = char::from_u32(value)?;
-                    literals.push(MatchLiteral::Character(character));
-                }
-                Some(literals)
-            }
-            _ => None,
         }
     }
 
@@ -2123,10 +2011,6 @@ impl Compiler {
             }
             Pattern::Binding { pattern, .. } => {
                 pattern.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
-            }
-            Pattern::Range { start, end, .. } => {
-                start.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
-                    || end.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
             }
             Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. }

@@ -76,18 +76,6 @@ Destack adds tuples:
 ();                    // empty tuple
 ```
 
-### Range Literals
-
-Destack supports range literals for iteration and slicing:
-
-```ds
-1..10                // exclusive range [1, 10)
-1..=10               // inclusive range [1, 10]
-start..end           // variable ranges
-```
-
-Range expressions evaluate to `Range<T>` or `RangeInclusive<T>` values (depending on the inclusive flag).
-
 ### Tree Literals
 
 Tree literals generalize TSX/JSX syntax for any tree-shaped data beyond UIs with a superset of JSX/TSX syntax.
@@ -1516,12 +1504,6 @@ async function fetchData(url: string): Promise<Response> {
 Generator functions use `function*` and `yield`:
 
 ```ds
-function* range(start: int32, end: int32): Generator<int32> {
-    for i in start..end {
-        yield i
-    }
-}
-
 function* fibonacci(): Generator<int32> {
     let (a, b) = (0, 1);
     loop {
@@ -1796,7 +1778,7 @@ Labeled blocks allow breaking with values:
 
 ```ds
 const value = outer: {
-    for i in 0..100 {
+    for (const i of candidates) {
         if condition(i) {
             break outer i;    // return i from the block
         }
@@ -1937,15 +1919,6 @@ for (const key in object) {
     print(key)
 }
 
-// with range literals
-for (const i of 0..10) {
-    print(i)          // 0, 1, 2, ..., 9
-}
-
-for (const i of 0..=10) {
-    print(i)          // 0, 1, 2, ..., 10 (inclusive)
-}
-
 // with destructuring
 for (const [key, value] of map) {
     print(`${key}: ${value}`)
@@ -1998,8 +1971,8 @@ for (let i = 0; i < 10; i++) {
 All loop forms support labeled breaks and continues:
 
 ```ds
-outer: for (const i of 0..10) {
-    for (const j of 0..10) {
+outer: for (const i of rows) {
+    for (const j of cols) {
         if (condition) {
             break outer      // exits outer loop
         }
@@ -2093,15 +2066,6 @@ Matches enum/union variants:
 Some(x)              // unwrap Some
 Ok(value)            // unwrap Ok
 Result.Err(e)        // qualified path
-```
-
-#### Range
-
-Matches numeric ranges:
-
-```ds
-1..10                // exclusive range
-1..=10               // inclusive range
 ```
 
 #### Union

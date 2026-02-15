@@ -976,21 +976,6 @@ impl Compiler {
                 self.validate_for_each_assignment_pattern(module, profile, tree, *right, is_strict);
             }
 
-            // validate both range endpoints when present
-            Pattern::Range { start, end, .. } => {
-                if let Some(start) = start {
-                    self.validate_for_each_assignment_pattern(
-                        module, profile, tree, *start, is_strict,
-                    );
-                }
-
-                if let Some(end) = end {
-                    self.validate_for_each_assignment_pattern(
-                        module, profile, tree, *end, is_strict,
-                    );
-                }
-            }
-
             // recurse into tuple, array and object fields
             Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. }

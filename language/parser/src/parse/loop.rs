@@ -44,10 +44,6 @@ impl Parser {
     ///     item
     /// }
     ///
-    /// for (const x in 1..10) {
-    ///     y = 2
-    /// }
-    ///
     /// for (const x in zeds.iter()) a: {
     ///     if y > 5 {
     ///         continue :a

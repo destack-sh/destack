@@ -1430,9 +1430,6 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::Expression::TaggedTemplateExpression { value, .. } => {
                 self.push_template_literal(value);
             }
-            ast::Expression::RangeExpression { is_inclusive, .. } => {
-                self.push_bool("expr_range_inclusive", *is_inclusive);
-            }
             ast::Expression::TypeUnary { operator, .. } => {
                 self.push_debug("expr_type_unary_operator", *operator);
             }
@@ -1762,9 +1759,6 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             } => {
                 self.push_debug_optional("pattern_binding_mutability", *mutability);
                 self.push_identifier_id("pattern_binding_name", *name);
-            }
-            ast::Pattern::Range { is_inclusive, .. } => {
-                self.push_bool("pattern_range_inclusive", *is_inclusive);
             }
             ast::Pattern::TaggedTuple { .. } | ast::Pattern::TaggedObject { .. } => {
                 self.push_same("pattern_tagged", "true");
