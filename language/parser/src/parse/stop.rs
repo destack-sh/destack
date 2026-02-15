@@ -567,6 +567,8 @@ impl Parser {
                 .map(|keyword| {
                     keyword.is_control()
                         || keyword == Keyword::Delete
+                        || keyword == Keyword::In
+                        || keyword == Keyword::InstanceOf
                         || UnaryOperator::from_prefix_keyword(keyword).is_some()
                 })
                 .unwrap_or(false);

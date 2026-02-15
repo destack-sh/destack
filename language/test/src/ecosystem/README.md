@@ -50,13 +50,13 @@ Package names may include patch markers.
 | arktype |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | astro   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | authjs  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| aws-cdk |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
+| aws-cdk |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | aws-sdk-js-v3 |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | axios   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | babel   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| backstage |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
-| budibase |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
-| cal-com |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| backstage |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
+| budibase |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
+| cal-com |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | chakra-ui |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | chalk   |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | changesets |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
@@ -65,23 +65,23 @@ Package names may include patch markers.
 | code-server |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | commander |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | consola |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
-| cypress |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| cypress |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | d3      |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | date-fns |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | debug   |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | definitelytyped |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T0   |  ✓  |
 | dify    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | directus |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
-| docusaurus |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| docusaurus |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | dotenv  |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | drizzle-orm |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| echarts |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
+| echarts |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | effect  |    ✓     |    x     |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | electron |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | eslint  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| excalidraw |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| excalidraw |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | expo    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
-| expo-router |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| expo-router |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | express |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | fastify |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | firebase-js-sdk |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T5   | -?- |
@@ -94,7 +94,7 @@ Package names may include patch markers.
 | graphql-js |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | h3      |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | hono    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| hoppscotch |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| hoppscotch |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | immich  |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
 | insomnia |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
 | io-ts   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
@@ -109,7 +109,7 @@ Package names may include patch markers.
 | lodash  |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | material-ui |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | mattermost |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
-| medusa  |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| medusa  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | mermaid |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | mobx    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | ms      |    ✓     |    ✓     |    ✓     |    ✓     |   T3    |   T5   |  x  |
@@ -121,13 +121,13 @@ Package names may include patch markers.
 | nitro   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | nocodb  |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
 | node-postgres |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| novu    |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| novu    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | nuqs    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | nuxt    |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | nx      |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | ofetch  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | openai-node |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| outline |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| outline |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | payload |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
 | pglite  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | pinia   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
@@ -162,13 +162,13 @@ Package names may include patch markers.
 | socket-io |    ✓     |    ✓     |   -?-    |   -?-    |   T1    |   T5   |  x  |
 | solid   |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | storybook |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| strapi  |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| strapi  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | stripe-node |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | styled-components |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| supabase |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| supabase |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | supabase-js |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | superjson |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
-| superset |    x     |   -?-    |   -?-    |   -?-    |   -?-   |   T2   | -?- |
+| superset |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T2   |  x  |
 | svelte  |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | sveltekit |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 | swr     |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
@@ -222,7 +222,7 @@ Package names may include patch markers.
 | zod     |    ✓     |    ✓     |    ✓     |    ✓     |   T3    |   T5   |  x  |
 | zustand |    ✓     |   -?-    |   -?-    |   -?-    |   T0    |   T5   |  x  |
 |---------|----------|----------|----------|----------|---------|--------|-----|
-| total   | 151/181  |  18/181  | 3/180 (+1) | 3/180 (+1) |   -?-   |  -?-   | -?- |
+| total   | 167/181  |  18/181  | 3/180 (+1) | 3/180 (+1) |   -?-   |  -?-   | -?- |
 <!-- end:summary-results -->
 
 ## Manifest Schema

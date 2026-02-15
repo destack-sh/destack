@@ -685,6 +685,138 @@ fn test_lex_regex_literal_after_colon() {
 }
 
 #[test]
+fn test_lex_regex_literal_after_binary_add() {
+    assert_tokenize_eq_roundtrip!(
+        "prefix + /[A-Z]/.source",
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Add, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 6, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_binary_subtract() {
+    assert_tokenize_eq_roundtrip!(
+        "prefix - /[A-Z]/.source",
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Subtract, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 6, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_binary_multiply() {
+    assert_tokenize_eq_roundtrip!(
+        "factor * /[0-9]/.source",
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Multiply, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 6, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_binary_divide() {
+    assert_tokenize_eq_roundtrip!(
+        "value / /[0-9]/.exec(text).length",
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Divide, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 6, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_binary_less_than() {
+    assert_tokenize_eq_roundtrip!(
+        "value < /[A-Z]/.test(text)",
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::LessThan, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_binary_in_keyword() {
+    assert_tokenize_eq_roundtrip!(
+        "key in /[A-Z]/.source",
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 6, None),
+    );
+}
+
+#[test]
+fn test_lex_regex_literal_after_binary_instanceof_keyword() {
+    assert_tokenize_eq_roundtrip!(
+        "value instanceof /[A-Z]/",
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 10, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            7,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+    );
+}
+
+#[test]
 fn test_lex_regex_literal_after_assign_newline() {
     let (semantic_tokens, side_tokens) =
         lex_source_tokens("var match =\n/^foo$/i.exec(str)", LanguageType::JavaScript);

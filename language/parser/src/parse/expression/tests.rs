@@ -3460,6 +3460,150 @@ fn test_parse_tagged_template_with_regex_interpolation() {
     });
 }
 
+/// Parse regex literal after binary addition.
+#[test]
+fn test_parse_regex_literal_after_binary_add() {
+    // source: RegExp(prefix + /[A-Z]/.source)
+    let mut test =
+        TestParser::new_with_options("RegExp(prefix + /[A-Z]/.source)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // RegExp(prefix + /[A-Z]/.source)
+    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "RegExp");
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                assert_expression_path!(parser, parser.tree.get(*left), "prefix");
+                assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "source");
+                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                });
+            });
+        });
+    });
+}
+/// Parse regex literal after binary subtraction.
+#[test]
+fn test_parse_regex_literal_after_binary_subtract() {
+    // source: RegExp(prefix - /[A-Z]/.source)
+    let mut test =
+        TestParser::new_with_options("RegExp(prefix - /[A-Z]/.source)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // RegExp(prefix - /[A-Z]/.source)
+    assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "RegExp");
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::Subtract);
+                assert_expression_path!(parser, parser.tree.get(*left), "prefix");
+                assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "source");
+                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                });
+            });
+        });
+    });
+}
+
+/// Parse regex literal after binary divide.
+#[test]
+fn test_parse_regex_literal_after_binary_divide() {
+    // source: value / /[0-9]/.exec(text).length
+    let mut test = TestParser::new_with_options(
+        "value / /[0-9]/.exec(text).length",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // value / /[0-9]/.exec(text).length
+    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::Divide);
+        assert_expression_path!(parser, parser.tree.get(*left), "value");
+        assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "length");
+            assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_eq!(dynamic_arguments.len(), 1);
+                assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "text");
+                });
+                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "exec");
+                    assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+                });
+            });
+        });
+    });
+}
+
+/// Parse regex literal after binary less than.
+#[test]
+fn test_parse_regex_literal_after_binary_less_than() {
+    // source: value < /[A-Z]/.test(text)
+    let mut test =
+        TestParser::new_with_options("value < /[A-Z]/.test(text)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // value < /[A-Z]/.test(text)
+    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::LessThan);
+        assert_expression_path!(parser, parser.tree.get(*left), "value");
+        assert_node!(parser.tree, *right, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "text");
+            });
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "test");
+                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+            });
+        });
+    });
+}
+
+/// Parse regex literal after binary in keyword.
+#[test]
+fn test_parse_regex_literal_after_binary_in_keyword() {
+    // source: key in /[A-Z]/.source
+    let mut test = TestParser::new_with_options("key in /[A-Z]/.source", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // key in /[A-Z]/.source
+    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::In);
+        assert_expression_path!(parser, parser.tree.get(*left), "key");
+        assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "source");
+            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+        });
+    });
+}
+
+/// Parse regex literal after binary instanceof keyword.
+#[test]
+fn test_parse_regex_literal_after_binary_instanceof_keyword() {
+    // source: value instanceof /[A-Z]/
+    let mut test =
+        TestParser::new_with_options("value instanceof /[A-Z]/", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // value instanceof /[A-Z]/
+    assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::InstanceOf);
+        assert_expression_path!(parser, parser.tree.get(*left), "value");
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
+    });
+}
+
 /// Parse regex literal after assign with a newline.
 #[test]
 fn test_parse_regex_literal_after_assign_newline() {

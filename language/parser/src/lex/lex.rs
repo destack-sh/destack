@@ -49,17 +49,38 @@ pub const EXPRESSION_START_TOKEN_TYPES: &[TokenType] = &[
     TokenType::Comma,
     TokenType::Colon,
     TokenType::Semicolon,
+    TokenType::Spread,
     TokenType::Not,
     TokenType::ElementwiseNot,
+    TokenType::Multiply,
+    TokenType::WrappingMultiply,
+    TokenType::SaturatingMultiply,
+    TokenType::Exponent,
+    TokenType::WrappingExponent,
+    TokenType::SaturatingExponent,
+    TokenType::Divide,
+    TokenType::Remainder,
+    TokenType::Add,
+    TokenType::WrappingAdd,
+    TokenType::SaturatingAdd,
+    TokenType::Subtract,
+    TokenType::WrappingSubtract,
+    TokenType::SaturatingSubtract,
+    TokenType::ShiftLeft,
+    TokenType::SaturatingShiftLeft,
+    TokenType::ElementwiseAnd,
+    TokenType::ElementwiseXor,
+    TokenType::ElementwiseOr,
     TokenType::Equal,
     TokenType::NotEqual,
     TokenType::EqualWide,
     TokenType::NotEqualWide,
-    TokenType::ElementwiseAnd,
+    TokenType::LessThan,
+    TokenType::LessThanOrEqual,
+    TokenType::GreaterThan,
+    TokenType::GreaterThanOrEqual,
     TokenType::LogicalAnd,
     TokenType::LogicalOr,
-    TokenType::LogicalAndAssign,
-    TokenType::LogicalOrAssign,
     TokenType::Maybe,
     TokenType::Coalesce,
     TokenType::OpenParenthesis,
@@ -329,33 +350,9 @@ impl Lexer {
                         }
                         // regex or divide
                         else {
-                            // /regex/ if we're in a start context
-                            let is_expression_start = self.is_expression_start_for_regex();
-                            // check it's not a closing tag
-                            // (`/>` without a closing `/` on the same line)
-                            let is_regex_start = {
-                                // not an expression start, not a regex
-                                if !is_expression_start {
-                                    false
-                                }
-                                // not a closing tag, definitely a regex
-                                else if self.peek() != '>' {
-                                    true
-                                }
-                                // might be a regex iff we find a closing `/` on the line
-                                else {
-                                    let mut found_closing_slash_on_line = false;
-                                    for c in self.as_str().chars() {
-                                        if c == '/' {
-                                            found_closing_slash_on_line = true;
-                                            break;
-                                        } else if c == '\n' {
-                                            break;
-                                        }
-                                    }
-                                    found_closing_slash_on_line
-                                }
-                            };
+                            // /regex/ only when context permits and a closing slash exists
+                            let is_regex_start = self.is_expression_start_for_regex()
+                                && self.regex_literal_has_terminator();
 
                             // regex
                             if is_regex_start {
@@ -1732,6 +1729,46 @@ impl Lexer {
         false
     }
 
+    // detect whether a slash can terminate this regex before a line break
+    fn regex_literal_has_terminator(&self) -> bool {
+        let mut escaped = false;
+        let mut in_character_class = false;
+
+        for c in self.as_str().chars() {
+            if is_line_terminator_char(c) {
+                return false;
+            }
+
+            if escaped {
+                escaped = false;
+                continue;
+            }
+
+            if c == '\\' {
+                escaped = true;
+                continue;
+            }
+
+            if in_character_class {
+                if c == ']' {
+                    in_character_class = false;
+                }
+                continue;
+            }
+
+            if c == '[' {
+                in_character_class = true;
+                continue;
+            }
+
+            if c == '/' {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Parses a regex string (excluding first `/`, including any flags after `/`).
     /// Works exactly like JS/TS regex literals.
     fn eat_regex_string(&mut self) -> bool {
@@ -2068,12 +2105,7 @@ impl Lexer {
             }
             if last_semantic.token.ty == TokenType::Identifier {
                 return Keyword::from_str(self.get_span_str(last_semantic.span))
-                    .map(|keyword| {
-                        keyword.is_control()
-                            || keyword == Keyword::Delete
-                            || UnaryOperator::from_prefix_keyword(keyword).is_some()
-                            || keyword == Keyword::Default && self.default_follows_export()
-                    })
+                    .map(|keyword| self.keyword_starts_expression_for_regex(keyword))
                     .unwrap_or(false);
             }
 
@@ -2100,16 +2132,21 @@ impl Lexer {
 
         if last_non_whitespace.token.ty == TokenType::Identifier {
             return Keyword::from_str(self.get_span_str(last_non_whitespace.span))
-                .map(|keyword| {
-                    keyword.is_control()
-                        || keyword == Keyword::Delete
-                        || UnaryOperator::from_prefix_keyword(keyword).is_some()
-                        || keyword == Keyword::Default && self.default_follows_export()
-                })
+                .map(|keyword| self.keyword_starts_expression_for_regex(keyword))
                 .unwrap_or(false);
         }
 
         false
+    }
+
+    // classify identifier keywords that still expect a right hand expression
+    fn keyword_starts_expression_for_regex(&self, keyword: Keyword) -> bool {
+        keyword.is_control()
+            || keyword == Keyword::Delete
+            || keyword == Keyword::In
+            || keyword == Keyword::InstanceOf
+            || UnaryOperator::from_prefix_keyword(keyword).is_some()
+            || keyword == Keyword::Default && self.default_follows_export()
     }
 
     // detect typescript postfix non null assertions before `/`

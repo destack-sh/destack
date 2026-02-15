@@ -15,15 +15,11 @@ astro-resolve
 authjs-analyze
 authjs-lower
 authjs-resolve
-aws-cdk-parse
 backstage-analyze
 backstage-lower
-backstage-parse
 backstage-resolve
-budibase-parse
 cal-com-analyze
 cal-com-lower
-cal-com-parse
 cal-com-resolve
 chalk-analyze
 chalk-lower
@@ -39,7 +35,6 @@ commander-analyze
 commander-lower
 consola-analyze
 consola-lower
-cypress-parse
 debug-analyze
 debug-lower
 definitelytyped-analyze
@@ -48,13 +43,11 @@ definitelytyped-resolve
 directus-analyze
 directus-lower
 directus-resolve
-docusaurus-parse
 dotenv-analyze
 dotenv-lower
 drizzle-orm-analyze
 drizzle-orm-lower
 drizzle-orm-resolve
-echarts-parse
 effect-analyze
 effect-lower
 effect-resolve
@@ -64,11 +57,9 @@ electron-resolve
 eslint-analyze
 eslint-lower
 eslint-resolve
-excalidraw-parse
 expo-analyze
 expo-lower
 expo-resolve
-expo-router-parse
 express-analyze
 express-lower
 fastify-analyze
@@ -96,7 +87,6 @@ hono-lower
 hono-resolve
 hoppscotch-analyze
 hoppscotch-lower
-hoppscotch-parse
 hoppscotch-resolve
 immich-parse
 insomnia-parse
@@ -125,7 +115,6 @@ lodash-lower
 mattermost-parse
 medusa-analyze
 medusa-lower
-medusa-parse
 medusa-resolve
 mysql2-analyze
 mysql2-lower
@@ -147,7 +136,6 @@ nocodb-parse
 node-postgres-analyze
 node-postgres-lower
 node-postgres-resolve
-novu-parse
 nuqs-analyze
 nuqs-lower
 nuqs-resolve
@@ -163,7 +151,6 @@ ofetch-resolve
 openai-node-analyze
 openai-node-lower
 openai-node-resolve
-outline-parse
 payload-analyze
 payload-lower
 payload-parse
@@ -233,15 +220,12 @@ solid-resolve
 storybook-analyze
 storybook-lower
 storybook-resolve
-strapi-parse
 supabase-js-analyze
 supabase-js-lower
 supabase-js-resolve
-supabase-parse
 superjson-analyze
 superjson-lower
 superjson-resolve
-superset-parse
 sveltekit-analyze
 sveltekit-lower
 sveltekit-resolve
