@@ -395,7 +395,7 @@ impl Parser {
 
                 // parse decorators after export when they follow skipped newlines
                 if self.peek_is(TokenType::At) {
-                    let mut export_decorators = self.eat_decorators_prefix_collect_maybe()?;
+                    let mut export_decorators = self.eat_decorators_maybe()?;
                     decorators.append(&mut export_decorators);
                 }
             }

@@ -1384,17 +1384,13 @@ impl Parser {
             expressions.append(&mut body_expressions);
         }
 
-        // comment-only and directive-only files need one stable target node
+        // comment-only files need one stable target node
         self.token_stream.lex_to_end();
-        if self.has_comment_trivia_tokens() && (expressions.is_empty() || consumed_to_end) {
+        if expressions.is_empty() && self.has_comment_trivia_tokens() {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
             self.bind_annotation_seam(0, 0, stub.id, super::annotation::AnnotationSeamKind::Stub);
-            if expressions.is_empty() {
-                expressions.push(stub);
-            } else {
-                expressions.insert(0, stub);
-            }
+            expressions.push(stub);
         }
 
         expressions
