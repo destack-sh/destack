@@ -1,3 +1,4 @@
+use crate::parse::annotation::LeadingAnnotationKind;
 use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -431,11 +432,29 @@ impl Parser {
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // allow ts style multiline unions and intersections that start with separators
-        if !self.language.is_destack()
-            && (self.peek_is(TokenType::ElementwiseOr) || self.peek_is(TokenType::ElementwiseAnd))
-        {
-            self.bump(); // eat leading | or &
-            self.eat_newlines_maybe()?;
+        // leading boundary trivia before the separator belongs to the first type arm
+        if !self.language.is_destack() {
+            let leading_separator_cursor = self.scanner_cursor();
+            if matches!(
+                leading_separator_cursor.token_type,
+                TokenType::ElementwiseOr | TokenType::ElementwiseAnd
+            ) {
+                if leading_separator_cursor.index != self.pos_index() {
+                    self.advance_to(leading_separator_cursor.index);
+                }
+
+                self.bump(); // eat leading | or &
+                self.eat_newlines_maybe()?;
+
+                let expression_id = self.eat_expression(self.options)?;
+                self.bind_owner_leading_seam_at_token(
+                    expression_id.id,
+                    leading_separator_cursor.index,
+                    leading_separator_cursor.skipped_newline_count,
+                    LeadingAnnotationKind::Type,
+                );
+                return Ok(expression_id);
+            }
         }
 
         self.eat_expression(self.options)
@@ -1429,9 +1448,9 @@ mod tests {
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
     use destack_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, BindingKind, BindingModifier,
-        BindingOperator, Comment, CommentStyle, Declaration, DeclarationKind, Expression,
-        FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
-        Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        BindingOperator, Comment, CommentStyle, Declaration, DeclarationKind, Doc, DocStyle,
+        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key,
+        Mutability, Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
         TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
@@ -3050,6 +3069,34 @@ mod tests {
         });
     }
 
+    /// Parenthesized leading-pipe unions should remain grouped before array suffixes.
+    #[test]
+    fn test_parse_parenthesized_leading_pipe_union_with_array_suffix() {
+        let mut test = TestParser::new_with_options(
+            r#"type Result = (
+  | "a"
+  | "b"
+)[]"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
+                    assert!(index.is_none());
+
+                    assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::Binary { operator, .. } => {
+                            assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_type_associated_projection_with_static_arguments() {
         let mut test = TestParser::new("type A = Pair<int32, string>.Swap<boolean>");
@@ -4348,6 +4395,181 @@ mod tests {
                             assert_string!(parser, *string, "intersection-line");
                         });
                     });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_union_line_comment_before_operator_on_left_arm_owner() {
+        let mut test = TestParser::new_with_options(
+            "type Value = First // left-union\n| Second",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "First");
+
+                    let annotations = parser.tree.get_annotations(left.id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "left-union");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_intersection_line_comment_before_operator_on_left_arm_owner() {
+        let mut test = TestParser::new_with_options(
+            "type Value = First // left-intersection\n& Second",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                    assert_expression_path!(parser, parser.tree.get(*left), "First");
+
+                    let annotations = parser.tree.get_annotations(left.id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "left-intersection");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_union_object_arm_trailing_comments_stay_on_each_arm_owner() {
+        let mut test = TestParser::new_with_options(
+            "type Mixed = null // null-arm\n| {\n  y: number;\n  z: string;\n} // object-arm\n| void // void-arm\n;",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Void));
+
+                    assert_node!(parser.tree, *left, Expression::Binary { operator, left, right } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        assert_node!(parser.tree, *left, Expression::TypeLiteral(TypeLiteral::Null));
+                        assert_node!(parser.tree, *right, Expression::ObjectExpression { .. });
+
+                        let null_annotations = parser.tree.get_annotations(left.id);
+                        assert_eq!(null_annotations.len(), 1);
+                        assert_node!(parser.tree, null_annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(*style, CommentStyle::Slash);
+                                assert_string!(parser, *string, "null-arm");
+                            });
+                        });
+
+                        let object_annotations = parser.tree.get_annotations(right.id);
+                        assert_eq!(object_annotations.len(), 1);
+                        assert_node!(parser.tree, object_annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(*style, CommentStyle::Slash);
+                                assert_string!(parser, *string, "object-arm");
+                            });
+                        });
+                    });
+
+                    let void_annotations = parser.tree.get_annotations(right.id);
+                    assert_eq!(void_annotations.len(), 1);
+                    assert_node!(parser.tree, void_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "void-arm");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_union_doc_block_comment_attaches_to_first_union_arm() {
+        let mut test = TestParser::new_with_options(
+            "export type Value = /** union-doc\n */\n| { ok: true }\n| { ok: false; value: bigint | null };",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, value, .. } => {
+                assert!(descriptor.export.is_some());
+                assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+
+                    let value_annotations = parser.tree.get_annotations(value.id);
+                    assert_eq!(value_annotations.len(), 1);
+                    assert_node!(parser.tree, value_annotations[0], Annotation::Doc { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Doc { string, style } => {
+                            assert_eq!(*style, DocStyle::Star);
+                            assert_string!(parser, *string, "union-doc\n");
+                        });
+                    });
+
                 });
             });
         });

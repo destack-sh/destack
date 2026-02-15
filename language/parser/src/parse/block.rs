@@ -583,9 +583,9 @@ impl Parser {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
-            self.bind_owner_trailing_line_at_current(expression_id.id);
             let expression_id =
                 self.wrap_statement_expression(expression_id, self.get_span_from(start));
+            self.bind_owner_trailing_line_at_current(expression_id.id);
             return Ok((expression_id, true));
         }
 
@@ -957,8 +957,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Comment, CommentStyle, Expression, IfKind, LetKind,
-        ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
+        Annotation, AnnotationPosition, Comment, CommentStyle, Declaration, Expression, IfKind,
+        LetKind, ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
     };
     use destack_source::LanguageType;
 
@@ -1518,4 +1518,198 @@ mod tests {
             });
         });
     }
+
+    #[test]
+    fn test_parse_throw_semicolon_trailing_comment_on_statement_wrapper_owner() {
+        let mut test =
+            TestParser::new_with_options("throw error; // throw-tail", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let statement_id = expressions[0];
+        assert_node!(parser.tree, statement_id, Expression::Statement(throw_id) => {
+            assert_node!(parser.tree, *throw_id, Expression::Throw { .. } => {});
+            let throw_annotations = parser.tree.get_annotations(throw_id.id);
+            assert_eq!(throw_annotations.len(), 0);
+        });
+
+        let annotations = parser.tree.get_annotations(statement_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(*style, CommentStyle::Slash);
+                assert_string!(parser, *string, "throw-tail");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_return_semicolon_trailing_comment_on_statement_wrapper_owner() {
+        let mut test =
+            TestParser::new_with_options("return value; // return-tail", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let statement_id = expressions[0];
+        assert_node!(parser.tree, statement_id, Expression::Statement(return_id) => {
+            assert_node!(parser.tree, *return_id, Expression::Return { value } => {
+                assert!(value.is_some());
+            });
+            let return_annotations = parser.tree.get_annotations(return_id.id);
+            assert_eq!(return_annotations.len(), 0);
+        });
+
+        let annotations = parser.tree.get_annotations(statement_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(*style, CommentStyle::Slash);
+                assert_string!(parser, *string, "return-tail");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_throw_semicolon_trailing_comment_on_statement_wrapper_owner() {
+        let mut test = TestParser::new_with_options(
+            "function fail() {\n    throw error; // throw-tail\n}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let function_expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function { body, .. } => {
+                let body_id = body.expect("expected function body");
+                assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+
+                    let statement_id = block.expressions[0];
+                    assert_node!(parser.tree, statement_id, Expression::Statement(throw_id) => {
+                        assert_node!(parser.tree, *throw_id, Expression::Throw { .. } => {});
+                        let throw_annotations = parser.tree.get_annotations(throw_id.id);
+                        assert_eq!(throw_annotations.len(), 0);
+                    });
+
+                    let annotations = parser.tree.get_annotations(statement_id.id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "throw-tail");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_throw_trailing_comment_on_statement_wrapper_owner() {
+        let mut test = TestParser::new_with_options(
+            "function fail() {\n    throw error // throw-tail\n}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let function_expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function { body, .. } => {
+                let body_id = body.expect("expected function body");
+                assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+
+                    let statement_id = block.expressions[0];
+                    assert_node!(parser.tree, statement_id, Expression::Statement(throw_id) => {
+                        assert_node!(parser.tree, *throw_id, Expression::Throw { .. } => {});
+                        let throw_annotations = parser.tree.get_annotations(throw_id.id);
+                        assert_eq!(throw_annotations.len(), 0);
+                    });
+
+                    let annotations = parser.tree.get_annotations(statement_id.id);
+                    assert_eq!(annotations.len(), 1);
+                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "throw-tail");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_else_boundary_comment_keeps_statement_wrappers_in_blocks() {
+        let mut test = TestParser::new_with_options(
+            "if (ready) {\n    run()\n}\n// else-boundary\nelse {\n    stop()\n}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let if_expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, if_expression_id, Expression::If { then_expression, else_expression, .. } => {
+            assert_node!(parser.tree, *then_expression, Expression::Block(then_block_id) => {
+                let then_block = parser.tree.get(*then_block_id);
+                assert_eq!(then_block.expressions.len(), 1);
+                assert_node!(parser.tree, then_block.expressions[0], Expression::Statement(call_id) => {
+                    assert_node!(parser.tree, *call_id, Expression::Call { .. } => {});
+                });
+            });
+
+            let else_expression_id = else_expression.expect("expected else expression");
+            assert_node!(parser.tree, else_expression_id, Expression::Block(else_block_id) => {
+                let else_block = parser.tree.get(*else_block_id);
+                assert_eq!(else_block.expressions.len(), 1);
+                assert_node!(parser.tree, else_block.expressions[0], Expression::Statement(call_id) => {
+                    assert_node!(parser.tree, *call_id, Expression::Call { .. } => {});
+                });
+            });
+        });
+    }
+
 }

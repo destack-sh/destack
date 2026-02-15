@@ -111,9 +111,7 @@ type Combined = HasName & HasAge & HasEmail
 ```
 
 ```ts expected
-type Combined = HasName
-    & HasAge
-    & HasEmail;
+type Combined = HasName & HasAge & HasEmail;
 ```
 
 ### nullable union with object type hugs
@@ -143,7 +141,8 @@ type MaybeUser = { name: string, email: string } /* note */ | null | undefined
 type MaybeUser = {
     name: string,
     email: string,
-} /* note */ | null
+} /* note */
+    | null
     | undefined;
 ```
 

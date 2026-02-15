@@ -559,6 +559,8 @@ pub(super) fn format_primary_expression<'ast>(
             } else {
                 let has_parenthesized_leading_inner_trivia =
                     parenthesized_has_leading_inner_trivia(f.context(), node_id, *expression);
+                let has_parenthesized_leading_inner_newline =
+                    parenthesized_has_leading_inner_newline(f.context(), node_id, *expression);
                 let has_parenthesized_prefix_annotation =
                     f.context().has_prefix_annotation(node_id)
                         || f.context().has_prefix_annotation(*expression);
@@ -647,7 +649,7 @@ pub(super) fn format_primary_expression<'ast>(
                     )?;
                 } else if has_parenthesized_prefix_annotation {
                     if f.context().node_has_newline(*expression)
-                        || has_parenthesized_leading_inner_trivia
+                        || has_parenthesized_leading_inner_newline
                     {
                         write!(
                             f,
@@ -677,16 +679,37 @@ pub(super) fn format_primary_expression<'ast>(
                     }
                 } else if matches!(inner_expression, Expression::TypeConditional { .. }) {
                     write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
-                } else if has_parenthesized_leading_inner_trivia {
+                } else if matches!(
+                    inner_expression,
+                    Expression::Binary {
+                        operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+                        ..
+                    }
+                ) && f.context().node_has_newline(*expression)
+                {
                     write!(
                         f,
                         [
                             token("("),
-                            block_indent(&expression),
+                            block_indent(&group(expression).should_expand(true)),
                             hard_line_break(),
                             token(")")
                         ]
                     )?;
+                } else if has_parenthesized_leading_inner_trivia {
+                    if has_parenthesized_leading_inner_newline {
+                        write!(
+                            f,
+                            [
+                                token("("),
+                                block_indent(&expression),
+                                hard_line_break(),
+                                token(")")
+                            ]
+                        )?;
+                    } else {
+                        write!(f, [token("("), expression, token(")")])?;
+                    }
                 } else {
                     write!(f, [token("("), expression, token(")")])?;
                 }

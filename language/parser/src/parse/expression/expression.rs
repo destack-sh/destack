@@ -355,6 +355,10 @@ impl Parser {
         inner_options.allow_sequence_expression = true;
         let expression_id = self.eat_expression(inner_options)?;
         self.eat_newlines_maybe()?;
+
+        // keep separator-boundary comments before `)` on the inner expression
+        self.bind_owner_trailing_default_at_current(expression_id.id);
+
         self.eat_token(TokenType::CloseParenthesis)?;
 
         // preserve tuple and sequence spans when nested expressions already produced them
@@ -529,6 +533,10 @@ impl Parser {
         }
         let expression_id = self.eat_expression(inner_options)?;
         self.eat_newlines_maybe()?;
+
+        // keep separator-boundary comments before `)` on the inner expression
+        self.bind_owner_trailing_default_at_current(expression_id.id);
+
         self.eat_token(TokenType::CloseParenthesis)?;
         let inner_token_type = self.token_type_at(inner_start as usize);
         let expression_id = match self.tree.get(expression_id) {
@@ -1388,6 +1396,12 @@ impl Parser {
 
         // expression contexts always permit leading attachment
         if !self.options.in_statement_position {
+            return true;
+        }
+
+        // nested type parsing inside statement contexts still needs expression-leading attachments
+        // for seam ownership like `type T = /** doc */ | A | B`
+        if self.options.in_type {
             return true;
         }
 

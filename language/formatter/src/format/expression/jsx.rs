@@ -1158,6 +1158,10 @@ pub(super) fn tree_child_should_inline_braced_expression(
         }
     }
 
+    if argument_has_line_comment_annotation(context, argument_id) {
+        return false;
+    }
+
     match value_expr {
         Expression::ScalarLiteral(ScalarLiteral::String(_))
         | Expression::ScalarLiteral(ScalarLiteral::Character(_)) => true,
@@ -1173,17 +1177,95 @@ pub(super) fn tree_child_should_inline_braced_expression(
         | Expression::PrivateMember { .. }
         | Expression::Index { .. }
         | Expression::Maybe { .. }
-        | Expression::Must { .. } => true,
+        | Expression::Must { .. } => !expression_has_line_comment_annotation(context, value_id),
         Expression::If {
             kind: IfKind::Ternary,
+            condition,
+            then_expression,
+            else_expression,
             ..
-        } => true,
+        } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => return false,
+            };
+            if context.node_has_newline(value_id)
+                || expression_has_line_comment_annotation(context, value_id)
+                || expression_has_line_comment_annotation(context, condition_id)
+                || expression_has_line_comment_annotation(context, *then_expression)
+                || else_expression
+                    .is_some_and(|else_id| expression_has_line_comment_annotation(context, else_id))
+            {
+                return false;
+            }
+            true
+        }
         Expression::Declaration(declaration_id) => matches!(
             context.tree.get(*declaration_id),
             Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
         ),
         _ => false,
     }
+}
+
+/// Return whether one expression has a line-oriented slash comment annotation.
+fn expression_has_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    annotation_ids.into_iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+        else {
+            return false;
+        };
+
+        let is_line_position = matches!(
+            *position,
+            AnnotationPosition::LinePrefix
+                | AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+        );
+        if !is_line_position {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
+}
+
+/// Return whether one tree argument has a line-oriented slash comment annotation.
+fn argument_has_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotation_ids) = context.get_annotations(argument_id) else {
+        return false;
+    };
+
+    annotation_ids.into_iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+        else {
+            return false;
+        };
+
+        let is_line_position = matches!(
+            *position,
+            AnnotationPosition::LinePrefix
+                | AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+        );
+        if !is_line_position {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
 }
 
 /// Check whether a tree child forces the element to break.

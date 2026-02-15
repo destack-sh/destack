@@ -1489,7 +1489,7 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
         let then_annotations = parser.tree.get_annotations(then_expression.id);
         assert_eq!(then_annotations.len(), 1);
         assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_eq!(*position, AnnotationPosition::LinePrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(*style, CommentStyle::Slash);
                 assert_string!(parser, *string, "then-seam");
@@ -1499,7 +1499,7 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
         let else_annotations = parser.tree.get_annotations(else_expression_id.id);
         assert_eq!(else_annotations.len(), 1);
         assert_node!(parser.tree, else_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_eq!(*position, AnnotationPosition::LinePrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(*style, CommentStyle::Slash);
                 assert_string!(parser, *string, "else-seam");

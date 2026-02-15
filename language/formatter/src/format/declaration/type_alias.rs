@@ -3,8 +3,7 @@ use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
 use crate::expression::{
-    expression_has_non_doc_multiline_block_prefix_comment_annotation, format_expression,
-    is_expression_breakable, is_type_context, source_min_inline_char_len,
+    format_expression, is_expression_breakable, is_type_context, source_min_inline_char_len,
 };
 use crate::scan::next_non_whitespace_after_annotation;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -332,22 +331,16 @@ pub(super) fn format_type_alias_declaration<'ast>(
         }
         _ => false,
     };
-    let value_parenthesized_inner_has_block_prefix_annotation = match value_expression {
-        Expression::Parenthesized { expression } => {
-            expression_has_non_doc_multiline_block_prefix_comment_annotation(
-                f.context(),
-                *expression,
-            )
+    let value_prefers_inline_after_equals = match value_expression {
+        Expression::Parenthesized { .. } => true,
+        Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => {
+            matches!(tree.get(*left), Expression::Parenthesized { .. })
         }
         _ => false,
     };
-
     if inline_prefix_comment_cluster.is_some() {
         format_inline.format(f)?;
-    } else if should_break_after_equals
-        || should_break_template_literal_type_after_equals
-        || value_parenthesized_inner_has_block_prefix_annotation
-    {
+    } else if should_break_after_equals || should_break_template_literal_type_after_equals {
         format_soft_break.format(f)?;
     } else if is_expression_breakable(tree, tree.get(value_id)) {
         if !value_has_prefix_annotation && !value_has_newline && inline_total_len <= line_width {
@@ -379,7 +372,8 @@ pub(super) fn format_type_alias_declaration<'ast>(
     } else if inline_is_impossible {
         format_indented.format(f)?;
     } else {
-        let can_inline = !value_has_newline && inline_total_len <= line_width;
+        let can_inline = inline_total_len <= line_width
+            && (!value_has_newline || value_prefers_inline_after_equals);
         if can_inline {
             format_inline.format(f)?;
         } else {
