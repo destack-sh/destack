@@ -222,7 +222,7 @@ array.forEach(item => { console.log(item) })
 
 ```ds expected
 array.forEach((item) => {
-    console.log(item)
+    console.log(item);
 });
 ```
 
@@ -350,7 +350,7 @@ IIFEs wrap and immediately invoke the arrow function.
 
 ```ds expected
 (() => {
-    console.log("hello")
+    console.log("hello");
 })();
 ```
 
@@ -413,7 +413,7 @@ const identity = <T,>(x: T): T => x
 ```
 
 ```ds expected
-const identity = <T,>(x: T): T => x;
+const identity = <T>(x: T): T => x;
 ```
 
 ### arrow function with constrained type parameter
@@ -479,12 +479,11 @@ const handler = (event) => ({ type: event.type, target: event.target, timestamp:
 ```
 
 ```ds expected
-const handler = (event) =>
-    ({
-        type: event.type,
-        target: event.target,
-        timestamp: Date.now(),
-    });
+const handler = (event) => ({
+    type: event.type,
+    target: event.target,
+    timestamp: Date.now(),
+});
 ```
 
 ### arrow function with chained return breaks

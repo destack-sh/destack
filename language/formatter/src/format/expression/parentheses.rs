@@ -517,6 +517,22 @@ pub(super) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
+    // drop redundant simple wrappers in array element position: `(number)[]` -> `number[]`
+    if let Some((parent_id, parent_type)) = context.get_parent(node_id)
+        && parent_type == NodeType::Expression
+    {
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        if let Expression::Index { left, index, .. } = context.tree.get(parent_expression_id)
+            && *left == node_id
+            && index.is_none()
+            && !context.has_annotation(node_id)
+            && !context.has_annotation(inner_id)
+            && is_simple_type_binary_left_expression(context.tree, inner_id)
+        {
+            return true;
+        }
+    }
+
     if parenthesized_associative_type_binary_can_drop(context, node_id, inner_id) {
         return true;
     }

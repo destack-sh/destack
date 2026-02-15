@@ -40,7 +40,7 @@ declare const PAGE_PATH: string
 
 ```ts expected
 declare const PAGE_PATH: string;
-  //<- marker
+    //<- marker
 (() => {})();
 ```
 
@@ -72,9 +72,7 @@ function build(value: Buffer): @addrspace("shared") &Buffer { return value }
 ```
 
 ```ds expected
-function build(
-    value: Buffer,
-): @addrspace("shared") &Buffer {
+function build(value: Buffer): @addrspace("shared") &Buffer {
     return value;
 }
 ```
@@ -94,8 +92,8 @@ class Box {
 
 ```ts expected
 class Box {
-    run(): number // method-body
-    {
+    run(): number {
+        // method-body
         return 1;
     }
 }
@@ -213,11 +211,9 @@ export type Value = /** union-doc
 ```
 
 ```ts expected
-export type Value =
-    /** union-doc
+export type Value = /** union-doc
      */
-    | { ok: true }
-    | { ok: false; value: bigint | null };
+    { ok: true } | { ok: false; value: bigint | null };
 ```
 
 ### union last arm trailing line comment
@@ -231,9 +227,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | First
-    | Second; // second-tail
+type Value = First | Second; // second-tail
 ```
 
 ### parenthesized union comment attachment
@@ -266,8 +260,7 @@ type Flags<T> = {
 
 ```ts expected
 type Flags<T> = {
-    [K in keyof T]: // mapped-line
-    boolean;
+    [K in keyof T]: boolean; // mapped-line
 };
 ```
 
@@ -354,7 +347,8 @@ longVariableName1 = // @ts-ignore
 ```
 
 ```ts expected
-longVariableName1 = (variable01 + veryLongVariableNameNumber2).method(); // @ts-ignore
+longVariableName1 = // @ts-ignore
+    (variable01 + veryLongVariableNameNumber2).method();
 ```
 
 ### assignment to arrow with separator comments
@@ -372,7 +366,9 @@ const handler = /* marker */
 ```ts expected
 const handler =
     /* marker */
+
     // before-arrow
+
     () => {};
 ```
 
@@ -392,12 +388,12 @@ B // impl-tail
 ```
 
 ```ts expected
-class Derived extends Base // base-tail
-    implements
+class Derived
+    extends Base // base-tail
     // impl-head
-    A,
-    B // impl-tail
-{}
+    implements A, B {
+    // impl-tail
+}
 ```
 
 ### declare class with implements and generic comment
@@ -412,8 +408,7 @@ declare class Box // box-head
 ```
 
 ```ts expected
-declare class Box // box-head
-<T>
+declare class Box<T> // box-head
     implements Item<T>, Other
 {
     value: T;
@@ -434,9 +429,7 @@ interface Methods {
 
 ```ts expected
 interface Methods {
-    run /* name */? /* q */(
-        value: /* arg */ string,
-    ): /* ret */ string;
+    run /* name */? /* q */(value: /* arg */ string): /* ret */ string;
 }
 ```
 
@@ -450,12 +443,8 @@ let Factory: new /* ctor-head */ (value: /* arg */ string) /* ctor-tail */ => Wi
 ```
 
 ```ts expected
-type Fn = /* fn-head */ (
-    value: /* arg */ string,
-) /* fn-tail */ => void;
-let Factory: new /* ctor-head */ (
-    value: /* arg */ string,
-) /* ctor-tail */ => Widget;
+type Fn = /* fn-head */ (value: /* arg */ string) /* fn-tail */ => void;
+let Factory: new /* ctor-head */(value: /* arg */ string) /* ctor-tail */ => Widget;
 ```
 
 ## Union And Intersection Layout
@@ -512,9 +501,9 @@ type Mixed = null // null-arm
 type Mixed =
     | null // null-arm
     | {
-        y: number;
-        z: string;
-    } // object-arm
+          y: number;
+          z: string;
+      } // object-arm
     | void; // void-arm
 ```
 
@@ -544,7 +533,7 @@ class C {
 }
 
 class D {
-    constructor(readonly public x: number) {}
+    constructor(public readonly x: number) {}
 }
 
 class E {
@@ -769,9 +758,10 @@ type Value<T> = T extends /* extends-note */ string
 ```
 
 ```ts expected
-type Value<T> = T extends /* extends-note */ string
-    ? /* true-note */ number
-    : /* false-note */ boolean;
+type Value<T> =
+    T extends /* extends-note */ string
+        ? /* true-note */ number
+        : /* false-note */ boolean;
 ```
 
 ### intersection comment in flow-consistent style
@@ -784,10 +774,9 @@ Right & Tail
 ```
 
 ```ts expected
-type Value = Left
-    & // inter-note
-    Right
-    & Tail;
+type Value = Left & // inter-note
+    Right &
+    Tail;
 ```
 
 ### tuple dangling type comments
@@ -822,8 +811,8 @@ class Child extends Base // extends-tail
 ```
 
 ```ts expected
-class Child extends Base // extends-tail
-{
+class Child extends Base {
+    // extends-tail
     value = 1;
 }
 ```
@@ -842,10 +831,11 @@ Second // impl-second
 
 ```ts expected
 class Child
-    implements First, // impl-first
-    Second
-// impl-second
+    implements
+        First, // impl-first
+        Second
 {
+    // impl-second
     value = 1;
 }
 ```
@@ -899,9 +889,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | A
-    | B; // last-union
+type Value = A | B; // last-union
 ```
 
 ## Mapped Type Conformance Permutations
@@ -919,8 +907,7 @@ type Flags<T> = {
 
 ```ts expected
 type Flags<T> = {
-    readonly [K in keyof T]?: // map-value
-    boolean;
+    readonly [K in keyof T]?: boolean; // map-value
 };
 ```
 
@@ -937,7 +924,7 @@ type Paths<T> = {
 
 ```ts expected
 type Paths<T> = {
-    [K in keyof T as // remap-note
-    `get${Capitalize<K & string>}`]: () => T[K];
+    [K in keyof T as `get${Capitalize<K & string> // remap-note
+    }`]: () => T[K];
 };
 ```

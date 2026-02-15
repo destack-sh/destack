@@ -13,7 +13,7 @@ import { zebra, apple, mango } from "fruits"
 ```
 
 ```ds expected
-import { apple, mango, zebra } from "fruits";
+import { zebra, apple, mango } from "fruits";
 ```
 
 ### with default import
@@ -25,7 +25,7 @@ import Default, { zebra, apple, mango } from "fruits"
 ```
 
 ```ds expected
-import Default, { apple, mango, zebra } from "fruits";
+import Default, { zebra, apple, mango } from "fruits";
 ```
 
 ### natural sort order
@@ -37,7 +37,7 @@ import { item10, item2, item1 } from "items"
 ```
 
 ```ds expected
-import { item1, item2, item10 } from "items";
+import { item10, item2, item1 } from "items";
 ```
 
 ## type imports
@@ -51,7 +51,7 @@ import { value1, type Type1, value2, type Type2 } from "module"
 ```
 
 ```ds expected
-import { type Type1, type Type2, value1, value2 } from "module";
+import { value1, type Type1, value2, type Type2 } from "module";
 ```
 
 ### mixed with default
@@ -63,7 +63,7 @@ import Default, { zebra, type Animal, apple, type Fruit } from "module"
 ```
 
 ```ds expected
-import Default, { type Animal, type Fruit, apple, zebra } from "module";
+import Default, { zebra, type Animal, apple, type Fruit } from "module";
 ```
 
 ## exports
@@ -77,7 +77,7 @@ export { zebra, apple, mango } from "fruits"
 ```
 
 ```ds expected
-export { apple, mango, zebra } from "fruits";
+export { zebra, apple, mango } from "fruits";
 ```
 
 ### export with type specifiers
@@ -89,7 +89,7 @@ export { value1, type Type1, value2, type Type2 } from "module"
 ```
 
 ```ds expected
-export { type Type1, type Type2, value1, value2 } from "module";
+export { value1, type Type1, value2, type Type2 } from "module";
 ```
 
 ## aliases
@@ -103,5 +103,5 @@ import { foo as zebra, bar as apple } from "module"
 ```
 
 ```ds expected
-import { bar as apple, foo as zebra } from "module";
+import { foo as zebra, bar as apple } from "module";
 ```

@@ -25,7 +25,13 @@ const node = <div>{first}{second}{third}</div>
 ```
 
 ```tsx expected
-const node = <div>{first}{second}{third}</div>;
+const node = (
+    <div>
+        {first}
+        {second}
+        {third}
+    </div>
+);
 ```
 
 ### whitespace normalizes in text
@@ -113,9 +119,7 @@ const node = <T>
 ```tsx expected
 const node = (
     <T>
-        Pro tip: See more{" "}
-        <Link href="https://example.com">Docs</Link>{" "}
-        for details.
+        Pro tip: See more <Link href="https://example.com">Docs</Link> for details.
     </T>
 );
 ```
@@ -143,9 +147,9 @@ export default function ProTip() {
     return (
         <T>
             <X />
-            Pro tip: See more
-            <Link href="https://mui.com/getting-started/templates/">BREAK THIS</Link>
-             on the MUI documentation.
+            Pro tip: See more{" "}
+            <Link href="https://mui.com/getting-started/templates/">BREAK THIS</Link> on the MUI
+            documentation.
         </T>
     );
 }
@@ -182,7 +186,11 @@ const node = <div>{ready ? <Ready /> : <Pending />}</div>
 ```tsx expected
 const node = (
     <div>
-        {ready ? <Ready /> : <Pending />}
+        {ready ? (
+            <Ready />
+        ) : (
+            <Pending />
+        )}
     </div>
 );
 ```

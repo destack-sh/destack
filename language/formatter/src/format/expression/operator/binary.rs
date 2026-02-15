@@ -406,6 +406,16 @@ fn should_use_leading_pipe_union_style(
         return true;
     }
 
+    if let Some(first_operand) = operands.first() {
+        let first_span = context.get_span(first_operand.expression);
+        let first_source = context.get_span_str(first_span);
+        if first_source.trim_start().starts_with('|')
+            || previous_non_whitespace_before_span(context, first_span) == Some('|')
+        {
+            return true;
+        }
+    }
+
     if !context.node_has_newline(node_id) {
         return false;
     }
@@ -444,20 +454,9 @@ fn leading_pipe_union_layout_policy(
 ) -> LeadingPipeUnionLayoutPolicy {
     let has_block_prefix_ancestor =
         leading_union_has_ancestor_block_prefix_annotation(context, node_id);
-    let parent_is_parenthesized_expression =
-        context
-            .get_parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                parent_type == NodeType::Expression
-                    && matches!(
-                        context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                        Expression::Parenthesized { expression } if *expression == node_id
-                    )
-            });
     LeadingPipeUnionLayoutPolicy {
         should_indent_operands: !context.has_prefix_annotation(node_id)
-            && !has_block_prefix_ancestor
-            && !parent_is_parenthesized_expression,
+            && !has_block_prefix_ancestor,
         prefer_space_before_first_pipe: has_block_prefix_ancestor,
     }
 }
@@ -658,10 +657,7 @@ pub(super) fn format_binary_expression<'ast>(
     }
 
     // leading pipe unions
-    if is_type_union
-        && !is_destack
-        && should_use_leading_pipe_union_style(f.context(), node_id, &operands)
-    {
+    if is_type_union && should_use_leading_pipe_union_style(f.context(), node_id, &operands) {
         format_leading_pipe_union(f, node_id, &operands)?;
         return Ok(());
     }

@@ -49,9 +49,7 @@ const value = dataSource?.getClient()?.getUser(id)?.profile?.name
 ```ds expected
 const value = dataSource
     ?.getClient()
-    ?.getUser(id)
-    ?.profile
-    ?.name;
+    ?.getUser(id)?.profile?.name;
 ```
 
 ### optional chain with computed access
@@ -113,7 +111,7 @@ const name = api.getFactory<number>.name
 ```
 
 ```ts expected
-const name = api.getFactory<number>.name;
+const name = (api.getFactory<number>).name;
 ```
 
 ### instantiation after computed access stays inline
@@ -137,10 +135,10 @@ const value = api.getFactory<number>.create().build()
 ```
 
 ```ts expected
-const value = api
-    .getFactory<number>
-    .create()
-    .build();
+const value =
+    (api.getFactory<number>)
+        .create()
+        .build();
 ```
 
 ### instantiation before index access stays inline
@@ -152,7 +150,7 @@ const value = providers["main"]<Factory>[0]
 ```
 
 ```ts expected
-const value = providers["main"]<Factory>[0];
+const value = providers["main"] < Factory > [0];
 ```
 
 ## Non-Null Assertions

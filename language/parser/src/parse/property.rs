@@ -1473,6 +1473,7 @@ port2 = {
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
+        parser.attach_trivia();
         assert_node!(parser.tree, member, Member::Method { signature, body: Some(body), .. } => {
             let return_type = signature.return_type.expect("expected return type");
 

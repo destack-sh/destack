@@ -1,4 +1,5 @@
 mod decorator;
+mod trivia;
 
 #[cfg(test)]
 mod tests;

@@ -71,8 +71,9 @@ type templateLiteralType = `${
 ```
 
 ```ts expected
-type templateLiteralType =
-    `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar> ? "_" : ""}`;
+type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+    ? "_"
+    : ""}`;
 ```
 
 ### typescript template literal type with nested conditionals
@@ -92,8 +93,8 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
 type CamelToSnakeCase<TCamelCaseString extends string> =
     TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
         ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-                ? "_"
-                : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
+              ? "_"
+              : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
         : TCamelCaseString;
 ```
 
@@ -122,7 +123,7 @@ type Borrowed = &Buffer
 ```
 
 ```ds expected
-type Borrowed = &Buffer;
+type Borrowed = Buffer;
 ```
 
 ### readonly borrowed reference type
@@ -172,7 +173,7 @@ type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
 ```ds expected
-type Nested<T> = T extends string ? (T extends 'a' ? 1 : 2) : 3;
+type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
 ```
 
 ## Intersections and Unions

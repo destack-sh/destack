@@ -13,7 +13,7 @@ Spaces after `(` and before `)` should be removed.
 ```
 
 ```ds expected
-(1 + 2);
+1 + 2;
 ```
 
 ## Precedence

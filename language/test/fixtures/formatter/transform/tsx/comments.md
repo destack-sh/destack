@@ -13,11 +13,7 @@ const node = <div>{/* TODO: add content */}</div>
 ```
 
 ```tsx expected
-const node = (
-    <div>
-        {/* TODO: add content */}
-    </div>
-);
+const node = <div>{/* TODO: add content */}</div>;
 ```
 
 ### comment between children
@@ -49,9 +45,10 @@ const node = <div>{items /* keep */ .map((item) => <Item key={item.id} />)}</div
 ```tsx expected
 const node = (
     <div>
-        {items.map /* keep */((item) => (
-            <Item key={item.id} />
-        ))}
+        {items /* keep */
+            .map((item) => (
+                <Item key={item.id} />
+            ))}
     </div>
 );
 ```
@@ -138,7 +135,11 @@ const node = <div>{isVideo ? <Video /> : <Image /> // eslint-disable-line
 const node = (
     <div>
         {
-            isVideo ? <Video /> : <Image /> // eslint-disable-line
+            isVideo ? (
+                <Video />
+            ) : (
+                <Image />
+            ) // eslint-disable-line
         }
     </div>
 );

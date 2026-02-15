@@ -158,7 +158,7 @@ const x = { "data-id": 1, "default": 2 }
 ```
 
 ```ds expected
-const x = { "data-id": 1, "default": 2 };
+const x = { "data-id": 1, default: 2 };
 ```
 
 ### mixed quoted and unquoted
@@ -271,7 +271,7 @@ const x = { *items() { yield 1; yield 2 } }
 const x = {
     *items() {
         yield 1;
-        yield 2
+        yield 2;
     },
 };
 ```
@@ -303,7 +303,7 @@ const x = { set value(v) { this._value = v } }
 ```ds expected
 const x = {
     set value(v) {
-        this._value = v
+        this._value = v;
     },
 };
 ```

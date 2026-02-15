@@ -13,12 +13,14 @@ const data = [{ user: { name: "Alice", settings: { theme: "dark" } } }]
 ```
 
 ```ds expected
-const data = [{
-    user: {
-        name: "Alice",
-        settings: { theme: "dark" },
+const data = [
+    {
+        user: {
+            name: "Alice",
+            settings: { theme: "dark" },
+        },
     },
-}];
+];
 ```
 
 ### array of arrays of objects
@@ -31,8 +33,14 @@ const grid = [[{ x: 0, y: 0 }, { x: 1, y: 0 }], [{ x: 0, y: 1 }, { x: 1, y: 1 }]
 
 ```ds expected
 const grid = [
-    [{ x: 0, y: 0 }, { x: 1, y: 0 }],
-    [{ x: 0, y: 1 }, { x: 1, y: 1 }],
+    [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+    ],
+    [
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+    ],
 ];
 ```
 
@@ -47,8 +55,7 @@ data.filter((x) => x.active).map((x) => x.name).reduce((a, b) => a + b)
 ```
 
 ```ds expected
-data
-    .filter((x) => x.active)
+data.filter((x) => x.active)
     .map((x) => x.name)
     .reduce((a, b) => a + b);
 ```
@@ -79,8 +86,10 @@ outer.map((x) => x.items.filter((y) => y.ok).map((y) => y.value))
 
 ```ds expected
 outer.map((x) =>
-    x.items.filter((y) => y.ok).map((y) =>
-        y.value));
+    x.items
+        .filter((y) => y.ok)
+        .map((y) => y.value),
+);
 ```
 
 ## Assignments and Chains
@@ -230,11 +239,12 @@ const x = a + b + c + d + e
 ```
 
 ```ds expected
-const x = a
-    + b
-    + c
-    + d
-    + e;
+const x =
+    a +
+    b +
+    c +
+    d +
+    e;
 ```
 
 ### logical chain with calls
@@ -247,9 +257,9 @@ const valid = isActive() && hasPermission() && !isBlocked()
 
 ```ds expected
 const valid =
-    isActive()
-    && hasPermission()
-    && !isBlocked();
+    isActive() &&
+    hasPermission() &&
+    !isBlocked();
 ```
 
 ### comparison chain
@@ -275,7 +285,11 @@ const { user: { profile: { name, avatar } } } = data
 ```
 
 ```ds expected
-const { user: { profile: { name, avatar } } } = data;
+const {
+    user: {
+        profile: { name, avatar },
+    },
+} = data;
 ```
 
 ### mixed destructuring with defaults
@@ -440,7 +454,7 @@ veryLongName = anotherLongName = thirdLongName = 42
 veryLongName =
     anotherLongName =
     thirdLongName =
-    42;
+        42;
 ```
 
 ## Deeply Nested Callbacks
@@ -482,7 +496,8 @@ a((x) => b((y) => c((z) => d(x, y, z))))
 
 ```ds expected
 a((x) =>
-    b((y) => c((z) => d(x, y, z))));
+    b((y) => c((z) => d(x, y, z))),
+);
 ```
 
 ## Async/Await Patterns
@@ -508,8 +523,9 @@ const json = await fetch(url).then((r) => r.json())
 ```
 
 ```ds expected
-const json = await fetch(url).then((r) =>
-    r.json());
+const json = await fetch(url).then(
+    (r) => r.json(),
+);
 ```
 
 ### multiple awaits in expression
@@ -574,7 +590,7 @@ const valid = x > 0 && x < 100 || y === 0
 ```
 
 ```ds expected
-const valid = x > 0 && x < 100 || y === 0;
+const valid = (x > 0 && x < 100) || y === 0;
 ```
 
 ### long mixed expression breaks
@@ -586,8 +602,9 @@ const x = veryLongA + veryLongB * veryLongC
 ```
 
 ```ds expected
-const x = veryLongA
-    + veryLongB * veryLongC;
+const x =
+    veryLongA +
+    veryLongB * veryLongC;
 ```
 
 ## Compound Patterns
@@ -720,9 +737,9 @@ data.filter((x) => isValid ? x.active : x.pending).map((x) => x.id)
 ```
 
 ```ds expected
-data
-    .filter((x) => isValid ? x.active : x.pending)
-    .map((x) => x.id);
+data.filter((x) =>
+    isValid ? x.active : x.pending,
+).map((x) => x.id);
 ```
 
 ### chain with array index
@@ -747,7 +764,9 @@ obj.items[0].getValue().transform()
 ```
 
 ```ds expected
-obj.items[0].getValue().transform();
+obj.items[0]
+    .getValue()
+    .transform();
 ```
 
 ## Curried Function Calls
@@ -773,8 +792,9 @@ curriedFunction(firstArg)(secondArg)(thirdArg)
 ```
 
 ```ds expected
-curriedFunction(firstArg)
-    (secondArg)(thirdArg);
+curriedFunction(firstArg)(
+    secondArg,
+)(thirdArg);
 ```
 
 ### curried call with objects
@@ -786,10 +806,9 @@ configure({ mode: "dev" })({ debug: true })({ verbose: false })
 ```
 
 ```ds expected
-configure({ mode: "dev" })
-    ({ debug: true })({
-        verbose: false,
-    });
+configure({ mode: "dev" })({
+    debug: true,
+})({ verbose: false });
 ```
 
 ## Long Binary Expression Patterns
@@ -803,13 +822,8 @@ const sum = a + b + c + d + e + f + g
 ```
 
 ```ds expected
-const sum = a
-    + b
-    + c
-    + d
-    + e
-    + f
-    + g;
+const sum =
+    a + b + c + d + e + f + g;
 ```
 
 ### mixed logical operators
@@ -821,7 +835,8 @@ const ok = a && b || c && d || e && f
 ```
 
 ```ds expected
-const ok = a && b || c && d || e && f;
+const ok =
+    (a && b) || (c && d) || (e && f);
 ```
 
 ### nullish chain
@@ -833,11 +848,12 @@ const value = first ?? second ?? third ?? fourth ?? fallback
 ```
 
 ```ds expected
-const value = first
-    ?? second
-    ?? third
-    ?? fourth
-    ?? fallback;
+const value =
+    first ??
+    second ??
+    third ??
+    fourth ??
+    fallback;
 ```
 
 ### comparison chain with logical
@@ -850,10 +866,10 @@ const inBounds = x >= 0 && x < width && y >= 0 && y < height
 
 ```ds expected
 const inBounds =
-    x >= 0
-    && x < width
-    && y >= 0
-    && y < height;
+    x >= 0 &&
+    x < width &&
+    y >= 0 &&
+    y < height;
 ```
 
 ## Advanced Destructuring
@@ -868,7 +884,11 @@ const { user: { profile: { settings: { theme, language } } } } = config
 
 ```ds expected
 const {
-    user: { profile: { settings: { theme, language } } },
+    user: {
+        profile: {
+            settings: { theme, language },
+        },
+    },
 } = config;
 ```
 
@@ -881,9 +901,8 @@ const { a: { b = 1, c: { d = 2 } = {} } = {} } = obj
 ```
 
 ```ds expected
-const {
-    a: { b = 1, c: { d = 2 } = {} } = {},
-} = obj;
+const { a: { b = 1, c: { d = 2 } = {} } = {} } =
+    obj;
 ```
 
 ### array destructuring with nested objects
@@ -895,10 +914,8 @@ const [{ name, id }, { name: secondName }] = items
 ```
 
 ```ds expected
-const [
-    { name, id },
-    { name: secondName },
-] = items;
+const [{ name, id }, { name: secondName }] =
+    items;
 ```
 
 ### mixed array and object destructuring
@@ -965,7 +982,7 @@ const { name, age }: { name: string, age: number } = person
 ```
 
 ```ds expected
-const { name, age }: { name: string, age: number } = person;
+const { name, age }: { name: string; age: number } = person;
 ```
 
 ### unicode sequence in computed index (TypeScript)
@@ -989,5 +1006,5 @@ a, b
 ```
 
 ```ts expected
-a, b;
+(a, b);
 ```

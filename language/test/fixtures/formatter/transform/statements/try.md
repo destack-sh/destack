@@ -26,9 +26,9 @@ try { foo() } catch (e) { handle(e) }
 
 ```ds expected
 try {
-    foo()
+    foo();
 } catch (e) {
-    handle(e)
+    handle(e);
 }
 ```
 
@@ -59,10 +59,10 @@ try { foo() } catch (e) { handle(e) } finally { cleanup() }
 
 ```ds expected
 try {
-    foo()
+    foo();
 } catch (e) {
-    handle(e)
+    handle(e);
 } finally {
-    cleanup()
+    cleanup();
 }
 ```

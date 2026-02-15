@@ -81,7 +81,8 @@ type Result = Success | Failure | Pending | Unknown
 ```
 
 ```ds expected
-type Result = Success
+type Result =
+    | Success
     | Failure
     | Pending
     | Unknown;
@@ -111,7 +112,9 @@ type Combined = HasName & HasAge & HasEmail
 ```
 
 ```ts expected
-type Combined = HasName & HasAge & HasEmail;
+type Combined = HasName &
+    HasAge &
+    HasEmail;
 ```
 
 ### nullable union with object type hugs
@@ -123,10 +126,13 @@ type MaybeUser = { name: string, email: string } | null | undefined
 ```
 
 ```ds expected
-type MaybeUser = {
-    name: string,
-    email: string,
-} | null | undefined;
+type MaybeUser =
+    | {
+          name: string;
+          email: string;
+      }
+    | null
+    | undefined;
 ```
 
 ### nullable union with comment breaks
@@ -138,10 +144,11 @@ type MaybeUser = { name: string, email: string } /* note */ | null | undefined
 ```
 
 ```ds expected
-type MaybeUser = {
-    name: string,
-    email: string,
-} /* note */
+type MaybeUser =
+    | {
+          name: string;
+          email: string;
+      } /* note */
     | null
     | undefined;
 ```
@@ -156,11 +163,11 @@ type WithDetails = { id: string, name: string } & HasMeta & { created: int32 }
 
 ```ds expected
 type WithDetails = {
-    id: string,
-    name: string,
+    id: string;
+    name: string;
 } & HasMeta & {
-    created: int32,
-};
+        created: int32;
+    };
 ```
 
 ## Mapped Types
@@ -198,7 +205,7 @@ type Explicit<T> = { +readonly [K in keyof T]+?: T[K] }
 ```
 
 ```ds expected
-type Explicit<T> = { readonly [K in keyof T]?: T[K] };
+type Explicit<T> = { +readonly [K in keyof T]+?: T[K] };
 ```
 
 ### mapped type with optional modifier
@@ -235,7 +242,9 @@ type DeepReadonly<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> }
 
 ```ds expected
 type DeepReadonly<T> = {
-    readonly [K in keyof T]: DeepReadonly<T[K]>,
+    readonly [K in keyof T]: DeepReadonly<
+        T[K]
+    >;
 };
 ```
 

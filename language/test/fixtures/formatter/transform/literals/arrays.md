@@ -88,10 +88,8 @@ When the line width is exceeded, arrays break to multiple lines.
 
 ```ds expected
 [
-    1,
-    2,
-    3,
-    4,
+    1, 2,
+    3, 4,
     5,
 ];
 ```
@@ -178,7 +176,10 @@ Nested arrays stay on one line if short.
 ```
 
 ```ds expected
-[[1, 2], [3, 4]];
+[
+    [1, 2],
+    [3, 4],
+];
 ```
 
 ### deeply nested array
@@ -506,11 +507,13 @@ When an array contains a single object that expands, it should hug the brackets.
 ```
 
 ```ds expected
-[{
-    a: 1,
-    b: 2,
-    c: 3,
-}];
+[
+    {
+        a: 1,
+        b: 2,
+        c: 3,
+    },
+];
 ```
 
 ### single array in array hugs brackets
@@ -522,14 +525,12 @@ Nested arrays also hug when single element expands.
 ```
 
 ```ds expected
-[[
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-]];
+[
+    [
+        1, 2, 3, 4,
+        5, 6,
+    ],
+];
 ```
 
 ## Type Assertions

@@ -25,11 +25,7 @@ Comments inside arrays cause expansion to multiline format.
 ```
 
 ```ds expected
-[
-    /* first */ 1,
-    /* second */ 2,
-    /* third */ 3,
-];
+[/* first */ 1, /* second */ 2, /* third */ 3];
 ```
 
 ### comment in binary expression
@@ -41,7 +37,7 @@ const x = /* pre-A */ A /* A comment */ && B /* B comment */
 ```
 
 ```ds expected
-const x = /* pre-A */ A /* A comment */ && B /* B comment */;
+const x = /* pre-A */ A /* A comment */ && B; /* B comment */
 ```
 
 ## Comments Causing Expansion
@@ -57,10 +53,7 @@ Objects with internal comments expand to multiple lines.
 The formatter expands the object when it contains comments.
 
 ```ts expected
-({
-    /* key */ a: 1,
-    /* another */ b: 2,
-});
+({ /* key */ a: 1, /* another */ b: 2 });
 ```
 
 ### comment in computed object key
@@ -186,8 +179,9 @@ const valid = isActive() && /* must have permission */ hasPermission()
 ```
 
 ```ds expected
-const valid = isActive()
-    && /* must have permission */ hasPermission();
+const valid =
+    isActive() &&
+    /* must have permission */ hasPermission();
 ```
 
 ### comments in multiline logical chain
@@ -199,8 +193,9 @@ const valid = isActive() && /* perm */ hasPermission() && /* not blocked */ !isB
 ```
 
 ```ds expected
-const valid = isActive()
-    && /* perm */ hasPermission() &&
+const valid =
+    isActive() &&
+    /* perm */ hasPermission() &&
     /* not blocked */ !isBlocked();
 ```
 
@@ -213,8 +208,7 @@ const value = input ?? /* fallback */ defaultValue
 ```
 
 ```ds expected
-const value = input ??
-    /* fallback */ defaultValue;
+const value = input ?? /* fallback */ defaultValue;
 ```
 
 ## Comments in Ternary Expressions
@@ -282,8 +276,7 @@ obj.method() /* step 1 */ .transform() /* step 2 */ .result()
 ```
 
 ```ds expected
-obj
-    .method() /* step 1 */
+obj.method() /* step 1 */
     .transform() /* step 2 */
     .result();
 ```
@@ -297,8 +290,7 @@ data.filter(x => x.valid) /* now map */ .map(x => x.value)
 ```
 
 ```ds expected
-data
-    .filter((x) => x.valid) /* now map */
+data.filter((x) => x.valid) /* now map */
     .map((x) => x.value);
 ```
 
@@ -329,7 +321,7 @@ Object . defineProperties    (    exports    , { } );
 
 ```ts expected
 // format-ignore
-Object . defineProperties    (    exports    , { } );
+Object.defineProperties(exports, {});
 ```
 
 ### block ignore preserves expression formatting
@@ -365,7 +357,7 @@ foo ( 1 , 2 );
 
 ```ts expected
 // biome-ignore format: keep spacing
-foo ( 1 , 2 );
+foo(1, 2);
 ```
 
 ### oxfmt ignore preserves statement formatting
@@ -393,7 +385,7 @@ console . error( "hi" );
 
 ```ts expected
 // deno-fmt-ignore
-console . error( "hi" );
+console.error("hi");
 ```
 
 ### prettier ignore preserves object property formatting
@@ -431,7 +423,7 @@ class Foo {
 ```ts expected
 class Foo {
     // prettier-ignore
-    bar   :    number;
+    bar   :    number;;
     baz: number;
 }
 ```
@@ -450,8 +442,8 @@ const baz = 3;
 
 ```ts expected
 // fmt-ignore-start
-const foo   = 1;
-const bar=2;
+const foo = 1;
+const bar = 2;
 // fmt-ignore-end
 const baz = 3;
 ```
@@ -470,8 +462,8 @@ const done = true;
 
 ```ts expected
 // format-ignore-start
-const left   = 1;
-const right=2;
+const left = 1;
+const right = 2;
 // format-ignore-end
 const done = true;
 ```
@@ -495,8 +487,8 @@ const obj = {
 const obj = {
     foo: 1,
     // format-ignore-start
-    bar   :    baz,
-    qux:2,
+    bar: baz,
+    qux: 2,
     // format-ignore-end
     zap: 3,
 };
@@ -521,8 +513,8 @@ class Foo {
 class Foo {
     bar: number;
     // format-ignore-start
-    baz   :    number;
-    qux:number;
+    baz: number;
+    qux: number;
     // format-ignore-end
     zap: number;
 }
@@ -547,7 +539,7 @@ const values = [
 const values = [
     1,
     // format-ignore-start
-    foo ( 1 ,2 ),
+    foo(1, 2),
     bar(3),
     // format-ignore-end
     baz(4),
@@ -573,7 +565,7 @@ doThing(
 doThing(
     1,
     // format-ignore-start
-    foo ( 1 ,2 ),
+    foo(1, 2),
     bar(3),
     // format-ignore-end
     4,

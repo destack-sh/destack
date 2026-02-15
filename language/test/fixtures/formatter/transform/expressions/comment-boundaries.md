@@ -15,7 +15,7 @@ const value = cond ? left /* left-note */ : right /* right-note */
 ```ts expected
 const value = cond
     ? left /* left-note */
-    : right /* right-note */;
+    : right; /* right-note */
 ```
 
 ### ternary alternate line comment
@@ -29,9 +29,8 @@ right
 
 ```ts expected
 const value = cond
-    ? left
-    : // alt-line
-    right;
+    ? left // alt-line
+    : right;
 ```
 
 ### conditional argument trailing comment
@@ -77,9 +76,8 @@ const value = left + /* plus-note */ right + next
 ```
 
 ```ts expected
-const value = left
-    + /* plus-note */ right
-    + next;
+const value =
+    left + /* plus-note */ right + next;
 ```
 
 ### assignment right side comment
@@ -148,10 +146,7 @@ call(
 ```
 
 ```ts expected
-call(
-    first /* first-inline */,
-    second,
-);
+call(first /* first-inline */, second);
 ```
 
 ### callback argument trailing comment before comma
@@ -170,7 +165,7 @@ call(
 ```ts expected
 call(
     () => {
-        work()
+        work();
     }, // callback-tail
     "good",
 );
@@ -189,8 +184,7 @@ const value = source
 ```
 
 ```ts expected
-const value = source
-    .first /* first-boundary */
+const value = source.first /* first-boundary */
     ?.second();
 ```
 
@@ -217,7 +211,7 @@ const value = new Factory /* new-call */ (arg)
 ```
 
 ```ts expected
-const value = new Factory /* new-call */(arg);
+const value = new Factory(/* new-call */ arg);
 ```
 
 ### closure cast in parenthesized call
@@ -229,7 +223,7 @@ const value = test((/** @type {array} */ numberOrString).map((x) => x))
 ```
 
 ```js expected
-const value = test((/** @type {array} */ numberOrString).map((x) => x));
+const value = test(/** @type {array} */ numberOrString.map((x) => x));
 ```
 
 
@@ -268,7 +262,7 @@ const value = -/* unary-note */ 1
 ```
 
 ```ts expected
-const value = -/* unary-note */ 1;
+const value = -(/* unary-note */ 1);
 ```
 
 ### label expression boundary comment
@@ -283,8 +277,9 @@ while (true) {
 ```
 
 ```ts expected
+// label-tail
 start: while (true) {
-    break start
+    break start;
 }
 ```
 
@@ -299,7 +294,7 @@ const value = run /* callee-note */ (first, second)
 ```
 
 ```ts expected
-const value = run /* callee-note */(first, second);
+const value = run(/* callee-note */ first, second);
 ```
 
 ### first argument expansion with leading comment
@@ -352,7 +347,8 @@ if (ready && enabled) // if-condition
 ```
 
 ```ts expected
-if (ready && enabled) // if-condition
+if (ready && enabled)
+    // if-condition
     run();
 ```
 

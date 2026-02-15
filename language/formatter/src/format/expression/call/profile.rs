@@ -266,7 +266,11 @@ fn format_default_call_argument_list<'ast>(
     all_plain_call_arguments: bool,
 ) -> FormatResult<()> {
     let is_single_argument = dynamic_arguments.len() == 1;
-    let single_argument_id = is_single_argument.then_some(dynamic_arguments[0]);
+    let single_argument_id = if is_single_argument {
+        Some(dynamic_arguments[0])
+    } else {
+        None
+    };
     let has_single_template_literal_argument = if is_single_argument {
         single_argument_id
             .is_some_and(|argument_id| argument_is_template_literal(f.context(), argument_id))
@@ -680,8 +684,25 @@ fn format_call_arguments_with_group<'ast>(
     dynamic_arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
 ) -> FormatResult<()> {
+    // empty argument lists can still carry boundary infix annotations
+    if dynamic_arguments.is_empty() {
+        if f.context().has_infix_annotation(call_node_id) {
+            write!(
+                f,
+                [
+                    token("("),
+                    f.context().block_infix_annotations(call_node_id),
+                    token(")")
+                ]
+            )?;
+        } else {
+            write!(f, [token("("), token(")")])?;
+        }
+        return Ok(());
+    }
+
     // ignore ranges: route through list_like so raw span preservation stays consistent
-    if !dynamic_arguments.is_empty() && f.context().has_ignore_directive_markers() {
+    if f.context().has_ignore_directive_markers() {
         let comment_tokens = f.context().comment_tokens();
         let has_ignore_ranges =
             any_ignore_range_for_nodes(f.context(), dynamic_arguments, comment_tokens);
