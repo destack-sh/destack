@@ -56,7 +56,9 @@ const value = source /* hop-a */ .first() /* hop-b */ .second()
 ```
 
 ```ts expected
-const value = source /* hop-a */.first() /* hop-b */.second();
+const value = source /* hop-a */
+    .first() /* hop-b */
+    .second();
 ```
 
 ## Statements
@@ -71,7 +73,8 @@ if (ready) // if-head
 ```
 
 ```ts expected
-if (ready) // if-head
+if (ready)
+    // if-head
     run();
 ```
 
@@ -147,7 +150,7 @@ while (running) {
 ```ts expected
 while (running) {
     if (done) break; // break-tail
-    tick()
+    tick();
 }
 ```
 
@@ -165,7 +168,7 @@ for (const item of items) {
 ```ts expected
 for (const item of items) {
     if (!item) continue; // continue-tail
-    use(item)
+    use(item);
 }
 ```
 
@@ -245,7 +248,7 @@ const config = {
 ```ts expected
 const config = {
     first: 1, // first-tail
-    second: 2, /* second-tail */
+    second: 2 /* second-tail */,
 };
 ```
 
@@ -276,7 +279,9 @@ type Value = First /* union-block */ | Second
 ```
 
 ```ts expected
-type Value = First /* union-block */ | Second;
+type Value =
+    | First /* union-block */
+    | Second;
 ```
 
 ### intersection line comment attachment
@@ -289,8 +294,7 @@ type Value = First & // intersection-line
 ```
 
 ```ts expected
-type Value = First
-    & // intersection-line
+type Value = First & // intersection-line
     Second;
 ```
 
@@ -360,7 +364,7 @@ const mod = import(
 ```ts expected
 const mod = import(
     // dynamic-source
-    "module",
+    "module"
 );
 ```
 
@@ -379,9 +383,9 @@ try {
 
 ```ts expected
 try {
-    run() // try-tail
+    run(); // try-tail
 } catch (error) {
-    recover(error) // catch-tail
+    recover(error); // catch-tail
 }
 ```
 
@@ -397,7 +401,7 @@ function* run() {
 
 ```ts expected
 function* run() {
-    yield value // yield-tail
+    yield value; // yield-tail
 }
 ```
 
@@ -431,5 +435,8 @@ const {
 ```
 
 ```ts expected
-const { first = fallbackA, second = fallbackB } = source;
+const {
+    first = fallbackA, // assign-a
+    second = fallbackB, // assign-b
+} = source;
 ```

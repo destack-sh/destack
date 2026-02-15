@@ -25,7 +25,7 @@ const x = 'a'
 ```
 
 ```ds expected
-const x = 'a';
+const x = "a";
 ```
 
 ### empty string
@@ -99,7 +99,7 @@ const x = "say \"hello\""
 ```
 
 ```ds expected
-const x = "say \"hello\"";
+const x = 'say "hello"';
 ```
 
 ## Template Literals
@@ -285,7 +285,7 @@ String concatenation uses `+` operator. Single-character strings are normalized 
 ```
 
 ```ds expected
-"hello" + ' ' + "world";
+"hello" + " " + "world";
 ```
 
 ### string concat with variables
@@ -323,7 +323,7 @@ Strings can be array elements. Single-character strings are normalized to single
 ```
 
 ```ds expected
-['a', 'b', 'c'];
+["a", "b", "c"];
 ```
 
 ### string in object
@@ -435,7 +435,7 @@ const x = 0xFF
 ```
 
 ```ds expected
-const x = 0xFF;
+const x = 0xff;
 ```
 
 ### octal
@@ -612,6 +612,5 @@ const msg = `This is a very long template literal that exceeds the line width bu
 ```
 
 ```ds expected
-const msg =
-    `This is a very long template literal that exceeds the line width but should not be broken`;
+const msg = `This is a very long template literal that exceeds the line width but should not be broken`;
 ```

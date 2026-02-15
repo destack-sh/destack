@@ -13,7 +13,7 @@ const node = <Button disabled={true} count={ 1 } label="Ok" />
 ```
 
 ```tsx expected
-const node = <Button disabled count={1} label="Ok" />;
+const node = <Button disabled={true} count={1} label="Ok" />;
 ```
 
 ### string expression attribute collapses
@@ -25,7 +25,7 @@ const node = <div title={"Hello"} className={'card'} />
 ```
 
 ```tsx expected
-const node = <div title="Hello" className="card" />;
+const node = <div title={"Hello"} className={"card"} />;
 ```
 
 ### mixed attribute kinds
@@ -99,7 +99,8 @@ const node = (
     <Panel
         title="Settings"
         description="Long description"
-        icon={settingsIcon} />
+        icon={settingsIcon}
+    />
 );
 ```
 

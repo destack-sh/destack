@@ -1798,11 +1798,12 @@ function onResolve(
         let function_id = parser
             .eat_function(&start, DeclarationDescriptor::default(), false, false)
             .unwrap();
+        parser.attach_trivia();
         assert_node!(parser.tree, function_id, Declaration::Function { .. } => {
             let annotations = parser.tree.get_annotations(function_id.id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePrefix);
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_eq!(*style, CommentStyle::Star);
                     assert_string!(parser, *string, "lambda-head");
@@ -1818,6 +1819,7 @@ function onResolve(
         let mut parser = test.prepare();
 
         let expression_id = parser.eat_expression(parser.options).unwrap();
+        parser.attach_trivia();
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { body: Some(body_id), .. } => {
                 assert_expression_path!(parser, parser.tree.get(*body_id), "x");

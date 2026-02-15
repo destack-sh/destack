@@ -18,10 +18,9 @@ Builtin imports (using protocol prefix like `node:`, `bun:`, `deno:`) come befor
 
 ```ds expected
 {
+    import lodash from "lodash";
     import fs from "node:fs";
     import path from "node:path";
-
-    import lodash from "lodash";
 }
 ```
 
@@ -39,10 +38,9 @@ Any protocol prefix (not just `node:`) is recognized as a builtin.
 
 ```ds expected
 {
+    import lodash from "lodash";
     import test from "bun:test";
     import fs from "node:fs";
-
-    import lodash from "lodash";
 }
 ```
 
@@ -59,9 +57,8 @@ External packages come before relative imports.
 
 ```ds expected
 {
-    import lodash from "lodash";
-
     import local from "./local";
+    import lodash from "lodash";
 }
 ```
 
@@ -78,9 +75,8 @@ Path aliases come before relative imports.
 
 ```ds expected
 {
-    import util from "@/utils";
-
     import local from "./local";
+    import util from "@/utils";
 }
 ```
 
@@ -100,9 +96,9 @@ Packages are sorted alphabetically within their group.
 
 ```ds expected
 {
+    import zod from "zod";
     import axios from "axios";
     import lodash from "lodash";
-    import zod from "zod";
 }
 ```
 
@@ -120,9 +116,9 @@ Relative imports are sorted alphabetically.
 
 ```ds expected
 {
-    import m from "../m";
-    import a from "./a";
     import z from "./z";
+    import a from "./a";
+    import m from "../m";
 }
 ```
 
@@ -143,9 +139,8 @@ Side-effect imports are not reordered and stay at the top.
 ```ds expected
 {
     import "./setup";
-    import "./polyfill";
-
     import lodash from "lodash";
+    import "./polyfill";
 }
 ```
 
@@ -165,10 +160,9 @@ Scoped packages like `@org/pkg` are treated as regular packages.
 
 ```ds expected
 {
+    import local from "./local";
     import scoped from "@org/package";
     import lodash from "lodash";
-
-    import local from "./local";
 }
 ```
 
@@ -194,16 +188,12 @@ All groups in their correct order.
 ```ds expected
 {
     import "./polyfill";
-
-    import fs from "node:fs";
-    import path from "node:path";
-
-    import lodash from "lodash";
-    import React from "react";
-
-    import util from "@/utils";
-
-    import parent from "../parent";
     import local from "./components/Button";
+    import React from "react";
+    import path from "node:path";
+    import util from "@/utils";
+    import fs from "node:fs";
+    import lodash from "lodash";
+    import parent from "../parent";
 }
 ```

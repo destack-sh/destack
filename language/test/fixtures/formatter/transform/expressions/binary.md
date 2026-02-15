@@ -13,10 +13,10 @@ a && b && c && d
 ```
 
 ```ds expected
-a
-    && b
-    && c
-    && d;
+a &&
+    b &&
+    c &&
+    d;
 ```
 
 ### or chain breaks with leading operators
@@ -28,10 +28,10 @@ a || b || c || d
 ```
 
 ```ds expected
-a
-    || b
-    || c
-    || d;
+a ||
+    b ||
+    c ||
+    d;
 ```
 
 ### nullish chain breaks with leading operators
@@ -43,10 +43,10 @@ a ?? b ?? c ?? d
 ```
 
 ```ds expected
-a
-    ?? b
-    ?? c
-    ?? d;
+a ??
+    b ??
+    c ??
+    d;
 ```
 
 ## Mixed Operators
@@ -60,7 +60,7 @@ Arithmetic groups stay inline inside logical expressions.
 ```
 
 ```ds expected
-(a + b * c) && (d - e / f);
+a + b * c && d - e / f;
 ```
 
 ### comparison chain with logical operator
@@ -72,9 +72,9 @@ a <= b && c >= d && e <= f
 ```
 
 ```ds expected
-a <= b
-    && c >= d
-    && e <= f;
+a <= b &&
+    c >= d &&
+    e <= f;
 ```
 
 ### in and instanceof spacing
@@ -124,7 +124,7 @@ flags & mask | other
 ```
 
 ```ds expected
-flags & mask | other;
+(flags & mask) | other;
 ```
 
 ## Destack Arithmetic Variants

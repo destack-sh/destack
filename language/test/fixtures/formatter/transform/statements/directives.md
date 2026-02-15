@@ -15,7 +15,6 @@ doWork()
 
 ```ts expected
 "use strict";
-
 doWork();
 ```
 
@@ -32,6 +31,5 @@ render()
 ```ts expected
 "use client";
 "use strict";
-
 render();
 ```

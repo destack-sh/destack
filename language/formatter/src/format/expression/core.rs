@@ -143,6 +143,17 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 position: FormatterDirectivePosition::Postfix { .. },
             })
         ) {
+            let call_or_new_handles_empty_infix = matches!(
+                self,
+                Expression::Call {
+                    dynamic_arguments,
+                    ..
+                }
+                | Expression::New {
+                    dynamic_arguments,
+                    ..
+                } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(node_id)
+            );
             if matches!(
                 self,
                 Expression::TypeUnary {
@@ -150,6 +161,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     ..
                 }
             ) {
+                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+            } else if call_or_new_handles_empty_infix {
                 write!(f, [f.context().any_postfix_annotations(node_id)])?;
             } else {
                 write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

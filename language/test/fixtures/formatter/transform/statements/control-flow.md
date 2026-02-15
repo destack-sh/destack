@@ -16,7 +16,7 @@ The condition gets space around it, and the body is indented.
 
 ```ds expected
 if (x) {
-    foo()
+    foo();
 }
 ```
 
@@ -30,9 +30,9 @@ if(x){foo()}else{bar()}
 
 ```ds expected
 if (x) {
-    foo()
+    foo();
 } else {
-    bar()
+    bar();
 }
 ```
 
@@ -46,8 +46,12 @@ if(a){foo()}else if(b){bar()}else{baz()}
 
 ```ds expected
 if (a) {
-    foo()
-} else if (b) { bar() } else { baz() }
+    foo();
+} else if (b) {
+    bar();
+} else {
+    baz();
+}
 ```
 
 ### if with complex condition
@@ -60,7 +64,7 @@ if (x > 0 && y < 10) { foo() }
 
 ```ds expected
 if (x > 0 && y < 10) {
-    foo()
+    foo();
 }
 ```
 
@@ -98,7 +102,9 @@ if (a) { if (b) { foo() } }
 
 ```ds expected
 if (a) {
-    if (b) { foo() }
+    if (b) {
+        foo();
+    }
 }
 ```
 
@@ -114,7 +120,7 @@ while(condition){process()}
 
 ```ds expected
 while (condition) {
-    process()
+    process();
 }
 ```
 
@@ -128,7 +134,7 @@ while (i < 10 && running) { i++ }
 
 ```ds expected
 while (i < 10 && running) {
-    i++
+    i++;
 }
 ```
 
@@ -142,8 +148,8 @@ do{process()}while(condition)
 
 ```ts expected
 do {
-    process()
-} while (condition)
+    process();
+} while (condition);
 ```
 
 ### infinite loop
@@ -174,7 +180,7 @@ Spaces are added around `=` and operators.
 
 ```ds expected
 for (let i = 0; i < 10; i++) {
-    process(i)
+    process(i);
 }
 ```
 
@@ -230,7 +236,7 @@ for (using handle of handles) { handle.use() }
 
 ```ds expected
 for (using handle of handles) {
-    handle.use()
+    handle.use();
 }
 ```
 
@@ -258,7 +264,7 @@ for(const item of items){process(item)}
 
 ```ds expected
 for (const item of items) {
-    process(item)
+    process(item);
 }
 ```
 
@@ -272,7 +278,7 @@ for(const key in obj){process(key)}
 
 ```ds expected
 for (const key in obj) {
-    process(key)
+    process(key);
 }
 ```
 
@@ -286,7 +292,7 @@ for (const i of [0,1,2]) { print(i) }
 
 ```ds expected
 for (const i of [0, 1, 2]) {
-    print(i)
+    print(i);
 }
 ```
 
@@ -300,7 +306,7 @@ for (const [key, value] of map) { process(key, value) }
 
 ```ds expected
 for (const [key, value] of map) {
-    process(key, value)
+    process(key, value);
 }
 ```
 
@@ -314,7 +320,7 @@ for (const { name, value } of items) { process(name, value) }
 
 ```ds expected
 for (const { name, value } of items) {
-    process(name, value)
+    process(name, value);
 }
 ```
 
@@ -484,9 +490,9 @@ Each block gets proper spacing and indentation.
 
 ```ds expected
 try {
-    risky()
+    risky();
 } catch (e) {
-    handle(e)
+    handle(e);
 }
 ```
 
@@ -500,11 +506,11 @@ try { risky() } catch (e) { handle(e) } finally { cleanup() }
 
 ```ds expected
 try {
-    risky()
+    risky();
 } catch (e) {
-    handle(e)
+    handle(e);
 } finally {
-    cleanup()
+    cleanup();
 }
 ```
 
@@ -518,9 +524,9 @@ try { risky() } finally { cleanup() }
 
 ```ds expected
 try {
-    risky()
+    risky();
 } finally {
-    cleanup()
+    cleanup();
 }
 ```
 
@@ -534,8 +540,8 @@ try { risky() } catch (e: Error) { handle(e) }
 
 ```ds expected
 try {
-    risky()
+    risky();
 } catch (e: Error) {
-    handle(e)
+    handle(e);
 }
 ```

@@ -1383,7 +1383,7 @@ impl Parser {
         }
 
         let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_MAIN);
-        self.tree.sort_annotations();
+        self.attach_trivia_annotations();
     }
     /// Swap parser options and return the previous value.
     #[inline(always)]

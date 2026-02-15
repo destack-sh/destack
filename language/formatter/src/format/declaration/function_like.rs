@@ -197,7 +197,16 @@ pub(super) fn format_function_declaration<'ast>(
     // return type
     if let Some(return_type) = signature.return_type {
         if signature.kind == FunctionKind::Lambda && body.is_none() {
-            write!(f, [space(), token("=>"), space(), return_type])?;
+            write!(
+                f,
+                [
+                    f.context().block_infix_annotations(node_id),
+                    space(),
+                    token("=>"),
+                    space(),
+                    return_type
+                ]
+            )?;
         } else {
             write!(f, [token(":"), space(), return_type])?;
         }
@@ -229,7 +238,16 @@ pub(super) fn format_function_declaration<'ast>(
 
             // arrow is fine since lambdas can only have return type or body
             if body_is_block {
-                write!(f, [space(), token("=>"), space(), body])?;
+                write!(
+                    f,
+                    [
+                        f.context().block_infix_annotations(node_id),
+                        space(),
+                        token("=>"),
+                        space(),
+                        body
+                    ]
+                )?;
             } else if body_is_tree {
                 // tree bodies need conditional parentheses when they break
                 let body_group_id = f.group_id("lambda_body");
@@ -248,11 +266,15 @@ pub(super) fn format_function_declaration<'ast>(
 
                 write!(
                     f,
-                    [
-                        group(&format_args![space(), token("=>"), space(), body_break])
-                            .with_id(Some(body_group_id))
-                            .should_expand(force_break)
-                    ]
+                    [group(&format_args![
+                        f.context().block_infix_annotations(node_id),
+                        space(),
+                        token("=>"),
+                        space(),
+                        body_break
+                    ])
+                    .with_id(Some(body_group_id))
+                    .should_expand(force_break)]
                 )?;
             } else {
                 // default expression body formatting
@@ -261,15 +283,20 @@ pub(super) fn format_function_declaration<'ast>(
                 if body_is_parenthesized_tree {
                     write!(
                         f,
-                        [
-                            group(&format_args![space(), token("=>"), space(), body_break])
-                                .should_expand(force_break)
-                        ]
+                        [group(&format_args![
+                            f.context().block_infix_annotations(node_id),
+                            space(),
+                            token("=>"),
+                            space(),
+                            body_break
+                        ])
+                        .should_expand(force_break)]
                     )?;
                 } else {
                     write!(
                         f,
                         [group(&format_args![
+                            f.context().block_infix_annotations(node_id),
                             space(),
                             token("=>"),
                             indent(&format_args![soft_line_break_or_space(), body_break])

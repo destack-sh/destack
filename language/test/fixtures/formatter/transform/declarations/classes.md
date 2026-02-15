@@ -111,7 +111,7 @@ class Foo { constructor(x: number) { this.x = x } }
 ```ds expected
 class Foo {
     constructor(x: number) {
-        this.x = x
+        this.x = x;
     }
 }
 ```
@@ -439,7 +439,9 @@ class Foo { bar(): void { console.log("hello") } }
 
 ```ds expected
 class Foo {
-    bar(): void { console.log("hello") }
+    bar(): void {
+        console.log("hello");
+    }
 }
 ```
 
@@ -518,7 +520,7 @@ class Foo { set value(v: number) { this._value = v } }
 ```ds expected
 class Foo {
     set value(v: number) {
-        this._value = v
+        this._value = v;
     }
 }
 ```
@@ -537,7 +539,7 @@ class Foo {
         return this._x;
     }
     set x(v: number) {
-        this._x = v
+        this._x = v;
     }
 }
 ```
@@ -641,7 +643,9 @@ class Dog extends Animal { constructor() { super() } }
 
 ```ds expected
 class Dog extends Animal {
-    constructor() { super() }
+    constructor() {
+        super();
+    }
 }
 ```
 
@@ -735,8 +739,7 @@ class Foo { @observable x: number }
 
 ```ds expected
 class Foo {
-    @observable
-    x: number;
+    @observable x: number;
 }
 ```
 
@@ -750,8 +753,7 @@ class Foo { @memoize compute(): number { return 42 } }
 
 ```ds expected
 class Foo {
-    @memoize
-    compute(): number {
+    @memoize compute(): number {
         return 42;
     }
 }
@@ -813,9 +815,10 @@ class MyClass implements FirstInterface, SecondInterface, ThirdInterface { }
 
 ```ds expected
 class MyClass
-    implements FirstInterface,
-    SecondInterface,
-    ThirdInterface {}
+    implements
+        FirstInterface,
+        SecondInterface,
+        ThirdInterface {}
 ```
 
 ## Complex Classes
@@ -832,7 +835,7 @@ class Person { name: string; constructor(name: string) { this.name = name } gree
 class Person {
     name: string;
     constructor(name: string) {
-        this.name = name
+        this.name = name;
     }
     greet(): string {
         return `Hello, ${this.name}`;
@@ -850,7 +853,9 @@ class Config { static { Config.init() } static init() { } }
 
 ```ds expected
 class Config {
-    static { Config.init() }
+    static {
+        Config.init();
+    }
     static init() {}
 }
 ```

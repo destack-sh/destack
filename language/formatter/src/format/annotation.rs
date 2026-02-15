@@ -194,20 +194,6 @@ pub(super) fn annotation_starts_on_own_line<'ast>(
     line_prefix.trim().is_empty()
 }
 
-/// Return whether annotation source contains more than one newline.
-fn annotation_contains_multiple_newlines(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let span = annotation_content_span(context, annotation_id);
-    let source = context.get_span_str(span);
-    source
-        .chars()
-        .filter(|character| *character == '\n')
-        .count()
-        > 1
-}
-
 /// Return whether annotation source begins after at least one newline.
 fn annotation_has_leading_newline<'ast>(
     context: &DestackFormatContext<'ast>,
@@ -221,17 +207,34 @@ fn annotation_has_leading_newline<'ast>(
         .any(|character| character == '\n')
 }
 
-/// Return comment style for annotation comments.
-fn annotation_comment_style(
-    context: &DestackFormatContext<'_>,
-    annotation: &Annotation,
-) -> Option<CommentStyle> {
-    let Annotation::Comment { node, .. } = annotation else {
-        return None;
-    };
+/// Return whether an annotation is slash-style.
+fn annotation_is_slash_style(context: &DestackFormatContext<'_>, annotation: &Annotation) -> bool {
+    match annotation {
+        Annotation::Comment { node, .. } => {
+            let comment = context.tree.get::<Comment>(*node);
+            comment.style == CommentStyle::Slash
+        }
+        Annotation::Doc { node, .. } => {
+            let doc = context.tree.get::<Doc>(*node);
+            doc.style == DocStyle::Slash
+        }
+        _ => false,
+    }
+}
 
-    let comment = context.tree.get::<Comment>(*node);
-    Some(comment.style)
+/// Return whether an annotation is star-style.
+fn annotation_is_star_style(context: &DestackFormatContext<'_>, annotation: &Annotation) -> bool {
+    match annotation {
+        Annotation::Comment { node, .. } => {
+            let comment = context.tree.get::<Comment>(*node);
+            comment.style == CommentStyle::Star
+        }
+        Annotation::Doc { node, .. } => {
+            let doc = context.tree.get::<Doc>(*node);
+            doc.style == DocStyle::Star
+        }
+        _ => false,
+    }
 }
 
 /// Annotation-level rendering facts computed once and reused across branches.
@@ -259,9 +262,8 @@ fn annotation_render_facts(
     annotation: &Annotation,
     annotation_id: LocalNodeId<Annotation>,
 ) -> AnnotationRenderFacts {
-    let comment_style = annotation_comment_style(context, annotation);
-    let is_slash_comment = comment_style == Some(CommentStyle::Slash);
-    let is_star_comment = comment_style == Some(CommentStyle::Star);
+    let is_slash_comment = annotation_is_slash_style(context, annotation);
+    let is_star_comment = annotation_is_star_style(context, annotation);
 
     AnnotationRenderFacts {
         is_slash_comment,
@@ -397,20 +399,7 @@ where
                 && (f.context().options.language_type.is_typescript()
                     || render_facts.follows_colon);
             let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
-            let is_blank_prefix_annotation = matches!(
-                annotation,
-                Annotation::Blank {
-                    position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
-                    ..
-                }
-            );
             if is_blank_annotation && previous_was_blank_annotation {
-                continue;
-            }
-            if is_blank_prefix_annotation
-                && T::TYPE == NodeType::Expression
-                && annotation_contains_multiple_newlines(f.context(), annotation_id)
-            {
                 continue;
             }
             // keep formatter directives attached to the ignored next node
@@ -422,6 +411,7 @@ where
                 AnnotationPosition::BlockPrefix | AnnotationPosition::BlockInfix
             ) && render_facts.is_star_comment
                 && !annotation_starts_on_own_line(f.context(), annotation_id)
+                && annotation_next_token_is_on_same_line(f.context(), annotation_id)
                 && !render_facts.follows_colon;
             let is_inline_delimited_block_postfix_star_comment = position
                 == AnnotationPosition::BlockPostfix

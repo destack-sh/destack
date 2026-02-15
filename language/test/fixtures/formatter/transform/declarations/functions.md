@@ -141,7 +141,9 @@ function* range(start: number, end: number) { for (let i = start; i < end; i++) 
 
 ```ds expected
 function* range(start: number, end: number) {
-    for (let i = start; i < end; i++) { yield i }
+    for (let i = start; i < end; i++) {
+        yield i;
+    }
 }
 ```
 
@@ -155,8 +157,8 @@ async function* items() { yield await fetch("a"); yield await fetch("b") }
 
 ```ds expected
 async function* items() {
-    yield await fetch('a');
-    yield await fetch('b')
+    yield await fetch("a");
+    yield await fetch("b");
 }
 ```
 
@@ -209,7 +211,7 @@ const fn = <T>() => {}
 ```
 
 ```ts expected
-const fn = <T,>() => {};
+const fn = <T>() => {};
 ```
 
 ### module ts arrow generic keeps trailing comma in cts
@@ -221,7 +223,7 @@ const fn = <T>() => {}
 ```
 
 ```ts expected
-const fn = <T,>() => {};
+const fn = <T>() => {};
 ```
 
 ## Generic Functions
@@ -350,7 +352,7 @@ function bind(this: Handler, event: Event) { this.handle(event) }
 
 ```ts expected
 function bind(this: Handler, event: Event) {
-    this.handle(event)
+    this.handle(event);
 }
 ```
 
@@ -549,8 +551,8 @@ function parse(x: string | number): number { return typeof x === "string" ? pars
 ```
 
 ```ds expected
-function parse(x: string): number
-function parse(x: number): number
+function parse(x: string): number;
+function parse(x: number): number;
 function parse(x: string | number): number {
     return typeof x === "string" ? parseInt(x) : x;
 }

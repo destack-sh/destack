@@ -49,7 +49,7 @@ const node = <div>{" "}Hello{" "}World{" "}</div>
 ```
 
 ```tsx expected
-const node = <div>{" "}Hello{" "}World{" "}</div>;
+const node = <div> Hello World </div>;
 ```
 
 ## Generic Tags
@@ -87,7 +87,7 @@ const node = <Select<Option> value={"ok"}  disabled={true}/>
 ```
 
 ```tsx expected
-const node = <Select<Option> value="ok" disabled />;
+const node = <Select<Option> value={"ok"} disabled={true} />;
 ```
 
 ### nested generic tag
@@ -130,7 +130,7 @@ const node = <Button disabled={true} primary={true} />
 ```
 
 ```tsx expected
-const node = <Button disabled primary />;
+const node = <Button disabled={true} primary={true} />;
 ```
 
 ### spread attributes

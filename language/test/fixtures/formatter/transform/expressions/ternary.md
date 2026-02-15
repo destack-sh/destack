@@ -82,7 +82,7 @@ const value = options.singleRun ? "Infinity" : (options.cacheLifetime?.glob ?? D
 const value = options.singleRun
     ? "Infinity"
     : (options.cacheLifetime?.glob ??
-            DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS);
+      DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS);
 ```
 
 ## Nested Ternary
@@ -111,8 +111,8 @@ const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue
 const x = isFirst
     ? firstValue
     : isSecond
-    ? secondValue
-    : defaultValue;
+      ? secondValue
+      : defaultValue;
 ```
 
 ## Ternary with Complex Expressions
@@ -147,16 +147,17 @@ const result = id === null
 ```
 
 ```ts expected
-const result = id === null
-    ? null
-    : internal.getSuspenseCache(client).getFragmentRef(
-            [id, options.fragment, cache.canonicalStringify(variables)],
-            client,
-            tslib.__assign(tslib.__assign({}, options), {
-                variables: variables,
-                from: id,
-            }),
-        );
+const result =
+    id === null
+        ? null
+        : internal.getSuspenseCache(client).getFragmentRef(
+              [id, options.fragment, cache.canonicalStringify(variables)],
+              client,
+              tslib.__assign(tslib.__assign({}, options), {
+                  variables: variables,
+                  from: id,
+              }),
+          );
 ```
 
 ### ternary with object literals

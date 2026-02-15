@@ -13,7 +13,7 @@ let assignment = (/** @type {string} */ getValue())
 ```
 
 ```js expected
-let assignment = (/** @type {string} */ getValue());
+let assignment = /** @type {string} */ getValue();
 ```
 
 ### closure type cast member base expression
@@ -25,7 +25,7 @@ var newArray = (/** @type {array} */ numberOrString).map((x) => x)
 ```
 
 ```js expected
-var newArray = (/** @type {array} */ numberOrString).map((x) => x);
+var newArray = /** @type {array} */ numberOrString.map((x) => x);
 ```
 
 ### closure type cast with neighboring block comment
@@ -38,8 +38,9 @@ Neighboring block comments keep their relative order with type cast comments.
 ```
 
 ```js expected
-(/* 2 */ /** @type {{bar: string[]}} */ {}).bar.forEach(doStuff);
-(/** @type {{bar: string[]}} */ /* 2 */ {}).bar.forEach(doStuff);
+/* 2 */ /** @type {{bar: string[]}} */ ({}).bar
+    .forEach(doStuff)(/** @type {{bar: string[]}} */ /* 2 */ {})
+    .bar.forEach(doStuff);
 ```
 
 ## TypeScript Assertions And Satisfies
@@ -54,8 +55,7 @@ number
 ```
 
 ```ts expected
-const value = source as // as-tail
-    number;
+const value = source as number; // as-tail
 ```
 
 ### nested await with as assertion
@@ -92,9 +92,10 @@ Record<string, number>
 ```
 
 ```ts expected
-const config =
-    { retries: 3 } satisfies // sat-tail
-    Record<string, number>;
+const config = { retries: 3 } satisfies Record< // sat-tail
+    string,
+    number
+>;
 ```
 
 ## Decorated Class Expressions
@@ -143,8 +144,8 @@ Leading semicolon no-semi statements keep closure cast comments attached.
 ```
 
 ```js expected
-;/* keep-2 */ /** @type {{bar: string[]}} */ ({}).bar.forEach(doStuff);
-;/** @type {{bar: string[]}} */ /* keep-2 */ ({}).bar.forEach(doStuff);
+/* keep-2 */ /** @type {{bar: string[]}} */ ({}).bar.forEach(doStuff);
+/** @type {{bar: string[]}} */ /* keep-2 */ ({}).bar.forEach(doStuff);
 ```
 
 ### closure cast in binary expression
@@ -157,8 +158,8 @@ test((/** @type {!Array} */ arrOrString).length + 1)
 ```
 
 ```js expected
-test((/** @type {number} */ num) + 1);
-test((/** @type {!Array} */ arrOrString).length + 1);
+test(/** @type {number} */ num + 1);
+test(/** @type {!Array} */ arrOrString.length + 1);
 ```
 
 ### closure cast in function argument
@@ -174,11 +175,7 @@ const data = functionCall(
 ```
 
 ```js expected
-const data = functionCall(
-    arg1,
-    arg2,
-    /** @type {{height: number, width: number}} */ (arg3),
-);
+const data = functionCall(arg1, arg2, /** @type {{height: number, width: number}} */ (arg3));
 ```
 
 ## TypeScript Assertions And Satisfies Comments
@@ -206,8 +203,7 @@ const;
 ```
 
 ```ts expected
-1 as // before-const
-const;
+1 as const; // before-const
 ```
 
 ### block comment between as and type target
@@ -235,11 +231,9 @@ block-comment
 ```
 
 ```ts expected
-1 as
-/*
+1 as const /*
 block-comment
-*/
-const;
+*/;
 ```
 
 ### nested await chain with as assertion
@@ -257,9 +251,7 @@ const count = (await
 
 ```ts expected
 const count = (
-    await ((
-        await (await focusOnSection("bookmarks")).findItem("mine")
-    ) as TreeItem).getChildren()
+    await ((await (await focusOnSection("bookmarks")).findItem("mine")) as TreeItem).getChildren()
 ).length;
 ```
 
@@ -293,8 +285,8 @@ const value = {
 
 ```js expected
 const value = {
-    item: (/** @type {!Array<string>} */ input),
-    list: [(/** @type {!Array<number>} */ numbers)],
+    item: /** @type {!Array<string>} */ (input),
+    list: [/** @type {!Array<number>} */ (numbers)],
 };
 ```
 
@@ -307,9 +299,7 @@ const value = (/** @type {{inner: {run: () => number}}} */ (source)).inner.run()
 ```
 
 ```js expected
-const value = (
-    (/** @type {{inner: {run: () => number}}} */ source)
-).inner.run();
+const value = /** @type {{inner: {run: () => number}}} */ (source).inner.run();
 ```
 
 ### closure cast in class heritage
@@ -321,7 +311,7 @@ class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}
 ```
 
 ```js expected
-class Box extends /** @type {{new (): Base}} */ baseFactory() {}
+class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}
 ```
 
 ### closure cast in no-semi multiline parenthesized call
@@ -335,9 +325,7 @@ No-semi multiline starts keep closure type cast comments attached and ordered.
 ```
 
 ```js expected
-(
-    (/** @type {{run: () => void}} */ factory())
-).run();
+/** @type {{run: () => void}} */ (factory()).run();
 ```
 
 ### closure cast with satisfies type boundary
@@ -349,9 +337,7 @@ const value = /** @type {{ok: boolean}} */ ({ ok: true }) satisfies Record<strin
 ```
 
 ```ts expected
-const value =
-    (/** @type {{ok: boolean}} */ { ok: true }) satisfies Record<string, unknown>
-;
+const value = /** @type {{ok: boolean}} */ ({ ok: true }) satisfies Record<string, unknown>;
 ```
 
 ## Closure Type Cast Conformance Permutations
@@ -366,8 +352,7 @@ No-semi closure casts keep neighboring comments attached and ordered.
 ```
 
 ```js expected
-(/** @type {{bar: string[]}} */ {}).bar
-    // bar-tail
+/** @type {{bar: string[]}} */ ({}).bar // bar-tail
     .forEach(doStuff);
 ```
 
@@ -380,7 +365,7 @@ const value = (/* ordinary */ source).next()
 ```
 
 ```js expected
-const value = (/* ordinary */ source).next();
+const value = /* ordinary */ source.next();
 ```
 
 ### closure cast in first argument expansion path
@@ -395,7 +380,7 @@ target(
 ```
 
 ```js expected
-target((/** @type {{id: string}} */ entry), second);
+target(/** @type {{id: string}} */ (entry), second);
 ```
 
 ### closure cast in rest element comment path
@@ -409,7 +394,7 @@ function run(.../* rest-head */ args) {
 ```
 
 ```js expected
-function run(...args) {
+function run(.../* rest-head */ args) {
     return /** @type {!Array<string>} */ (args);
 }
 ```
@@ -425,7 +410,10 @@ use((@decorator class {}))
 ```
 
 ```js expected
-use((@decorator class {}));
+use(
+    @decorator
+    class {},
+);
 ```
 
 ### decorated class expression in extends position
@@ -437,7 +425,10 @@ class Derived extends (@decorator class Base {}) {}
 ```
 
 ```js expected
-class Derived extends (@decorator class Base {}) {}
+class Derived extends (
+    @decorator
+    class Base {}
+) {}
 ```
 
 ## Satisfies Operator Boundary Permutations
@@ -451,7 +442,7 @@ Expression statement `satisfies` comments stay attached to the satisfies boundar
 ```
 
 ```ts expected
-({ value: 1 } satisfies Record<string, number>); // sat-expression
+({ value: 1 }) satisfies Record<string, number>; // sat-expression
 ```
 
 ### nested await with satisfies and boundary comment
@@ -464,6 +455,5 @@ Promise<Result<string, Error>>
 ```
 
 ```ts expected
-const value = (await load()) satisfies // sat-await
-    Promise<Result<string, Error>>;
+const value = (await load()) satisfies Promise<Result<string, Error>>; // sat-await
 ```

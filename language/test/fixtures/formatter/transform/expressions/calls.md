@@ -83,7 +83,7 @@ const value = (makeFactory<number>)(config)
 ```
 
 ```ts expected
-const value = (makeFactory<number>)(config);
+const value = makeFactory<number>(config);
 ```
 
 ## Line Breaking
@@ -363,8 +363,7 @@ data.filter(x => x.active).map(x => x.name).join(", ")
 ```
 
 ```ds expected
-data
-    .filter((x) => x.active)
+data.filter((x) => x.active)
     .map((x) => x.name)
     .join(", ");
 ```
@@ -496,9 +495,9 @@ result = aLongVariableName + anotherLongName + thirdLongName
 
 ```ds expected
 result =
-    aLongVariableName
-    + anotherLongName
-    + thirdLongName;
+    aLongVariableName +
+    anotherLongName +
+    thirdLongName;
 ```
 
 ### long binary declarator breaks after equals
@@ -511,9 +510,9 @@ const sum = aLongVariableName + anotherLongName + thirdLongName
 
 ```ds expected
 const sum =
-    aLongVariableName
-    + anotherLongName
-    + thirdLongName;
+    aLongVariableName +
+    anotherLongName +
+    thirdLongName;
 ```
 
 ### binary with logical operators
@@ -525,9 +524,10 @@ const isValid = hasPermission && isActive && !isDisabled
 ```
 
 ```ds expected
-const isValid = hasPermission
-    && isActive
-    && !isDisabled;
+const isValid =
+    hasPermission &&
+    isActive &&
+    !isDisabled;
 ```
 
 ## Spread Arguments

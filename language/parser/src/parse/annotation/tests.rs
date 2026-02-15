@@ -1,9 +1,9 @@
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat, Comment,
-    CommentStyle, Declaration, DeclarationAbstraction, DeclarationDescriptor, Declarator,
-    Decorator, DependencyItem, Doc, DocStyle, Expression, FunctionKind, FunctionMode, IfCondition,
-    IfKind, ImportTarget, Key, LocalNodeId, Member, Name, Parameter, Property, TypeBinaryOperator,
-    TypeKind, TypeLiteral, TypeUnaryOperator,
+    Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator, Blank, Block,
+    BlockFormat, Comment, CommentStyle, Declaration, DeclarationAbstraction, DeclarationDescriptor,
+    Declarator, Decorator, DependencyItem, Doc, DocStyle, Expression, FunctionKind, FunctionMode,
+    IfCondition, IfKind, ImportTarget, Key, Member, Name, Parameter, Property, TypeBinaryOperator,
+    TypeKind, TypeLiteral, TypeUnaryOperator, WhileKind,
 };
 use destack_source::LanguageType;
 
@@ -52,16 +52,6 @@ let y;
     let mut parser = test.prepare();
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
     parser.attach_trivia();
-
-    eprintln!("expressions len: {}", expressions.len());
-    eprintln!("errors: {:?}", parser.errors);
-    for expression_id in &expressions {
-        eprintln!(
-            "expr {} => {:?}",
-            expression_id.id,
-            parser.tree.get(*expression_id)
-        );
-    }
     assert_eq!(expressions.len(), 2);
 
     // let x;
@@ -207,6 +197,62 @@ call(@if(true) 1);",
     });
 }
 
+/// Decorators on class expressions in argument positions should attach to the class expression.
+#[test]
+fn test_attach_decorator_to_class_expression_in_call_argument() {
+    let mut test =
+        TestParser::new_with_options("use(@decorator class {})", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_trivia();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Declaration(_) => {});
+            let annotations = parser.tree.get_annotations(dynamic_arguments[0].id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "decorator");
+                });
+            });
+        });
+    });
+}
+
+/// Decorators on class expressions in extends positions should attach to the class expression.
+#[test]
+fn test_attach_decorator_to_class_expression_in_extends_position() {
+    let mut test = TestParser::new_with_options(
+        "class Derived extends (@decorator class Base {}) {}",
+        LanguageType::JavaScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends types");
+            assert_eq!(extends_types.len(), 1);
+            assert_node!(parser.tree, extends_types[0], Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(_) => {});
+                let annotations = parser.tree.get_annotations(expression.id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Decorator { expression } => {
+                        assert_expression_path!(parser, parser.tree.get(*expression), "decorator");
+                    });
+                });
+            });
+        });
+    });
+}
+
 /// Decorators after export modifiers should attach to the exported declaration expression.
 #[test]
 fn test_attach_decorator_after_export_modifier() {
@@ -270,55 +316,110 @@ export @after abstract class Foo { }",
     );
     assert_eq!(expressions.len(), 5);
 
-    // expected declaration metadata
-    let expected_names = ["Foo", "Bar", "Foo", "Foo", "Foo"];
-    let expected_abstractions = [
-        DeclarationAbstraction::Concrete,
-        DeclarationAbstraction::Concrete,
-        DeclarationAbstraction::Concrete,
-        DeclarationAbstraction::Abstract,
-        DeclarationAbstraction::Abstract,
-    ];
-    let expected_decorators = [
-        vec!["decorator"],
-        vec!["first.field", "second", "<<call>>"],
-        vec!["before", "after"],
-        vec!["before"],
-        vec!["before", "after"],
-    ];
-
-    // per declaration assertions
-    for index in 0..expressions.len() {
-        // class declaration
-        let expression_id = parser.unwrap_statement_expression(expressions[index]);
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
-                assert!(descriptor.export.is_some());
-                assert_eq!(descriptor.abstraction, expected_abstractions[index]);
-                assert_string!(parser, descriptor.name.unwrap().string(), expected_names[index]);
-            });
+    // @decorator export class Foo {}
+    let first_expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, first_expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+            assert!(descriptor.export.is_some());
+            assert_eq!(descriptor.abstraction, DeclarationAbstraction::Concrete);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
         });
+    });
+    let first_annotations = parser.tree.get_annotations(first_expression_id.id);
+    assert_eq!(first_annotations.len(), 1);
+    assert_node!(parser.tree, first_annotations[0], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "decorator");
+        });
+    });
 
-        // decorator list
-        let annotations = parser.tree.get_annotations(expression_id.id);
-        assert_eq!(annotations.len(), expected_decorators[index].len());
-        for annotation_index in 0..annotations.len() {
-            let expected_decorator = expected_decorators[index][annotation_index];
-            assert_node!(parser.tree, annotations[annotation_index], Annotation::Decorator { node, .. } => {
-                assert_node!(parser.tree, *node, Decorator { expression } => {
-                    if expected_decorator == "<<call>>" {
-                        assert_node!(parser.tree, *expression, Expression::Call { .. } => {});
-                    } else {
-                        assert_expression_path!(
-                            parser,
-                            parser.tree.get(*expression),
-                            expected_decorator
-                        );
-                    }
-                });
-            });
-        }
-    }
+    // @first.field @second @(() => decorator)() export class Bar {}
+    let second_expression_id = parser.unwrap_statement_expression(expressions[1]);
+    assert_node!(parser.tree, second_expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+            assert!(descriptor.export.is_some());
+            assert_eq!(descriptor.abstraction, DeclarationAbstraction::Concrete);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Bar");
+        });
+    });
+    let second_annotations = parser.tree.get_annotations(second_expression_id.id);
+    assert_eq!(second_annotations.len(), 3);
+    assert_node!(parser.tree, second_annotations[0], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "first.field");
+        });
+    });
+    assert_node!(parser.tree, second_annotations[1], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "second");
+        });
+    });
+    assert_node!(parser.tree, second_annotations[2], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Call { .. } => {});
+        });
+    });
+
+    // @before export @after class Foo {}
+    let third_expression_id = parser.unwrap_statement_expression(expressions[2]);
+    assert_node!(parser.tree, third_expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+            assert!(descriptor.export.is_some());
+            assert_eq!(descriptor.abstraction, DeclarationAbstraction::Concrete);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+        });
+    });
+    let third_annotations = parser.tree.get_annotations(third_expression_id.id);
+    assert_eq!(third_annotations.len(), 2);
+    assert_node!(parser.tree, third_annotations[0], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "before");
+        });
+    });
+    assert_node!(parser.tree, third_annotations[1], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "after");
+        });
+    });
+
+    // @before export abstract class Foo {}
+    let fourth_expression_id = parser.unwrap_statement_expression(expressions[3]);
+    assert_node!(parser.tree, fourth_expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+            assert!(descriptor.export.is_some());
+            assert_eq!(descriptor.abstraction, DeclarationAbstraction::Abstract);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+        });
+    });
+    let fourth_annotations = parser.tree.get_annotations(fourth_expression_id.id);
+    assert_eq!(fourth_annotations.len(), 1);
+    assert_node!(parser.tree, fourth_annotations[0], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "before");
+        });
+    });
+
+    // @before export @after abstract class Foo {}
+    let fifth_expression_id = parser.unwrap_statement_expression(expressions[4]);
+    assert_node!(parser.tree, fifth_expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { descriptor, .. } => {
+            assert!(descriptor.export.is_some());
+            assert_eq!(descriptor.abstraction, DeclarationAbstraction::Abstract);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+        });
+    });
+    let fifth_annotations = parser.tree.get_annotations(fifth_expression_id.id);
+    assert_eq!(fifth_annotations.len(), 2);
+    assert_node!(parser.tree, fifth_annotations[0], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "before");
+        });
+    });
+    assert_node!(parser.tree, fifth_annotations[1], Annotation::Decorator { node, .. } => {
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "after");
+        });
+    });
 }
 
 /// Decorator static arguments should preserve generic lambda details.
@@ -364,13 +465,10 @@ function foo() { }",
                                 assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "T");
                             });
 
-                            // match return type or body for the arrow target
-                            if let Some(return_type) = signature.return_type {
-                                assert_expression_path!(parser, parser.tree.get(return_type), "T");
-                            } else {
-                                let body = body.expect("expected body expression");
-                                assert_expression_path!(parser, parser.tree.get(body), "T");
-                            }
+                            let return_target = signature.return_type.or(*body);
+                            let return_target =
+                                return_target.expect("expected return type or body expression");
+                            assert_expression_path!(parser, parser.tree.get(return_target), "T");
                         });
                     });
                 });
@@ -782,22 +880,19 @@ B
             });
 
             let second_annotations = parser.tree.get_annotations(fields[1].id);
-            let mut prefix_blanks = Vec::new();
-            let mut postfix_blanks = Vec::new();
-            for annotation_id in second_annotations {
-                if let Annotation::Blank { node, position } = parser.tree.get::<Annotation>(annotation_id) {
-                    let Blank { lines } = parser.tree.get::<Blank>(*node);
-                    let lines = *lines;
-                    match position {
-                        AnnotationPosition::BlockPrefix => prefix_blanks.push(lines),
-                        AnnotationPosition::BlockPostfix => postfix_blanks.push(lines),
-                        _ => {}
-                    }
-                }
-            }
-
-            assert_eq!(prefix_blanks, vec![1]);
-            assert_eq!(postfix_blanks, vec![1]);
+            assert_eq!(second_annotations.len(), 2);
+            assert_node!(parser.tree, second_annotations[0], Annotation::Blank { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Blank { lines } => {
+                    assert_eq!(*lines, 1);
+                });
+            });
+            assert_node!(parser.tree, second_annotations[1], Annotation::Blank { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                assert_node!(parser.tree, *node, Blank { lines } => {
+                    assert_eq!(*lines, 1);
+                });
+            });
         });
     });
 }
@@ -819,26 +914,15 @@ fn test_attach_enum_body_boundary_comment_on_declaration_owner() {
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Enum { .. } => {});
-
-        let mut matches = Vec::new();
-        for (owner_id, annotations) in parser.tree.get_all_annotations() {
-            for annotation_id in annotations {
-                let Annotation::Comment { node, position } = parser.tree.get::<Annotation>(*annotation_id) else {
-                    continue;
-                };
-                let comment = parser.tree.get::<Comment>(*node);
-                let text = parser.strings.get(comment.string);
-                if text == "enum-body" {
-                    matches.push((*owner_id, *position, comment.style));
-                }
-            }
-        }
-
-        assert_eq!(matches.len(), 1);
-        let (owner_id, position, style) = matches[0];
-        assert_eq!(owner_id, declaration_id.id);
-        assert_eq!(position, AnnotationPosition::BlockInfix);
-        assert_eq!(style, CommentStyle::Star);
+        let annotations = parser.tree.get_annotations(declaration_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockInfix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "enum-body");
+                assert_eq!(*style, CommentStyle::Star);
+            });
+        });
     });
 }
 
@@ -920,46 +1004,24 @@ fn test_attach_line_comment_before_chain_member() {
   .then(() => writeRegistry())",
     );
     let mut parser = test.prepare();
-    parser.eat_expression(parser.options).unwrap();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
     parser.attach_trivia();
 
-    // Promise.all(...).then(...)
-    let mut comment_owner_id: Option<u32> = None;
-    let mut comment_annotation_id: Option<LocalNodeId<Annotation>> = None;
-    for (node_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            if let Annotation::Comment { node, .. } = parser.tree.get(*annotation_id)
-                && parser.strings.get(parser.tree.get::<Comment>(*node).string) == "TO DO -- END"
-            {
-                comment_owner_id = Some(*node_id);
-                comment_annotation_id = Some(*annotation_id);
-                break;
-            }
-        }
-        if comment_owner_id.is_some() {
-            break;
-        }
-    }
+    let then_member_id = assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
+        assert_node!(parser.tree, *left, Expression::Member { name, .. } => {
+            assert_string!(parser, *name, "then");
+        });
+        *left
+    });
 
-    // // TO DO -- END
-    let comment_owner_id = comment_owner_id.expect("expected comment owner");
-    let comment_annotation_id = comment_annotation_id.expect("expected comment annotation");
-    assert_node!(
-        parser.tree,
-        comment_annotation_id,
-        Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_string!(parser, *string, "TO DO -- END");
-                assert_eq!(*style, CommentStyle::Slash);
-            });
-        }
-    );
-
-    // owner should be the `.then` member expression
-    let owner_expression_id = LocalNodeId::<Expression>::new(comment_owner_id);
-    assert_node!(parser.tree, owner_expression_id, Expression::Member { name, .. } => {
-        assert_string!(parser, *name, "then");
+    let annotations = parser.tree.get_annotations(then_member_id.id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "TO DO -- END");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
     });
 }
 
@@ -979,24 +1041,14 @@ Promise.all(writeIconFiles)",
     // Promise.all(...); Promise.all(...)
     assert_eq!(expressions.len(), 2);
 
-    // blank between top level calls
-    let mut blank_parent = None;
-    for (node_id, annotations) in parser.tree.get_all_annotations() {
-        let has_blank = annotations.iter().any(|annotation_id| {
-            matches!(
-                parser.tree.get::<Annotation>(*annotation_id),
-                Annotation::Blank { .. }
-            )
+    let annotations = parser.tree.get_annotations(expressions[1].id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Blank { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Blank { lines } => {
+            assert_eq!(*lines, 1);
         });
-        if has_blank {
-            blank_parent = Some(*node_id);
-            break;
-        }
-    }
-
-    // second Promise.all(...)
-    let blank_parent_id = blank_parent.expect("expected blank annotation");
-    assert_eq!(blank_parent_id, expressions[1].id);
+    });
 }
 
 /// One blank line between block statements should attach to the following statement.
@@ -1100,64 +1152,26 @@ return 5;
     parser.attach_trivia();
 
     assert_node!(parser.tree, block_id, Block { expressions, .. } => {
-        let mut loop_statement_id = None;
-        let mut let_after_loop_id = None;
-        for expression_id in expressions {
-            let source = parser.file.span_str(parser.tree.get_span(*expression_id));
-            if source.starts_with("loop {") {
-                loop_statement_id = Some(*expression_id);
-            }
-            if source.starts_with("let x = z()") {
-                let_after_loop_id = Some(*expression_id);
-            }
-        }
-
-        let loop_statement_id = loop_statement_id.expect("expected loop statement");
-        let let_after_loop_id = let_after_loop_id.expect("expected let statement after loop");
-
+        assert_eq!(expressions.len(), 10);
+        let loop_statement_id = expressions[6];
+        let let_after_loop_id = expressions[7];
         let loop_annotations = parser.tree.get_annotations(loop_statement_id.id);
-        let loop_blank_postfix = loop_annotations
-            .into_iter()
-            .filter(|annotation_id| {
-                matches!(
-                    parser.tree.get::<Annotation>(*annotation_id),
-                    Annotation::Blank {
-                        position: AnnotationPosition::BlockPostfix,
-                        ..
-                    }
-                )
-            })
-            .collect::<Vec<_>>();
-        assert!(loop_blank_postfix.is_empty());
-
-        let let_annotations = parser.tree.get_annotations(let_after_loop_id.id);
-        let let_all_blank_annotations = let_annotations
-            .iter()
-            .copied()
-            .filter(|annotation_id| {
-                matches!(
-                    parser.tree.get::<Annotation>(*annotation_id),
-                    Annotation::Blank { .. }
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(let_all_blank_annotations.len(), 1);
-        let let_blank_prefix = let_annotations
-            .into_iter()
-            .filter(|annotation_id| {
-                matches!(
-                    parser.tree.get::<Annotation>(*annotation_id),
-                    Annotation::Blank {
-                        position: AnnotationPosition::BlockPrefix,
-                        ..
-                    }
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(let_blank_prefix.len(), 1);
+        assert_eq!(loop_annotations.len(), 1);
         assert_node!(
             parser.tree,
-            let_blank_prefix[0],
+            loop_annotations[0],
+            Annotation::Blank { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Blank { lines } => {
+                    assert_eq!(*lines, 1);
+                });
+            }
+        );
+        let let_annotations = parser.tree.get_annotations(let_after_loop_id.id);
+        assert_eq!(let_annotations.len(), 1);
+        assert_node!(
+            parser.tree,
+            let_annotations[0],
             Annotation::Blank { node, position } => {
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Blank { lines } => {
@@ -1168,9 +1182,9 @@ return 5;
     });
 }
 
-/// Direct block parsing without finish pass should still attach blank prefixes inline.
+/// Direct block parsing should attach blanks after an explicit trivia pass.
 #[test]
-fn test_attach_blank_in_block_after_loop_before_let_statement_without_finish() {
+fn test_attach_blank_in_block_after_loop_before_let_statement_direct_entrypoint() {
     let mut test = TestParser::new(
         r#"{
 loop {
@@ -1182,6 +1196,7 @@ let x = z()
     );
     let mut parser = test.prepare();
     let block_id = parser.eat_block().unwrap();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, block_id, Block { expressions, .. } => {
         assert_eq!(expressions.len(), 2);
@@ -1308,44 +1323,37 @@ fn test_attach_inline_comment_between_member_hops_to_boundary_owners() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
     parser.attach_trivia();
 
-    let mut hop_a_target = None;
-    let mut hop_b_target = None;
-    for (target_node_id, target_annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in target_annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            if *position != AnnotationPosition::LinePostfix {
-                continue;
-            }
-            let Comment { string, .. } = parser.tree.get(*node);
-            let text = parser.strings.get(*string);
-            if text == "hop-a" {
-                hop_a_target = Some(*target_node_id);
-            } else if text == "hop-b" {
-                hop_b_target = Some(*target_node_id);
-            }
-        }
-    }
+    let second_member_id =
+        assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => { *left });
+    let first_call_id = assert_node!(parser.tree, second_member_id, Expression::Member { left, name, .. } => {
+        assert_eq!(parser.strings.get(*name), "second");
+        *left
+    });
+    let first_member_id =
+        assert_node!(parser.tree, first_call_id, Expression::Call { left, .. } => { *left });
+    let source_id = assert_node!(parser.tree, first_member_id, Expression::Member { left, name, .. } => {
+        assert_eq!(parser.strings.get(*name), "first");
+        assert_expression_path!(parser, parser.tree.get(*left), "source");
+        *left
+    });
 
-    let hop_a_target = hop_a_target.expect("expected hop-a annotation target");
-    let hop_b_target = hop_b_target.expect("expected hop-b annotation target");
-
-    let hop_a_expression = LocalNodeId::<Expression>::new(hop_a_target);
-    let hop_b_expression = LocalNodeId::<Expression>::new(hop_b_target);
-    assert_expression_path!(parser, parser.tree.get(hop_a_expression), "source");
-    assert_node!(parser.tree, hop_b_expression, Expression::Call { left, .. } => {
-        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "source");
-            assert_eq!(parser.strings.get(*name), "first");
+    let source_annotations = parser.tree.get_annotations(source_id.id);
+    assert_eq!(source_annotations.len(), 1);
+    assert_node!(parser.tree, source_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "hop-a");
+            assert_eq!(*style, CommentStyle::Star);
         });
     });
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
-        assert_node!(parser.tree, *left, Expression::Member { name, .. } => {
-            assert_eq!(parser.strings.get(*name), "second");
+    let first_call_annotations = parser.tree.get_annotations(first_call_id.id);
+    assert_eq!(first_call_annotations.len(), 1);
+    assert_node!(parser.tree, first_call_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "hop-b");
+            assert_eq!(*style, CommentStyle::Star);
         });
     });
 }
@@ -1475,23 +1483,6 @@ fn test_attach_inline_comment_before_call_argument() {
         assert_eq!(dynamic_arguments.len(), 1);
         let argument_id = dynamic_arguments[0];
         let annotations = parser.tree.get_annotations(argument_id.id);
-
-        // /* first */ a
-        let annotation_owner_id = if annotations.is_empty() {
-            let argument = parser.tree.get(argument_id);
-            let value_id = match argument {
-                Argument::Named { value, .. }
-                | Argument::Labeled { value, .. }
-                | Argument::Positional { value, .. }
-                | Argument::Spread { value, .. } => *value,
-            };
-            value_id.id
-        } else {
-            argument_id.id
-        };
-
-        // /* first */
-        let annotations = parser.tree.get_annotations(annotation_owner_id);
         assert_eq!(annotations.len(), 1);
         assert_node!(
             parser.tree,
@@ -1553,7 +1544,7 @@ fn test_attach_inline_comment_before_computed_object_key_to_property() {
     );
 }
 
-/// Parameter separator comments should attach to the parameter as prefixes.
+/// Parameter separator comments should attach to the parameter type seam.
 #[test]
 fn test_attach_parameter_separator_comment_to_parameter_prefix() {
     let mut test = TestParser::new("value /* parameter-type */: number");
@@ -1566,7 +1557,7 @@ fn test_attach_parameter_separator_comment_to_parameter_prefix() {
         parser.tree,
         annotations[0],
         Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePrefix);
+            assert_eq!(*position, AnnotationPosition::BlockInfix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_string!(parser, *string, "parameter-type");
                 assert_eq!(*style, CommentStyle::Star);
@@ -1575,7 +1566,7 @@ fn test_attach_parameter_separator_comment_to_parameter_prefix() {
     );
 }
 
-/// Optional parameter separator comments should attach to the parameter as prefixes.
+/// Optional parameter separator comments should attach to the parameter type seam.
 #[test]
 fn test_attach_optional_parameter_separator_comment_to_parameter_prefix() {
     let mut test = TestParser::new("value? /* optional-parameter-type */: number");
@@ -1589,7 +1580,7 @@ fn test_attach_optional_parameter_separator_comment_to_parameter_prefix() {
         parser.tree,
         annotations[0],
         Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePrefix);
+            assert_eq!(*position, AnnotationPosition::BlockInfix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_string!(parser, *string, "optional-parameter-type");
                 assert_eq!(*style, CommentStyle::Star);
@@ -1620,7 +1611,36 @@ fn test_attach_parameter_prefix_comment_to_parameter() {
     );
 }
 
-/// Empty new-call boundary comments should stay attached to the callee expression.
+/// Lambda arrow separator comments should attach to the lambda declaration seam.
+#[test]
+fn test_attach_lambda_arrow_separator_comment_to_lambda_infix() {
+    let mut test = TestParser::new("() /**/ => 1");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_trivia();
+
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::Declaration(declaration_id) => {
+            let annotations = parser.tree.get_annotations(declaration_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(
+                parser.tree,
+                annotations[0],
+                Annotation::Doc { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockInfix);
+                    assert_node!(parser.tree, *node, Doc { string, style } => {
+                        assert_string!(parser, *string, "/**/");
+                        assert_eq!(*style, DocStyle::Star);
+                    });
+                }
+            );
+        }
+    );
+}
+
+/// Empty new-call boundary comments should stay attached to the call expression seam.
 #[test]
 fn test_attach_empty_new_boundary_comment_to_callee_expression() {
     let mut test = TestParser::new("new require(/* new-boundary */)");
@@ -1632,14 +1652,15 @@ fn test_attach_empty_new_boundary_comment_to_callee_expression() {
         parser.tree,
         expression_id,
         Expression::New { left, dynamic_arguments, .. } => {
+            let _ = left;
             assert!(dynamic_arguments.is_empty());
-            let annotations = parser.tree.get_annotations(left.id);
+            let annotations = parser.tree.get_annotations(expression_id.id);
             assert_eq!(annotations.len(), 1);
             assert_node!(
                 parser.tree,
                 annotations[0],
                 Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                    assert_eq!(*position, AnnotationPosition::BlockInfix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
                         assert_string!(parser, *string, "new-boundary");
                         assert_eq!(*style, CommentStyle::Star);
@@ -1650,7 +1671,7 @@ fn test_attach_empty_new_boundary_comment_to_callee_expression() {
     );
 }
 
-/// Empty call boundary comments should stay attached to the callee expression.
+/// Empty call boundary comments should stay attached to the call expression seam.
 #[test]
 fn test_attach_empty_call_boundary_comment_to_callee_expression() {
     let mut test = TestParser::new("target(/* call-boundary */)");
@@ -1662,14 +1683,15 @@ fn test_attach_empty_call_boundary_comment_to_callee_expression() {
         parser.tree,
         expression_id,
         Expression::Call { left, dynamic_arguments, .. } => {
+            let _ = left;
             assert!(dynamic_arguments.is_empty());
-            let annotations = parser.tree.get_annotations(left.id);
+            let annotations = parser.tree.get_annotations(expression_id.id);
             assert_eq!(annotations.len(), 1);
             assert_node!(
                 parser.tree,
                 annotations[0],
                 Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                    assert_eq!(*position, AnnotationPosition::BlockInfix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
                         assert_string!(parser, *string, "call-boundary");
                         assert_eq!(*style, CommentStyle::Star);
@@ -1817,6 +1839,332 @@ fn test_attach_if_head_trailing_comment_on_direct_if_entrypoint() {
     });
 }
 
+/// Break trailing comments should attach to the break statement owner.
+#[test]
+fn test_attach_break_trailing_comment_to_break_statement_owner() {
+    let mut test = TestParser::new_with_options(
+        r"while (running) {
+  if (done) break // break-tail
+  tick()
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let while_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, while_id, Expression::While { condition, body, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*condition), "running");
+
+        assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_eq!(expressions.len(), 2);
+
+            let if_id = parser.unwrap_statement_expression(expressions[0]);
+            assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
+                let IfCondition::Expression { condition } = condition else {
+                    panic!("expected if expression condition");
+                };
+                assert_expression_path!(parser, parser.tree.get(*condition), "done");
+
+                assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        let break_statement_id = expressions[0];
+                        let break_id = parser.unwrap_statement_expression(break_statement_id);
+                        assert_node!(parser.tree, break_id, Expression::Break { .. } => {});
+
+                        let annotations = parser.tree.get_annotations(if_id.id);
+                        assert_eq!(annotations.len(), 1);
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_string!(parser, *string, "break-tail");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
+                        });
+                    });
+                });
+            });
+
+            let tick_id = parser.unwrap_statement_expression(expressions[1]);
+            assert_node!(parser.tree, tick_id, Expression::Call { left, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "tick");
+            });
+            let tick_annotations = parser.tree.get_annotations(tick_id.id);
+            assert!(tick_annotations.is_empty());
+        });
+    });
+}
+
+/// Continue trailing comments should attach to the continue statement owner.
+#[test]
+fn test_attach_continue_trailing_comment_to_continue_statement_owner() {
+    let mut test = TestParser::new_with_options(
+        r"for (const item of items) {
+  if (!item) continue // continue-tail
+  use(item)
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let for_each_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, for_each_id, Expression::ForEach { iterator, body, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+
+        assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_eq!(expressions.len(), 2);
+
+            let if_id = parser.unwrap_statement_expression(expressions[0]);
+            assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
+                let IfCondition::Expression { condition } = condition else {
+                    panic!("expected if expression condition");
+                };
+                assert_node!(parser.tree, *condition, Expression::Unary { .. } => {});
+
+                assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        let continue_statement_id = expressions[0];
+                        let continue_id = parser.unwrap_statement_expression(continue_statement_id);
+                        assert_node!(parser.tree, continue_id, Expression::Continue { .. } => {});
+
+                        let annotations = parser.tree.get_annotations(if_id.id);
+                        assert_eq!(annotations.len(), 1);
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_string!(parser, *string, "continue-tail");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
+                        });
+                    });
+                });
+            });
+
+            let use_id = parser.unwrap_statement_expression(expressions[1]);
+            assert_node!(parser.tree, use_id, Expression::Call { left, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "use");
+            });
+            let use_annotations = parser.tree.get_annotations(use_id.id);
+            assert!(use_annotations.is_empty());
+        });
+    });
+}
+
+/// Yield trailing comments should attach to the yield statement owner.
+#[test]
+fn test_attach_yield_trailing_comment_to_yield_statement_owner() {
+    let mut test = TestParser::new_with_options(
+        r"function* run() {
+  yield value // yield-tail
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let function_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, function_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+            let body_id = body.expect("expected function body");
+            assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    let yield_statement_id = expressions[0];
+                    let yield_id = parser.unwrap_statement_expression(yield_statement_id);
+                    assert_node!(parser.tree, yield_id, Expression::Yield { value, .. } => {
+                        let value_id = value.expect("expected yield value");
+                        assert_expression_path!(parser, parser.tree.get(value_id), "value");
+                        let annotations = parser.tree.get_annotations(value_id.id);
+                        assert_eq!(annotations.len(), 1);
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_string!(parser, *string, "yield-tail");
+                                assert_eq!(*style, CommentStyle::Slash);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Try and catch trailing comments should stay attached to their call statement owners.
+#[test]
+fn test_attach_try_catch_trailing_comments_to_call_statement_owners() {
+    let mut test = TestParser::new_with_options(
+        r"try {
+  run() // try-tail
+} catch (error) {
+  recover(error) // catch-tail
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let try_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_pattern, catch_expression, .. } => {
+        assert!(catch_pattern.is_some());
+        let catch_expression_id = catch_expression.expect("expected catch expression");
+
+        assert_node!(parser.tree, *try_expression, Expression::Block(block_id) => {
+            assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+                let call_statement_id = expressions[0];
+                let call_id = parser.unwrap_statement_expression(call_statement_id);
+                assert_node!(parser.tree, call_id, Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "run");
+                });
+
+                let annotations = parser.tree.get_annotations(call_statement_id.id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_string!(parser, *string, "try-tail");
+                        assert_eq!(*style, CommentStyle::Slash);
+                    });
+                });
+            });
+        });
+
+        assert_node!(parser.tree, catch_expression_id, Expression::Block(block_id) => {
+            assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+                let call_statement_id = expressions[0];
+                let call_id = parser.unwrap_statement_expression(call_statement_id);
+                assert_node!(parser.tree, call_id, Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "recover");
+                });
+
+                let annotations = parser.tree.get_annotations(call_statement_id.id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_string!(parser, *string, "catch-tail");
+                        assert_eq!(*style, CommentStyle::Slash);
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Label-separator comments after `:` should attach to the labelled body as prefix.
+#[test]
+fn test_attach_label_separator_comment_to_labelled_body_prefix() {
+    let mut test = TestParser::new_with_options(
+        r"start: // label-tail
+while (true) {
+  break start
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Labelled { label, body } => {
+        assert_string!(parser, *label, "start");
+        assert_node!(parser.tree, *body, Expression::While { .. } => {});
+
+        let annotations = parser.tree.get_annotations(body.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "label-tail");
+                assert_eq!(*style, CommentStyle::Slash);
+            });
+        });
+    });
+}
+
+/// Do-while trailing comments should attach to the loop owner.
+#[test]
+fn test_attach_do_while_trailing_comment_to_loop_owner() {
+    let mut test = TestParser::new_with_options(
+        r"do {
+  process()
+} while (condition) // do-tail",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_trivia();
+
+    assert_node!(parser.tree, expression_id, Expression::While { kind, condition, body } => {
+        assert_eq!(*kind, WhileKind::DoWhile);
+        assert_expression_path!(parser, parser.tree.get(*condition), "condition");
+        assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_eq!(expressions.len(), 1);
+            let process_id = parser.unwrap_statement_expression(expressions[0]);
+            assert_node!(parser.tree, process_id, Expression::Call { left, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "process");
+            });
+        });
+
+        let annotations = parser.tree.get_annotations(expression_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "do-tail");
+                assert_eq!(*style, CommentStyle::Slash);
+            });
+        });
+    });
+}
+
+/// For-await head comments should attach to the iterator expression boundary.
+#[test]
+fn test_attach_for_await_head_comment_to_iterator_owner() {
+    let mut test = TestParser::new_with_options(
+        r"for await (const item of stream) // for-head
+{
+  consume(item)
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let for_each_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, for_each_id, Expression::ForEach { asynchrony, iterator, body, .. } => {
+        assert_eq!(*asynchrony, Asynchrony::Async);
+        assert_expression_path!(parser, parser.tree.get(*iterator), "stream");
+
+        let iterator_annotations = parser.tree.get_annotations(iterator.id);
+        assert_eq!(iterator_annotations.len(), 1);
+        assert_node!(parser.tree, iterator_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "for-head");
+                assert_eq!(*style, CommentStyle::Slash);
+            });
+        });
+
+        assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_eq!(expressions.len(), 1);
+            let consume_id = parser.unwrap_statement_expression(expressions[0]);
+            assert_node!(parser.tree, consume_id, Expression::Call { left, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "consume");
+            });
+        });
+    });
+}
+
 /// Infix seam comments after `as` should attach to the right type as a prefix.
 #[test]
 fn test_attach_as_assertion_trailing_line_comment_to_cast_boundary() {
@@ -1855,16 +2203,7 @@ number",
                     );
 
                     let left_annotations = parser.tree.get_annotations(left.id);
-                    assert!(
-                        left_annotations.iter().all(|annotation_id| {
-                            let Annotation::Comment { node, .. } = parser.tree.get(*annotation_id) else {
-                                return true;
-                            };
-                            let comment = parser.tree.get::<Comment>(*node);
-                            parser.strings.get(comment.string) != "as-tail"
-                        }),
-                        "as-tail should not attach to the left expression"
-                    );
+                    assert!(left_annotations.is_empty());
 
                     assert_expression_path!(parser, parser.tree.get(*left), "source");
                 });
@@ -1872,7 +2211,6 @@ number",
         }
     );
 }
-
 /// Infix seam comments after `satisfies` should attach to the right type as a prefix.
 #[test]
 fn test_attach_satisfies_trailing_line_comment_to_operator_boundary() {
@@ -1911,16 +2249,7 @@ Record<string, number>",
                     );
 
                     let left_annotations = parser.tree.get_annotations(value_id.id);
-                    assert!(
-                        left_annotations.iter().all(|annotation_id| {
-                            let Annotation::Comment { node, .. } = parser.tree.get(*annotation_id) else {
-                                return true;
-                            };
-                            let comment = parser.tree.get::<Comment>(*node);
-                            parser.strings.get(comment.string) != "sat-tail"
-                        }),
-                        "sat-tail should not attach to the full type-binary owner"
-                    );
+                    assert!(left_annotations.is_empty());
                 });
             });
         }
@@ -1959,16 +2288,7 @@ fn test_attach_type_binary_block_comments_to_right_type_prefix() {
                 );
 
                 let left_annotations = parser.tree.get_annotations(left.id);
-                assert!(
-                    left_annotations.into_iter().all(|annotation_id| {
-                        let Annotation::Comment { node, .. } = parser.tree.get(annotation_id) else {
-                            return true;
-                        };
-                        let Comment { string, .. } = parser.tree.get(*node);
-                        parser.strings.get(*string) != "between"
-                    }),
-                    "between should not attach to the left value expression"
-                );
+                assert!(left_annotations.is_empty());
             });
         });
     });
@@ -1994,16 +2314,7 @@ fn test_attach_type_binary_block_comments_to_right_type_prefix() {
                 );
 
                 let left_annotations = parser.tree.get_annotations(left.id);
-                assert!(
-                    left_annotations.into_iter().all(|annotation_id| {
-                        let Annotation::Comment { node, .. } = parser.tree.get(annotation_id) else {
-                            return true;
-                        };
-                        let Comment { string, .. } = parser.tree.get(*node);
-                        parser.strings.get(*string) != "sat-between"
-                    }),
-                    "sat-between should not attach to the left value expression"
-                );
+                assert!(left_annotations.is_empty());
             });
         });
     });
@@ -2599,21 +2910,12 @@ fn test_attach_optional_call_boundary_line_comment_once_in_parse_mode() {
                 let callee_annotations = assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
                     parser.tree.get_annotations(left.id)
                 });
-                assert_eq!(
-                    call_annotations.len() + maybe_annotations.len() + callee_annotations.len(),
-                    1
-                );
-
-                let annotation = if !call_annotations.is_empty() {
-                    call_annotations[0]
-                } else if !maybe_annotations.is_empty() {
-                    maybe_annotations[0]
-                } else {
-                    callee_annotations[0]
-                };
+                assert!(call_annotations.is_empty());
+                assert!(maybe_annotations.is_empty());
+                assert_eq!(callee_annotations.len(), 1);
                 assert_node!(
                     parser.tree,
-                    annotation,
+                    callee_annotations[0],
                     Annotation::Comment { node, position } => {
                         assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
@@ -2641,15 +2943,11 @@ fn test_attach_optional_call_trailing_comment_once_in_parse_mode() {
         Expression::Statement(statement_id) => {
             let statement_annotations = parser.tree.get_annotations(expressions[0].id);
             let call_annotations = parser.tree.get_annotations(statement_id.id);
-            assert_eq!(statement_annotations.len() + call_annotations.len(), 1);
-            let annotation = if !statement_annotations.is_empty() {
-                statement_annotations[0]
-            } else {
-                call_annotations[0]
-            };
+            assert_eq!(statement_annotations.len(), 1);
+            assert!(call_annotations.is_empty());
             assert_node!(
                 parser.tree,
-                annotation,
+                statement_annotations[0],
                 Annotation::Comment { node, position } => {
                     assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
@@ -2929,17 +3227,7 @@ fn test_attach_format_ignore_range_comments_to_call_arguments() {
             );
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
                 let value_annotations = parser.tree.get_annotations(value.id);
-                assert!(
-                    value_annotations.iter().all(|annotation_id| {
-                        !matches!(
-                            parser.tree.get::<Annotation>(*annotation_id),
-                            Annotation::Comment { node, .. }
-                                if parser.strings.get(parser.tree.get::<Comment>(*node).string)
-                                    == "format-ignore-start"
-                        )
-                    }),
-                    "format-ignore-start should not attach to argument value"
-                );
+                assert!(value_annotations.is_empty());
             });
 
             // // format-ignore-end
@@ -2964,17 +3252,7 @@ fn test_attach_format_ignore_range_comments_to_call_arguments() {
             );
             assert_node!(parser.tree, dynamic_arguments[3], Argument::Positional { value, .. } => {
                 let value_annotations = parser.tree.get_annotations(value.id);
-                assert!(
-                    value_annotations.iter().all(|annotation_id| {
-                        !matches!(
-                            parser.tree.get::<Annotation>(*annotation_id),
-                            Annotation::Comment { node, .. }
-                                if parser.strings.get(parser.tree.get::<Comment>(*node).string)
-                                    == "format-ignore-end"
-                        )
-                    }),
-                    "format-ignore-end should not attach to argument value"
-                );
+                assert!(value_annotations.is_empty());
             });
         }
     );
@@ -3081,31 +3359,11 @@ value   =   compute(  1,  2)"#,
     // call(...); value = compute(...)
     assert_eq!(expressions.len(), 2);
 
-    // // @ts-expect-error keep spacing
-    let mut expect_error_owners: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    // // @ts-ignore
-    let mut ignore_owners: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-
-    for (node_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get(*annotation_id) else {
-                continue;
-            };
-            let comment_text = parser.strings.get(parser.tree.get::<Comment>(*node).string);
-            if comment_text == "@ts-expect-error keep spacing" {
-                expect_error_owners.push((*node_id, *annotation_id));
-            } else if comment_text == "@ts-ignore" {
-                ignore_owners.push((*node_id, *annotation_id));
-            }
-        }
-    }
-
-    assert_eq!(expect_error_owners.len(), 1);
-    let (expect_error_owner, expect_error_annotation) = expect_error_owners[0];
-    assert_eq!(expect_error_owner, expressions[0].id);
+    let expect_error_annotations = parser.tree.get_annotations(expressions[0].id);
+    assert_eq!(expect_error_annotations.len(), 1);
     assert_node!(
         parser.tree,
-        expect_error_annotation,
+        expect_error_annotations[0],
         Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
@@ -3115,12 +3373,21 @@ value   =   compute(  1,  2)"#,
         }
     );
 
-    assert_eq!(ignore_owners.len(), 1);
-    let (ignore_owner, ignore_annotation) = ignore_owners[0];
-    assert_eq!(ignore_owner, expressions[1].id);
+    let ignore_annotations = parser.tree.get_annotations(expressions[1].id);
+    assert_eq!(ignore_annotations.len(), 2);
     assert_node!(
         parser.tree,
-        ignore_annotation,
+        ignore_annotations[0],
+        Annotation::Blank { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Blank { lines } => {
+                assert_eq!(*lines, 1);
+            });
+        }
+    );
+    assert_node!(
+        parser.tree,
+        ignore_annotations[1],
         Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
@@ -3527,28 +3794,10 @@ fn test_attach_declaration_body_boundary_comment_on_declaration_owner() {
         expression_id,
         Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class { .. } => {});
-
-            // locate the declaration marker comment globally and verify owner and position
-            let mut marker_matches = Vec::new();
-            for (owner_id, annotations) in parser.tree.get_all_annotations() {
-                for annotation_id in annotations {
-                    let Annotation::Comment { node, position } = parser.tree.get(*annotation_id) else {
-                        continue;
-                    };
-                    let comment = parser.tree.get::<Comment>(*node);
-                    let comment_text = parser.strings.get(comment.string);
-                    if comment_text == "declaration-body" {
-                        marker_matches.push((*owner_id, *annotation_id, *position, comment.style));
-                    }
-                }
-            }
-
-            assert_eq!(marker_matches.len(), 1);
-            let (owner_id, annotation_id, position, style) = marker_matches[0];
-            assert_eq!(owner_id, declaration_id.id);
-            assert_eq!(position, AnnotationPosition::BlockInfix);
-            assert_eq!(style, CommentStyle::Star);
-            assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
+            let annotations = parser.tree.get_annotations(declaration_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
                 assert_node!(parser.tree, *node, Comment { string, .. } => {
                     assert_string!(parser, *string, "declaration-body");
                 });
@@ -3611,35 +3860,20 @@ fn test_attach_interface_method_return_separator_comment_to_return_type_prefix()
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+    let member_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {
             assert_eq!(members.len(), 1);
-            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                let return_type_id = signature.return_type.expect("expected return type");
-                assert_expression_path!(parser, parser.tree.get(return_type_id), "Promise");
-            });
-        });
+            members[0]
+        })
     });
-    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "return-tail" {
-                comment_matches.push((*owner_id, *annotation_id));
-            }
-        }
-    }
-
-    assert_eq!(comment_matches.len(), 1, "expected one return-tail comment");
-    let (owner_id, annotation_id) = comment_matches[0];
-    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
-    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Promise");
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+    let return_type_id = assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {
+        let method_return_type_id = signature.return_type.expect("expected return type");
+        assert_expression_path!(parser, parser.tree.get(method_return_type_id), "Promise");
+        method_return_type_id
+    });
+    let annotations = parser.tree.get_annotations(return_type_id.id);
+    assert_eq!(annotations.len(), 1, "expected one return-tail comment");
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::LinePrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
@@ -3664,40 +3898,22 @@ fn test_attach_interface_method_parameter_trailing_comment_to_parameter_tail() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+    let member_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {
             assert_eq!(members.len(), 1);
-            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                assert_eq!(signature.dynamic_parameters.len(), 1);
-                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
-                    assert_string!(parser, *name, "value");
-                });
-            });
+            members[0]
+        })
+    });
+    let parameter_id = assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {
+        assert_eq!(signature.dynamic_parameters.len(), 1);
+        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+            assert_string!(parser, *name, "value");
         });
+        signature.dynamic_parameters[0]
     });
-
-    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "value-tail" {
-                comment_matches.push((*owner_id, *annotation_id));
-            }
-        }
-    }
-
-    assert_eq!(comment_matches.len(), 1, "expected one value-tail comment");
-    let (owner_id, annotation_id) = comment_matches[0];
-    let owner_parameter_id = LocalNodeId::<Parameter>::new(owner_id);
-    assert_node!(parser.tree, owner_parameter_id, Parameter::Named { name, .. } => {
-        assert_string!(parser, *name, "value");
-    });
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+    let annotations = parser.tree.get_annotations(parameter_id.id);
+    assert_eq!(annotations.len(), 1, "expected one value-tail comment");
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
@@ -3721,33 +3937,17 @@ fn test_attach_mapped_type_value_separator_comment_to_value_prefix() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+    let mapped_value_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
             assert_node!(parser.tree, *value, Expression::TypeMapped { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
-            });
-        });
+                *value
+            })
+        })
     });
-    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "mapped-line" {
-                comment_matches.push((*owner_id, *annotation_id));
-            }
-        }
-    }
-
-    assert_eq!(comment_matches.len(), 1, "expected one mapped-line comment");
-    let (owner_id, annotation_id) = comment_matches[0];
-    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
-    assert_node!(parser.tree, owner_expression_id, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+    let annotations = parser.tree.get_annotations(mapped_value_id.id);
+    assert_eq!(annotations.len(), 1, "expected one mapped-line comment");
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::LinePrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
@@ -3770,37 +3970,18 @@ fn test_attach_type_conditional_branch_comments_to_branch_type_prefixes() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+    let (then_type_id, else_type_id) = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
             assert_node!(parser.tree, *value, Expression::TypeConditional { then_type, else_type, .. } => {
                 assert_node!(parser.tree, *then_type, Expression::TypeLiteral(TypeLiteral::Number) => {});
                 assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
-            });
-        });
+                (*then_type, *else_type)
+            })
+        })
     });
-
-    let mut true_note_match: Option<(u32, LocalNodeId<Annotation>)> = None;
-    let mut false_note_match: Option<(u32, LocalNodeId<Annotation>)> = None;
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "true-note" {
-                true_note_match = Some((*owner_id, *annotation_id));
-            } else if comment_text == "false-note" {
-                false_note_match = Some((*owner_id, *annotation_id));
-            }
-        }
-    }
-
-    let (true_owner_id, true_annotation_id) = true_note_match.expect("expected true-note comment");
-    let true_owner_expression_id = LocalNodeId::<Expression>::new(true_owner_id);
-    assert_node!(parser.tree, true_owner_expression_id, Expression::TypeLiteral(TypeLiteral::Number) => {});
-    assert_node!(parser.tree, true_annotation_id, Annotation::Comment { node, position } => {
+    let then_annotations = parser.tree.get_annotations(then_type_id.id);
+    assert_eq!(then_annotations.len(), 1);
+    assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::LinePrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Star);
@@ -3808,11 +3989,9 @@ fn test_attach_type_conditional_branch_comments_to_branch_type_prefixes() {
         });
     });
 
-    let (false_owner_id, false_annotation_id) =
-        false_note_match.expect("expected false-note comment");
-    let false_owner_expression_id = LocalNodeId::<Expression>::new(false_owner_id);
-    assert_node!(parser.tree, false_owner_expression_id, Expression::TypeLiteral(TypeLiteral::Boolean) => {});
-    assert_node!(parser.tree, false_annotation_id, Annotation::Comment { node, position } => {
+    let else_annotations = parser.tree.get_annotations(else_type_id.id);
+    assert_eq!(else_annotations.len(), 1);
+    assert_node!(parser.tree, else_annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::LinePrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Star);
@@ -3842,35 +4021,23 @@ interface Shape {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+    let declaration_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Interface { descriptor, .. } => {
             assert_eq!(descriptor.export, Some(destack_ast::DependencyMode::Item));
             assert_string!(parser, descriptor.name.unwrap().string(), "Shape");
         });
+        *declaration_id
     });
 
-    // locate the export marker comment and ensure it stays on the declaration boundary
-    let mut export_head_matches = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "export-head" {
-                export_head_matches.push((*owner_id, *position));
-            }
-        }
-    }
-    assert_eq!(export_head_matches.len(), 1);
-    let (owner_id, position) = export_head_matches[0];
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_eq!(owner_id, declaration_id.id);
+    let annotations = parser.tree.get_annotations(declaration_id.id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "export-head");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
     });
-    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
 }
 
 /// Class heritage boundary comments should stay on extends and implements owners.
@@ -3890,79 +4057,47 @@ B // impl-tail
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    let (base_type_id, first_implements_type_id, second_implements_type_id, declaration_id) =
-        match parser.tree.get(expression_id) {
-            Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
-                Declaration::Class { heritage, .. } => {
-                    let extends_types = heritage.extends_types.as_ref().expect("expected extends");
-                    let implements_types = heritage
-                        .implements_types
-                        .as_ref()
-                        .expect("expected implements");
-                    assert_eq!(extends_types.len(), 1);
-                    assert_eq!(implements_types.len(), 2);
-                    (
-                        extends_types[0],
-                        implements_types[0],
-                        implements_types[1],
-                        *declaration_id,
-                    )
-                }
-                _ => panic!("expected class declaration"),
-            },
-            _ => panic!("expected declaration expression"),
-        };
-
-    let mut base_tail_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
-    let mut impl_head_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
-    let mut impl_tail_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "base-tail" {
-                base_tail_matches.push((*owner_id, *annotation_id, *position));
-            } else if comment_text == "impl-head" {
-                impl_head_matches.push((*owner_id, *annotation_id, *position));
-            } else if comment_text == "impl-tail" {
-                impl_tail_matches.push((*owner_id, *annotation_id, *position));
-            }
+    let (base_type_id, first_implements_type_id, second_implements_type_id, declaration_id) = assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+                let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+                let implements_types = heritage
+                    .implements_types
+                    .as_ref()
+                    .expect("expected implements");
+                assert_eq!(extends_types.len(), 1);
+                assert_eq!(implements_types.len(), 2);
+                (extends_types[0], implements_types[0], implements_types[1], *declaration_id)
+            })
         }
-    }
+    );
 
-    assert_eq!(base_tail_matches.len(), 1, "expected one base-tail comment");
-    assert_eq!(impl_head_matches.len(), 1, "expected one impl-head comment");
-    assert_eq!(impl_tail_matches.len(), 1, "expected one impl-tail comment");
-
-    let (base_owner_id, base_annotation_id, base_position) = base_tail_matches[0];
-    assert_eq!(base_owner_id, base_type_id.id);
-    assert_eq!(base_position, AnnotationPosition::LinePostfixBoundary);
-    assert_node!(parser.tree, base_annotation_id, Annotation::Comment { node, .. } => {
+    let base_annotations = parser.tree.get_annotations(base_type_id.id);
+    assert_eq!(base_annotations.len(), 1);
+    assert_node!(parser.tree, base_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "base-tail");
         });
     });
 
-    let (impl_head_owner_id, impl_head_annotation_id, impl_head_position) = impl_head_matches[0];
-    assert_eq!(impl_head_owner_id, first_implements_type_id.id);
-    assert_eq!(impl_head_position, AnnotationPosition::BlockPrefix);
-    assert_node!(parser.tree, impl_head_annotation_id, Annotation::Comment { node, .. } => {
+    let first_impl_annotations = parser.tree.get_annotations(first_implements_type_id.id);
+    assert_eq!(first_impl_annotations.len(), 1);
+    assert_node!(parser.tree, first_impl_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "impl-head");
         });
     });
 
-    let (impl_tail_owner_id, impl_tail_annotation_id, impl_tail_position) = impl_tail_matches[0];
-    assert_eq!(impl_tail_owner_id, second_implements_type_id.id);
-    assert_eq!(impl_tail_position, AnnotationPosition::LinePostfixBoundary);
-    assert_node!(parser.tree, impl_tail_annotation_id, Annotation::Comment { node, .. } => {
+    let second_impl_annotations = parser.tree.get_annotations(second_implements_type_id.id);
+    assert_eq!(second_impl_annotations.len(), 1);
+    assert_node!(parser.tree, second_impl_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "impl-tail");
@@ -3971,15 +4106,7 @@ B // impl-tail
 
     // no declaration-level ownership for heritage seam comments
     let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
-    for annotation_id in declaration_annotations {
-        assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
-            let comment = parser.tree.get::<Comment>(*node);
-            let text = parser.strings.get(comment.string);
-            assert_ne!(text, "base-tail");
-            assert_ne!(text, "impl-head");
-            assert_ne!(text, "impl-tail");
-        });
-    }
+    assert!(declaration_annotations.is_empty());
 }
 
 /// Class extends-tail comments should stay attached to the superclass expression.
@@ -3997,43 +4124,18 @@ fn test_attach_class_superclass_boundary_comment_to_super_type() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    let superclass_type_id = match parser.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
-            Declaration::Class { heritage, .. } => {
-                let extends_types = heritage.extends_types.as_ref().expect("expected extends");
-                assert_eq!(extends_types.len(), 1);
-                extends_types[0]
-            }
-            _ => panic!("expected class declaration"),
-        },
-        _ => panic!("expected declaration expression"),
-    };
+    let superclass_type_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends");
+            assert_eq!(extends_types.len(), 1);
+            extends_types[0]
+        })
+    });
 
-    let mut extends_tail_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "extends-tail" {
-                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                extends_tail_matches.push((*owner_id, *annotation_id));
-            }
-        }
-    }
-
-    assert_eq!(
-        extends_tail_matches.len(),
-        1,
-        "expected one extends-tail comment"
-    );
-    let (owner_id, annotation_id) = extends_tail_matches[0];
-    assert_eq!(owner_id, superclass_type_id.id);
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
+    let annotations = parser.tree.get_annotations(superclass_type_id.id);
+    assert_eq!(annotations.len(), 1, "expected one extends-tail comment");
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "extends-tail");
@@ -4057,73 +4159,28 @@ Second // impl-second
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    let (first_implements_type_id, second_implements_type_id) = match parser.tree.get(expression_id)
-    {
-        Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
-            Declaration::Class { heritage, .. } => {
-                let implements_types = heritage
-                    .implements_types
-                    .as_ref()
-                    .expect("expected implements");
-                assert_eq!(implements_types.len(), 2);
-                (implements_types[0], implements_types[1])
-            }
-            _ => panic!("expected class declaration"),
-        },
-        _ => panic!("expected declaration expression"),
-    };
+    let (first_implements_type_id, second_implements_type_id) = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+            let implements_types = heritage
+                .implements_types
+                .as_ref()
+                .expect("expected implements");
+            assert_eq!(implements_types.len(), 2);
+            (implements_types[0], implements_types[1])
+        })
+    });
 
-    let mut impl_first_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> =
-        Vec::new();
-    let mut impl_second_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> =
-        Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "impl-first" {
-                impl_first_matches.push((*owner_id, *annotation_id, *position));
-            } else if comment_text == "impl-second" {
-                impl_second_matches.push((*owner_id, *annotation_id, *position));
-            }
-        }
-    }
-
-    assert_eq!(
-        impl_first_matches.len(),
-        1,
-        "expected one impl-first comment"
-    );
-    assert_eq!(
-        impl_second_matches.len(),
-        1,
-        "expected one impl-second comment"
-    );
-
-    let (impl_first_owner_id, impl_first_annotation_id, impl_first_position) =
-        impl_first_matches[0];
-    assert_eq!(impl_first_owner_id, second_implements_type_id.id);
-    assert_eq!(impl_first_position, AnnotationPosition::BlockPrefix);
-    assert_node!(parser.tree, impl_first_annotation_id, Annotation::Comment { node, .. } => {
+    let second_annotations = parser.tree.get_annotations(second_implements_type_id.id);
+    assert_eq!(second_annotations.len(), 2);
+    assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "impl-first");
         });
     });
-
-    let (impl_second_owner_id, impl_second_annotation_id, impl_second_position) =
-        impl_second_matches[0];
-    assert_eq!(impl_second_owner_id, second_implements_type_id.id);
-    assert_eq!(
-        impl_second_position,
-        AnnotationPosition::LinePostfixBoundary
-    );
-    assert_node!(parser.tree, impl_second_annotation_id, Annotation::Comment { node, .. } => {
+    assert_node!(parser.tree, second_annotations[1], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "impl-second");
@@ -4132,14 +4189,7 @@ Second // impl-second
 
     // ensure the head type does not receive list-separator comments
     let first_annotations = parser.tree.get_annotations(first_implements_type_id.id);
-    for annotation_id in first_annotations {
-        assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
-            let comment = parser.tree.get::<Comment>(*node);
-            let text = parser.strings.get(comment.string);
-            assert_ne!(text, "impl-first");
-            assert_ne!(text, "impl-second");
-        });
-    }
+    assert!(first_annotations.is_empty());
 }
 
 /// Declare-class head comments before generics should stay on the declaration owner.
@@ -4157,35 +4207,15 @@ fn test_attach_declare_class_head_comment_before_generics_to_declaration_owner()
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    let declaration_id = match parser.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class { .. } => {});
-            *declaration_id
-        }
-        _ => panic!("expected declaration expression"),
-    };
+    let declaration_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { .. } => {});
+        *declaration_id
+    });
 
-    let mut box_head_matches: Vec<(u32, LocalNodeId<Annotation>, AnnotationPosition)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "box-head" {
-                box_head_matches.push((*owner_id, *annotation_id, *position));
-            }
-        }
-    }
-
-    assert_eq!(box_head_matches.len(), 1, "expected one box-head comment");
-    let (owner_id, annotation_id, position) = box_head_matches[0];
-    assert_eq!(owner_id, declaration_id.id);
-    assert_eq!(position, AnnotationPosition::BlockInfix);
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, .. } => {
+    let annotations = parser.tree.get_annotations(declaration_id.id);
+    assert_eq!(annotations.len(), 1, "expected one box-head comment");
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockInfix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "box-head");
@@ -4256,51 +4286,30 @@ Second | Third",
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+    let second_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
-            });
-        });
+                assert_expression_path!(parser, parser.tree.get(*right), "Third");
+                assert_node!(parser.tree, *left, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "First");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Second");
+                    *right
+                })
+            })
+        })
     });
 
-    let mut union_line_comment_owner_id: Option<u32> = None;
-    let mut union_line_comment_annotation_id: Option<LocalNodeId<Annotation>> = None;
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "union-line" {
-                union_line_comment_owner_id = Some(*owner_id);
-                union_line_comment_annotation_id = Some(*annotation_id);
-                break;
-            }
-        }
-    }
-
-    let union_line_comment_owner_id =
-        union_line_comment_owner_id.expect("expected union line comment owner");
-    let union_line_comment_annotation_id =
-        union_line_comment_annotation_id.expect("expected union line comment annotation");
-    assert_node!(parser.tree, union_line_comment_annotation_id, Annotation::Comment { node, position } => {
+    let annotations = parser.tree.get_annotations(second_id.id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::BlockPrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "union-line");
         });
     });
-
-    let union_line_owner_expression_id =
-        LocalNodeId::<Expression>::new(union_line_comment_owner_id);
-    assert_expression_path!(
-        parser,
-        parser.tree.get(union_line_owner_expression_id),
-        "Second"
-    );
 }
 
 /// Leading-pipe own-line comments should attach once to the left union arm postfix.
@@ -4400,26 +4409,27 @@ Second",
     let expressions = parser.parse();
     assert_eq!(expressions.len(), 1);
 
-    let mut match_result = None;
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let text = parser.strings.get(comment.string);
-            if text == "intersection-line" {
-                match_result = Some((*owner_id, *position));
-            }
-        }
-    }
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let right_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                assert_expression_path!(parser, parser.tree.get(*left), "First");
+                assert_expression_path!(parser, parser.tree.get(*right), "Second");
+                *right
+            })
+        })
+    });
 
-    let (owner_id, position) = match_result.expect("expected intersection-line annotation");
-    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
-    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Second");
-    assert_eq!(position, AnnotationPosition::BlockPrefix);
+    let annotations = parser.tree.get_annotations(right_id.id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "intersection-line");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
+    });
 }
 
 /// Decorator-adjacent comments should preserve stable ownership order on the statement node.
@@ -4500,35 +4510,15 @@ fn test_attach_import_specifier_trailing_comment_to_first_item() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    let first_item_id = match parser.tree.get(expression_id) {
-        Expression::Import { items, .. } => {
-            assert_eq!(items.len(), 2);
-            items[0]
-        }
-        _ => panic!("expected import expression"),
-    };
+    let first_item_id = assert_node!(parser.tree, expression_id, Expression::Import { items, .. } => {
+        assert_eq!(items.len(), 2);
+        items[0]
+    });
+    assert_node!(parser.tree, first_item_id, DependencyItem { .. } => {});
 
-    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "first-spec" {
-                comment_matches.push((*owner_id, *annotation_id));
-            }
-        }
-    }
-
-    assert_eq!(comment_matches.len(), 1);
-    let (owner_id, annotation_id) = comment_matches[0];
-    assert_eq!(owner_id, first_item_id.id);
-    let owner_item_id = LocalNodeId::<DependencyItem>::new(owner_id);
-    assert_node!(parser.tree, owner_item_id, DependencyItem { .. } => {});
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+    let annotations = parser.tree.get_annotations(first_item_id.id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_string!(parser, *string, "first-spec");
@@ -4552,35 +4542,15 @@ fn test_attach_export_specifier_trailing_comment_to_first_item() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    let first_item_id = match parser.tree.get(expression_id) {
-        Expression::Export { items, .. } => {
-            assert_eq!(items.len(), 2);
-            items[0]
-        }
-        _ => panic!("expected export expression"),
-    };
+    let first_item_id = assert_node!(parser.tree, expression_id, Expression::Export { items, .. } => {
+        assert_eq!(items.len(), 2);
+        items[0]
+    });
+    assert_node!(parser.tree, first_item_id, DependencyItem { .. } => {});
 
-    let mut comment_matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "first-export" {
-                comment_matches.push((*owner_id, *annotation_id));
-            }
-        }
-    }
-
-    assert_eq!(comment_matches.len(), 1);
-    let (owner_id, annotation_id) = comment_matches[0];
-    assert_eq!(owner_id, first_item_id.id);
-    let owner_item_id = LocalNodeId::<DependencyItem>::new(owner_id);
-    assert_node!(parser.tree, owner_item_id, DependencyItem { .. } => {});
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
+    let annotations = parser.tree.get_annotations(first_item_id.id);
+    assert_eq!(annotations.len(), 1);
+    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
         assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_string!(parser, *string, "first-export");
@@ -4604,20 +4574,22 @@ fn test_attach_dynamic_import_source_comment_to_target_expression() {
     assert_eq!(expressions.len(), 1);
 
     let expression_id = parser.unwrap_statement_expression(expressions[0]);
-    let mut target_expression_id = None;
-    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+    let target_expression_id = assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
             let value_id = value.expect("expected initializer");
-            assert_node!(parser.tree, value_id, Expression::Import { target, .. } => {
-                if let ImportTarget::Expression { target } = target {
-                    target_expression_id = Some(*target);
+            assert_node!(
+                parser.tree,
+                value_id,
+                Expression::Import {
+                    target: ImportTarget::Expression { target },
+                    ..
+                } => {
+                    *target
                 }
-            });
-        });
+            )
+        })
     });
-    let target_expression_id =
-        target_expression_id.expect("expected dynamic import expression target");
 
     let annotations = parser.tree.get_annotations(target_expression_id.id);
     assert_eq!(annotations.len(), 1);
@@ -4832,47 +4804,32 @@ fn test_attach_line_prefix_infix_postfix_to_expression() {
             assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
             assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
                 assert_eq!(*operator, BinaryOperator::And);
+                let left_annotations = parser.tree.get_annotations(left.id);
+                assert_eq!(left_annotations.len(), 2);
+                assert_node!(parser.tree, left_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_string!(parser, *string, "Pre-A comment");
+                        assert_eq!(*style, CommentStyle::Star);
+                    });
+                });
+                assert_node!(parser.tree, left_annotations[1], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_string!(parser, *string, "A comment");
+                        assert_eq!(*style, CommentStyle::Star);
+                    });
+                });
 
-                // comment lookup
-                let mut pre_a_comment_matches = Vec::new();
-                let mut a_comment_matches = Vec::new();
-                let mut b_comment_matches = Vec::new();
-                for (owner_id, annotations) in parser.tree.get_all_annotations() {
-                    for annotation_id in annotations {
-                        let Annotation::Comment { node, position } = parser.tree.get(*annotation_id) else {
-                            continue;
-                        };
-                        let comment = parser.tree.get::<Comment>(*node);
-                        let comment_text = parser.strings.get(comment.string);
-                        if comment_text == "Pre-A comment" {
-                            pre_a_comment_matches.push((*owner_id, *position, comment.style));
-                        } else if comment_text == "A comment" {
-                            a_comment_matches.push((*owner_id, *position, comment.style));
-                        } else if comment_text == "B comment" {
-                            b_comment_matches.push((*owner_id, *position, comment.style));
-                        }
-                    }
-                }
-
-                assert_eq!(pre_a_comment_matches.len(), 1);
-                assert_eq!(a_comment_matches.len(), 1);
-                assert_eq!(b_comment_matches.len(), 1);
-
-                let (pre_a_owner_id, pre_a_position, pre_a_style) = pre_a_comment_matches[0];
-                let (a_owner_id, a_position, a_style) = a_comment_matches[0];
-                let (b_owner_id, b_position, b_style) = b_comment_matches[0];
-
-                assert_eq!(pre_a_owner_id, left.id);
-                assert_eq!(pre_a_position, AnnotationPosition::LinePrefix);
-                assert_eq!(pre_a_style, CommentStyle::Star);
-
-                assert_eq!(a_owner_id, left.id);
-                assert_eq!(a_position, AnnotationPosition::LinePostfix);
-                assert_eq!(a_style, CommentStyle::Star);
-
-                assert_eq!(b_owner_id, right.id);
-                assert_eq!(b_position, AnnotationPosition::LinePostfixBoundary);
-                assert_eq!(b_style, CommentStyle::Star);
+                let right_annotations = parser.tree.get_annotations(right.id);
+                assert_eq!(right_annotations.len(), 1);
+                assert_node!(parser.tree, right_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_string!(parser, *string, "B comment");
+                        assert_eq!(*style, CommentStyle::Star);
+                    });
+                });
 
                 // A
                 assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
@@ -5076,10 +5033,10 @@ a: int32 // doc, struct field infix
         assert_node!(parser.tree, *node, Declaration::Struct { members, .. } => {
             // a: int32
             assert_eq!(members.len(), 1);
-            assert_node!(parser.tree, members[0], Member::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
-                assert_string!(parser, *name, "a");
-                let annotations = parser.tree.get_annotations(members[0].id);
-                assert_eq!(annotations.len(), 4);
+                assert_node!(parser.tree, members[0], Member::Field { key: Some(Key::Name(Name::Identifier(name))), .. } => {
+                    assert_string!(parser, *name, "a");
+                    let annotations = parser.tree.get_annotations(members[0].id);
+                    assert_eq!(annotations.len(), 4);
 
                 // doc block prefix
                 // struct field\ndoc, struct field continued
@@ -5382,39 +5339,35 @@ fn test_attach_array_boundary_comment_owners_and_positions() {
         })
     });
 
-    let mut first_tail = None;
-    let mut second_head = None;
-    let mut third_tail = None;
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let text = parser.strings.get(comment.string);
-            match text {
-                "first-tail" => first_tail = Some((*owner_id, *position)),
-                "second-head" => second_head = Some((*owner_id, *position)),
-                "third-tail" => third_tail = Some((*owner_id, *position)),
-                _ => {}
-            }
-        }
-    }
+    let first_annotations = parser.tree.get_annotations(first_element_id.id);
+    assert_eq!(first_annotations.len(), 1);
+    assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "first-tail");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
+    });
 
-    assert_eq!(
-        first_tail,
-        Some((first_element_id.id, AnnotationPosition::LinePostfixBoundary))
-    );
-    assert_eq!(
-        second_head,
-        Some((second_element_id.id, AnnotationPosition::LinePrefix))
-    );
-    assert_eq!(
-        third_tail,
-        Some((third_element_id.id, AnnotationPosition::LinePostfixBoundary))
-    );
+    let second_annotations = parser.tree.get_annotations(second_element_id.id);
+    assert_eq!(second_annotations.len(), 1);
+    assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "second-head");
+            assert_eq!(*style, CommentStyle::Star);
+        });
+    });
+
+    let third_annotations = parser.tree.get_annotations(third_element_id.id);
+    assert_eq!(third_annotations.len(), 1);
+    assert_node!(parser.tree, third_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "third-tail");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
+    });
 }
 
 /// Object property trailing comments should stay attached to the property boundary owner.
@@ -5444,37 +5397,23 @@ fn test_attach_object_property_trailing_comment_owners_and_positions() {
         })
     });
 
-    let mut first_tail = None;
-    let mut second_tail = None;
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let text = parser.strings.get(comment.string);
-            match text {
-                "first-tail" => first_tail = Some((*owner_id, *position)),
-                "second-tail" => second_tail = Some((*owner_id, *position)),
-                _ => {}
-            }
-        }
-    }
+    let first_annotations = parser.tree.get_annotations(first_property_id.id);
+    assert_eq!(first_annotations.len(), 1);
+    assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "first-tail");
+            assert_eq!(*style, CommentStyle::Slash);
+        });
+    });
 
-    assert_eq!(
-        first_tail,
-        Some((
-            first_property_id.id,
-            AnnotationPosition::LinePostfixBoundary
-        ))
-    );
-    assert_eq!(
-        second_tail,
-        Some((
-            second_property_id.id,
-            AnnotationPosition::LinePostfixBoundary
-        ))
-    );
+    let second_annotations = parser.tree.get_annotations(second_property_id.id);
+    assert_eq!(second_annotations.len(), 1);
+    assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_string!(parser, *string, "second-tail");
+            assert_eq!(*style, CommentStyle::Star);
+        });
+    });
 }

@@ -92,6 +92,9 @@ call(first, /* next-arg: line-prefix on second */ second)
 type Value = First | /* next-type: line-prefix on Second */ Second
 
 cond ? /* then-branch: line-prefix on onTrue */ onTrue : onFalse
+
+label: // next-statement: line-prefix on labelled body
+while (true) {}
 ```
 
 #### before-separator trivia binds to the previous item

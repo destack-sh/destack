@@ -245,7 +245,7 @@ impl Parser {
         let target_has_annotations = !self.tree.get_annotations(target_expression.id).is_empty();
         let target = match self.tree.get(target_expression) {
             Expression::ScalarLiteral(destack_ast::ScalarLiteral::String(target))
-                if !target_has_annotations =>
+                if !target_has_annotations && !self.token_stream.has_comment_trivia_tokens() =>
             {
                 ImportTarget::String(*target)
             }

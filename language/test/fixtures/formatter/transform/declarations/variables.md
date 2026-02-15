@@ -111,7 +111,10 @@ const { a = 1, b: { c = 2 } } = value
 ```
 
 ```ds expected
-const { a = 1, b: { c = 2 } } = value;
+const {
+    a = 1,
+    b: { c = 2 },
+} = value;
 ```
 
 ### const with array defaults and holes
@@ -149,7 +152,9 @@ let a=1, b=2, c=3
 ```
 
 ```ds expected
-let a = 1, b = 2, c = 3;
+let a = 1,
+    b = 2,
+    c = 3;
 ```
 
 ## var

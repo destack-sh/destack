@@ -14,7 +14,7 @@ function* gen() { yield 1 }
 
 ```ds expected
 function* gen() {
-    yield 1
+    yield 1;
 }
 ```
 
@@ -28,6 +28,6 @@ function* gen() { yield* other() }
 
 ```ds expected
 function* gen() {
-    yield* other()
+    yield* other();
 }
 ```

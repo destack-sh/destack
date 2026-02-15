@@ -546,6 +546,31 @@ where
     }
 }
 
+/// Write one parameter type annotation with optional static parameter syntax.
+fn write_parameter_type_with_infix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
+    parameter_is_static: bool,
+    ty: Option<LocalNodeId<Expression>>,
+) -> FormatResult<bool> {
+    let Some(ty) = ty else {
+        return Ok(false);
+    };
+
+    write!(f, [f.context().block_infix_annotations(node_id)])?;
+    if parameter_is_static {
+        write!(f, [space(), Keyword::Extends, space(), ty])?;
+    } else {
+        let has_infix_annotations = f.context().has_infix_annotation(node_id);
+        if has_infix_annotations {
+            write!(f, [space(), token(":"), space(), ty])?;
+        } else {
+            write!(f, [token(":"), space(), ty])?;
+        }
+    }
+    Ok(true)
+}
+
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
@@ -556,8 +581,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
 
         let is_typescript = f.context().options.language_type.is_typescript();
         let parameter_is_static = is_typescript && parameter_is_static(f.context(), node_id);
-
-        match self {
+        let wrote_type_infix = match self {
             Parameter::Named {
                 modifiers,
                 name,
@@ -571,17 +595,13 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
-                if let Some(ty) = ty {
-                    if parameter_is_static {
-                        write!(f, [space(), Keyword::Extends, space(), ty])?;
-                    } else {
-                        write!(f, [token(":"), space(), ty])?;
-                    }
-                }
+                let wrote_type_infix =
+                    write_parameter_type_with_infix(f, node_id, parameter_is_static, *ty)?;
                 // default
                 if let Some(default) = default {
                     write!(f, [space(), token("="), space(), default])?;
                 }
+                wrote_type_infix
             }
             Parameter::Pattern {
                 modifiers,
@@ -596,17 +616,13 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // type
-                if let Some(ty) = ty {
-                    if parameter_is_static {
-                        write!(f, [space(), Keyword::Extends, space(), ty])?;
-                    } else {
-                        write!(f, [token(":"), space(), ty])?;
-                    }
-                }
+                let wrote_type_infix =
+                    write_parameter_type_with_infix(f, node_id, parameter_is_static, *ty)?;
                 // default
                 if let Some(default) = default {
                     write!(f, [space(), token("="), space(), default])?;
                 }
+                wrote_type_infix
             }
             Parameter::VariadicNamed {
                 modifiers,
@@ -620,13 +636,7 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // name
                 write!(f, [name])?;
                 // type
-                if let Some(ty) = ty {
-                    if parameter_is_static {
-                        write!(f, [space(), Keyword::Extends, space(), ty])?;
-                    } else {
-                        write!(f, [token(":"), space(), ty])?;
-                    }
-                }
+                write_parameter_type_with_infix(f, node_id, parameter_is_static, *ty)?
             }
             Parameter::VariadicPattern {
                 modifiers,
@@ -640,17 +650,15 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 // pattern
                 write!(f, [pattern])?;
                 // type
-                if let Some(ty) = ty {
-                    if parameter_is_static {
-                        write!(f, [space(), Keyword::Extends, space(), ty])?;
-                    } else {
-                        write!(f, [token(":"), space(), ty])?;
-                    }
-                }
+                write_parameter_type_with_infix(f, node_id, parameter_is_static, *ty)?
             }
-        }
+        };
 
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        if wrote_type_infix {
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        } else {
+            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        }
 
         Ok(())
     }

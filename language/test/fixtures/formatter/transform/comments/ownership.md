@@ -41,7 +41,8 @@ if (ready) // keep-condition
 ```
 
 ```ts expected
-if (ready) // keep-condition
+if (ready)
+    // keep-condition
     run();
 ```
 
@@ -89,7 +90,9 @@ type Value = string /* keep-union */ | number
 ```
 
 ```ts expected
-type Value = string /* keep-union */ | number;
+type Value =
+    | string /* keep-union */
+    | number;
 ```
 
 ### union arm doc block comment
@@ -104,11 +107,9 @@ export type Value = /** keep-doc
 ```
 
 ```ts expected
-export type Value =
-    /** keep-doc
+export type Value = /** keep-doc
      */
-    | { ok: true }
-    | { ok: false; value: bigint | null };
+    { ok: true } | { ok: false; value: bigint | null };
 ```
 
 ## Variable Declarations
@@ -125,7 +126,7 @@ declare const PAGE_PATH: string
 
 ```ts expected
 declare const PAGE_PATH: string;
-  //<- keep-marker
+    //<- keep-marker
 (() => {})();
 ```
 
@@ -143,9 +144,11 @@ const node = <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-imag
 const node = (
     <div>
         {
-            isVideo
-                ? <Video /> /* keep-video */
-                : <Image /> /* keep-image */
+            isVideo ? (
+                <Video />
+            ) : (
+                /* keep-video */ <Image />
+            ) /* keep-image */
         }
     </div>
 );

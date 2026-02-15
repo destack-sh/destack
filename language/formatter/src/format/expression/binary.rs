@@ -450,8 +450,38 @@ pub(super) fn union_source_has_leading_pipe(
 ) -> bool {
     let span = context.get_span(node_id);
     let source = context.get_span_str(span);
-    source.trim_start().starts_with('|')
+    if source.trim_start().starts_with('|')
         || previous_non_whitespace_before_span(context, span) == Some('|')
+    {
+        return true;
+    }
+
+    let mut current_id = node_id;
+    while let Some((parent_id, parent_type)) = context.get_parent(current_id) {
+        if parent_type != NodeType::Expression {
+            break;
+        }
+
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        let Expression::Parenthesized { expression } = context.tree.get(parent_expression_id)
+        else {
+            break;
+        };
+        if *expression != current_id {
+            break;
+        }
+
+        let parent_span = context.get_span(parent_expression_id);
+        let parent_source = context.get_span_str(parent_span);
+        let leading_operator = parenthesized_source_leading_type_grouping_operator(parent_source);
+        if leading_operator == Some(BinaryOperator::ElementwiseOr) {
+            return true;
+        }
+
+        current_id = parent_expression_id;
+    }
+
+    false
 }
 
 /// Return whether a binary operator participates in type union or intersection grouping.
