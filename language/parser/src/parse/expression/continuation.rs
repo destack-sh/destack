@@ -700,7 +700,7 @@ impl Parser {
                     self.advance_to(cursor_index);
                 }
 
-                let prefer_right_leading_boundary_ownership = self.options.in_type
+                let type_binary_operator_prefers_right_leading_seam = self.options.in_type
                     && matches!(
                         right_operator,
                         InfixOperator::Binary(
@@ -709,9 +709,7 @@ impl Parser {
                     );
 
                 // trailing annotations before the infix operator belong to the left operand
-                if !prefer_right_leading_boundary_ownership {
-                    self.bind_owner_trailing_default_at_current(left_expression_id.id);
-                }
+                self.bind_owner_trailing_default_at_current(left_expression_id.id);
 
                 // capture operator span before eating
                 let operator_start = self.mark_span();
@@ -719,6 +717,11 @@ impl Parser {
                 let operator_span = self.get_span_from(&operator_start);
 
                 self.eat_newlines_maybe()?; // allow newlines after infix operator
+                let right_boundary_cursor = if type_binary_operator_prefers_right_leading_seam {
+                    Some(self.scanner_cursor())
+                } else {
+                    None
+                };
 
                 // eat right expression
                 let subject_id = left_expression_id;
@@ -756,11 +759,11 @@ impl Parser {
                     right_options = right_options.in_type_conditional_right();
                 }
                 let right_expression_id = self.eat_expression(right_options)?;
-                if prefer_right_leading_boundary_ownership {
+                if let Some(right_boundary_cursor) = right_boundary_cursor {
                     self.bind_owner_leading_seam_at_token(
                         right_expression_id.id,
-                        cursor_index,
-                        newline_count,
+                        right_boundary_cursor.index,
+                        right_boundary_cursor.skipped_newline_count,
                         LeadingAnnotationKind::Type,
                     );
                 }
@@ -813,8 +816,14 @@ impl Parser {
                 .options
                 .not_in_position()
                 .in_ternary_condition()
-                .not_in_sequence_expression();
+                .not_in_sequence_expression()
+                .without_expression_leading_annotations();
             let then_expression_id = self.eat_expression(then_options)?;
+            self.bind_owner_wrapper_leading_seam_at_token(
+                then_expression_id.id,
+                then_cursor.index,
+                then_cursor.skipped_newline_count,
+            );
 
             // consume the ternary separator after scanner normalization
             let colon_cursor = self.scanner_cursor();
@@ -829,8 +838,17 @@ impl Parser {
             if else_cursor.index != self.pos_index() {
                 self.advance_to(else_cursor.index);
             }
-            let else_options = self.options.not_in_position().not_in_sequence_expression();
+            let else_options = self
+                .options
+                .not_in_position()
+                .not_in_sequence_expression()
+                .without_expression_leading_annotations();
             let else_expression_id = self.eat_expression(else_options)?;
+            self.bind_owner_wrapper_leading_seam_at_token(
+                else_expression_id.id,
+                else_cursor.index,
+                else_cursor.skipped_newline_count,
+            );
             self.bind_owner_trailing_seam_at_current(
                 else_expression_id.id,
                 TrailingAnnotationKind::PreserveLinePostfix,

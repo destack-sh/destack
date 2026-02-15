@@ -163,6 +163,24 @@ pub(super) fn parenthesized_has_leading_inner_comments(
     parenthesized_has_leading_inner_pattern(context, parenthesized_id, inner_expression_id, false)
 }
 
+/// Return whether source contains a newline between `(` and the inner expression.
+pub(super) fn parenthesized_has_leading_inner_newline(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parenthesized_span = context.get_span(parenthesized_id);
+    let inner_span = context.get_span(inner_expression_id);
+
+    let leading_start = parenthesized_span.start.saturating_add(1);
+    if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
+        return false;
+    }
+
+    let leading_span = Span::new(parenthesized_span.file, leading_start, inner_span.start);
+    context.has_newline(leading_span)
+}
+
 /// Return whether source contains leading comment or newline trivia between `(` and inner.
 fn parenthesized_has_leading_inner_pattern(
     context: &DestackFormatContext<'_>,
@@ -509,6 +527,10 @@ pub(super) fn should_drop_parenthesized_type_expression(
         return true;
     }
 
+    if !parenthesized_type_grouping_drop_is_safe_in_parent(context, node_id) {
+        return false;
+    }
+
     let node_span = context.get_span(node_id);
     let node_source = context.get_span_str(node_span);
     let leading_grouping_operator =
@@ -547,6 +569,25 @@ pub(super) fn should_drop_parenthesized_type_expression(
             Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
         ),
         _ => false,
+    }
+}
+
+/// Return whether dropping a parenthesized type grouping is safe in the parent expression context.
+fn parenthesized_type_grouping_drop_is_safe_in_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+        return true;
+    };
+    if parent_type != NodeType::Expression {
+        return true;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    match context.tree.get(parent_expression_id) {
+        Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => *left != node_id,
+        _ => true,
     }
 }
 

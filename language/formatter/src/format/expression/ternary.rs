@@ -217,6 +217,11 @@ pub(super) fn collect_ternary_colon_line_comments(
 
         for (branch_index, (_, then_id)) in branches.iter().enumerate() {
             let then_span = context.get_span(*then_id);
+            let else_expression_id = if branch_index + 1 < branches.len() {
+                Some(branches[branch_index + 1].0)
+            } else {
+                final_else
+            };
             let else_start = if branch_index + 1 < branches.len() {
                 context.get_span(branches[branch_index + 1].0).start
             } else {
@@ -226,6 +231,15 @@ pub(super) fn collect_ternary_colon_line_comments(
             };
 
             if comment_token.span.start >= then_span.end && comment_token.span.end <= else_start {
+                if else_expression_id.is_some_and(|else_id| {
+                    expression_has_matching_line_prefix_comment_span(
+                        context,
+                        else_id,
+                        comment_token.span,
+                    )
+                }) {
+                    break;
+                }
                 colon_line_comments[branch_index].push((comment_token.span.start, comment_source));
                 break;
             }
@@ -242,6 +256,33 @@ pub(super) fn collect_ternary_colon_line_comments(
                 .collect::<Vec<_>>()
         })
         .collect()
+}
+
+/// Return whether one expression already owns a line-prefix slash comment at `comment_span`.
+fn expression_has_matching_line_prefix_comment_span(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    comment_span: Span,
+) -> bool {
+    let Some(annotation_ids) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    annotation_ids.into_iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+        else {
+            return false;
+        };
+        if *position != AnnotationPosition::LinePrefix {
+            return false;
+        }
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        if comment.style != destack_ast::CommentStyle::Slash {
+            return false;
+        }
+        let annotation_span = context.get_span::<Annotation>(annotation_id);
+        annotation_span.start == comment_span.start && annotation_span.end == comment_span.end
+    })
 }
 
 /// Return whether a line comment appears after `:` on the same source line.
@@ -392,13 +433,20 @@ fn ternary_should_use_compact_tree_layout(
     final_else: Option<LocalNodeId<Expression>>,
     question_comments: &[Vec<String>],
     colon_comments: &[Vec<String>],
+    colon_line_comments: &[Vec<String>],
 ) -> bool {
     let has_separator_comments = question_comments
         .iter()
         .any(|comments| !comments.is_empty())
         || colon_comments.iter().any(|comments| !comments.is_empty());
+    let has_colon_line_comments = colon_line_comments.iter().any(|comments| !comments.is_empty());
+    let has_branch_prefix_annotations = branches.iter().any(|(_, then_expr)| {
+        context.has_prefix_annotation(*then_expr)
+    }) || final_else.is_some_and(|final_else_id| context.has_prefix_annotation(final_else_id));
 
     !has_separator_comments
+        && !has_colon_line_comments
+        && !has_branch_prefix_annotations
         && (branches
             .iter()
             .any(|(_, then_expr)| ternary_branch_is_tree_like(context, *then_expr))
@@ -638,6 +686,7 @@ pub(super) fn format_ternary(
         final_else,
         &question_comments,
         &colon_comments,
+        &colon_line_comments,
     );
 
     // format one-branch ternary

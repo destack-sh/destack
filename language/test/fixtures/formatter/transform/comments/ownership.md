@@ -75,8 +75,8 @@ type Value = string | // keep-union
 ```
 
 ```ts expected
-type Value = string
-    // keep-union
+type Value =
+    | string // keep-union
     | number;
 ```
 
@@ -89,9 +89,7 @@ type Value = string /* keep-union */ | number
 ```
 
 ```ts expected
-type Value = string
-    /* keep-union */
-    | number;
+type Value = string /* keep-union */ | number;
 ```
 
 ### union arm doc block comment

@@ -42,6 +42,33 @@ fn is_logical_binary_operator(operator: BinaryOperator) -> bool {
     )
 }
 
+/// Return whether an expression ends with a `//` postfix annotation.
+fn expression_has_line_postfix_slash_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let Annotation::Comment { node, position } = annotation else {
+            return false;
+        };
+
+        if !matches!(
+            position,
+            AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+        ) {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
+}
+
 /// Return whether mixed logical precedence should parenthesize the right expression.
 #[inline]
 fn is_mixed_logical_precedence_pair(
@@ -92,30 +119,7 @@ fn logical_left_has_line_postfix_slash_comment(
     operator: BinaryOperator,
     left: LocalNodeId<Expression>,
 ) -> bool {
-    if !is_logical_binary_operator(operator) {
-        return false;
-    }
-
-    let Some(annotations) = context.get_annotations(left) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        let Annotation::Comment { node, position } = annotation else {
-            return false;
-        };
-
-        if !matches!(
-            position,
-            AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
-        ) {
-            return false;
-        }
-
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
-        comment.style == destack_ast::CommentStyle::Slash
-    })
+    is_logical_binary_operator(operator) && expression_has_line_postfix_slash_comment(context, left)
 }
 
 /// Write one separating space after the left operand when no postfix trivia exists.
@@ -131,6 +135,114 @@ fn write_space_after_binary_left_if_needed<'ast>(
     }
 
     write!(f, [space()])
+}
+
+/// Collect right operand prefix comment or doc annotations that belong to one type seam.
+fn collect_type_operand_right_seam_prefix_annotation_ids(
+    context: &DestackFormatContext<'_>,
+    left: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
+) -> Option<Vec<LocalNodeId<Annotation>>> {
+    let Some(annotation_ids) = context.get_annotations(right) else {
+        return None;
+    };
+
+    let left_span = context.get_span(left);
+    let right_span = context.get_span(right);
+    let mut seam_annotation_ids = Vec::new();
+
+    for annotation_id in annotation_ids {
+        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let is_prefix = matches!(
+            annotation.position(),
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        );
+        if !is_prefix {
+            continue;
+        }
+
+        if !matches!(
+            annotation,
+            Annotation::Comment { .. } | Annotation::Doc { .. }
+        ) {
+            return None;
+        }
+
+        let annotation_span = context.get_span::<Annotation>(annotation_id);
+        let is_seam_prefix =
+            annotation_span.start >= left_span.end && annotation_span.end <= right_span.start;
+        if !is_seam_prefix {
+            return None;
+        }
+
+        seam_annotation_ids.push(annotation_id);
+    }
+
+    if seam_annotation_ids.is_empty() {
+        return None;
+    }
+
+    seam_annotation_ids.sort_by_key(|annotation_id| {
+        let span = context.get_span::<Annotation>(*annotation_id);
+        (span.start, span.end, annotation_id.id)
+    });
+
+    Some(seam_annotation_ids)
+}
+
+/// Write one annotation node by id.
+#[inline]
+fn write_annotation_by_id<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> FormatResult<()> {
+    let annotation = f.context().tree.get::<Annotation>(annotation_id);
+    annotation.format_node(annotation_id, f)
+}
+
+/// Return whether type binary operands contain any slash-style comments.
+fn type_binary_operands_have_slash_comments(
+    context: &DestackFormatContext<'_>,
+    operands: &BinaryOperands,
+) -> bool {
+    operands.iter().any(|operand| {
+        let Some(annotation_ids) = context.get_annotations(operand.expression) else {
+            return false;
+        };
+
+        annotation_ids.into_iter().any(|annotation_id| {
+            let annotation = context.tree.get::<Annotation>(annotation_id);
+            let Annotation::Comment { node, .. } = annotation else {
+                return false;
+            };
+            let comment = context.tree.get::<destack_ast::Comment>(*node);
+            comment.style == destack_ast::CommentStyle::Slash
+        })
+    })
+}
+
+/// Format type binary operands as a flat sequence with inline separators.
+fn format_flat_type_binary_operands<'ast>(
+    operator: BinaryOperator,
+    operands: &BinaryOperands,
+) -> impl Format<DestackFormatContext<'ast>> {
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let mut prev_expression: Option<LocalNodeId<Expression>> = None;
+        for (index, operand) in operands.iter().enumerate() {
+            if index > 0 {
+                let previous_has_postfix = prev_expression
+                    .is_some_and(|expression_id| f.context().has_postfix_annotation(expression_id));
+                if previous_has_postfix {
+                    write!(f, [operator, space()])?;
+                } else {
+                    write!(f, [space(), operator, space()])?;
+                }
+            }
+            write!(f, [operand.expression])?;
+            prev_expression = Some(operand.expression);
+        }
+        Ok(())
+    })
 }
 
 /// Try formatting `??` using trailing-operator layout.
@@ -347,19 +459,38 @@ struct LeadingPipeUnionLayoutPolicy {
     prefer_space_before_first_pipe: bool,
 }
 
-/// Build leading-pipe union render policy from current annotation context.
-fn leading_pipe_union_layout_policy(
+/// Return prefix annotation ids for one expression in source order.
+fn expression_prefix_annotation_ids(
     context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> LeadingPipeUnionLayoutPolicy {
-    let has_block_prefix_ancestor =
-        leading_union_has_ancestor_block_prefix_annotation(context, node_id);
+    expression_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let Some(annotation_ids) = context.get_annotations(expression_id) else {
+        return Vec::new();
+    };
 
-    LeadingPipeUnionLayoutPolicy {
-        should_indent_operands: !context.has_prefix_annotation(node_id)
-            && !has_block_prefix_ancestor,
-        prefer_space_before_first_pipe: has_block_prefix_ancestor,
-    }
+    annotation_ids
+        .into_iter()
+        .filter(|annotation_id| {
+            matches!(
+                context.tree.get::<Annotation>(*annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            )
+        })
+        .collect()
+}
+
+/// Return whether seam annotation ids cover all current operand prefix annotations.
+fn seam_annotations_cover_operand_prefix_annotations(
+    context: &DestackFormatContext<'_>,
+    seam_annotation_ids: &[LocalNodeId<Annotation>],
+    operand_expression: LocalNodeId<Expression>,
+) -> bool {
+    let prefix_annotation_ids = expression_prefix_annotation_ids(context, operand_expression);
+    prefix_annotation_ids.len() == seam_annotation_ids.len()
+        && prefix_annotation_ids
+            .iter()
+            .zip(seam_annotation_ids.iter())
+            .all(|(left_id, right_id)| left_id.id == right_id.id)
 }
 
 /// Format one leading-pipe union operand without prefix annotations.
@@ -392,6 +523,72 @@ fn format_leading_pipe_operand_without_prefix<'ast>(
         }
         Ok(())
     })
+}
+
+/// Return whether a union should use leading-pipe multiline style.
+fn should_use_leading_pipe_union_style(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    operands: &BinaryOperands,
+) -> bool {
+    if union_source_has_leading_pipe(context, node_id) {
+        return true;
+    }
+
+    if !context.node_has_newline(node_id) {
+        return false;
+    }
+
+    operands.iter().any(|operand| {
+        let Some(annotation_ids) = context.get_annotations(operand.expression) else {
+            return false;
+        };
+
+        annotation_ids.into_iter().any(|annotation_id| {
+            let annotation = context.tree.get::<Annotation>(annotation_id);
+            let Annotation::Comment { node, position } = annotation else {
+                return false;
+            };
+            if !matches!(
+                position,
+                AnnotationPosition::BlockPrefix
+                    | AnnotationPosition::LinePrefix
+                    | AnnotationPosition::BlockPostfix
+                    | AnnotationPosition::LinePostfix
+                    | AnnotationPosition::LinePostfixBoundary
+            ) {
+                return false;
+            }
+
+            let comment = context.tree.get::<destack_ast::Comment>(*node);
+            comment.style == destack_ast::CommentStyle::Slash
+        })
+    })
+}
+
+/// Build leading-pipe union render policy from current annotation context.
+fn leading_pipe_union_layout_policy(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> LeadingPipeUnionLayoutPolicy {
+    let has_block_prefix_ancestor =
+        leading_union_has_ancestor_block_prefix_annotation(context, node_id);
+    let parent_is_parenthesized_expression =
+        context
+            .get_parent(node_id)
+            .is_some_and(|(parent_id, parent_type)| {
+                parent_type == NodeType::Expression
+                    && matches!(
+                        context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                        Expression::Parenthesized { expression } if *expression == node_id
+                    )
+            });
+    LeadingPipeUnionLayoutPolicy {
+        should_indent_operands: !context.has_prefix_annotation(node_id)
+            && !has_block_prefix_ancestor
+            && !parent_is_parenthesized_expression,
+        prefer_space_before_first_pipe: has_block_prefix_ancestor,
+    }
 }
 
 /// Write the first operand of a leading-pipe union.
@@ -430,69 +627,101 @@ fn write_first_leading_pipe_union_operand<'ast>(
 /// Write one non-first operand in a leading-pipe union.
 fn write_trailing_leading_pipe_union_operand<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    operator: BinaryOperator,
     policy: LeadingPipeUnionLayoutPolicy,
     prev_expression: Option<LocalNodeId<Expression>>,
     operand_expression: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let has_postfix = prev_expression
         .is_some_and(|expression_id| f.context().has_postfix_annotation(expression_id));
-    let between_line_comment = prev_expression.and_then(|expression_id| {
-        line_comment_between_expressions(f.context(), expression_id, operand_expression)
+    let has_line_postfix_slash_comment = prev_expression.is_some_and(|expression_id| {
+        expression_has_line_postfix_slash_comment(f.context(), expression_id)
     });
-    let operand_without_prefix =
-        format_leading_pipe_operand_without_prefix(operator, operand_expression);
+    let seam_annotation_ids = prev_expression.and_then(|expression_id| {
+        collect_type_operand_right_seam_prefix_annotation_ids(
+            f.context(),
+            expression_id,
+            operand_expression,
+        )
+    });
+    let can_emit_inline_seam_annotations = seam_annotation_ids.as_ref().is_some_and(|ids| {
+        seam_annotations_cover_operand_prefix_annotations(f.context(), ids, operand_expression)
+    });
+    let operand_without_prefix = format_leading_pipe_operand_without_prefix(
+        BinaryOperator::ElementwiseOr,
+        operand_expression,
+    );
 
-    if policy.should_indent_operands {
-        write!(
-            f,
-            [indent(&format_with(|f| {
-                if !has_postfix {
-                    write!(f, [soft_line_break_or_space()])?;
-                }
-                if let Some(line_comment) = between_line_comment.as_ref() {
+    if can_emit_inline_seam_annotations {
+        let seam_annotation_ids = seam_annotation_ids.expect("checked as some");
+        if has_line_postfix_slash_comment {
+            write!(f, [hard_line_break()])?;
+        }
+        for annotation_id in seam_annotation_ids {
+            write!(f, [space()])?;
+            write_annotation_by_id(f, annotation_id)?;
+        }
+
+        if policy.should_indent_operands {
+            write!(
+                f,
+                [indent(&format_with(|f| {
                     write!(
                         f,
                         [
-                            text(line_comment.as_str()),
                             hard_line_break(),
                             token("|"),
                             space(),
                             operand_without_prefix
                         ]
                     )
-                } else {
-                    write!(f, [token("|"), space(), operand_without_prefix])
-                }
-            }))]
-        )?;
-        return Ok(());
-    }
+                }))]
+            )?;
+            return Ok(());
+        }
 
-    if !has_postfix {
-        write!(f, [soft_line_break_or_space()])?;
-    }
-    if let Some(line_comment) = between_line_comment.as_ref() {
         write!(
             f,
             [
-                text(line_comment.as_str()),
                 hard_line_break(),
                 token("|"),
                 space(),
                 operand_without_prefix
             ]
-        )
-    } else {
-        write!(f, [token("|"), space(), operand_without_prefix])
+        )?;
+        return Ok(());
     }
+
+    if policy.should_indent_operands {
+        write!(
+            f,
+            [indent(&format_with(|f| {
+                if has_line_postfix_slash_comment {
+                    write!(f, [hard_line_break()])?;
+                } else if has_postfix {
+                    write!(f, [hard_line_break()])?;
+                } else {
+                    write!(f, [soft_line_break_or_space()])?;
+                }
+                write!(f, [token("|"), space(), operand_expression])
+            }))]
+        )?;
+        return Ok(());
+    }
+
+    if has_line_postfix_slash_comment {
+        write!(f, [hard_line_break()])?;
+    } else if has_postfix {
+        write!(f, [hard_line_break()])?;
+    } else {
+        write!(f, [soft_line_break_or_space()])?;
+    }
+    write!(f, [token("|"), space(), operand_expression])
 }
 
 /// Format leading-pipe union operands with shared annotation and comment policy.
 fn format_leading_pipe_union<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    operator: BinaryOperator,
     operands: &BinaryOperands,
 ) -> FormatResult<()> {
     let policy = leading_pipe_union_layout_policy(f.context(), node_id);
@@ -507,7 +736,6 @@ fn format_leading_pipe_union<'ast>(
                 } else {
                     write_trailing_leading_pipe_union_operand(
                         f,
-                        operator,
                         policy,
                         prev_expression,
                         operand.expression,
@@ -617,8 +845,11 @@ pub(super) fn format_binary_expression<'ast>(
     }
 
     // leading pipe unions
-    if is_type_union && union_source_has_leading_pipe(f.context(), node_id) {
-        format_leading_pipe_union(f, node_id, *operator, &operands)?;
+    if is_type_union
+        && !is_destack
+        && should_use_leading_pipe_union_style(f.context(), node_id, &operands)
+    {
+        format_leading_pipe_union(f, node_id, &operands)?;
         return Ok(());
     }
 
@@ -644,6 +875,18 @@ pub(super) fn format_binary_expression<'ast>(
                 Ok(())
             }))]
         )?;
+        return Ok(());
+    }
+
+    // keep type unions and intersections flat unless slash-line comments require multiline layout
+    if (is_type_union || is_type_intersection)
+        && !is_destack
+        && !type_binary_operands_have_slash_comments(f.context(), &operands)
+        && operands
+            .iter()
+            .all(|operand| !f.context().node_has_newline(operand.expression))
+    {
+        write!(f, [format_flat_type_binary_operands(*operator, &operands)])?;
         return Ok(());
     }
 
@@ -792,6 +1035,7 @@ pub(super) fn format_binary_expression<'ast>(
         f,
         [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
             let mut prev_expression: Option<LocalNodeId<Expression>> = None;
+            let mut force_line_break_for_union_operands = false;
             // emit each flattened operand with operator-aware spacing
             for operand in &operands {
                 // non-head operands write their leading operator
@@ -819,6 +1063,161 @@ pub(super) fn format_binary_expression<'ast>(
                                 Expression::Parenthesized { .. }
                             ) && f.context().node_has_newline(expression_id)
                         });
+                    let previous_needs_grouping_parentheses_multiline = prev_expression
+                        .is_some_and(|expression_id| {
+                            type_binary_operand_needs_grouping_parentheses(
+                                f.context(),
+                                *operator,
+                                expression_id,
+                            ) && f.context().node_has_newline(expression_id)
+                        });
+                    let previous_is_parenthesized_or_grouped_multiline =
+                        previous_is_parenthesized_multiline
+                            || previous_needs_grouping_parentheses_multiline;
+                    let previous_has_line_postfix_slash_comment =
+                        prev_expression.is_some_and(|expression_id| {
+                            expression_has_line_postfix_slash_comment(f.context(), expression_id)
+                        });
+                    let previous_requires_type_grouping_break =
+                        (is_type_union || is_type_intersection) && has_postfix;
+                    let deferred_type_right_seam_annotation_ids =
+                        if is_type_union || is_type_intersection {
+                            prev_expression.and_then(|previous_expression| {
+                                collect_type_operand_right_seam_prefix_annotation_ids(
+                                    f.context(),
+                                    previous_expression,
+                                    operand.expression,
+                                )
+                            })
+                        } else {
+                            None
+                        };
+                    if let Some(seam_annotation_ids) = deferred_type_right_seam_annotation_ids {
+                        if is_type_union {
+                            force_line_break_for_union_operands = true;
+                        }
+
+                        write!(
+                            f,
+                            [indent(&format_with(
+                                |f: &mut DestackFormatter<'ast, '_>| {
+                                    let allow_space_after_line_comment = prev_expression
+                                        .is_some_and(|expression_id| {
+                                            logical_left_has_line_postfix_slash_comment(
+                                                f.context(),
+                                                op,
+                                                expression_id,
+                                            )
+                                        });
+                                    if !has_postfix {
+                                        if preserve_source_operator_break {
+                                            write!(f, [hard_line_break()])?;
+                                        } else if previous_is_parenthesized_multiline
+                                            && is_logical_binary_operator(op)
+                                        {
+                                            write!(f, [space()])?;
+                                        } else {
+                                            write!(f, [soft_line_break_or_space()])?;
+                                        }
+                                    } else if allow_space_after_line_comment {
+                                        write!(f, [space()])?;
+                                    } else if previous_requires_type_grouping_break {
+                                        write!(f, [hard_line_break()])?;
+                                    } else if previous_has_line_postfix_slash_comment {
+                                        write!(f, [hard_line_break()])?;
+                                    }
+
+                                    if is_type_union {
+                                        for annotation_id in &seam_annotation_ids {
+                                            write_annotation_by_id(f, *annotation_id)?;
+                                            write!(f, [hard_line_break()])?;
+                                        }
+                                        write!(
+                                            f,
+                                            [
+                                                op,
+                                                space(),
+                                                format_expression_without_prefix_annotations(
+                                                    operand.expression
+                                                ),
+                                            ]
+                                        )?;
+                                    } else {
+                                        write!(f, [op])?;
+                                        for (index, annotation_id) in
+                                            seam_annotation_ids.iter().enumerate()
+                                        {
+                                            write!(f, [space()])?;
+                                            write_annotation_by_id(f, *annotation_id)?;
+                                            if index + 1 < seam_annotation_ids.len() {
+                                                write!(f, [hard_line_break()])?;
+                                            }
+                                        }
+                                        write!(
+                                            f,
+                                            [
+                                                hard_line_break(),
+                                                format_expression_without_prefix_annotations(
+                                                    operand.expression
+                                                ),
+                                            ]
+                                        )?;
+                                    }
+
+                                    Ok(())
+                                }
+                            ))]
+                        )?;
+                        prev_expression = Some(operand.expression);
+                        continue;
+                    }
+                    if is_type_union && force_line_break_for_union_operands {
+                        write!(
+                            f,
+                            [indent(&format_with(
+                                |f: &mut DestackFormatter<'ast, '_>| {
+                                    if !has_postfix {
+                                        write!(f, [hard_line_break()])?;
+                                    } else if previous_requires_type_grouping_break {
+                                        write!(f, [hard_line_break()])?;
+                                    } else if previous_has_line_postfix_slash_comment {
+                                        write!(f, [hard_line_break()])?;
+                                    }
+                                    write!(f, [op, space()])?;
+                                    format_binary_operand_with_grouping_parentheses(
+                                        f,
+                                        *operator,
+                                        operand.expression,
+                                    )
+                                }
+                            ))]
+                        )?;
+                        prev_expression = Some(operand.expression);
+                        continue;
+                    }
+                    if op == BinaryOperator::ElementwiseAnd
+                        && previous_is_parenthesized_or_grouped_multiline
+                    {
+                        write!(
+                            f,
+                            [
+                                space(),
+                                op,
+                                indent(&format_args![
+                                    hard_line_break(),
+                                    format_with(|f| {
+                                        format_binary_operand_with_grouping_parentheses(
+                                            f,
+                                            *operator,
+                                            operand.expression,
+                                        )
+                                    })
+                                ])
+                            ]
+                        )?;
+                        prev_expression = Some(operand.expression);
+                        continue;
+                    }
                     let operand_prefers_trailing_operator =
                         operand_prefers_trailing_logical_operator(
                             f.context(),
@@ -836,6 +1235,10 @@ pub(super) fn format_binary_expression<'ast>(
                             });
                         if !has_postfix || allow_space_after_line_comment {
                             write!(f, [space()])?;
+                        } else if previous_requires_type_grouping_break {
+                            write!(f, [hard_line_break()])?;
+                        } else if previous_has_line_postfix_slash_comment {
+                            write!(f, [hard_line_break()])?;
                         }
                         write!(
                             f,
@@ -864,6 +1267,10 @@ pub(super) fn format_binary_expression<'ast>(
                             });
                         if !has_postfix || allow_space_after_line_comment {
                             write!(f, [space()])?;
+                        } else if previous_requires_type_grouping_break {
+                            write!(f, [hard_line_break()])?;
+                        } else if previous_has_line_postfix_slash_comment {
+                            write!(f, [hard_line_break()])?;
                         }
                         write!(f, [op, space()])?;
                         format_binary_operand_with_grouping_parentheses(
@@ -896,6 +1303,10 @@ pub(super) fn format_binary_expression<'ast>(
                                         }
                                     } else if allow_space_after_line_comment {
                                         write!(f, [space()])?;
+                                    } else if previous_requires_type_grouping_break {
+                                        write!(f, [hard_line_break()])?;
+                                    } else if previous_has_line_postfix_slash_comment {
+                                        write!(f, [hard_line_break()])?;
                                     }
                                     write!(f, [op, space()])?;
                                     format_binary_operand_with_grouping_parentheses(

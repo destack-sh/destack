@@ -247,10 +247,10 @@ Second) & Third
 
 ```ts expected
 type Value = (
-    First
-    | // paren-union
-    Second
-) & Third;
+    | First // paren-union
+    | Second
+) &
+    Third;
 ```
 
 ### mapped type property comments
@@ -489,9 +489,8 @@ string)["toString"]
 
 ```ts expected
 type Key = (
-    number
-    | // key-note
-    string
+    | number // key-note
+    | string
 )["toString"];
 ```
 
@@ -511,7 +510,7 @@ type Mixed = null // null-arm
 
 ```ts expected
 type Mixed =
-    null // null-arm
+    | null // null-arm
     | {
         y: number;
         z: string;
@@ -863,8 +862,8 @@ Beta | Gamma
 ```
 
 ```ts expected
-type Value = Alpha
-    // alpha-note
+type Value =
+    | Alpha // alpha-note
     | Beta
     | Gamma;
 ```

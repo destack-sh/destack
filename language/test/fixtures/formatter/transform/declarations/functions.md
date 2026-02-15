@@ -392,8 +392,9 @@ function process(@nonempty input: string) { return input }
 
 ```ds expected
 function process(
-@nonempty
-input: string) {
+    @nonempty
+    input: string,
+) {
     return input;
 }
 ```

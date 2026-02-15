@@ -237,9 +237,18 @@ pub(super) fn format_function_declaration<'ast>(
         };
 
     // dynamic parameter rendering
+    let force_expand_parameters = signature_parameters_should_expand(
+        f.context(),
+        signature.mode,
+        &dynamic_parameters,
+        signature.return_type,
+        true,
+    );
+
     if can_omit_parens {
         write!(f, [&dynamic_parameters[0]])?;
     } else if dynamic_parameters.len() == 1
+        && !force_expand_parameters
         && single_parameter_should_hug(f.context(), dynamic_parameters[0])
     {
         write!(f, [token("("), dynamic_parameters[0], token(")")])?;
@@ -261,13 +270,6 @@ pub(super) fn format_function_declaration<'ast>(
             ]
         )?;
     } else {
-        let force_expand_parameters = signature_parameters_should_expand(
-            f.context(),
-            signature.mode,
-            &dynamic_parameters,
-            signature.return_type,
-            true,
-        );
         let disallow_trailing_parameter_separator = dynamic_parameters
             .last()
             .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id))

@@ -261,8 +261,8 @@ type Value = First | // union-line
 ```
 
 ```ts expected
-type Value = First
-    // union-line
+type Value =
+    | First // union-line
     | Second
     | Third;
 ```
@@ -276,9 +276,7 @@ type Value = First /* union-block */ | Second
 ```
 
 ```ts expected
-type Value = First
-    /* union-block */
-    | Second;
+type Value = First /* union-block */ | Second;
 ```
 
 ### intersection line comment attachment

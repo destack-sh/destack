@@ -2,6 +2,7 @@ use destack_ast::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat, Comment,
     CommentStyle, Declaration, DeclarationAbstraction, DeclarationDescriptor, Declarator,
     Decorator, DependencyItem, Doc, DocStyle, Expression, FunctionKind, FunctionMode, IfCondition,
+    IfKind,
     ImportTarget, Key, LocalNodeId, Member, Name, Parameter, Property, TypeBinaryOperator,
     TypeKind, TypeLiteral, TypeUnaryOperator,
 };
@@ -128,6 +129,37 @@ fn test_attach_decorator_to_parameter() {
                         assert_expression_path!(parser, parser.tree.get(*left), "if");
                         assert_eq!(dynamic_arguments.len(), 1);
                     });
+                });
+            });
+        });
+    });
+}
+
+/// Decorators on multiline parameters should stay attached to the parameter node.
+#[test]
+fn test_attach_decorator_to_multiline_parameter() {
+    let mut test = TestParser::new(
+        r#"function process(
+    @nonempty
+    input: string,
+) { return input }"#,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            let parameter_id = signature.dynamic_parameters[0];
+            let annotations = parser.tree.get_annotations(parameter_id.id);
+            assert_eq!(annotations.len(), 1);
+
+            assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "nonempty");
                 });
             });
         });
@@ -2202,7 +2234,7 @@ right",
                     parser.tree,
                     then_annotations[0],
                     Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(*style, CommentStyle::Slash);
                             assert_string!(parser, *string, "then-seam");
@@ -2216,7 +2248,7 @@ right",
                     parser.tree,
                     else_annotations[0],
                     Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(*style, CommentStyle::Slash);
                             assert_string!(parser, *string, "else-seam");
@@ -2255,7 +2287,7 @@ fn test_attach_ternary_operator_seam_block_comment_to_then_prefix() {
                     parser.tree,
                     then_annotations[0],
                     Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(*style, CommentStyle::Star);
                             assert_string!(parser, *string, "ternary-boundary");
@@ -3207,6 +3239,230 @@ fn test_attach_jsx_expression_container_trailing_line_comment() {
     );
 }
 
+/// Ternary branch boundary comments should attach to the branch expression prefixes.
+#[test]
+fn test_attach_value_ternary_branch_prefix_comments() {
+    let mut test = TestParser::new_with_options(
+        r"const value = cond ? /* then-note */ left : /* else-note */ right",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+            let value_id = value.expect("expected ternary value");
+            assert_node!(parser.tree, value_id, Expression::If { kind, then_expression, else_expression, .. } => {
+                assert_eq!(*kind, IfKind::Ternary);
+                let else_expression_id = else_expression.expect("expected else branch");
+
+                let then_annotations = parser.tree.get_annotations(then_expression.id);
+                assert_eq!(then_annotations.len(), 1);
+                assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Star);
+                        assert_string!(parser, *string, "then-note");
+                    });
+                });
+
+                let else_annotations = parser.tree.get_annotations(else_expression_id.id);
+                assert_eq!(else_annotations.len(), 1);
+                assert_node!(parser.tree, else_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Star);
+                        assert_string!(parser, *string, "else-note");
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// TSX ternary branch comments should attach to TSX branch expression prefixes.
+#[test]
+fn test_attach_tsx_ternary_branch_prefix_comments() {
+    let mut test = TestParser::new_with_options(
+        r#"<div>{cond ? /* then-note */ <Video /> : /* else-note */ <Image />}</div>"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.finish_annotations();
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { elements, .. } => {
+        let elements = elements.as_ref().expect("expected tree elements");
+        assert_eq!(elements.len(), 1);
+        assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::If { kind, then_expression, else_expression, .. } => {
+                assert_eq!(*kind, IfKind::Ternary);
+                let else_expression_id = else_expression.expect("expected else branch");
+
+                let then_annotations = parser.tree.get_annotations(then_expression.id);
+                assert_eq!(then_annotations.len(), 1);
+                assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Star);
+                        assert_string!(parser, *string, "then-note");
+                    });
+                });
+
+                let else_annotations = parser.tree.get_annotations(else_expression_id.id);
+                assert_eq!(else_annotations.len(), 1);
+                assert_node!(parser.tree, else_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Star);
+                        assert_string!(parser, *string, "else-note");
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// TSX ternary alternate line comments should have exactly one owner: the alternate branch.
+#[test]
+fn test_attach_tsx_ternary_alternate_line_comment_once() {
+    let mut test = TestParser::new_with_options(
+        r#"<>
+    {x ? <A /> : // alt-line
+    <B />}
+</>"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.finish_annotations();
+
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected tree elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                let ternary_annotations = parser.tree.get_annotations(value.id);
+                assert_eq!(ternary_annotations.len(), 0);
+                assert_node!(parser.tree, *value, Expression::If { then_expression, else_expression, .. } => {
+                    let then_annotations = parser.tree.get_annotations(then_expression.id);
+                    assert_eq!(then_annotations.len(), 0);
+
+                    let else_expression_id = else_expression.expect("expected else branch");
+                    let else_annotations = parser.tree.get_annotations(else_expression_id.id);
+                    assert_eq!(else_annotations.len(), 1);
+                    assert_node!(parser.tree, else_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "alt-line");
+                        });
+                    });
+                });
+            });
+        }
+    );
+}
+
+/// TSX ternary alternate block comments should stay attached to the alternate branch expression.
+#[test]
+fn test_attach_tsx_ternary_alternate_block_comment_to_else_postfix() {
+    let mut test = TestParser::new_with_options(
+        r#"const Component = () => (
+  <div>
+    {"error" ? (
+      <Error />
+    ) : (
+      <Success />
+      /* keep-inside-branch */
+    )}
+  </div>
+)"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+            let function_id = value.expect("expected function initializer");
+            assert_node!(parser.tree, function_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+                    let body_id = body.expect("expected function body");
+                    assert_node!(parser.tree, body_id, Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::TreeExpression { elements, .. } => {
+                            let elements = elements.as_ref().expect("expected tree elements");
+                            assert_eq!(elements.len(), 1);
+                            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::If { else_expression, .. } => {
+                                    let else_expression_id = else_expression.expect("expected else branch");
+                                    assert_node!(parser.tree, else_expression_id, Expression::Parenthesized { expression } => {
+                                        let outer_annotations = parser.tree.get_annotations(else_expression_id.id);
+                                        assert_eq!(outer_annotations.len(), 0);
+
+                                        let inner_annotations = parser.tree.get_annotations(expression.id);
+                                        assert_eq!(inner_annotations.len(), 1);
+                                        assert_node!(parser.tree, inner_annotations[0], Annotation::Comment { node, position } => {
+                                            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                                assert_eq!(*style, CommentStyle::Star);
+                                                assert_string!(parser, *string, "keep-inside-branch");
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// TSX logical trailing line comments should stay attached to the logical expression.
+#[test]
+fn test_attach_tsx_logical_expression_trailing_line_comment_to_expression_postfix() {
+    let mut test = TestParser::new_with_options(
+        r#"<div>{ready && <Body /> // logical-tail
+}</div>"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.finish_annotations();
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { elements, .. } => {
+        let elements = elements.as_ref().expect("expected tree elements");
+        assert_eq!(elements.len(), 1);
+        assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::And);
+                let value_annotations = parser.tree.get_annotations(value.id);
+                assert_eq!(value_annotations.len(), 0);
+
+                let right_annotations = parser.tree.get_annotations(right.id);
+                assert_eq!(right_annotations.len(), 1);
+                assert_node!(parser.tree, right_annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(*style, CommentStyle::Slash);
+                    assert_string!(parser, *string, "logical-tail");
+                });
+            });
+            });
+        });
+    });
+}
+
 /// Declaration header boundary comments should stay on declaration owners.
 #[test]
 fn test_attach_declaration_body_boundary_comment_on_declaration_owner() {
@@ -3887,7 +4143,7 @@ fn test_attach_declare_class_head_comment_before_generics_to_declaration_owner()
 }
 
 #[test]
-fn test_attach_type_union_line_comment_before_separator_to_right_operand() {
+fn test_attach_type_union_line_comment_before_separator_to_left_operand_postfix() {
     let mut test = TestParser::new_with_options(
         r"type Value = First
 // union-line
@@ -3908,43 +4164,33 @@ fn test_attach_type_union_line_comment_before_separator_to_right_operand() {
         });
     });
 
-    let mut union_line_comment_owner_id: Option<u32> = None;
-    let mut union_line_comment_annotation_id: Option<LocalNodeId<Annotation>> = None;
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "union-line" {
-                union_line_comment_owner_id = Some(*owner_id);
-                union_line_comment_annotation_id = Some(*annotation_id);
-                break;
-            }
-        }
-    }
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                assert_expression_path!(parser, parser.tree.get(*right), "Third");
+                assert_node!(parser.tree, *left, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "First");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
-    let union_line_comment_owner_id =
-        union_line_comment_owner_id.expect("expected union line comment owner");
-    let union_line_comment_annotation_id =
-        union_line_comment_annotation_id.expect("expected union line comment annotation");
-    assert_node!(parser.tree, union_line_comment_annotation_id, Annotation::Comment { node, position } => {
-        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-        assert_node!(parser.tree, *node, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "union-line");
+                    let first_annotations = parser.tree.get_annotations(left.id);
+                    assert_eq!(first_annotations.len(), 1);
+                    assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "union-line");
+                        });
+                    });
+
+                    let second_annotations = parser.tree.get_annotations(right.id);
+                    assert!(second_annotations.is_empty());
+                });
+            });
         });
     });
-
-    let union_line_owner_expression_id =
-        LocalNodeId::<Expression>::new(union_line_comment_owner_id);
-    assert_expression_path!(
-        parser,
-        parser.tree.get(union_line_owner_expression_id),
-        "Second"
-    );
 }
 
 #[test]
@@ -4006,9 +4252,9 @@ Second | Third",
     );
 }
 
-/// Leading-pipe own-line comments should attach once to the right union arm prefix.
+/// Leading-pipe own-line comments should attach once to the left union arm postfix.
 #[test]
-fn test_attach_type_union_leading_pipe_comment_to_right_operand_prefix() {
+fn test_attach_type_union_leading_pipe_comment_to_left_operand_postfix() {
     let mut test = TestParser::new_with_options(
         r"type Value = First
     // union-line
@@ -4029,36 +4275,36 @@ fn test_attach_type_union_leading_pipe_comment_to_right_operand_prefix() {
         });
     });
 
-    let mut matches: Vec<(u32, LocalNodeId<Annotation>)> = Vec::new();
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, .. } = parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let comment_text = parser.strings.get(comment.string);
-            if comment_text == "union-line" {
-                matches.push((*owner_id, *annotation_id));
-            }
-        }
-    }
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                assert_expression_path!(parser, parser.tree.get(*right), "Third");
+                assert_node!(parser.tree, *left, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "First");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
-    assert_eq!(matches.len(), 1, "expected one union-line annotation");
-    let (owner_id, annotation_id) = matches[0];
-    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
-    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Second");
-    assert_node!(parser.tree, annotation_id, Annotation::Comment { node, position } => {
-        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-        assert_node!(parser.tree, *node, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "union-line");
+                    let first_annotations = parser.tree.get_annotations(left.id);
+                    assert_eq!(first_annotations.len(), 1);
+                    assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "union-line");
+                        });
+                    });
+
+                    let second_annotations = parser.tree.get_annotations(right.id);
+                    assert!(second_annotations.is_empty());
+                });
+            });
         });
     });
 }
 
 #[test]
-fn test_attach_type_union_block_comment_between_arms_to_right_operand_prefix() {
+fn test_attach_type_union_block_comment_between_arms_to_left_operand_postfix() {
     let mut test = TestParser::new_with_options(
         r"type Value = First /* union-block */ | Second",
         LanguageType::TypeScript,
@@ -4067,26 +4313,29 @@ fn test_attach_type_union_block_comment_between_arms_to_right_operand_prefix() {
     let expressions = parser.parse();
     assert_eq!(expressions.len(), 1);
 
-    let mut match_result = None;
-    for (owner_id, annotations) in parser.tree.get_all_annotations() {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } =
-                parser.tree.get::<Annotation>(*annotation_id)
-            else {
-                continue;
-            };
-            let comment = parser.tree.get::<Comment>(*node);
-            let text = parser.strings.get(comment.string);
-            if text == "union-block" {
-                match_result = Some((*owner_id, *position));
-            }
-        }
-    }
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                assert_expression_path!(parser, parser.tree.get(*left), "First");
+                assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
-    let (owner_id, position) = match_result.expect("expected union-block annotation");
-    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
-    assert_expression_path!(parser, parser.tree.get(owner_expression_id), "Second");
-    assert_eq!(position, AnnotationPosition::BlockPrefix);
+                let first_annotations = parser.tree.get_annotations(left.id);
+                assert_eq!(first_annotations.len(), 1);
+                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Star);
+                        assert_string!(parser, *string, "union-block");
+                    });
+                });
+
+                let second_annotations = parser.tree.get_annotations(right.id);
+                assert!(second_annotations.is_empty());
+            });
+        });
+    });
 }
 
 #[test]

@@ -78,6 +78,37 @@ fn parameter_has_line_comment_annotation(
         .unwrap_or(false)
 }
 
+/// Return whether this parameter has any prefix annotation that should force multiline layout.
+fn parameter_has_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    if !context.has_annotation(parameter_id) {
+        return false;
+    }
+
+    context
+        .with_annotations(parameter_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.tree.get::<Annotation>(*annotation_id),
+                    Annotation::Decorator { .. }
+                        | Annotation::Comment {
+                            position: AnnotationPosition::BlockPrefix
+                                | AnnotationPosition::LinePrefix,
+                            ..
+                        }
+                        | Annotation::Doc {
+                            position: AnnotationPosition::BlockPrefix
+                                | AnnotationPosition::LinePrefix,
+                            ..
+                        }
+                )
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Return whether a single parameter should keep compact outer parentheses.
 pub(crate) fn single_parameter_should_hug(
     context: &DestackFormatContext<'_>,
@@ -310,6 +341,10 @@ pub(crate) fn signature_parameters_should_expand(
         .iter()
         .copied()
         .any(|parameter_id| parameter_has_line_comment_annotation(context, parameter_id));
+    let should_expand_for_parameter_prefix_annotations = parameters
+        .iter()
+        .copied()
+        .any(|parameter_id| parameter_has_prefix_annotation(context, parameter_id));
     let should_expand_single_for_multiline_return_type = parameters.len() == 1
         && !parameter_is_variadic(context, parameters[0])
         && signature_return_type_is_multiline(context, return_type);
@@ -317,6 +352,7 @@ pub(crate) fn signature_parameters_should_expand(
     should_expand_parameter_shapes
         || should_break_constructor_parameters
         || should_expand_for_parameter_line_comments
+        || should_expand_for_parameter_prefix_annotations
         || should_expand_single_for_multiline_return_type
 }
 
@@ -397,15 +433,11 @@ pub(crate) fn collect_deferred_function_boundary_line_comments(
 
 /// Return whether a function body has deferred boundary line comments.
 pub(crate) fn function_body_has_deferred_boundary_line_comments(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-    body: Option<LocalNodeId<Expression>>,
+    _context: &DestackFormatContext<'_>,
+    _return_type: Option<LocalNodeId<Expression>>,
+    _body: Option<LocalNodeId<Expression>>,
 ) -> bool {
-    let Some(body) = body else {
-        return false;
-    };
-    matches!(context.tree.get(body), Expression::Block(_))
-        && !collect_deferred_function_boundary_line_comments(context, return_type, body).is_empty()
+    false
 }
 
 /// Format a function body block with deferred boundary line comments inside braces.
