@@ -8,9 +8,7 @@ use destack_ast::{
 };
 use destack_source::NodeSpanType;
 
-use super::annotation::{
-    AnnotationSeamKind, LeadingAnnotationKind, PendingDecorators, TrailingAnnotationKind,
-};
+use super::annotation::PendingDecorators;
 use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -351,19 +349,8 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
-                let return_type_cursor = self.normalize_to_scanner_cursor();
-                let return_type = self.eat_expression(
-                    self.options
-                        .nested()
-                        .in_type()
-                        .in_before_block()
-                        .without_expression_leading_annotations(),
-                )?;
-                self.bind_owner_leading_seam_at_cursor(
-                    return_type.id,
-                    return_type_cursor,
-                    super::annotation::LeadingAnnotationKind::Wrapper,
-                );
+                let return_type =
+                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -381,11 +368,6 @@ impl Parser {
             let body = if self
                 .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
-                // attach method return-type boundary annotations before `{`
-                if let Some(return_type_id) = return_type {
-                    self.bind_owner_trailing_default_at_current(return_type_id.id);
-                }
-
                 self.eat_newlines_maybe()?;
                 let mut options = self
                     .options
@@ -396,9 +378,6 @@ impl Parser {
                 options.allow_sequence_expression = true;
                 Some(self.eat_expression(options)?)
             } else {
-                if let Some(return_type_id) = return_type {
-                    self.bind_owner_trailing_default_at_current(return_type_id.id);
-                }
                 None
             };
 
@@ -532,20 +511,18 @@ impl Parser {
     pub fn eat_properties(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         // eat everything
         let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
-        let mut last_property_id: Option<LocalNodeId<Property>> = None;
         let mut pending_property_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.normalize_to_scanner_cursor();
+            let cursor = self.sync_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
-                if let Some(last_property_id) = last_property_id {
-                    self.bind_owner_close_postfix_trailing_line_and_default_seams(
-                        last_property_id.id,
-                        cursor,
-                    );
+                if !pending_property_decorators.is_empty() {
+                    let error = ParseError::unexpected(self.peek()?.span);
+                    self.error(&error);
+                    pending_property_decorators.clear();
                 }
                 break;
             }
@@ -555,22 +532,9 @@ impl Parser {
                 pending_property_decorators.extend(decorators);
                 continue;
             }
-            // consume comma separators with explicit boundary ownership for the previous property
+            // consume comma separators between properties
             else if token_type == TokenType::Comma {
-                if let Some(last_property_id) = last_property_id {
-                    self.bind_owner_trailing_line_and_default_at_current(last_property_id.id);
-                }
-
                 self.eat_item_stop_with_newlines()?;
-                if let Some(last_property_id) = last_property_id {
-                    let next_property_cursor = self.normalize_to_scanner_cursor();
-                    self.bind_annotation_seam(
-                        next_property_cursor.index,
-                        next_property_cursor.skipped_newline_count,
-                        last_property_id.id,
-                        AnnotationSeamKind::TrailingLineBoundary,
-                    );
-                }
                 continue;
             }
             // consume any stop
@@ -582,14 +546,12 @@ impl Parser {
             else {
                 match self.try_eat_property(TokenType::Newline) {
                     Ok(property_id) => {
-                        self.bind_prefixed_owner_with_decorators_and_trailing_at_current(
-                            property_id.id,
-                            cursor,
-                            LeadingAnnotationKind::Expression,
-                            TrailingAnnotationKind::Default,
-                            &mut pending_property_decorators,
-                        );
-                        last_property_id = Some(property_id);
+                        if !pending_property_decorators.is_empty() {
+                            self.attach_decorators(
+                                property_id.id,
+                                std::mem::take(&mut pending_property_decorators),
+                            );
+                        }
                         properties.push(property_id);
                     }
                     Err(_) => continue, // keep eating other properties
@@ -1019,19 +981,8 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::Colon)?;
                 self.eat_newlines_maybe()?;
-                let return_type_cursor = self.normalize_to_scanner_cursor();
-                let return_type = self.eat_expression(
-                    self.options
-                        .nested()
-                        .in_type()
-                        .in_before_block()
-                        .without_expression_leading_annotations(),
-                )?;
-                self.bind_owner_leading_seam_at_cursor(
-                    return_type.id,
-                    return_type_cursor,
-                    super::annotation::LeadingAnnotationKind::Wrapper,
-                );
+                let return_type =
+                    self.eat_expression(self.options.nested().in_type().in_before_block())?;
                 (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
@@ -1049,11 +1000,6 @@ impl Parser {
             let body = if self
                 .is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             {
-                // attach method return-type boundary annotations before `{`
-                if let Some(return_type_id) = return_type {
-                    self.bind_owner_trailing_default_at_current(return_type_id.id);
-                }
-
                 self.eat_newlines_maybe()?;
                 let mut options = self
                     .options
@@ -1064,9 +1010,6 @@ impl Parser {
                 options.allow_sequence_expression = true;
                 Some(self.eat_expression(options)?)
             } else {
-                if let Some(return_type_id) = return_type {
-                    self.bind_owner_trailing_default_at_current(return_type_id.id);
-                }
                 None
             };
 
@@ -1203,20 +1146,18 @@ impl Parser {
         allow_comma_separators: bool,
     ) -> ParseResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
-        let mut last_member_id: Option<LocalNodeId<Member>> = None;
         let mut pending_member_decorators = PendingDecorators::new();
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.normalize_to_scanner_cursor();
+            let cursor = self.sync_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
-                if let Some(last_member_id) = last_member_id {
-                    self.bind_owner_close_postfix_trailing_line_and_default_seams(
-                        last_member_id.id,
-                        cursor,
-                    );
+                if !pending_member_decorators.is_empty() {
+                    let error = ParseError::unexpected(self.peek()?.span);
+                    self.error(&error);
+                    pending_member_decorators.clear();
                 }
                 break;
             }
@@ -1239,12 +1180,12 @@ impl Parser {
             else {
                 match self.try_eat_member(TokenType::Newline) {
                     Ok(member_id) => {
-                        self.bind_statement_owner_with_decorators_and_default_trailing_at_current(
-                            member_id.id,
-                            cursor,
-                            &mut pending_member_decorators,
-                        );
-                        last_member_id = Some(member_id);
+                        if !pending_member_decorators.is_empty() {
+                            self.attach_decorators(
+                                member_id.id,
+                                std::mem::take(&mut pending_member_decorators),
+                            );
+                        }
                         members.push(member_id);
                     }
                     Err(_) => continue, // keep eating other members
@@ -1520,6 +1461,33 @@ port2 = {
 
             // keep a method body attached after the multiline return type annotation
             assert_node!(parser.tree, *body, Expression::Block(_));
+        });
+    }
+
+    #[test]
+    fn test_parse_member_method_body_boundary_comment_on_return_type_typescript() {
+        let mut test = TestParser::new_with_options(
+            "method(): number // method-body\n{ return 1 }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Method { signature, body: Some(body), .. } => {
+            let return_type = signature.return_type.expect("expected return type");
+
+            let return_type_annotations = parser.tree.get_annotations(return_type.id);
+            assert_eq!(return_type_annotations.len(), 1);
+            assert_node!(parser.tree, return_type_annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                assert_node!(parser.tree, *node, Comment { style, string } => {
+                    assert_eq!(*style, CommentStyle::Slash);
+                    assert_string!(parser, *string, "method-body");
+                });
+            });
+
+            let body_annotations = parser.tree.get_annotations(body.id);
+            assert!(body_annotations.is_empty());
         });
     }
 

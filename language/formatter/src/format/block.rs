@@ -463,7 +463,7 @@ pub(crate) fn format_block_of_statements<'ast>(
         let directive = directive_for_node(f.context(), expression_id);
 
         // expression itself (with prefix annotations)
-        // lambda declaration line prefix comments are deferred to declaration formatting
+        // lambda declaration line prefix comments are handled in declaration formatting
         let is_lambda_declaration_expression = matches!(
             expression,
             Expression::Declaration(declaration_id)

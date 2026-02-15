@@ -6,7 +6,7 @@ use destack_ast::{
 
 impl Parser {
     pub fn can_follow_type_arguments_in_expression(&mut self) -> bool {
-        let cursor = self.peek_cursor();
+        let cursor = self.peek_scanner_cursor();
 
         // a line break terminates the current expression statement
         if cursor.has_line_break_before {
@@ -104,7 +104,7 @@ impl Parser {
     /// Check whether static arguments can be followed by a statement-start keyword.
     #[inline]
     pub(super) fn can_follow_type_arguments_with_statement_keyword(&mut self) -> bool {
-        let cursor = self.peek_cursor();
+        let cursor = self.peek_scanner_cursor();
         cursor.token_type == TokenType::Identifier && self.keyword_for_index(cursor.index).is_some()
     }
 
@@ -125,7 +125,7 @@ impl Parser {
             if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
                 true
             } else if allow_newline_prefix {
-                let cursor = self.peek_cursor();
+                let cursor = self.peek_scanner_cursor();
                 cursor.has_line_break_before
                     && matches!(
                         cursor.token_type,
@@ -144,7 +144,7 @@ impl Parser {
 
         // normalize optional line break prefix before `<...>`
         if allow_newline_prefix {
-            let _cursor = self.normalize_to_scanner_cursor();
+            self.sync_to_scanner_cursor();
         }
 
         match self.eat_static_arguments() {

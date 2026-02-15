@@ -51,8 +51,17 @@ let y;
     );
     let mut parser = test.prepare();
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
+    eprintln!("expressions len: {}", expressions.len());
+    eprintln!("errors: {:?}", parser.errors);
+    for expression_id in &expressions {
+        eprintln!(
+            "expr {} => {:?}",
+            expression_id.id,
+            parser.tree.get(*expression_id)
+        );
+    }
     assert_eq!(expressions.len(), 2);
 
     // let x;
@@ -864,7 +873,7 @@ fn test_attach_trailing_comment_to_chain_path() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // foo.getParameters?.()
     let mut current = expr_id;
@@ -912,7 +921,7 @@ fn test_attach_line_comment_before_chain_member() {
     );
     let mut parser = test.prepare();
     parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // Promise.all(...).then(...)
     let mut comment_owner_id: Option<u32> = None;
@@ -1004,7 +1013,7 @@ let x = z()
     );
     let mut parser = test.prepare();
     let block_id = parser.eat_block().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, block_id, Block { expressions, .. } => {
         assert_eq!(expressions.len(), 2);
@@ -1088,7 +1097,7 @@ return 5;
     );
     let mut parser = test.prepare();
     let block_id = parser.eat_block().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, block_id, Block { expressions, .. } => {
         let mut loop_statement_id = None;
@@ -1214,7 +1223,7 @@ fn test_attach_inline_comment_between_path_segments() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // wow.omg!
     let mut current = expr_id;
@@ -1258,7 +1267,7 @@ fn test_attach_inline_comment_before_dot_member() {
     let mut test = TestParser::new("wow /* inline comment */ .omg");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // wow .omg
     let mut current = expr_id;
@@ -1297,7 +1306,7 @@ fn test_attach_inline_comment_between_member_hops_to_boundary_owners() {
     let mut test = TestParser::new("source /* hop-a */ .first() /* hop-b */ .second()");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     let mut hop_a_target = None;
     let mut hop_b_target = None;
@@ -1347,7 +1356,7 @@ fn test_attach_inline_comment_between_binary_operands() {
     let mut test = TestParser::new("a && /* keep */ b");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // a && b
     assert_node!(
@@ -1426,7 +1435,7 @@ fn test_attach_line_comment_before_parenthesized_jsx_binary_operand_expression_m
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -1459,7 +1468,7 @@ fn test_attach_inline_comment_before_call_argument() {
     let mut test = TestParser::new("foo(/* first */ a)");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // foo(a)
     assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
@@ -1504,7 +1513,7 @@ fn test_attach_inline_comment_before_computed_object_key_to_property() {
     let mut test = TestParser::new("({ /* key */ [k]: value })");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -1550,7 +1559,7 @@ fn test_attach_parameter_separator_comment_to_parameter_prefix() {
     let mut test = TestParser::new("value /* parameter-type */: number");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
     let annotations = parser.tree.get_annotations(parameter_id.id);
     assert_eq!(annotations.len(), 1);
     assert_node!(
@@ -1572,7 +1581,7 @@ fn test_attach_optional_parameter_separator_comment_to_parameter_prefix() {
     let mut test = TestParser::new("value? /* optional-parameter-type */: number");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     let annotations = parser.tree.get_annotations(parameter_id.id);
     assert_eq!(annotations.len(), 1);
@@ -1595,7 +1604,7 @@ fn test_attach_parameter_prefix_comment_to_parameter() {
     let mut test = TestParser::new("/* before-name */ value: number");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
     let annotations = parser.tree.get_annotations(parameter_id.id);
     assert_eq!(annotations.len(), 1);
     assert_node!(
@@ -1617,7 +1626,7 @@ fn test_attach_empty_new_boundary_comment_to_callee_expression() {
     let mut test = TestParser::new("new require(/* new-boundary */)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -1647,7 +1656,7 @@ fn test_attach_empty_call_boundary_comment_to_callee_expression() {
     let mut test = TestParser::new("target(/* call-boundary */)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -1677,7 +1686,7 @@ fn test_attach_if_condition_boundary_comment_before_close_parenthesis() {
     let mut test = TestParser::new("if (true /* condition-boundary */ ) {}");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -1769,7 +1778,7 @@ fn test_attach_if_head_trailing_comment_on_direct_if_entrypoint() {
     );
     let mut parser = test.prepare();
     let if_id = parser.eat_if().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         let IfCondition::Expression { condition } = condition else {
@@ -2307,7 +2316,7 @@ fn test_attach_call_argument_inline_boundary_comment_to_next_argument() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
     assert_node!(
         parser.tree,
         expression_id,
@@ -2337,7 +2346,7 @@ fn test_attach_inline_comment_before_direct_index_to_left_expression() {
     let mut test = TestParser::new("source /* before-index */ [key]");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::Index { left, .. } => {
         let left_annotations = parser.tree.get_annotations(left.id);
@@ -2362,7 +2371,7 @@ fn test_attach_inline_comment_before_direct_call_parenthesis_to_callee() {
     let mut test = TestParser::new("target /* call-boundary */ (arg)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
         let callee_annotations = parser.tree.get_annotations(left.id);
@@ -2387,7 +2396,7 @@ fn test_attach_inline_comment_before_member_call_parenthesis_to_member_callee() 
     let mut test = TestParser::new("items.map /* keep */ ((item) => item)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left: callee_id, .. } => {
         let callee_id = *callee_id;
@@ -2423,7 +2432,7 @@ fn test_attach_inline_comment_before_optional_chain_operator_to_previous_member(
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
         assert_node!(parser.tree, *left, Expression::Member { left, .. } => {
@@ -2495,7 +2504,7 @@ fn test_attach_inline_comment_before_new_call_parenthesis_to_callee() {
         TestParser::new_with_options("new Factory /* new-call */ (arg)", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::New { left, dynamic_arguments, .. } => {
         assert_eq!(dynamic_arguments.len(), 1);
@@ -2525,7 +2534,7 @@ fn test_attach_optional_call_boundary_line_comment_to_call_expression() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -2660,7 +2669,7 @@ fn test_attach_optional_call_block_comment_before_chain_operator() {
         TestParser::new_with_options("getParameters /* marker */\n?.()", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -2692,7 +2701,7 @@ fn test_attach_optional_call_block_comment_before_chain_operator_same_line() {
         TestParser::new_with_options("target /* opt-call */ ?.()", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -2730,7 +2739,7 @@ fn test_attach_trailing_comment_to_last_call_argument_boundary() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -2764,7 +2773,7 @@ fn test_attach_comments_to_static_type_arguments() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -2814,7 +2823,7 @@ fn test_attach_multiline_call_argument_prefix_comment_before_lambda() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
     assert_node!(
         parser.tree,
         expression_id,
@@ -2850,7 +2859,7 @@ fn test_attach_multiline_call_argument_prefix_comment_before_lambda_javascript()
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
     assert_node!(
         parser.tree,
         expression_id,
@@ -2889,7 +2898,7 @@ fn test_attach_format_ignore_range_comments_to_call_arguments() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // doThing(1, foo(...), bar(3), 4)
     assert_node!(
@@ -3122,6 +3131,49 @@ value   =   compute(  1,  2)"#,
     );
 }
 
+/// Block comments around strict directives should stay attached to directive and following statement owners.
+#[test]
+fn test_attach_block_comments_around_strict_directive_boundaries() {
+    let mut test = TestParser::new_with_options(
+        r#"/******/ "use strict" /**/
+/******/ run()"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 2);
+
+    // first statement: "use strict"
+    let first_annotations = parser.tree.get_annotations(expressions[0].id);
+    assert_eq!(first_annotations.len(), 2);
+    assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Star);
+            assert_string!(parser, *string, "***");
+        });
+    });
+    assert_node!(parser.tree, first_annotations[1], Annotation::Doc { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Doc { string, style } => {
+            assert_eq!(*style, DocStyle::Star);
+            assert_string!(parser, *string, "/**/");
+        });
+    });
+
+    // second statement: run()
+    let second_annotations = parser.tree.get_annotations(expressions[1].id);
+    assert_eq!(second_annotations.len(), 1);
+    assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Star);
+            assert_string!(parser, *string, "***");
+        });
+    });
+}
+
 /// JSX expression container comments should be preserved as annotations.
 #[test]
 fn test_attach_jsx_expression_container_comment() {
@@ -3131,7 +3183,7 @@ fn test_attach_jsx_expression_container_comment() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -3169,7 +3221,7 @@ fn test_attach_jsx_expression_container_dangling_line_comment_on_multiline_value
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // <> {value} </>
     assert_node!(
@@ -3207,7 +3259,7 @@ fn test_attach_jsx_expression_container_trailing_line_comment() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -3291,7 +3343,7 @@ fn test_attach_tsx_ternary_branch_prefix_comments() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { elements, .. } => {
         let elements = elements.as_ref().expect("expected tree elements");
@@ -3337,7 +3389,7 @@ fn test_attach_tsx_ternary_alternate_line_comment_once() {
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -3437,7 +3489,7 @@ fn test_attach_tsx_logical_expression_trailing_line_comment_to_expression_postfi
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { elements, .. } => {
         let elements = elements.as_ref().expect("expected tree elements");
@@ -3468,7 +3520,7 @@ fn test_attach_declaration_body_boundary_comment_on_declaration_owner() {
     let mut test = TestParser::new("class Value /* declaration-body */ {}");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -3518,7 +3570,7 @@ method(): number // method-body-boundary
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(
         parser.tree,
@@ -4386,7 +4438,7 @@ struct Entity {}
     );
     let mut parser = test.prepare();
     let block_id = parser.eat_block().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, block_id, Block { expressions, .. } => {
         assert_eq!(expressions.len(), 1);
@@ -4615,7 +4667,7 @@ let X = 1
     );
     let mut parser = test.prepare();
     let block = parser.eat_block().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, block, Block { expressions, .. } => {
         assert_eq!(expressions.len(), 1);
@@ -4651,7 +4703,7 @@ b(): B
             TypeKind::Structural,
         )
         .unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // interface X
     assert_node!(parser.tree, interface_id, Declaration::Interface { members, .. } => {
@@ -4701,7 +4753,7 @@ function c(): C {
     let function = parser
         .eat_function(&start, DeclarationDescriptor::default(), false, false)
         .unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // function foo()
     assert_node!(parser.tree, function, Declaration::Function { body: body_id, .. } => {
@@ -4768,7 +4820,7 @@ fn test_attach_line_prefix_infix_postfix_to_expression() {
         TestParser::new("let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */");
     let mut parser = test.prepare();
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // let X = A && B
     assert_eq!(expressions.len(), 1);
@@ -4850,7 +4902,7 @@ let A = 1 // line suffix comment
     let mut parser = test.prepare();
     parser.eat_newline().unwrap();
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // let A = 1
     assert_eq!(expressions.len(), 1);
@@ -4898,7 +4950,7 @@ let B = 2
     );
     let mut parser = test.prepare();
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_eq!(expressions.len(), 2);
 
@@ -4946,7 +4998,7 @@ function main() {
     let function = parser
         .eat_function(&start, DeclarationDescriptor::default(), false, false)
         .unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // (annotation should be infix to innermost node, i.e. the block)
     assert_node!(parser.tree, function, Declaration::Function { body: body_id, .. } => {
@@ -4988,7 +5040,7 @@ a: int32 // doc, struct field infix
     let mut parser = test.prepare();
     parser.eat_newline().unwrap();
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // struct Floof
     assert_eq!(expressions.len(), 1);
@@ -5087,7 +5139,7 @@ export namespace Middle {
     let mut parser = test.prepare();
     parser.eat_newline().unwrap();
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // Outer namespace
     assert_eq!(expressions.len(), 1);
@@ -5170,7 +5222,7 @@ b: {
     );
     let mut parser = test.prepare();
     let block = parser.eat_block().unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     // { a: { .. } b: { .. } }
     assert_node!(parser.tree, block, Block { expressions, .. } => {
@@ -5281,7 +5333,7 @@ fn test_attach_blanks_in_array_elements() {
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.options).unwrap();
-    parser.finish_annotations();
+    parser.attach_trivia();
 
     assert_node!(parser.tree, expr_id, Expression::ArrayExpression { elements } => {
         assert_eq!(elements.len(), 2);

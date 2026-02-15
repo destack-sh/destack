@@ -1,36 +1,7 @@
 use super::super::*;
 use destack_fir::write;
 
-/// Return whether an empty-argument new call has deferred boundary comments.
-fn new_call_has_deferred_empty_argument_comments(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if !dynamic_arguments.is_empty() {
-        return false;
-    }
-
-    let (inline_argument_comment, line_argument_comment, trailing_optional_comment) =
-        collect_deferred_empty_call_boundary_comments(context, node_id);
-    inline_argument_comment.is_some()
-        || line_argument_comment.is_some()
-        || trailing_optional_comment.is_some()
-}
-
-/// Return a formatted left callee that emits only prefix annotations.
-fn format_new_left_without_infix_or_postfix_annotations<'ast>(
-    left: LocalNodeId<Expression>,
-) -> impl Format<DestackFormatContext<'ast>> {
-    format_with(move |f| {
-        let directive = directive_for_node(f.context(), left);
-        write!(f, [f.context().any_prefix_annotations(left)])?;
-        format_expression(f, left, f.context().tree.get(left), directive)?;
-        Ok(())
-    })
-}
-
-/// Format a `new` expression including deferred empty argument comments.
+/// Format a `new` expression.
 pub(super) fn format_new_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -52,14 +23,6 @@ pub(super) fn format_new_expression<'ast>(
     {
         left = *expression;
     }
-
-    // collect deferred empty-argument comment state
-    let has_deferred_empty_argument_comments =
-        new_call_has_deferred_empty_argument_comments(f.context(), node_id, dynamic_arguments);
-
-    // prepare an annotation-safe left formatter for deferred comment cases
-    let left_without_infix_or_postfix_annotations =
-        format_new_left_without_infix_or_postfix_annotations(left);
 
     // preserve parenthesized index chains like `(foo[bar])`
     if let Some((base_expression, indices)) =
@@ -93,32 +56,10 @@ pub(super) fn format_new_expression<'ast>(
 
         // keep wrapped member callee when required
         if should_wrap_member_callee {
-            if has_deferred_empty_argument_comments {
-                write!(
-                    f,
-                    [
-                        token("new"),
-                        space(),
-                        token("("),
-                        left_without_infix_or_postfix_annotations,
-                        token(")")
-                    ]
-                )?;
-            } else {
-                write!(f, [token("new"), space(), token("("), left, token(")")])?;
-            }
+            write!(f, [token("new"), space(), token("("), left, token(")")])?;
         }
         // otherwise write regular new callee
-        else if has_deferred_empty_argument_comments {
-            write!(
-                f,
-                [
-                    token("new"),
-                    space(),
-                    left_without_infix_or_postfix_annotations
-                ]
-            )?;
-        } else {
+        else {
             write!(f, [token("new"), space(), left])?;
         }
     }
@@ -128,8 +69,8 @@ pub(super) fn format_new_expression<'ast>(
         format_static_argument_list(f, static_arguments)?;
     }
 
-    // write dynamic argument list with deferred boundary comments
-    format_call_dynamic_arguments_with_deferred_comments(f, node_id, dynamic_arguments)?;
+    // write dynamic argument list
+    format_call_arguments(f, node_id, dynamic_arguments)?;
 
     Ok(())
 }

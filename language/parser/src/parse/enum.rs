@@ -1,4 +1,4 @@
-use super::annotation::{AnnotationSeamKind, PendingDecorators};
+use super::annotation::PendingDecorators;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -78,7 +78,6 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // body
-        let body_cursor = self.normalize_to_scanner_cursor();
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
         self.eat_newlines_maybe()?;
@@ -104,14 +103,6 @@ impl Parser {
             self.tree.set_main_span(enum_id, span);
         }
 
-        // attach declaration header-to-body boundary annotations before `{`
-        self.bind_annotation_seam(
-            body_cursor.index,
-            body_cursor.skipped_newline_count.saturating_add(1),
-            enum_id.id,
-            AnnotationSeamKind::Infix,
-        );
-
         Ok(enum_id)
     }
 
@@ -123,11 +114,10 @@ impl Parser {
         // eat everything
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
-        let mut last_item_node_id: Option<u32> = None;
         let mut pending_decorators = PendingDecorators::new();
 
         while self.has_more_tokens() {
-            let cursor = self.normalize_to_scanner_cursor();
+            let cursor = self.sync_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace
@@ -138,9 +128,6 @@ impl Parser {
                     pending_decorators.clear();
                 }
 
-                if let Some(last_item_node_id) = last_item_node_id {
-                    self.bind_owner_close_postfix_default_seams(last_item_node_id, cursor);
-                }
                 break;
             }
             // consume any stop
@@ -155,12 +142,9 @@ impl Parser {
             // enum field
             else if self.peek_enum_field_is() {
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
-                self.bind_statement_owner_with_decorators_and_default_trailing_at_current(
-                    field.id,
-                    cursor,
-                    &mut pending_decorators,
-                );
-                last_item_node_id = Some(field.id);
+                if !pending_decorators.is_empty() {
+                    self.attach_decorators(field.id, std::mem::take(&mut pending_decorators));
+                }
                 fields.push(field);
             }
             // (static) members
@@ -170,12 +154,9 @@ impl Parser {
                     parser.try_eat_member(TokenType::Newline)
                 })?;
                 let member_id = member_result;
-                self.bind_statement_owner_with_decorators_and_default_trailing_at_current(
-                    member_id.id,
-                    cursor,
-                    &mut pending_decorators,
-                );
-                last_item_node_id = Some(member_id.id);
+                if !pending_decorators.is_empty() {
+                    self.attach_decorators(member_id.id, std::mem::take(&mut pending_decorators));
+                }
                 members.push(member_id);
             }
         }

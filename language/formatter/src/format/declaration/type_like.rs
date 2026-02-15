@@ -1,13 +1,9 @@
 use super::dispatch::format_super_type_clause;
-use crate::annotation::{
-    declaration_body_boundary_prefix_annotations,
-    declaration_expression_body_boundary_prefix_annotations,
-};
 use crate::argument::list_like;
 use crate::expression::expression_has_static_type_arguments;
 use crate::property::format_block_of_members;
 use crate::r#where::format_where_clause_with_break;
-use crate::{DestackFormatter, FormatNode, empty_block_with_infix_annotations};
+use crate::{DestackFormatter, empty_block_with_infix_annotations};
 use destack_ast::{
     Annotation, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
     EnumField, EnumKind, Expression, Generics, Heritage, Keyword, LocalNodeId, Member, NodeType,
@@ -17,38 +13,34 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-/// Write deferred declaration boundary prefix annotations between headers and `{`.
-fn write_deferred_declaration_body_boundary_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    declaration_id: LocalNodeId<Declaration>,
-    declaration_expression_id: Option<LocalNodeId<Expression>>,
-) -> FormatResult<bool> {
-    let mut annotations = declaration_body_boundary_prefix_annotations(f.context(), declaration_id);
-    if let Some(expression_id) = declaration_expression_id {
-        annotations.extend(declaration_expression_body_boundary_prefix_annotations(
-            f.context(),
-            expression_id,
-        ));
+/// Return whether heritage clauses include a line-postfix-boundary comment.
+fn heritage_has_line_postfix_boundary_annotation(
+    f: &DestackFormatter<'_, '_>,
+    heritage: &Heritage,
+) -> bool {
+    let mut heritage_types: Vec<LocalNodeId<Expression>> = Vec::new();
+    if let Some(extends_types) = heritage.extends_types.as_ref() {
+        heritage_types.extend(extends_types.iter().copied());
+    }
+    if let Some(implements_types) = heritage.implements_types.as_ref() {
+        heritage_types.extend(implements_types.iter().copied());
     }
 
-    annotations.sort_by_key(|annotation_id| {
-        let span = f.context().get_span::<Annotation>(*annotation_id);
-        (span.start, span.end, annotation_id.id)
-    });
-    annotations.dedup_by_key(|annotation_id| annotation_id.id);
+    heritage_types.into_iter().any(|expression_id| {
+        let Some(annotation_ids) = f.context().get_annotations(expression_id) else {
+            return false;
+        };
 
-    if annotations.is_empty() {
-        return Ok(false);
-    }
-
-    for annotation_id in annotations {
-        write!(f, [space()])?;
-        let annotation = f.context().tree.get::<Annotation>(annotation_id);
-        annotation.format_node(annotation_id, f)?;
-    }
-
-    write!(f, [space()])?;
-    Ok(true)
+        annotation_ids.iter().any(|annotation_id| {
+            matches!(
+                f.context().tree.get::<Annotation>(*annotation_id),
+                Annotation::Comment {
+                    position: destack_ast::AnnotationPosition::LinePostfixBoundary,
+                    ..
+                }
+            )
+        })
+    })
 }
 
 /// Format shared export and declaration modifiers for declarations.
@@ -227,14 +219,12 @@ pub(super) fn format_struct_or_class_declaration<'ast>(
         format_declaration_heritage(f, heritage, true)?;
     }
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
+    let has_heritage_line_boundary_annotation =
+        heritage_has_line_postfix_boundary_annotation(f, heritage);
 
-    let has_deferred_declaration_boundary_annotations =
-        write_deferred_declaration_body_boundary_prefix_annotations(
-            f,
-            node_id,
-            declaration_expression_id,
-        )?;
-    if !has_deferred_declaration_boundary_annotations {
+    if has_heritage_line_boundary_annotation {
+        write!(f, [hard_line_break()])?;
+    } else {
         write!(f, [space()])?;
     }
 

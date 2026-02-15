@@ -146,9 +146,6 @@ impl Parser {
             let expression_id = self.eat_expression(self.options)?;
             self.eat_newlines_maybe()?;
 
-            // keep separator-boundary comments before `)` on the inner expression
-            self.bind_owner_trailing_default_at_current(expression_id.id);
-
             self.eat_token(TokenType::CloseParenthesis)?;
             self.tree
                 .set_span(expression_id, self.get_span_from(&start));

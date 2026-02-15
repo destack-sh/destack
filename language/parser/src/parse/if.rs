@@ -110,14 +110,6 @@ impl Parser {
             }
         })?;
 
-        // keep inline condition-head boundary comments on the parsed condition expression
-        if let IfCondition::Expression {
-            condition: condition_expression_id,
-        } = &condition
-        {
-            self.bind_owner_trailing_default_at_current(condition_expression_id.id);
-        }
-
         self.eat_newlines_maybe()?;
 
         // then block
@@ -133,23 +125,12 @@ impl Parser {
 
         // if / else if / else node
         let else_expression_id = if self.is_keyword_after_newlines(Keyword::Else) {
-            // keep inline then-to-else boundary comments on the then expression
-            self.bind_owner_trailing_default_at_current(then_expression_id.id);
-
             self.eat_newlines_maybe()?;
-            let else_cursor = self.peek_cursor();
             self.eat_keyword(Keyword::Else)?;
             self.eat_newlines_maybe()?;
             let else_options = self.options.in_statement_position();
             let else_expression_id =
                 self.with_options(else_options, |parser| parser.eat_expression_as_block())?;
-
-            // keep own-line comments before `else` attached to the else branch expression
-            self.bind_owner_leading_seam_at_cursor(
-                else_expression_id.id,
-                else_cursor,
-                super::annotation::LeadingAnnotationKind::Statement,
-            );
 
             Some(else_expression_id)
         } else {

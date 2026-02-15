@@ -67,11 +67,7 @@ impl Parser {
                 .insert(Expression::Block(block_id), self.get_span_from(body_start));
             Ok(body)
         } else {
-            let mut options = self
-                .options
-                .in_before_block()
-                .not_in_decorator()
-                .without_expression_leading_annotations();
+            let mut options = self.options.in_before_block().not_in_decorator();
             options.allow_sequence_expression = false;
             self.eat_expression(options)
         }
@@ -308,8 +304,7 @@ impl Parser {
                     .options
                     .not_in_position()
                     .not_in_left_precedence()
-                    .in_type()
-                    .without_expression_leading_annotations();
+                    .in_type();
                 if self.options.in_type_conditional_right {
                     type_options = type_options.in_type_conditional_right();
                 }
@@ -342,24 +337,13 @@ impl Parser {
         self.eat_token(TokenType::CloseParenthesis)?;
 
         // parse an explicit lambda return type when present
-        let mut return_type_separator_cursor: Option<(usize, usize)> = None;
-        let mut return_type_cursor: Option<(usize, usize, u32)> = None;
         let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
             let type_start = self.mark_span();
             self.eat_newlines_maybe()?;
-            let separator_cursor = self.peek_cursor();
             self.eat_token(TokenType::Colon)?;
-            return_type_separator_cursor = Some((
-                separator_cursor.index,
-                separator_cursor.skipped_newline_count,
-            ));
             self.eat_newlines_maybe()?;
 
-            let mut return_type_options = self
-                .options
-                .nested()
-                .in_type()
-                .without_expression_leading_annotations();
+            let mut return_type_options = self.options.nested().in_type();
             if self.options.in_type_conditional_right {
                 return_type_options = return_type_options.in_type_conditional_right();
             }
@@ -367,13 +351,7 @@ impl Parser {
                 return_type_options = return_type_options.in_static();
             }
             return_type_options = return_type_options.in_arrow_return_type();
-            let return_type_leading_cursor = self.peek_cursor();
             let return_type = self.eat_expression(return_type_options)?;
-            return_type_cursor = Some((
-                return_type_leading_cursor.index,
-                return_type_leading_cursor.skipped_newline_count,
-                return_type.id,
-            ));
             let return_type_span = self.get_span_from(&type_start);
 
             (Some(return_type), Some(return_type_span))
@@ -382,10 +360,8 @@ impl Parser {
         };
 
         // parse the body
-        let arrow_cursor = self.peek_cursor();
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
-        let body_cursor = self.peek_cursor();
         let body_start = self.mark_span();
         let body = self.eat_simple_lambda_body(&body_start)?;
 
@@ -400,36 +376,6 @@ impl Parser {
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.simple_parenthesized_lambda_hits += 1;
-        }
-
-        // keep comments/docs between parameter head and `=>` on the lambda declaration
-        self.bind_owner_leading_seam_at_cursor(
-            function_id.id,
-            arrow_cursor,
-            super::annotation::LeadingAnnotationKind::Wrapper,
-        );
-        self.bind_owner_leading_seam_at_cursor(
-            body.id,
-            body_cursor,
-            super::annotation::LeadingAnnotationKind::Expression,
-        );
-        if let Some((separator_index, separator_skipped_newline_count)) =
-            return_type_separator_cursor
-        {
-            self.bind_owner_wrapper_leading_seam_at_token(
-                function_id.id,
-                separator_index,
-                separator_skipped_newline_count,
-            );
-        }
-        if let Some((cursor_index, cursor_skipped_newline_count, return_type_id)) =
-            return_type_cursor
-        {
-            self.bind_owner_wrapper_leading_seam_at_token(
-                return_type_id,
-                cursor_index,
-                cursor_skipped_newline_count,
-            );
         }
 
         Ok(Some(function_id))
@@ -481,10 +427,8 @@ impl Parser {
         );
 
         // parse the lambda body
-        let arrow_cursor = self.peek_cursor();
         self.eat_arrow()?;
         self.eat_newlines_maybe()?;
-        let body_cursor = self.peek_cursor();
         let body_start = self.mark_span();
         let body = self.eat_simple_lambda_body(&body_start)?;
 
@@ -501,18 +445,6 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.simple_identifier_lambda_hits += 1;
         }
-
-        // keep comments/docs between parameter head and `=>` on the lambda declaration
-        self.bind_owner_leading_seam_at_cursor(
-            function_id.id,
-            arrow_cursor,
-            super::annotation::LeadingAnnotationKind::Wrapper,
-        );
-        self.bind_owner_leading_seam_at_cursor(
-            body.id,
-            body_cursor,
-            super::annotation::LeadingAnnotationKind::Expression,
-        );
 
         Ok(Some(function_id))
     }
@@ -596,12 +528,6 @@ impl Parser {
         {
             return Ok(function_id);
         }
-
-        // track lambda separator token for inline boundary annotation attachment
-        let mut lambda_separator_cursor: Option<(usize, usize)> = None;
-        let mut lambda_body_cursor: Option<(usize, usize, u32)> = None;
-        let mut return_type_separator_cursor: Option<(usize, usize)> = None;
-        let mut return_type_leading_cursor: Option<(usize, usize)> = None;
 
         // abstraction
         if self.is_keyword(Keyword::Abstract)
@@ -751,30 +677,11 @@ impl Parser {
             if kind == FunctionKind::Lambda && self.has_lambda_return_type_marker() {
                 let type_start = self.mark_span();
                 self.eat_newlines_maybe()?;
-                let separator_cursor = self.peek_cursor();
                 self.bump(); // eat colon or arrow
-                if matches!(
-                    separator_cursor.token_type,
-                    TokenType::Arrow | TokenType::ArrowWide
-                ) {
-                    lambda_separator_cursor = Some((
-                        separator_cursor.index,
-                        separator_cursor.skipped_newline_count,
-                    ));
-                } else if separator_cursor.token_type == TokenType::Colon {
-                    return_type_separator_cursor = Some((
-                        separator_cursor.index,
-                        separator_cursor.skipped_newline_count,
-                    ));
-                }
                 self.eat_newlines_maybe()?;
 
                 // return type
-                let mut return_type_options = self
-                    .options
-                    .nested()
-                    .in_type()
-                    .without_expression_leading_annotations();
+                let mut return_type_options = self.options.nested().in_type();
                 if self.options.in_type_conditional_right {
                     return_type_options = return_type_options.in_type_conditional_right();
                 }
@@ -784,12 +691,7 @@ impl Parser {
                 if !self.options.in_type {
                     return_type_options = return_type_options.in_arrow_return_type();
                 }
-                let return_type_cursor = self.peek_cursor();
                 let return_type = self.eat_expression(return_type_options)?;
-                return_type_leading_cursor = Some((
-                    return_type_cursor.index,
-                    return_type_cursor.skipped_newline_count,
-                ));
                 let return_type_span = self.get_span_from(&type_start);
 
                 // where clauses are a destack only feature
@@ -812,35 +714,18 @@ impl Parser {
                 let (return_type, return_type_span) = if has_return_type_marker {
                     let type_start = self.mark_span();
                     self.eat_newlines_maybe()?;
-                    let separator_cursor = self.peek_cursor();
                     self.bump(); // eat arrow or colon
-                    if separator_cursor.token_type == TokenType::Colon {
-                        return_type_separator_cursor = Some((
-                            separator_cursor.index,
-                            separator_cursor.skipped_newline_count,
-                        ));
-                    }
                     self.eat_newlines_maybe()?;
 
                     // return type
-                    let mut return_type_options = self
-                        .options
-                        .nested()
-                        .in_type()
-                        .in_before_block()
-                        .without_expression_leading_annotations();
+                    let mut return_type_options = self.options.nested().in_type().in_before_block();
                     if self.options.in_type_conditional_right {
                         return_type_options = return_type_options.in_type_conditional_right();
                     }
                     if self.options.in_static {
                         return_type_options = return_type_options.in_static();
                     }
-                    let return_type_cursor = self.peek_cursor();
                     let return_type = self.eat_expression(return_type_options)?;
-                    return_type_leading_cursor = Some((
-                        return_type_cursor.index,
-                        return_type_cursor.skipped_newline_count,
-                    ));
                     (Some(return_type), Some(self.get_span_from(&type_start)))
                 } else {
                     (None, None)
@@ -897,14 +782,8 @@ impl Parser {
             // lambda with body
             else if kind == FunctionKind::Lambda && !self.options.in_type && self.peek_arrow_is()
             {
-                let separator_cursor = self.peek_cursor();
                 self.eat_arrow()?;
-                lambda_separator_cursor = Some((
-                    separator_cursor.index,
-                    separator_cursor.skipped_newline_count,
-                ));
                 self.eat_newlines_maybe()?;
-                let body_cursor = self.peek_cursor();
                 let body_start = self.mark_span();
                 let body = if self.is_block_start() {
                     let mut options = self
@@ -924,18 +803,12 @@ impl Parser {
                         .options
                         .in_before_block()
                         .not_in_decorator()
-                        .without_expression_leading_annotations()
                         .with_generator(is_generator);
                     // avoid swallowing commas from surrounding contexts
                     options.allow_sequence_expression = false;
                     options.forbid_await = options.forbid_await && !is_async;
                     self.eat_expression(options)?
                 };
-                lambda_body_cursor = Some((
-                    body_cursor.index,
-                    body_cursor.skipped_newline_count,
-                    body.id,
-                ));
                 Some(body)
             }
             // no body
@@ -993,43 +866,6 @@ impl Parser {
         if let Some(span) = return_type_span {
             self.tree
                 .set_side_span(function_id, NodeSpanType::Type, span);
-        }
-
-        // keep comments/docs between lambda head and separator on the declaration
-        if let Some((separator_index, separator_skipped_newline_count)) = lambda_separator_cursor {
-            self.bind_owner_wrapper_leading_seam_at_token(
-                function_id.id,
-                separator_index,
-                separator_skipped_newline_count,
-            );
-        }
-        if let Some((separator_index, separator_skipped_newline_count)) =
-            return_type_separator_cursor
-        {
-            self.bind_owner_wrapper_leading_seam_at_token(
-                function_id.id,
-                separator_index,
-                separator_skipped_newline_count,
-            );
-        }
-        if let (Some((body_index, body_skipped_newline_count)), Some(return_type_id)) =
-            (return_type_leading_cursor, return_type)
-        {
-            self.bind_owner_wrapper_leading_seam_at_token(
-                return_type_id.id,
-                body_index,
-                body_skipped_newline_count,
-            );
-        }
-
-        // keep comments/docs between lambda separator and body on the body expression
-        if let Some((body_index, body_skipped_newline_count, body_id)) = lambda_body_cursor {
-            self.bind_owner_leading_seam_at_token(
-                body_id,
-                body_index,
-                body_skipped_newline_count,
-                super::annotation::LeadingAnnotationKind::Expression,
-            );
         }
 
         Ok(function_id)
@@ -1477,9 +1313,11 @@ function h<T>
             assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
                 assert_eq!(block.expressions.len(), 1);
-                assert_node!(parser.tree, block.expressions[0], Expression::Return { value } => {
-                    let value = value.expect("expected return value");
-                    assert_node!(parser.tree, value, Expression::TypeBinary { .. });
+                assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                    assert_node!(parser.tree, *statement_id, Expression::Return { value } => {
+                        let value = value.expect("expected return value");
+                        assert_node!(parser.tree, value, Expression::TypeBinary { .. });
+                    });
                 });
             });
         });
@@ -1689,13 +1527,15 @@ async function* foo() => int32 {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.expressions.len(), 1);
                     // yield yield
-                    assert_node!(parser.tree, block.expressions[0], Expression::Yield { cardinality, value } => {
-                        assert_eq!(*cardinality, YieldCardinality::Scalar);
-                        assert!(value.is_some());
-                        // yield
-                        assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
                             assert_eq!(*cardinality, YieldCardinality::Scalar);
-                            assert!(value.is_none());
+                            assert!(value.is_some());
+                            // yield
+                            assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
+                                assert_eq!(*cardinality, YieldCardinality::Scalar);
+                                assert!(value.is_none());
+                            });
                         });
                     });
                 });
@@ -1721,10 +1561,12 @@ async function* foo() => int32 {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.expressions.len(), 1);
                     // yield *a
-                    assert_node!(parser.tree, block.expressions[0], Expression::Yield { cardinality, value } => {
-                        assert_eq!(*cardinality, YieldCardinality::Generator);
-                        assert!(value.is_some());
-                        assert_expression_path!(parser, parser.tree.get(value.unwrap()), "a");
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                            assert_eq!(*cardinality, YieldCardinality::Generator);
+                            assert!(value.is_some());
+                            assert_expression_path!(parser, parser.tree.get(value.unwrap()), "a");
+                        });
                     });
                 });
             });
@@ -1751,13 +1593,15 @@ async function* foo() => int32 {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.expressions.len(), 1);
                     // yield *yield
-                    assert_node!(parser.tree, block.expressions[0], Expression::Yield { cardinality, value } => {
-                        assert_eq!(*cardinality, YieldCardinality::Generator);
-                        assert!(value.is_some());
-                        // yield
-                        assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
-                            assert_eq!(*cardinality, YieldCardinality::Scalar);
-                            assert!(value.is_none());
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                            assert_eq!(*cardinality, YieldCardinality::Generator);
+                            assert!(value.is_some());
+                            // yield
+                            assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
+                                assert_eq!(*cardinality, YieldCardinality::Scalar);
+                                assert!(value.is_none());
+                            });
                         });
                     });
                 });
@@ -1822,7 +1666,9 @@ async function* foo() => int32 {
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.expressions.len(), 1);
-                    assert_node!(parser.tree, block.expressions[0], Expression::Parenthesized { .. });
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Parenthesized { .. });
+                    });
                 });
             });
         });
@@ -1840,7 +1686,9 @@ async function* foo() => int32 {
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.expressions.len(), 1);
-                    assert_node!(parser.tree, block.expressions[0], Expression::Parenthesized { .. });
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Parenthesized { .. });
+                    });
                 });
             });
         });

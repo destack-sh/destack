@@ -9,8 +9,8 @@ use std::sync::Arc;
 use super::expression::lookahead::DelimiterAnalysis;
 use crate::{TokenStream, TokenStreamCursor, TokenStreamMark, is_semantic};
 use destack_ast::{
-    Annotation, BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId,
-    Token, TokenSpan, TokenType,
+    BlockFormat, Expression, Keyword, LocalNodeId, NodeTree, NodeTreeMark, StringId, Token,
+    TokenSpan, TokenType,
 };
 use destack_base::LocalStringPool;
 use destack_source::{
@@ -150,8 +150,6 @@ pub struct ParserOptions {
     pub forbid_await: bool = false,
     /// Whether sequence expressions (comma operator) are allowed.
     pub allow_sequence_expression: bool = true,
-    /// Whether expression-leading annotations should attach at expression entry points.
-    pub allow_expression_leading_annotations: bool = true,
     /// Whether private hash keys (`#name`) are allowed in key position.
     pub allow_private_hash_key: bool = false,
     /// Whether ambiguous tree literal syntax is disallowed.
@@ -564,24 +562,6 @@ impl ParserOptions {
         }
     }
 
-    /// Disable expression-leading annotation attachment in wrapper-owned contexts.
-    #[inline]
-    pub(crate) fn without_expression_leading_annotations(self) -> Self {
-        Self {
-            allow_expression_leading_annotations: false,
-            ..self
-        }
-    }
-
-    /// Enable expression-leading annotation attachment for nested expression parses.
-    #[inline]
-    pub(crate) fn with_expression_leading_annotations(self) -> Self {
-        Self {
-            allow_expression_leading_annotations: true,
-            ..self
-        }
-    }
-
     /// Disallow arrow return type shielding for nested expressions.
     #[inline]
     pub(crate) fn not_in_arrow_return_type(self) -> Self {
@@ -610,7 +590,6 @@ impl ParserOptions {
             forbid_yield: self.forbid_yield,
             forbid_await: self.forbid_await,
             allow_sequence_expression: self.allow_sequence_expression,
-            allow_expression_leading_annotations: true,
             in_decorator: self.in_decorator,
             disallow_ambiguous_tree_literal: self.disallow_ambiguous_tree_literal,
             in_declare_context: self.in_declare_context,
@@ -665,14 +644,6 @@ pub struct Parser {
     pub(crate) delimiter_analyses: Vec<DelimiterAnalysis>,
     /// Cached state bits for delimiter analysis entries.
     pub(crate) delimiter_analyses_cached: Vec<bool>,
-    /// Claimed side token flags for inline annotation attachment.
-    pub(crate) annotation_claimed_side_tokens: Vec<bool>,
-    /// Claimed semantic token flags for inline annotation attachment.
-    pub(crate) annotation_claimed_tokens: Vec<bool>,
-    /// Side-token claim log used to rollback speculative claims on rewind.
-    pub(crate) annotation_claimed_side_token_log: Vec<usize>,
-    /// Semantic-token claim log used to rollback speculative claims on rewind.
-    pub(crate) annotation_claimed_token_log: Vec<usize>,
     /// Cached identifiers used by type literal parsing.
     pub(crate) type_literal_identifiers: TypeLiteralIdentifiers,
 }
@@ -784,7 +755,6 @@ impl Debug for Parser {
 
 impl Parser {
     /// Create a new parser from a text File and tokenize it.
-    /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
     #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
     pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
         // initialize token stream for lazy lexing
@@ -818,10 +788,6 @@ impl Parser {
             token_identifiers_cached: Vec::with_capacity(estimated_tokens),
             delimiter_analyses: Vec::with_capacity(estimated_tokens),
             delimiter_analyses_cached: Vec::with_capacity(estimated_tokens),
-            annotation_claimed_side_tokens: Vec::with_capacity(estimated_tokens),
-            annotation_claimed_tokens: Vec::with_capacity(estimated_tokens),
-            annotation_claimed_side_token_log: Vec::with_capacity(estimated_tokens / 8),
-            annotation_claimed_token_log: Vec::with_capacity(estimated_tokens / 8),
             type_literal_identifiers,
         };
 
@@ -877,10 +843,6 @@ impl Parser {
             ..ParserOptions::default()
         };
         self.errors.clear();
-        self.annotation_claimed_side_tokens.clear();
-        self.annotation_claimed_tokens.clear();
-        self.annotation_claimed_side_token_log.clear();
-        self.annotation_claimed_token_log.clear();
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             *speculation_stats = ParserSpeculationStats::default();
         }
@@ -1027,20 +989,14 @@ impl Parser {
 
     /// Return scanner-style cursor information at the current parser position.
     #[inline]
-    pub(crate) fn peek_cursor(&mut self) -> NonNewlineTokenCursor {
+    pub(crate) fn peek_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
         self.peek_current_scanner_facts().1
-    }
-
-    /// Return scanner style cursor information at the current parser position.
-    #[inline]
-    pub(crate) fn scanner_cursor(&mut self) -> NonNewlineTokenCursor {
-        self.peek_cursor()
     }
 
     /// Advance to the current scanner cursor and return it.
     #[inline]
-    pub(crate) fn normalize_to_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
-        let cursor = self.peek_cursor();
+    pub(crate) fn sync_to_scanner_cursor(&mut self) -> NonNewlineTokenCursor {
+        let cursor = self.peek_scanner_cursor();
         if cursor.index != self.scanner.pos() {
             self.advance_to(cursor.index);
         }
@@ -1346,37 +1302,11 @@ impl Parser {
     /// Ensure token caches align with the current token stream after a rewind.
     fn reset_token_caches_after_rewind(&mut self) {
         self.truncate_token_caches();
-        self.truncate_claimed_annotation_side_tokens();
-        self.truncate_claimed_annotation_tokens();
-    }
-
-    /// Truncate claimed side token flags to the current side token length.
-    fn truncate_claimed_annotation_side_tokens(&mut self) {
-        let side_len = self.token_stream.side_tokens().len();
-        self.annotation_claimed_side_tokens.truncate(side_len);
-    }
-
-    /// Truncate claimed semantic token flags to the current token length.
-    fn truncate_claimed_annotation_tokens(&mut self) {
-        let token_len = self.tokens().len();
-        self.annotation_claimed_tokens.truncate(token_len);
     }
 
     /// Parse everything as an implicit namespace.
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        // parse main expressions without final annotations
-        let expressions = self.parse_without_finish();
-
-        // attach side annotations in the default parse pipeline
-        self.finalize_trivia_projection();
-
-        self.is_finished = true;
-        expressions
-    }
-
-    /// Parse everything as an implicit namespace without attaching annotations.
-    pub fn parse_without_finish(&mut self) -> Vec<LocalNodeId<Expression>> {
         // parse leading triple-slash reference path directives
         let (mut expressions, consumed_to_end) =
             self.parse_leading_triple_slash_reference_imports();
@@ -1395,10 +1325,43 @@ impl Parser {
 
         // comment-only files need one stable target node
         self.token_stream.lex_to_end();
-        if expressions.is_empty() && self.has_comment_trivia_tokens() {
+        if expressions.is_empty() && self.token_stream.has_comment_trivia_tokens() {
             let stub_span = Span::new(self.file_id, 0, self.file.len);
             let stub = self.tree.insert(Expression::Stub, stub_span);
-            self.bind_annotation_seam(0, 0, stub.id, super::annotation::AnnotationSeamKind::Stub);
+            expressions.push(stub);
+        }
+
+        // attach trivia in the default parse pipeline
+        self.attach_trivia();
+
+        self.is_finished = true;
+        expressions
+    }
+
+    /// Parse everything as an implicit namespace without attaching trivia.
+    #[cfg(test)]
+    pub(crate) fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
+        // parse leading triple-slash reference path directives
+        let (mut expressions, consumed_to_end) =
+            self.parse_leading_triple_slash_reference_imports();
+
+        // parse the root block body with recovery when source has non-directive content
+        if !consumed_to_end {
+            let start = self.mark_span();
+            let mut body_expressions = self.with_recovery(
+                &start,
+                |parser| parser.eat_block_body(BlockFormat::Implicit),
+                Vec::new(),
+                TokenType::End,
+            );
+            expressions.append(&mut body_expressions);
+        }
+
+        // comment-only files need one stable target node
+        self.token_stream.lex_to_end();
+        if expressions.is_empty() && self.token_stream.has_comment_trivia_tokens() {
+            let stub_span = Span::new(self.file_id, 0, self.file.len);
+            let stub = self.tree.insert(Expression::Stub, stub_span);
             expressions.push(stub);
         }
 
@@ -1411,9 +1374,16 @@ impl Parser {
         self.scanner.pos() as u32
     }
 
-    /// Attach side annotations after parsing when needed.
-    pub fn finish_annotations(&mut self) {
-        self.finalize_trivia_projection();
+    /// Attach trivia after parsing when needed.
+    pub fn attach_trivia(&mut self) {
+        if !self.token_stream.has_comment_trivia_tokens()
+            && !self.token_stream.has_blank_trivia_tokens()
+        {
+            return;
+        }
+
+        let _timing = self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_MAIN);
+        self.tree.sort_annotations();
     }
     /// Swap parser options and return the previous value.
     #[inline(always)]
@@ -1474,8 +1444,6 @@ impl Parser {
             token_stream_mark,
             self.errors.len(),
             self.diagnostics.len(),
-            self.annotation_claimed_side_token_log.len(),
-            self.annotation_claimed_token_log.len(),
         )
     }
 
@@ -1492,8 +1460,6 @@ impl Parser {
             token_stream_mark,
             error_count: None,
             diagnostic_count: None,
-            annotation_claimed_side_token_log_len: self.annotation_claimed_side_token_log.len(),
-            annotation_claimed_token_log_len: self.annotation_claimed_token_log.len(),
             span_override: None,
         }
     }
@@ -1507,8 +1473,6 @@ impl Parser {
             token_stream_mark: None,
             error_count: None,
             diagnostic_count: None,
-            annotation_claimed_side_token_log_len: self.annotation_claimed_side_token_log.len(),
-            annotation_claimed_token_log_len: self.annotation_claimed_token_log.len(),
             span_override: None,
         }
     }
@@ -1527,7 +1491,6 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.rewind_calls += 1;
         }
-        self.rollback_annotation_claims_to_mark(&mark);
         self.scanner.set_pos(mark.pos);
         if let Some(token_stream_mark) = mark.token_stream_mark {
             self.token_stream.restore(token_stream_mark);
@@ -1540,7 +1503,6 @@ impl Parser {
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.restore_calls += 1;
         }
-        self.rollback_annotation_claims_to_mark(&mark);
         self.scanner.set_pos(mark.pos);
         if let Some(tree_mark) = mark.tree_mark {
             debug_assert_eq!(tree_mark.next_global_id(), idx);
@@ -1560,31 +1522,6 @@ impl Parser {
         }
     }
 
-    /// Roll back annotation claim flags to a parser mark.
-    fn rollback_annotation_claims_to_mark(&mut self, mark: &ParserMark) {
-        while self.annotation_claimed_side_token_log.len()
-            > mark.annotation_claimed_side_token_log_len
-        {
-            let side_index = self
-                .annotation_claimed_side_token_log
-                .pop()
-                .expect("checked len");
-            if let Some(claimed) = self.annotation_claimed_side_tokens.get_mut(side_index) {
-                *claimed = false;
-            }
-        }
-
-        while self.annotation_claimed_token_log.len() > mark.annotation_claimed_token_log_len {
-            let token_index = self
-                .annotation_claimed_token_log
-                .pop()
-                .expect("checked len");
-            if let Some(claimed) = self.annotation_claimed_tokens.get_mut(token_index) {
-                *claimed = false;
-            }
-        }
-    }
-
     /// Wrap an expression in a statement expression.
     #[inline]
     pub(crate) fn wrap_statement_expression(
@@ -1592,28 +1529,7 @@ impl Parser {
         expression_id: LocalNodeId<Expression>,
         span: Span,
     ) -> LocalNodeId<Expression> {
-        let statement_expression_id = self.tree.insert(Expression::Statement(expression_id), span);
-
-        // move boundary style annotations outside the inner expression span to the wrapper
-        let inner_expression_span = self.tree.get_span(expression_id);
-        self.tree.move_annotations_if(
-            expression_id.id,
-            statement_expression_id.id,
-            |_, annotation, annotation_span| {
-                if matches!(annotation, Annotation::Decorator { .. }) {
-                    return false;
-                }
-
-                if annotation_span.file != inner_expression_span.file {
-                    return false;
-                }
-
-                annotation_span.start < inner_expression_span.start
-                    || annotation_span.end > inner_expression_span.end
-            },
-        );
-
-        statement_expression_id
+        self.tree.insert(Expression::Statement(expression_id), span)
     }
 
     /// Get a mark and return the span of the current position.
@@ -2376,10 +2292,6 @@ pub struct ParserMark {
     error_count: Option<usize>,
     /// The parser diagnostic count at mark time.
     diagnostic_count: Option<usize>,
-    /// Side-token claim log length at mark time.
-    annotation_claimed_side_token_log_len: usize,
-    /// Semantic-token claim log length at mark time.
-    annotation_claimed_token_log_len: usize,
     /// Optional override span for synthetic marks.
     span_override: Option<Span>,
 }
@@ -2393,8 +2305,6 @@ impl ParserMark {
         token_stream_mark: Option<TokenStreamMark>,
         error_count: usize,
         diagnostic_count: usize,
-        annotation_claimed_side_token_log_len: usize,
-        annotation_claimed_token_log_len: usize,
     ) -> Self {
         Self {
             pos,
@@ -2402,8 +2312,6 @@ impl ParserMark {
             token_stream_mark,
             error_count: Some(error_count),
             diagnostic_count: Some(diagnostic_count),
-            annotation_claimed_side_token_log_len,
-            annotation_claimed_token_log_len,
             span_override: None,
         }
     }
@@ -2417,8 +2325,6 @@ impl ParserMark {
             token_stream_mark: None,
             error_count: None,
             diagnostic_count: None,
-            annotation_claimed_side_token_log_len: 0,
-            annotation_claimed_token_log_len: 0,
             span_override: Some(span),
         }
     }

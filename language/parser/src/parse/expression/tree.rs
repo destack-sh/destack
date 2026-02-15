@@ -60,7 +60,7 @@ impl Parser {
         }
 
         // require a line break before the next semantic token
-        let cursor = self.peek_cursor();
+        let cursor = self.peek_scanner_cursor();
         if !cursor.has_line_break_before {
             return false;
         }

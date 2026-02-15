@@ -3,7 +3,6 @@ use destack_ast::{
     NodeType, TokenType, YieldCardinality,
 };
 
-use super::annotation::PendingDecorators;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -246,7 +245,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // normalize to the next non-newline token once per dispatch
-        let cursor = self.normalize_to_scanner_cursor();
+        let cursor = self.sync_to_scanner_cursor();
         self.eat_statement_expression_in_current_options_from_normalized_token(cursor.token_type)
     }
 
@@ -302,11 +301,7 @@ impl Parser {
         }
 
         // otherwise, eat a single statement and wrap it in a block
-        let statement_options = self
-            .options
-            .nested()
-            .in_statement_position()
-            .without_expression_leading_annotations();
+        let statement_options = self.options.nested().in_statement_position();
         let expression_id = self.with_options(statement_options, |parser| {
             parser.eat_statement_expression_in_current_options()
         })?;
@@ -396,8 +391,6 @@ impl Parser {
         let expressions = self
             .eat_block_body(BlockFormat::Explicit)
             .for_node_type(NodeType::Block)?;
-        let is_empty_block = expressions.is_empty();
-        let close_cursor = self.peek_cursor();
         self.eat_token(TokenType::CloseBrace)?;
 
         // block
@@ -408,16 +401,6 @@ impl Parser {
             },
             self.get_span_from(&start),
         );
-
-        // comments inside empty blocks attach as infix to the block itself
-        if is_empty_block {
-            self.bind_annotation_seam(
-                close_cursor.index,
-                close_cursor.skipped_newline_count,
-                block_id.id,
-                super::annotation::AnnotationSeamKind::Infix,
-            );
-        }
 
         Ok(block_id)
     }
@@ -431,34 +414,20 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
 
         // keep statement options for the whole body to avoid per statement option churn
-        let statement_options = self
-            .options
-            .nested()
-            .in_statement_position()
-            .without_expression_leading_annotations();
+        let statement_options = self.options.nested().in_statement_position();
         self.with_options(statement_options, |parser| {
             // parse all statement items and keep at most one tail expression
             let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
             let mut pending_tail_expression: Option<LocalNodeId<Expression>> = None;
-            let mut pending_statement_decorators = PendingDecorators::new();
 
             loop {
                 // normalize block body cursor once per iteration
-                let cursor = parser.normalize_to_scanner_cursor();
+                let cursor = parser.sync_to_scanner_cursor();
                 let token_type = cursor.token_type;
 
                 // stop at block terminators
                 // NOTE #Cleanup: recover block parse more explicitly?
                 if parser.is_block_body_terminator_token(token_type, format) {
-                    // attach trailing block annotations before the terminator to the last item
-                    let trailing_target =
-                        pending_tail_expression.or_else(|| statements.last().copied());
-                    if let Some(trailing_target) = trailing_target {
-                        parser.bind_owner_close_postfix_trailing_line_and_default_seams(
-                            trailing_target.id,
-                            cursor,
-                        );
-                    }
                     break;
                 }
 
@@ -466,20 +435,6 @@ impl Parser {
                 if token_type == TokenType::Semicolon {
                     parser.bump(); // eat semicolon
                     continue;
-                }
-
-                // consume decorator prefixes for the next statement item
-                if token_type == TokenType::At {
-                    let decorators = parser.eat_decorators_maybe()?;
-                    pending_statement_decorators.extend(decorators);
-                    continue;
-                }
-
-                // attach same-line trailing line comments to the previous emitted item
-                if let Some(previous_item_id) =
-                    pending_tail_expression.or_else(|| statements.last().copied())
-                {
-                    parser.bind_owner_trailing_line_at_current(previous_item_id.id);
                 }
 
                 // previous tail expressions are no longer block tails once a new item starts
@@ -507,13 +462,6 @@ impl Parser {
                     }
                 };
 
-                // attach statement-leading seams and decorators
-                parser.bind_statement_owner_with_decorators(
-                    expression_id.id,
-                    cursor,
-                    &mut pending_statement_decorators,
-                );
-
                 // keep at most one tail candidate, emit statements directly
                 if is_statement {
                     statements.push(expression_id);
@@ -524,7 +472,8 @@ impl Parser {
 
             // finalize the remaining tail expression
             if let Some(expression_id) = pending_tail_expression {
-                let force_statement = format == BlockFormat::Implicit;
+                let force_statement = format == BlockFormat::Implicit
+                    || (!parser.language.is_destack() && parser.options.in_statement_position);
                 parser.push_block_body_expression(
                     &mut statements,
                     expression_id,
@@ -542,11 +491,7 @@ impl Parser {
     pub fn try_eat_statement_expression_with_flag(
         &mut self,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
-        let statement_options = self
-            .options
-            .nested()
-            .in_statement_position()
-            .without_expression_leading_annotations();
+        let statement_options = self.options.nested().in_statement_position();
         self.with_options(statement_options, |parser| {
             parser.try_eat_statement_expression_with_flag_in_statement_position()
         })
@@ -589,7 +534,6 @@ impl Parser {
             self.bump(); // eat semicolon
             let expression_id =
                 self.wrap_statement_expression(expression_id, self.get_span_from(start));
-            self.bind_owner_trailing_line_at_current(expression_id.id);
             return Ok((expression_id, true));
         }
 
@@ -597,7 +541,7 @@ impl Parser {
         let expression = self.tree.get(expression_id);
         let is_statement =
             matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement();
-        let separator_cursor = self.peek_cursor();
+        let separator_cursor = self.peek_scanner_cursor();
         let has_separator = matches!(
             separator_cursor.token_type,
             TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
@@ -608,7 +552,6 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        self.bind_owner_trailing_line_at_current(expression_id.id);
         Ok((expression_id, is_statement))
     }
 
@@ -865,7 +808,7 @@ impl Parser {
     /// Return true when yield has no explicit operand in this context.
     #[inline]
     fn yield_operand_is_omitted(&mut self) -> bool {
-        let cursor = self.peek_cursor();
+        let cursor = self.peek_scanner_cursor();
 
         // line breaks and statement delimiters terminate bare yield
         if cursor.has_line_break_before
@@ -890,7 +833,7 @@ impl Parser {
 
     /// Return true when trivia before the current token contains a line terminator.
     pub(crate) fn has_line_terminator_before_current_token(&mut self) -> bool {
-        self.peek_cursor().has_line_break_before
+        self.peek_scanner_cursor().has_line_break_before
     }
 
     /// Eat a throw expression.
@@ -908,7 +851,7 @@ impl Parser {
         self.eat_keyword(Keyword::Throw)?;
 
         // value
-        let cursor = self.peek_cursor();
+        let cursor = self.peek_scanner_cursor();
         if cursor.has_line_break_before
             || matches!(
                 cursor.token_type,
@@ -942,7 +885,7 @@ impl Parser {
         self.eat_keyword(Keyword::Return)?;
 
         // value
-        let cursor = self.peek_cursor();
+        let cursor = self.peek_scanner_cursor();
         let value_id = if !cursor.has_line_break_before
             && !matches!(
                 cursor.token_type,
@@ -1446,7 +1389,11 @@ mod tests {
             assert_eq!(declarators.len(), 1);
         });
 
-        assert_node!(parser.tree, block.expressions[1], Expression::Return { value } => {
+        let return_expression_id = match parser.tree.get(block.expressions[1]) {
+            Expression::Statement(expression_id) => *expression_id,
+            _ => block.expressions[1],
+        };
+        assert_node!(parser.tree, return_expression_id, Expression::Return { value } => {
             let value = value.expect("expected return value");
             assert_node!(parser.tree, value, Expression::TypeBinary { operator, .. } => {
                 assert_eq!(*operator, TypeBinaryOperator::Cast);
@@ -1480,7 +1427,9 @@ mod tests {
 
         // block should contain one statement expression
         assert_eq!(block.expressions.len(), 1);
-        assert_node!(parser.tree, block.expressions[0], Expression::Call { .. });
+        assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Call { .. });
+        });
     }
 
     /// Parse a function declaration followed by a call on the same line in JavaScript.
@@ -1532,16 +1481,18 @@ mod tests {
         assert_eq!(block.expressions.len(), 1);
 
         // statement should wrap one sequence expression
-        assert_node!(parser.tree, block.expressions[0], Expression::SequenceExpression { expressions } => {
-            assert_eq!(expressions.len(), 3);
-            assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "callA");
-            });
-            assert_node!(parser.tree, expressions[1], Expression::Call { left, .. } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "callB");
-            });
-            assert_node!(parser.tree, expressions[2], Expression::Call { left, .. } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "callC");
+        assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::SequenceExpression { expressions } => {
+                assert_eq!(expressions.len(), 3);
+                assert_node!(parser.tree, expressions[0], Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "callA");
+                });
+                assert_node!(parser.tree, expressions[1], Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "callB");
+                });
+                assert_node!(parser.tree, expressions[2], Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "callC");
+                });
             });
         });
     }
@@ -1714,7 +1665,6 @@ mod tests {
             });
         });
     }
-
     #[test]
     fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_typescript_xml() {
         let mut test = TestParser::new_with_options(
@@ -1752,6 +1702,33 @@ mod tests {
                         });
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_statement_separator_comment_before_semicolon_attaches_to_previous_statement() {
+        let mut test = TestParser::new_with_options(
+            "declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 2);
+
+        let first_annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(first_annotations.len(), 1);
+        assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(*style, CommentStyle::Slash);
+                assert_string!(parser, *string, "<- keep-marker");
             });
         });
     }

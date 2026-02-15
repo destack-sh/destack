@@ -1,4 +1,3 @@
-use crate::parse::annotation::LeadingAnnotationKind;
 use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -432,9 +431,9 @@ impl Parser {
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // allow ts style multiline unions and intersections that start with separators
-        // leading boundary trivia before the separator belongs to the first type arm
+        // normalize to a leading separator when present
         if !self.language.is_destack() {
-            let leading_separator_cursor = self.scanner_cursor();
+            let leading_separator_cursor = self.peek_scanner_cursor();
             if matches!(
                 leading_separator_cursor.token_type,
                 TokenType::ElementwiseOr | TokenType::ElementwiseAnd
@@ -447,12 +446,6 @@ impl Parser {
                 self.eat_newlines_maybe()?;
 
                 let expression_id = self.eat_expression(self.options)?;
-                self.bind_owner_leading_seam_at_token(
-                    expression_id.id,
-                    leading_separator_cursor.index,
-                    leading_separator_cursor.skipped_newline_count,
-                    LeadingAnnotationKind::Type,
-                );
                 return Ok(expression_id);
             }
         }
@@ -665,7 +658,6 @@ impl Parser {
     /// Eat type import arguments.
     fn eat_type_import_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         // open argument list
-        let open_parenthesis_token_index = self.pos_index();
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
@@ -678,10 +670,7 @@ impl Parser {
         // positional arguments
         let argument_options = self.options.nested().not_in_position();
         let arguments = self.with_options(argument_options, |parser| {
-            parser.eat_positional_arguments_body(
-                TokenType::CloseParenthesis,
-                Some(open_parenthesis_token_index),
-            )
+            parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
         })?;
 
         // close argument list
@@ -984,19 +973,12 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // value type
-        let value_cursor = self.normalize_to_scanner_cursor();
         let value = self.eat_expression(
             self.options
                 .not_in_position()
                 .not_in_left_precedence()
-                .in_type()
-                .without_expression_leading_annotations(),
+                .in_type(),
         )?;
-        self.bind_owner_leading_seam_at_cursor(
-            value.id,
-            value_cursor,
-            super::annotation::LeadingAnnotationKind::Wrapper,
-        );
         self.eat_newlines_maybe()?;
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
             self.bump();
@@ -1079,13 +1061,8 @@ impl Parser {
         }
 
         // parse extends clause
-        let extends_cursor = self.peek_cursor();
         self.bump(); // eat extends
-        self.eat_super_type_list_maybe(
-            &[Keyword::Implements, Keyword::With, Keyword::Where],
-            false,
-            Some((extends_cursor.index, extends_cursor.skipped_newline_count)),
-        )
+        self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where], false)
     }
 
     /// Eat extends expressions maybe.
@@ -1108,13 +1085,8 @@ impl Parser {
         }
 
         // parse extends clause
-        let extends_cursor = self.peek_cursor();
         self.bump(); // eat extends
-        self.eat_super_type_list_maybe(
-            &[Keyword::Implements, Keyword::With, Keyword::Where],
-            true,
-            Some((extends_cursor.index, extends_cursor.skipped_newline_count)),
-        )
+        self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where], true)
     }
 
     /// Eat implements types maybe.
@@ -1136,16 +1108,8 @@ impl Parser {
         }
 
         // parse implements clause
-        let implements_cursor = self.peek_cursor();
         self.bump(); // eat implements
-        self.eat_super_type_list_maybe(
-            &[Keyword::With, Keyword::Where],
-            false,
-            Some((
-                implements_cursor.index,
-                implements_cursor.skipped_newline_count,
-            )),
-        )
+        self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where], false)
     }
 
     /// Eat a super type clause maybe.
@@ -1154,7 +1118,6 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
         enforce_class_extends_head: bool,
-        clause_cursor: Option<(usize, usize)>,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         // type heritage may be wrapped in parentheses as a list container
         let is_parenthesized_type_list =
@@ -1178,7 +1141,7 @@ impl Parser {
                 .not_in_new_receiver()
         };
         let types = self.with_options(options, |parser| {
-            parser.eat_super_type_list(terminators, enforce_class_extends_head, clause_cursor)
+            parser.eat_super_type_list(terminators, enforce_class_extends_head)
         })?;
 
         // close the optional parenthesized type list
@@ -1217,11 +1180,9 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
         enforce_class_extends_head: bool,
-        clause_cursor: Option<(usize, usize)>,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         // super type list
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
-        let mut last_type_id: Option<LocalNodeId<Expression>> = None;
         let mut expect_type = true;
 
         // TS/JS require explicit comma separators in type heritage lists
@@ -1232,14 +1193,6 @@ impl Parser {
         while self.has_more_tokens() {
             // stop at clause terminators
             if self.is_super_type_clause_terminator(terminators) {
-                // trailing boundary comments before clause terminators belong to the final type
-                if let Some(last_type_id) = last_type_id
-                    && !expect_type
-                {
-                    let cursor = self.normalize_to_scanner_cursor();
-                    self.bind_owner_trailing_line_and_default_at_cursor(last_type_id.id, cursor);
-                }
-
                 // reject trailing commas in heritage clauses
                 if expect_type && !types.is_empty() {
                     return Err(ParseError::unexpected(self.peek()?.span));
@@ -1257,18 +1210,6 @@ impl Parser {
                         .iter()
                         .any(|terminator| self.keyword_for_index(next_index) == Some(*terminator));
                 if is_terminator_after_newline {
-                    // keep clause-tail comments on the final type before terminating newline
-                    if let Some(last_type_id) = last_type_id
-                        && !expect_type
-                    {
-                        let skipped_newline_count = next_index.saturating_sub(current_index);
-                        self.bind_owner_trailing_line_and_default_at_token(
-                            last_type_id.id,
-                            next_index,
-                            skipped_newline_count,
-                        );
-                    }
-
                     // reject trailing commas in heritage clauses
                     if expect_type && !types.is_empty() {
                         return Err(ParseError::unexpected(self.peek()?.span));
@@ -1283,28 +1224,12 @@ impl Parser {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
                 if !expect_type {
-                    // preserve comments before newline-separated heritage entries
-                    if let Some(last_type_id) = last_type_id {
-                        let cursor = self.peek_cursor();
-                        self.bind_owner_trailing_line_and_default_at_cursor(
-                            last_type_id.id,
-                            cursor,
-                        );
-                    }
                     expect_type = true;
                 }
                 continue;
             }
             // consume explicit comma separators
             else if self.peek_is(TokenType::Comma) {
-                // attach pre-comma trailing comments to the preceding super type
-                if let Some(last_type_id) = last_type_id
-                    && !expect_type
-                {
-                    let cursor = self.peek_cursor();
-                    self.bind_owner_trailing_line_and_default_at_cursor(last_type_id.id, cursor);
-                }
-
                 self.eat_item_stop_with_newlines()?;
                 expect_type = true;
             }
@@ -1312,23 +1237,7 @@ impl Parser {
             else if self.is_item_stop() {
                 // end token terminates the clause
                 if self.peek_is(TokenType::End) {
-                    if let Some(last_type_id) = last_type_id
-                        && !expect_type
-                    {
-                        let cursor = self.peek_cursor();
-                        self.bind_owner_trailing_line_and_default_at_cursor(
-                            last_type_id.id,
-                            cursor,
-                        );
-                    }
                     break;
-                }
-
-                if let Some(last_type_id) = last_type_id
-                    && !expect_type
-                {
-                    let cursor = self.peek_cursor();
-                    self.bind_owner_trailing_line_and_default_at_cursor(last_type_id.id, cursor);
                 }
 
                 self.eat_item_stop_with_newlines()?;
@@ -1341,7 +1250,6 @@ impl Parser {
                 }
 
                 // parse the super type expression
-                let type_cursor = self.peek_cursor();
                 let starts_with_parenthesis = self.peek_is(TokenType::OpenParenthesis);
                 let type_start = self.mark_span();
                 let ty = self.eat_expression(self.options.in_before_block())?;
@@ -1374,23 +1282,8 @@ impl Parser {
                 self.tree
                     .set_side_span(ty, NodeSpanType::Type, super_type_span);
 
-                // leading boundary comments at the clause keyword belong to the first type
-                if types.is_empty()
-                    && let Some((clause_index, clause_skipped_newline_count)) = clause_cursor
-                {
-                    self.bind_owner_wrapper_leading_seam_at_token(
-                        ty.id,
-                        clause_index,
-                        clause_skipped_newline_count,
-                    );
-                }
-
-                // type entry boundaries attach to each super type owner
-                self.bind_owner_statement_and_wrapper_leading_seams(ty.id, type_cursor);
-
                 // record the parsed type
                 types.push(ty);
-                last_type_id = Some(ty);
                 expect_type = false;
             }
         }

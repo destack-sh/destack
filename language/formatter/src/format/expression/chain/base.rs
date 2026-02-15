@@ -241,22 +241,6 @@ pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expressi
     chain_node_left_id(tree, node_id).is_some_and(|left_id| is_chain_expression(tree.get(left_id)))
 }
 
-/// Return whether a call with an annotated multi-segment path callee should use chain formatting.
-pub(crate) fn call_prefers_chain_format(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Call { left, .. } = context.tree.get(node_id) else {
-        return false;
-    };
-
-    matches!(
-        context.tree.get(*left),
-        Expression::Path { path, .. }
-            if path.segments.len() > 1 && context.has_annotation(*left)
-    )
-}
-
 /// Check whether an expression is the root of a chain.
 pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
     chain_node_left_id(tree, node_id).is_some_and(|left_id| !is_chain_expression(tree.get(left_id)))

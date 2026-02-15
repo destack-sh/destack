@@ -1,13 +1,11 @@
 use crate::argument::list_like;
-use crate::block::format_block_of_statements;
-use crate::scan::next_non_whitespace_after_annotation;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Annotation, AnnotationPosition, Asynchrony, Comment, CommentStyle, Expression,
     FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
     Keyword, LocalNodeId, Parameter, Pattern, PatternField,
 };
-use destack_fir::format::{FormatResult, text};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
@@ -314,12 +312,35 @@ pub(crate) fn signature_return_type_is_multiline(
     return_type.is_some_and(|return_type| context.node_has_newline(return_type))
 }
 
-/// Return whether spacing before a function body should be emitted by annotations.
-pub(crate) fn signature_should_elide_space_before_body(
+/// Return whether a signature return type carries a boundary line-postfix annotation.
+pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
     context: &DestackFormatContext<'_>,
     return_type: Option<LocalNodeId<Expression>>,
 ) -> bool {
-    return_type.is_some_and(|return_type| context.has_postfix_annotation(return_type))
+    let Some(return_type) = return_type else {
+        return false;
+    };
+    let Some(annotations) = context.get_annotations(return_type) else {
+        return false;
+    };
+
+    annotations.iter().any(|annotation_id| {
+        matches!(
+            context.tree.get::<Annotation>(*annotation_id),
+            Annotation::Comment {
+                position: AnnotationPosition::LinePostfixBoundary,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether spacing before a function body should be emitted by annotations.
+pub(crate) fn signature_should_elide_space_before_body(
+    _context: &DestackFormatContext<'_>,
+    _return_type: Option<LocalNodeId<Expression>>,
+) -> bool {
+    false
 }
 
 /// Return whether dynamic parameters should force multiline signature formatting.
@@ -371,122 +392,4 @@ pub(crate) fn write_signature_dynamic_parameter_list(
 
     write!(f, [parameters_list])?;
     Ok(())
-}
-
-/// Collect deferred function boundary line comments from return type and body.
-pub(crate) fn collect_deferred_function_boundary_line_comments(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-    body: LocalNodeId<Expression>,
-) -> Vec<String> {
-    let mut comments: Vec<(u32, String)> = Vec::new();
-
-    if let Some(return_type) = return_type
-        && let Some(annotations) = context.get_annotations(return_type)
-    {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } = context.tree.get(annotation_id) else {
-                continue;
-            };
-            if *position != AnnotationPosition::LinePostfixBoundary {
-                continue;
-            }
-            let comment = context.tree.get::<Comment>(*node);
-            if comment.style != CommentStyle::Slash {
-                continue;
-            }
-            if next_non_whitespace_after_annotation(context, annotation_id) != Some('{') {
-                continue;
-            }
-
-            let annotation_span = context.get_span::<Annotation>(annotation_id);
-            let annotation_source = context.get_span_str(annotation_span).trim().to_string();
-            comments.push((annotation_span.start, annotation_source));
-        }
-    }
-
-    if let Some(annotations) = context.get_annotations(body) {
-        for annotation_id in annotations {
-            let Annotation::Comment { node, position } = context.tree.get(annotation_id) else {
-                continue;
-            };
-            if *position != AnnotationPosition::BlockPrefix {
-                continue;
-            }
-            let comment = context.tree.get::<Comment>(*node);
-            if comment.style != CommentStyle::Slash {
-                continue;
-            }
-
-            let annotation_span = context.get_span::<Annotation>(annotation_id);
-            let annotation_source = context.get_span_str(annotation_span).trim().to_string();
-            comments.push((annotation_span.start, annotation_source));
-        }
-    }
-
-    comments.sort_by_key(|(start, _)| *start);
-    comments
-        .into_iter()
-        .map(|(_, comment)| comment)
-        .collect::<Vec<_>>()
-}
-
-/// Return whether a function body has deferred boundary line comments.
-pub(crate) fn function_body_has_deferred_boundary_line_comments(
-    _context: &DestackFormatContext<'_>,
-    _return_type: Option<LocalNodeId<Expression>>,
-    _body: Option<LocalNodeId<Expression>>,
-) -> bool {
-    false
-}
-
-/// Format a function body block with deferred boundary line comments inside braces.
-pub(crate) fn format_function_body_block_with_deferred_boundary_line_comments(
-    f: &mut DestackFormatter<'_, '_>,
-    body: LocalNodeId<Expression>,
-    comments: &[String],
-) -> FormatResult<()> {
-    let Expression::Block(block_id) = f.context().tree.get(body) else {
-        return write!(f, [body]);
-    };
-
-    let block = f.context().tree.get(*block_id);
-    let has_block_infix_annotations = f.context().has_infix_annotation(*block_id);
-    write!(
-        f,
-        [
-            token("{"),
-            hard_line_break(),
-            soft_block_indent(&format_with(|f| {
-                let mut has_content = false;
-                for (index, comment) in comments.iter().enumerate() {
-                    if index > 0 {
-                        write!(f, [hard_line_break()])?;
-                    }
-                    write!(f, [text(comment.as_str())])?;
-                    has_content = true;
-                }
-
-                if !comments.is_empty() && !block.expressions.is_empty() {
-                    write!(f, [hard_line_break()])?;
-                }
-
-                if !block.expressions.is_empty() {
-                    format_block_of_statements(f, &block.expressions)?;
-                    has_content = true;
-                }
-
-                if has_block_infix_annotations {
-                    if has_content {
-                        write!(f, [hard_line_break()])?;
-                    }
-                    write!(f, [f.context().block_infix_annotations(*block_id)])?;
-                }
-
-                Ok(())
-            })),
-            hard_line_break(),
-            token("}")
-        ]
-    )
 }

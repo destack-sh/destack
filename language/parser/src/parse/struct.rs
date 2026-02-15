@@ -1,6 +1,5 @@
 #![allow(clippy::type_complexity)]
 
-use super::annotation::AnnotationSeamKind;
 use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
@@ -72,9 +71,6 @@ impl Parser {
             None
         };
 
-        // declaration head boundary before generics or heritage clauses
-        let declaration_head_cursor = self.normalize_to_scanner_cursor();
-
         // optional static parameters: < ... >
         let static_parameters = self
             .eat_static_parameters_maybe(false)
@@ -100,7 +96,6 @@ impl Parser {
             .for_node_type(NodeType::Declaration)?;
 
         // body
-        let body_cursor = self.normalize_to_scanner_cursor();
         self.eat_newlines_maybe()?;
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
@@ -136,22 +131,6 @@ impl Parser {
         if let Some(span) = name_span {
             self.tree.set_main_span(declaration_id, span);
         }
-
-        // attach declaration-head boundary comments inside the declaration header
-        self.bind_annotation_seam(
-            declaration_head_cursor.index,
-            declaration_head_cursor.skipped_newline_count,
-            declaration_id.id,
-            AnnotationSeamKind::Infix,
-        );
-
-        // attach declaration header-to-body boundary annotations before `{`
-        self.bind_annotation_seam(
-            body_cursor.index,
-            body_cursor.skipped_newline_count.saturating_add(1),
-            declaration_id.id,
-            AnnotationSeamKind::Infix,
-        );
 
         Ok(declaration_id)
     }

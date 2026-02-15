@@ -250,7 +250,6 @@ pub(crate) struct ChainBreakAnalysis {
     pub(crate) should_break: bool,
     pub(crate) call_summaries: Vec<ChainCallSummary>,
     pub(crate) has_chain_intervening_trivia: bool,
-    pub(crate) has_path_tail_deferred_empty_call_boundary_comment: bool,
 }
 
 /// Build call summaries for a chain in source order.
@@ -299,7 +298,6 @@ pub(crate) fn analyze_chain_break(
             should_break: false,
             call_summaries: Vec::new(),
             has_chain_intervening_trivia: false,
-            has_path_tail_deferred_empty_call_boundary_comment: false,
         };
     }
 
@@ -309,15 +307,10 @@ pub(crate) fn analyze_chain_break(
     let chain_head = chain_head_id(context.tree, chain_root);
     let call_summaries = summarize_chain_calls(context, chain);
     let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(context, chain);
-    let has_deferred_empty_call_boundary_comment = chain.iter().copied().any(|expression_id| {
-        expression_is_in_deferred_empty_call_boundary_chain(context, expression_id)
-    });
     let root_has_path_tail_segments = matches!(
         context.tree.get(chain_root),
         Expression::Path { path, .. } if path.segments.len() > 1
     );
-    let has_path_tail_deferred_empty_call_boundary_comment =
-        root_has_path_tail_segments && has_deferred_empty_call_boundary_comment;
     let has_optional_tail = chain.iter().copied().any(|expression_id| {
         matches!(
             context.tree.get(expression_id),
@@ -355,18 +348,6 @@ pub(crate) fn analyze_chain_break(
             should_break: true,
             call_summaries,
             has_chain_intervening_trivia,
-            has_path_tail_deferred_empty_call_boundary_comment,
-        };
-    }
-
-    let should_break_for_path_tail_comment =
-        has_path_tail_deferred_empty_call_boundary_comment && has_member_access;
-    if should_break_for_path_tail_comment {
-        return ChainBreakAnalysis {
-            should_break: true,
-            call_summaries,
-            has_chain_intervening_trivia,
-            has_path_tail_deferred_empty_call_boundary_comment,
         };
     }
 
@@ -377,7 +358,6 @@ pub(crate) fn analyze_chain_break(
             should_break: true,
             call_summaries,
             has_chain_intervening_trivia,
-            has_path_tail_deferred_empty_call_boundary_comment,
         };
     }
 
@@ -387,7 +367,6 @@ pub(crate) fn analyze_chain_break(
             should_break: false,
             call_summaries,
             has_chain_intervening_trivia,
-            has_path_tail_deferred_empty_call_boundary_comment,
         };
     }
 
@@ -402,7 +381,6 @@ pub(crate) fn analyze_chain_break(
             should_break: true,
             call_summaries,
             has_chain_intervening_trivia,
-            has_path_tail_deferred_empty_call_boundary_comment,
         };
     }
 
@@ -412,7 +390,6 @@ pub(crate) fn analyze_chain_break(
             should_break: false,
             call_summaries,
             has_chain_intervening_trivia,
-            has_path_tail_deferred_empty_call_boundary_comment,
         };
     }
 
@@ -431,7 +408,6 @@ pub(crate) fn analyze_chain_break(
         should_break,
         call_summaries,
         has_chain_intervening_trivia,
-        has_path_tail_deferred_empty_call_boundary_comment,
     }
 }
 
@@ -445,14 +421,6 @@ pub(crate) fn chain_node_has_breaking_annotation(
             annotations.iter().any(|annotation_id| {
                 let annotation = context.tree.get::<Annotation>(*annotation_id);
                 let position = annotation.position();
-                if is_deferred_empty_call_boundary_annotation(
-                    context,
-                    node_id,
-                    *annotation_id,
-                    position,
-                ) {
-                    return false;
-                }
 
                 matches!(
                     position,
@@ -477,14 +445,6 @@ pub(crate) fn chain_node_has_non_inline_annotation(
             annotations.iter().any(|annotation_id| {
                 let annotation = context.tree.get::<Annotation>(*annotation_id);
                 let position = annotation.position();
-                if is_deferred_empty_call_boundary_annotation(
-                    context,
-                    node_id,
-                    *annotation_id,
-                    position,
-                ) {
-                    return false;
-                }
 
                 match annotation {
                     Annotation::Blank { .. } => true,
@@ -629,17 +589,6 @@ pub(crate) fn chain_has_intervening_break_or_comment(
     }
 
     chain.iter().copied().any(|expression_id| {
-        let expression = context.tree.get(expression_id);
-        let is_member_expression = matches!(
-            expression,
-            Expression::Member { .. } | Expression::PrivateMember { .. }
-        );
-        if expression_is_in_deferred_empty_call_boundary_chain(context, expression_id)
-            && !is_member_expression
-        {
-            return false;
-        }
-
         member_has_intervening_break_or_comment(context, expression_id)
             || chain_has_parent_intervening_break_or_comment(context, expression_id)
     })
@@ -706,23 +655,14 @@ pub(crate) fn should_split_chain_root_path_segments(
             })
         })
         .unwrap_or(false);
-    let has_deferred_boundary_comments = has_root_line_postfix_boundary_comment
-        || !path_deferred_boundary_line_comments(context, root_id, path.segments.len()).is_empty();
+    let has_boundary_comments = has_root_line_postfix_boundary_comment;
 
-    // preserve original path-root ownership for annotated roots
-    if context.has_annotation(root_id)
-        && !has_optional_or_must_tail
-        && !has_deferred_boundary_comments
-    {
-        return false;
-    }
-
-    // keep factory style roots merged by default, unless deferred boundary comments need a seam
+    // keep factory style roots merged by default, unless boundary comments need a seam
     let first_segment = context.strings.get(path.segments[0]);
-    if is_factory_like_path_head(first_segment) && !has_deferred_boundary_comments {
+    if is_factory_like_path_head(first_segment) && !has_boundary_comments {
         return false;
     }
-    if first_segment == "this" && !has_optional_or_must_tail && !has_deferred_boundary_comments {
+    if first_segment == "this" && !has_optional_or_must_tail && !has_boundary_comments {
         return false;
     }
     // conditional branches read better with a compact head

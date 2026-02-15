@@ -77,21 +77,17 @@ pub(super) struct CallArgumentCommentProfile {
     pub(super) has_line_comment_annotations: bool,
     /// Whether any argument has a prefix line comment annotation.
     pub(super) has_prefix_line_comment_annotations: bool,
-    /// Deferred boundary comments keyed by argument index.
-    pub(super) deferred_boundary_prefix_annotations: Option<Vec<Vec<LocalNodeId<Annotation>>>>,
 }
 
 /// Collect one-pass comment data for call arguments.
 pub(super) fn collect_call_argument_comment_profile(
     context: &DestackFormatContext<'_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-    include_deferred_boundary_comments: bool,
 ) -> CallArgumentCommentProfile {
     let mut has_line_comment_annotations = false;
     let mut has_prefix_line_comment_annotations = false;
-    let mut deferred_boundary_prefix_annotations = None;
 
-    for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+    for argument_id in dynamic_arguments.iter().copied() {
         let argument_has_annotation = context.has_annotation(argument_id);
         if argument_has_annotation {
             let annotation_profile = context.argument_annotation_profile(argument_id);
@@ -102,23 +98,11 @@ pub(super) fn collect_call_argument_comment_profile(
                 has_prefix_line_comment_annotations = true;
             }
         }
-
-        // only non-leading arguments can attach deferred boundary comments
-        if include_deferred_boundary_comments && index > 0 && argument_has_annotation {
-            let deferred_boundary_comments =
-                call_argument_inline_boundary_prefix_annotations(context, argument_id);
-            if !deferred_boundary_comments.is_empty() {
-                let comments_by_index = deferred_boundary_prefix_annotations
-                    .get_or_insert_with(|| vec![Vec::new(); dynamic_arguments.len()]);
-                comments_by_index[index] = deferred_boundary_comments;
-            }
-        }
     }
 
     CallArgumentCommentProfile {
         has_line_comment_annotations,
         has_prefix_line_comment_annotations,
-        deferred_boundary_prefix_annotations,
     }
 }
 

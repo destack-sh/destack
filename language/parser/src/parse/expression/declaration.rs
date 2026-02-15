@@ -243,14 +243,12 @@ impl Parser {
     ) -> ParseResult<DescriptorHead> {
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
         let mut decorators = PendingDecorators::new();
-        let mut export_head_newline_token_index = None;
 
         // decorators parse as expressions only
         if self.options.in_decorator {
             return Ok(DescriptorHead::Descriptor {
                 descriptor,
                 decorators,
-                export_head_newline_token_index: None,
             });
         }
 
@@ -259,7 +257,6 @@ impl Parser {
             return Ok(DescriptorHead::Descriptor {
                 descriptor,
                 decorators,
-                export_head_newline_token_index: None,
             });
         }
 
@@ -293,7 +290,6 @@ impl Parser {
             return Ok(DescriptorHead::Descriptor {
                 descriptor,
                 decorators,
-                export_head_newline_token_index: None,
             });
         }
 
@@ -375,7 +371,6 @@ impl Parser {
 
         // skip newlines after export before declaration-style heads
         if descriptor.export.is_some() && self.peek_is(TokenType::Newline) {
-            let export_newline_token_index = self.pos_index();
             let next_index = self.next_non_newline_index_from(self.pos_index());
             let next_token_type = self.token_type_at(next_index);
             let next_keyword = if next_token_type == TokenType::Identifier {
@@ -390,7 +385,6 @@ impl Parser {
                     && (self.is_module_identifier_at(next_index)
                         || self.is_global_identifier_at(next_index)));
             if is_after_export_import_equals_head || is_after_export_declaration_head {
-                export_head_newline_token_index = Some(export_newline_token_index);
                 self.eat_newlines_maybe()?;
 
                 // parse decorators after export when they follow skipped newlines
@@ -512,7 +506,6 @@ impl Parser {
         Ok(DescriptorHead::Descriptor {
             descriptor,
             decorators,
-            export_head_newline_token_index,
         })
     }
 

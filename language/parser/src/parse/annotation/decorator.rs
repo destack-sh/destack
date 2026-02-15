@@ -4,22 +4,11 @@ use smallvec::SmallVec;
 
 const DECORATOR_EXPRESSION_PRECEDENCE: u16 = u16::MAX;
 
-/// The normalized cursor where a decorator prefix starts.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct DecoratorCursor {
-    /// The semantic token index for this prefix.
-    pub token_index: usize,
-    /// The number of skipped semantic newline tokens.
-    pub skipped_newline_count: usize,
-}
-
 /// A parsed decorator pending attachment to the next owner at this site.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct PendingDecorator {
     /// The parsed decorator node id.
     pub decorator_id: LocalNodeId<Decorator>,
-    /// The prefix cursor where this decorator began.
-    pub cursor: DecoratorCursor,
 }
 
 /// A small pending decorator buffer for hot parse loops.
@@ -31,7 +20,6 @@ impl Parser {
         let mut decorators = PendingDecorators::new();
 
         while self.peek_is(TokenType::At) {
-            let decorator_cursor = self.peek_cursor();
             let start = self.mark_span();
             let decorator = self.with_recovery(
                 &start,
@@ -40,13 +28,7 @@ impl Parser {
                 TokenType::Newline,
             );
             if let Some(decorator_id) = decorator {
-                decorators.push(PendingDecorator {
-                    decorator_id,
-                    cursor: DecoratorCursor {
-                        token_index: decorator_cursor.index,
-                        skipped_newline_count: decorator_cursor.skipped_newline_count,
-                    },
-                });
+                decorators.push(PendingDecorator { decorator_id });
             }
 
             // consume trailing newlines between decorator entries

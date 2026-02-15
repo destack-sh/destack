@@ -78,18 +78,14 @@ impl Parser {
         kind: MatchKind,
     ) -> ParseResult<Vec<LocalNodeId<MatchCase>>> {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
-        let mut last_case_id: Option<LocalNodeId<MatchCase>> = None;
         let mut has_default_case = false;
         while self.has_more_tokens() {
             // normalize cursor to the next non newline token
-            let cursor = self.normalize_to_scanner_cursor();
+            let cursor = self.sync_to_scanner_cursor();
             let token_type = cursor.token_type;
 
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
-                if let Some(last_case_id) = last_case_id {
-                    self.bind_owner_close_postfix_default_seams(last_case_id.id, cursor);
-                }
                 break;
             }
             // allow statement separators between cases (newline/semicolon)
@@ -121,12 +117,6 @@ impl Parser {
                     }
                 }
 
-                self.bind_owner_leading_seam_at_cursor(
-                    case.id,
-                    cursor,
-                    super::annotation::LeadingAnnotationKind::Statement,
-                );
-                last_case_id = Some(case);
                 cases.push(case);
             }
         }
@@ -299,15 +289,30 @@ impl Parser {
                         self.tree
                             .insert(Expression::Error, self.get_span_from(&statement_start))
                     });
-                let expression_id =
-                    if let Expression::Statement(statement_id) = self.tree.get(expression_id) {
-                        *statement_id
-                    } else {
+                let expression_id = if !self.language.is_destack() {
+                    let expression = self.tree.get(expression_id);
+                    let is_statement = matches!(expression, Expression::Statement(_))
+                        || expression.is_top_level_statement();
+                    if is_statement {
                         expression_id
-                    };
+                    } else {
+                        self.wrap_statement_expression(
+                            expression_id,
+                            self.tree.get_span(expression_id),
+                        )
+                    }
+                } else if let Expression::Statement(statement_id) = self.tree.get(expression_id) {
+                    *statement_id
+                } else {
+                    expression_id
+                };
                 expressions.push(expression_id);
                 if self.is_any_stop() {
                     self.eat_any_stop_with_newlines()?;
+                }
+                let break_expression_id = self.unwrap_statement_expression(expression_id);
+                if matches!(self.tree.get(break_expression_id), Expression::Break { .. }) {
+                    break;
                 }
             }
             // single expression case
@@ -736,8 +741,10 @@ switch (tag) {
                 assert_node!(parser.tree, *body, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 3);
                     assert_node!(parser.tree, expressions[0], Expression::If { .. });
-                    assert_node!(parser.tree, expressions[1], Expression::Assign { .. });
-                    assert_node!(parser.tree, expressions[2], Expression::Assign { .. });
+                    let first_assign_id = parser.unwrap_statement_expression(expressions[1]);
+                    let second_assign_id = parser.unwrap_statement_expression(expressions[2]);
+                    assert_node!(parser.tree, first_assign_id, Expression::Assign { .. });
+                    assert_node!(parser.tree, second_assign_id, Expression::Assign { .. });
                 });
             });
 
@@ -752,7 +759,8 @@ switch (tag) {
                     }
                     _ => panic!("expected pattern selector"),
                 };
-                assert_node!(parser.tree, *body, Expression::Return { .. });
+                let return_id = parser.unwrap_statement_expression(*body);
+                assert_node!(parser.tree, return_id, Expression::Return { .. });
             });
         });
     }
