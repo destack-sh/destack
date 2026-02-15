@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use destack_source::{FileType, glob};
+use destack_source::{FileType, glob, matches as glob_matches};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -1535,16 +1535,9 @@ fn discover_package_files(
     exclude_patterns.extend(workload.exclude.clone());
     exclude_patterns.extend(exclude_override.to_vec());
 
-    let mut exclude_set = HashSet::new();
-    for pattern in &exclude_patterns {
-        let full_pattern = package_dir.join(pattern);
-        let matches = glob(&full_pattern.to_string_lossy());
-        exclude_set.extend(matches);
-    }
-
     let mut files = include_set
         .into_iter()
-        .filter(|path| !exclude_set.contains(path))
+        .filter(|path| !path_matches_any_exclude_pattern(path, package_dir, &exclude_patterns))
         .collect::<Vec<_>>();
     files.sort();
 
@@ -1553,6 +1546,52 @@ fn discover_package_files(
     }
 
     files
+}
+
+/// Return whether a path matches any configured exclude pattern.
+fn path_matches_any_exclude_pattern(
+    path: &Path,
+    package_dir: &Path,
+    exclude_patterns: &[String],
+) -> bool {
+    let relative_path = match path.strip_prefix(package_dir) {
+        Ok(relative_path) => relative_path.to_string_lossy().replace('\\', "/"),
+        Err(_) => path.to_string_lossy().replace('\\', "/"),
+    };
+    let file_name = path
+        .file_name()
+        .map(|file_name| file_name.to_string_lossy())
+        .unwrap_or_default();
+
+    for pattern in exclude_patterns {
+        let normalized_pattern = pattern.trim_start_matches("./");
+        if normalized_pattern.is_empty() {
+            continue;
+        }
+
+        // first: try matching against package relative path
+        let matches_relative_path = glob_matches(
+            normalized_pattern.as_bytes(),
+            0,
+            relative_path.as_bytes(),
+            0,
+        );
+        if matches_relative_path {
+            return true;
+        }
+
+        // second: support basename style excludes for simple patterns
+        let has_path_separator = normalized_pattern.contains('/');
+        if !has_path_separator {
+            let matches_file_name =
+                glob_matches(normalized_pattern.as_bytes(), 0, file_name.as_bytes(), 0);
+            if matches_file_name {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 /// Return whether this path is a source file supported by ecosystem phases.
@@ -1657,5 +1696,66 @@ mod tests {
             reason: "marked as skipped".to_string(),
         };
         assert_eq!(readme_cell_from_result(&ignored), ReadmeCellStatus::Ignored);
+    }
+
+    #[test]
+    fn test_discover_package_files_excludes_build_directory_patterns() {
+        // create a unique workspace with source and build outputs
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time before unix epoch")
+            .as_nanos();
+        let package_dir = std::env::temp_dir().join(format!("destack-ecosystem-discover-{nanos}"));
+        std::fs::create_dir_all(package_dir.join("src")).expect("create src directory");
+        std::fs::create_dir_all(package_dir.join("build")).expect("create build directory");
+        std::fs::write(
+            package_dir.join("src/index.ts"),
+            "export const value = 1;\n",
+        )
+        .expect("write source file");
+        std::fs::write(
+            package_dir.join("build/index.js"),
+            "const value = <View />;\n",
+        )
+        .expect("write build file");
+
+        // discover package files with build output excluded
+        let manifest = EcosystemManifest {
+            package: super::super::manifest::PackageInfo {
+                name: "sample".to_string(),
+                description: String::new(),
+                repo: "https://example.invalid/repo".to_string(),
+                git_ref: "HEAD".to_string(),
+                language: super::super::manifest::PackageLanguage::Ts,
+                tags: Vec::new(),
+                tier: None,
+            },
+            discovery: super::super::manifest::DiscoveryConfig {
+                include: vec!["**/*.ts".to_string(), "**/*.js".to_string()],
+                exclude: vec!["**/build/**".to_string()],
+                roots: Vec::new(),
+            },
+            compiler_options: Default::default(),
+            tsc: Default::default(),
+            diagnostics: Vec::new(),
+            workloads: Default::default(),
+            prepare: Default::default(),
+            patch: Default::default(),
+        };
+        let files = discover_package_files(
+            &package_dir,
+            &manifest,
+            EcosystemPhase::Parse,
+            &[],
+            &[],
+            None,
+        );
+
+        // assert only source input remains after excludes
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], package_dir.join("src/index.ts"));
+
+        // clean up temp directory
+        let _ = std::fs::remove_dir_all(package_dir);
     }
 }

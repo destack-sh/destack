@@ -383,6 +383,7 @@ impl Parser {
         };
 
         if has_binding {
+            self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::From)?;
         }
         let (target, target_span) = self.eat_dependency_target_with_span()?;
@@ -680,9 +681,14 @@ impl Parser {
         };
 
         // export * from
-        if self.peek_is(TokenType::Multiply) && self.is_next_keyword(Keyword::From) {
+        let has_namespace_reexport_from = self.peek_is(TokenType::Multiply) && {
+            let from_index = self.next_non_newline_index_from(self.pos_index() + 1);
+            self.keyword_for_index(from_index) == Some(Keyword::From)
+        };
+        if has_namespace_reexport_from {
             self.bump(); // eat *
-            self.bump(); // eat from
+            self.eat_newlines_maybe()?;
+            self.eat_keyword(Keyword::From)?;
             let (target, target_span) = self.eat_dependency_target_with_span()?;
             let arguments = self.eat_dependency_arguments_maybe()?;
             let item = DependencyItem {
@@ -717,8 +723,11 @@ impl Parser {
         // binding
         let allow_type_modifier = kind != Some(DependencyKind::Type);
         let items = self.eat_dependency_items_block(allow_type_modifier, true)?;
-        let (target, target_span) = if self.is_keyword(Keyword::From) {
-            self.bump(); // eat from
+        let has_from_target = self.is_keyword(Keyword::From)
+            || self.peek_is(TokenType::Newline) && self.is_keyword_after_newlines(Keyword::From);
+        let (target, target_span) = if has_from_target {
+            self.eat_newlines_maybe()?;
+            self.eat_keyword(Keyword::From)?;
             let (target, span) = self.eat_dependency_target_with_span()?;
             (Some(target), Some(span))
         } else {
@@ -1220,6 +1229,27 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_import_with_newline_before_from() {
+        let mut test = TestParser::new("import { A }\nfrom 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        // parse multiline named import with from on the next line
+        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
+            assert_eq!(*source, ImportSource::ImportStatement);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "A");
+                assert!(alias.is_none());
+            });
+            assert_import_target_string(&parser, target, "foo");
+        });
+    }
+
+    #[test]
     fn test_parse_import_with_type() {
         let mut test = TestParser::new(
             "
@@ -1601,6 +1631,43 @@ export type { CreateUIMessage, UIMessage }
                 assert_string!(parser, name.string(), "UIMessage");
                 assert!(alias.is_none());
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_with_newline_before_from() {
+        let mut test = TestParser::new("export { A }\nfrom 'foo'");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        // parse multiline named export with from on the next line
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "A");
+                assert!(alias.is_none());
+            });
+            assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_export_namespace_with_newline_before_from() {
+        let mut test = TestParser::new("export *\nfrom 'foo'");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        // parse multiline namespace export with from on the next line
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, .. } => {
+                assert_eq!(*mode, DependencyMode::Namespace);
+            });
+            assert_string!(parser, *target, "foo");
         });
     }
 

@@ -749,6 +749,11 @@ impl Parser {
             }
             // type alias declaration and destack readonly/newtype aliases
             Keyword::Type | Keyword::Readonly => {
+                // for each bindings keep `type` and `readonly` as identifiers
+                if self.options.in_for_each && !self.options.in_type {
+                    return Ok(None);
+                }
+
                 // in new receiver context, `type` and `readonly` behave like identifiers
                 if self.options.in_new_receiver {
                     return Ok(None);

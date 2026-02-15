@@ -4114,6 +4114,34 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_literal_index_signature_with_multiline_brackets() {
+        let mut test = TestParser::new_with_options(
+            r#"type T = {
+  [
+    topic: string
+  ]: number;
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // type T = { [topic: string]: number }
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::NamedExpression { name, key }), value: Some(value), .. } => {
+                        assert_string!(parser, *name, "topic");
+                        assert_node!(parser.tree, *key, Expression::TypeLiteral(TypeLiteral::String));
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_literal_readonly_property_name() {
         let mut test = TestParser::new("type T = { readonly?: boolean }");
         let mut parser = test.prepare();
