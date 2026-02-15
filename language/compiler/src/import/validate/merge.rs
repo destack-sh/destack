@@ -116,7 +116,7 @@ pub(crate) fn can_merge_declarations(
         return false;
     }
 
-    // allow namespaces to merge by ts declaration merge rules
+    // allow namespaces to merge (TS rules)
     if left.kind == SymbolKind::Namespace || right.kind == SymbolKind::Namespace {
         let (namespace, other, namespace_is_left) = if left.kind == SymbolKind::Namespace {
             (left, right, true)
@@ -129,25 +129,26 @@ pub(crate) fn can_merge_declarations(
             return true;
         }
 
-        // ambient declarations merge regardless of declaration order
+        // class and function declarations merge with ambient namespaces in any order
         if matches!(other.symbol_type, SymbolType::Class | SymbolType::Function) {
             if namespace.binding == SymbolBinding::Ambient
-                && other.binding == SymbolBinding::Ambient
+                || other.binding == SymbolBinding::Ambient
             {
                 return true;
             }
 
+            // runtime namespace declarations must follow class and function declarations
             return !namespace_is_left;
         }
+
         // enum merges are order independent
         if other.symbol_type == SymbolType::Enum {
             return true;
         }
 
-        // namespace and value declarations only merge when one side is ambient
+        // namespace and var style value declarations merge only for ambient namespaces
         if other.symbol_type == SymbolType::Void {
-            return namespace.binding == SymbolBinding::Ambient
-                || other.binding == SymbolBinding::Ambient;
+            return namespace.binding == SymbolBinding::Ambient;
         }
 
         return false;

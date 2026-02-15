@@ -220,6 +220,37 @@ impl Compiler {
         (descriptor, scope_id)
     }
 
+    /// Check whether a namespace scope includes runtime value symbols.
+    fn namespace_scope_has_runtime_value_symbols(
+        &self,
+        symbols: &SymbolTable,
+        scope_id: LocalScopeId,
+    ) -> bool {
+        let scope = symbols.get_scope_by_id(scope_id);
+
+        // check named symbols for runtime value participation
+        for (_, symbol_id) in symbols.active_named_symbols(scope) {
+            let symbol = symbols.get_symbol(symbol_id);
+            if symbol.binding == SymbolBinding::Runtime
+                && symbol.space.conflicts_with(SymbolSpace::Value)
+            {
+                return true;
+            }
+        }
+
+        // check anonymous symbols for runtime value participation
+        for symbol_id in symbols.active_anonymous_symbols(scope) {
+            let symbol = symbols.get_symbol(symbol_id);
+            if symbol.binding == SymbolBinding::Runtime
+                && symbol.space.conflicts_with(SymbolSpace::Value)
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Return true when a declaration expression name should bind only in self scope.
     fn declaration_expression_name_is_self_scope_only(
         &self,
@@ -470,15 +501,20 @@ impl Compiler {
                     })
                     .collect();
 
+                // type only namespaces do not emit runtime namespace objects
+                if descriptor.kind == DeclarationKind::Definition
+                    && !self.namespace_scope_has_runtime_value_symbols(symbols, scope_id)
+                {
+                    let symbol = symbols.get_symbol_mut(descriptor.symbol);
+                    symbol.binding = SymbolBinding::Ambient;
+                }
+
                 // register module declarations for ambient module resolution
                 if let Some(Name::String(specifier)) = descriptor.name {
                     // insert default and export assignment symbols for module declarations
                     let scope_mark = symbols.get_scope_mark(scope_id);
                     let scope = (scope_id, scope_mark);
-                    let binding = match descriptor.kind {
-                        DeclarationKind::Declaration => SymbolBinding::Ambient,
-                        DeclarationKind::Definition => SymbolBinding::Runtime,
-                    };
+                    let binding = symbols.get_symbol(descriptor.symbol).binding;
                     let (default_symbol, _) = symbols.insert_symbol(
                         SymbolKind::Namespace,
                         SymbolType::Void,

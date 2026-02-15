@@ -965,16 +965,44 @@ mod tests {
         );
     }
 
-    /// Allow class and namespace declarations to merge when class appears first.
+    /// Allow class and runtime namespace declarations when class appears first.
     #[test]
-    fn test_allow_class_then_namespace_merge() {
-        assert_import_no_conflicting_binding("class Client {} namespace Client {}");
+    fn test_allow_class_then_runtime_namespace_merge() {
+        assert_import_no_conflicting_binding(
+            "class Client {} namespace Client { export const value = 1; }",
+        );
     }
 
-    /// Reject class and namespace declarations when namespace appears first.
+    /// Reject runtime namespace and class declarations when namespace appears first.
     #[test]
-    fn test_reject_namespace_then_class_merge() {
-        assert_import_conflicting_binding("namespace Client {} class Client {}");
+    fn test_reject_runtime_namespace_then_class_merge() {
+        assert_import_conflicting_binding(
+            "namespace Client { export const value = 1; } class Client {}",
+        );
+    }
+
+    /// Allow type only namespace and class declarations in either order.
+    #[test]
+    fn test_allow_type_only_namespace_then_class_merge() {
+        assert_import_no_conflicting_binding(
+            "namespace Client { export interface Options {} } class Client {}",
+        );
+    }
+
+    /// Allow type only namespace and function declarations in either order.
+    #[test]
+    fn test_allow_type_only_namespace_then_function_merge() {
+        assert_import_no_conflicting_binding(
+            "namespace Factory { export interface Options {} } function Factory() {}",
+        );
+    }
+
+    /// Reject runtime namespace and function declarations when namespace appears first.
+    #[test]
+    fn test_reject_runtime_namespace_then_function_merge() {
+        assert_import_conflicting_binding(
+            "namespace Factory { export const value = 1; } function Factory() {}",
+        );
     }
 
     /// Reject runtime namespace declarations that collide with runtime values.
@@ -985,10 +1013,34 @@ mod tests {
         );
     }
 
+    /// Reject runtime namespace declarations that collide with ambient values.
+    #[test]
+    fn test_reject_runtime_namespace_with_ambient_value() {
+        assert_import_conflicting_binding(
+            "namespace Runtime { export const value = 1; } declare var Runtime: number;",
+        );
+    }
+
     /// Allow ambient namespace declarations to coexist with runtime values.
     #[test]
     fn test_allow_ambient_namespace_with_runtime_value() {
         assert_import_no_conflicting_binding("declare namespace Runtime {} var Runtime = 1;");
+    }
+
+    /// Allow type only namespace declarations to coexist with runtime values.
+    #[test]
+    fn test_allow_type_only_namespace_with_runtime_value() {
+        assert_import_no_conflicting_binding(
+            "interface Runtime {} namespace Runtime { export type Inner = string; } const Runtime = 1;",
+        );
+    }
+
+    /// Allow type only namespace declarations to coexist with ambient values.
+    #[test]
+    fn test_allow_type_only_namespace_with_ambient_value() {
+        assert_import_no_conflicting_binding(
+            "interface Runtime {} namespace Runtime { export type Inner = string; } declare var Runtime: number;",
+        );
     }
 
     /// Allow var declarations with named function expressions that reuse the same identifier.

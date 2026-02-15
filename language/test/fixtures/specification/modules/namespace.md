@@ -110,23 +110,49 @@ const box = make("ok");
 box.value satisfies string;
 ```
 
-### class and namespace exports can merge on one name
+### class and runtime namespace exports can merge on one name
 
-> TypeScript allows class and namespace exports to merge under one exported identifier.
+> TypeScript allows class and runtime namespace exports to merge when the class appears first.
 
 ```ts:main.ts
 export class Client {}
 
 export namespace Client {
-    export interface Options {
-        readonly name: string;
-    }
+    export const value = 1;
 }
 ```
 
-### namespace declarations must follow class declarations when merging
+### runtime namespace declarations must follow class declarations when merging
 
-> TypeScript rejects class and namespace merges when the namespace appears first.
+> TypeScript rejects runtime namespace and class merges when the namespace appears first.
+
+```ts:main.ts
+namespace Client {
+    export const value = 1;
+}
+
+class Client {}
+```
+
+- contains: duplicate identifier
+
+### runtime namespace declarations must follow function declarations when merging
+
+> TypeScript rejects runtime namespace and function merges when the namespace appears first.
+
+```ts:main.ts
+namespace Factory {
+    export const value = 1;
+}
+
+function Factory() {}
+```
+
+- contains: duplicate identifier
+
+### type only namespace declarations can merge with class and function declarations
+
+> TypeScript allows type only namespaces to merge with class and function declarations in either order.
 
 ```ts:main.ts
 namespace Client {
@@ -136,9 +162,15 @@ namespace Client {
 }
 
 class Client {}
-```
 
-- contains: duplicate identifier
+namespace Factory {
+    export interface Options {
+        readonly enabled: boolean;
+    }
+}
+
+function Factory() {}
+```
 
 ### runtime namespace and runtime value declarations conflict
 
@@ -150,6 +182,20 @@ namespace Runtime {
 }
 
 var Runtime = 1;
+```
+
+- contains: duplicate identifier
+
+### runtime namespace and ambient value declarations conflict
+
+> TypeScript rejects runtime namespace declarations that collide with ambient value declarations.
+
+```ts:main.ts
+namespace Runtime {
+    export const value = 1;
+}
+
+declare var Runtime: number;
 ```
 
 - contains: duplicate identifier
@@ -166,7 +212,7 @@ var Runtime = 1;
 
 ### type only namespace declarations can coexist with runtime values
 
-> TypeScript allows namespaces with only type members to share names with runtime value declarations.
+> TypeScript allows namespaces with only type members to share names with runtime and ambient value declarations.
 
 ```ts:main.ts
 interface Runtime {}
@@ -176,6 +222,12 @@ namespace Runtime {
 }
 
 const Runtime = 1;
+
+declare var Runtime2: number;
+
+namespace Runtime2 {
+    export type Inner = string;
+}
 ```
 
 ### ambient class and value declarations conflict
