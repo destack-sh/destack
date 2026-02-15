@@ -8,13 +8,18 @@ use crate::console;
 
 const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "version.txt",
+    "README.md",
     "Cargo.toml",
     "package.json",
     "*/package.json",
     "*/*/package.json",
     "*/*/*/package.json",
 ];
-const FILE_GLOBS_TO_IGNORE: &[&str] = &["language/test/fixtures/", "language/grammar/destack/"];
+const FILE_GLOBS_TO_IGNORE: &[&str] = &[
+    "language/test/fixtures/",
+    "language/grammar/destack/",
+    "platform/zed/grammars/",
+];
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum VersionCommands {

@@ -1,7 +1,7 @@
 # parser
 
 Lexer and parser for Destack, TypeScript, and JavaScript.
-Transforms source text into the Destack AST.
+Transforms source text into the [Destack AST](../ast/README.md).
 
 ## Overview
 
@@ -26,19 +26,6 @@ The parser uses recursive descent with operator precedence climbing.
 Like most parsers, we use a lookahead and some context to make parsing decisions.
 Many syntactic ambiguities in TypeScript (and some more in Destack) require context tracking:
 
-```ds
-struct ParserOptions {
-    inStatic: bool,       // inside <...> generic args
-    inComptime: bool,     // inside comptime expressions
-    inType: bool,         // parsing a type expression
-    inTreeLiteral: bool,  // inside TSX/tree literal
-    inMatchCase: bool,    // => means match arm, not lambda
-    // ... many more
-}
-```
-
-We still need some lookaheads and speculative parsing unfortunately, but the fat context struct helps a lot.
-
 ### Error Recovery
 
 The parser tries to continues after errors to report multiple diagnostics per file.
@@ -46,7 +33,8 @@ We use synchronization points (`;`, `}`, keywords) to resync after malformed inp
 
 ### Tree Literals (TSX)
 
-Full JSX/TSX compatibility for "tree literals":
+We support full JSX/TSX compatibility for "tree literals".
+This is very annoying, and we borrow some web-land tricks here (with a scanner-ish approach), and some unavoidable backtracking.
 
 ```tsx
 <Component prop={value}>
@@ -54,3 +42,8 @@ Full JSX/TSX compatibility for "tree literals":
     {expression}
 </Component>
 ```
+
+### Annotations
+
+Destack annotations are more flexible than JS/TS or indeed in most programming languages: we support annotating imports, expressions, parameters, members, declarations, etc.
+We use a combination of "trivia" tracking for comments / documentation and explicit decorator parsing in legal productions.
