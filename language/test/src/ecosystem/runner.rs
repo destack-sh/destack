@@ -238,29 +238,7 @@ impl EcosystemSuite {
 
     /// Update known failure file from current run results.
     fn update_known_failures(&self, results: &[(TestCase, TestResult)]) {
-        let mut current_failures = HashSet::new();
-
-        for (case, result) in results {
-            let Some((_, _)) = parse_case_id(case.name.as_str()) else {
-                continue;
-            };
-
-            if result.is_failed() {
-                current_failures.insert(case.name.clone());
-            }
-        }
-
-        // preserve known failures for phases not included in this run
-        let mut next_known_failures = self.raw_known_failures.clone();
-        next_known_failures.retain(|case_id| {
-            let Some((_, phase)) = parse_case_id(case_id.as_str()) else {
-                return true;
-            };
-
-            !self.phases.contains(&phase)
-        });
-
-        next_known_failures.extend(current_failures);
+        let next_known_failures = compute_updated_known_failures(&self.raw_known_failures, results);
 
         if let Err(error) = save_expected_failures(&self.known_failures_path, &next_known_failures)
         {
@@ -1493,6 +1471,42 @@ fn parse_case_id(case_id: &str) -> Option<(&str, EcosystemPhase)> {
     None
 }
 
+/// Compute the next known failure set from current run results.
+fn compute_updated_known_failures(
+    raw_known_failures: &HashSet<String>,
+    results: &[(TestCase, TestResult)],
+) -> HashSet<String> {
+    let mut observed_case_ids = HashSet::new();
+    let mut current_failures = HashSet::new();
+
+    for (case, result) in results {
+        // only ecosystem phase case ids participate in known failure updates
+        if parse_case_id(case.name.as_str()).is_none() {
+            continue;
+        }
+
+        // preserve existing known failures when they were skipped as known failures
+        if let TestResult::Skipped { reason } = result
+            && reason == "known failure"
+        {
+            continue;
+        }
+
+        observed_case_ids.insert(case.name.clone());
+
+        // keep failing observed cases in the next known failure set
+        if result.is_failed() {
+            current_failures.insert(case.name.clone());
+        }
+    }
+
+    // keep stale or unobserved entries and replace only observed case ids
+    let mut next_known_failures = raw_known_failures.clone();
+    next_known_failures.retain(|case_id| !observed_case_ids.contains(case_id));
+    next_known_failures.extend(current_failures);
+
+    next_known_failures
+}
 /// Discover source files for a package and phase.
 fn discover_package_files(
     package_dir: &Path,
