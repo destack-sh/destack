@@ -400,52 +400,6 @@ for item in items {
             (identifier)))))))
 
 ==================================
-For in with range
-==================================
-
-for i in 0..=10 {
-  print(i)
-}
-
----
-
-(program
-  (destack_for_in_statement
-    (identifier)
-    (binary_expression
-      (number)
-      (number))
-    (statement_block
-      (expression_statement
-        (call_expression
-          (identifier)
-          (arguments
-            (identifier)))))))
-
-==================================
-Range expression
-==================================
-
-const exclusive = 0..10
-const inclusive = 0..=10
-
----
-
-(program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (binary_expression
-        (number)
-        (number))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (binary_expression
-        (number)
-        (number)))))
-
-==================================
 Try expression with catch match
 ==================================
 

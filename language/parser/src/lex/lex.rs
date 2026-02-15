@@ -1465,8 +1465,8 @@ impl Lexer {
 
         match self.peek() {
             // don't be greedy if this is actually an
-            // integer literal followed by field/method access or a range pattern
-            // (`0..2` and `12.foo()`)
+            // integer literal followed by field or method access
+            // (`12.foo()` and `12..toString()`)
             '.' if self.peek_next() != '.' && !is_identifier_start(self.peek_next()) => {
                 // might have stuff after the ., and if it does, it starts with a number
                 self.eat();

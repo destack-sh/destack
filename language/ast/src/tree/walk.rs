@@ -435,17 +435,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             // no child nodes to visit
         }
 
-        Expression::RangeExpression {
-            start,
-            end,
-            is_inclusive: _,
-        } => {
-            let start_expr = tree.get(*start);
-            visitor.visit_expression(tree, *start, start_expr);
-            let end_expr = tree.get(*end);
-            visitor.visit_expression(tree, *end, end_expr);
-        }
-
         Expression::ArrayExpression { elements } => {
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
@@ -1361,20 +1350,6 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Expression { value } => {
             let value_expr = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expr);
-        }
-        Pattern::Range {
-            start,
-            end,
-            is_inclusive: _,
-        } => {
-            if let Some(start_pattern) = start {
-                let start_node = tree.get(*start_pattern);
-                visitor.visit_pattern(tree, *start_pattern, start_node);
-            }
-            if let Some(end_pattern) = end {
-                let end_node = tree.get(*end_pattern);
-                visitor.visit_pattern(tree, *end_pattern, end_node);
-            }
         }
         Pattern::Tuple { fields } => {
             for field_id in fields {

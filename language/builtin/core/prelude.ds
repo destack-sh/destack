@@ -16,16 +16,6 @@ export {
     type Iterable,
     type IterableIterator,
 } from "./control/iterable.ds";
-export {
-    Bound,
-    type RangeBounds,
-    Range,
-    RangeInclusive,
-    RangeFrom,
-    RangeTo,
-    RangeToInclusive,
-    RangeFull,
-} from "./control/range.ds";
 
 // simd
 export {

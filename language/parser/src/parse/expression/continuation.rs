@@ -237,26 +237,6 @@ impl Parser {
                         );
                     }
                 }
-                // range (`..`, `..=`)
-                else if token_type == TokenType::Range {
-                    self.bump(); // eat ..
-                    let is_inclusive = if self.peek_is(TokenType::Assign) {
-                        self.bump(); // eat =
-                        true
-                    } else {
-                        false
-                    };
-                    let right_options = self.options.not_in_position();
-                    let right_expression_id = self.eat_expression(right_options)?;
-                    left_expression_id = self.tree.insert(
-                        Expression::RangeExpression {
-                            start: left_expression_id,
-                            end: right_expression_id,
-                            is_inclusive,
-                        },
-                        self.get_span_from(start),
-                    );
-                }
                 // dot member and private member dispatch via scanner cursor
                 else if let Some((member_index, is_private_member)) = dot_member_target {
                     let member_distance = member_index

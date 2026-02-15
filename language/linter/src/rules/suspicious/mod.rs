@@ -16,7 +16,6 @@ mod no_empty_static_block;
 mod no_ex_assign;
 mod no_extra_non_null_assertion;
 mod no_identical_branches;
-mod no_incomplete_range;
 mod no_inner_declarations;
 mod no_large_try_block;
 mod no_loop_func;
@@ -65,7 +64,6 @@ pub use no_empty_static_block::*;
 pub use no_ex_assign::*;
 pub use no_extra_non_null_assertion::*;
 pub use no_identical_branches::*;
-pub use no_incomplete_range::*;
 pub use no_inner_declarations::*;
 pub use no_large_try_block::*;
 pub use no_loop_func::*;
@@ -115,7 +113,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoEmptyStaticBlock),
         boxed(NoExtraNonNullAssertion),
         boxed(NoIdenticalBranches),
-        boxed(NoIncompleteRange),
         boxed(NoInnerDeclarations),
         boxed(NoLargeTryBlock),
         boxed(NoLoopFunc),

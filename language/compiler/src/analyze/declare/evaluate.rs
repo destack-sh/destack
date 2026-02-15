@@ -1871,44 +1871,6 @@ impl Compiler {
                     },
                 }
             }
-            Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start_value = self.evaluate_static_expression_value_inner(
-                    module,
-                    profile,
-                    *start,
-                    tree,
-                    symbols,
-                    types,
-                    enum_symbol,
-                    substitutions,
-                    visited,
-                )?;
-                let end_value = self.evaluate_static_expression_value_inner(
-                    module,
-                    profile,
-                    *end,
-                    tree,
-                    symbols,
-                    types,
-                    enum_symbol,
-                    substitutions,
-                    visited,
-                )?;
-
-                let (Some(start_value), Some(end_value)) = (start_value, end_value) else {
-                    return Ok(None);
-                };
-
-                StaticExpression::RangeExpression {
-                    start: Box::new(start_value),
-                    end: Box::new(end_value),
-                    is_inclusive: *is_inclusive,
-                }
-            }
             Expression::If {
                 kind,
                 condition,

@@ -560,16 +560,6 @@ impl<'a> TaintAnalysis<'a> {
                     labels.merge(&value_labels);
                 }
             }
-            dir::Expression::RangeExpression { start, end, .. } => {
-                // range expressions taint from both endpoints
-                let start_labels =
-                    self.expression_taint_labels_inner(*start, expression_stack, symbol_stack);
-                labels.merge(&start_labels);
-
-                let end_labels =
-                    self.expression_taint_labels_inner(*end, expression_stack, symbol_stack);
-                labels.merge(&end_labels);
-            }
             dir::Expression::Comptime { body } => {
                 // comptime wrappers preserve inner value taint
                 let body_labels =

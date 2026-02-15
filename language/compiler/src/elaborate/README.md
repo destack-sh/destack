@@ -760,30 +760,3 @@ function namespaced(): unknown {
     TreeTagBuilder.Tag<"svg:path">.fromTree({}, [])
 }
 ```
-
-### Reify ranges into core range structs
-
-Range expressions reify to core control range structs.
-The core library defines RangeBounds and concrete Range types.
-
-```ds
-// source
-function sumRange(): int32 {
-    let sum = 0;
-    for (const i of 0..=5) {
-        sum += i;
-    }
-    return sum;
-}
-```
-
-```ds
-// after reify
-function sumRange(): int32 {
-    let sum = 0;
-    for (const i of RangeInclusive { start: 0, end: 5 }) {
-        sum += i;
-    }
-    return sum;
-}
-```

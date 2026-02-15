@@ -144,24 +144,6 @@ pub fn expression_is_equal(
             }
         }
 
-        // range expressions: compare start, end, and inclusivity
-        (
-            ast::Expression::RangeExpression {
-                start: left_start,
-                end: left_end,
-                is_inclusive: left_inclusive,
-            },
-            ast::Expression::RangeExpression {
-                start: right_start,
-                end: right_end,
-                is_inclusive: right_inclusive,
-            },
-        ) => {
-            left_inclusive == right_inclusive
-                && expression_is_equal(ctx, *left_start, *right_start)
-                && expression_is_equal(ctx, *left_end, *right_end)
-        }
-
         // value of: compare mutability, variance, and operand
         (
             ast::Expression::ValueOf {
@@ -569,11 +551,6 @@ pub fn expression_has_side_effects(
         | ast::Expression::ValueOf { right, .. }
         | ast::Expression::PointerOf { right, .. } => expression_has_side_effects(ctx, *right),
 
-        // pure: range (if bounds are pure)
-        ast::Expression::RangeExpression { start, end, .. } => {
-            expression_has_side_effects(ctx, *start) || expression_has_side_effects(ctx, *end)
-        }
-
         // side effects: calls, assignments, new, await, yield, etc.
         ast::Expression::Call { .. }
         | ast::Expression::Assign { .. }
@@ -876,9 +853,6 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             ast::Expression::TemplateExpression { value }
             | ast::Expression::TaggedTemplateExpression { value, .. } => {
                 self.push_debug("expression_template", value);
-            }
-            ast::Expression::RangeExpression { is_inclusive, .. } => {
-                self.push_debug("expression_range_inclusive", *is_inclusive);
             }
             ast::Expression::TypeUnary { operator, .. } => {
                 self.push_debug("expression_type_unary", *operator);

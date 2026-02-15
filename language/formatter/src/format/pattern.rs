@@ -269,7 +269,6 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
             }
             Pattern::Expression { value } => write!(f, [value])?,
-            Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,])?,
             Pattern::Tuple { fields } => {
                 write!(f, [list_like("(", ")", ",", fields).as_collection()])?
             }

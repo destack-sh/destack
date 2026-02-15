@@ -14,7 +14,6 @@ mod mapped;
 mod materialize;
 mod module;
 mod normalize;
-mod pattern;
 mod relation;
 mod scalar;
 mod shape;

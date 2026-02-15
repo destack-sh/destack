@@ -344,7 +344,7 @@ function compute(input: Result<number, Error>): number {
           (identifier))))))
 
 ==================================
-If let and range match patterns
+If let and union match patterns
 ==================================
 
 const normalized = if let Ok(value) = source {
@@ -354,8 +354,8 @@ const normalized = if let Ok(value) = source {
 };
 
 const bucket = match (normalized) {
-  0..=9 => "small",
-  10..20 => "medium",
+  0 | 1 => "small",
+  2 | 3 => "medium",
   _ => "large",
 };
 

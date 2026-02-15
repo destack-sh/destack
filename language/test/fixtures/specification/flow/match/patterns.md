@@ -155,21 +155,6 @@ match (config) {
 }
 ```
 
-## Range patterns
-
-### match range patterns cover numeric ranges
-
-> Range patterns cover the literal values within the range.
-
-```ds
-declare const value: 1 | 2 | 3 | 4;
-
-match (value) {
-    1..3 => "low"
-    3..5 => "high"
-}
-```
-
 ## Must patterns
 
 ### match must patterns bind non nullish values

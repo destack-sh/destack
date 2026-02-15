@@ -182,7 +182,6 @@ impl Compiler {
                 Some(())
             }
             StaticExpression::Declaration { .. }
-            | StaticExpression::RangeExpression { .. }
             | StaticExpression::ArrayExpression { .. }
             | StaticExpression::TupleExpression { .. }
             | StaticExpression::ObjectExpression { .. } => None,

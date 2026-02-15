@@ -107,9 +107,6 @@ fn binds_anything(
         // union patterns bind if any arm binds
         ast::Pattern::Union { patterns } => patterns.iter().any(|p| binds_anything(ctx, *p)),
 
-        // range patterns don't bind
-        ast::Pattern::Range { .. } => false,
-
         // reference/value patterns bind if inner binds
         ast::Pattern::Must(inner)
         | ast::Pattern::ReferenceOf { right: inner, .. }

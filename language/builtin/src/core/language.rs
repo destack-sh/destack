@@ -32,7 +32,7 @@ macro_rules! define_language_symbols {
         /// These are symbols from the builtin package that the compiler needs for:
         /// - Operator desugaring (`a + b` => `a.add(b)`)
         /// - Type descriptor generation
-        /// - Special syntax handling (`?`, `..`, etc.)
+        /// - Special syntax handling (`?`, `??`, etc.)
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(clippy::upper_case_acronyms)]
         pub enum LanguageSymbol {
@@ -195,30 +195,6 @@ define_language_symbols! {
 
         /// Async result type
         AsyncResult => (Newtype, "control/result", "AsyncResult"),
-
-        /// Range bound enum (Included, Excluded, Unbounded)
-        Bound => (Enum, "control/range", "Bound"),
-
-        /// Range bounds interface
-        RangeBounds => (Interface, "control/range", "RangeBounds"),
-
-        /// `start..end` exclusive range
-        Range => (Struct, "control/range", "Range"),
-
-        /// `start..=end` inclusive range
-        RangeInclusive => (Struct, "control/range", "RangeInclusive"),
-
-        /// `start..` range from
-        RangeFrom => (Struct, "control/range", "RangeFrom"),
-
-        /// `..end` range to (exclusive)
-        RangeTo => (Struct, "control/range", "RangeTo"),
-
-        /// `..=end` range to (inclusive)
-        RangeToInclusive => (Struct, "control/range", "RangeToInclusive"),
-
-        /// `..` full range
-        RangeFull => (Struct, "control/range", "RangeFull"),
     }
 
     /// Reflection types for type descriptors.

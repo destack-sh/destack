@@ -26,7 +26,7 @@ Most canonical DIR constructs map directly to JS/TS equivalents:
 | `struct Point { x, y }` | `type Point = { x: number, y: number }` |
 | `match (x) { ... }` | `switch` or chained `if` |
 | `(a, b)` tuple | `[a, b]` array |
-| `1..10` range | `Array.from(...)` or loop |
+| `for (const x of xs)` | Standard JS `for...of` |
 | `Result<T, E>` | Union type with discriminant |
 | `comptime { ... }` | Evaluated, result inlined |
 | `&T`, `^T` | Just `T`, maybe cloned (ownership erased) |

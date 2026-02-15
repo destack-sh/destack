@@ -631,11 +631,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
         }
 
         match &self.kind {
-            TypeContainmentKind::ErrorType => {
-                if matches!(expression, StaticExpression::RangeExpression { .. }) {
-                    return;
-                }
-            }
+            TypeContainmentKind::ErrorType => {}
             TypeContainmentKind::FreeStaticParameter { .. }
             | TypeContainmentKind::StaticParameter { .. }
             | TypeContainmentKind::UnevaluatedStaticArgument

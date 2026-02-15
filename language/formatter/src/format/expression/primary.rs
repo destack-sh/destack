@@ -342,19 +342,6 @@ pub(super) fn format_primary_expression<'ast>(
             format_type_index_expression(f, *left, *index)?;
         }
 
-        // range literal
-        Expression::RangeExpression {
-            start,
-            end,
-            is_inclusive,
-        } => {
-            if *is_inclusive {
-                write!(f, [start, token("..="), end,])?;
-            } else {
-                write!(f, [start, token(".."), end,])?;
-            }
-        }
-
         // array literal
         Expression::ArrayExpression {
             elements: elements_ids,

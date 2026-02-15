@@ -90,23 +90,6 @@ impl Compiler {
                 );
                 ast::Pattern::Expression { value }
             }
-            dir::Pattern::Range {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start = start.map(|s| {
-                    self.unbind_pattern(module, s, tree, symbols, ast_tree, ast_strings, context)
-                });
-                let end = end.map(|e| {
-                    self.unbind_pattern(module, e, tree, symbols, ast_tree, ast_strings, context)
-                });
-                ast::Pattern::Range {
-                    start,
-                    end,
-                    is_inclusive: *is_inclusive,
-                }
-            }
             dir::Pattern::Tuple { fields } => {
                 let fields = fields
                     .iter()

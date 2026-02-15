@@ -172,20 +172,6 @@ function label(value: Maybe): string {
 }
 ```
 
-### match accepts exhaustive range patterns for literal unions
-
-> Range patterns can cover finite numeric literal unions.
-
-```ds
-type Small = 1 | 2 | 3;
-
-function label(value: Small): int32 {
-    match (value) {
-        1..=3 => 1
-    }
-}
-```
-
 ### match accepts fallback arm for literal unions
 
 > A fallback arm makes literal unions exhaustive.
@@ -251,20 +237,6 @@ function normalize(pair: Pair): int32 {
             1
         }
         (3, _) => 2
-    }
-}
-```
-
-### match accepts tuple discriminant range patterns
-
-> Tuple range patterns count toward tuple discriminant exhaustiveness.
-
-```ds
-type Pair = (1, string) | (2, string) | (3, string);
-
-function normalize(pair: Pair): int32 {
-    match (pair) {
-        (1..=3, _) => 1
     }
 }
 ```

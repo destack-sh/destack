@@ -43,7 +43,6 @@ fn expression_format_route(expression: &Expression) -> ExpressionFormatRoute {
         | Expression::TypeLiteral(_)
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }
-        | Expression::RangeExpression { .. }
         | Expression::ArrayExpression { .. }
         | Expression::TupleExpression { .. }
         | Expression::SequenceExpression { .. }

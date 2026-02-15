@@ -145,42 +145,6 @@ impl Compiler {
                     }
                 }
             }
-            Pattern::Range {
-                start,
-                end,
-                is_inclusive: _,
-            } => {
-                // range bounds do not enforce binding assignability
-                let bound_type_id = None;
-
-                // infer the lower bound pattern
-                if let Some(start_pattern_id) = start {
-                    self.infer_pattern(
-                        module,
-                        *start_pattern_id,
-                        bound_type_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
-                }
-
-                // infer the upper bound pattern
-                if let Some(end_pattern_id) = end {
-                    self.infer_pattern(
-                        module,
-                        *end_pattern_id,
-                        bound_type_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
-                }
-            }
             Pattern::Tuple { fields } => {
                 self.infer_pattern_sequence(
                     module,
@@ -527,30 +491,6 @@ impl Compiler {
                 }
             }
 
-            // range patterns narrow only integer literal candidates
-            Pattern::Range {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start = start.and_then(|pattern_id| {
-                    self.pattern_integer_literal_from_pattern(pattern_id, tree)
-                });
-                let end = end.and_then(|pattern_id| {
-                    self.pattern_integer_literal_from_pattern(pattern_id, tree)
-                });
-                let (Some(start), Some(end)) = (start, end) else {
-                    return true;
-                };
-                self.pattern_type_matches_integer_range(
-                    candidate_ty_id,
-                    start,
-                    end,
-                    *is_inclusive,
-                    types,
-                )
-            }
-
             // union patterns match when any branch matches
             Pattern::Union { patterns } => patterns.iter().any(|pattern_id| {
                 self.pattern_matches_type_for_narrowing(
@@ -643,54 +583,6 @@ impl Compiler {
             }),
             Type::Value { value } => {
                 self.pattern_type_contains_reference_symbol(value, expected_symbol, types)
-            }
-            _ => false,
-        }
-    }
-
-    /// Check whether a candidate type matches an integer literal range.
-    fn pattern_type_matches_integer_range(
-        &self,
-        candidate_ty_id: LocalTypeId,
-        start: i64,
-        end: i64,
-        is_inclusive: bool,
-        types: &mut TypeTable,
-    ) -> bool {
-        let candidate_ty_id = types.unwrap_value_type_id(candidate_ty_id);
-        let candidate_ty = types.get_type(candidate_ty_id).clone();
-        match candidate_ty {
-            Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
-            } => {
-                if is_inclusive {
-                    (start..=end).contains(&value)
-                } else {
-                    (start..end).contains(&value)
-                }
-            }
-            Type::Union { elements } => elements.iter().any(|element_ty_id| {
-                self.pattern_type_matches_integer_range(
-                    *element_ty_id,
-                    start,
-                    end,
-                    is_inclusive,
-                    types,
-                )
-            }),
-            Type::Value { value } => {
-                self.pattern_type_matches_integer_range(value, start, end, is_inclusive, types)
-            }
-            Type::Reference { symbol, .. } => {
-                types.get_value_type_id(symbol).is_some_and(|type_id| {
-                    self.pattern_type_matches_integer_range(
-                        type_id,
-                        start,
-                        end,
-                        is_inclusive,
-                        types,
-                    )
-                })
             }
             _ => false,
         }
@@ -1290,41 +1182,6 @@ impl Compiler {
             Pattern::Expression { value } => self
                 .pattern_scalar_literal_for_expression(*value, tree)
                 .map(|value| TuplePatternLiteralCoverage::Values(vec![value])),
-            Pattern::Range {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start = start.and_then(|pattern_id| {
-                    self.pattern_integer_literal_from_pattern(pattern_id, tree)
-                });
-                let end = end.and_then(|pattern_id| {
-                    self.pattern_integer_literal_from_pattern(pattern_id, tree)
-                });
-                let (Some(start), Some(end)) = (start, end) else {
-                    return None;
-                };
-
-                let upper = if *is_inclusive {
-                    end
-                } else {
-                    end.saturating_sub(1)
-                };
-                if upper < start {
-                    return Some(TuplePatternLiteralCoverage::Values(Vec::new()));
-                }
-
-                let count = upper.saturating_sub(start).saturating_add(1);
-                if count > 256 {
-                    return None;
-                }
-
-                let mut values = Vec::new();
-                for value in start..=upper {
-                    values.push(ScalarLiteral::Integer(value));
-                }
-                Some(TuplePatternLiteralCoverage::Values(values))
-            }
             Pattern::Union { patterns } => {
                 let mut values = Vec::new();
                 for pattern_id in patterns {
@@ -1342,27 +1199,6 @@ impl Compiler {
                     }
                 }
                 Some(TuplePatternLiteralCoverage::Values(values))
-            }
-            _ => None,
-        }
-    }
-
-    /// Resolve an integer literal from a nested pattern expression.
-    fn pattern_integer_literal_from_pattern(
-        &self,
-        pattern_id: LocalNodeId<Pattern>,
-        tree: &NodeTree,
-    ) -> Option<i64> {
-        let pattern = tree.get(pattern_id);
-        match pattern {
-            Pattern::Expression { value } => {
-                let expression = tree.get(*value);
-                match expression {
-                    Expression::ScalarLiteral {
-                        value: ScalarLiteral::Integer(value),
-                    } => Some(*value),
-                    _ => None,
-                }
             }
             _ => None,
         }

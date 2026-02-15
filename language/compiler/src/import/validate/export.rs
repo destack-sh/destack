@@ -520,14 +520,6 @@ impl Compiler {
                     self.collect_binding_names_from_pattern(tree, *inner, names);
                 }
             }
-            Pattern::Range { start, end, .. } => {
-                if let Some(start) = start {
-                    self.collect_binding_names_from_pattern(tree, *start, names);
-                }
-                if let Some(end) = end {
-                    self.collect_binding_names_from_pattern(tree, *end, names);
-                }
-            }
             Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. }
             | Pattern::Array { fields }

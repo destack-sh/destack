@@ -1193,14 +1193,6 @@ impl Compiler {
             | Pattern::ValueOf { right: inner, .. } => {
                 self.collect_value_binding_symbols_for_pattern(tree, *inner, symbols, bindings);
             }
-            Pattern::Range { start, end, .. } => {
-                if let Some(start) = start {
-                    self.collect_value_binding_symbols_for_pattern(tree, *start, symbols, bindings);
-                }
-                if let Some(end) = end {
-                    self.collect_value_binding_symbols_for_pattern(tree, *end, symbols, bindings);
-                }
-            }
             Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. }
             | Pattern::Array { fields }

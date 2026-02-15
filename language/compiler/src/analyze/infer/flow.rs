@@ -8,7 +8,7 @@ use destack_dir::{
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
     GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType,
     NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind,
-    ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeField,
+    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
     TypeLiteral, TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator,
     walk_expression,
 };
@@ -1180,32 +1180,6 @@ impl Compiler {
             return Ok((true_environment, false_environment));
         }
 
-        // narrow range patterns using the literal union when possible
-        if let Pattern::Range {
-            start,
-            end,
-            is_inclusive,
-        } = tree.get(pattern_id)
-            && let Some((true_environment, false_environment)) = self
-                .narrow_environment_for_range_pattern(
-                    module,
-                    context.profile,
-                    pattern_id,
-                    base_type_id,
-                    symbol,
-                    *start,
-                    *end,
-                    *is_inclusive,
-                    tree,
-                    symbols,
-                    types,
-                    environment,
-                    &context.options,
-                )
-        {
-            return Ok((true_environment, false_environment));
-        }
-
         let Some(target_type_id) = self.pattern_guard_target_type(
             module,
             context.profile,
@@ -1276,36 +1250,6 @@ impl Compiler {
                 let target_type_id =
                     self.guard_target_type(module, profile, *ty, tree, symbols, types)?;
                 Ok(Some(self.unwrap_type_value(target_type_id, types)))
-            }
-            Pattern::Range {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                // range patterns require both endpoints
-                let Some(start_id) = start else {
-                    return Ok(None);
-                };
-                let Some(end_id) = end else {
-                    return Ok(None);
-                };
-
-                // resolve scalar literals for endpoints
-                let Some(start_literal) = self.scalar_literal_for_pattern(tree, *start_id) else {
-                    return Ok(None);
-                };
-                let Some(end_literal) = self.scalar_literal_for_pattern(tree, *end_id) else {
-                    return Ok(None);
-                };
-
-                // build a literal union when the range is small enough
-                Ok(self.pattern_range_target_type(
-                    pattern_id.into_any(),
-                    &start_literal,
-                    &end_literal,
-                    *is_inclusive,
-                    types,
-                ))
             }
             Pattern::Union { patterns } => {
                 let mut target_types = Vec::new();
@@ -2690,143 +2634,6 @@ impl Compiler {
     ) -> Option<ScalarLiteral> {
         match tree.get(expression_id) {
             Expression::ScalarLiteral { value } => Some(value.clone()),
-            _ => None,
-        }
-    }
-
-    /// Extract a scalar literal from a pattern subtree.
-    fn scalar_literal_for_pattern(
-        &self,
-        tree: &NodeTree,
-        pattern_id: LocalNodeId<Pattern>,
-    ) -> Option<ScalarLiteral> {
-        match tree.get(pattern_id) {
-            // direct literal pattern
-            Pattern::Expression { value } => self.scalar_literal_for_expression(tree, *value),
-            // unwrap bindings
-            Pattern::Binding { pattern, .. } => {
-                pattern.and_then(|inner| self.scalar_literal_for_pattern(tree, inner))
-            }
-            Pattern::Must(inner)
-            | Pattern::ReferenceOf { right: inner, .. }
-            | Pattern::ValueOf { right: inner, .. } => {
-                // unwrap modifier patterns
-                self.scalar_literal_for_pattern(tree, *inner)
-            }
-            _ => None,
-        }
-    }
-
-    /// Narrow a guard using literal union values for range patterns.
-    fn narrow_environment_for_range_pattern(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        pattern_id: LocalNodeId<Pattern>,
-        base_type_id: LocalTypeId,
-        symbol: GlobalSymbolId,
-        start: Option<LocalNodeId<Pattern>>,
-        end: Option<LocalNodeId<Pattern>>,
-        is_inclusive: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        environment: &FlowEnvironment,
-        options: &AnalyzeOptions,
-    ) -> Option<(FlowEnvironment, FlowEnvironment)> {
-        // require literal range endpoints
-        let start_id = start?;
-        let end_id = end?;
-        let start_literal = self.scalar_literal_for_pattern(tree, start_id)?;
-        let end_literal = self.scalar_literal_for_pattern(tree, end_id)?;
-
-        // filter literal unions when possible
-        let base_literals = self.scalar_literal_union_values_for_type(base_type_id, types)?;
-        let mut filtered_literals = Vec::new();
-        for literal in base_literals {
-            if self.scalar_literal_in_range(&literal, &start_literal, &end_literal, is_inclusive) {
-                filtered_literals.push(literal);
-            }
-        }
-
-        // an empty overlap makes the guard unreachable
-        if filtered_literals.is_empty() {
-            return Some((FlowEnvironment::new(false), environment.clone()));
-        }
-
-        // build the target union and narrow using type guard rules
-        let target_type_id =
-            self.type_id_for_scalar_literals(pattern_id.into_any(), filtered_literals, types);
-        let (true_type_id, false_type_id) = self.type_guard_types(
-            module,
-            profile,
-            symbols,
-            base_type_id,
-            target_type_id,
-            types,
-            options,
-        );
-
-        // apply narrowed bindings to the true branch
-        let mut true_environment = environment.clone();
-        if let Some(type_id) = true_type_id {
-            true_environment.bindings.insert(symbol, type_id);
-        }
-
-        // apply narrowed bindings to the false branch
-        let mut false_environment = environment.clone();
-        if let Some(type_id) = false_type_id {
-            false_environment.bindings.insert(symbol, type_id);
-        }
-
-        Some((true_environment, false_environment))
-    }
-
-    /// Collect scalar literal union values for range narrowing.
-    fn scalar_literal_union_values_for_type(
-        &self,
-        type_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> Option<Vec<ScalarLiteral>> {
-        match types.get_type(type_id) {
-            // unions collect literal members from each element
-            Type::Union { elements } => {
-                let mut literals = Vec::new();
-                for element_id in elements {
-                    let literal = self.scalar_literal_for_type(*element_id, types)?;
-                    literals.push(literal);
-                }
-                if literals.is_empty() {
-                    None
-                } else {
-                    Some(literals)
-                }
-            }
-            _ => self
-                .scalar_literal_for_type(type_id, types)
-                .map(|literal| vec![literal]),
-        }
-    }
-
-    /// Resolve a scalar literal from a type id when possible.
-    fn scalar_literal_for_type(
-        &self,
-        type_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> Option<ScalarLiteral> {
-        match types.get_type(type_id) {
-            Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(literal),
-            } => Some(literal.clone()),
-            Type::Reference { symbol, .. } => {
-                if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
-                    && let Some(target) = types.get_alias_target_type_id(*symbol)
-                {
-                    return self.scalar_literal_for_type(target, types);
-                }
-                None
-            }
-            Type::Value { value } => self.scalar_literal_for_type(*value, types),
             _ => None,
         }
     }

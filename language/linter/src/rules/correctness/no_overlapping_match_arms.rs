@@ -287,68 +287,6 @@ match (x) {
     }
 
     #[test]
-    fn test_flags_range_subsuming_literal_arm() {
-        let test = TestProgram::for_rule_without_prelude(NoOverlappingMatchArms);
-        let result = test.lint_ast(
-            "no_overlapping_match_arms/test_flags_range_subsuming_literal_arm.ds",
-            r#"
-match (x) {
-    1..=5 => 0
-    3 => 1
-}
-"#,
-        );
-        test.result(result).assert_lint("no-overlapping-match-arms");
-    }
-
-    #[test]
-    fn test_flags_range_subsuming_range_arm() {
-        let test = TestProgram::for_rule_without_prelude(NoOverlappingMatchArms);
-        let result = test.lint_ast(
-            "no_overlapping_match_arms/test_flags_range_subsuming_range_arm.ds",
-            r#"
-match (x) {
-    1..=10 => 0
-    2..=4 => 1
-}
-"#,
-        );
-        test.result(result).assert_lint("no-overlapping-match-arms");
-    }
-
-    #[test]
-    fn test_allows_partially_overlapping_ranges() {
-        let test = TestProgram::for_rule_without_prelude(NoOverlappingMatchArms);
-        let result = test.lint_ast(
-            "no_overlapping_match_arms/test_allows_partially_overlapping_ranges.ds",
-            r#"
-match (x) {
-    1..=5 => 0
-    4..=8 => 1
-}
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("no-overlapping-match-arms");
-    }
-
-    #[test]
-    fn test_allows_disjoint_ranges() {
-        let test = TestProgram::for_rule_without_prelude(NoOverlappingMatchArms);
-        let result = test.lint_ast(
-            "no_overlapping_match_arms/test_allows_disjoint_ranges.ds",
-            r#"
-match (x) {
-    1..=5 => 0
-    6..=8 => 1
-}
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("no-overlapping-match-arms");
-    }
-
-    #[test]
     fn test_flags_guarded_arm_after_total_previous_arm() {
         let test = TestProgram::for_rule_without_prelude(NoOverlappingMatchArms);
         let result = test.lint_ast(

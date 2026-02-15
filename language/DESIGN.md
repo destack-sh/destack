@@ -27,7 +27,7 @@ Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack
 
 | Feature | Description | Tests |
 |---------|-------------|-------|
-| [Expressions](#expressions) | Expression extensions: "as values", ranges, patterns, `loop`, `using` | [expressions/](test/fixtures/specification/expressions/) |
+| [Expressions](#expressions) | Expression extensions: "as values", patterns, `loop`, `using` | [expressions/](test/fixtures/specification/expressions/) |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
 | [Annotations](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | |
 | [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
@@ -75,15 +75,6 @@ if let (x, y) = point {
 }
 ```
 
-### Ranges
-
-Range literals for iteration and slicing:
-
-```ds
-for (const i of 0..10) { }      // exclusive
-for (const i of 0..=10) { }     // inclusive
-```
-
 ### Tuples
 
 Explicit tuple syntax with parentheses:
@@ -124,7 +115,9 @@ Infinite loops with `loop`.
 ```ds
 loop {
     const input = readInput();
-    if (input == "quit") { break }
+    if (input == "quit") { 
+        break;
+    }
     process(input);
 }
 ```
@@ -218,9 +211,9 @@ The standard library provides `Result<T, E>` as the primary error handling mecha
 
 ```ds
 function readConfig(path: string): Result<Config, IOError> {
-    const text = readFile(path)?    // propagate errors with ?
-    const json = parseJson(text)?
-    Result.ok(Config.from(json))
+    const text = readFile(path)?;    // propagate errors with ?
+    const json = parseJson(text)?;
+    return Result.ok(Config.from(json));
 }
 ```
 

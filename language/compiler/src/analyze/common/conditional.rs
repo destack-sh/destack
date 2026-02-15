@@ -1715,10 +1715,6 @@ impl Compiler {
                     }
                 }
             }
-            StaticExpression::RangeExpression { start, end, .. } => {
-                self.collect_infer_names_from_static_expression(start, types, visited, names);
-                self.collect_infer_names_from_static_expression(end, types, visited, names);
-            }
             StaticExpression::ScalarLiteral { .. }
             | StaticExpression::TypeLiteral { .. }
             | StaticExpression::Unevaluated { .. } => {}

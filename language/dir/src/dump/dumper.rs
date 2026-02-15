@@ -1260,15 +1260,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("value", value)
                     .end();
             }
-            Expression::RangeExpression {
-                start: _,
-                end: _,
-                is_inclusive,
-            } => {
-                self.node("Expression::RangeExpression", id.id)
-                    .field("is_inclusive", is_inclusive)
-                    .end();
-            }
             Expression::ArrayExpression { elements: _ } => {
                 self.node("Expression::ArrayExpression", id.id).end();
             }
@@ -2039,15 +2030,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Pattern::Expression { value: _ } => {
                 self.node("Pattern::Expression", id.id).end();
-            }
-            Pattern::Range {
-                start: _,
-                end: _,
-                is_inclusive,
-            } => {
-                self.node("Pattern::Range", id.id)
-                    .field("is_inclusive", is_inclusive)
-                    .end();
             }
             Pattern::Tuple { fields: _ } => {
                 self.node("Pattern::Tuple", id.id).end();

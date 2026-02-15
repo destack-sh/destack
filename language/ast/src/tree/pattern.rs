@@ -14,7 +14,6 @@ use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType};
 /// 1
 /// &MyEnum.A
 /// 2 | 3
-/// 4..6
 /// (x, 0, ...)
 /// Success(_)
 /// Vector2 { x: 0, y, z: zed }
@@ -46,12 +45,6 @@ pub enum Pattern {
     },
     /// Literal value, type or path pattern (like `4`, `int32`, `Vector2`, `MyEnum.A`).
     Expression { value: LocalNodeId<Expression> },
-    /// Range pattern (like `1..3`).
-    Range {
-        start: Option<LocalNodeId<Pattern>>,
-        end: Option<LocalNodeId<Pattern>>,
-        is_inclusive: bool,
-    },
     /// Tuple pattern (like `(x, 0)`).
     Tuple {
         fields: Vec<LocalNodeId<PatternField>>,
