@@ -1117,18 +1117,48 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_object_readonly_modifier_with_name_destack() {
-        let mut test = TestParser::new("{ readonly value }");
+    fn test_parse_pattern_array_readonly_identifier_typescript() {
+        let mut test =
+            TestParser::new_with_options("[readonly, setReadonly]", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
-            assert_eq!(fields.len(), 1);
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: Some(mutability), pattern: None, default: None } => {
-                assert_name!(parser, *name, "value");
-                assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+            assert_eq!(fields.len(), 2);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                assert_name!(parser, *name, "readonly");
+            });
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                assert_name!(parser, *name, "setReadonly");
             });
         });
+    }
+
+    #[test]
+    fn test_parse_pattern_array_readonly_identifier_destack() {
+        let mut test = TestParser::new("[readonly, setReadonly]");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+            assert_eq!(fields.len(), 2);
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                assert_name!(parser, *name, "readonly");
+            });
+            assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                assert_name!(parser, *name, "setReadonly");
+            });
+        });
+    }
+
+    #[test]
+    fn test_reject_pattern_object_readonly_modifier_with_name_destack() {
+        let mut test = TestParser::new("{ readonly value }");
+        let mut parser = test.prepare();
+
+        let result = parser.eat_pattern();
+
+        assert!(result.is_err());
     }
 
     #[test]

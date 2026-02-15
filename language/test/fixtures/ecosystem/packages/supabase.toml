@@ -10,3 +10,6 @@ tags = ["application", "cloud", "platform", "monorepo"]
 [discovery]
 include = ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
 exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]
+
+[compiler_options]
+js_as_jsx = true

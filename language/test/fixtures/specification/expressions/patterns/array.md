@@ -31,3 +31,13 @@ let [x: y] = [1, 2];
 ```
 
 - contains: named fields are not allowed in array or tuple patterns
+
+### array patterns bind readonly named identifiers
+
+> `readonly` remains an identifier in array destructuring patterns.
+
+```ts
+const [readonly, setReadonly] = [1, 2];
+readonly satisfies number;
+setReadonly satisfies number;
+```

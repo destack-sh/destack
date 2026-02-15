@@ -70,11 +70,8 @@ impl Parser {
             Ok(Some(Mutability::Mutable))
         }
         // immutable
-        else if keyword == Keyword::Let
-            || keyword == Keyword::Const
-            || keyword == Keyword::Readonly
-        {
-            self.bump(); // eat readonly
+        else if keyword == Keyword::Let || keyword == Keyword::Const {
+            self.bump(); // eat mutability
             Ok(Some(Mutability::Immutable))
         }
         // nothing
@@ -394,7 +391,9 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_let_scalar() {
@@ -560,6 +559,38 @@ using x = open()
                 let value_id = value.expect("expected initializer");
                 assert_node!(parser.tree, value_id, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "identity");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_array_pattern_readonly_identifier_typescript() {
+        let mut test = TestParser::new_with_options(
+            "const [readonly, setReadonly] = useState(false)",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(&start, DeclarationDescriptor::default())
+            .unwrap();
+
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+                    assert_eq!(fields.len(), 2);
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                        assert_name!(parser, *name, "readonly");
+                    });
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, pattern: None, default: None } => {
+                        assert_name!(parser, *name, "setReadonly");
+                    });
+                });
+                assert_node!(parser.tree, value.expect("expected initializer"), Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "useState");
                 });
             });
         });

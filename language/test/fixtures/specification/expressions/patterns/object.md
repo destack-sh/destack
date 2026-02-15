@@ -52,3 +52,22 @@ const { x }: { x: number };
 ```
 
 - contains: destructuring declarations require initializers
+
+### object patterns bind readonly named identifiers
+
+> `readonly` remains an identifier in object destructuring patterns.
+
+```ts
+const { readonly } = { readonly: 1 };
+readonly satisfies number;
+```
+
+### object patterns reject readonly modifier syntax
+
+> Pattern bindings do not support `readonly` modifier syntax.
+
+```ds
+let { readonly value } = { readonly: 1 };
+```
+
+- contains: parse error
