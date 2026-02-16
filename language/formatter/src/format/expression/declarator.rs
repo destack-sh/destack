@@ -79,6 +79,11 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
         return DeclaratorLayout::Inline;
     }
 
+    // declaration rhs values with prefix trivia should break directly after `=`
+    if inputs.value_is_declaration && inputs.value_has_prefix_annotation {
+        return DeclaratorLayout::BreakAfterOperator;
+    }
+
     // binary rhs operator break policy
     if inputs.value_is_long_binary {
         let prefer_inline_for_internal_binary_comment = inputs.value_has_internal_comment
@@ -179,6 +184,7 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
             let prefers_operator_break = inputs.value_has_between_comment;
             let prefer_declaration_operator_break =
                 inputs.value_is_declaration && (inputs.value_is_long || inputs.value_has_newline);
+
             if prefers_operator_break || prefer_declaration_operator_break {
                 if inputs.inline_declarator_fits
                     && !inputs.value_is_long

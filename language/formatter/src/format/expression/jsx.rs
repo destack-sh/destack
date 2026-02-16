@@ -1190,8 +1190,7 @@ pub(super) fn tree_child_should_inline_braced_expression(
                 IfCondition::Expression { condition } => *condition,
                 IfCondition::Let { .. } => return false,
             };
-            if context.node_has_newline(value_id)
-                || expression_has_line_comment_annotation(context, value_id)
+            if expression_has_line_comment_annotation(context, value_id)
                 || expression_has_line_comment_annotation(context, condition_id)
                 || expression_has_line_comment_annotation(context, *then_expression)
                 || else_expression

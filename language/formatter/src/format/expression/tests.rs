@@ -254,6 +254,42 @@ fn test_parenthesis_policy_rejects_member_object_boundary_comment() {
     ));
 }
 
+/// Parenthesized closure-cast member objects should unwrap.
+#[test]
+fn test_parenthesis_policy_allows_closure_cast_member_object_unwrap() {
+    let source = "(/** @type {array} */ numberOrString).map((x) => x)";
+    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+        .expect("parse member expression");
+    let context = context_from_formatter(&formatter);
+    let (parenthesized_id, inner_expression_id) =
+        find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
+
+    assert!(super::parenthesized_should_unwrap(
+        &context,
+        parenthesized_id,
+        inner_expression_id,
+        super::ParenthesizedUnwrapPolicy::MemberObject,
+    ));
+}
+
+/// Parenthesized ordinary-comment member objects should unwrap.
+#[test]
+fn test_parenthesis_policy_allows_ordinary_comment_member_object_unwrap() {
+    let source = "(/* ordinary */ source).next()";
+    let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
+        .expect("parse member expression");
+    let context = context_from_formatter(&formatter);
+    let (parenthesized_id, inner_expression_id) =
+        find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
+
+    assert!(super::parenthesized_should_unwrap(
+        &context,
+        parenthesized_id,
+        inner_expression_id,
+        super::ParenthesizedUnwrapPolicy::MemberObject,
+    ));
+}
+
 /// Parenthesized new callees with optional chains should not unwrap.
 #[test]
 fn test_parenthesis_policy_rejects_optional_new_callee_unwrap() {
@@ -940,7 +976,7 @@ fn test_format_type_single_member_leading_intersection_parenthesized_array() {
 #[test]
 fn test_type_template_literal_union_is_in_type_context() {
     let source = "type T = `${\n  | 'W'\n  | 'I'\n}${'!' | '!!'}`";
-    let (formatter, expression_id) =
+    let (formatter, _expression_id) =
         TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
             .expect("parse template literal type");
 
@@ -971,7 +1007,6 @@ fn test_type_template_literal_union_is_in_type_context() {
         }
     }
 
-    let _ = expression_id;
     assert!(has_union);
     assert!(has_union_in_type_context);
     assert!(has_union_with_leading_pipe_source);

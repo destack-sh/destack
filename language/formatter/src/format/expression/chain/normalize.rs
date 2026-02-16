@@ -18,6 +18,54 @@ struct NormalizedChainLayout {
     body: Vec<ChainExpression>,
 }
 
+/// Return a chain base root id, unwrapping one parenthesized wrapper when safe.
+fn resolve_chain_base_root_id(
+    context: &DestackFormatContext<'_>,
+    root_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    // only parenthesized roots are candidates for unwrap
+    let Expression::Parenthesized { expression } = context.tree.get(root_id) else {
+        return root_id;
+    };
+
+    // keep object-literal wrappers in statement position:
+    // `({}).x` cannot become `{}.x`
+    let root_is_statement_expression =
+        context
+            .get_parent(root_id)
+            .is_some_and(|(parent_id, parent_type)| {
+                if parent_type != NodeType::Expression {
+                    return false;
+                }
+
+                matches!(
+                    context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                    Expression::Statement(expression_id) if expression_id.id == root_id.id
+                )
+            });
+    if root_is_statement_expression
+        && matches!(
+            context.tree.get(*expression),
+            Expression::ObjectExpression { .. }
+        )
+    {
+        return root_id;
+    }
+
+    // keep wrappers that are required in postfix contexts
+    if !parenthesized_should_unwrap(
+        context,
+        root_id,
+        *expression,
+        ParenthesizedUnwrapPolicy::MemberObject,
+    ) {
+        return root_id;
+    }
+
+    // use the inner expression as the rendered base
+    *expression
+}
+
 /// Store planned chain layout used by render-only formatting.
 pub(super) struct ChainLayoutPlan {
     pub(super) base: ChainExpressionBase,
@@ -452,9 +500,10 @@ fn normalize_chain_layout(
     // collect chain nodes from root to leaf
     let chain = collect_chain_nodes(tree, node_id);
     let root_id = chain[0];
+    let base_root_id = resolve_chain_base_root_id(context, root_id);
 
     // initialize base head and synthetic root path operations
-    let root_parts = collect_chain_root_parts(context, root_id)?;
+    let root_parts = collect_chain_root_parts(context, base_root_id)?;
     let mut body = root_parts.operations;
     let mut base = ChainExpressionBase {
         head: root_parts.head,

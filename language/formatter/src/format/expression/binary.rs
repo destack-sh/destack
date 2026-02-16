@@ -537,6 +537,20 @@ pub(super) fn format_binary_operand_with_grouping_parentheses<'ast>(
     parent_operator: BinaryOperator,
     operand_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    let mut operand_id = operand_id;
+    if let Expression::Parenthesized {
+        expression: inner_expression_id,
+    } = f.context().tree.get(operand_id)
+        && redundant_parenthesized_binary_operand_can_drop(
+            f.context(),
+            parent_operator,
+            operand_id,
+            *inner_expression_id,
+        )
+    {
+        operand_id = *inner_expression_id;
+    }
+
     let expression = f.context().tree.get(operand_id);
     let needs_type_grouping_parentheses =
         type_binary_operand_needs_grouping_parentheses(f.context(), parent_operator, operand_id);
@@ -562,4 +576,30 @@ pub(super) fn format_binary_operand_with_grouping_parentheses<'ast>(
     }
 
     Ok(())
+}
+
+/// Return whether a parenthesized binary operand can safely drop its wrapper.
+fn redundant_parenthesized_binary_operand_can_drop(
+    context: &DestackFormatContext<'_>,
+    parent_operator: BinaryOperator,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
+        return false;
+    }
+
+    if parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id) {
+        return false;
+    }
+
+    if !matches!(
+        context.tree.get(inner_expression_id),
+        Expression::Binary { .. }
+    ) {
+        return false;
+    }
+
+    let inner_precedence = expression_precedence(context.tree.get(inner_expression_id));
+    inner_precedence > parent_operator.precedence()
 }

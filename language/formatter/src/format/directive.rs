@@ -5,7 +5,7 @@ use destack_ast::{
     Annotation, AnnotationPosition, Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan,
     TokenType,
 };
-use destack_fir::format::{FormatResult, text};
+use destack_fir::format::{text, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::Span;
@@ -304,7 +304,7 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
     tokens.sort_by_key(|token| token.span.start);
 
     let mut end = span.end;
-    for token in tokens {
+    for token in tokens.iter().copied() {
         if token.span.start < span.end {
             continue;
         }
@@ -327,11 +327,63 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
         }
     }
 
-    if end > span.end {
+    let extended = if end > span.end {
         Span::new(span.file, span.start, end)
     } else {
         span
+    };
+
+    extend_span_with_trailing_statement_terminator(context, &tokens, extended)
+}
+
+/// Extend an ignored span to include a standalone trailing statement terminator.
+fn extend_span_with_trailing_statement_terminator(
+    context: &DestackFormatContext<'_>,
+    tokens: &[TokenSpan],
+    span: Span,
+) -> Span {
+    let mut token_index = tokens.partition_point(|token| token.span.start < span.end);
+
+    // skip pure whitespace before the next meaningful token
+    while let Some(token) = tokens.get(token_index).copied() {
+        if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
+            token_index += 1;
+            continue;
+        }
+
+        break;
     }
+
+    let Some(candidate) = tokens.get(token_index).copied() else {
+        return span;
+    };
+    if candidate.token.ty != TokenType::Semicolon {
+        return span;
+    }
+
+    let mut lookahead_index = token_index + 1;
+
+    // accept only standalone semicolons: no trailing code on the same line
+    while let Some(token) = tokens.get(lookahead_index).copied() {
+        match token.token.ty {
+            TokenType::Whitespace => {
+                let raw = context.get_token_str(token);
+                if raw.contains(['\n', '\r']) {
+                    return Span::new(span.file, span.start, candidate.span.end);
+                }
+            }
+            TokenType::Newline | TokenType::End => {
+                return Span::new(span.file, span.start, candidate.span.end);
+            }
+            _ => {
+                return span;
+            }
+        }
+
+        lookahead_index += 1;
+    }
+
+    Span::new(span.file, span.start, candidate.span.end)
 }
 
 /// Collect comment tokens sorted by source position.
@@ -543,6 +595,7 @@ pub(crate) fn is_any_ignore_directive_comment(raw: &str) -> bool {
         parse_directive_token_from_raw(raw),
         Some(
             FormatterDirectiveToken::Ignore
+                | FormatterDirectiveToken::IgnoreFile
                 | FormatterDirectiveToken::IgnoreStart
                 | FormatterDirectiveToken::IgnoreEnd
         )
@@ -573,8 +626,9 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
         // check for single line ignore directives
         if matches!(
             trimmed,
-            "prettier-ignore" | "oxfmt-ignore" | "deno-fmt-ignore" | "fmt-ignore" | "format-ignore"
-        ) {
+            "prettier-ignore" | "oxfmt-ignore" | "format-ignore" | "fmt-ignore" | "deno-fmt-ignore"
+        ) || (trimmed.starts_with("biome-ignore") && trimmed.contains("format"))
+        {
             return Some(FormatterDirectiveToken::Ignore);
         }
 
@@ -583,9 +637,9 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
             trimmed,
             "prettier-ignore-file"
                 | "oxfmt-ignore-file"
-                | "deno-fmt-ignore-file"
-                | "fmt-ignore-file"
                 | "format-ignore-file"
+                | "fmt-ignore-file"
+                | "deno-fmt-ignore-file"
         ) {
             return Some(FormatterDirectiveToken::IgnoreFile);
         }
@@ -594,8 +648,9 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
         if matches!(
             trimmed,
             "prettier-ignore-start"
-                | "fmt-ignore-start"
+                | "oxfmt-ignore-start"
                 | "format-ignore-start"
+                | "fmt-ignore-start"
                 | "biome-ignore-start"
         ) {
             return Some(FormatterDirectiveToken::IgnoreStart);
@@ -604,14 +659,13 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
         // check for range end directives
         if matches!(
             trimmed,
-            "prettier-ignore-end" | "fmt-ignore-end" | "format-ignore-end" | "biome-ignore-end"
+            "prettier-ignore-end"
+                | "oxfmt-ignore-end"
+                | "format-ignore-end"
+                | "fmt-ignore-end"
+                | "biome-ignore-end"
         ) {
             return Some(FormatterDirectiveToken::IgnoreEnd);
-        }
-
-        // check for biome ignore with format specifier
-        if trimmed.starts_with("biome-ignore") && trimmed.contains("format") {
-            return Some(FormatterDirectiveToken::Ignore);
         }
 
         None
@@ -632,7 +686,7 @@ mod tests {
 
     #[test]
     fn test_format_ignore_range_for_statement() {
-        let source = "// format-ignore\ncall(   a, b)";
+        let source = "// prettier-ignore\ncall(   a, b)";
         let file = Arc::new(File::from_text(
             FileId::new(0),
             "main.ts".to_string(),
@@ -676,10 +730,10 @@ mod tests {
     fn test_ignore_range_for_call_arguments_uses_comment_column_start() {
         let source = r#"doThing(
     1,
-    // format-ignore-start
+    // prettier-ignore-start
     foo ( 1 ,2 ),
     bar(3),
-    // format-ignore-end
+    // prettier-ignore-end
     4,
 )"#;
         let file = Arc::new(File::from_text(
@@ -738,6 +792,6 @@ mod tests {
         assert_eq!(start_column, 4);
 
         let raw = ignored_span_source(&context, range);
-        assert!(raw.starts_with("// format-ignore-start"));
+        assert!(raw.starts_with("// prettier-ignore-start"));
     }
 }

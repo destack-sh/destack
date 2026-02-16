@@ -393,11 +393,11 @@ where
                         false
                     }
                 };
+            let decorator_can_stay_inline_for_owner = render_facts.follows_colon;
             let is_inline_decorator_prefix = matches!(annotation, Annotation::Decorator { .. })
                 && position == AnnotationPosition::BlockPrefix
                 && annotation_next_token_is_on_same_line(f.context(), annotation_id)
-                && (f.context().options.language_type.is_typescript()
-                    || render_facts.follows_colon);
+                && decorator_can_stay_inline_for_owner;
             let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
             if is_blank_annotation && previous_was_blank_annotation {
                 continue;
@@ -563,6 +563,8 @@ where
                         }
                     } else if next_token_is_on_same_line {
                         write!(f, [space()])?;
+                    } else {
+                        write!(f, [hard_line_break()])?;
                     }
                 }
                 AnnotationPosition::LinePostfix => {
@@ -602,8 +604,9 @@ where
                     }
                 }
                 AnnotationPosition::LinePostfixBoundary => {
-                    let should_keep_inline_slash_separator_comment =
-                        render_facts.is_slash_comment && render_facts.follows_separator;
+                    let should_keep_inline_slash_separator_comment = render_facts.is_slash_comment
+                        && render_facts.follows_separator
+                        && annotation_next_token_is_on_same_line(f.context(), annotation_id);
                     if should_keep_inline_slash_separator_comment {
                         write!(f, [space()])?;
                     } else if render_facts.is_star_comment && !starts_on_own_line {

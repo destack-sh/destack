@@ -457,9 +457,6 @@ fn format_method_like<'ast>(
         )?;
     }
 
-    // modifiers
-    format_binding_modifiers_postfix_maybe(f, modifiers)?;
-
     // return type
     if let Some(return_type) = signature.return_type {
         write!(f, [token(":"), space(), return_type])?;
@@ -471,6 +468,9 @@ fn format_method_like<'ast>(
     {
         format_where_clause_with_break(f, where_clauses)?;
     }
+
+    // modifiers
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
 
     // body
     if let Some(body) = body {

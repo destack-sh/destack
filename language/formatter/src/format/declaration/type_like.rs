@@ -1,32 +1,24 @@
-use super::dispatch::format_super_type_clause;
+use super::dispatch::{format_super_type_clause, format_super_type_clause_with_expand};
 use crate::argument::list_like;
 use crate::expression::expression_has_static_type_arguments;
 use crate::property::format_block_of_members;
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatter, empty_block_with_infix_annotations};
 use destack_ast::{
-    Annotation, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    EnumField, EnumKind, Expression, Generics, Heritage, Keyword, LocalNodeId, Member, NodeType,
-    TypeKind, WhereClause,
+    Annotation, AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
+    DeclarationKind, EnumField, EnumKind, Expression, Generics, Heritage, Keyword, LocalNodeId,
+    Member, NodeType, TypeKind, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-/// Return whether heritage clauses include a line-postfix-boundary comment.
-fn heritage_has_line_postfix_boundary_annotation(
+/// Return whether one super-type list has a line-postfix-boundary comment.
+fn super_type_clause_has_line_postfix_boundary_annotation(
     f: &DestackFormatter<'_, '_>,
-    heritage: &Heritage,
+    types: &[LocalNodeId<Expression>],
 ) -> bool {
-    let mut heritage_types: Vec<LocalNodeId<Expression>> = Vec::new();
-    if let Some(extends_types) = heritage.extends_types.as_ref() {
-        heritage_types.extend(extends_types.iter().copied());
-    }
-    if let Some(implements_types) = heritage.implements_types.as_ref() {
-        heritage_types.extend(implements_types.iter().copied());
-    }
-
-    heritage_types.into_iter().any(|expression_id| {
+    types.iter().copied().any(|expression_id| {
         let Some(annotation_ids) = f.context().get_annotations(expression_id) else {
             return false;
         };
@@ -35,7 +27,7 @@ fn heritage_has_line_postfix_boundary_annotation(
             matches!(
                 f.context().tree.get::<Annotation>(*annotation_id),
                 Annotation::Comment {
-                    position: destack_ast::AnnotationPosition::LinePostfixBoundary,
+                    position: AnnotationPosition::LinePostfixBoundary,
                     ..
                 }
             )
@@ -43,9 +35,59 @@ fn heritage_has_line_postfix_boundary_annotation(
     })
 }
 
+/// Return whether one extends type is a parenthesized class declaration expression.
+fn is_parenthesized_class_extends_type(
+    f: &DestackFormatter<'_, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Parenthesized { expression } = f.context().tree.get(expression_id) else {
+        return false;
+    };
+
+    let Expression::Declaration(declaration_id) = f.context().tree.get(*expression) else {
+        return false;
+    };
+
+    matches!(
+        f.context().tree.get(*declaration_id),
+        Declaration::Class { .. }
+    )
+}
+
+/// Format an expanded implements clause with one type per line.
+fn format_expanded_implements_clause<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    implements_types: &[LocalNodeId<Expression>],
+    start_on_new_line: bool,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [group(&indent(&format_args![
+            format_with(|f| {
+                if start_on_new_line {
+                    write!(f, [hard_line_break()])?;
+                } else {
+                    write!(f, [soft_line_break_or_space()])?;
+                }
+                Ok(())
+            }),
+            Keyword::Implements,
+            indent(&format_args![
+                hard_line_break(),
+                format_with(|f| {
+                    f.join_with(&format_args![&token(","), hard_line_break()])
+                        .entries(implements_types)
+                        .finish()
+                })
+            ])
+        ]))]
+    )
+}
+
 /// Format shared export and declaration modifiers for declarations.
 fn format_declaration_header_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    _node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
 ) -> FormatResult<()> {
     if let Some(export) = descriptor.export {
@@ -92,18 +134,48 @@ fn format_declaration_heritage<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     heritage: &Heritage,
     include_implements: bool,
+    start_on_new_line: bool,
 ) -> FormatResult<()> {
     if let Some(extends_types) = heritage.extends_types.as_ref()
         && !extends_types.is_empty()
     {
-        format_super_type_clause(f, Keyword::Extends, extends_types)?;
+        let extends_has_boundary_comments =
+            super_type_clause_has_line_postfix_boundary_annotation(f, extends_types);
+        let extends_should_stay_inline_with_head = !extends_has_boundary_comments
+            && !start_on_new_line
+            && extends_types.len() == 1
+            && is_parenthesized_class_extends_type(f, extends_types[0]);
+        if extends_should_stay_inline_with_head {
+            write!(f, [space(), Keyword::Extends, space(), extends_types[0]])?;
+        } else {
+            format_super_type_clause_with_expand(
+                f,
+                Keyword::Extends,
+                extends_types,
+                extends_has_boundary_comments,
+                start_on_new_line || extends_has_boundary_comments,
+            )?;
+        }
     }
 
     if include_implements
         && let Some(implements_types) = heritage.implements_types.as_ref()
         && !implements_types.is_empty()
     {
-        format_super_type_clause(f, Keyword::Implements, implements_types)?;
+        let implements_has_boundary_comments =
+            super_type_clause_has_line_postfix_boundary_annotation(f, implements_types);
+        let implements_start_on_new_line = start_on_new_line || implements_has_boundary_comments;
+        if implements_has_boundary_comments {
+            format_expanded_implements_clause(f, implements_types, implements_start_on_new_line)?;
+        } else {
+            format_super_type_clause_with_expand(
+                f,
+                Keyword::Implements,
+                implements_types,
+                false,
+                implements_start_on_new_line,
+            )?;
+        }
     }
 
     Ok(())
@@ -136,7 +208,15 @@ fn format_anonymous_class_heritage<'ast>(
             )?;
             write!(f, [soft_line_break_or_space(), token(")")])?;
         } else {
-            format_super_type_clause(f, Keyword::Extends, extends_types)?;
+            write!(f, [space(), Keyword::Extends, space()])?;
+            write!(
+                f,
+                [format_with(|f| {
+                    f.join_with(&format_args![&token(","), space()])
+                        .entries(extends_types)
+                        .finish()
+                })]
+            )?;
         }
     }
 
@@ -177,7 +257,7 @@ pub(super) fn format_struct_or_class_declaration<'ast>(
     members: &[LocalNodeId<Member>],
     is_class: bool,
 ) -> FormatResult<bool> {
-    format_declaration_header_prefix(f, descriptor)?;
+    format_declaration_header_prefix(f, node_id, descriptor)?;
 
     if descriptor.abstraction == DeclarationAbstraction::Abstract {
         write!(f, [Keyword::Abstract, space()])?;
@@ -213,14 +293,18 @@ pub(super) fn format_struct_or_class_declaration<'ast>(
     };
 
     format_declaration_static_parameters(f, generics)?;
+
     if is_assignment_rhs_anonymous_class {
         format_anonymous_class_heritage(f, heritage)?;
     } else {
-        format_declaration_heritage(f, heritage, true)?;
+        format_declaration_heritage(f, heritage, true, false)?;
     }
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
-    let has_heritage_line_boundary_annotation =
-        heritage_has_line_postfix_boundary_annotation(f, heritage);
+    let implements_has_line_boundary_comment = heritage
+        .implements_types
+        .as_ref()
+        .is_some_and(|types| super_type_clause_has_line_postfix_boundary_annotation(f, types));
+    let has_heritage_line_boundary_annotation = implements_has_line_boundary_comment;
 
     if has_heritage_line_boundary_annotation {
         write!(f, [hard_line_break()])?;
@@ -277,7 +361,7 @@ pub(super) fn format_enum_declaration<'ast>(
         members,
     } = data;
 
-    format_declaration_header_prefix(f, descriptor)?;
+    format_declaration_header_prefix(f, node_id, descriptor)?;
 
     if kind == EnumKind::Const {
         write!(f, [Keyword::Const, space()])?;
@@ -290,7 +374,7 @@ pub(super) fn format_enum_declaration<'ast>(
     }
 
     format_declaration_static_parameters(f, generics)?;
-    format_declaration_heritage(f, heritage, true)?;
+    format_declaration_heritage(f, heritage, true, false)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
 
     write!(f, [space()])?;
@@ -339,7 +423,7 @@ pub(super) fn format_interface_declaration<'ast>(
     heritage: &Heritage,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<bool> {
-    format_declaration_header_prefix(f, descriptor)?;
+    format_declaration_header_prefix(f, node_id, descriptor)?;
 
     if kind == TypeKind::Nominal {
         write!(f, [Keyword::Newtype, space()])?;
@@ -351,7 +435,7 @@ pub(super) fn format_interface_declaration<'ast>(
     }
 
     format_declaration_static_parameters(f, generics)?;
-    format_declaration_heritage(f, heritage, false)?;
+    format_declaration_heritage(f, heritage, false, false)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
 
     write!(f, [space()])?;
