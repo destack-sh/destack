@@ -11,6 +11,7 @@ use crate::ecosystem::manifest::{EcosystemManifest, EcosystemPhase};
 use crate::ecosystem::runner::FetchOptions;
 
 const PATCH_STAMP_FILE: &str = ".destack_patch_stamp";
+const GIT_DIRECTORY_NAME: &str = ".git";
 
 /// Ensure patch overlays are applied exactly once per patch snapshot.
 pub(super) fn ensure_patches_applied(patches_dir: &Path, package_dir: &Path) -> Result<(), String> {
@@ -303,7 +304,7 @@ pub(super) fn auto_fetch_missing_checkouts(
 
     // collect selected manifests and missing checkout paths
     let mut selected = Vec::new();
-    let mut missing = Vec::new();
+    let mut missing_or_broken = Vec::new();
     for manifest in manifests {
         if !manifest_matches_filter(manifest, phases, filter) {
             continue;
@@ -312,22 +313,22 @@ pub(super) fn auto_fetch_missing_checkouts(
         selected.push(manifest);
 
         let package_dir = checkouts_dir.join(&manifest.package.name);
-        if !package_dir.exists() {
-            missing.push(manifest);
+        if checkout_requires_refetch(&package_dir) {
+            missing_or_broken.push(manifest);
         }
     }
 
     let mut failures = HashMap::new();
 
     // fetch missing checkouts first
-    if !missing.is_empty() {
+    if !missing_or_broken.is_empty() {
         println!();
         println!(
-            "auto-fetching {} missing ecosystem checkouts",
-            missing.len()
+            "auto-fetching {} missing or broken ecosystem checkouts",
+            missing_or_broken.len()
         );
 
-        for manifest in missing {
+        for manifest in missing_or_broken {
             print!(
                 "  {}@{} ... ",
                 manifest.package.name, manifest.package.git_ref
@@ -406,6 +407,31 @@ fn manifest_matches_filter(
         .iter()
         .copied()
         .any(|phase| case_id_for(manifest.package.name.as_str(), phase).contains(filter))
+}
+
+/// Return whether one checkout directory should be re-fetched.
+fn checkout_requires_refetch(package_dir: &Path) -> bool {
+    // missing directories always need fetch
+    if !package_dir.exists() {
+        return true;
+    }
+
+    // unreadable directories are treated as broken checkouts
+    let Ok(entries) = fs::read_dir(package_dir) else {
+        return true;
+    };
+
+    // detect any worktree content beyond git metadata
+    for entry in entries.flatten() {
+        if entry.file_name().to_string_lossy() == GIT_DIRECTORY_NAME {
+            continue;
+        }
+
+        return false;
+    }
+
+    // git metadata only: fetch a fresh working tree
+    true
 }
 
 /// Fetch one package checkout into checkouts directory.
@@ -602,5 +628,54 @@ pub(super) fn fetch_all_packages(options: FetchOptions) -> ExitCode {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::checkout_requires_refetch;
+
+    /// Build a unique temporary path for ecosystem fetch tests.
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "destack-ecosystem-fetch-{label}-{nanos}-{}",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn test_checkout_requires_refetch_for_missing_directory() {
+        let directory = unique_temp_dir("missing");
+
+        assert!(checkout_requires_refetch(&directory));
+    }
+
+    #[test]
+    fn test_checkout_requires_refetch_for_git_only_checkout() {
+        let directory = unique_temp_dir("git-only");
+        fs::create_dir_all(directory.join(".git")).expect("failed to create git directory");
+
+        assert!(checkout_requires_refetch(&directory));
+
+        fs::remove_dir_all(&directory).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_checkout_requires_refetch_for_checkout_with_worktree_content() {
+        let directory = unique_temp_dir("worktree");
+        fs::create_dir_all(directory.join(".git")).expect("failed to create git directory");
+        fs::write(directory.join("README.md"), "content").expect("failed to write worktree file");
+
+        assert!(!checkout_requires_refetch(&directory));
+
+        fs::remove_dir_all(&directory).expect("failed to remove temp directory");
     }
 }

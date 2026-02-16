@@ -90,7 +90,7 @@ impl Runner {
         let track_expected_failures = !context.options.include_known_failures_effective();
 
         let results: Vec<(TestCase, TestResult, std::time::Duration)> =
-            if context.options.parallel() {
+            if context.options.parallel() && context.options.jobs > 1 {
                 let jobs = context.options.jobs.max(1);
                 let thread_pool = ThreadPoolBuilder::new()
                     .num_threads(jobs)

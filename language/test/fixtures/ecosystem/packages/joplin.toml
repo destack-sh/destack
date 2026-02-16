@@ -9,4 +9,17 @@ tags = ["application", "desktop", "mobile", "monorepo"]
 
 [discovery]
 include = ["packages/**/*.ts", "packages/**/*.tsx", "packages/**/*.js", "packages/**/*.jsx"]
-exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/tests/**", "**/fixtures/**", "**/dist/**", "**/build/**", "**/node_modules/**"]
+exclude = [
+  "**/*.test.*",
+  "**/__tests__/**",
+  "**/test/**",
+  "**/tests/**",
+  "**/fixtures/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/node_modules/**",
+  "packages/renderer/assets/abc/**",
+]
+
+[compiler_options]
+js_as_jsx = true

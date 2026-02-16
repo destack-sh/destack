@@ -31,6 +31,24 @@ const ENTRYPOINT_SOURCE_EXTENSIONS: &[&str] = &[
     ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".d.ts", ".d.mts", ".d.cts",
 ];
 
+/// One phase read stats snapshot.
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct PhaseReadStats {
+    /// Number of loaded modules.
+    pub modules: usize,
+    /// Number of source lines across loaded modules.
+    pub lines: usize,
+}
+
+/// One phase run result with optional read stats.
+#[derive(Debug, Clone)]
+pub(super) struct PhaseTierResult {
+    /// Phase test result.
+    pub result: TestResult,
+    /// Optional phase read stats.
+    pub stats: Option<PhaseReadStats>,
+}
+
 /// Run one phase tier for one package workload.
 pub(super) fn run_phase_tier(
     package_dir: &Path,
@@ -39,11 +57,20 @@ pub(super) fn run_phase_tier(
     files: &[PathBuf],
     tsc_mode: EcosystemTscMode,
     tsc_tool: EcosystemTscTool,
-) -> TestResult {
+    collect_read_stats: bool,
+) -> PhaseTierResult {
     match phase {
-        EcosystemPhase::Parse => run_parse_phase(package_dir, manifest, files),
+        EcosystemPhase::Parse => run_parse_phase(package_dir, manifest, files, collect_read_stats),
         EcosystemPhase::Resolve | EcosystemPhase::Analyze | EcosystemPhase::Lower => {
-            run_compiler_phase(package_dir, manifest, phase, files, tsc_mode, tsc_tool)
+            run_compiler_phase(
+                package_dir,
+                manifest,
+                phase,
+                files,
+                tsc_mode,
+                tsc_tool,
+                collect_read_stats,
+            )
         }
     }
 }
@@ -53,7 +80,8 @@ fn run_parse_phase(
     package_dir: &Path,
     manifest: &EcosystemManifest,
     files: &[PathBuf],
-) -> TestResult {
+    _collect_read_stats: bool,
+) -> PhaseTierResult {
     let mut failures = Vec::new();
     let mut failure_messages = Vec::new();
 
@@ -68,16 +96,22 @@ fn run_parse_phase(
         }
     }
 
-    if failures.is_empty() {
-        return TestResult::Passed;
-    }
+    let result = if failures.is_empty() {
+        TestResult::Passed
+    } else {
+        TestResult::Failed {
+            message: format!(
+                "{} files failed to parse with full diagnostics:\n\n{}",
+                failures.len(),
+                failure_messages.join("\n\n")
+            ),
+        }
+    };
 
-    TestResult::Failed {
-        message: format!(
-            "{} files failed to parse with full diagnostics:\n\n{}",
-            failures.len(),
-            failure_messages.join("\n\n")
-        ),
+    // parse phase does not report loaded graph stats
+    PhaseTierResult {
+        result,
+        stats: None,
     }
 }
 
@@ -89,12 +123,18 @@ fn run_compiler_phase(
     files: &[PathBuf],
     default_tsc_mode: EcosystemTscMode,
     default_tsc_tool: EcosystemTscTool,
-) -> TestResult {
+    collect_read_stats: bool,
+) -> PhaseTierResult {
+    let mut stats = collect_read_stats.then_some(PhaseReadStats::default());
+
     let entrypoints =
         match select_phase_entrypoints_with_roots(package_dir, files, &manifest.discovery.roots) {
             Ok(entrypoints) => entrypoints,
             Err(message) => {
-                return TestResult::Failed { message };
+                return PhaseTierResult {
+                    result: TestResult::Failed { message },
+                    stats,
+                };
             }
         };
 
@@ -116,8 +156,11 @@ fn run_compiler_phase(
         let module_id = match compiler.resolve_path_to_module(path) {
             Ok(id) => id,
             Err(error) => {
-                return TestResult::Failed {
-                    message: format!("failed to resolve module {}: {error:?}", path.display()),
+                return PhaseTierResult {
+                    result: TestResult::Failed {
+                        message: format!("failed to resolve module {}: {error:?}", path.display()),
+                    },
+                    stats,
                 };
             }
         };
@@ -126,8 +169,11 @@ fn run_compiler_phase(
     }
 
     if module_ids.is_empty() {
-        return TestResult::Failed {
-            message: "no modules resolved from selected entrypoints".to_string(),
+        return PhaseTierResult {
+            result: TestResult::Failed {
+                message: "no modules resolved from selected entrypoints".to_string(),
+            },
+            stats,
         };
     }
 
@@ -137,6 +183,11 @@ fn run_compiler_phase(
 
     compiler.compile();
     drop(compiler);
+
+    // compiler stats: reflect the complete loaded module graph
+    if collect_read_stats {
+        stats = Some(collect_compiler_phase_stats(&program));
+    }
 
     let diagnostics = program.diagnostics.collect();
     let errors = diagnostics
@@ -166,7 +217,10 @@ fn run_compiler_phase(
 
     // pass immediately when no errors are observed or expected
     if !has_destack_errors && expected_phase_diagnostics.is_empty() {
-        return TestResult::Passed;
+        return PhaseTierResult {
+            result: TestResult::Passed,
+            stats,
+        };
     }
 
     // fail when expected diagnostics are missing from an otherwise clean run
@@ -181,7 +235,10 @@ fn run_compiler_phase(
 
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
-        return TestResult::Failed { message };
+        return PhaseTierResult {
+            result: TestResult::Failed { message },
+            stats,
+        };
     }
 
     // match observed diagnostics against expectations when configured
@@ -194,7 +251,10 @@ fn run_compiler_phase(
         );
 
         if outcome.missing_expected.is_empty() && outcome.unexpected_observed.is_empty() {
-            return TestResult::Passed;
+            return PhaseTierResult {
+                result: TestResult::Passed,
+                stats,
+            };
         }
 
         let mut message = format_expected_diagnostic_mismatch(
@@ -212,7 +272,10 @@ fn run_compiler_phase(
 
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
-        return TestResult::Failed { message };
+        return PhaseTierResult {
+            result: TestResult::Failed { message },
+            stats,
+        };
     }
 
     // report full diagnostics when no expectation list is configured
@@ -229,7 +292,26 @@ fn run_compiler_phase(
 
     append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
-    TestResult::Failed { message }
+    PhaseTierResult {
+        result: TestResult::Failed { message },
+        stats,
+    }
+}
+
+/// Collect loaded module counts and source lines from the compiled program.
+fn collect_compiler_phase_stats(program: &Arc<Program>) -> PhaseReadStats {
+    let mut modules = 0usize;
+    let mut lines = 0usize;
+
+    for module_ref in program.modules.iter() {
+        let module = module_ref.read();
+        let file = program.files.get(module.file_id);
+
+        modules += 1;
+        lines += file.line_count() as usize;
+    }
+
+    PhaseReadStats { modules, lines }
 }
 
 /// One observed compiler phase diagnostic used for expectation matching.
