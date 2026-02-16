@@ -211,39 +211,17 @@ pub(super) fn wide_from_pathbuf_no_nul(path: &Path) -> Vec<u16> {
 
 /// Decode UTF-16 units from the path byte payload.
 pub(super) fn utf16_units(path: PathUtf16, name: &str) -> RuntimeResult<Vec<u16>> {
-    // decode raw byte storage
-    let bytes = unsafe { path.0.as_slice()? };
-    if bytes.len() % 2 != 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            name,
-            "path contains odd utf16 byte length",
-        ))
-        .boxed());
-    }
-
-    // decode little endian units
-    let mut units = Vec::with_capacity(bytes.len() / 2);
-    for chunk in bytes.chunks_exact(2) {
-        units.push(u16::from_le_bytes([chunk[0], chunk[1]]));
-    }
+    // decode raw utf16 storage
+    let units = unsafe { path.0.as_slice()? };
+    let units = units.to_vec();
+    let _ = name;
 
     Ok(units)
 }
 
-/// Encode UTF-16 units into the path byte payload.
-fn utf16_bytes(units: &[u16]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(units.len() * 2);
-    for unit in units {
-        bytes.extend_from_slice(&unit.to_le_bytes());
-    }
-
-    bytes
-}
-
 /// Build a UTF-16 path payload from units.
 pub(super) fn path_utf16_from_units(context: &RuntimeCallContext, units: &[u16]) -> PathUtf16 {
-    let bytes = utf16_bytes(units);
-    PathUtf16Abi::<NativeAbi>(context.store_array(bytes))
+    PathUtf16Abi::<NativeAbi>(context.store_array(units.to_vec()))
 }
 
 /// Build a UTF-16 path payload from a PathBuf.

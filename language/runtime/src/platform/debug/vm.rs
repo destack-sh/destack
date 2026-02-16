@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::debug::{InspectorEndpointVm, ProfileKind, TraceLevel};
-use crate::platform::{PlatformError, VmArray, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmArray};
+use crate::platform::{resource};
+use crate::platform::debug::{InspectorEndpointVm, ProfileKind, TraceLevel};
+use crate::runtime::RuntimeCallContext;
 
 /// Request a runtime debug break.
 ///
@@ -328,3 +330,4 @@ pub(crate) fn destack_debug_trace_stop(
     ))
     .boxed())
 }
+

@@ -5,15 +5,19 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ipc::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::{
+    PlatformError,
+    NativeSlice,
+    NativeArray,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
-use crate::platform::ipc::{
-    MessageQueueReceive, PipePair, SharedMemoryMapping, UnixPeerCredentials, UnixReceiveAncillary,
-};
-use crate::platform::resource;
+use crate::platform::{resource};
+use crate::platform::ipc::{MessageQueueReceive, PipePair, SharedMemoryMapping, UnixPeerCredentials, UnixReceiveAncillary};
+
 
 /// Close a message queue.
 ///
@@ -32,10 +36,7 @@ use crate::platform::resource;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_message_queue_close(
-    context: &RuntimeCallContext,
-    handle: resource::MessageQueueHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_message_queue_close(context: &RuntimeCallContext, handle: resource::MessageQueueHandle) -> RuntimeResult<()> {
     context.check_policy(IPC_MESSAGE_QUEUE_CLOSE)?;
     let _ = handle;
 
@@ -62,15 +63,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_message_queue_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::MessageQueueHandle,
-    name: NativeStringRef,
-    flags: u32,
-    mode: u32,
-    maxmessages: u32,
-    maxmessagebytes: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_message_queue_open(context: &RuntimeCallContext, out: *mut resource::MessageQueueHandle, name: NativeStringRef, flags: u32, mode: u32, maxmessages: u32, maxmessagebytes: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_MESSAGE_QUEUE_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -100,13 +93,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_message_queue_receive(
-    context: &RuntimeCallContext,
-    out: *mut MessageQueueReceive,
-    handle: resource::MessageQueueHandle,
-    timeoutns: u64,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_message_queue_receive(context: &RuntimeCallContext, out: *mut MessageQueueReceive, handle: resource::MessageQueueHandle, timeoutns: u64, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     context.check_policy(IPC_MESSAGE_QUEUE_RECEIVE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -136,13 +123,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_message_queue_send(
-    context: &RuntimeCallContext,
-    handle: resource::MessageQueueHandle,
-    priority: u32,
-    timeoutns: u64,
-    argument_payload: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_message_queue_send(context: &RuntimeCallContext, handle: resource::MessageQueueHandle, priority: u32, timeoutns: u64, argument_payload: NativeSlice<u8>) -> RuntimeResult<()> {
     context.check_policy(IPC_MESSAGE_QUEUE_SEND)?;
     let _ = (handle, priority, timeoutns, argument_payload);
 
@@ -169,10 +150,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_message_queue_unlink(
-    context: &RuntimeCallContext,
-    name: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_message_queue_unlink(context: &RuntimeCallContext, name: NativeStringRef) -> RuntimeResult<()> {
     context.check_policy(IPC_MESSAGE_QUEUE_UNLINK)?;
     let _ = name;
 
@@ -199,14 +177,14 @@ pub(crate) unsafe fn destack_ipc_message_queue_unlink(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_pipe_close(
-    context: &RuntimeCallContext,
-    handle: resource::PipeHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_pipe_close(context: &RuntimeCallContext, handle: resource::PipeHandle) -> RuntimeResult<()> {
     context.check_policy(IPC_PIPE_CLOSE)?;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.close",
+    ))
+    .boxed())
 }
 
 /// Create one unnamed pipe pair.
@@ -226,18 +204,17 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_pipe_open(
-    context: &RuntimeCallContext,
-    out: *mut PipePair,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_pipe_open(context: &RuntimeCallContext, out: *mut PipePair, flags: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_PIPE_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.open",
+    ))
+    .boxed())
 }
 
 /// Read bytes from a pipe endpoint.
@@ -257,19 +234,17 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_pipe_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::PipeHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_pipe_read(context: &RuntimeCallContext, out: *mut u64, handle: resource::PipeHandle, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     context.check_policy(IPC_PIPE_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, buffer);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.read",
+    ))
+    .boxed())
 }
 
 /// Write bytes to a pipe endpoint.
@@ -289,19 +264,17 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_pipe_write(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::PipeHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_pipe_write(context: &RuntimeCallContext, out: *mut u64, handle: resource::PipeHandle, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     context.check_policy(IPC_PIPE_WRITE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, buffer);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.write",
+    ))
+    .boxed())
 }
 
 /// Close one shared memory object handle.
@@ -321,10 +294,7 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_shared_memory_close(
-    context: &RuntimeCallContext,
-    handle: resource::SharedMemoryHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_shared_memory_close(context: &RuntimeCallContext, handle: resource::SharedMemoryHandle) -> RuntimeResult<()> {
     context.check_policy(IPC_SHARED_MEMORY_CLOSE)?;
     let _ = handle;
 
@@ -351,13 +321,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_shared_memory_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::SharedMemoryHandle,
-    name: NativeStringRef,
-    size: u64,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_shared_memory_create(context: &RuntimeCallContext, out: *mut resource::SharedMemoryHandle, name: NativeStringRef, size: u64, flags: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_SHARED_MEMORY_CREATE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -387,21 +351,17 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_shared_memory_map(
-    context: &RuntimeCallContext,
-    out: *mut SharedMemoryMapping,
-    handle: resource::SharedMemoryHandle,
-    offset: u64,
-    length: u64,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_shared_memory_map(context: &RuntimeCallContext, out: *mut SharedMemoryMapping, handle: resource::SharedMemoryHandle, offset: u64, length: u64, flags: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_SHARED_MEMORY_MAP)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, offset, length, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sharedMemory.map")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.sharedMemory.map",
+    ))
+    .boxed())
 }
 
 /// Open one named shared memory object.
@@ -421,12 +381,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_shared_memory_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::SharedMemoryHandle,
-    name: NativeStringRef,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_shared_memory_open(context: &RuntimeCallContext, out: *mut resource::SharedMemoryHandle, name: NativeStringRef, flags: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_SHARED_MEMORY_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -456,11 +411,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_shared_memory_unmap(context: &RuntimeCallContext, address: u64, length: u64) -> RuntimeResult<()> {
     context.check_policy(IPC_SHARED_MEMORY_UNMAP)?;
     let _ = (address, length);
 
@@ -487,17 +438,14 @@ pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_futex_wait(
-    context: &RuntimeCallContext,
-    sharedmemory: resource::SharedMemoryHandle,
-    offset: u64,
-    expected: u32,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_futex_wait(context: &RuntimeCallContext, sharedmemory: resource::SharedMemoryHandle, offset: u64, expected: u32, timeoutns: u64) -> RuntimeResult<()> {
     context.check_policy(IPC_SYNC_FUTEX_WAIT)?;
     let _ = (sharedmemory, offset, expected, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sync.futexWait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.sync.futexWait",
+    ))
+    .boxed())
 }
 
 /// Wake futex waiters for one shared-memory word.
@@ -517,20 +465,17 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_futex_wake(
-    context: &RuntimeCallContext,
-    out: *mut u32,
-    sharedmemory: resource::SharedMemoryHandle,
-    offset: u64,
-    count: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_futex_wake(context: &RuntimeCallContext, out: *mut u32, sharedmemory: resource::SharedMemoryHandle, offset: u64, count: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_SYNC_FUTEX_WAKE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, sharedmemory, offset, count);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sync.futexWake")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.sync.futexWake",
+    ))
+    .boxed())
 }
 
 /// Create one named semaphore.
@@ -550,13 +495,7 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_semaphore_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::SemaphoreHandle,
-    name: NativeStringRef,
-    initial: u32,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_semaphore_create(context: &RuntimeCallContext, out: *mut resource::SemaphoreHandle, name: NativeStringRef, initial: u32, flags: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_SYNC_SEMAPHORE_CREATE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -586,11 +525,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_semaphore_post(
-    context: &RuntimeCallContext,
-    handle: resource::SemaphoreHandle,
-    count: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_semaphore_post(context: &RuntimeCallContext, handle: resource::SemaphoreHandle, count: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_SYNC_SEMAPHORE_POST)?;
     let _ = (handle, count);
 
@@ -617,11 +552,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_post(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_semaphore_wait(
-    context: &RuntimeCallContext,
-    handle: resource::SemaphoreHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_semaphore_wait(context: &RuntimeCallContext, handle: resource::SemaphoreHandle, timeoutns: u64) -> RuntimeResult<()> {
     context.check_policy(IPC_SYNC_SEMAPHORE_WAIT)?;
     let _ = (handle, timeoutns);
 
@@ -648,19 +579,17 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_unix_receive(
-    context: &RuntimeCallContext,
-    out: *mut UnixReceiveAncillary,
-    socket: resource::SocketHandle,
-    maxhandles: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_unix_receive(context: &RuntimeCallContext, out: *mut UnixReceiveAncillary, socket: resource::SocketHandle, maxhandles: u32) -> RuntimeResult<()> {
     context.check_policy(IPC_UNIX_RECEIVE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, socket, maxhandles);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.unix.receive")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.unix.receive",
+    ))
+    .boxed())
 }
 
 /// Send payload and transferred handles.
@@ -680,18 +609,16 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_ipc_unix_send(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    socket: resource::SocketHandle,
-    argument_payload: NativeSlice<u8>,
-    handles: NativeSlice<resource::TransferredHandle>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ipc_unix_send(context: &RuntimeCallContext, out: *mut u64, socket: resource::SocketHandle, argument_payload: NativeSlice<u8>, handles: NativeSlice<resource::TransferredHandle>) -> RuntimeResult<()> {
     context.check_policy(IPC_UNIX_SEND)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, socket, argument_payload, handles);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.unix.send")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.unix.send",
+    ))
+    .boxed())
 }
+

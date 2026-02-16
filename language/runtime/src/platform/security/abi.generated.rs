@@ -4,11 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, security as platform_security};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::security as platform_security;
 
 /// ABI newtype for PlatformCapability.
 #[repr(C)]
@@ -93,23 +94,17 @@ pub type SecurityFilterVm = SecurityFilterAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SecurityFilterAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SecurityFilterAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("SecurityFilterAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for SecurityFilterAbi<NativeAbi> {}
 impl Clone for SecurityFilterAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for SecurityFilterAbi<VmAbi> {}
 impl Clone for SecurityFilterAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for SecurityPolicyRule.
@@ -126,23 +121,17 @@ pub type SecurityPolicyRuleVm = SecurityPolicyRuleAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SecurityPolicyRuleAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SecurityPolicyRuleAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("SecurityPolicyRuleAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for SecurityPolicyRuleAbi<NativeAbi> {}
 impl Clone for SecurityPolicyRuleAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for SecurityPolicyRuleAbi<VmAbi> {}
 impl Clone for SecurityPolicyRuleAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// Replay struct for SecurityFilter.
@@ -166,3 +155,4 @@ pub struct SecurityPolicyRuleReplayRecord {
     /// The mode field.
     pub mode: SecurityPolicyMode,
 }
+

@@ -2,17 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{
-    AccessMode, AllocFlags, AtFlags, CopyFlags, DirentNextVm, DirentVm, FdFlags, FileAdvice,
-    FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
-    NodeDevice, OpenFlags, OpenOptionsVm, OsPathVm, ReadWriteFlags, RenameFlags, SeekWhence,
-    SpliceCursorVm, SpliceFlags, StatFsVm, StatVm, StatusFlags, StatxFlags, StatxMask, StatxVm,
-    SymlinkType, SyncFlags, WatchBatchVm, WatchOptionsVm, XattrFlags,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{resource};
+use crate::platform::fs::{AccessMode, AllocFlags, AtFlags, CopyFlags, DirentNextVm, DirentVm, FdFlags, FileAdvice, FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, NodeDevice, OpenFlags, OpenOptionsVm, OsPathVm, ReadWriteFlags, RenameFlags, SeekWhence, SpliceCursorVm, SpliceFlags, StatFsVm, StatVm, StatusFlags, StatxFlags, StatxMask, StatxVm, SymlinkType, SyncFlags, WatchBatchVm, WatchOptionsVm, XattrFlags};
+use crate::runtime::RuntimeCallContext;
 
 /// Check file access permissions.
 ///
@@ -38,7 +34,10 @@ pub(crate) fn destack_fs_access(
     mode: AccessMode,
 ) -> RuntimeResult<()> {
     let _ = (path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.access")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.access",
+    ))
+    .boxed())
 }
 
 /// Check file access permissions relative to a directory handle.
@@ -67,7 +66,10 @@ pub(crate) fn destack_fs_accessat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, mode, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.accessat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.accessat",
+    ))
+    .boxed())
 }
 
 /// Change file permissions.
@@ -94,7 +96,10 @@ pub(crate) fn destack_fs_chmod(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.chmod")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.chmod",
+    ))
+    .boxed())
 }
 
 /// Change file owner and group.
@@ -122,7 +127,10 @@ pub(crate) fn destack_fs_chown(
     gid: u32,
 ) -> RuntimeResult<()> {
     let _ = (path, uid, gid);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.chown")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.chown",
+    ))
+    .boxed())
 }
 
 /// Change file permissions by handle.
@@ -149,7 +157,10 @@ pub(crate) fn destack_fs_fchmod(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (handle, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchmod")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.fchmod",
+    ))
+    .boxed())
 }
 
 /// Change file permissions relative to a directory handle.
@@ -178,7 +189,10 @@ pub(crate) fn destack_fs_fchmodat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, mode, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchmodat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.fchmodat",
+    ))
+    .boxed())
 }
 
 /// Change file owner and group by handle.
@@ -206,7 +220,10 @@ pub(crate) fn destack_fs_fchown(
     gid: u32,
 ) -> RuntimeResult<()> {
     let _ = (handle, uid, gid);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchown")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.fchown",
+    ))
+    .boxed())
 }
 
 /// Change file owner and group relative to a directory handle.
@@ -236,7 +253,10 @@ pub(crate) fn destack_fs_fchownat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, uid, gid, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchownat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.fchownat",
+    ))
+    .boxed())
 }
 
 /// Update access and modification times by handle.
@@ -264,7 +284,10 @@ pub(crate) fn destack_fs_futimes(
     mtimens: u64,
 ) -> RuntimeResult<()> {
     let _ = (handle, atimens, mtimens);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.futimes")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.futimes",
+    ))
+    .boxed())
 }
 
 /// Update access and modification times without following symlinks.
@@ -292,7 +315,10 @@ pub(crate) fn destack_fs_lutimes(
     mtimens: u64,
 ) -> RuntimeResult<()> {
     let _ = (path, atimens, mtimens);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.lutimes")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.lutimes",
+    ))
+    .boxed())
 }
 
 /// Update access and modification times relative to a directory handle.
@@ -322,7 +348,10 @@ pub(crate) fn destack_fs_utimensat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, atimens, mtimens, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.utimensat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.utimensat",
+    ))
+    .boxed())
 }
 
 /// Update access and modification times.
@@ -350,7 +379,10 @@ pub(crate) fn destack_fs_utimes(
     mtimens: u64,
 ) -> RuntimeResult<()> {
     let _ = (path, atimens, mtimens);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.utimes")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.attrs.utimes",
+    ))
+    .boxed())
 }
 
 /// Close a directory handle.
@@ -376,7 +408,10 @@ pub(crate) fn destack_fs_closedir(
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.closedir")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.closedir",
+    ))
+    .boxed())
 }
 
 /// Resolve the directory descriptor for an open directory handle.
@@ -402,7 +437,10 @@ pub(crate) fn destack_fs_dirfd(
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<resource::FileHandle> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.dirfd")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.dirfd",
+    ))
+    .boxed())
 }
 
 /// Create a directory.
@@ -429,7 +467,10 @@ pub(crate) fn destack_fs_mkdir(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdir")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.mkdir",
+    ))
+    .boxed())
 }
 
 /// Create a directory relative to a directory handle.
@@ -457,7 +498,10 @@ pub(crate) fn destack_fs_mkdirat(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdirat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.mkdirat",
+    ))
+    .boxed())
 }
 
 /// Create a temporary directory.
@@ -483,7 +527,10 @@ pub(crate) fn destack_fs_mkdtemp(
     template: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     let _ = template;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdtemp")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.mkdtemp",
+    ))
+    .boxed())
 }
 
 /// Open a directory and return a handle.
@@ -509,7 +556,10 @@ pub(crate) fn destack_fs_opendir(
     path: OsPathVm,
 ) -> RuntimeResult<resource::DirectoryHandle> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.opendir")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.opendir",
+    ))
+    .boxed())
 }
 
 /// Read directory entries from an open directory handle.
@@ -535,7 +585,10 @@ pub(crate) fn destack_fs_readdir(
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<VmArray<DirentVm>> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdir")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.readdir",
+    ))
+    .boxed())
 }
 
 /// Read a single directory entry from an open directory handle.
@@ -561,7 +614,10 @@ pub(crate) fn destack_fs_readdir_next(
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<DirentNextVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdirNext")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.readdirNext",
+    ))
+    .boxed())
 }
 
 /// Reset an open directory handle to the first entry.
@@ -587,7 +643,10 @@ pub(crate) fn destack_fs_rewinddir(
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rewinddir")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.rewinddir",
+    ))
+    .boxed())
 }
 
 /// Remove a directory.
@@ -613,7 +672,10 @@ pub(crate) fn destack_fs_rmdir(
     path: OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rmdir")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.dir.rmdir",
+    ))
+    .boxed())
 }
 
 /// Close an open file handle.
@@ -639,7 +701,10 @@ pub(crate) fn destack_fs_close(
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.close",
+    ))
+    .boxed())
 }
 
 /// Copy a range between file descriptors.
@@ -698,7 +763,10 @@ pub(crate) fn destack_fs_dup(
     handle: resource::FileHandle,
 ) -> RuntimeResult<resource::FileHandle> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.dup",
+    ))
+    .boxed())
 }
 
 /// Duplicate a file handle to a specific target.
@@ -725,7 +793,10 @@ pub(crate) fn destack_fs_dup2(
     target: resource::FileHandle,
 ) -> RuntimeResult<resource::FileHandle> {
     let _ = (handle, target);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup2")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.dup2",
+    ))
+    .boxed())
 }
 
 /// Duplicate a file handle to a specific target with flags.
@@ -753,7 +824,10 @@ pub(crate) fn destack_fs_dup3(
     flags: OpenFlags,
 ) -> RuntimeResult<resource::FileHandle> {
     let _ = (handle, target, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup3")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.dup3",
+    ))
+    .boxed())
 }
 
 /// Advise the kernel about access patterns.
@@ -782,7 +856,10 @@ pub(crate) fn destack_fs_fadvise(
     advice: FileAdvice,
 ) -> RuntimeResult<()> {
     let _ = (handle, offset, length, advice);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fadvise")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.fadvise",
+    ))
+    .boxed())
 }
 
 /// Allocate or punch file space.
@@ -811,7 +888,10 @@ pub(crate) fn destack_fs_fallocate(
     flags: AllocFlags,
 ) -> RuntimeResult<()> {
     let _ = (handle, offset, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fallocate")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.fallocate",
+    ))
+    .boxed())
 }
 
 /// Synchronize file data only.
@@ -836,7 +916,10 @@ pub(crate) fn destack_fs_fdatasync(
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fdatasync")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.fdatasync",
+    ))
+    .boxed())
 }
 
 /// Synchronize a file's in-core state with storage.
@@ -862,7 +945,10 @@ pub(crate) fn destack_fs_fsync(
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fsync")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.fsync",
+    ))
+    .boxed())
 }
 
 /// Truncate a file by handle.
@@ -889,7 +975,10 @@ pub(crate) fn destack_fs_ftruncate(
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (handle, size);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.ftruncate")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.ftruncate",
+    ))
+    .boxed())
 }
 
 /// Read file descriptor flags.
@@ -915,7 +1004,10 @@ pub(crate) fn destack_fs_get_fd_flags(
     handle: resource::FileHandle,
 ) -> RuntimeResult<FdFlags> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.getFdFlags")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.getFdFlags",
+    ))
+    .boxed())
 }
 
 /// Read file status flags.
@@ -971,7 +1063,10 @@ pub(crate) fn destack_fs_lock(
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
     let _ = (handle, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.lock")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.lock",
+    ))
+    .boxed())
 }
 
 /// Open a file and return a handle.
@@ -999,7 +1094,10 @@ pub(crate) fn destack_fs_open(
     mode: FileMode,
 ) -> RuntimeResult<resource::FileHandle> {
     let _ = (path, flags, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.open",
+    ))
+    .boxed())
 }
 
 /// Open a file relative to a directory handle.
@@ -1028,7 +1126,10 @@ pub(crate) fn destack_fs_openat(
     mode: FileMode,
 ) -> RuntimeResult<resource::FileHandle> {
     let _ = (dir, path, flags, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.openat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.openat",
+    ))
+    .boxed())
 }
 
 /// Open a file relative to a directory handle with openat2 semantics.
@@ -1056,7 +1157,10 @@ pub(crate) fn destack_fs_openat2(
     how: OpenOptionsVm,
 ) -> RuntimeResult<resource::FileHandle> {
     let _ = (dir, path, how);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.openat2")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.openat2",
+    ))
+    .boxed())
 }
 
 /// Read from a file at the given file offset.
@@ -1084,7 +1188,10 @@ pub(crate) fn destack_fs_pread(
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer, offset);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pread")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.pread",
+    ))
+    .boxed())
 }
 
 /// Read into multiple buffers at the given file offset.
@@ -1112,7 +1219,10 @@ pub(crate) fn destack_fs_preadv(
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers, offset);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.preadv")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.preadv",
+    ))
+    .boxed())
 }
 
 /// Read into multiple buffers at the given file offset with explicit read flags.
@@ -1141,7 +1251,10 @@ pub(crate) fn destack_fs_preadv2(
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers, offset, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.preadv2")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.preadv2",
+    ))
+    .boxed())
 }
 
 /// Write to a file at the given file offset.
@@ -1169,7 +1282,10 @@ pub(crate) fn destack_fs_pwrite(
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer, offset);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pwrite")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.pwrite",
+    ))
+    .boxed())
 }
 
 /// Write from multiple buffers at the given file offset.
@@ -1197,7 +1313,10 @@ pub(crate) fn destack_fs_pwritev(
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers, offset);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pwritev")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.pwritev",
+    ))
+    .boxed())
 }
 
 /// Write from multiple buffers at the given file offset with explicit write flags.
@@ -1226,7 +1345,10 @@ pub(crate) fn destack_fs_pwritev2(
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers, offset, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pwritev2")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.pwritev2",
+    ))
+    .boxed())
 }
 
 /// Read from a file into the provided slice.
@@ -1253,7 +1375,10 @@ pub(crate) fn destack_fs_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.read",
+    ))
+    .boxed())
 }
 
 /// Read into multiple buffers.
@@ -1280,7 +1405,10 @@ pub(crate) fn destack_fs_readv(
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.readv")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.readv",
+    ))
+    .boxed())
 }
 
 /// Seek within a file and return the new offset.
@@ -1308,7 +1436,10 @@ pub(crate) fn destack_fs_seek(
     whence: SeekWhence,
 ) -> RuntimeResult<FileOffset> {
     let _ = (handle, offset, whence);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.seek")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.seek",
+    ))
+    .boxed())
 }
 
 /// Send file data to a socket.
@@ -1337,7 +1468,10 @@ pub(crate) fn destack_fs_sendfile(
     length: FileSize,
 ) -> RuntimeResult<u64> {
     let _ = (socket, file, offset, length);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.sendfile")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.sendfile",
+    ))
+    .boxed())
 }
 
 /// Write file descriptor flags.
@@ -1364,7 +1498,10 @@ pub(crate) fn destack_fs_set_fd_flags(
     flags: FdFlags,
 ) -> RuntimeResult<()> {
     let _ = (handle, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.setFdFlags")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.setFdFlags",
+    ))
+    .boxed())
 }
 
 /// Write file status flags.
@@ -1425,7 +1562,10 @@ pub(crate) fn destack_fs_splice(
     flags: SpliceFlags,
 ) -> RuntimeResult<u64> {
     let _ = (source, sourcecursor, target, targetcursor, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.splice")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.splice",
+    ))
+    .boxed())
 }
 
 /// Synchronize a file range.
@@ -1481,7 +1621,10 @@ pub(crate) fn destack_fs_syncfs(
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.syncfs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.syncfs",
+    ))
+    .boxed())
 }
 
 /// Duplicate bytes from one pipe to another without consuming source bytes.
@@ -1510,7 +1653,10 @@ pub(crate) fn destack_fs_tee(
     flags: SpliceFlags,
 ) -> RuntimeResult<u64> {
     let _ = (sourcepipe, targetpipe, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.tee")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.tee",
+    ))
+    .boxed())
 }
 
 /// Truncate a file.
@@ -1537,7 +1683,10 @@ pub(crate) fn destack_fs_truncate(
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (path, size);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.truncate")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.truncate",
+    ))
+    .boxed())
 }
 
 /// Map user memory pages into a pipe as queued pipe buffers.
@@ -1565,7 +1714,10 @@ pub(crate) fn destack_fs_vmsplice(
     flags: SpliceFlags,
 ) -> RuntimeResult<u64> {
     let _ = (pipe, buffers, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.vmsplice")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.vmsplice",
+    ))
+    .boxed())
 }
 
 /// Write to a file from the provided slice.
@@ -1592,7 +1744,10 @@ pub(crate) fn destack_fs_write(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.write",
+    ))
+    .boxed())
 }
 
 /// Write from multiple buffers.
@@ -1619,7 +1774,10 @@ pub(crate) fn destack_fs_writev(
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.writev")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.file.writev",
+    ))
+    .boxed())
 }
 
 /// Advise the kernel about access patterns.
@@ -1646,7 +1804,10 @@ pub(crate) fn destack_fs_madvise(
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
     let _ = (mapping, advice);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.madvise")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.mmap.madvise",
+    ))
+    .boxed())
 }
 
 /// Change memory protection for a mapping.
@@ -1673,7 +1834,10 @@ pub(crate) fn destack_fs_mprotect(
     prot: MmapProt,
 ) -> RuntimeResult<()> {
     let _ = (mapping, prot);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.mprotect")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.mmap.mprotect",
+    ))
+    .boxed())
 }
 
 /// Flush a mapping to storage.
@@ -1700,7 +1864,10 @@ pub(crate) fn destack_fs_msync(
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
     let _ = (mapping, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.msync")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.mmap.msync",
+    ))
+    .boxed())
 }
 
 /// Unmap a memory region.
@@ -1726,7 +1893,10 @@ pub(crate) fn destack_fs_munmap(
     mapping: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = mapping;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.munmap")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.mmap.munmap",
+    ))
+    .boxed())
 }
 
 /// Create an anonymous memory mapping.
@@ -1754,7 +1924,10 @@ pub(crate) fn destack_fs_mmap_anonymous(
     flags: MmapFlags,
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (length, prot, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapAnonymous")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.mmapAnonymous",
+    ))
+    .boxed())
 }
 
 /// Create a file-backed memory mapping.
@@ -1784,7 +1957,10 @@ pub(crate) fn destack_fs_mmap_file(
     flags: MmapFlags,
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (handle, offset, length, prot, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapFile")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.mmapFile",
+    ))
+    .boxed())
 }
 
 /// Copy a file.
@@ -1812,7 +1988,10 @@ pub(crate) fn destack_fs_copyfile(
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
     let _ = (from, to, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.copyfile")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.copyfile",
+    ))
+    .boxed())
 }
 
 /// Create a hard link.
@@ -1839,7 +2018,10 @@ pub(crate) fn destack_fs_link(
     newpath: OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = (existingpath, newpath);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.link")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.link",
+    ))
+    .boxed())
 }
 
 /// Create a hard link relative to directory handles.
@@ -1869,7 +2051,10 @@ pub(crate) fn destack_fs_linkat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (existingdir, existingpath, newdir, newpath, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.linkat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.linkat",
+    ))
+    .boxed())
 }
 
 /// Create a FIFO special file.
@@ -1896,7 +2081,10 @@ pub(crate) fn destack_fs_mkfifo(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mkfifo")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.mkfifo",
+    ))
+    .boxed())
 }
 
 /// Create a FIFO special file relative to a directory handle.
@@ -1924,7 +2112,10 @@ pub(crate) fn destack_fs_mkfifoat(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mkfifoat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.mkfifoat",
+    ))
+    .boxed())
 }
 
 /// Create a filesystem node.
@@ -1952,7 +2143,10 @@ pub(crate) fn destack_fs_mknod(
     device: NodeDevice,
 ) -> RuntimeResult<()> {
     let _ = (path, mode, device);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mknod")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.mknod",
+    ))
+    .boxed())
 }
 
 /// Create a filesystem node relative to a directory handle.
@@ -1981,7 +2175,10 @@ pub(crate) fn destack_fs_mknodat(
     device: NodeDevice,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, mode, device);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mknodat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.mknodat",
+    ))
+    .boxed())
 }
 
 /// Read a symbolic link.
@@ -2007,7 +2204,10 @@ pub(crate) fn destack_fs_readlink(
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.readlink")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.readlink",
+    ))
+    .boxed())
 }
 
 /// Read a symbolic link relative to a directory handle.
@@ -2034,7 +2234,10 @@ pub(crate) fn destack_fs_readlinkat(
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     let _ = (dir, path);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.readlinkat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.readlinkat",
+    ))
+    .boxed())
 }
 
 /// Resolve a path to its canonical form.
@@ -2060,7 +2263,10 @@ pub(crate) fn destack_fs_realpath(
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.realpath")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.realpath",
+    ))
+    .boxed())
 }
 
 /// Rename or move a file.
@@ -2087,7 +2293,10 @@ pub(crate) fn destack_fs_rename(
     to: OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = (from, to);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.rename")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.rename",
+    ))
+    .boxed())
 }
 
 /// Rename or move a file relative to directory handles.
@@ -2116,7 +2325,10 @@ pub(crate) fn destack_fs_renameat(
     to: OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = (fromdir, from, todir, to);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.renameat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.renameat",
+    ))
+    .boxed())
 }
 
 /// Rename or move a file relative to directory handles with renameat2 semantics.
@@ -2146,7 +2358,10 @@ pub(crate) fn destack_fs_renameat2(
     flags: RenameFlags,
 ) -> RuntimeResult<()> {
     let _ = (fromdir, from, todir, to, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.renameat2")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.renameat2",
+    ))
+    .boxed())
 }
 
 /// Create a symbolic link.
@@ -2174,7 +2389,10 @@ pub(crate) fn destack_fs_symlink(
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
     let _ = (target, path, kind);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.symlink")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.symlink",
+    ))
+    .boxed())
 }
 
 /// Create a symbolic link relative to a directory handle.
@@ -2203,7 +2421,10 @@ pub(crate) fn destack_fs_symlinkat(
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
     let _ = (target, dir, path, kind);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.symlinkat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.symlinkat",
+    ))
+    .boxed())
 }
 
 /// Unlink a file.
@@ -2229,7 +2450,10 @@ pub(crate) fn destack_fs_unlink(
     path: OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlink")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.unlink",
+    ))
+    .boxed())
 }
 
 /// Unlink a file relative to a directory handle.
@@ -2257,7 +2481,10 @@ pub(crate) fn destack_fs_unlinkat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (dir, path, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlinkat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.path.unlinkat",
+    ))
+    .boxed())
 }
 
 /// Stat a file by handle.
@@ -2283,7 +2510,10 @@ pub(crate) fn destack_fs_fstat(
     handle: resource::FileHandle,
 ) -> RuntimeResult<StatVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.stat.fstat",
+    ))
+    .boxed())
 }
 
 /// Stat a filesystem by handle.
@@ -2309,7 +2539,10 @@ pub(crate) fn destack_fs_fstatfs(
     handle: resource::FileHandle,
 ) -> RuntimeResult<StatFsVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstatfs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.stat.fstatfs",
+    ))
+    .boxed())
 }
 
 /// Stat a file without following symlinks.
@@ -2335,7 +2568,10 @@ pub(crate) fn destack_fs_lstat(
     path: OsPathVm,
 ) -> RuntimeResult<StatVm> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.lstat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.stat.lstat",
+    ))
+    .boxed())
 }
 
 /// Stat a file.
@@ -2361,7 +2597,10 @@ pub(crate) fn destack_fs_stat(
     path: OsPathVm,
 ) -> RuntimeResult<StatVm> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.stat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.stat.stat",
+    ))
+    .boxed())
 }
 
 /// Stat a file relative to a directory handle.
@@ -2389,7 +2628,10 @@ pub(crate) fn destack_fs_statat(
     flags: AtFlags,
 ) -> RuntimeResult<StatVm> {
     let _ = (dir, path, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.stat.statat",
+    ))
+    .boxed())
 }
 
 /// Stat a filesystem.
@@ -2415,7 +2657,10 @@ pub(crate) fn destack_fs_statfs(
     path: OsPathVm,
 ) -> RuntimeResult<StatFsVm> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statfs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.stat.statfs",
+    ))
+    .boxed())
 }
 
 /// Stat a path with statx semantics.
@@ -2444,7 +2689,10 @@ pub(crate) fn destack_fs_statx(
     mask: StatxMask,
 ) -> RuntimeResult<StatxVm> {
     let _ = (dir, path, flags, mask);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statx")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.stat.statx",
+    ))
+    .boxed())
 }
 
 /// Start watching a path and return a watch handle.
@@ -2471,7 +2719,10 @@ pub(crate) fn destack_fs_watch(
     options: WatchOptionsVm,
 ) -> RuntimeResult<resource::WatchHandle> {
     let _ = (path, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watch")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.watch",
+    ))
+    .boxed())
 }
 
 /// Close a watch handle.
@@ -2497,7 +2748,10 @@ pub(crate) fn destack_fs_watch_close(
     handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchClose")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.watchClose",
+    ))
+    .boxed())
 }
 
 /// Read a batch of events from a watch handle.
@@ -2523,7 +2777,10 @@ pub(crate) fn destack_fs_watch_read(
     handle: resource::WatchHandle,
 ) -> RuntimeResult<WatchBatchVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchRead")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.watchRead",
+    ))
+    .boxed())
 }
 
 /// Start watching a path relative to a directory handle.
@@ -2551,7 +2808,10 @@ pub(crate) fn destack_fs_watchat(
     options: WatchOptionsVm,
 ) -> RuntimeResult<resource::WatchHandle> {
     let _ = (directory, path, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.watchat",
+    ))
+    .boxed())
 }
 
 /// Read an extended attribute by handle.
@@ -2578,7 +2838,10 @@ pub(crate) fn destack_fs_fgetxattr(
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = (handle, name);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.fgetxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.fgetxattr",
+    ))
+    .boxed())
 }
 
 /// Read an extended attribute by handle with a raw name payload.
@@ -2634,7 +2897,10 @@ pub(crate) fn destack_fs_flistxattr(
     handle: resource::FileHandle,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.flistxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.flistxattr",
+    ))
+    .boxed())
 }
 
 /// List extended attribute names by handle as raw byte payloads.
@@ -2752,7 +3018,10 @@ pub(crate) fn destack_fs_fsetxattr(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = (handle, name, argument_value, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.fsetxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.fsetxattr",
+    ))
+    .boxed())
 }
 
 /// Set an extended attribute by handle with a raw name payload.
@@ -2811,7 +3080,10 @@ pub(crate) fn destack_fs_getxattr(
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = (path, name);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.getxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.getxattr",
+    ))
+    .boxed())
 }
 
 /// Read an extended attribute by path with a raw name payload.
@@ -2868,7 +3140,10 @@ pub(crate) fn destack_fs_lgetxattr(
     name: vm::StringHandle,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = (path, name);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.lgetxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.lgetxattr",
+    ))
+    .boxed())
 }
 
 /// Read an extended attribute without following symlinks, using a raw name payload.
@@ -2924,7 +3199,10 @@ pub(crate) fn destack_fs_listxattr(
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.listxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.listxattr",
+    ))
+    .boxed())
 }
 
 /// List extended attribute names by path as raw byte payloads.
@@ -2979,7 +3257,10 @@ pub(crate) fn destack_fs_llistxattr(
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.llistxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.llistxattr",
+    ))
+    .boxed())
 }
 
 /// List extended attribute names without following symlinks as raw byte payloads.
@@ -3097,7 +3378,10 @@ pub(crate) fn destack_fs_lsetxattr(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = (path, name, argument_value, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.lsetxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.lsetxattr",
+    ))
+    .boxed())
 }
 
 /// Set an extended attribute without following symlinks, using a raw name payload.
@@ -3156,7 +3440,10 @@ pub(crate) fn destack_fs_removexattr(
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = (path, name);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.removexattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.removexattr",
+    ))
+    .boxed())
 }
 
 /// Remove an extended attribute by path with a raw name payload.
@@ -3215,7 +3502,10 @@ pub(crate) fn destack_fs_setxattr(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     let _ = (path, name, argument_value, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.setxattr")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.fs.xattr.setxattr",
+    ))
+    .boxed())
 }
 
 /// Set an extended attribute by path with a raw name payload.
@@ -3249,3 +3539,4 @@ pub(crate) fn destack_fs_setxattr_bytes(
     ))
     .boxed())
 }
+

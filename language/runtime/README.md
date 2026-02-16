@@ -1,18 +1,16 @@
 # Runtime
 
 The runtime is how Destack actually does anything meaningful beyond pure computation.
-It wraps VM and/or native execution with scheduling, bindings, determinism, replay, snapshots, and policy.
-Essentially, the runtime is where we marry Node/Bun/Deno-level semantics _with_ V8/JSC-runtime features, all in one place.
+It wraps VM and/or native execution with scheduling, bindings, record/replay, and policy checks.
+In effect, the runtime is where we marry Node/Bun/Deno-level semantics _with_ V8/JSC-runtime features.
 
 ## Overview
 
-Destack has a single runtime that can drive both VM and native execution (even simultaneously).
-The runtime owns time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
+Destack has a single runtime that can drive both VM and native execution (even within the same process).
+The runtime owns everything outside of pure computation (and userland external bindings): time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
 VM and native are "engines" that run until they yield back to the runtime (microtask-style).
 
-## Dimensions
-
-Runtime behavior is modeled along three orthogonal dimensions.
+Runtime behavior is modeled along three basic dimensions:
 
 | Dimension | Values | Purpose |
 |-----------|--------|---------|
@@ -21,8 +19,6 @@ Runtime behavior is modeled along three orthogonal dimensions.
 | world | `host`, `simulated` | chooses host-backed or simulated bindings |
 
 ## Components
-
-The runtime is organized around subsystems that will sound familiar to V8 and JSC enjoyers, with some additional features for Destack:
 
 | Component | Description |
 |-----------|-------------|
@@ -37,9 +33,9 @@ The runtime is organized around subsystems that will sound familiar to V8 and JS
 | platform | OS ("platform") integration and resources |
 | telemetry | profiling and tracing |
 
-## Execution Model
+## Scheduler
 
-We follow traditional WHATWG (and Node) semantics for event loop scheduling.
+We follow WHATWG (and Node) semantics for event loop scheduling.
 The unit of scheduling is a task, which represents a macrotask in the event loop.
 A microtask represents a Promise job and is drained after each task.
 
@@ -50,23 +46,164 @@ The runnable can be a VM continuation or a native continuation, and the schedule
 VM entry points are single threaded per isolate, and only run one "tick" at a time.
 The runtime decides when to run, yield, and resume, and it owns the scheduling policy.
 
-## Bindings and Platform
+## Bindings
 
 All external effects ("platform effects") go through runtime bindings.
 Platform code implements the actual OS integration and resource stuff.
 Blocking work yields through the scheduler and resumes through the same bindings as everything else.
 
-OS-backed bindings are split into `host` and `simulated` implementations.
-The generated binding wrappers resolve policy, then dispatch to `host::*` or `simulated::*`.
-Runtime-backed bindings do not use an extra host/simulated split and instead defer to runtime subsystem behavior.
+Binding dispatch is driven by binding scope.
+Scope is per binding descriptor, not per module.
 
-Module layout follows binding scope.
-Modules with `os` or `hybrid` bindings use host world routing and simulated world routing.
-They keep generated wrappers at the top level and place host OS backend routing in `host.rs`.
-They place simulated stubs and implementations in `simulated/`.
-Modules with `runtime`-only bindings do not add a host/simulated backend split.
-They keep behavior in runtime subsystems and use `native.rs` and `vm.rs` as engine adapters.
-Mixed modules apply both rules per binding scope.
+## Modules
+
+Every platform module follows one canonical layout.
+Generated files (`*.generated.rs`) define the control plane and handwritten files define implementation adapters.
+
+| Location | Responsibility |
+|-----------|--------|
+| `abi.generated.rs` | generated ABI types and encode or decode helpers for native and VM paths |
+| `bindings.generated.rs` | generated registration, decode or encode glue, replay wrappers, and scope or world dispatch |
+| `native.rs` | native engine adapter entrypoints for host scope |
+| `vm.rs` | VM engine adapter entrypoints for host scope |
+| `core.rs` | optional shared implementation helpers with no world routing |
+| `tests/` | shared harness tests that run both engine adapters against the same binding contracts |
+
+Modules with `os` or `hybrid` bindings get the host and simulated backend folders:
+
+| File or folder | Responsibility |
+|-----------|--------|
+| `host.rs` | cfg routing only: `unix`, `windows`, `unsupported` re-exports |
+| `unix/` | host world Unix implementations |
+| `windows/` | host world Windows implementations |
+| `unsupported.rs` | host world fallback for unsupported targets |
+| `simulated/mod.rs` | simulated backend wiring |
+| `simulated/native.rs` | simulated backend native adapter surface |
+| `simulated/vm.rs` | simulated backend VM adapter surface |
+
+Modules with `runtime` bindings add runtime backend adapters.
+These modules use the following extra files.
+
+| File or folder | Responsibility |
+|-----------|--------|
+| `runtime/mod.rs` | runtime backend wiring |
+| `runtime/native.rs` | runtime backend native adapter surface |
+| `runtime/vm.rs` | runtime backend VM adapter surface |
+
+Mixed modules include both sets and route per binding scope.
+The existence of `host.rs` or `simulated/` does not imply every binding in that module uses world dispatch.
+
+### Dispatch
+
+World and execution dispatch belongs to generated wrappers only
+
+| Decision | Owner |
+|-----------|--------|
+| decode or encode ABI values | `bindings.generated.rs`, then adapter helpers in `vm.rs` or `native.rs` |
+| execution mode (`fast`, `deterministic`, `record`, `replay`) | `bindings.generated.rs` replay wrapper |
+| world (`host` or `simulated`) | `bindings.generated.rs` for `os` or `hybrid` bindings only |
+| host OS target (`unix`, `windows`, `unsupported`) | `host.rs` cfg routing |
+| shared semantic helper logic | `core.rs` |
+
+All bindings follow one stage pipeline.
+The exact backend target depends on scope.
+
+1. entry at generated exported wrapper in `bindings.generated.rs`.
+2. decode args, validate pointers, and check policy.
+3. run replay gate for the active execution mode.
+4. dispatch backend by scope and world.
+5. run backend adapter and implementation.
+6. encode result and return status.
+
+Scope specific backend calls are listed below.
+
+| Scope | VM engine | Native engine |
+|-----------|--------|--------|
+| `runtime` | `bindings.generated.rs -> runtime/vm.rs -> runtime subsystem or core helpers` | `bindings.generated.rs -> runtime/native.rs -> runtime subsystem or core helpers` |
+| `os` | `bindings.generated.rs -> resolve world -> vm.rs or simulated/vm.rs -> host backend or simulation backend` | `bindings.generated.rs -> resolve world -> native.rs or simulated/native.rs -> host backend or simulation backend` |
+| `hybrid` | `bindings.generated.rs -> resolve world -> vm.rs or simulated/vm.rs -> host plus runtime mixed backend` | `bindings.generated.rs -> resolve world -> native.rs or simulated/native.rs -> host plus runtime mixed backend` |
+
+Flow chart by scope is listed below.
+
+```text
+runtime scope:
+  bindings.generated.rs
+    -> runtime/{vm,native}.rs
+      -> runtime subsystem implementation
+
+os scope:
+  bindings.generated.rs
+    -> resolve world (host|simulated)
+      -> {vm,native}.rs or simulated/{vm,native}.rs
+        -> host.rs cfg route or simulation backend
+
+hybrid scope:
+  bindings.generated.rs
+    -> resolve world (host|simulated)
+      -> {vm,native}.rs or simulated/{vm,native}.rs
+        -> host backend and runtime subsystem helpers as needed
+```
+
+The platform module scope matrix is listed below.
+Counts come from `bindings.generated.rs` and represent unique binding descriptors per module.
+Scope is per binding descriptor, not per module.
+Modules may include bindings from more than one scope.
+
+| Module | Description | `os` | `hybrid` | `runtime` | Total |
+|-----------|--------|--------|--------|--------|--------|
+| `audio` | Audio device and stream operations. | 10 | 0 | 0 | 10 |
+| `console` | Console and terminal text I/O. | 4 | 0 | 0 | 4 |
+| `crypto` | Cryptographic primitives and key operations. | 18 | 0 | 0 | 18 |
+| `debug` | Debugger, tracing, profiling, and inspector hooks. | 0 | 0 | 11 | 11 |
+| `device` | Host device discovery and control. | 5 | 0 | 0 | 5 |
+| `display` | Display surfaces, modes, and presentation control. | 11 | 0 | 0 | 11 |
+| `error` | Runtime error bridge and conversion helpers. | 0 | 0 | 1 | 1 |
+| `ffi` | Dynamic libraries, symbols, and foreign calls. | 3 | 0 | 4 | 7 |
+| `fs` | Filesystem paths, metadata, and file or directory operations. | 116 | 0 | 0 | 116 |
+| `gpu` | GPU devices, queues, resources, and command submission. | 46 | 0 | 0 | 46 |
+| `input` | Input devices, events, and state queries. | 4 | 2 | 0 | 6 |
+| `io` | Generic host I/O primitives and descriptors. | 26 | 0 | 0 | 26 |
+| `ipc` | Interprocess communication channels and message transfer. | 21 | 0 | 0 | 21 |
+| `memory` | Runtime memory controls and host memory integration. | 14 | 0 | 1 | 15 |
+| `net` | Sockets, addresses, protocols, and network I/O. | 102 | 0 | 0 | 102 |
+| `os` | Operating system identity and host environment data. | 10 | 0 | 0 | 10 |
+| `process` | Process identity, spawn, wait, signals, and limits. | 66 | 0 | 11 | 77 |
+| `random` | Secure entropy and deterministic random streams. | 0 | 3 | 10 | 13 |
+| `resource` | Runtime resource table and handle lifecycle management. | 0 | 0 | 4 | 4 |
+| `security` | Policy, capability checks, and security controls. | 0 | 1 | 10 | 11 |
+| `thread` | Thread local state, spawn, sync, and priority controls. | 30 | 0 | 0 | 30 |
+| `time` | Clocks, timestamps, and time source access. | 2 | 8 | 0 | 10 |
+| `timer` | Runtime timers, scheduling, and timer descriptor APIs. | 5 | 0 | 10 | 15 |
+| `tls` | Transport security sessions and certificate paths. | 20 | 0 | 0 | 20 |
+| `tty` | TTY mode, capabilities, and terminal controls. | 8 | 0 | 0 | 8 |
+
+Runtime scope ignores the world dimension.
+Only `os` and `hybrid` scopes branch on world.
+
+Execution mode behavior inside the replay gate is listed below.
+
+| Execution mode | Replay gate behavior |
+|-----------|--------|
+| `fast` | executes backend directly and does not persist replay payload |
+| `deterministic` | executes backend with deterministic providers and no replay payload |
+| `record` | executes backend and persists replay payload |
+| `replay` | rehydrates replay payload and bypasses backend execution |
+
+### Testing
+
+Binding tests assert binding level behavior, not adapter internals.
+Host and hybrid modules with non-trivial bindings should include a `tests/` harness.
+
+The required test matrix is listed below.
+
+| Scope | Required harness coverage |
+|-----------|--------|
+| `os` | run the same contract tests against `native` and `vm` adapters in host world |
+| `hybrid` | run the same contract tests against `native` and `vm` adapters in host world, then add targeted simulated world tests as implementations land |
+| `runtime` | run the same contract tests against `runtime/native` and `runtime/vm` adapters |
+
+Simulated backends may start as `notSupported` stubs.
+When simulated implementations become real, add parity tests against host behavior where semantics are shared.
 
 Path encoding is explicit at the binding boundary through `OsPath`.
 On unix targets, `OsPath.Utf16` inputs are transcoded to UTF-8 bytes before syscall dispatch.
@@ -82,7 +219,7 @@ Other targets use a buffered copy fallback so behavior remains available.
 
 ## Rules, Effects, and Faults
 
-Rules are evaluated in declaration orders, first match wins, with filters like (binding glob, capability glob, component glob, module glob, engine, execution mode, platform, scope, blocking class, and effect class).
+Rules are evaluated in declaration order (first match wins) with glob-style files for bindings, capabilities, arguments, etc. to apply "effects" that modify the runtime behavior in some way.
 
 Fault effects are split into two categories:
  - Operation-level faults apply at binding boundaries, such as runtime delay, runtime error, and runtime timeout.
@@ -94,17 +231,16 @@ Simulated world supports both categories fully through `SimulationState` and det
 
 ## Determinism and Replay
 
-Determinism is enforced by the runtime by controlling time, randomness, scheduling, and all other effects, all of which is captured in the "replay log" (when needed).
-As the name implies, the replay log records everything we need to replay the program execution deterministically.
-(There are things we cannot replay, in which case we just error. Sad.)
+Determinism is enforced by the runtime by controlling time, randomness, scheduling, and all other effects, and capturing all that in the "replay log" (when needed).
+There are things we cannot replay, like userland FFI bindings or security-sensitive bindings, in which case we just error.
 
-## Randomness
+### Randomness
 
 Randomness is split into deterministic "streams" so concurrent work does not cross-contaminate.
 Each task and microtask gets a stable stream id, and user code can allocate its own stream ids explicitly.
 Stream allocation itself is recorded as a replay event, so replays stay aligned even when streams are created dynamically.
 
-## Snapshots
+### Snapshots
 
 Snapshots capture heap state, task queues, clock state, random state, and resource mappings.
 Snapshots are taken at safepoints where VM and native frames are in a resumable state.

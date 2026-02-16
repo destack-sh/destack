@@ -2,15 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::io::{
-    CompletionEventVm, CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags,
-    DescriptorRequestVm, DescriptorResultVm, EventToken, PollBackend, PollEventVm, PollInterest,
-    UringFeaturesVm, UringParametersVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{resource};
+use crate::platform::io::{CompletionEventVm, CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequestVm, DescriptorResultVm, EventToken, PollBackend, PollEventVm, PollInterest, UringFeaturesVm, UringParametersVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Cancel queued operations for one target.
 ///
@@ -36,7 +34,10 @@ pub(crate) fn destack_io_completion_cancel(
     target: resource::ResourceId,
 ) -> RuntimeResult<u32> {
     let _ = (handle, target);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.cancel")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.cancel",
+    ))
+    .boxed())
 }
 
 /// Close a completion queue.
@@ -62,7 +63,10 @@ pub(crate) fn destack_io_completion_close(
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.close",
+    ))
+    .boxed())
 }
 
 /// Enter the completion backend with submit and wait hints.
@@ -91,7 +95,10 @@ pub(crate) fn destack_io_completion_enter(
     flags: u32,
 ) -> RuntimeResult<u32> {
     let _ = (handle, mincomplete, timeoutns, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.enter")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.enter",
+    ))
+    .boxed())
 }
 
 /// Open a completion queue.
@@ -117,7 +124,10 @@ pub(crate) fn destack_io_completion_open(
     entries: u32,
 ) -> RuntimeResult<resource::CompletionHandle> {
     let _ = entries;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.open",
+    ))
+    .boxed())
 }
 
 /// Submit one completion operation.
@@ -144,7 +154,10 @@ pub(crate) fn destack_io_completion_submit(
     operation: CompletionOperationVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, operation);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.submit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.submit",
+    ))
+    .boxed())
 }
 
 /// Submit a batch of completion operations.
@@ -204,7 +217,10 @@ pub(crate) fn destack_io_completion_wait(
     maxevents: u32,
 ) -> RuntimeResult<VmArray<CompletionEventVm>> {
     let _ = (handle, timeoutns, maxevents);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.wait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.wait",
+    ))
+    .boxed())
 }
 
 /// Execute one fcntl-style descriptor command.
@@ -233,7 +249,10 @@ pub(crate) fn destack_io_control_fcntl(
     flags: DescriptorControlFlags,
 ) -> RuntimeResult<i64> {
     let _ = (handle, command, argument, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.fcntl")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.control.fcntl",
+    ))
+    .boxed())
 }
 
 /// Execute one ioctl-style descriptor request.
@@ -260,7 +279,10 @@ pub(crate) fn destack_io_control_ioctl(
     request: DescriptorRequestVm,
 ) -> RuntimeResult<DescriptorResultVm> {
     let _ = (handle, request);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.ioctl")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.control.ioctl",
+    ))
+    .boxed())
 }
 
 /// Attach an event token to a poll target key.
@@ -288,7 +310,10 @@ pub(crate) fn destack_io_event_attach(
     key: u64,
 ) -> RuntimeResult<()> {
     let _ = (token, target, key);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.attach")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.attach",
+    ))
+    .boxed())
 }
 
 /// Close a user-event token.
@@ -314,7 +339,10 @@ pub(crate) fn destack_io_event_close(
     token: EventToken,
 ) -> RuntimeResult<()> {
     let _ = token;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.close",
+    ))
+    .boxed())
 }
 
 /// Create a user-event token.
@@ -340,7 +368,10 @@ pub(crate) fn destack_io_event_open(
     initial: u64,
 ) -> RuntimeResult<EventToken> {
     let _ = initial;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.open",
+    ))
+    .boxed())
 }
 
 /// Signal a user-event token.
@@ -367,7 +398,10 @@ pub(crate) fn destack_io_event_signal(
     argument_value: u64,
 ) -> RuntimeResult<()> {
     let _ = (token, argument_value);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.signal")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.signal",
+    ))
+    .boxed())
 }
 
 /// Close a poll instance.
@@ -393,7 +427,10 @@ pub(crate) fn destack_io_poll_close(
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.close",
+    ))
+    .boxed())
 }
 
 /// Remove one target from a poll instance.
@@ -420,7 +457,10 @@ pub(crate) fn destack_io_poll_deregister(
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
     let _ = (handle, target);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.deregister")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.deregister",
+    ))
+    .boxed())
 }
 
 /// Open a poll instance.
@@ -446,7 +486,10 @@ pub(crate) fn destack_io_poll_open(
     backend: PollBackend,
 ) -> RuntimeResult<resource::PollHandle> {
     let _ = backend;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.open",
+    ))
+    .boxed())
 }
 
 /// Register one target with a poll instance.
@@ -475,7 +518,10 @@ pub(crate) fn destack_io_poll_register(
     interest: PollInterest,
 ) -> RuntimeResult<()> {
     let _ = (handle, target, key, interest);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.register")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.register",
+    ))
+    .boxed())
 }
 
 /// Update one target in a poll instance.
@@ -504,7 +550,10 @@ pub(crate) fn destack_io_poll_update(
     interest: PollInterest,
 ) -> RuntimeResult<()> {
     let _ = (handle, target, key, interest);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.update")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.update",
+    ))
+    .boxed())
 }
 
 /// Wait for poll events.
@@ -532,7 +581,10 @@ pub(crate) fn destack_io_poll_wait(
     maxevents: u32,
 ) -> RuntimeResult<VmArray<PollEventVm>> {
     let _ = (handle, timeoutns, maxevents);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.wait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.wait",
+    ))
+    .boxed())
 }
 
 /// Close one io_uring ring.
@@ -558,7 +610,10 @@ pub(crate) fn destack_io_uring_close(
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.close",
+    ))
+    .boxed())
 }
 
 /// Query io_uring feature support.
@@ -584,7 +639,10 @@ pub(crate) fn destack_io_uring_features(
     handle: resource::UringHandle,
 ) -> RuntimeResult<UringFeaturesVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.features")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.features",
+    ))
+    .boxed())
 }
 
 /// Open one io_uring ring.
@@ -610,7 +668,10 @@ pub(crate) fn destack_io_uring_open(
     parameters: UringParametersVm,
 ) -> RuntimeResult<resource::UringHandle> {
     let _ = parameters;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.open",
+    ))
+    .boxed())
 }
 
 /// Register fixed buffers with a ring.
@@ -731,3 +792,4 @@ pub(crate) fn destack_io_uring_unregister_files(
     ))
     .boxed())
 }
+

@@ -4,14 +4,15 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    VmValueCodec, fs, fs as platform_fs, process as platform_process, resource,
-    resource as platform_resource,
-};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::{fs, resource};
+use crate::platform::fs as platform_fs;
+use crate::platform::process as platform_process;
+use crate::platform::resource as platform_resource;
 
 /// ABI newtype for ExecAtFlags.
 #[repr(transparent)]
@@ -427,23 +428,17 @@ pub type ProcessCpuSetVm = ProcessCpuSetAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessCpuSetAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessCpuSetAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessCpuSetAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessCpuSetAbi<NativeAbi> {}
 impl Clone for ProcessCpuSetAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessCpuSetAbi<VmAbi> {}
 impl Clone for ProcessCpuSetAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for ProcessFdAction.
@@ -468,23 +463,17 @@ pub type ProcessFdActionVm = ProcessFdActionAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessFdActionAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessFdActionAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessFdActionAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessFdActionAbi<NativeAbi> {}
 impl Clone for ProcessFdActionAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessFdActionAbi<VmAbi> {}
 impl Clone for ProcessFdActionAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for ProcessGroupIds.
@@ -545,23 +534,17 @@ pub type ProcessSpawnOptionsVm = ProcessSpawnOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ProcessSpawnOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProcessSpawnOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("ProcessSpawnOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for ProcessSpawnOptionsAbi<NativeAbi> {}
 impl Clone for ProcessSpawnOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for ProcessSpawnOptionsAbi<VmAbi> {}
 impl Clone for ProcessSpawnOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for ProcessStdio.
@@ -660,3 +643,4 @@ pub struct ProcessSpawnOptionsReplayRecord {
     /// The new_process_group field.
     pub new_process_group: bool,
 }
+

@@ -2,11 +2,11 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::memory::{MemoryRangeVm, ProtectedMemoryRangeVm};
 use crate::runtime::RuntimeCallContext;
-use destack_vm as vm;
 
 /// Apply memory access advice.
 ///
@@ -465,3 +465,4 @@ pub(crate) fn destack_memory_set_write_xor_execute(
     ))
     .boxed())
 }
+

@@ -5,13 +5,18 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::bindings_generated as bindings;
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::{
+    PlatformError,
+    NativeSlice,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
+use crate::platform::{resource};
 use crate::platform::display::{DisplayInfo, DisplayMode, WindowEvent, WindowOptions};
-use crate::platform::resource;
+
 
 /// Close one display endpoint.
 ///
@@ -30,10 +35,7 @@ use crate::platform::resource;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_close(
-    context: &RuntimeCallContext,
-    handle: resource::DisplayHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_close(context: &RuntimeCallContext, handle: resource::DisplayHandle) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_MONITOR_CLOSE)?;
     let _ = handle;
 
@@ -60,17 +62,17 @@ pub(crate) unsafe fn destack_display_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_list(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<DisplayInfo>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_list(context: &RuntimeCallContext, out: *mut NativeSlice<DisplayInfo>) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_MONITOR_LIST)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.list",
+    ))
+    .boxed())
 }
 
 /// Read available display modes.
@@ -90,11 +92,7 @@ pub(crate) unsafe fn destack_display_list(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_modes(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<DisplayMode>,
-    handle: resource::DisplayHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_modes(context: &RuntimeCallContext, out: *mut NativeSlice<DisplayMode>, handle: resource::DisplayHandle) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_MONITOR_MODES)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -124,18 +122,17 @@ pub(crate) unsafe fn destack_display_modes(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::DisplayHandle,
-    id: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_open(context: &RuntimeCallContext, out: *mut resource::DisplayHandle, id: NativeStringRef) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_MONITOR_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, id);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.open",
+    ))
+    .boxed())
 }
 
 /// Apply one display mode.
@@ -155,11 +152,7 @@ pub(crate) unsafe fn destack_display_open(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_display_set_mode(
-    context: &RuntimeCallContext,
-    handle: resource::DisplayHandle,
-    mode: DisplayMode,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_set_mode(context: &RuntimeCallContext, handle: resource::DisplayHandle, mode: DisplayMode) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_MONITOR_SET_MODE)?;
     let _ = (handle, mode);
 
@@ -186,14 +179,14 @@ pub(crate) unsafe fn destack_display_set_mode(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_window_close(
-    context: &RuntimeCallContext,
-    window: resource::WindowHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_window_close(context: &RuntimeCallContext, window: resource::WindowHandle) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_WINDOW_CLOSE)?;
     let _ = window;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.close",
+    ))
+    .boxed())
 }
 
 /// Wait for one window event.
@@ -213,18 +206,17 @@ pub(crate) unsafe fn destack_display_window_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_window_event(
-    context: &RuntimeCallContext,
-    out: *mut WindowEvent,
-    window: resource::WindowHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_window_event(context: &RuntimeCallContext, out: *mut WindowEvent, window: resource::WindowHandle) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_WINDOW_EVENT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, window);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.event")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.event",
+    ))
+    .boxed())
 }
 
 /// Open one window on a display.
@@ -244,19 +236,17 @@ pub(crate) unsafe fn destack_display_window_event(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_window_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::WindowHandle,
-    display: resource::DisplayHandle,
-    options: WindowOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_window_open(context: &RuntimeCallContext, out: *mut resource::WindowHandle, display: resource::DisplayHandle, options: WindowOptions) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_WINDOW_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, display, options);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.open",
+    ))
+    .boxed())
 }
 
 /// Set one window title string.
@@ -276,11 +266,7 @@ pub(crate) unsafe fn destack_display_window_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_window_set_title(
-    context: &RuntimeCallContext,
-    window: resource::WindowHandle,
-    title: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_window_set_title(context: &RuntimeCallContext, window: resource::WindowHandle, title: NativeStringRef) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_WINDOW_SET_TITLE)?;
     let _ = (window, title);
 
@@ -307,11 +293,7 @@ pub(crate) unsafe fn destack_display_window_set_title(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_window_try_event(
-    context: &RuntimeCallContext,
-    out: *mut WindowEvent,
-    window: resource::WindowHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_window_try_event(context: &RuntimeCallContext, out: *mut WindowEvent, window: resource::WindowHandle) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_WINDOW_TRY_EVENT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -341,11 +323,7 @@ pub(crate) unsafe fn destack_display_window_try_event(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_display_window_vsync_wait(
-    context: &RuntimeCallContext,
-    window: resource::WindowHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_display_window_vsync_wait(context: &RuntimeCallContext, window: resource::WindowHandle, timeoutns: u64) -> RuntimeResult<()> {
     context.check_policy(DISPLAY_WINDOW_VSYNC_WAIT)?;
     let _ = (window, timeoutns);
 
@@ -354,3 +332,4 @@ pub(crate) unsafe fn destack_display_window_vsync_wait(
     ))
     .boxed())
 }
+

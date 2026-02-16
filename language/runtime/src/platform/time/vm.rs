@@ -2,11 +2,11 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::time::{ClockId, ClockInfoVm, ClockSource, SleepClock};
 use crate::runtime::RuntimeCallContext;
-use destack_vm as vm;
 
 /// Query one selected clock metadata.
 ///
@@ -291,3 +291,4 @@ pub(crate) fn destack_time_sleep_until_on_ns(
     ))
     .boxed())
 }
+

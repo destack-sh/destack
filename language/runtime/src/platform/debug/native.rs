@@ -5,13 +5,18 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::debug::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeStringRef, PlatformError};
+use crate::platform::{
+    PlatformError,
+    NativeArray,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
+use crate::platform::{resource};
 use crate::platform::debug::{InspectorEndpoint, ProfileKind, TraceLevel};
-use crate::platform::resource;
+
 
 /// Request a runtime debug break.
 ///
@@ -33,7 +38,10 @@ use crate::platform::resource;
 pub(crate) unsafe fn destack_debug_break_now(context: &RuntimeCallContext) -> RuntimeResult<()> {
     context.check_policy(DEBUG_CORE_BREAK_NOW)?;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.core.breakNow")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.core.breakNow",
+    ))
+    .boxed())
 }
 
 /// Mark a debug timeline point.
@@ -53,14 +61,14 @@ pub(crate) unsafe fn destack_debug_break_now(context: &RuntimeCallContext) -> Ru
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_mark(
-    context: &RuntimeCallContext,
-    label: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_mark(context: &RuntimeCallContext, label: NativeStringRef) -> RuntimeResult<()> {
     context.check_policy(DEBUG_CORE_MARK)?;
     let _ = label;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.core.mark")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.core.mark",
+    ))
+    .boxed())
 }
 
 /// Read inspector endpoint metadata.
@@ -80,11 +88,7 @@ pub(crate) unsafe fn destack_debug_mark(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_inspector_endpoint(
-    context: &RuntimeCallContext,
-    out: *mut InspectorEndpoint,
-    handle: resource::InspectorHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_inspector_endpoint(context: &RuntimeCallContext, out: *mut InspectorEndpoint, handle: resource::InspectorHandle) -> RuntimeResult<()> {
     context.check_policy(DEBUG_INSPECTOR_ENDPOINT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -114,12 +118,7 @@ pub(crate) unsafe fn destack_debug_inspector_endpoint(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_inspector_start(
-    context: &RuntimeCallContext,
-    out: *mut resource::InspectorHandle,
-    host: NativeStringRef,
-    port: u16,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_inspector_start(context: &RuntimeCallContext, out: *mut resource::InspectorHandle, host: NativeStringRef, port: u16) -> RuntimeResult<()> {
     context.check_policy(DEBUG_INSPECTOR_START)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -149,14 +148,14 @@ pub(crate) unsafe fn destack_debug_inspector_start(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_inspector_stop(
-    context: &RuntimeCallContext,
-    handle: resource::InspectorHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_inspector_stop(context: &RuntimeCallContext, handle: resource::InspectorHandle) -> RuntimeResult<()> {
     context.check_policy(DEBUG_INSPECTOR_STOP)?;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.inspector.stop")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.inspector.stop",
+    ))
+    .boxed())
 }
 
 /// Capture a profiling snapshot.
@@ -176,11 +175,7 @@ pub(crate) unsafe fn destack_debug_inspector_stop(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_profile_snapshot(
-    context: &RuntimeCallContext,
-    out: *mut NativeArray<u8>,
-    handle: resource::ProfileHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_profile_snapshot(context: &RuntimeCallContext, out: *mut NativeArray<u8>, handle: resource::ProfileHandle) -> RuntimeResult<()> {
     context.check_policy(DEBUG_PROFILE_SNAPSHOT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -210,18 +205,17 @@ pub(crate) unsafe fn destack_debug_profile_snapshot(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_profile_start(
-    context: &RuntimeCallContext,
-    out: *mut resource::ProfileHandle,
-    kind: ProfileKind,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_profile_start(context: &RuntimeCallContext, out: *mut resource::ProfileHandle, kind: ProfileKind) -> RuntimeResult<()> {
     context.check_policy(DEBUG_PROFILE_START)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, kind);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.profile.start")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.profile.start",
+    ))
+    .boxed())
 }
 
 /// Stop a profiling session.
@@ -241,14 +235,14 @@ pub(crate) unsafe fn destack_debug_profile_start(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_profile_stop(
-    context: &RuntimeCallContext,
-    handle: resource::ProfileHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_profile_stop(context: &RuntimeCallContext, handle: resource::ProfileHandle) -> RuntimeResult<()> {
     context.check_policy(DEBUG_PROFILE_STOP)?;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.profile.stop")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.profile.stop",
+    ))
+    .boxed())
 }
 
 /// Emit one trace event.
@@ -268,16 +262,14 @@ pub(crate) unsafe fn destack_debug_profile_stop(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_trace_emit(
-    context: &RuntimeCallContext,
-    category: NativeStringRef,
-    name: NativeStringRef,
-    payloadjson: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_trace_emit(context: &RuntimeCallContext, category: NativeStringRef, name: NativeStringRef, payloadjson: NativeStringRef) -> RuntimeResult<()> {
     context.check_policy(DEBUG_TRACE_EMIT)?;
     let _ = (category, name, payloadjson);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.trace.emit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.trace.emit",
+    ))
+    .boxed())
 }
 
 /// Start a runtime trace stream.
@@ -297,19 +289,17 @@ pub(crate) unsafe fn destack_debug_trace_emit(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_trace_start(
-    context: &RuntimeCallContext,
-    out: *mut resource::TraceHandle,
-    level: TraceLevel,
-    destination: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_trace_start(context: &RuntimeCallContext, out: *mut resource::TraceHandle, level: TraceLevel, destination: NativeStringRef) -> RuntimeResult<()> {
     context.check_policy(DEBUG_TRACE_START)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, level, destination);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.trace.start")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.trace.start",
+    ))
+    .boxed())
 }
 
 /// Stop a runtime trace stream.
@@ -329,12 +319,13 @@ pub(crate) unsafe fn destack_debug_trace_start(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_debug_trace_stop(
-    context: &RuntimeCallContext,
-    handle: resource::TraceHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_debug_trace_stop(context: &RuntimeCallContext, handle: resource::TraceHandle) -> RuntimeResult<()> {
     context.check_policy(DEBUG_TRACE_STOP)?;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.debug.trace.stop")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.debug.trace.stop",
+    ))
+    .boxed())
 }
+

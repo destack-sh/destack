@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::ffi::FfiPointer;
-use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{fs, resource};
+use crate::platform::ffi::{FfiPointer};
+use crate::runtime::RuntimeCallContext;
 
 /// Call one foreign symbol using raw ABI argument and result buffers.
 ///
@@ -35,7 +37,10 @@ pub(crate) fn destack_ffi_call(
     resultsize: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (symbol, abi, flags, arguments, resultsize);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.call.call")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.call.call",
+    ))
+    .boxed())
 }
 
 /// Close a dynamic library.
@@ -61,7 +66,10 @@ pub(crate) fn destack_ffi_close(
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.library.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.library.close",
+    ))
+    .boxed())
 }
 
 /// Open a dynamic library.
@@ -88,7 +96,10 @@ pub(crate) fn destack_ffi_open(
     flags: u32,
 ) -> RuntimeResult<resource::LibraryHandle> {
     let _ = (path, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.library.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.library.open",
+    ))
+    .boxed())
 }
 
 /// Return the raw address for an opaque pointer.
@@ -114,7 +125,10 @@ pub(crate) fn destack_ffi_address(
     pointer: FfiPointer,
 ) -> RuntimeResult<u64> {
     let _ = pointer;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.pointer.address")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.pointer.address",
+    ))
+    .boxed())
 }
 
 /// Create a pointer from a raw address.
@@ -169,7 +183,10 @@ pub(crate) fn destack_ffi_symbol_address(
     symbol: resource::SymbolHandle,
 ) -> RuntimeResult<u64> {
     let _ = symbol;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.symbol.address")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.symbol.address",
+    ))
+    .boxed())
 }
 
 /// Resolve a symbol from a loaded library.
@@ -196,5 +213,9 @@ pub(crate) fn destack_ffi_symbol_lookup(
     name: vm::StringHandle,
 ) -> RuntimeResult<resource::SymbolHandle> {
     let _ = (library, name);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.symbol.lookup")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.symbol.lookup",
+    ))
+    .boxed())
 }
+

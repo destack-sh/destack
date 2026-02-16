@@ -2,13 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::{
-    AudioDeviceDirection, AudioDeviceInfoVm, AudioStreamConfigVm, AudioStreamStateVm,
-};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::audio::{AudioDeviceDirection, AudioDeviceInfoVm, AudioStreamConfigVm, AudioStreamStateVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one audio device endpoint.
 ///
@@ -33,7 +33,10 @@ pub(crate) fn destack_audio_device_close(
     handle: resource::AudioDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.close",
+    ))
+    .boxed())
 }
 
 /// List available audio devices.
@@ -57,7 +60,10 @@ pub(crate) fn destack_audio_device_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<AudioDeviceInfoVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.list",
+    ))
+    .boxed())
 }
 
 /// Open one audio device endpoint.
@@ -84,7 +90,10 @@ pub(crate) fn destack_audio_device_open(
     direction: AudioDeviceDirection,
 ) -> RuntimeResult<resource::AudioDeviceHandle> {
     let _ = (id, direction);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.open",
+    ))
+    .boxed())
 }
 
 /// Close one audio stream.
@@ -110,7 +119,10 @@ pub(crate) fn destack_audio_stream_close(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.close",
+    ))
+    .boxed())
 }
 
 /// Open one audio stream on a device.
@@ -137,7 +149,10 @@ pub(crate) fn destack_audio_stream_open(
     config: AudioStreamConfigVm,
 ) -> RuntimeResult<resource::AudioStreamHandle> {
     let _ = (device, config);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.open",
+    ))
+    .boxed())
 }
 
 /// Read one packet of captured audio frames.
@@ -164,7 +179,10 @@ pub(crate) fn destack_audio_stream_read(
     maxbytes: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (handle, maxbytes);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.read",
+    ))
+    .boxed())
 }
 
 /// Start one audio stream.
@@ -190,7 +208,10 @@ pub(crate) fn destack_audio_stream_start(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.start")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.start",
+    ))
+    .boxed())
 }
 
 /// Read one stream state snapshot.
@@ -216,7 +237,10 @@ pub(crate) fn destack_audio_stream_state(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<AudioStreamStateVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.state")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.state",
+    ))
+    .boxed())
 }
 
 /// Stop one audio stream.
@@ -242,7 +266,10 @@ pub(crate) fn destack_audio_stream_stop(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.stop")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.stop",
+    ))
+    .boxed())
 }
 
 /// Write one packet of audio frames.
@@ -269,5 +296,9 @@ pub(crate) fn destack_audio_stream_write(
     data: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, data);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.write",
+    ))
+    .boxed())
 }
+

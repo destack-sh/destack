@@ -9,6 +9,7 @@ pub(crate) use unix::*;
 #[path = "windows/mod.rs"]
 mod windows;
 #[cfg(windows)]
+#[allow(unused_imports)]
 pub(crate) use windows::*;
 
 #[cfg(not(any(unix, windows)))]

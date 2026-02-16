@@ -7,7 +7,9 @@ use windows_sys::Win32::System::IO::{GetOverlappedResult, OVERLAPPED, OVERLAPPED
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{FileHandle, FileOffset, FileSize};
+use crate::platform::fs::{
+    FileHandle, FileOffset, FileSize, ReadWriteFlags, SpliceCursor, SpliceFlags,
+};
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{PipeHandle, ResourceId};
 use crate::platform::{NativeSlice, PlatformError, core as core_platform};
@@ -268,10 +270,10 @@ pub(crate) unsafe fn destack_fs_preadv2(
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-    flags: u32,
+    flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
     // NOTE #Incomplete: honor read flags for preadv2 on Windows
-    let _ = flags;
+    let _ = flags.0;
 
     unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
 }
@@ -283,10 +285,10 @@ pub(crate) unsafe fn destack_fs_pwritev2(
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-    flags: u32,
+    flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
     // NOTE #Incomplete: honor write flags for pwritev2 on Windows
-    let _ = flags;
+    let _ = flags.0;
 
     unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
 }
@@ -407,11 +409,11 @@ pub(crate) unsafe fn destack_fs_splice(
     context: &RuntimeCallContext,
     _out: *mut u64,
     source: ResourceId,
-    sourcecursor: i64,
+    sourcecursor: SpliceCursor,
     target: ResourceId,
-    targetcursor: i64,
+    targetcursor: SpliceCursor,
     length: FileSize,
-    flags: u32,
+    flags: SpliceFlags,
 ) -> RuntimeResult<()> {
     let _ = (
         context,
@@ -432,7 +434,7 @@ pub(crate) unsafe fn destack_fs_tee(
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
     length: FileSize,
-    flags: u32,
+    flags: SpliceFlags,
 ) -> RuntimeResult<()> {
     let _ = (context, sourcepipe, targetpipe, length, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.tee")).boxed())
@@ -444,7 +446,7 @@ pub(crate) unsafe fn destack_fs_vmsplice(
     _out: *mut u64,
     pipe: PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
-    flags: u32,
+    flags: SpliceFlags,
 ) -> RuntimeResult<()> {
     let _ = (context, pipe, buffers, flags);
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.vmsplice")).boxed())

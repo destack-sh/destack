@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::security::{PlatformCapabilityVm, SecurityFilterVm, SecurityPolicyRuleVm};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::security::{PlatformCapabilityVm, SecurityFilterVm, SecurityPolicyRuleVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Check one capability.
 ///
@@ -176,7 +178,10 @@ pub(crate) fn destack_security_policy_get(
     scope: vm::StringHandle,
 ) -> RuntimeResult<VmSlice<PlatformCapabilityVm>> {
     let _ = scope;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.security.policy.get")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.security.policy.get",
+    ))
+    .boxed())
 }
 
 /// Read structured policy rules for one named scope.
@@ -232,7 +237,10 @@ pub(crate) fn destack_security_policy_set(
     capabilities: VmSlice<PlatformCapabilityVm>,
 ) -> RuntimeResult<()> {
     let _ = (scope, capabilities);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.security.policy.set")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.security.policy.set",
+    ))
+    .boxed())
 }
 
 /// Replace structured policy rules for one named scope.
@@ -322,3 +330,4 @@ pub(crate) fn destack_security_sandbox_exit(
     ))
     .boxed())
 }
+

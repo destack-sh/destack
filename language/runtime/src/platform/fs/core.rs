@@ -2,13 +2,14 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
     AccessMode, AtFlags, CopyFlags, DirectoryHandle, DirentNext, FdFlags, FileHandle, FileMode,
-    FileOffset, NodeDevice, OpenFlags, OpenOptions, OsPath, PathBytes, PathBytesAbi, PathEncoding,
-    PathUtf16, PathUtf16Abi, RenameFlags, Stat, StatFs, StatusFlags, Statx, StatxFlags, StatxMask,
-    SymlinkType, WatchBatch, WatchOptions, XattrFlags,
+    FileOffset, FileSize, NodeDevice, OpenFlags, OpenOptions, OsPath, PathBytes, PathBytesAbi,
+    PathEncoding, PathUtf16, PathUtf16Abi, ReadWriteFlags, RenameFlags, SpliceCursor, SpliceFlags,
+    Stat, StatFs, StatusFlags, Statx, StatxFlags, StatxMask, SymlinkType, WatchBatch, WatchOptions,
+    XattrFlags,
 };
 #[cfg(unix)]
 use crate::platform::fs::{Dirent, DirentKind};
-use crate::platform::resource::{ResourceEntry, ResourceKind, WatchHandle};
+use crate::platform::resource::{PipeHandle, ResourceEntry, ResourceKind, WatchHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, ResourceId};
 use crate::runtime::RuntimeCallContext;
 #[cfg(unix)]
@@ -178,6 +179,54 @@ pub(crate) fn path_ref_from_utf16(utf16: PathUtf16) -> OsPath {
         encoding: PathEncoding::Utf16,
         bytes: empty_path_bytes(),
         utf16,
+    }
+}
+
+/// Decode an `OsPath` into a UTF-8 string.
+pub(crate) fn os_path_to_utf8_string(path: OsPath, label: &str) -> RuntimeResult<String> {
+    match path.encoding {
+        PathEncoding::Bytes => {
+            let bytes = unsafe { path.bytes.0.as_slice()? };
+            String::from_utf8(bytes.to_vec()).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    label,
+                    "path bytes are not valid utf8",
+                ))
+                .boxed()
+            })
+        }
+        PathEncoding::Utf16 => {
+            let utf16 = unsafe { path.utf16.0.as_slice()? };
+            String::from_utf16(utf16).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    label,
+                    "path utf16 is not valid",
+                ))
+                .boxed()
+            })
+        }
+    }
+}
+
+/// Encode a UTF-8 path string into an `OsPath`.
+pub(crate) fn os_path_from_utf8_string(context: &RuntimeCallContext, value: String) -> OsPath {
+    #[cfg(unix)]
+    {
+        let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.into_bytes()));
+        return path_ref_from_bytes(bytes);
+    }
+
+    #[cfg(windows)]
+    {
+        let utf16_values = value.encode_utf16().collect::<Vec<_>>();
+        let utf16 = PathUtf16Abi::<NativeAbi>(context.store_array(utf16_values));
+        return path_ref_from_utf16(utf16);
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.into_bytes()));
+        path_ref_from_bytes(bytes)
     }
 }
 
@@ -1805,6 +1854,77 @@ pub(crate) unsafe fn destack_fs_syncfs(
         let _ = (context, handle);
         Err(RuntimeError::from(PlatformError::not_supported("destack.fs.syncfs")).boxed())
     }
+}
+
+/// Read from multiple buffers with explicit read flags.
+#[cfg(unix)]
+pub(crate) unsafe fn destack_fs_preadv2(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: FileHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+    offset: FileOffset,
+    flags: ReadWriteFlags,
+) -> RuntimeResult<()> {
+    let _ = flags;
+    unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
+}
+
+/// Write from multiple buffers with explicit write flags.
+#[cfg(unix)]
+pub(crate) unsafe fn destack_fs_pwritev2(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: FileHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+    offset: FileOffset,
+    flags: ReadWriteFlags,
+) -> RuntimeResult<()> {
+    let _ = flags;
+    unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
+}
+
+/// Move data between resource handles.
+#[cfg(unix)]
+pub(crate) unsafe fn destack_fs_splice(
+    _context: &RuntimeCallContext,
+    _out: *mut u64,
+    source: ResourceId,
+    sourcecursor: SpliceCursor,
+    target: ResourceId,
+    targetcursor: SpliceCursor,
+    length: FileSize,
+    flags: SpliceFlags,
+) -> RuntimeResult<()> {
+    let _ = (source, sourcecursor, target, targetcursor, length, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.splice")).boxed())
+}
+
+/// Duplicate pipe data between pipe handles.
+#[cfg(unix)]
+pub(crate) unsafe fn destack_fs_tee(
+    _context: &RuntimeCallContext,
+    _out: *mut u64,
+    sourcepipe: PipeHandle,
+    targetpipe: PipeHandle,
+    length: FileSize,
+    flags: SpliceFlags,
+) -> RuntimeResult<()> {
+    let _ = (sourcepipe, targetpipe, length, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.tee")).boxed())
+}
+
+/// Move user buffers into a pipe.
+#[cfg(unix)]
+pub(crate) unsafe fn destack_fs_vmsplice(
+    _context: &RuntimeCallContext,
+    _out: *mut u64,
+    pipe: PipeHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+    flags: SpliceFlags,
+) -> RuntimeResult<()> {
+    let _ = (pipe, buffers, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.vmsplice")).boxed())
 }
 
 /// Open a filesystem watch for a path.

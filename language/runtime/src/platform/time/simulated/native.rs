@@ -5,10 +5,13 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::{
+};
 
 use crate::runtime::RuntimeCallContext;
 
 use crate::platform::time::{ClockId, ClockInfo, SleepClock};
+
 
 /// Query one selected clock metadata.
 ///
@@ -27,15 +30,14 @@ use crate::platform::time::{ClockId, ClockInfo, SleepClock};
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_clock_info(
-    context: &RuntimeCallContext,
-    out: *mut ClockInfo,
-    clock: ClockId,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_clock_info(context: &RuntimeCallContext, out: *mut ClockInfo, clock: ClockId) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, clock);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.info",
+    ))
+    .boxed())
 }
 
 /// Return monotonic time in nanoseconds.
@@ -55,14 +57,14 @@ pub(crate) unsafe fn destack_time_clock_info(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_mono_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_mono_ns(context: &RuntimeCallContext, out: *mut u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.monoNs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.monoNs",
+    ))
+    .boxed())
 }
 
 /// Read one selected clock in nanoseconds.
@@ -82,15 +84,14 @@ pub(crate) unsafe fn destack_time_mono_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_now_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    clock: ClockId,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_now_ns(context: &RuntimeCallContext, out: *mut u64, clock: ClockId) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, clock);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.nowNs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.nowNs",
+    ))
+    .boxed())
 }
 
 /// Return process CPU time in nanoseconds.
@@ -110,10 +111,7 @@ pub(crate) unsafe fn destack_time_now_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_process_cpu_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_process_cpu_ns(context: &RuntimeCallContext, out: *mut u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
@@ -140,10 +138,7 @@ pub(crate) unsafe fn destack_time_process_cpu_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_thread_cpu_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_thread_cpu_ns(context: &RuntimeCallContext, out: *mut u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
@@ -170,14 +165,14 @@ pub(crate) unsafe fn destack_time_thread_cpu_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_wall_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_wall_ns(context: &RuntimeCallContext, out: *mut u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.clock.wallNs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.clock.wallNs",
+    ))
+    .boxed())
 }
 
 /// Sleep for at least the given duration in nanoseconds.
@@ -197,14 +192,14 @@ pub(crate) unsafe fn destack_time_wall_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_sleep_ns(
-    context: &RuntimeCallContext,
-    duration: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_sleep_ns(context: &RuntimeCallContext, duration: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = duration;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.ns")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.ns",
+    ))
+    .boxed())
 }
 
 /// Sleep for at least the given duration on one clock domain.
@@ -224,15 +219,14 @@ pub(crate) unsafe fn destack_time_sleep_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_sleep_on_ns(
-    context: &RuntimeCallContext,
-    duration: u64,
-    clock: SleepClock,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_sleep_on_ns(context: &RuntimeCallContext, duration: u64, clock: SleepClock) -> RuntimeResult<()> {
     let _ = context;
     let _ = (duration, clock);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.onNs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.onNs",
+    ))
+    .boxed())
 }
 
 /// Sleep until the given wall-clock deadline in nanoseconds.
@@ -252,14 +246,14 @@ pub(crate) unsafe fn destack_time_sleep_on_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_sleep_until_ns(
-    context: &RuntimeCallContext,
-    deadline: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_sleep_until_ns(context: &RuntimeCallContext, deadline: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = deadline;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.untilNs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.untilNs",
+    ))
+    .boxed())
 }
 
 /// Sleep until one deadline on one clock domain.
@@ -279,13 +273,13 @@ pub(crate) unsafe fn destack_time_sleep_until_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_time_sleep_until_on_ns(
-    context: &RuntimeCallContext,
-    deadline: u64,
-    clock: SleepClock,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_time_sleep_until_on_ns(context: &RuntimeCallContext, deadline: u64, clock: SleepClock) -> RuntimeResult<()> {
     let _ = context;
     let _ = (deadline, clock);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.untilOnNs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.time.sleep.untilOnNs",
+    ))
+    .boxed())
 }
+

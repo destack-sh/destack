@@ -138,6 +138,53 @@ impl Random {
         RandomStreamId::new(USER_TAG | value)
     }
 
+    /// Advance a deterministic stream by a fixed jump count.
+    pub fn jump_stream(&self, stream_id: RandomStreamId, jump: u64) {
+        // no-op for zero jump
+        if jump == 0 {
+            return;
+        }
+
+        // compute the deterministic increment once
+        let increment = STREAM_INCREMENT.wrapping_mul(jump);
+
+        // fast path the default stream without locking
+        if stream_id == RandomStreamId::DEFAULT {
+            self.state.fetch_add(increment, Ordering::Relaxed);
+            return;
+        }
+
+        // advance the deterministic state for the requested stream
+        let mut streams = self.streams.lock();
+        let seed = streams
+            .entry(stream_id)
+            .or_insert_with(|| derive_stream_seed(self.root_seed, stream_id));
+        *seed = seed.wrapping_add(increment);
+    }
+
+    /// Split a deterministic stream and return a child stream id.
+    pub fn split_stream(&self, parent_stream_id: RandomStreamId) -> RandomStreamId {
+        // allocate the child stream id first
+        let child_stream_id = self.new_stream_id();
+
+        // derive a deterministic child seed from parent state
+        let parent_seed = if parent_stream_id == RandomStreamId::DEFAULT {
+            self.state.load(Ordering::Relaxed)
+        } else {
+            let mut streams = self.streams.lock();
+            let seed = streams
+                .entry(parent_stream_id)
+                .or_insert_with(|| derive_stream_seed(self.root_seed, parent_stream_id));
+            *seed
+        };
+
+        // store the child stream seed
+        let child_seed = mix64(parent_seed ^ child_stream_id.get().wrapping_mul(STREAM_INCREMENT));
+        self.streams.lock().insert(child_stream_id, child_seed);
+
+        child_stream_id
+    }
+
     /// Return the next deterministic u64 value.
     pub fn next_deterministic_u64(&self) -> u64 {
         // advance the state and mix the output
@@ -244,7 +291,7 @@ fn host_fill_bytes(buffer: &mut [u8]) -> Result<(), getrandom::Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::Random;
+    use super::{Random, RandomStreamId};
     use destack_workspace::RandomMode;
 
     #[test]
@@ -272,5 +319,47 @@ mod tests {
         // verify stream sequences are unaffected by interleaving
         assert_eq!((a1, a2), (a1_isolated, a2_isolated));
         assert_eq!((b1, b2), (b1_isolated, b2_isolated));
+    }
+
+    #[test]
+    fn test_jump_stream_matches_manual_advance() {
+        // advance one stream with jump
+        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let stream = random.new_stream_id();
+        random.jump_stream(stream, 3);
+        let jumped_value = random.next_stream_deterministic_u64(stream);
+
+        // advance one stream manually
+        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let stream = random.new_stream_id();
+        let _ = random.next_stream_deterministic_u64(stream);
+        let _ = random.next_stream_deterministic_u64(stream);
+        let _ = random.next_stream_deterministic_u64(stream);
+        let manual_value = random.next_stream_deterministic_u64(stream);
+
+        // verify jump semantics match manual advance
+        assert_eq!(jumped_value, manual_value);
+    }
+
+    #[test]
+    fn test_split_stream_is_deterministic() {
+        // derive parent and child streams in one runtime
+        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let parent = random.new_stream_id();
+        let _ = random.next_stream_deterministic_u64(parent);
+        let child = random.split_stream(parent);
+        let child_value = random.next_stream_deterministic_u64(child);
+
+        // repeat the same sequence in a fresh runtime
+        let random = Random::new(0xdead_beef, RandomMode::Deterministic);
+        let parent_repeated = random.new_stream_id();
+        let _ = random.next_stream_deterministic_u64(parent_repeated);
+        let child_repeated = random.split_stream(parent_repeated);
+        let child_value_repeated = random.next_stream_deterministic_u64(child_repeated);
+
+        // verify deterministic split ids and values
+        assert_eq!(child, child_repeated);
+        assert_eq!(child_value, child_value_repeated);
+        assert_ne!(child, RandomStreamId::DEFAULT);
     }
 }

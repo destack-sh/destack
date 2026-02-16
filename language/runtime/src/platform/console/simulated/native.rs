@@ -4,9 +4,13 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::{
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
+
 
 /// Write an error line to stderr.
 ///
@@ -25,10 +29,7 @@ use crate::runtime::RuntimeCallContext;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_console_error(
-    context: &RuntimeCallContext,
-    argument_value: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_console_error(context: &RuntimeCallContext, argument_value: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = argument_value;
 
@@ -55,14 +56,14 @@ pub(crate) unsafe fn destack_console_error(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_console_info(
-    context: &RuntimeCallContext,
-    argument_value: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_console_info(context: &RuntimeCallContext, argument_value: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = argument_value;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.console.console.info",
+    ))
+    .boxed())
 }
 
 /// Write a line to stdout.
@@ -82,14 +83,14 @@ pub(crate) unsafe fn destack_console_info(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_console_log(
-    context: &RuntimeCallContext,
-    argument_value: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_console_log(context: &RuntimeCallContext, argument_value: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = argument_value;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.log")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.console.console.log",
+    ))
+    .boxed())
 }
 
 /// Write a warning line to stderr.
@@ -109,12 +110,13 @@ pub(crate) unsafe fn destack_console_log(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_console_warn(
-    context: &RuntimeCallContext,
-    argument_value: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_console_warn(context: &RuntimeCallContext, argument_value: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = argument_value;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.warn")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.console.console.warn",
+    ))
+    .boxed())
 }
+

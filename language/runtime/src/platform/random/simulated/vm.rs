@@ -2,13 +2,12 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::random::{
-    RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomInfoVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::random::{RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomInfoVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Fill a slice with cryptographically secure random bytes.
 ///
@@ -33,7 +32,10 @@ pub(crate) fn destack_random_secure_bytes(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = buffer;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.secure.bytes")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.secure.bytes",
+    ))
+    .boxed())
 }
 
 /// Fill a slice with secure random bytes without blocking.
@@ -86,7 +88,10 @@ pub(crate) fn destack_random_secure_info(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SecureRandomInfoVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.secure.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.secure.info",
+    ))
+    .boxed())
 }
 
 /// Export deterministic stream state.
@@ -112,7 +117,10 @@ pub(crate) fn destack_random_stream_export(
     stream: RandomStream,
 ) -> RuntimeResult<RandomStreamStateVm> {
     let _ = stream;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.export")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.export",
+    ))
+    .boxed())
 }
 
 /// Fill a slice with deterministic random bytes from the default stream.
@@ -198,7 +206,10 @@ pub(crate) fn destack_random_stream_import(
     state: RandomStreamStateVm,
 ) -> RuntimeResult<()> {
     let _ = (stream, state);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.import")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.import",
+    ))
+    .boxed())
 }
 
 /// Allocate a deterministic random stream in one domain.
@@ -224,7 +235,10 @@ pub(crate) fn destack_random_stream_in(
     domain: RandomStreamDomain,
 ) -> RuntimeResult<RandomStream> {
     let _ = domain;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.in")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.in",
+    ))
+    .boxed())
 }
 
 /// Advance a deterministic stream by one jump count.
@@ -251,7 +265,10 @@ pub(crate) fn destack_random_stream_jump(
     jump: u64,
 ) -> RuntimeResult<()> {
     let _ = (stream, jump);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.jump")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.jump",
+    ))
+    .boxed())
 }
 
 /// Return a deterministic random uint64 from the default stream.
@@ -333,7 +350,10 @@ pub(crate) fn destack_random_stream_split(
     parent: RandomStream,
 ) -> RuntimeResult<RandomStream> {
     let _ = parent;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.split")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.split",
+    ))
+    .boxed())
 }
 
 /// Allocate a deterministic random stream identifier.
@@ -357,5 +377,9 @@ pub(crate) fn destack_random_stream(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<RandomStream> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.stream")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.stream",
+    ))
+    .boxed())
 }
+

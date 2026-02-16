@@ -14,27 +14,17 @@ use crate::runtime::RuntimeCallContext;
 
 /// Convert a OsPath into a UTF-8 byte buffer.
 fn uds_path_bytes(path: OsPath) -> RuntimeResult<Vec<u8>> {
-    let data = unsafe { path.data.0.as_slice()? };
-
-    // decode bytes paths directly
     match path.encoding {
-        PathEncoding::Bytes => Ok(data.to_vec()),
+        // decode bytes paths directly
+        PathEncoding::Bytes => {
+            let bytes = unsafe { path.bytes.0.as_slice()? };
+            Ok(bytes.to_vec())
+        }
 
-        // decode utf16 paths from little-endian byte payload
+        // decode utf16 paths into a UTF-8 byte path
         PathEncoding::Utf16 => {
-            if data.len() % 2 != 0 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path",
-                    "path contains odd utf16 byte length",
-                ))
-                .boxed());
-            }
-
-            let mut utf16 = Vec::with_capacity(data.len() / 2);
-            for chunk in data.chunks_exact(2) {
-                utf16.push(u16::from_le_bytes([chunk[0], chunk[1]]));
-            }
-            let string = String::from_utf16(&utf16).map_err(|_| {
+            let utf16 = unsafe { path.utf16.0.as_slice()? };
+            let string = String::from_utf16(utf16).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     "path",
                     "path contains invalid utf16",

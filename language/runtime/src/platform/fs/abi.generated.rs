@@ -4,11 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, fs as platform_fs};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::fs as platform_fs;
 
 /// ABI newtype for AccessMode.
 #[repr(transparent)]
@@ -737,15 +738,11 @@ impl<A: BindingAbi> std::fmt::Debug for DirentAbi<A> {
 
 impl Copy for DirentAbi<NativeAbi> {}
 impl Clone for DirentAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for DirentAbi<VmAbi> {}
 impl Clone for DirentAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for DirentNext.
@@ -762,23 +759,17 @@ pub type DirentNextVm = DirentNextAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DirentNextAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("DirentNextAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("DirentNextAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for DirentNextAbi<NativeAbi> {}
 impl Clone for DirentNextAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for DirentNextAbi<VmAbi> {}
 impl Clone for DirentNextAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for OpenOptions.
@@ -817,15 +808,11 @@ impl<A: BindingAbi> std::fmt::Debug for OsPathAbi<A> {
 
 impl Copy for OsPathAbi<NativeAbi> {}
 impl Clone for OsPathAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for OsPathAbi<VmAbi> {}
 impl Clone for OsPathAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for SpliceCursor.
@@ -962,23 +949,17 @@ pub type WatchBatchVm = WatchBatchAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WatchBatchAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("WatchBatchAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("WatchBatchAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for WatchBatchAbi<NativeAbi> {}
 impl Clone for WatchBatchAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for WatchBatchAbi<VmAbi> {}
 impl Clone for WatchBatchAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for WatchEvent.
@@ -999,23 +980,17 @@ pub type WatchEventVm = WatchEventAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WatchEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("WatchEventAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("WatchEventAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for WatchEventAbi<NativeAbi> {}
 impl Clone for WatchEventAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for WatchEventAbi<VmAbi> {}
 impl Clone for WatchEventAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for WatchOptions.
@@ -1082,3 +1057,4 @@ pub struct WatchEventReplayRecord {
     /// The cookie field.
     pub cookie: u64,
 }
+

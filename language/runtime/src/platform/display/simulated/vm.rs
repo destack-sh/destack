@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::display::{DisplayInfoVm, DisplayModeVm, WindowEventVm, WindowOptionsVm};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::display::{DisplayInfoVm, DisplayModeVm, WindowEventVm, WindowOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one display endpoint.
 ///
@@ -58,7 +60,10 @@ pub(crate) fn destack_display_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<DisplayInfoVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.list",
+    ))
+    .boxed())
 }
 
 /// Read available display modes.
@@ -113,7 +118,10 @@ pub(crate) fn destack_display_open(
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::DisplayHandle> {
     let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.open",
+    ))
+    .boxed())
 }
 
 /// Apply one display mode.
@@ -169,7 +177,10 @@ pub(crate) fn destack_display_window_close(
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = window;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.close",
+    ))
+    .boxed())
 }
 
 /// Wait for one window event.
@@ -195,7 +206,10 @@ pub(crate) fn destack_display_window_event(
     window: resource::WindowHandle,
 ) -> RuntimeResult<WindowEventVm> {
     let _ = window;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.event")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.event",
+    ))
+    .boxed())
 }
 
 /// Open one window on a display.
@@ -222,7 +236,10 @@ pub(crate) fn destack_display_window_open(
     options: WindowOptionsVm,
 ) -> RuntimeResult<resource::WindowHandle> {
     let _ = (display, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.open",
+    ))
+    .boxed())
 }
 
 /// Set one window title string.
@@ -313,3 +330,4 @@ pub(crate) fn destack_display_window_vsync_wait(
     ))
     .boxed())
 }
+

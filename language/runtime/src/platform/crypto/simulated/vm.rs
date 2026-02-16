@@ -2,16 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::crypto::{
-    CryptoCertificateFormat, CryptoCertificateMetadataVm, CryptoCertificateQueryVm,
-    CryptoCertificateVerifyRequestVm, CryptoCertificateVerifyResultVm, CryptoEncryptionScheme,
-    CryptoKeyFormat, CryptoKeyMetadataVm, CryptoKeyQueryVm, CryptoKeySpecVm, CryptoKeyUsageMask,
-    CryptoSignatureScheme, CryptoStoreOptionsVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{resource};
+use crate::platform::crypto::{CryptoCertificateFormat, CryptoCertificateMetadataVm, CryptoCertificateQueryVm, CryptoCertificateVerifyRequestVm, CryptoCertificateVerifyResultVm, CryptoEncryptionScheme, CryptoKeyFormat, CryptoKeyMetadataVm, CryptoKeyQueryVm, CryptoKeySpecVm, CryptoKeyUsageMask, CryptoSignatureScheme, CryptoStoreOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Delete one certificate from one provider store when allowed.
 ///
@@ -186,7 +183,10 @@ pub(crate) fn destack_crypto_key_decrypt(
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (handle, scheme, argument_payload);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.decrypt")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.decrypt",
+    ))
+    .boxed())
 }
 
 /// Delete one key handle and backing key material when allowed.
@@ -212,7 +212,10 @@ pub(crate) fn destack_crypto_key_delete(
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.delete")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.delete",
+    ))
+    .boxed())
 }
 
 /// Encrypt one payload with one key handle.
@@ -240,7 +243,10 @@ pub(crate) fn destack_crypto_key_encrypt(
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (handle, scheme, argument_payload);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.encrypt")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.encrypt",
+    ))
+    .boxed())
 }
 
 /// Export one public key.
@@ -297,7 +303,10 @@ pub(crate) fn destack_crypto_key_generate(
     spec: CryptoKeySpecVm,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
     let _ = (store, spec);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.generate")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.generate",
+    ))
+    .boxed())
 }
 
 /// Import one key into one provider store.
@@ -327,7 +336,10 @@ pub(crate) fn destack_crypto_key_import(
     label: vm::StringHandle,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
     let _ = (store, format, argument_bytes, usagemask, label);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.import")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.import",
+    ))
+    .boxed())
 }
 
 /// Return metadata for one key.
@@ -353,7 +365,10 @@ pub(crate) fn destack_crypto_key_metadata(
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<CryptoKeyMetadataVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.metadata")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.metadata",
+    ))
+    .boxed())
 }
 
 /// Sign one message digest or payload.
@@ -381,7 +396,10 @@ pub(crate) fn destack_crypto_key_sign(
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<VmSlice<u8>> {
     let _ = (handle, scheme, argument_payload);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.sign")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.sign",
+    ))
+    .boxed())
 }
 
 /// Verify one signature with one key handle.
@@ -410,7 +428,10 @@ pub(crate) fn destack_crypto_key_verify(
     signature: VmSlice<u8>,
 ) -> RuntimeResult<bool> {
     let _ = (handle, scheme, argument_payload, signature);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.verify")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.key.verify",
+    ))
+    .boxed())
 }
 
 /// Close one crypto store.
@@ -436,7 +457,10 @@ pub(crate) fn destack_crypto_store_close(
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.store.close",
+    ))
+    .boxed())
 }
 
 /// List certificates from one store.
@@ -522,5 +546,9 @@ pub(crate) fn destack_crypto_store_open(
     options: CryptoStoreOptionsVm,
 ) -> RuntimeResult<resource::CryptoStoreHandle> {
     let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.store.open",
+    ))
+    .boxed())
 }
+

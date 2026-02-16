@@ -2,14 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::ipc::{
-    MessageQueueReceiveVm, PipePairVm, SharedMemoryMappingVm, UnixPeerCredentialsVm,
-    UnixReceiveAncillaryVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{resource};
+use crate::platform::ipc::{MessageQueueReceiveVm, PipePairVm, SharedMemoryMappingVm, UnixPeerCredentialsVm, UnixReceiveAncillaryVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close a message queue.
 ///
@@ -649,3 +648,4 @@ pub(crate) fn destack_ipc_unix_send(
     ))
     .boxed())
 }
+

@@ -4,13 +4,14 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    VmValueCodec, crypto as platform_crypto, resource, resource as platform_resource,
-};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::{resource};
+use crate::platform::crypto as platform_crypto;
+use crate::platform::resource as platform_resource;
 
 /// ABI newtype for CryptoEncryptionScheme.
 #[repr(transparent)]
@@ -223,23 +224,17 @@ pub type CryptoCertificateMetadataVm = CryptoCertificateMetadataAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CryptoCertificateMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("CryptoCertificateMetadataAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("CryptoCertificateMetadataAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for CryptoCertificateMetadataAbi<NativeAbi> {}
 impl Clone for CryptoCertificateMetadataAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for CryptoCertificateMetadataAbi<VmAbi> {}
 impl Clone for CryptoCertificateMetadataAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for CryptoCertificateQuery.
@@ -258,23 +253,17 @@ pub type CryptoCertificateQueryVm = CryptoCertificateQueryAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CryptoCertificateQueryAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("CryptoCertificateQueryAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("CryptoCertificateQueryAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for CryptoCertificateQueryAbi<NativeAbi> {}
 impl Clone for CryptoCertificateQueryAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for CryptoCertificateQueryAbi<VmAbi> {}
 impl Clone for CryptoCertificateQueryAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for CryptoCertificateValidity.
@@ -311,23 +300,17 @@ pub type CryptoCertificateVerifyRequestVm = CryptoCertificateVerifyRequestAbi<Vm
 
 impl<A: BindingAbi> std::fmt::Debug for CryptoCertificateVerifyRequestAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("CryptoCertificateVerifyRequestAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("CryptoCertificateVerifyRequestAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for CryptoCertificateVerifyRequestAbi<NativeAbi> {}
 impl Clone for CryptoCertificateVerifyRequestAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for CryptoCertificateVerifyRequestAbi<VmAbi> {}
 impl Clone for CryptoCertificateVerifyRequestAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for CryptoCertificateVerifyResult.
@@ -364,23 +347,17 @@ pub type CryptoKeyMetadataVm = CryptoKeyMetadataAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CryptoKeyMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("CryptoKeyMetadataAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("CryptoKeyMetadataAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for CryptoKeyMetadataAbi<NativeAbi> {}
 impl Clone for CryptoKeyMetadataAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for CryptoKeyMetadataAbi<VmAbi> {}
 impl Clone for CryptoKeyMetadataAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for CryptoKeyQuery.
@@ -399,23 +376,17 @@ pub type CryptoKeyQueryVm = CryptoKeyQueryAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CryptoKeyQueryAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("CryptoKeyQueryAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("CryptoKeyQueryAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for CryptoKeyQueryAbi<NativeAbi> {}
 impl Clone for CryptoKeyQueryAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for CryptoKeyQueryAbi<VmAbi> {}
 impl Clone for CryptoKeyQueryAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for CryptoKeySpec.
@@ -440,23 +411,17 @@ pub type CryptoKeySpecVm = CryptoKeySpecAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CryptoKeySpecAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("CryptoKeySpecAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("CryptoKeySpecAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for CryptoKeySpecAbi<NativeAbi> {}
 impl Clone for CryptoKeySpecAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for CryptoKeySpecAbi<VmAbi> {}
 impl Clone for CryptoKeySpecAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for CryptoStoreOptions.
@@ -473,23 +438,17 @@ pub type CryptoStoreOptionsVm = CryptoStoreOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for CryptoStoreOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("CryptoStoreOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("CryptoStoreOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for CryptoStoreOptionsAbi<NativeAbi> {}
 impl Clone for CryptoStoreOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for CryptoStoreOptionsAbi<VmAbi> {}
 impl Clone for CryptoStoreOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// Replay struct for CryptoCertificateMetadata.
@@ -590,3 +549,4 @@ pub struct CryptoStoreOptionsReplayRecord {
     /// The provider_name field.
     pub provider_name: String,
 }
+

@@ -2,13 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::ipc::{
-    MessageQueueReceiveVm, PipePairVm, SharedMemoryMappingVm, UnixReceiveAncillaryVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{resource};
+use crate::platform::ipc::{MessageQueueReceiveVm, PipePairVm, SharedMemoryMappingVm, UnixReceiveAncillaryVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close a message queue.
 ///
@@ -187,7 +187,10 @@ pub(crate) fn destack_ipc_pipe_close(
     handle: resource::PipeHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.close",
+    ))
+    .boxed())
 }
 
 /// Create one unnamed pipe pair.
@@ -213,7 +216,10 @@ pub(crate) fn destack_ipc_pipe_open(
     flags: u32,
 ) -> RuntimeResult<PipePairVm> {
     let _ = flags;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.open",
+    ))
+    .boxed())
 }
 
 /// Read bytes from a pipe endpoint.
@@ -240,7 +246,10 @@ pub(crate) fn destack_ipc_pipe_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.read",
+    ))
+    .boxed())
 }
 
 /// Write bytes to a pipe endpoint.
@@ -267,7 +276,10 @@ pub(crate) fn destack_ipc_pipe_write(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.pipe.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.pipe.write",
+    ))
+    .boxed())
 }
 
 /// Close one shared memory object handle.
@@ -356,7 +368,10 @@ pub(crate) fn destack_ipc_shared_memory_map(
     flags: u32,
 ) -> RuntimeResult<SharedMemoryMappingVm> {
     let _ = (handle, offset, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sharedMemory.map")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.sharedMemory.map",
+    ))
+    .boxed())
 }
 
 /// Open one named shared memory object.
@@ -445,7 +460,10 @@ pub(crate) fn destack_ipc_futex_wait(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     let _ = (sharedmemory, offset, expected, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sync.futexWait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.sync.futexWait",
+    ))
+    .boxed())
 }
 
 /// Wake futex waiters for one shared-memory word.
@@ -473,7 +491,10 @@ pub(crate) fn destack_ipc_futex_wake(
     count: u32,
 ) -> RuntimeResult<u32> {
     let _ = (sharedmemory, offset, count);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.sync.futexWake")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.sync.futexWake",
+    ))
+    .boxed())
 }
 
 /// Create one named semaphore.
@@ -591,7 +612,10 @@ pub(crate) fn destack_ipc_unix_receive(
     maxhandles: u32,
 ) -> RuntimeResult<UnixReceiveAncillaryVm> {
     let _ = (socket, maxhandles);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.unix.receive")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.unix.receive",
+    ))
+    .boxed())
 }
 
 /// Send payload and transferred handles.
@@ -619,5 +643,9 @@ pub(crate) fn destack_ipc_unix_send(
     handles: VmSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<u64> {
     let _ = (socket, argument_payload, handles);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ipc.unix.send")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ipc.unix.send",
+    ))
+    .boxed())
 }
+

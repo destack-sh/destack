@@ -4,12 +4,17 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::{
+    NativeSlice,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::resource;
+use crate::platform::{resource};
 use crate::platform::security::{PlatformCapability, SecurityFilter, SecurityPolicyRule};
+
 
 /// Check one capability.
 ///
@@ -28,11 +33,7 @@ use crate::platform::security::{PlatformCapability, SecurityFilter, SecurityPoli
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_capability_has(
-    context: &RuntimeCallContext,
-    out: *mut bool,
-    capability: PlatformCapability,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_capability_has(context: &RuntimeCallContext, out: *mut bool, capability: PlatformCapability) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, capability);
 
@@ -59,10 +60,7 @@ pub(crate) unsafe fn destack_security_capability_has(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_capability_list(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<PlatformCapability>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_capability_list(context: &RuntimeCallContext, out: *mut NativeSlice<PlatformCapability>) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
@@ -89,11 +87,7 @@ pub(crate) unsafe fn destack_security_capability_list(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_security_sandbox_install_filter(
-    context: &RuntimeCallContext,
-    handle: resource::SandboxHandle,
-    filter: SecurityFilter,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_sandbox_install_filter(context: &RuntimeCallContext, handle: resource::SandboxHandle, filter: SecurityFilter) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, filter);
 
@@ -120,10 +114,7 @@ pub(crate) unsafe fn destack_security_sandbox_install_filter(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_sandbox_seal(
-    context: &RuntimeCallContext,
-    handle: resource::SandboxHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_sandbox_seal(context: &RuntimeCallContext, handle: resource::SandboxHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -150,11 +141,7 @@ pub(crate) unsafe fn destack_security_sandbox_seal(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
-    context: &RuntimeCallContext,
-    handle: resource::SandboxHandle,
-    capabilities: NativeSlice<PlatformCapability>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_sandbox_set_capabilities(context: &RuntimeCallContext, handle: resource::SandboxHandle, capabilities: NativeSlice<PlatformCapability>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, capabilities);
 
@@ -181,15 +168,14 @@ pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_policy_get(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<PlatformCapability>,
-    scope: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_policy_get(context: &RuntimeCallContext, out: *mut NativeSlice<PlatformCapability>, scope: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, scope);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.security.policy.get")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.security.policy.get",
+    ))
+    .boxed())
 }
 
 /// Read structured policy rules for one named scope.
@@ -209,11 +195,7 @@ pub(crate) unsafe fn destack_security_policy_get(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_policy_get_rules(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<SecurityPolicyRule>,
-    scope: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_policy_get_rules(context: &RuntimeCallContext, out: *mut NativeSlice<SecurityPolicyRule>, scope: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, scope);
 
@@ -240,15 +222,14 @@ pub(crate) unsafe fn destack_security_policy_get_rules(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_policy_set(
-    context: &RuntimeCallContext,
-    scope: NativeStringRef,
-    capabilities: NativeSlice<PlatformCapability>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_policy_set(context: &RuntimeCallContext, scope: NativeStringRef, capabilities: NativeSlice<PlatformCapability>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (scope, capabilities);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.security.policy.set")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.security.policy.set",
+    ))
+    .boxed())
 }
 
 /// Replace structured policy rules for one named scope.
@@ -268,11 +249,7 @@ pub(crate) unsafe fn destack_security_policy_set(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_security_policy_set_rules(
-    context: &RuntimeCallContext,
-    scope: NativeStringRef,
-    rules: NativeSlice<SecurityPolicyRule>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_policy_set_rules(context: &RuntimeCallContext, scope: NativeStringRef, rules: NativeSlice<SecurityPolicyRule>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (scope, rules);
 
@@ -299,11 +276,7 @@ pub(crate) unsafe fn destack_security_policy_set_rules(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_security_sandbox_enter(
-    context: &RuntimeCallContext,
-    out: *mut resource::SandboxHandle,
-    name: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_sandbox_enter(context: &RuntimeCallContext, out: *mut resource::SandboxHandle, name: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, name);
 
@@ -330,10 +303,7 @@ pub(crate) unsafe fn destack_security_sandbox_enter(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_security_sandbox_exit(
-    context: &RuntimeCallContext,
-    handle: resource::SandboxHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_security_sandbox_exit(context: &RuntimeCallContext, handle: resource::SandboxHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -342,3 +312,4 @@ pub(crate) unsafe fn destack_security_sandbox_exit(
     ))
     .boxed())
 }
+

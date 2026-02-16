@@ -5,13 +5,14 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::{
+};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::resource;
-use crate::platform::timer::{
-    TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec, TimerOptions,
-};
+use crate::platform::{resource};
+use crate::platform::timer::{TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec, TimerOptions};
+
 
 /// Cancel a scheduled timer.
 ///
@@ -30,14 +31,14 @@ use crate::platform::timer::{
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_cancel(
-    context: &RuntimeCallContext,
-    handle: resource::TimerHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_cancel(context: &RuntimeCallContext, handle: resource::TimerHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.cancel")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.cancel",
+    ))
+    .boxed())
 }
 
 /// Return whether a timer is currently active.
@@ -57,11 +58,7 @@ pub(crate) unsafe fn destack_timer_cancel(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_is_active(
-    context: &RuntimeCallContext,
-    out: *mut bool,
-    handle: resource::TimerHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_is_active(context: &RuntimeCallContext, out: *mut bool, handle: resource::TimerHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
@@ -88,14 +85,14 @@ pub(crate) unsafe fn destack_timer_is_active(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_pause(
-    context: &RuntimeCallContext,
-    handle: resource::TimerHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_pause(context: &RuntimeCallContext, handle: resource::TimerHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.pause")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.pause",
+    ))
+    .boxed())
 }
 
 /// Return remaining timer delay in nanoseconds.
@@ -115,11 +112,7 @@ pub(crate) unsafe fn destack_timer_pause(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_remaining_ns(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::TimerHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_remaining_ns(context: &RuntimeCallContext, out: *mut u64, handle: resource::TimerHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
@@ -146,15 +139,14 @@ pub(crate) unsafe fn destack_timer_remaining_ns(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_reset(
-    context: &RuntimeCallContext,
-    handle: resource::TimerHandle,
-    delayns: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_reset(context: &RuntimeCallContext, handle: resource::TimerHandle, delayns: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, delayns);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.reset")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.reset",
+    ))
+    .boxed())
 }
 
 /// Resume a paused timer.
@@ -174,14 +166,14 @@ pub(crate) unsafe fn destack_timer_reset(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_resume(
-    context: &RuntimeCallContext,
-    handle: resource::TimerHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_resume(context: &RuntimeCallContext, handle: resource::TimerHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.resume")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.resume",
+    ))
+    .boxed())
 }
 
 /// Update one timer interval period.
@@ -201,11 +193,7 @@ pub(crate) unsafe fn destack_timer_resume(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_update_interval(
-    context: &RuntimeCallContext,
-    handle: resource::TimerHandle,
-    periodns: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_update_interval(context: &RuntimeCallContext, handle: resource::TimerHandle, periodns: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, periodns);
 
@@ -232,14 +220,14 @@ pub(crate) unsafe fn destack_timer_update_interval(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_timer_fd_close(
-    context: &RuntimeCallContext,
-    handle: resource::TimerFdHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_timer_fd_close(context: &RuntimeCallContext, handle: resource::TimerFdHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.close",
+    ))
+    .boxed())
 }
 
 /// Read the active timerfd schedule.
@@ -259,15 +247,14 @@ pub(crate) unsafe fn destack_timer_timer_fd_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_timer_fd_get(
-    context: &RuntimeCallContext,
-    out: *mut TimerFdSpec,
-    handle: resource::TimerFdHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_timer_fd_get(context: &RuntimeCallContext, out: *mut TimerFdSpec, handle: resource::TimerFdHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.get")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.get",
+    ))
+    .boxed())
 }
 
 /// Open a timerfd style descriptor.
@@ -287,16 +274,14 @@ pub(crate) unsafe fn destack_timer_timer_fd_get(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_timer_fd_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::TimerFdHandle,
-    clock: TimerFdClock,
-    flags: TimerFdFlags,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_timer_fd_open(context: &RuntimeCallContext, out: *mut resource::TimerFdHandle, clock: TimerFdClock, flags: TimerFdFlags) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, clock, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.open",
+    ))
+    .boxed())
 }
 
 /// Read the number of expirations from one timerfd descriptor.
@@ -316,15 +301,14 @@ pub(crate) unsafe fn destack_timer_timer_fd_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_timer_fd_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::TimerFdHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_timer_fd_read(context: &RuntimeCallContext, out: *mut u64, handle: resource::TimerFdHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.read",
+    ))
+    .boxed())
 }
 
 /// Update one timerfd schedule.
@@ -344,16 +328,14 @@ pub(crate) unsafe fn destack_timer_timer_fd_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_timer_fd_set(
-    context: &RuntimeCallContext,
-    handle: resource::TimerFdHandle,
-    spec: TimerFdSpec,
-    flags: TimerFdSetFlags,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_timer_fd_set(context: &RuntimeCallContext, handle: resource::TimerFdHandle, spec: TimerFdSpec, flags: TimerFdSetFlags) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, spec, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.set")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.set",
+    ))
+    .boxed())
 }
 
 /// Schedule a timer for an absolute wall-clock deadline.
@@ -373,16 +355,14 @@ pub(crate) unsafe fn destack_timer_timer_fd_set(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_at(
-    context: &RuntimeCallContext,
-    out: *mut resource::TimerHandle,
-    deadlinens: u64,
-    options: TimerOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_at(context: &RuntimeCallContext, out: *mut resource::TimerHandle, deadlinens: u64, options: TimerOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, deadlinens, options);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.schedule.at")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.at",
+    ))
+    .boxed())
 }
 
 /// Schedule a repeating timer.
@@ -402,12 +382,7 @@ pub(crate) unsafe fn destack_timer_at(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_interval(
-    context: &RuntimeCallContext,
-    out: *mut resource::TimerHandle,
-    periodns: u64,
-    options: TimerOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_interval(context: &RuntimeCallContext, out: *mut resource::TimerHandle, periodns: u64, options: TimerOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, periodns, options);
 
@@ -434,14 +409,13 @@ pub(crate) unsafe fn destack_timer_interval(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_timer_once(
-    context: &RuntimeCallContext,
-    out: *mut resource::TimerHandle,
-    delayns: u64,
-    options: TimerOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_timer_once(context: &RuntimeCallContext, out: *mut resource::TimerHandle, delayns: u64, options: TimerOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, delayns, options);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.schedule.once")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.once",
+    ))
+    .boxed())
 }
+

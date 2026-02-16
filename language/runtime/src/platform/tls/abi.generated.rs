@@ -4,11 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, tls as platform_tls};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::tls as platform_tls;
 
 /// ABI enum for TlsHandshakeStatus.
 #[repr(u8)]
@@ -164,23 +165,17 @@ pub type TlsContextOptionsVm = TlsContextOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for TlsContextOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("TlsContextOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("TlsContextOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for TlsContextOptionsAbi<NativeAbi> {}
 impl Clone for TlsContextOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for TlsContextOptionsAbi<VmAbi> {}
 impl Clone for TlsContextOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// Replay struct for TlsContextOptions.
@@ -197,3 +192,4 @@ pub struct TlsContextOptionsReplayRecord {
     /// The alpn_protocols field.
     pub alpn_protocols: Vec<String>,
 }
+

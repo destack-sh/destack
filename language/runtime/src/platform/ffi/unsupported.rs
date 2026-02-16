@@ -5,13 +5,19 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::{
+    PlatformError,
+    NativeSlice,
+    NativeArray,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
-use crate::platform::ffi::FfiPointer;
 use crate::platform::{fs, resource};
+use crate::platform::ffi::{FfiPointer};
+
 
 /// Call one foreign symbol using raw ABI argument and result buffers.
 ///
@@ -30,22 +36,17 @@ use crate::platform::{fs, resource};
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_ffi_call(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<u8>,
-    symbol: resource::SymbolHandle,
-    abi: u32,
-    flags: u32,
-    arguments: NativeSlice<u8>,
-    resultsize: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ffi_call(context: &RuntimeCallContext, out: *mut NativeSlice<u8>, symbol: resource::SymbolHandle, abi: u32, flags: u32, arguments: NativeSlice<u8>, resultsize: u32) -> RuntimeResult<()> {
     context.check_policy(FFI_CALL_CALL)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, symbol, abi, flags, arguments, resultsize);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.call.call")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.call.call",
+    ))
+    .boxed())
 }
 
 /// Close a dynamic library.
@@ -65,14 +66,14 @@ pub(crate) unsafe fn destack_ffi_call(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_ffi_close(
-    context: &RuntimeCallContext,
-    handle: resource::LibraryHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ffi_close(context: &RuntimeCallContext, handle: resource::LibraryHandle) -> RuntimeResult<()> {
     context.check_policy(FFI_LIBRARY_CLOSE)?;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.library.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.library.close",
+    ))
+    .boxed())
 }
 
 /// Open a dynamic library.
@@ -92,19 +93,17 @@ pub(crate) unsafe fn destack_ffi_close(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_ffi_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::LibraryHandle,
-    path: fs::OsPath,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ffi_open(context: &RuntimeCallContext, out: *mut resource::LibraryHandle, path: fs::OsPath, flags: u32) -> RuntimeResult<()> {
     context.check_policy(FFI_LIBRARY_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, path, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.library.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.library.open",
+    ))
+    .boxed())
 }
 
 /// Return the raw address for an opaque pointer.
@@ -124,18 +123,17 @@ pub(crate) unsafe fn destack_ffi_open(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_ffi_address(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    pointer: FfiPointer,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ffi_address(context: &RuntimeCallContext, out: *mut u64, pointer: FfiPointer) -> RuntimeResult<()> {
     context.check_policy(FFI_POINTER_ADDRESS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, pointer);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.pointer.address")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.pointer.address",
+    ))
+    .boxed())
 }
 
 /// Create a pointer from a raw address.
@@ -155,11 +153,7 @@ pub(crate) unsafe fn destack_ffi_address(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_ffi_from_address(
-    context: &RuntimeCallContext,
-    out: *mut FfiPointer,
-    address: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ffi_from_address(context: &RuntimeCallContext, out: *mut FfiPointer, address: u64) -> RuntimeResult<()> {
     context.check_policy(FFI_POINTER_FROM_ADDRESS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -189,18 +183,17 @@ pub(crate) unsafe fn destack_ffi_from_address(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_ffi_symbol_address(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    symbol: resource::SymbolHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ffi_symbol_address(context: &RuntimeCallContext, out: *mut u64, symbol: resource::SymbolHandle) -> RuntimeResult<()> {
     context.check_policy(FFI_SYMBOL_ADDRESS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, symbol);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.symbol.address")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.symbol.address",
+    ))
+    .boxed())
 }
 
 /// Resolve a symbol from a loaded library.
@@ -220,17 +213,16 @@ pub(crate) unsafe fn destack_ffi_symbol_address(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_ffi_symbol_lookup(
-    context: &RuntimeCallContext,
-    out: *mut resource::SymbolHandle,
-    library: resource::LibraryHandle,
-    name: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_ffi_symbol_lookup(context: &RuntimeCallContext, out: *mut resource::SymbolHandle, library: resource::LibraryHandle, name: NativeStringRef) -> RuntimeResult<()> {
     context.check_policy(FFI_SYMBOL_LOOKUP)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, library, name);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.symbol.lookup")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.ffi.symbol.lookup",
+    ))
+    .boxed())
 }
+

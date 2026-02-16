@@ -1,7 +1,7 @@
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::runnable::Runnable;
+use super::runnable::PlatformRunnable;
 
 /// Opaque task identifier used by the scheduler.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -36,7 +36,7 @@ pub struct Task {
     /// Task identifier used for ordering and logging.
     pub id: TaskId,
     /// Runnable continuation for this task.
-    pub runnable: Runnable,
+    pub runnable: PlatformRunnable,
     /// Resume payload passed back into the executor.
     pub resume_value: vm::Value,
     /// Current scheduling state.
