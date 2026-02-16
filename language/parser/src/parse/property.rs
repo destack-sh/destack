@@ -1741,6 +1741,23 @@ foo(): string;"#,
     }
 
     #[test]
+    fn test_reject_constructor_parameter_property_invalid_modifier_order() {
+        let mut test = TestParser::new_with_options(
+            r"class D extends B {
+  constructor(readonly public foo: string) {}
+}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+
+        assert!(
+            !parser.errors.is_empty(),
+            "expected parser errors for invalid modifier order"
+        );
+    }
+
+    #[test]
     fn test_parse_member_computed_optional_method() {
         let mut test = TestParser::new_with_options(
             "[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void",

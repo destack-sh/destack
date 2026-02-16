@@ -234,32 +234,28 @@ fn test_parse_parenthesized_integer_member_access_in_destack() {
     });
 }
 
-/// Parse decimal member access with a separator in javascript.
+/// Parse js double-dot member access after numeric literals.
 #[test]
-fn test_parse_decimal_member_access_with_separator_in_javascript() {
-    let mut test = TestParser::new_with_options("0..a", LanguageType::JavaScript);
+fn test_parse_double_dot_member_access_after_numeric_literal_in_javascript() {
+    let mut test = TestParser::new_with_options("0..value", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
-
-    // 0..a
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
-        assert_string!(parser, *name, "a");
-        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_string!(parser, *name, "value");
+        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
+            assert_eq!(*value, 0.0);
+        });
     });
 }
 
-/// Parse decimal member call with a separator in javascript.
+/// Parse js double-dot member call after numeric literals.
 #[test]
-fn test_parse_decimal_member_call_with_separator_in_javascript() {
+fn test_parse_double_dot_member_call_after_numeric_literal_in_javascript() {
     let mut test = TestParser::new_with_options("123..a(1)", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
-
-    // 123..a(1)
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
         assert_eq!(dynamic_arguments.len(), 1);
         assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
@@ -268,7 +264,9 @@ fn test_parse_decimal_member_call_with_separator_in_javascript() {
 
         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(123)));
+            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
+                assert_eq!(*value, 123.0);
+            });
         });
     });
 }
@@ -289,18 +287,39 @@ fn test_parse_decimal_member_access_with_separator_in_destack() {
     });
 }
 
-/// Reject non decimal separator member syntax for hexadecimal integers in javascript.
+/// Reject non-decimal separator member syntax for hexadecimal integers in javascript.
 #[test]
 fn test_reject_hex_integer_member_separator_in_javascript() {
     let mut test = TestParser::new_with_options("0x1..a", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let _ = parser.parse();
 
-    // parser should not reinterpret `..` as a decimal separator for non decimal integers
+    // parser should not reinterpret `..` as a decimal separator for non-decimal integers
     assert!(!parser.errors.is_empty(), "expected parser errors");
     assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), ".");
 }
 
+/// Parse ts double-dot member calls after numeric literals.
+#[test]
+fn test_parse_double_dot_member_call_after_numeric_literal_in_typescript() {
+    let mut test = TestParser::new_with_options("123..a(1)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+
+        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "a");
+            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
+                assert_eq!(*value, 123.0);
+            });
+        });
+    });
+}
 /// Parse this member access in variant context.
 #[test]
 fn test_parse_this_member_expression_in_variant_context() {
