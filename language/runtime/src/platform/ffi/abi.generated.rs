@@ -5,10 +5,9 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::{VmValueCodec, ffi as platform_ffi};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::ffi as platform_ffi;
 
 /// ABI newtype for FfiPointer.
 #[repr(transparent)]
@@ -29,4 +28,3 @@ impl VmValueCodec for FfiPointer {
         <u64 as VmValueCodec>::encode(self.0)
     }
 }
-

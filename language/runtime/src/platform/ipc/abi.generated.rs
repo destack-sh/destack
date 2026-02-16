@@ -5,10 +5,8 @@
 #![allow(unreachable_pub)]
 
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{ipc as platform_ipc, resource, resource as platform_resource};
 use serde::{Deserialize, Serialize};
-use crate::platform::{resource};
-use crate::platform::ipc as platform_ipc;
-use crate::platform::resource as platform_resource;
 
 /// ABI struct for MessageQueueReceive.
 #[repr(C)]
@@ -76,17 +74,23 @@ pub type UnixReceiveAncillaryVm = UnixReceiveAncillaryAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UnixReceiveAncillaryAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UnixReceiveAncillaryAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UnixReceiveAncillaryAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UnixReceiveAncillaryAbi<NativeAbi> {}
 impl Clone for UnixReceiveAncillaryAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UnixReceiveAncillaryAbi<VmAbi> {}
 impl Clone for UnixReceiveAncillaryAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// Replay struct for UnixReceiveAncillary.
@@ -99,4 +103,3 @@ pub struct UnixReceiveAncillaryReplayRecord {
     /// The credentials field.
     pub credentials: UnixPeerCredentials,
 }
-

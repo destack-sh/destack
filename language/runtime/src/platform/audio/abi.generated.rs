@@ -4,12 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{VmValueCodec, audio as platform_audio};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::audio as platform_audio;
 
 /// ABI enum for AudioDeviceDirection.
 #[repr(u8)]
@@ -87,17 +86,23 @@ pub type AudioDeviceInfoVm = AudioDeviceInfoAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for AudioDeviceInfoAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("AudioDeviceInfoAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("AudioDeviceInfoAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for AudioDeviceInfoAbi<NativeAbi> {}
 impl Clone for AudioDeviceInfoAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for AudioDeviceInfoAbi<VmAbi> {}
 impl Clone for AudioDeviceInfoAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for AudioStreamConfig.
@@ -150,4 +155,3 @@ pub struct AudioDeviceInfoReplayRecord {
     /// The default_period_frames field.
     pub default_period_frames: u32,
 }
-

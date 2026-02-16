@@ -4,12 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{VmValueCodec, resource as platform_resource};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::resource as platform_resource;
 
 /// ABI newtype for AudioDeviceHandle.
 #[repr(transparent)]
@@ -1162,4 +1161,3 @@ impl VmValueCodec for ResourceOwnership {
         <u8 as VmValueCodec>::encode(self as u8)
     }
 }
-

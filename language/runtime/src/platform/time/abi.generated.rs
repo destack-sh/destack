@@ -5,10 +5,9 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::{VmValueCodec, time as platform_time};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::time as platform_time;
 
 /// ABI enum for ClockId.
 #[repr(u8)]
@@ -100,4 +99,3 @@ pub struct ClockInfo {
 }
 
 pub type ClockInfoVm = ClockInfo;
-

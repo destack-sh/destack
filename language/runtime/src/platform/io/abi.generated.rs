@@ -4,14 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{VmValueCodec, io as platform_io, resource, resource as platform_resource};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::{resource};
-use crate::platform::io as platform_io;
-use crate::platform::resource as platform_resource;
 
 /// ABI newtype for DescriptorControlCommand.
 #[repr(transparent)]
@@ -209,17 +206,23 @@ pub type DescriptorRequestVm = DescriptorRequestAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DescriptorRequestAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DescriptorRequestAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DescriptorRequestAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DescriptorRequestAbi<NativeAbi> {}
 impl Clone for DescriptorRequestAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DescriptorRequestAbi<VmAbi> {}
 impl Clone for DescriptorRequestAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for DescriptorResult.
@@ -236,17 +239,23 @@ pub type DescriptorResultVm = DescriptorResultAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DescriptorResultAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DescriptorResultAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DescriptorResultAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DescriptorResultAbi<NativeAbi> {}
 impl Clone for DescriptorResultAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DescriptorResultAbi<VmAbi> {}
 impl Clone for DescriptorResultAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for PollEvent.
@@ -316,4 +325,3 @@ pub struct DescriptorResultReplayRecord {
     /// The output field.
     pub output: Vec<u8>,
 }
-

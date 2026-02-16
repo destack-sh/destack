@@ -4,15 +4,14 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{
+    VmValueCodec, fs, fs as platform_fs, net as platform_net, resource,
+    resource as platform_resource,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::{fs, resource};
-use crate::platform::fs as platform_fs;
-use crate::platform::net as platform_net;
-use crate::platform::resource as platform_resource;
 
 /// ABI newtype for AcceptFlags.
 #[repr(transparent)]
@@ -446,17 +445,23 @@ pub type NetInterfaceVm = NetInterfaceAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for NetInterfaceAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("NetInterfaceAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("NetInterfaceAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for NetInterfaceAbi<NativeAbi> {}
 impl Clone for NetInterfaceAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for NetInterfaceAbi<VmAbi> {}
 impl Clone for NetInterfaceAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for PacketCaptureOptions.
@@ -559,17 +564,23 @@ pub type ResolveQueryVm = ResolveQueryAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ResolveQueryAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("ResolveQueryAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("ResolveQueryAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for ResolveQueryAbi<NativeAbi> {}
 impl Clone for ResolveQueryAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for ResolveQueryAbi<VmAbi> {}
 impl Clone for ResolveQueryAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for ReverseLookupName.
@@ -586,17 +597,23 @@ pub type ReverseLookupNameVm = ReverseLookupNameAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for ReverseLookupNameAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("ReverseLookupNameAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("ReverseLookupNameAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for ReverseLookupNameAbi<NativeAbi> {}
 impl Clone for ReverseLookupNameAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for ReverseLookupNameAbi<VmAbi> {}
 impl Clone for ReverseLookupNameAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for RouteEntry.
@@ -623,17 +640,23 @@ pub type RouteEntryVm = RouteEntryAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for RouteEntryAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("RouteEntryAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("RouteEntryAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for RouteEntryAbi<NativeAbi> {}
 impl Clone for RouteEntryAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for RouteEntryAbi<VmAbi> {}
 impl Clone for RouteEntryAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SocketAddress.
@@ -652,17 +675,23 @@ pub type SocketAddressVm = SocketAddressAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SocketAddressAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SocketAddressAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SocketAddressAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SocketAddressAbi<NativeAbi> {}
 impl Clone for SocketAddressAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SocketAddressAbi<VmAbi> {}
 impl Clone for SocketAddressAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SocketCredentials.
@@ -705,17 +734,23 @@ pub type SocketRecvBatchRequestVm = SocketRecvBatchRequestAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SocketRecvBatchRequestAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SocketRecvBatchRequestAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SocketRecvBatchRequestAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SocketRecvBatchRequestAbi<NativeAbi> {}
 impl Clone for SocketRecvBatchRequestAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SocketRecvBatchRequestAbi<VmAbi> {}
 impl Clone for SocketRecvBatchRequestAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SocketRecvFrom.
@@ -734,17 +769,23 @@ pub type SocketRecvFromVm = SocketRecvFromAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SocketRecvFromAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SocketRecvFromAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SocketRecvFromAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SocketRecvFromAbi<NativeAbi> {}
 impl Clone for SocketRecvFromAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SocketRecvFromAbi<VmAbi> {}
 impl Clone for SocketRecvFromAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SocketRecvMessage.
@@ -777,17 +818,23 @@ pub type SocketRecvMessageVm = SocketRecvMessageAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SocketRecvMessageAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SocketRecvMessageAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SocketRecvMessageAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SocketRecvMessageAbi<NativeAbi> {}
 impl Clone for SocketRecvMessageAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SocketRecvMessageAbi<VmAbi> {}
 impl Clone for SocketRecvMessageAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SocketSendBatchEntry.
@@ -804,17 +851,23 @@ pub type SocketSendBatchEntryVm = SocketSendBatchEntryAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SocketSendBatchEntryAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SocketSendBatchEntryAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SocketSendBatchEntryAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SocketSendBatchEntryAbi<NativeAbi> {}
 impl Clone for SocketSendBatchEntryAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SocketSendBatchEntryAbi<VmAbi> {}
 impl Clone for SocketSendBatchEntryAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SocketSendMessage.
@@ -841,17 +894,23 @@ pub type SocketSendMessageVm = SocketSendMessageAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SocketSendMessageAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SocketSendMessageAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SocketSendMessageAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SocketSendMessageAbi<NativeAbi> {}
 impl Clone for SocketSendMessageAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SocketSendMessageAbi<VmAbi> {}
 impl Clone for SocketSendMessageAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SocketSendTo.
@@ -868,17 +927,23 @@ pub type SocketSendToVm = SocketSendToAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SocketSendToAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SocketSendToAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SocketSendToAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SocketSendToAbi<NativeAbi> {}
 impl Clone for SocketSendToAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SocketSendToAbi<VmAbi> {}
 impl Clone for SocketSendToAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for UdpReceive.
@@ -897,17 +962,23 @@ pub type UdpReceiveVm = UdpReceiveAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UdpReceiveAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UdpReceiveAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UdpReceiveAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UdpReceiveAbi<NativeAbi> {}
 impl Clone for UdpReceiveAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UdpReceiveAbi<VmAbi> {}
 impl Clone for UdpReceiveAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for UdpSourceMembershipV4.
@@ -926,17 +997,23 @@ pub type UdpSourceMembershipV4Vm = UdpSourceMembershipV4Abi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UdpSourceMembershipV4Abi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UdpSourceMembershipV4Abi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UdpSourceMembershipV4Abi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UdpSourceMembershipV4Abi<NativeAbi> {}
 impl Clone for UdpSourceMembershipV4Abi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UdpSourceMembershipV4Abi<VmAbi> {}
 impl Clone for UdpSourceMembershipV4Abi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for UdpSourceMembershipV6.
@@ -955,17 +1032,23 @@ pub type UdpSourceMembershipV6Vm = UdpSourceMembershipV6Abi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UdpSourceMembershipV6Abi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UdpSourceMembershipV6Abi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UdpSourceMembershipV6Abi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UdpSourceMembershipV6Abi<NativeAbi> {}
 impl Clone for UdpSourceMembershipV6Abi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UdpSourceMembershipV6Abi<VmAbi> {}
 impl Clone for UdpSourceMembershipV6Abi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for UdsAddress.
@@ -984,17 +1067,23 @@ pub type UdsAddressVm = UdsAddressAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for UdsAddressAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("UdsAddressAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("UdsAddressAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for UdsAddressAbi<NativeAbi> {}
 impl Clone for UdsAddressAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for UdsAddressAbi<VmAbi> {}
 impl Clone for UdsAddressAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// Replay struct for NetInterface.
@@ -1195,4 +1284,3 @@ pub struct UdsAddressReplayRecord {
     /// The abstract_name field.
     pub abstract_name: Vec<u8>,
 }
-
