@@ -30,29 +30,15 @@ export const ReactGrabRenderer: Component<ReactGrabRendererProps> = (props) => {
           props.mouseY !== undefined
         }
       >
-        <Crosshair
-          mouseX={props.mouseX!}
-          mouseY={props.mouseY!}
-          visible={true}
-        />
+        <Crosshair mouseX={props.mouseX!} mouseY={props.mouseY!} visible={true} />
       </Show>
 
       <Show when={props.dragVisible && props.dragBounds}>
-        <SelectionBox
-          variant="drag"
-          bounds={props.dragBounds!}
-          visible={props.dragVisible}
-        />
+        <SelectionBox variant="drag" bounds={props.dragBounds!} visible={props.dragVisible} />
       </Show>
 
       <For each={props.grabbedBoxes ?? []}>
-        {(box) => (
-          <SelectionBox
-            variant="grabbed"
-            bounds={box.bounds}
-            createdAt={box.createdAt}
-          />
-        )}
+        {(box) => <SelectionBox variant="grabbed" bounds={box.bounds} createdAt={box.createdAt} />}
       </For>
 
       <Index each={agentSessionsList()}>
@@ -81,24 +67,14 @@ export const ReactGrabRenderer: Component<ReactGrabRendererProps> = (props) => {
               supportsFollowUp={props.supportsFollowUp}
               onAbort={() => props.onAbortSession?.(session().id)}
               onDismiss={
-                session().isStreaming
-                  ? undefined
-                  : () => props.onDismissSession?.(session().id)
+                session().isStreaming ? undefined : () => props.onDismissSession?.(session().id)
               }
-              onUndo={
-                session().isStreaming
-                  ? undefined
-                  : () => props.onUndoSession?.(session().id)
-              }
+              onUndo={session().isStreaming ? undefined : () => props.onUndoSession?.(session().id)}
               onReply={
-                session().isStreaming
-                  ? undefined
-                  : () => props.onReplySession?.(session().id)
+                session().isStreaming ? undefined : () => props.onReplySession?.(session().id)
               }
               error={session().error}
-              onAcknowledgeError={() =>
-                props.onAcknowledgeSessionError?.(session().id)
-              }
+              onAcknowledgeError={() => props.onAcknowledgeSessionError?.(session().id)}
               onRetry={() => props.onRetrySession?.(session().id)}
             />
           </>

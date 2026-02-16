@@ -5,22 +5,22 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as React from 'react';
+import * as React from "react";
 
-const {useRef, useEffect, isValidElement} = React;
+const { useRef, useEffect, isValidElement } = React;
 const ReactSecretInternals =
   React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ??
   React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 type MemoCache = Array<number | typeof $empty>;
 
-const $empty = Symbol.for('react.memo_cache_sentinel');
+const $empty = Symbol.for("react.memo_cache_sentinel");
 
 // Re-export React.c if present, otherwise fallback to the userspace polyfill for versions of React
 // < 19.
 export const c =
   // @ts-expect-error
-  typeof React.__COMPILER_RUNTIME?.c === 'function'
+  typeof React.__COMPILER_RUNTIME?.c === "function"
     ? // @ts-expect-error
       React.__COMPILER_RUNTIME.c
     : function c(size: number) {
@@ -37,30 +37,30 @@ export const c =
         }, []);
       };
 
-const LazyGuardDispatcher: {[key: string]: (...args: Array<any>) => any} = {};
+const LazyGuardDispatcher: { [key: string]: (...args: Array<any>) => any } = {};
 [
-  'readContext',
-  'useCallback',
-  'useContext',
-  'useEffect',
-  'useImperativeHandle',
-  'useInsertionEffect',
-  'useLayoutEffect',
-  'useMemo',
-  'useReducer',
-  'useRef',
-  'useState',
-  'useDebugValue',
-  'useDeferredValue',
-  'useTransition',
-  'useMutableFile',
-  'useSyncExternalStore',
-  'useId',
-  'unstable_isNewReconciler',
-  'getCacheSignal',
-  'getCacheForType',
-  'useCacheRefresh',
-].forEach(name => {
+  "readContext",
+  "useCallback",
+  "useContext",
+  "useEffect",
+  "useImperativeHandle",
+  "useInsertionEffect",
+  "useLayoutEffect",
+  "useMemo",
+  "useReducer",
+  "useRef",
+  "useState",
+  "useDebugValue",
+  "useDeferredValue",
+  "useTransition",
+  "useMutableFile",
+  "useSyncExternalStore",
+  "useId",
+  "unstable_isNewReconciler",
+  "getCacheSignal",
+  "getCacheForType",
+  "useCacheRefresh",
+].forEach((name) => {
   LazyGuardDispatcher[name] = () => {
     throw new Error(
       `[React] Unexpected React hook call (${name}) from a React compiled function. ` +
@@ -72,11 +72,9 @@ const LazyGuardDispatcher: {[key: string]: (...args: Array<any>) => any} = {};
 let originalDispatcher: unknown = null;
 
 // Allow guards are not emitted for useMemoCache
-LazyGuardDispatcher['useMemoCache'] = (count: number) => {
+LazyGuardDispatcher["useMemoCache"] = (count: number) => {
   if (originalDispatcher == null) {
-    throw new Error(
-      'React Compiler internal invariant violation: unexpected null dispatcher',
-    );
+    throw new Error("React Compiler internal invariant violation: unexpected null dispatcher");
   } else {
     return (originalDispatcher as any).useMemoCache(count);
   }
@@ -146,7 +144,7 @@ export function $dispatcherGuard(kind: GuardKind) {
       throw new Error(
         `[React] Unexpected call to custom hook or component from a React compiled function. ` +
           "Check that (1) all hooks are called directly and named according to convention ('use[A-Z]') " +
-          'and (2) components are returned as JSX instead of being directly invoked.',
+          "and (2) components are returned as JSX instead of being directly invoked.",
       );
     }
     setCurrent(LazyGuardDispatcher);
@@ -155,9 +153,7 @@ export function $dispatcherGuard(kind: GuardKind) {
     const lastFrame = guardFrames.pop();
 
     if (lastFrame == null) {
-      throw new Error(
-        'React Compiler internal error: unexpected null in guard stack',
-      );
+      throw new Error("React Compiler internal error: unexpected null in guard stack");
     }
     if (guardFrames.length === 0) {
       originalDispatcher = null;
@@ -171,13 +167,11 @@ export function $dispatcherGuard(kind: GuardKind) {
   } else if (kind === GuardKind.PopExpectHook) {
     const lastFrame = guardFrames.pop();
     if (lastFrame == null) {
-      throw new Error(
-        'React Compiler internal error: unexpected null in guard stack',
-      );
+      throw new Error("React Compiler internal error: unexpected null in guard stack");
     }
     setCurrent(lastFrame);
   } else {
-    throw new Error('React Compiler internal error: unreachable block' + kind);
+    throw new Error("React Compiler internal error: unreachable block" + kind);
   }
 }
 
@@ -190,19 +184,16 @@ export function $reset($: MemoCache) {
 /**
  * Instrumentation to count rerenders in React components
  */
-export const renderCounterRegistry: Map<
-  string,
-  Set<{count: number}>
-> = new Map();
+export const renderCounterRegistry: Map<string, Set<{ count: number }>> = new Map();
 export function clearRenderCounterRegistry() {
   for (const counters of renderCounterRegistry.values()) {
-    counters.forEach(counter => {
+    counters.forEach((counter) => {
       counter.count = 0;
     });
   }
 }
 
-function registerRenderCounter(name: string, val: {count: number}) {
+function registerRenderCounter(name: string, val: { count: number }) {
   let counters = renderCounterRegistry.get(name);
   if (counters == null) {
     counters = new Set();
@@ -211,7 +202,7 @@ function registerRenderCounter(name: string, val: {count: number}) {
   counters.add(val);
 }
 
-function removeRenderCounter(name: string, val: {count: number}): void {
+function removeRenderCounter(name: string, val: { count: number }): void {
   const counters = renderCounterRegistry.get(name);
   if (counters == null) {
     return;
@@ -220,7 +211,7 @@ function removeRenderCounter(name: string, val: {count: number}): void {
 }
 
 export function useRenderCounter(name: string): void {
-  const val = useRef<{count: number}>(null);
+  const val = useRef<{ count: number }>(null);
 
   if (val.current != null) {
     val.current.count += 1;
@@ -228,7 +219,7 @@ export function useRenderCounter(name: string): void {
   useEffect(() => {
     // Not counting initial render shouldn't be a problem
     if (val.current == null) {
-      const counter = {count: 0};
+      const counter = { count: 0 };
       registerRenderCounter(name, counter);
       // @ts-ignore
       val.current = counter;
@@ -267,13 +258,13 @@ export function $structuralCheck(
       return;
     } else if (typeof oldValue !== typeof newValue) {
       error(`type ${typeof oldValue}`, `type ${typeof newValue}`, path, depth);
-    } else if (typeof oldValue === 'object') {
+    } else if (typeof oldValue === "object") {
       const oldArray = Array.isArray(oldValue);
       const newArray = Array.isArray(newValue);
       if (oldValue === null && newValue !== null) {
-        error('null', `type ${typeof newValue}`, path, depth);
+        error("null", `type ${typeof newValue}`, path, depth);
       } else if (newValue === null) {
-        error(`type ${typeof oldValue}`, 'null', path, depth);
+        error(`type ${typeof oldValue}`, "null", path, depth);
       } else if (oldValue instanceof Map) {
         if (!(newValue instanceof Map)) {
           error(`Map instance`, `other value`, path, depth);
@@ -287,19 +278,14 @@ export function $structuralCheck(
         } else {
           for (const [k, v] of oldValue) {
             if (!newValue.has(k)) {
-              error(
-                `Map instance with key ${k}`,
-                `Map instance without key ${k}`,
-                path,
-                depth,
-              );
+              error(`Map instance with key ${k}`, `Map instance without key ${k}`, path, depth);
             } else {
               recur(v, newValue.get(k), `${path}.get(${k})`, depth + 1);
             }
           }
         }
       } else if (newValue instanceof Map) {
-        error('other value', `Map instance`, path, depth);
+        error("other value", `Map instance`, path, depth);
       } else if (oldValue instanceof Set) {
         if (!(newValue instanceof Set)) {
           error(`Set instance`, `other value`, path, depth);
@@ -323,12 +309,12 @@ export function $structuralCheck(
           }
         }
       } else if (newValue instanceof Set) {
-        error('other value', `Set instance`, path, depth);
+        error("other value", `Set instance`, path, depth);
       } else if (oldArray || newArray) {
         if (oldArray !== newArray) {
           error(
-            `type ${oldArray ? 'array' : 'object'}`,
-            `type ${newArray ? 'array' : 'object'}`,
+            `type ${oldArray ? "array" : "object"}`,
+            `type ${newArray ? "array" : "object"}`,
             path,
             depth,
           );
@@ -347,8 +333,8 @@ export function $structuralCheck(
       } else if (isValidElement(oldValue) || isValidElement(newValue)) {
         if (isValidElement(oldValue) !== isValidElement(newValue)) {
           error(
-            `type ${isValidElement(oldValue) ? 'React element' : 'object'}`,
-            `type ${isValidElement(newValue) ? 'React element' : 'object'}`,
+            `type ${isValidElement(oldValue) ? "React element" : "object"}`,
+            `type ${isValidElement(newValue) ? "React element" : "object"}`,
             path,
             depth,
           );
@@ -360,45 +346,30 @@ export function $structuralCheck(
             depth,
           );
         } else {
-          recur(
-            oldValue.props,
-            newValue.props,
-            `[props of ${path}]`,
-            depth + 1,
-          );
+          recur(oldValue.props, newValue.props, `[props of ${path}]`, depth + 1);
         }
       } else {
         for (const key in newValue) {
           if (!(key in oldValue)) {
-            error(
-              `object without key ${key}`,
-              `object with key ${key}`,
-              path,
-              depth,
-            );
+            error(`object without key ${key}`, `object with key ${key}`, path, depth);
           }
         }
         for (const key in oldValue) {
           if (!(key in newValue)) {
-            error(
-              `object with key ${key}`,
-              `object without key ${key}`,
-              path,
-              depth,
-            );
+            error(`object with key ${key}`, `object without key ${key}`, path, depth);
           } else {
             recur(oldValue[key], newValue[key], `${path}.${key}`, depth + 1);
           }
         }
       }
-    } else if (typeof oldValue === 'function') {
+    } else if (typeof oldValue === "function") {
       // Bail on functions for now
       return;
     } else if (isNaN(oldValue) || isNaN(newValue)) {
       if (isNaN(oldValue) !== isNaN(newValue)) {
         error(
-          `${isNaN(oldValue) ? 'NaN' : 'non-NaN value'}`,
-          `${isNaN(newValue) ? 'NaN' : 'non-NaN value'}`,
+          `${isNaN(oldValue) ? "NaN" : "non-NaN value"}`,
+          `${isNaN(newValue) ? "NaN" : "non-NaN value"}`,
           path,
           depth,
         );
@@ -407,5 +378,5 @@ export function $structuralCheck(
       error(oldValue, newValue, path, depth);
     }
   }
-  recur(oldValue, newValue, '', 0);
+  recur(oldValue, newValue, "", 0);
 }

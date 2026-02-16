@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { msg, useMessages } from 'gt-next';
-import { useGame } from '@/context/GameContext';
-import { Tool, TOOL_INFO } from '@/types/game';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import React, { useState } from "react";
+import { msg, useMessages } from "gt-next";
+import { useGame } from "@/context/GameContext";
+import { Tool, TOOL_INFO } from "@/types/game";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   CloseIcon,
   RoadIcon,
@@ -23,16 +23,16 @@ import {
   HealthIcon,
   EducationIcon,
   SafetyIcon,
-} from '@/components/ui/Icons';
+} from "@/components/ui/Icons";
 
 // Tool category icons
 const CategoryIcons: Record<string, React.ReactNode> = {
-  'TOOLS': (
+  TOOLS: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
     </svg>
   ),
-  'ZONES': (
+  ZONES: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="3" y="3" width="7" height="7" />
       <rect x="14" y="3" width="7" height="7" />
@@ -40,13 +40,13 @@ const CategoryIcons: Record<string, React.ReactNode> = {
       <rect x="3" y="14" width="7" height="7" />
     </svg>
   ),
-  'ZONING': (
+  ZONING: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M4 4l16 16M20 4L4 20" />
       <circle cx="12" cy="12" r="8" />
     </svg>
   ),
-  'SERVICES': (
+  SERVICES: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M3 21h18" />
       <path d="M5 21V7l8-4v18" />
@@ -57,15 +57,15 @@ const CategoryIcons: Record<string, React.ReactNode> = {
       <path d="M9 18v.01" />
     </svg>
   ),
-  'PARKS': <TreeIcon size={20} />,
-  'SPORTS': (
+  PARKS: <TreeIcon size={20} />,
+  SPORTS: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v12M6 12h12" />
     </svg>
   ),
-  'WATERFRONT': <WaterIcon size={20} />,
-  'COMMUNITY': (
+  WATERFRONT: <WaterIcon size={20} />,
+  COMMUNITY: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
@@ -73,8 +73,8 @@ const CategoryIcons: Record<string, React.ReactNode> = {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
-  'UTILITIES': <PowerIcon size={20} />,
-  'SPECIAL': (
+  UTILITIES: <PowerIcon size={20} />,
+  SPECIAL: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
@@ -98,22 +98,34 @@ const QuickToolIcons: Partial<Record<Tool, React.ReactNode>> = {
   subway: <SubwayIcon size={20} />,
   tree: <TreeIcon size={20} />,
   zone_residential: (
-    <div className="w-5 h-5 rounded-sm bg-green-500 flex items-center justify-center text-[10px] font-bold text-white">R</div>
+    <div className="w-5 h-5 rounded-sm bg-green-500 flex items-center justify-center text-[10px] font-bold text-white">
+      R
+    </div>
   ),
   zone_commercial: (
-    <div className="w-5 h-5 rounded-sm bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white">C</div>
+    <div className="w-5 h-5 rounded-sm bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white">
+      C
+    </div>
   ),
   zone_industrial: (
-    <div className="w-5 h-5 rounded-sm bg-amber-500 flex items-center justify-center text-[10px] font-bold text-white">I</div>
+    <div className="w-5 h-5 rounded-sm bg-amber-500 flex items-center justify-center text-[10px] font-bold text-white">
+      I
+    </div>
   ),
   zone_dezone: (
-    <div className="w-5 h-5 rounded-sm bg-gray-500 flex items-center justify-center text-[10px] font-bold text-white">X</div>
+    <div className="w-5 h-5 rounded-sm bg-gray-500 flex items-center justify-center text-[10px] font-bold text-white">
+      X
+    </div>
   ),
   zone_water: (
-    <div className="w-5 h-5 rounded-sm bg-cyan-500 flex items-center justify-center text-[10px] font-bold text-white">~</div>
+    <div className="w-5 h-5 rounded-sm bg-cyan-500 flex items-center justify-center text-[10px] font-bold text-white">
+      ~
+    </div>
   ),
   zone_land: (
-    <div className="w-5 h-5 rounded-sm bg-emerald-600 flex items-center justify-center text-[10px] font-bold text-white">▲</div>
+    <div className="w-5 h-5 rounded-sm bg-emerald-600 flex items-center justify-center text-[10px] font-bold text-white">
+      ▲
+    </div>
   ),
   police_station: (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -196,58 +208,105 @@ const QuickToolIcons: Partial<Record<Tool, React.ReactNode>> = {
 
 // Category labels for translation
 const CATEGORY_LABELS: Record<string, unknown> = {
-  'TOOLS': msg('Tools'),
-  'ZONES': msg('Zones'),
-  'EXPAND_CITY': msg('Expand City'),
-  'ZONING': msg('Zoning'),
-  'UTILITIES': msg('Utilities'),
-  'SERVICES': msg('Services'),
-  'PARKS': msg('Parks'),
-  'SPORTS': msg('Sports'),
-  'WATERFRONT': msg('Waterfront'),
-  'COMMUNITY': msg('Community'),
-  'SPECIAL': msg('Special'),
+  TOOLS: msg("Tools"),
+  ZONES: msg("Zones"),
+  EXPAND_CITY: msg("Expand City"),
+  ZONING: msg("Zoning"),
+  UTILITIES: msg("Utilities"),
+  SERVICES: msg("Services"),
+  PARKS: msg("Parks"),
+  SPORTS: msg("Sports"),
+  WATERFRONT: msg("Waterfront"),
+  COMMUNITY: msg("Community"),
+  SPECIAL: msg("Special"),
 };
 
 // UI labels for translation
 const UI_LABELS = {
-  viewOverlays: msg('View Overlays'),
-  none: msg('None'),
-  power: msg('Power'),
-  water: msg('Water'),
-  fire: msg('Fire'),
-  police: msg('Police'),
-  health: msg('Health'),
-  education: msg('Education'),
-  subway: msg('Subway'),
-  budget: msg('Budget'),
-  statistics: msg('Statistics'),
-  advisors: msg('Advisors'),
-  settings: msg('Settings'),
+  viewOverlays: msg("View Overlays"),
+  none: msg("None"),
+  power: msg("Power"),
+  water: msg("Water"),
+  fire: msg("Fire"),
+  police: msg("Police"),
+  health: msg("Health"),
+  education: msg("Education"),
+  subway: msg("Subway"),
+  budget: msg("Budget"),
+  statistics: msg("Statistics"),
+  advisors: msg("Advisors"),
+  settings: msg("Settings"),
 };
 
 const toolCategories = {
-  'TOOLS': ['select', 'bulldoze', 'road', 'rail', 'subway'] as Tool[],
-  'ZONES': ['zone_residential', 'zone_commercial', 'zone_industrial'] as Tool[],
-  'ZONING': ['zone_dezone', 'zone_water', 'zone_land'] as Tool[],
-  'UTILITIES': ['power_plant', 'water_tower', 'subway_station', 'rail_station'] as Tool[],
-  'SERVICES': ['police_station', 'fire_station', 'hospital', 'school', 'university'] as Tool[],
-  'PARKS': ['park', 'park_large', 'tennis', 'playground_small', 'playground_large', 'community_garden', 'pond_park', 'park_gate', 'greenhouse_garden', 'mini_golf_course', 'go_kart_track', 'amphitheater', 'roller_coaster_small', 'campground', 'cabin_house', 'mountain_lodge', 'mountain_trailhead'] as Tool[],
-  'SPORTS': ['tennis', 'basketball_courts', 'soccer_field_small', 'baseball_field_small', 'football_field', 'baseball_stadium', 'swimming_pool', 'skate_park', 'bleachers_field'] as Tool[],
-  'WATERFRONT': ['marina_docks_small', 'pier_large'] as Tool[],
-  'COMMUNITY': ['community_center', 'animal_pens_farm', 'office_building_small'] as Tool[],
-  'SPECIAL': ['stadium', 'museum', 'airport', 'space_program', 'city_hall', 'amusement_park'] as Tool[],
+  TOOLS: ["select", "bulldoze", "road", "rail", "subway"] as Tool[],
+  ZONES: ["zone_residential", "zone_commercial", "zone_industrial"] as Tool[],
+  ZONING: ["zone_dezone", "zone_water", "zone_land"] as Tool[],
+  UTILITIES: ["power_plant", "water_tower", "subway_station", "rail_station"] as Tool[],
+  SERVICES: ["police_station", "fire_station", "hospital", "school", "university"] as Tool[],
+  PARKS: [
+    "park",
+    "park_large",
+    "tennis",
+    "playground_small",
+    "playground_large",
+    "community_garden",
+    "pond_park",
+    "park_gate",
+    "greenhouse_garden",
+    "mini_golf_course",
+    "go_kart_track",
+    "amphitheater",
+    "roller_coaster_small",
+    "campground",
+    "cabin_house",
+    "mountain_lodge",
+    "mountain_trailhead",
+  ] as Tool[],
+  SPORTS: [
+    "tennis",
+    "basketball_courts",
+    "soccer_field_small",
+    "baseball_field_small",
+    "football_field",
+    "baseball_stadium",
+    "swimming_pool",
+    "skate_park",
+    "bleachers_field",
+  ] as Tool[],
+  WATERFRONT: ["marina_docks_small", "pier_large"] as Tool[],
+  COMMUNITY: ["community_center", "animal_pens_farm", "office_building_small"] as Tool[],
+  SPECIAL: [
+    "stadium",
+    "museum",
+    "airport",
+    "space_program",
+    "city_hall",
+    "amusement_park",
+  ] as Tool[],
 };
 
-type OverlayMode = 'none' | 'power' | 'water' | 'fire' | 'police' | 'health' | 'education' | 'subway';
+type OverlayMode =
+  | "none"
+  | "power"
+  | "water"
+  | "fire"
+  | "police"
+  | "health"
+  | "education"
+  | "subway";
 
 interface MobileToolbarProps {
-  onOpenPanel: (panel: 'budget' | 'statistics' | 'advisors' | 'settings') => void;
+  onOpenPanel: (panel: "budget" | "statistics" | "advisors" | "settings") => void;
   overlayMode?: OverlayMode;
   setOverlayMode?: (mode: OverlayMode) => void;
 }
 
-export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMode }: MobileToolbarProps) {
+export function MobileToolbar({
+  onOpenPanel,
+  overlayMode = "none",
+  setOverlayMode,
+}: MobileToolbarProps) {
   const { state, setTool, expandCity, shrinkCity } = useGame();
   const { selectedTool, stats } = state;
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -265,8 +324,8 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
 
   const handleToolSelect = (tool: Tool, closeMenu: boolean = false) => {
     // If the tool is already selected and it's not 'select', toggle back to select
-    if (selectedTool === tool && tool !== 'select') {
-      setTool('select');
+    if (selectedTool === tool && tool !== "select") {
+      setTool("select");
     } else {
       setTool(tool);
     }
@@ -284,11 +343,11 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
           {/* Selected tool info - now above the toolbar */}
           {selectedTool && TOOL_INFO[selectedTool] && (
             <div className="flex items-center justify-between px-4 py-1.5 border-b border-sidebar-border/50 bg-secondary/30 text-xs">
-              <span className="text-foreground font-medium">
-                {m(TOOL_INFO[selectedTool].name)}
-              </span>
+              <span className="text-foreground font-medium">{m(TOOL_INFO[selectedTool].name)}</span>
               {TOOL_INFO[selectedTool].cost > 0 && (
-                <span className={`font-mono ${stats.money >= TOOL_INFO[selectedTool].cost ? 'text-green-400' : 'text-red-400'}`}>
+                <span
+                  className={`font-mono ${stats.money >= TOOL_INFO[selectedTool].cost ? "text-green-400" : "text-red-400"}`}
+                >
                   ${TOOL_INFO[selectedTool].cost}
                 </span>
               )}
@@ -298,72 +357,72 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
           <div className="flex items-center justify-around px-2 py-2 gap-1">
             {/* Quick access tools */}
             <Button
-              variant={selectedTool === 'select' ? 'default' : 'ghost'}
+              variant={selectedTool === "select" ? "default" : "ghost"}
               size="icon"
               className="h-11 w-11"
-              onClick={() => handleToolSelect('select')}
+              onClick={() => handleToolSelect("select")}
             >
               {QuickToolIcons.select}
             </Button>
 
             <Button
-              variant={selectedTool === 'bulldoze' ? 'default' : 'ghost'}
+              variant={selectedTool === "bulldoze" ? "default" : "ghost"}
               size="icon"
               className="h-11 w-11 text-red-400"
-              onClick={() => handleToolSelect('bulldoze')}
+              onClick={() => handleToolSelect("bulldoze")}
             >
               {QuickToolIcons.bulldoze}
             </Button>
 
             <Button
-              variant={selectedTool === 'road' ? 'default' : 'ghost'}
+              variant={selectedTool === "road" ? "default" : "ghost"}
               size="icon"
               className="h-11 w-11"
-              onClick={() => handleToolSelect('road')}
+              onClick={() => handleToolSelect("road")}
             >
               {QuickToolIcons.road}
             </Button>
 
             <Button
-              variant={selectedTool === 'rail' ? 'default' : 'ghost'}
+              variant={selectedTool === "rail" ? "default" : "ghost"}
               size="icon"
               className="h-11 w-11"
-              onClick={() => handleToolSelect('rail')}
+              onClick={() => handleToolSelect("rail")}
             >
               {QuickToolIcons.rail}
             </Button>
 
             {/* Zone buttons */}
             <Button
-              variant={selectedTool === 'zone_residential' ? 'default' : 'ghost'}
+              variant={selectedTool === "zone_residential" ? "default" : "ghost"}
               size="icon"
               className="h-11 w-11"
-              onClick={() => handleToolSelect('zone_residential')}
+              onClick={() => handleToolSelect("zone_residential")}
             >
               {QuickToolIcons.zone_residential}
             </Button>
 
             <Button
-              variant={selectedTool === 'zone_commercial' ? 'default' : 'ghost'}
+              variant={selectedTool === "zone_commercial" ? "default" : "ghost"}
               size="icon"
               className="h-11 w-11"
-              onClick={() => handleToolSelect('zone_commercial')}
+              onClick={() => handleToolSelect("zone_commercial")}
             >
               {QuickToolIcons.zone_commercial}
             </Button>
 
             <Button
-              variant={selectedTool === 'zone_industrial' ? 'default' : 'ghost'}
+              variant={selectedTool === "zone_industrial" ? "default" : "ghost"}
               size="icon"
               className="h-11 w-11"
-              onClick={() => handleToolSelect('zone_industrial')}
+              onClick={() => handleToolSelect("zone_industrial")}
             >
               {QuickToolIcons.zone_industrial}
             </Button>
 
             {/* More tools menu button */}
             <Button
-              variant={showMenu ? 'default' : 'secondary'}
+              variant={showMenu ? "default" : "secondary"}
               size="icon"
               className="h-11 w-11"
               onClick={() => setShowMenu(!showMenu)}
@@ -371,7 +430,13 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
               {showMenu ? (
                 <CloseIcon size={20} />
               ) : (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <circle cx="12" cy="12" r="1" />
                   <circle cx="19" cy="12" r="1" />
                   <circle cx="5" cy="12" r="1" />
@@ -384,7 +449,10 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
 
       {/* Expanded Tool Menu */}
       {showMenu && (
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setShowMenu(false)}>
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowMenu(false)}
+        >
           <Card
             className="absolute bottom-20 left-2 right-2 max-h-[70vh] overflow-hidden rounded-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
@@ -392,14 +460,17 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
             {/* City Management section at top */}
             <div className="p-3 border-b border-border flex-shrink-0">
               <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                {m(msg('City Management'))}
+                {m(msg("City Management"))}
               </div>
               <div className="grid grid-cols-4 gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-10 w-full text-xs"
-                  onClick={() => { onOpenPanel('budget'); setShowMenu(false); }}
+                  onClick={() => {
+                    onOpenPanel("budget");
+                    setShowMenu(false);
+                  }}
                 >
                   {m(UI_LABELS.budget)}
                 </Button>
@@ -407,7 +478,10 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                   variant="ghost"
                   size="sm"
                   className="h-10 w-full text-xs"
-                  onClick={() => { onOpenPanel('statistics'); setShowMenu(false); }}
+                  onClick={() => {
+                    onOpenPanel("statistics");
+                    setShowMenu(false);
+                  }}
                 >
                   {m(UI_LABELS.statistics)}
                 </Button>
@@ -415,7 +489,10 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                   variant="ghost"
                   size="sm"
                   className="h-10 w-full text-xs"
-                  onClick={() => { onOpenPanel('advisors'); setShowMenu(false); }}
+                  onClick={() => {
+                    onOpenPanel("advisors");
+                    setShowMenu(false);
+                  }}
                 >
                   {m(UI_LABELS.advisors)}
                 </Button>
@@ -423,7 +500,10 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                   variant="ghost"
                   size="sm"
                   className="h-10 w-full text-xs"
-                  onClick={() => { onOpenPanel('settings'); setShowMenu(false); }}
+                  onClick={() => {
+                    onOpenPanel("settings");
+                    setShowMenu(false);
+                  }}
                 >
                   {m(UI_LABELS.settings)}
                 </Button>
@@ -438,66 +518,66 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   <Button
-                    variant={overlayMode === 'none' ? 'default' : 'ghost'}
+                    variant={overlayMode === "none" ? "default" : "ghost"}
                     size="sm"
                     className="h-10 w-full text-xs"
-                    onClick={() => setOverlayMode('none')}
+                    onClick={() => setOverlayMode("none")}
                   >
                     {m(UI_LABELS.none)}
                   </Button>
                   <Button
-                    variant={overlayMode === 'power' ? 'default' : 'ghost'}
+                    variant={overlayMode === "power" ? "default" : "ghost"}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'power' ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
-                    onClick={() => setOverlayMode('power')}
+                    className={`h-10 w-full text-xs ${overlayMode === "power" ? "bg-amber-500 hover:bg-amber-600" : ""}`}
+                    onClick={() => setOverlayMode("power")}
                   >
                     {m(UI_LABELS.power)}
                   </Button>
                   <Button
-                    variant={overlayMode === 'water' ? 'default' : 'ghost'}
+                    variant={overlayMode === "water" ? "default" : "ghost"}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'water' ? 'bg-blue-500 hover:bg-blue-600' : ''}`}
-                    onClick={() => setOverlayMode('water')}
+                    className={`h-10 w-full text-xs ${overlayMode === "water" ? "bg-blue-500 hover:bg-blue-600" : ""}`}
+                    onClick={() => setOverlayMode("water")}
                   >
                     {m(UI_LABELS.water)}
                   </Button>
                   <Button
-                    variant={overlayMode === 'fire' ? 'default' : 'ghost'}
+                    variant={overlayMode === "fire" ? "default" : "ghost"}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'fire' ? 'bg-red-500 hover:bg-red-600' : ''}`}
-                    onClick={() => setOverlayMode('fire')}
+                    className={`h-10 w-full text-xs ${overlayMode === "fire" ? "bg-red-500 hover:bg-red-600" : ""}`}
+                    onClick={() => setOverlayMode("fire")}
                   >
                     {m(UI_LABELS.fire)}
                   </Button>
                   <Button
-                    variant={overlayMode === 'police' ? 'default' : 'ghost'}
+                    variant={overlayMode === "police" ? "default" : "ghost"}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'police' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                    onClick={() => setOverlayMode('police')}
+                    className={`h-10 w-full text-xs ${overlayMode === "police" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                    onClick={() => setOverlayMode("police")}
                   >
                     {m(UI_LABELS.police)}
                   </Button>
                   <Button
-                    variant={overlayMode === 'health' ? 'default' : 'ghost'}
+                    variant={overlayMode === "health" ? "default" : "ghost"}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'health' ? 'bg-green-500 hover:bg-green-600' : ''}`}
-                    onClick={() => setOverlayMode('health')}
+                    className={`h-10 w-full text-xs ${overlayMode === "health" ? "bg-green-500 hover:bg-green-600" : ""}`}
+                    onClick={() => setOverlayMode("health")}
                   >
                     {m(UI_LABELS.health)}
                   </Button>
                   <Button
-                    variant={overlayMode === 'education' ? 'default' : 'ghost'}
+                    variant={overlayMode === "education" ? "default" : "ghost"}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'education' ? 'bg-purple-500 hover:bg-purple-600' : ''}`}
-                    onClick={() => setOverlayMode('education')}
+                    className={`h-10 w-full text-xs ${overlayMode === "education" ? "bg-purple-500 hover:bg-purple-600" : ""}`}
+                    onClick={() => setOverlayMode("education")}
                   >
                     {m(UI_LABELS.education)}
                   </Button>
                   <Button
-                    variant={overlayMode === 'subway' ? 'default' : 'ghost'}
+                    variant={overlayMode === "subway" ? "default" : "ghost"}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'subway' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}`}
-                    onClick={() => setOverlayMode('subway')}
+                    className={`h-10 w-full text-xs ${overlayMode === "subway" ? "bg-yellow-500 hover:bg-yellow-600" : ""}`}
+                    onClick={() => setOverlayMode("subway")}
                   >
                     {m(UI_LABELS.subway)}
                   </Button>
@@ -505,22 +585,27 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
               </div>
             )}
 
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div
+              className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
               <div className="p-2 space-y-1 pb-4">
                 {/* Category buttons */}
                 {Object.entries(toolCategories).map(([category, tools]) => (
                   <div key={category}>
                     {/* Expand City section - appears before ZONING */}
-                    {category === 'ZONING' && (
+                    {category === "ZONING" && (
                       <div className="mb-1">
                         <Button
-                          variant={expandCityExpanded ? 'secondary' : 'ghost'}
+                          variant={expandCityExpanded ? "secondary" : "ghost"}
                           className="w-full justify-start gap-3 h-12"
                           onClick={() => setExpandCityExpanded(!expandCityExpanded)}
                         >
-                          <span className="flex-1 text-left font-medium">{m((CATEGORY_LABELS['EXPAND_CITY']) as Parameters<typeof m>[0])}</span>
+                          <span className="flex-1 text-left font-medium">
+                            {m(CATEGORY_LABELS["EXPAND_CITY"] as Parameters<typeof m>[0])}
+                          </span>
                           <svg
-                            className={`w-4 h-4 transition-transform ${expandCityExpanded ? 'rotate-180' : ''}`}
+                            className={`w-4 h-4 transition-transform ${expandCityExpanded ? "rotate-180" : ""}`}
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -536,16 +621,26 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                             <Button
                               variant="ghost"
                               className="w-full justify-start gap-3 h-11"
-                              onClick={() => { expandCity(); setShowMenu(false); }}
+                              onClick={() => {
+                                expandCity();
+                                setShowMenu(false);
+                              }}
                             >
-                              <span className="flex-1 text-left">{m(TOOL_INFO['expand_city'].name)}</span>
+                              <span className="flex-1 text-left">
+                                {m(TOOL_INFO["expand_city"].name)}
+                              </span>
                             </Button>
                             <Button
                               variant="ghost"
                               className="w-full justify-start gap-3 h-11"
-                              onClick={() => { shrinkCity(); setShowMenu(false); }}
+                              onClick={() => {
+                                shrinkCity();
+                                setShowMenu(false);
+                              }}
                             >
-                              <span className="flex-1 text-left">{m(TOOL_INFO['shrink_city'].name)}</span>
+                              <span className="flex-1 text-left">
+                                {m(TOOL_INFO["shrink_city"].name)}
+                              </span>
                             </Button>
                           </div>
                         )}
@@ -553,13 +648,15 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                     )}
 
                     <Button
-                      variant={expandedCategory === category ? 'secondary' : 'ghost'}
+                      variant={expandedCategory === category ? "secondary" : "ghost"}
                       className="w-full justify-start gap-3 h-12"
                       onClick={() => handleCategoryClick(category)}
                     >
-                      <span className="flex-1 text-left font-medium">{m((CATEGORY_LABELS[category] || category) as Parameters<typeof m>[0])}</span>
+                      <span className="flex-1 text-left font-medium">
+                        {m((CATEGORY_LABELS[category] || category) as Parameters<typeof m>[0])}
+                      </span>
                       <svg
-                        className={`w-4 h-4 transition-transform ${expandedCategory === category ? 'rotate-180' : ''}`}
+                        className={`w-4 h-4 transition-transform ${expandedCategory === category ? "rotate-180" : ""}`}
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -580,14 +677,16 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                           return (
                             <Button
                               key={tool}
-                              variant={selectedTool === tool ? 'default' : 'ghost'}
+                              variant={selectedTool === tool ? "default" : "ghost"}
                               className="w-full justify-start gap-3 h-11"
                               disabled={!canAfford && info.cost > 0}
                               onClick={() => handleToolSelect(tool, true)}
                             >
                               <span className="flex-1 text-left">{m(info.name)}</span>
                               {info.cost > 0 && (
-                                <span className={`text-xs font-mono ${canAfford ? 'text-green-400' : 'text-red-400'}`}>
+                                <span
+                                  className={`text-xs font-mono ${canAfford ? "text-green-400" : "text-red-400"}`}
+                                >
                                   ${info.cost}
                                 </span>
                               )}
