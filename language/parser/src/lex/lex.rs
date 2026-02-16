@@ -497,11 +497,8 @@ impl Lexer {
                     == Some(&self.options.parentheses_depth)
                 {
                     self.options.template_string_stack.pop();
-                    let (is_complete, has_invalid_escape) = self.eat_template_string();
-                    // invalid escape in template literal is an error
-                    if has_invalid_escape {
-                        (TokenType::Unknown, None)
-                    } else if is_complete {
+                    let is_complete = self.eat_template_string();
+                    if is_complete {
                         (TokenType::TemplateStringEnd, None)
                     } else {
                         // continue eating the template (after `${`, again)
@@ -1031,11 +1028,8 @@ impl Lexer {
 
             // template string literal
             '`' => {
-                let (is_complete, has_invalid_escape) = self.eat_template_string();
-                // invalid escape in template literal is an error
-                if has_invalid_escape {
-                    (TokenType::Unknown, None)
-                } else if is_complete {
+                let is_complete = self.eat_template_string();
+                if is_complete {
                     (TokenType::TemplateString, None)
                 } else {
                     self.options
@@ -1817,34 +1811,21 @@ impl Lexer {
         has_flags
     }
 
-    /// Parses a template string (excluding first backtick).
-    /// Returns (is_complete, has_invalid_escape).
-    fn eat_template_string(&mut self) -> (bool, bool) {
-        let mut has_invalid_escape = false;
+    /// Parse a template string (excluding first backtick).
+    /// Returns whether the template ended before `${`.
+    fn eat_template_string(&mut self) -> bool {
         while let Some(c) = self.eat() {
             match c {
                 '`' => {
-                    return (true, has_invalid_escape);
+                    return true;
                 }
                 '$' if self.peek() == '{' => {
                     self.eat();
-                    return (false, has_invalid_escape);
+                    return false;
                 }
                 '\\' => {
                     let escaped = self.peek();
-                    // octal escapes are forbidden in template literals
-                    // this includes \0 followed by another digit, and \1 through \9
-                    if escaped.is_ascii_digit() && escaped != '0' {
-                        // \1 through \9 are always invalid in templates
-                        has_invalid_escape = true;
-                    } else if escaped == '0' {
-                        // \0 followed by another digit is invalid (legacy octal)
-                        self.eat();
-                        if self.peek().is_ascii_digit() {
-                            has_invalid_escape = true;
-                        }
-                        continue;
-                    }
+
                     // skip the escaped code unit so `\${` stays literal text
                     if escaped != '\0' {
                         self.eat();
@@ -1853,7 +1834,8 @@ impl Lexer {
                 _ => (),
             }
         }
-        (false, has_invalid_escape)
+
+        false
     }
 
     /// Parses decimal digits.
