@@ -462,7 +462,6 @@ impl_dump_display! {
     ReferenceType,
     OwnershipCastOperator,
     OwnershipCastSource,
-    Runtime,
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
