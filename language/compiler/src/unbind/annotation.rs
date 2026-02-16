@@ -50,19 +50,6 @@ impl Compiler {
                     position,
                 }
             }
-            dir::Annotation::Comment { position, string } => {
-                let position = self.unbind_annotation_position(context, *position);
-                let string = ast_strings.intern_from(&self.program.strings, *string);
-                let comment = ast::Comment {
-                    string,
-                    style: ast::CommentStyle::Slash,
-                };
-                let comment_id = ast_tree.insert(comment, span);
-                ast::Annotation::Comment {
-                    node: comment_id,
-                    position,
-                }
-            }
             dir::Annotation::Decorator {
                 position,
                 expression,

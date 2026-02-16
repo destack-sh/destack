@@ -139,9 +139,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, BinaryOperator, BindingKind, Comment, CommentStyle,
-        Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType, Key, Member,
-        Name, Parameter, ScalarLiteral, TypeLiteral, Visibility, WhereClause,
+        BinaryOperator, BindingKind, Comment, CommentStyle, Declaration, DeclarationDescriptor,
+        DeclarationKind, Expression, IntType, Key, Member, Name, Parameter, ScalarLiteral,
+        TypeLiteral, Visibility, WhereClause,
     };
     use destack_source::{LanguageType, NodeSpanType};
 
@@ -429,15 +429,13 @@ class Counter extends {}
                 assert!(extends_annotations.is_empty());
 
                 let member_annotations = parser.tree.get_annotations(members[0].id);
-                assert_eq!(member_annotations.len(), 1);
-                assert_node!(parser.tree, member_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "extends-tail");
-                    });
-                });
+                assert!(member_annotations.is_empty());
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "extends-tail");
         });
     }
 
@@ -472,28 +470,23 @@ Second // impl-second
                 assert_eq!(members.len(), 1);
 
                 let first_annotations = parser.tree.get_annotations(implements_types[0].id);
-                assert_eq!(first_annotations.len(), 1);
-                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "impl-first");
-                    });
-                });
+                assert!(first_annotations.is_empty());
 
                 let second_annotations = parser.tree.get_annotations(implements_types[1].id);
                 assert!(second_annotations.is_empty());
 
                 let member_annotations = parser.tree.get_annotations(members[0].id);
-                assert_eq!(member_annotations.len(), 1);
-                assert_node!(parser.tree, member_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "impl-second");
-                    });
-                });
+                assert!(member_annotations.is_empty());
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 2);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "impl-first");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "impl-second");
         });
     }
 
@@ -528,14 +521,12 @@ Second // impl-second
             });
 
             let annotations = parser.tree.get_annotations(first_static_parameter_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Slash);
-                    assert_string!(parser, *string, "box-head");
-                });
-            });
+            assert!(annotations.is_empty());
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "box-head");
         });
     }
 

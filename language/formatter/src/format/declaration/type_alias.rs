@@ -6,10 +6,10 @@ use crate::expression::{
     format_expression, is_expression_breakable, is_type_context, source_min_inline_char_len,
 };
 use crate::scan::next_non_whitespace_after_annotation;
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Annotation, AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor,
-    DeclarationKind, Expression, IfKind, Keyword, LocalNodeId, Mutability, Parameter, TypeKind,
+    AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind,
+    Expression, IfKind, Keyword, LocalNodeId, Mutability, Parameter, TypeKind,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -52,7 +52,7 @@ fn single_line_type_grouping_prefix_comment_cluster(
 
         let mut cluster = Vec::new();
         for annotation_id in annotations {
-            let annotation = context.tree.get::<Annotation>(annotation_id);
+            let annotation = context.get_annotation(annotation_id);
             let Annotation::Comment {
                 node: comment_id,
                 position,
@@ -68,19 +68,19 @@ fn single_line_type_grouping_prefix_comment_cluster(
                 break;
             }
 
-            let comment = context.tree.get::<Comment>(*comment_id);
+            let comment = context.tree.get::<Comment>(comment_id);
             if comment.style != CommentStyle::Star {
                 break;
             }
-            let comment_span = context.get_span::<Annotation>(annotation_id);
+            let comment_span = context.get_annotation_span(annotation_id);
             let comment_source = context.get_span_str(comment_span);
             if comment_source.trim_start().starts_with("/**") || comment_source.contains('\n') {
                 return None;
             }
 
             if let Some(previous_annotation_id) = cluster.last().copied() {
-                let previous_span = context.get_span::<Annotation>(previous_annotation_id);
-                let current_span = context.get_span::<Annotation>(annotation_id);
+                let previous_span = context.get_annotation_span(previous_annotation_id);
+                let current_span = context.get_annotation_span(annotation_id);
                 let between_span =
                     Span::new(previous_span.file, previous_span.end, current_span.start);
                 if context.has_newline(between_span) {
@@ -116,7 +116,7 @@ fn expression_has_doc_like_block_prefix_annotation(
     };
 
     annotation_ids.into_iter().any(|annotation_id| {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let annotation = context.get_annotation(annotation_id);
         match annotation {
             Annotation::Doc {
                 position: AnnotationPosition::BlockPrefix,
@@ -126,7 +126,7 @@ fn expression_has_doc_like_block_prefix_annotation(
                 position: AnnotationPosition::BlockPrefix,
                 ..
             } => {
-                let annotation_span = context.get_span::<Annotation>(annotation_id);
+                let annotation_span = context.get_annotation_span(annotation_id);
                 let annotation_source = context.get_span_str(annotation_span);
                 annotation_source.trim_start().starts_with("/**")
             }
@@ -241,7 +241,7 @@ pub(super) fn format_type_alias_declaration<'ast>(
                 if index > 0 {
                     write!(f, [space()])?;
                 }
-                let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                let annotation_span = f.context().get_annotation_span(annotation_id);
                 let annotation_source = f.context().get_span_str(annotation_span);
                 write!(f, [text(annotation_source.trim())])?;
             }

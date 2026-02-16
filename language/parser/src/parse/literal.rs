@@ -1462,9 +1462,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Argument, BinaryOperator, Comment, CommentStyle,
-        Declaration, Expression, FloatType, FunctionKind, IfCondition, IfKind, IntType, Name,
-        Parameter, ScalarLiteral, TemplateLiteral, TypeBinaryOperator, TypeLiteral,
+        Argument, BinaryOperator, Comment, CommentStyle, Declaration, Expression, FloatType,
+        FunctionKind, IfCondition, IfKind, IntType, Name, Parameter, ScalarLiteral,
+        TemplateLiteral, TypeBinaryOperator, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -3690,25 +3690,20 @@ function app() {
                 assert_eq!(properties.len(), 2);
 
                 let first_annotations = parser.tree.get_annotations(properties[0].id);
-                assert_eq!(first_annotations.len(), 1);
-                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "first-tail");
-                    });
-                });
+                assert!(first_annotations.is_empty());
 
                 let second_annotations = parser.tree.get_annotations(properties[1].id);
-                assert_eq!(second_annotations.len(), 1);
-                assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Star);
-                        assert_string!(parser, *string, "second-tail");
-                    });
-                });
+                assert!(second_annotations.is_empty());
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 2);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "first-tail");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Star);
+            assert_string!(parser, *string, " second-tail");
         });
     }
 }

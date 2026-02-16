@@ -1,9 +1,9 @@
 use crate::argument::list_like;
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Annotation, AnnotationPosition, Asynchrony, Comment, CommentStyle, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    Keyword, LocalNodeId, Parameter, Pattern, PatternField,
+    AnnotationPosition, Asynchrony, Comment, CommentStyle, Expression, FunctionAbstraction,
+    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Keyword, LocalNodeId,
+    Parameter, Pattern, PatternField,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -63,13 +63,12 @@ fn parameter_has_line_comment_annotation(
     context
         .with_annotations(parameter_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { node, .. } =
-                    context.tree.get::<Annotation>(*annotation_id)
+                let Annotation::Comment { node, .. } = context.get_annotation(*annotation_id)
                 else {
                     return false;
                 };
 
-                let comment = context.tree.get::<Comment>(*node);
+                let comment = context.tree.get::<Comment>(node);
                 comment.style == CommentStyle::Slash
             })
         })
@@ -89,7 +88,7 @@ fn parameter_has_prefix_annotation(
         .with_annotations(parameter_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.tree.get::<Annotation>(*annotation_id),
+                    context.get_annotation(*annotation_id),
                     Annotation::Decorator { .. }
                         | Annotation::Comment {
                             position: AnnotationPosition::BlockPrefix
@@ -326,7 +325,7 @@ pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
 
     annotations.iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(*annotation_id),
+            context.get_annotation(*annotation_id),
             Annotation::Comment {
                 position: AnnotationPosition::LinePostfixBoundary,
                 ..

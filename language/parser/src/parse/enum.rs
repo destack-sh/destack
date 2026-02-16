@@ -257,9 +257,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Declaration,
-        DeclarationDescriptor, DeclarationKind, Decorator, EnumField, EnumKind, Expression,
-        Parameter, ScalarLiteral, WhereClause,
+        Annotation, AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor,
+        DeclarationKind, Decorator, EnumField, EnumKind, Expression, Parameter, ScalarLiteral,
+        WhereClause,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -556,16 +556,9 @@ Entry
                 assert_eq!(fields.len(), 1);
 
                 let annotations = parser.tree.get_annotations(fields[0].id);
-                assert_eq!(annotations.len(), 5);
+                assert_eq!(annotations.len(), 2);
 
-                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "before-first");
-                    });
-                });
-                assert_node!(parser.tree, annotations[1], Annotation::Decorator { node, position } => {
+                assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Decorator { expression } => {
                         assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
@@ -573,14 +566,7 @@ Entry
                         });
                     });
                 });
-                assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "between");
-                    });
-                });
-                assert_node!(parser.tree, annotations[3], Annotation::Decorator { node, position } => {
+                assert_node!(parser.tree, annotations[1], Annotation::Decorator { node, position } => {
                     assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Decorator { expression } => {
                         assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
@@ -588,14 +574,20 @@ Entry
                         });
                     });
                 });
-                assert_node!(parser.tree, annotations[4], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "before-name");
-                    });
-                });
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 3);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "before-first");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "between");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[2].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "before-name");
         });
     }
 
@@ -625,31 +617,26 @@ B
                 assert_eq!(fields.len(), 2);
 
                 let first_annotations = parser.tree.get_annotations(fields[0].id);
-                assert_eq!(first_annotations.len(), 1);
-                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "a-tail");
-                    });
-                });
+                assert!(first_annotations.is_empty());
 
                 let second_annotations = parser.tree.get_annotations(fields[1].id);
-                assert_eq!(second_annotations.len(), 2);
-                assert_node!(parser.tree, second_annotations[0], Annotation::Blank { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Blank { lines } => {
-                        assert_eq!(*lines, 1);
-                    });
-                });
-                assert_node!(parser.tree, second_annotations[1], Annotation::Blank { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPostfix);
-                    assert_node!(parser.tree, *node, Blank { lines } => {
-                        assert_eq!(*lines, 1);
-                    });
-                });
+                assert!(second_annotations.is_empty());
             });
         });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "a-tail");
+        });
+        assert_eq!(parser.tree.blank_trivia().len(), 2);
+        assert_eq!(
+            parser.tree.get(parser.tree.blank_trivia()[0].blank).lines,
+            1
+        );
+        assert_eq!(
+            parser.tree.get(parser.tree.blank_trivia()[1].blank).lines,
+            1
+        );
     }
 
     #[test]
@@ -668,14 +655,12 @@ B
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(_declaration_id) => {
             let annotations = parser.tree.get_annotations(expression_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePrefix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Star);
-                    assert_string!(parser, *string, "enum-body");
-                });
-            });
+            assert!(annotations.is_empty());
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Star);
+            assert_string!(parser, *string, " enum-body");
         });
     }
 }

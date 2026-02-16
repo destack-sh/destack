@@ -1,4 +1,3 @@
-use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
@@ -32,22 +31,16 @@ impl LintRule for NoWarningComments {
         let meta = self.meta();
         let warning_terms = &ctx.options.warning_comment_terms;
 
-        // iterate over all annotations (comments)
-        for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
-            let annotation = ctx.tree.get(node_id);
-            let ast::Annotation::Comment { node, .. } = annotation else {
-                continue;
-            };
-
-            // get the actual Comment node and its string content
-            let comment = ctx.tree.get(*node);
+        // iterate over all comment trivia records
+        for trivia in ctx.tree.comment_trivia().iter().copied() {
+            let comment = ctx.tree.get(trivia.comment);
             let comment_text = ctx.strings.get(comment.string);
             let comment_upper = comment_text.to_uppercase();
 
             // check for warning terms in the comment
             for term in warning_terms {
                 if comment_upper.contains(&term.to_uppercase()) {
-                    let severity = ctx.get_effective_severity(meta, node_id);
+                    let severity = ctx.get_effective_severity(meta, trivia.comment);
                     if !severity.is_enabled() {
                         break;
                     }
@@ -58,13 +51,13 @@ impl LintRule for NoWarningComments {
                         severity,
                         format!("warning comment contains `{term}`"),
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        trivia.span,
                     )
                     .with_label("resolve before committing");
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
-                        && let Some(fix) = warning_comment_fix(ctx, node_id)
+                        && let Some(fix) = warning_comment_fix(ctx, trivia.span)
                     {
                         diagnostic = diagnostic.with_fix(fix);
                     }
@@ -80,10 +73,9 @@ impl LintRule for NoWarningComments {
 /// Build a safe fix by removing one warning comment.
 fn warning_comment_fix(
     ctx: &LintModuleAstContext<'_>,
-    annotation_id: ast::LocalNodeId<ast::Annotation>,
+    comment_span: destack_source::Span,
 ) -> Option<LintFix> {
-    let annotation_span = ctx.tree.get_span(annotation_id);
-    let edits = ctx.edit_builder().delete(annotation_span).into_edits();
+    let edits = ctx.edit_builder().delete(comment_span).into_edits();
     Some(LintFix::safe("Remove warning comment").with_edits(edits))
 }
 

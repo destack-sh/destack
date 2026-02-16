@@ -513,7 +513,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         }
     }
 
-    // collect annotation tokens (decorators, comments)
+    // collect annotation tokens (decorators, docs)
     for (annotation_id, annotation) in dir_tree.iter_nodes_of_type::<dir::Annotation>() {
         let ast_node_id = dir_tree.get_source(annotation_id.id);
         let span = ctx.ast.tree.get_span_by_id(ast_node_id);
@@ -536,9 +536,6 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
                     SemanticToken::new(span, SemanticTokenType::Comment)
                         .with_modifiers(SemanticTokenModifiers::DOCUMENTATION),
                 );
-            }
-            dir::Annotation::Comment { .. } => {
-                tokens.push(SemanticToken::new(span, SemanticTokenType::Comment));
             }
         }
     }

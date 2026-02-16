@@ -13,7 +13,7 @@ use crate::signature::{
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AbstractionModifier, AccessorKind, Annotation, BindingAnchor, BindingKind, BindingModifier,
+    AbstractionModifier, AccessorKind, BindingAnchor, BindingKind, BindingModifier,
     BindingOperator, Comment, Declaration, DeclarationKind, Expression, FunctionSignature, Key,
     Keyword, LocalNodeId, Member, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType,
     Property, Timing, VarianceModifier,
@@ -100,10 +100,16 @@ pub(crate) fn format_binding_modifiers_postfix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
+    if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
+        eprintln!("format-binding-postfix: kind={:?}", modifiers.kind);
+    }
     // kind
     if modifiers.kind == Some(BindingKind::Must) {
         write!(f, [token("!")])?;
     } else if modifiers.kind == Some(BindingKind::Maybe) {
+        if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
+            eprintln!("format-binding-postfix: writing ?");
+        }
         write!(f, [token("?")])?;
     }
     Ok(())
@@ -137,7 +143,7 @@ fn method_signature_source_is_multiline(
     }
 
     let signature_span = Span::new(node_span.file, node_span.start, body_span.start);
-    context.get_span_str(signature_span).contains('\n')
+    context.has_newline(signature_span)
 }
 
 /// Format a block of properties with empty-annotation and ignore-range handling.
@@ -180,7 +186,7 @@ fn format_block_nodes_with_ignore_ranges<'ast, T, F>(
 ) -> FormatResult<()>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Comment>,
     F: FnMut(&mut DestackFormatter<'ast, '_>, LocalNodeId<T>) -> FormatResult<()>,
 {
     let comment_tokens = f.context().comment_tokens();
@@ -374,6 +380,7 @@ fn format_field_like<'ast>(
     if let Some(key) = key {
         format_key_with_quote_policy(f, key, force_quote_keys)?;
     }
+
     // modifiers
     format_binding_modifiers_postfix_maybe(f, modifiers)?;
     // value
@@ -412,6 +419,9 @@ fn format_method_like<'ast>(
     force_quote_keys: bool,
     signature_source_is_multiline: bool,
 ) -> FormatResult<()> {
+    if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
+        eprintln!("format-method-like: modifiers={modifiers:?}");
+    }
     let generics = signature.generics.as_ref();
 
     // modifiers
@@ -424,6 +434,9 @@ fn format_method_like<'ast>(
     if let Some(key) = key {
         format_key_with_quote_policy(f, key, force_quote_keys)?;
     }
+
+    // name postfix modifiers: `?` and `!` belong on the method name
+    format_binding_modifiers_postfix_maybe(f, modifiers)?;
 
     // static parameters
     if let Some(static_parameters) =
@@ -469,9 +482,6 @@ fn format_method_like<'ast>(
         format_where_clause_with_break(f, where_clauses)?;
     }
 
-    // modifiers
-    format_binding_modifiers_postfix_maybe(f, modifiers)?;
-
     // body
     if let Some(body) = body {
         if signature_return_type_has_line_postfix_boundary_annotation(
@@ -497,7 +507,7 @@ fn format_node_with_directive<'ast, T, F>(
 ) -> FormatResult<()>
 where
     T: Node + Clone,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Comment>,
     F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
 {
     let directive = directive_for_node(f.context(), node_id);

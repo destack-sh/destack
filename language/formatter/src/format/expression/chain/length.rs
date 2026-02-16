@@ -5,12 +5,7 @@ fn annotation_content_span(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> Span {
-    match context.tree.get::<Annotation>(annotation_id) {
-        Annotation::Blank { node, .. } => context.get_span(*node),
-        Annotation::Doc { node, .. } => context.get_span(*node),
-        Annotation::Comment { node, .. } => context.get_span(*node),
-        Annotation::Decorator { node, .. } => context.get_span(*node),
-    }
+    context.get_annotation_span(annotation_id)
 }
 /// Check whether a member access uses a private hash (`.#name`).
 pub(crate) fn member_is_private_hash(
@@ -57,7 +52,7 @@ pub(crate) fn path_postfix_annotations_emit_on_tail(
         .with_annotations(node_id, |annotations| {
             let mut has_postfix = false;
             for annotation_id in annotations {
-                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let annotation = context.get_annotation(*annotation_id);
                 let position = annotation.position();
                 let is_postfix = matches!(
                     position,

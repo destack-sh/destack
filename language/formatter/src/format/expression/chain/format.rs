@@ -26,7 +26,7 @@ fn call_operation_should_emit_prefix_annotations(
     let has_leading_prefix_before_left = context
         .with_annotations(call_node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let annotation = context.get_annotation(*annotation_id);
                 if !matches!(
                     annotation.position(),
                     AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
@@ -34,7 +34,7 @@ fn call_operation_should_emit_prefix_annotations(
                     return false;
                 }
 
-                let annotation_span = context.get_span::<Annotation>(*annotation_id);
+                let annotation_span = context.get_annotation_span(*annotation_id);
                 annotation_span.start < left_span.start
             })
         })

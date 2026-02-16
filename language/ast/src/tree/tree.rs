@@ -3,11 +3,13 @@ use std::fmt::{Debug, Formatter};
 use destack_source::{NodeSourceMap, NodeSpanType, Span};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use crate::{
-    Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Declaration,
-    Declarator, Decorator, DependencyItem, Doc, EnumField, Expression, LocalNodeId, MatchCase,
-    Member, Node, NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
+    Annotation, AnnotationPosition, Arena, Argument, Blank, BlankTrivia, Block, Comment,
+    CommentTrivia, Declaration, Declarator, Decorator, DependencyItem, Doc, EnumField, Expression,
+    LocalNodeId, MatchCase, Member, Node, NodeType, Parameter, Pattern, PatternField, Property,
+    TriviaRef, WhereClause,
 };
 
 /// Snapshot of NodeTree allocation lengths for speculative parser restores.
@@ -46,6 +48,8 @@ pub struct NodeTreeMark {
     declarators_len: usize,
     /// The annotation arena length.
     annotations_len: usize,
+    /// The semantic attachment rows length.
+    semantic_annotations_len: usize,
     /// The blank arena length.
     blanks_len: usize,
     /// The doc arena length.
@@ -54,6 +58,12 @@ pub struct NodeTreeMark {
     comments_len: usize,
     /// The decorator arena length.
     decorators_len: usize,
+    /// The comment trivia buffer length.
+    comment_trivia_len: usize,
+    /// The blank trivia buffer length.
+    blank_trivia_len: usize,
+    /// The source-order trivia refs length.
+    trivia_order_len: usize,
 }
 
 impl NodeTreeMark {
@@ -75,6 +85,8 @@ pub struct NodeTree {
     pub(crate) node_type_by_node_id: Vec<NodeType>,
     /// The annotations attached to nodes.
     pub(crate) annotations_by_node_id: FxHashMap<u32, Vec<LocalNodeId<Annotation>>>,
+    /// The semantic annotation ids attached to nodes, indexed by target node id.
+    pub(crate) semantic_annotations_by_node_id: Vec<SmallVec<[LocalNodeId<Annotation>; 2]>>,
     /// Whether annotation vectors are already globally sorted by start span.
     pub(crate) annotations_are_sorted: bool,
     /// The spans of the NodeTree.
@@ -100,6 +112,12 @@ pub struct NodeTree {
     pub(crate) docs: Arena<Doc>,
     pub(crate) comments: Arena<Comment>,
     pub(crate) decorators: Arena<Decorator>,
+    /// Comment trivia records in source order for comment-only iteration.
+    pub(crate) comment_trivia: Vec<CommentTrivia>,
+    /// Blank trivia records in source order for blank-only iteration.
+    pub(crate) blank_trivia: Vec<BlankTrivia>,
+    /// Stable source-order refs across split trivia buffers.
+    pub(crate) trivia_order: Vec<TriviaRef>,
 }
 
 impl Debug for NodeTree {
@@ -133,6 +151,7 @@ impl NodeTree {
                 capacity / 8,
                 Default::default(),
             ),
+            semantic_annotations_by_node_id: Vec::with_capacity(capacity),
             annotations_are_sorted: true,
             source_map: NodeSourceMap::with_capacity(capacity),
             expressions: Arena::with(capacity),
@@ -154,6 +173,9 @@ impl NodeTree {
             docs: Arena::with(capacity / 16),
             comments: Arena::with(capacity / 16),
             decorators: Arena::with(capacity / 16),
+            comment_trivia: Vec::with_capacity(capacity / 8),
+            blank_trivia: Vec::with_capacity(capacity / 16),
+            trivia_order: Vec::with_capacity(capacity / 4),
         }
     }
 
@@ -183,6 +205,7 @@ impl NodeTree {
         let local_id = <Self as NodeTreeImpl<T>>::allocate(self, node);
         self.local_id_by_node_id.push(local_id);
         self.source_map.append(span);
+        self.semantic_annotations_by_node_id.push(SmallVec::new());
         LocalNodeId::new(global_id)
     }
 
@@ -191,6 +214,8 @@ impl NodeTree {
     pub fn reset_to(&mut self, from_idx: u32) {
         self.node_type_by_node_id.truncate(from_idx as usize);
         self.local_id_by_node_id.truncate(from_idx as usize);
+        self.semantic_annotations_by_node_id
+            .truncate(from_idx as usize);
         // reset spans & next_id
         self.source_map.prune_from(from_idx);
         self.next_global_id = from_idx;
@@ -216,10 +241,14 @@ impl NodeTree {
             pattern_fields_len: self.pattern_fields.len(),
             declarators_len: self.declarators.len(),
             annotations_len: self.annotations.len(),
+            semantic_annotations_len: self.semantic_annotations_by_node_id.len(),
             blanks_len: self.blanks.len(),
             docs_len: self.docs.len(),
             comments_len: self.comments.len(),
             decorators_len: self.decorators.len(),
+            comment_trivia_len: self.comment_trivia.len(),
+            blank_trivia_len: self.blank_trivia.len(),
+            trivia_order_len: self.trivia_order.len(),
         }
     }
 
@@ -230,6 +259,8 @@ impl NodeTree {
             .truncate(mark.next_global_id as usize);
         self.local_id_by_node_id
             .truncate(mark.next_global_id as usize);
+        self.semantic_annotations_by_node_id
+            .truncate(mark.semantic_annotations_len);
         self.source_map.prune_from(mark.next_global_id);
         self.next_global_id = mark.next_global_id;
 
@@ -252,6 +283,9 @@ impl NodeTree {
         self.docs.truncate(mark.docs_len);
         self.comments.truncate(mark.comments_len);
         self.decorators.truncate(mark.decorators_len);
+        self.comment_trivia.truncate(mark.comment_trivia_len);
+        self.blank_trivia.truncate(mark.blank_trivia_len);
+        self.trivia_order.truncate(mark.trivia_order_len);
 
         // drop annotation links that point outside the restored node range
         self.annotations_by_node_id
@@ -262,6 +296,7 @@ impl NodeTree {
                 annotation_ids.retain(|annotation_id| annotation_id.id < mark.next_global_id);
                 !annotation_ids.is_empty()
             });
+        self.rebuild_semantic_annotation_rows();
     }
 
     /// Get the type of an untyped node id.
@@ -445,6 +480,15 @@ impl NodeTree {
     pub fn append_annotation(&mut self, target_id: u32, annotation: LocalNodeId<Annotation>) {
         debug_assert!(target_id < self.next_global_id);
 
+        // keep semantic rows in lockstep for O(1) per-node semantic reads
+        let annotation_node = self.get(annotation);
+        if matches!(
+            annotation_node,
+            Annotation::Doc { .. } | Annotation::Decorator { .. }
+        ) {
+            self.semantic_annotations_by_node_id[target_id as usize].push(annotation);
+        }
+
         // keep vectors sorted by span order without paying a sort pass in the common case
         let annotation_ids = self.annotations_by_node_id.entry(target_id).or_default();
         if let Some(previous_annotation) = annotation_ids.last().copied() {
@@ -461,6 +505,44 @@ impl NodeTree {
         }
 
         annotation_ids.push(annotation);
+    }
+
+    /// Append a documentation attachment to a node by its global id.
+    #[inline]
+    pub fn append_documentation(
+        &mut self,
+        target_id: u32,
+        documentation: LocalNodeId<Doc>,
+        position: AnnotationPosition,
+    ) -> LocalNodeId<Annotation> {
+        let annotation = self.insert(
+            Annotation::Doc {
+                node: documentation,
+                position,
+            },
+            self.get_span(documentation),
+        );
+        self.append_annotation(target_id, annotation);
+        annotation
+    }
+
+    /// Append a decorator attachment to a node by its global id.
+    #[inline]
+    pub fn append_decorator(
+        &mut self,
+        target_id: u32,
+        decorator: LocalNodeId<Decorator>,
+        position: AnnotationPosition,
+    ) -> LocalNodeId<Annotation> {
+        let annotation = self.insert(
+            Annotation::Decorator {
+                node: decorator,
+                position,
+            },
+            self.get_span(decorator),
+        );
+        self.append_annotation(target_id, annotation);
+        annotation
     }
 
     /// Whether there are any annotations attached to a node.
@@ -526,6 +608,21 @@ impl NodeTree {
         &self.annotations_by_node_id
     }
 
+    /// Get semantic annotations attached to a node by reference.
+    #[inline]
+    pub fn get_semantic_annotations_ref(&self, node_id: u32) -> &[LocalNodeId<Annotation>] {
+        self.semantic_annotations_by_node_id
+            .get(node_id as usize)
+            .map(SmallVec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Get semantic annotations attached to a node.
+    #[inline]
+    pub fn get_semantic_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
+        self.get_semantic_annotations_ref(node_id).to_vec()
+    }
+
     /// Sort all annotations.
     #[inline]
     pub fn sort_annotations(&mut self) {
@@ -570,6 +667,9 @@ impl NodeTree {
         // rebuild attachment map from remapped edges
         self.annotations_by_node_id.clear();
         self.annotations_are_sorted = true;
+        for row in &mut self.semantic_annotations_by_node_id {
+            row.clear();
+        }
         for (target_id, annotation_id) in entries {
             self.append_annotation(target_id, annotation_id);
         }
@@ -612,6 +712,7 @@ impl NodeTree {
             self.append_annotation(to_target_id, annotation_id);
         }
 
+        self.rebuild_semantic_annotation_rows();
         moved_count
     }
 
@@ -620,33 +721,6 @@ impl NodeTree {
     #[inline]
     pub fn build_position_index(&mut self) {
         self.source_map.build_position_index();
-    }
-
-    /// Get blank annotation attached to a node, cloned as a Vec.
-    #[inline]
-    pub fn get_blanks_for(&self, node_id: u32) -> Vec<(LocalNodeId<Blank>, AnnotationPosition)> {
-        self.get_annotations_ref(node_id)
-            .iter()
-            .filter_map(|&id| match self.get(id) {
-                Annotation::Blank { node, position } => Some((*node, *position)),
-                _ => None,
-            })
-            .collect()
-    }
-
-    /// Get comment annotations attached to a node, cloned as a Vec.
-    #[inline]
-    pub fn get_comments_for(
-        &self,
-        node_id: u32,
-    ) -> Vec<(LocalNodeId<Comment>, AnnotationPosition)> {
-        self.get_annotations_ref(node_id)
-            .iter()
-            .filter_map(|&id| match self.get(id) {
-                Annotation::Comment { node, position } => Some((*node, *position)),
-                _ => None,
-            })
-            .collect()
     }
 
     /// Get doc annotation attached to a node, cloned as a Vec.
@@ -659,6 +733,68 @@ impl NodeTree {
                 _ => None,
             })
             .collect()
+    }
+
+    /// Push a comment trivia record and return its index.
+    #[inline]
+    pub fn push_comment_trivia(&mut self, trivia: CommentTrivia) -> u32 {
+        let index = self.comment_trivia.len() as u32;
+        self.comment_trivia.push(trivia);
+        self.trivia_order.push(TriviaRef::Comment(index));
+        index
+    }
+
+    /// Push a blank trivia record and return its index.
+    #[inline]
+    pub fn push_blank_trivia(&mut self, trivia: BlankTrivia) -> u32 {
+        let index = self.blank_trivia.len() as u32;
+        self.blank_trivia.push(trivia);
+        self.trivia_order.push(TriviaRef::Blank(index));
+        index
+    }
+
+    /// Get split comment trivia storage.
+    #[inline]
+    pub fn comment_trivia(&self) -> &[CommentTrivia] {
+        &self.comment_trivia
+    }
+
+    /// Get split blank trivia storage.
+    #[inline]
+    pub fn blank_trivia(&self) -> &[BlankTrivia] {
+        &self.blank_trivia
+    }
+
+    /// Get source-order trivia references.
+    #[inline]
+    pub fn trivia_refs(&self) -> &[TriviaRef] {
+        &self.trivia_order
+    }
+
+    /// Rebuild dense semantic annotation rows from the attachment map.
+    #[inline]
+    fn rebuild_semantic_annotation_rows(&mut self) {
+        let annotation_rows = &mut self.semantic_annotations_by_node_id;
+        for row in annotation_rows.iter_mut() {
+            row.clear();
+        }
+
+        let annotations_by_node_id = &self.annotations_by_node_id;
+        let annotation_arena = &self.annotations;
+        let local_ids = &self.local_id_by_node_id;
+        for (&target_id, annotation_ids) in annotations_by_node_id {
+            let row = &mut annotation_rows[target_id as usize];
+            for &annotation_id in annotation_ids {
+                let local_id = local_ids[annotation_id.id as usize];
+                let annotation = annotation_arena.get(local_id);
+                if matches!(
+                    annotation,
+                    Annotation::Doc { .. } | Annotation::Decorator { .. }
+                ) {
+                    row.push(annotation_id);
+                }
+            }
+        }
     }
 }
 

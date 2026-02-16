@@ -38,201 +38,194 @@ impl LintRule for CommentLayout {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // check doc comments
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
-            match annotation {
-                // check doc comments
-                ast::Annotation::Doc { node, .. } => {
-                    let doc = ctx.tree.get(*node);
-                    let text = ctx.strings.get(doc.string);
-                    let mut has_multiple_sentence_line = false;
+            let ast::Annotation::Doc { node, .. } = annotation else {
+                continue;
+            };
 
-                    // check each prose line for multiple sentence starts
-                    for line in text.as_ref().lines() {
-                        let trimmed = line.trim();
+            let doc = ctx.tree.get(*node);
+            let text = ctx.strings.get(doc.string);
+            let mut has_multiple_sentence_line = false;
 
-                        // skip non prose lines
-                        if is_non_prose_doc_line(trimmed) {
-                            continue;
-                        }
+            // check each prose line for multiple sentence starts
+            for line in text.as_ref().lines() {
+                let trimmed = line.trim();
 
-                        // check for multiple sentences on one line
-                        if has_multiple_sentence_starts(trimmed) {
-                            has_multiple_sentence_line = true;
-                            break;
-                        }
-                    }
-
-                    // report multi sentence doc lines
-                    if has_multiple_sentence_line {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_LAYOUT.id,
-                                COMMENT_LAYOUT.code,
-                                COMMENT_LAYOUT.category,
-                                severity,
-                                "doc comment should have one sentence per line",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("split sentences across multiple lines"),
-                        );
-                    }
-
-                    // check for problematic hyphen separators
-                    if has_hyphen_separator(text.as_ref()) {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_LAYOUT.id,
-                                COMMENT_LAYOUT.code,
-                                COMMENT_LAYOUT.category,
-                                severity,
-                                "prefer colons or commas over hyphens in comments",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("replace hyphen with colon or comma"),
-                        );
-                    }
+                // skip non prose lines
+                if is_non_prose_doc_line(trimmed) {
+                    continue;
                 }
 
-                // check inline comments
-                ast::Annotation::Comment { node, .. } => {
-                    let comment = ctx.tree.get(*node);
-                    let text = ctx.strings.get(comment.string);
-                    let text = text.as_ref().trim();
+                // check for multiple sentences on one line
+                if has_multiple_sentence_starts(trimmed) {
+                    has_multiple_sentence_line = true;
+                    break;
+                }
+            }
 
-                    // skip empty, directive, and separator comments
-                    if text.is_empty() || is_directive_comment(text) || is_separator_comment(text) {
-                        continue;
-                    }
-
-                    // require uppercase keyword and valid tags
-                    if let Some(keyword_info) = parse_keyword_comment_with_options(
-                        text,
-                        &ctx.options.comment_keywords,
-                        &ctx.options.comment_keyword_tags,
-                    ) {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        // enforce uppercase keyword comments
-                        if !keyword_info.keyword_is_uppercase {
-                            let mut diagnostic = LintDiagnostic::new(
-                                COMMENT_LAYOUT.id,
-                                COMMENT_LAYOUT.code,
-                                COMMENT_LAYOUT.category,
-                                severity,
-                                "keyword comments should use uppercase keywords",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label(known_comment_tag_label(&ctx.options.comment_keywords));
-
-                            // compute fixes only when requested by the runner
-                            if ctx.compute_fixes
-                                && let Some(fix) = uppercase_keyword_comment_fix(
-                                    ctx,
-                                    node_id,
-                                    &keyword_info.keyword,
-                                )
-                            {
-                                diagnostic = diagnostic.with_fix(fix);
-                            }
-
-                            ctx.report(diagnostic);
-                        }
-
-                        // reject unknown keyword tags
-                        if keyword_info.has_unknown_tag {
-                            ctx.report(
-                                LintDiagnostic::new(
-                                    COMMENT_LAYOUT.id,
-                                    COMMENT_LAYOUT.code,
-                                    COMMENT_LAYOUT.category,
-                                    severity,
-                                    "keyword comments should use known AGENTS tags only",
-                                    ctx.module.file_id,
-                                    ctx.tree.get_span(node_id),
-                                )
-                                .with_label(
-                                    known_comment_tag_label(&ctx.options.comment_keyword_tags),
-                                ),
-                            );
-                        }
-
-                        // enforce tags on keyword comments
-                        if !keyword_info.has_known_tag && !keyword_info.has_unknown_tag {
-                            ctx.report(
-                                LintDiagnostic::new(
-                                    COMMENT_LAYOUT.id,
-                                    COMMENT_LAYOUT.code,
-                                    COMMENT_LAYOUT.category,
-                                    severity,
-                                    "keyword comments should include at least one known tag",
-                                    ctx.module.file_id,
-                                    ctx.tree.get_span(node_id),
-                                )
-                                .with_label("add a tag like #Cleanup or #Suspicious"),
-                            );
-                        }
-                    }
-
-                    // check for multiple sentences on one comment line
-                    if has_multiple_sentence_starts(text) {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_LAYOUT.id,
-                                COMMENT_LAYOUT.code,
-                                COMMENT_LAYOUT.category,
-                                severity,
-                                "inline comments should stay below one sentence",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("split into separate comments"),
-                        );
-                    }
-
-                    // check for problematic hyphens
-                    if has_hyphen_separator(text) {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_LAYOUT.id,
-                                COMMENT_LAYOUT.code,
-                                COMMENT_LAYOUT.category,
-                                severity,
-                                "prefer colons or commas over hyphens in comments",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("replace hyphen with colon or comma"),
-                        );
-                    }
+            // report multi sentence doc lines
+            if has_multiple_sentence_line {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
                 }
 
-                _ => {}
+                ctx.report(
+                    LintDiagnostic::new(
+                        COMMENT_LAYOUT.id,
+                        COMMENT_LAYOUT.code,
+                        COMMENT_LAYOUT.category,
+                        severity,
+                        "doc comment should have one sentence per line",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("split sentences across multiple lines"),
+                );
+            }
+
+            // check for problematic hyphen separators
+            if has_hyphen_separator(text.as_ref()) {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                ctx.report(
+                    LintDiagnostic::new(
+                        COMMENT_LAYOUT.id,
+                        COMMENT_LAYOUT.code,
+                        COMMENT_LAYOUT.category,
+                        severity,
+                        "prefer colons or commas over hyphens in comments",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("replace hyphen with colon or comma"),
+                );
+            }
+        }
+
+        // check inline comments
+        for trivia in ctx.tree.comment_trivia().iter().copied() {
+            let comment = ctx.tree.get(trivia.comment);
+            let text = ctx.strings.get(comment.string);
+            let text = text.as_ref().trim();
+
+            // skip empty, directive, and separator comments
+            if text.is_empty() || is_directive_comment(text) || is_separator_comment(text) {
+                continue;
+            }
+
+            // require uppercase keyword and valid tags
+            if let Some(keyword_info) = parse_keyword_comment_with_options(
+                text,
+                &ctx.options.comment_keywords,
+                &ctx.options.comment_keyword_tags,
+            ) {
+                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                // enforce uppercase keyword comments
+                if !keyword_info.keyword_is_uppercase {
+                    let mut diagnostic = LintDiagnostic::new(
+                        COMMENT_LAYOUT.id,
+                        COMMENT_LAYOUT.code,
+                        COMMENT_LAYOUT.category,
+                        severity,
+                        "keyword comments should use uppercase keywords",
+                        ctx.module.file_id,
+                        trivia.span,
+                    )
+                    .with_label(known_comment_tag_label(&ctx.options.comment_keywords));
+
+                    // compute fixes only when requested by the runner
+                    if ctx.compute_fixes
+                        && let Some(fix) =
+                            uppercase_keyword_comment_fix(ctx, trivia.span, &keyword_info.keyword)
+                    {
+                        diagnostic = diagnostic.with_fix(fix);
+                    }
+
+                    ctx.report(diagnostic);
+                }
+
+                // reject unknown keyword tags
+                if keyword_info.has_unknown_tag {
+                    ctx.report(
+                        LintDiagnostic::new(
+                            COMMENT_LAYOUT.id,
+                            COMMENT_LAYOUT.code,
+                            COMMENT_LAYOUT.category,
+                            severity,
+                            "keyword comments should use known AGENTS tags only",
+                            ctx.module.file_id,
+                            trivia.span,
+                        )
+                        .with_label(known_comment_tag_label(&ctx.options.comment_keyword_tags)),
+                    );
+                }
+
+                // enforce tags on keyword comments
+                if !keyword_info.has_known_tag && !keyword_info.has_unknown_tag {
+                    ctx.report(
+                        LintDiagnostic::new(
+                            COMMENT_LAYOUT.id,
+                            COMMENT_LAYOUT.code,
+                            COMMENT_LAYOUT.category,
+                            severity,
+                            "keyword comments should include at least one known tag",
+                            ctx.module.file_id,
+                            trivia.span,
+                        )
+                        .with_label("add a tag like #Cleanup or #Suspicious"),
+                    );
+                }
+            }
+
+            // check for multiple sentences on one comment line
+            if has_multiple_sentence_starts(text) {
+                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                ctx.report(
+                    LintDiagnostic::new(
+                        COMMENT_LAYOUT.id,
+                        COMMENT_LAYOUT.code,
+                        COMMENT_LAYOUT.category,
+                        severity,
+                        "inline comments should stay below one sentence",
+                        ctx.module.file_id,
+                        trivia.span,
+                    )
+                    .with_label("split into separate comments"),
+                );
+            }
+
+            // check for problematic hyphens
+            if has_hyphen_separator(text) {
+                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                if !severity.is_enabled() {
+                    continue;
+                }
+                ctx.report(
+                    LintDiagnostic::new(
+                        COMMENT_LAYOUT.id,
+                        COMMENT_LAYOUT.code,
+                        COMMENT_LAYOUT.category,
+                        severity,
+                        "prefer colons or commas over hyphens in comments",
+                        ctx.module.file_id,
+                        trivia.span,
+                    )
+                    .with_label("replace hyphen with colon or comma"),
+                );
             }
         }
     }
@@ -251,10 +244,9 @@ fn known_comment_tag_label(tags: &[String]) -> String {
 /// Build a safe fix for lowercase keyword comments.
 fn uppercase_keyword_comment_fix(
     ctx: &LintModuleAstContext<'_>,
-    annotation_id: ast::LocalNodeId<ast::Annotation>,
+    annotation_span: Span,
     uppercase_keyword: &str,
 ) -> Option<LintFix> {
-    let annotation_span = ctx.tree.get_span(annotation_id);
     let annotation_text = ctx.get_span_text(annotation_span);
     let start_offset = annotation_text
         .char_indices()

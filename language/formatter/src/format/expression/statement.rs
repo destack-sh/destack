@@ -427,7 +427,7 @@ fn block_has_block_prefix_annotation(
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(annotation_id),
+            context.get_annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::BlockPrefix,
                 ..
@@ -456,7 +456,7 @@ fn block_has_line_prefix_annotation(
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(annotation_id),
+            context.get_annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::LinePrefix,
                 ..
@@ -793,9 +793,9 @@ pub(super) fn format_statement_expression<'ast>(
         // statement
         Expression::Statement(node) => {
             if statement_expression_needs_semicolon(f.context(), *node) {
-                write!(f, [*node, token(";")])?;
+                write!(f, [node, token(";")])?;
             } else {
-                write!(f, [*node])?;
+                write!(f, [node])?;
             }
         }
 

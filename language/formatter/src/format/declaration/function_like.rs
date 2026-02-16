@@ -323,7 +323,8 @@ pub(super) fn format_function_declaration<'ast>(
     let is_bodyless_function_declaration =
         signature.kind == FunctionKind::Function && body.is_none();
 
-    let needs_trailing_semicolon = is_exported_lambda_declaration || is_bodyless_function_declaration;
+    let needs_trailing_semicolon =
+        is_exported_lambda_declaration || is_bodyless_function_declaration;
 
     if needs_trailing_semicolon {
         write!(f, [token(";")])?;

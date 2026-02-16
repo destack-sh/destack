@@ -388,8 +388,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Block, Comment, CommentStyle, Expression, MatchCase,
-        MatchKind, MatchSelector, Pattern, ScalarLiteral,
+        Block, Comment, CommentStyle, Expression, MatchCase, MatchKind, MatchSelector, Pattern,
+        ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -844,41 +844,33 @@ switch (value) {
             assert_eq!(cases.len(), 2);
 
             let first_case_annotations = parser.tree.get_annotations(cases[0].id);
-            assert_eq!(first_case_annotations.len(), 1);
-            assert_node!(parser.tree, first_case_annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Slash);
-                    assert_string!(parser, *string, "before-ready");
-                });
-            });
+            assert!(first_case_annotations.is_empty());
 
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
                 assert_node!(parser.tree, *body, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 2);
                     let start_annotations = parser.tree.get_annotations(expressions[0].id);
-                    assert_eq!(start_annotations.len(), 1);
-                    assert_node!(parser.tree, start_annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "ready-tail");
-                        });
-                    });
+                    assert!(start_annotations.is_empty());
                 });
             });
 
             assert_node!(parser.tree, cases[1], MatchCase::Expression { body, .. } => {
                 let default_annotations = parser.tree.get_annotations(body.id);
-                assert_eq!(default_annotations.len(), 1);
-                assert_node!(parser.tree, default_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "default-tail");
-                    });
-                });
+                assert!(default_annotations.is_empty());
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 3);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "before-ready");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "ready-tail");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[2].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "default-tail");
         });
     }
 }

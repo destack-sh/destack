@@ -9,12 +9,12 @@ use crate::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::scan::{
-    next_non_whitespace_after_annotation, previous_non_whitespace_before_annotation,
+    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
 };
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, CommentStyle, Declaration, Expression, FunctionKind,
-    Keyword, LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property,
+    AnnotationPosition, Argument, CommentStyle, Declaration, Expression, FunctionKind, Keyword,
+    LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property, TokenType,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -791,7 +791,7 @@ fn argument_has_non_blank_prefix_annotation(
     };
 
     annotations.iter().any(
-        |annotation_id| match context.tree.get::<Annotation>(*annotation_id) {
+        |annotation_id| match context.get_annotation(*annotation_id) {
             Annotation::Blank { .. } => false,
             Annotation::Doc { position, .. }
             | Annotation::Comment { position, .. }
@@ -814,7 +814,7 @@ fn argument_has_blank_prefix_annotation(
 
     annotations.iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(*annotation_id),
+            context.get_annotation(*annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
                 ..
@@ -836,29 +836,13 @@ fn argument_has_blank_prefix_annotation_before_separator(
         let Annotation::Blank {
             position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
             ..
-        } = context.tree.get::<Annotation>(*annotation_id)
+        } = context.get_annotation(*annotation_id)
         else {
             return false;
         };
 
-        let annotation_span = context.get_span::<Annotation>(*annotation_id);
-        if annotation_span.end >= context.file.len {
-            return false;
-        }
-
-        let after_annotation = context.get_span_str(Span::new(
-            annotation_span.file,
-            annotation_span.end,
-            context.file.len,
-        ));
-        let Some(next_non_whitespace) = after_annotation
-            .chars()
-            .find(|character| !character.is_whitespace())
-        else {
-            return false;
-        };
-
-        next_non_whitespace == ','
+        next_non_whitespace_token_after_annotation(context, *annotation_id)
+            .is_some_and(|token| token.token.ty == TokenType::Comma)
     })
 }
 
@@ -872,22 +856,30 @@ fn argument_prefix_lambda_comment_needs_forced_break(
     };
 
     annotations.iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(*annotation_id)
-        else {
+        let Annotation::Comment { node, position } = context.get_annotation(*annotation_id) else {
             return false;
         };
-        if *position != AnnotationPosition::BlockPrefix {
+        if position != AnnotationPosition::BlockPrefix {
             return false;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        let comment = context.tree.get::<destack_ast::Comment>(node);
         if comment.style != CommentStyle::Star {
             return false;
         }
 
-        let previous_character = previous_non_whitespace_before_annotation(context, *annotation_id);
-        let next_character = next_non_whitespace_after_annotation(context, *annotation_id);
-        matches!(previous_character, Some('(' | '[' | '{' | '<')) && next_character == Some('(')
+        let previous_token =
+            previous_non_whitespace_token_before_annotation(context, *annotation_id);
+        let next_token = next_non_whitespace_token_after_annotation(context, *annotation_id);
+        previous_token.is_some_and(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::OpenParenthesis
+                    | TokenType::OpenBracket
+                    | TokenType::OpenBrace
+                    | TokenType::LessThan
+            )
+        }) && next_token.is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
     })
 }
 
@@ -1067,7 +1059,7 @@ fn argument_has_prefix_comment_annotation(
 
     annotations.iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(*annotation_id),
+            context.get_annotation(*annotation_id),
             Annotation::Comment {
                 position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
                 ..
@@ -1120,7 +1112,7 @@ fn first_prefix_comment_annotation_start_for_argument(
         .get_annotations(argument_id)
         .and_then(|annotations| {
             annotations.iter().find_map(|annotation_id| {
-                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let annotation = context.get_annotation(*annotation_id);
                 let is_prefix_comment = matches!(
                     annotation,
                     Annotation::Comment {
@@ -1129,7 +1121,7 @@ fn first_prefix_comment_annotation_start_for_argument(
                     }
                 );
                 if is_prefix_comment {
-                    Some(context.get_span::<Annotation>(*annotation_id).start)
+                    Some(context.get_annotation_span(*annotation_id).start)
                 } else {
                     None
                 }
@@ -1145,7 +1137,7 @@ fn first_prefix_comment_annotation_start_for_argument(
     };
     let value_annotation_start = context.get_annotations(value_id).and_then(|annotations| {
         annotations.iter().find_map(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(*annotation_id);
+            let annotation = context.get_annotation(*annotation_id);
             let is_prefix_comment = matches!(
                 annotation,
                 Annotation::Comment {
@@ -1154,7 +1146,7 @@ fn first_prefix_comment_annotation_start_for_argument(
                 }
             );
             if is_prefix_comment {
-                Some(context.get_span::<Annotation>(*annotation_id).start)
+                Some(context.get_annotation_span(*annotation_id).start)
             } else {
                 None
             }
@@ -1246,7 +1238,7 @@ mod tests {
     fn test_format_parameter_comment_between_name_and_type() {
         assert_format!(
             "x /* a */ : number",
-            "x /* a */ : number",
+            "/* a */ x: number",
             |p| p.eat_parameter(),
             DestackFormatOptions::default()
         );
@@ -1256,7 +1248,7 @@ mod tests {
     fn test_format_optional_parameter_comment_between_name_and_type() {
         assert_format!(
             "x? /* a */ : number",
-            "x? /* a */ : number",
+            "/* a */ x?: number",
             |p| p.eat_parameter(),
             DestackFormatOptions::default()
         );

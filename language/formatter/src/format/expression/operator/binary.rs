@@ -70,7 +70,7 @@ fn expression_has_line_postfix_slash_comment(
     };
 
     annotations.into_iter().any(|annotation_id| {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let annotation = context.get_annotation(annotation_id);
         let Annotation::Comment { node, position } = annotation else {
             return false;
         };
@@ -82,7 +82,7 @@ fn expression_has_line_postfix_slash_comment(
             return false;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        let comment = context.tree.get::<destack_ast::Comment>(node);
         comment.style == destack_ast::CommentStyle::Slash
     })
 }
@@ -167,11 +167,11 @@ fn type_binary_operands_have_nontrailing_slash_comment_pressure(
 
         let is_last_operand = index + 1 == operands.len();
         annotation_ids.into_iter().any(|annotation_id| {
-            let annotation = context.tree.get::<Annotation>(annotation_id);
+            let annotation = context.get_annotation(annotation_id);
             let Annotation::Comment { node, position } = annotation else {
                 return false;
             };
-            let comment = context.tree.get::<destack_ast::Comment>(*node);
+            let comment = context.tree.get::<destack_ast::Comment>(node);
             if comment.style != destack_ast::CommentStyle::Slash {
                 return false;
             }
@@ -199,8 +199,8 @@ fn expression_has_only_doc_like_block_prefix_annotations(
         return false;
     }
 
-    annotation_ids.into_iter().all(|annotation_id| {
-        match context.tree.get::<Annotation>(annotation_id) {
+    annotation_ids.into_iter().all(
+        |annotation_id| match context.get_annotation(annotation_id) {
             Annotation::Doc {
                 position: AnnotationPosition::BlockPrefix,
                 ..
@@ -209,13 +209,13 @@ fn expression_has_only_doc_like_block_prefix_annotations(
                 position: AnnotationPosition::BlockPrefix,
                 ..
             } => {
-                let annotation_span = context.get_span::<Annotation>(annotation_id);
+                let annotation_span = context.get_annotation_span(annotation_id);
                 let annotation_source = context.get_span_str(annotation_span);
                 annotation_source.trim_start().starts_with("/**")
             }
             _ => false,
-        }
-    })
+        },
+    )
 }
 
 /// Return whether expression has only one separator-adjacent line boundary comment annotation.
@@ -223,32 +223,60 @@ fn expression_has_only_type_separator_line_boundary_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
     let Some(annotation_ids) = context.get_annotations(expression_id) else {
+        if debug_trivia {
+            eprintln!("type-separator: no annotations on {expression_id:?}");
+        }
         return false;
     };
 
     if annotation_ids.len() != 1 {
+        if debug_trivia {
+            eprintln!(
+                "type-separator: annotation count {} on {expression_id:?}",
+                annotation_ids.len()
+            );
+        }
         return false;
     }
 
     let annotation_id = annotation_ids[0];
-    let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-    else {
+    let Annotation::Comment { node, position } = context.get_annotation(annotation_id) else {
+        if debug_trivia {
+            eprintln!(
+                "type-separator: annotation is not comment: {:?}",
+                context.get_annotation(annotation_id)
+            );
+        }
         return false;
     };
-    if *position != AnnotationPosition::LinePostfixBoundary {
+    if position != AnnotationPosition::LinePostfixBoundary {
+        if debug_trivia {
+            eprintln!("type-separator: position is {:?}", position);
+        }
         return false;
     }
 
-    let comment = context.tree.get::<destack_ast::Comment>(*node);
+    let comment = context.tree.get::<destack_ast::Comment>(node);
     if comment.style != destack_ast::CommentStyle::Slash {
+        if debug_trivia {
+            eprintln!("type-separator: style is {:?}", comment.style);
+        }
         return false;
     }
 
-    matches!(
+    let result = matches!(
         previous_non_whitespace_before_annotation(context, annotation_id),
         Some('|' | '&')
-    )
+    );
+    if debug_trivia {
+        eprintln!(
+            "type-separator: previous char {:?}",
+            previous_non_whitespace_before_annotation(context, annotation_id)
+        );
+    }
+    result
 }
 
 /// Format one binary operand while skipping prefix and postfix annotation emission.
@@ -290,6 +318,7 @@ fn try_format_type_separator_line_comment<'ast>(
     operator: BinaryOperator,
     operands: &BinaryOperands,
 ) -> FormatResult<bool> {
+    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
     if !matches!(
         operator,
         BinaryOperator::ElementwiseAnd | BinaryOperator::ElementwiseOr
@@ -306,10 +335,20 @@ fn try_format_type_separator_line_comment<'ast>(
     let Some(line_comment) =
         line_comment_between_expressions(f.context(), first_operand, second_operand)
     else {
+        if debug_trivia {
+            eprintln!("type-separator: no between-comment");
+        }
         return Ok(false);
     };
     if !expression_has_only_type_separator_line_boundary_comment(f.context(), first_operand) {
+        if debug_trivia {
+            eprintln!("type-separator: first operand annotations do not match");
+        }
         return Ok(false);
+    }
+
+    if debug_trivia {
+        eprintln!("type-separator: applying {line_comment}");
     }
 
     write!(
@@ -411,11 +450,11 @@ fn operand_allows_flat_type_binary_render(
     };
 
     annotation_ids.into_iter().all(|annotation_id| {
-        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let annotation = context.get_annotation(annotation_id);
         let Annotation::Comment { node, position } = annotation else {
             return false;
         };
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        let comment = context.tree.get::<destack_ast::Comment>(node);
 
         is_last_operand
             && comment.style == destack_ast::CommentStyle::Slash
@@ -667,7 +706,7 @@ fn type_binary_operands_have_non_doc_comments(
 
         annotation_ids.into_iter().any(|annotation_id| {
             matches!(
-                context.tree.get::<Annotation>(annotation_id),
+                context.get_annotation(annotation_id),
                 Annotation::Comment { .. }
             )
         })

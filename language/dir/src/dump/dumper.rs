@@ -2132,12 +2132,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("string", string)
                     .end();
             }
-            Annotation::Comment { position, string } => {
-                self.node("Annotation::Comment", id.id)
-                    .field("position", position)
-                    .field("string", string)
-                    .end();
-            }
             Annotation::Decorator {
                 position,
                 expression,

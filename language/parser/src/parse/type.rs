@@ -4299,17 +4299,15 @@ mod tests {
                         assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
                         let annotations = parser.tree.get_annotations(left.id);
-                        assert_eq!(annotations.len(), 1);
-                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(*style, CommentStyle::Slash);
-                                assert_string!(parser, *string, "union-line");
-                            });
-                        });
+                        assert!(annotations.is_empty());
                     });
                 });
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "union-line");
         });
     }
 
@@ -4333,16 +4331,14 @@ mod tests {
                     assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
                     let annotations = parser.tree.get_annotations(left.id);
-                    assert_eq!(annotations.len(), 1);
-                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "intersection-line");
-                        });
-                    });
+                    assert!(annotations.is_empty());
                 });
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "intersection-line");
         });
     }
 
@@ -4365,16 +4361,14 @@ mod tests {
                     assert_expression_path!(parser, parser.tree.get(*left), "First");
 
                     let annotations = parser.tree.get_annotations(left.id);
-                    assert_eq!(annotations.len(), 1);
-                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "left-union");
-                        });
-                    });
+                    assert!(annotations.is_empty());
                 });
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "left-union");
         });
     }
 
@@ -4397,16 +4391,14 @@ mod tests {
                     assert_expression_path!(parser, parser.tree.get(*left), "First");
 
                     let annotations = parser.tree.get_annotations(left.id);
-                    assert_eq!(annotations.len(), 1);
-                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "left-intersection");
-                        });
-                    });
+                    assert!(annotations.is_empty());
                 });
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "left-intersection");
         });
     }
 
@@ -4434,37 +4426,29 @@ mod tests {
                         assert_node!(parser.tree, *right, Expression::ObjectExpression { .. });
 
                         let null_annotations = parser.tree.get_annotations(left.id);
-                        assert_eq!(null_annotations.len(), 1);
-                        assert_node!(parser.tree, null_annotations[0], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(*style, CommentStyle::Slash);
-                                assert_string!(parser, *string, "null-arm");
-                            });
-                        });
+                        assert!(null_annotations.is_empty());
 
                         let object_annotations = parser.tree.get_annotations(right.id);
-                        assert_eq!(object_annotations.len(), 1);
-                        assert_node!(parser.tree, object_annotations[0], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                            assert_node!(parser.tree, *node, Comment { string, style } => {
-                                assert_eq!(*style, CommentStyle::Slash);
-                                assert_string!(parser, *string, "object-arm");
-                            });
-                        });
+                        assert!(object_annotations.is_empty());
                     });
 
                     let void_annotations = parser.tree.get_annotations(right.id);
-                    assert_eq!(void_annotations.len(), 1);
-                    assert_node!(parser.tree, void_annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "void-arm");
-                        });
-                    });
+                    assert!(void_annotations.is_empty());
                 });
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 3);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "null-arm");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "object-arm");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[2].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "void-arm");
         });
     }
 
@@ -4487,17 +4471,21 @@ mod tests {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
 
                     let value_annotations = parser.tree.get_annotations(value.id);
-                    assert_eq!(value_annotations.len(), 1);
-                    assert_node!(parser.tree, value_annotations[0], Annotation::Doc { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePrefix);
-                        assert_node!(parser.tree, *node, Doc { string, style } => {
-                            assert_eq!(*style, DocStyle::Star);
-                            assert_string!(parser, *string, "union-doc\n");
-                        });
-                    });
-
+                    assert!(value_annotations.is_empty());
                 });
             });
+        });
+        let mut documentation_nodes = Vec::new();
+        for annotation_id in parser.tree.iter_nodes::<Annotation>() {
+            if let Annotation::Doc { node, position } = parser.tree.get(annotation_id) {
+                assert_eq!(*position, AnnotationPosition::LinePrefix);
+                documentation_nodes.push(*node);
+            }
+        }
+        assert_eq!(documentation_nodes.len(), 1);
+        assert_node!(parser.tree, documentation_nodes[0], Doc { string, style } => {
+            assert_eq!(*style, DocStyle::Star);
+            assert_string!(parser, *string, "union-doc\n");
         });
     }
 

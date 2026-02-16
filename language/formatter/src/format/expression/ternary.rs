@@ -77,8 +77,7 @@ pub(super) fn collect_catch_pattern_trailing_boundary_comments(
     let mut comments: Vec<(u32, String)> = Vec::new();
 
     for annotation_id in annotations {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
+        let Annotation::Comment { node, position } = context.get_annotation(annotation_id) else {
             continue;
         };
         if !matches!(
@@ -88,12 +87,12 @@ pub(super) fn collect_catch_pattern_trailing_boundary_comments(
             continue;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        let comment = context.tree.get::<destack_ast::Comment>(node);
         if comment.style != destack_ast::CommentStyle::Star {
             continue;
         }
 
-        let annotation_span = context.get_span::<Annotation>(annotation_id);
+        let annotation_span = context.get_annotation_span(annotation_id);
         if annotation_span.start <= pattern_span.end {
             continue;
         }

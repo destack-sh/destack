@@ -110,7 +110,7 @@ mod function {
     fn test_format_function_declaration() {
         assert_format!(
             "function external(): int32",
-            "function external(): int32",
+            "function external(): int32;",
             |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false)
         );
     }
@@ -118,67 +118,65 @@ mod function {
     #[test]
     fn test_format_function_with_self_parameter() {
         let source = r"function foo(self: int32): void";
-        assert_format!(source, source, |p| p.eat_function(
-            &p.mark(),
-            DeclarationDescriptor::default(),
-            false,
-            false
-        ));
+        assert_format!(source, "function foo(self: int32): void;", |p| p
+            .eat_function(
+                &p.mark(),
+                DeclarationDescriptor::default(),
+                false,
+                false
+            ));
     }
 
     #[test]
     fn test_format_function_with_this_parameter() {
         let source = r"function foo(this: int32): void";
-        assert_format!(source, source, |p| p.eat_function(
-            &p.mark(),
-            DeclarationDescriptor::default(),
-            false,
-            false
-        ));
+        assert_format!(source, "function foo(this: int32): void;", |p| p
+            .eat_function(
+                &p.mark(),
+                DeclarationDescriptor::default(),
+                false,
+                false
+            ));
     }
 
     #[test]
     fn test_format_function_with_type_predicate() {
         let source = r"function assertFoo(value: Foo): asserts value is Foo";
-        assert_format!(source, source, |p| p.eat_function(
-            &p.mark(),
-            DeclarationDescriptor::default(),
-            false,
-            false
-        ));
+        assert_format!(
+            source,
+            "function assertFoo(value: Foo): asserts value is Foo;",
+            |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false)
+        );
     }
 
     #[test]
     fn test_format_function_with_type_predicate_asserts_value() {
         let source = r"function assertFoo(value: Foo): asserts value";
-        assert_format!(source, source, |p| p.eat_function(
-            &p.mark(),
-            DeclarationDescriptor::default(),
-            false,
-            false
-        ));
+        assert_format!(
+            source,
+            "function assertFoo(value: Foo): asserts value;",
+            |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false)
+        );
     }
 
     #[test]
     fn test_format_function_with_type_predicate_this() {
         let source = r"function assertFoo(this: Foo): asserts this is Foo";
-        assert_format!(source, source, |p| p.eat_function(
-            &p.mark(),
-            DeclarationDescriptor::default(),
-            false,
-            false
-        ));
+        assert_format!(
+            source,
+            "function assertFoo(this: Foo): asserts this is Foo;",
+            |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false)
+        );
     }
 
     #[test]
     fn test_format_function_with_type_predicate_this_no_target() {
         let source = r"function assertFoo(this: Foo): asserts this";
-        assert_format!(source, source, |p| p.eat_function(
-            &p.mark(),
-            DeclarationDescriptor::default(),
-            false,
-            false
-        ));
+        assert_format!(
+            source,
+            "function assertFoo(this: Foo): asserts this;",
+            |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false)
+        );
     }
 
     #[test]
@@ -194,12 +192,21 @@ mod function {
         moreMoreMoreStuff: baz(),
     }
 }";
-        assert_format!(source, source, |p| p.eat_function(
-            &p.mark(),
-            DeclarationDescriptor::default(),
-            false,
-            false
-        ));
+        assert_format!(
+            source,
+            r"function init(capacity: int32): Self {
+    Self {
+        map: Map.new(capacity),
+        queue: Queue.new(capacity),
+        capacity: capacity,
+        somethingElse: something,
+        moreStuff: bar(),
+        evenMoreStuff: foo(),
+        moreMoreMoreStuff: baz(),
+    };
+}",
+            |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false)
+        );
     }
 }
 
@@ -475,7 +482,14 @@ mod let_declaration {
 }";
         assert_format!(
             source,
-            source,
+            r"const shapes = if (self.nextPiece) {
+    const nextShape = next.shape;
+    self.nextPiece = TetrisPiece.new();
+    nextShape;
+} else {
+    self.nextPiece = TetrisPiece.new();
+    TetrisGame.getRandomShape(random);
+}",
             |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
@@ -581,7 +595,11 @@ mod try_expression {
 }";
         assert_format!(
             source,
-            source,
+            r"try {
+    foo();
+} catch match (e) {
+    Error(err) => err
+}",
             |p| p.eat_try(),
             DestackFormatOptions::default()
         );
@@ -598,7 +616,13 @@ mod try_expression {
 }";
         assert_format!(
             source,
-            source,
+            r"try {
+    foo();
+} catch (e) {
+    bar();
+} finally {
+    baz();
+}",
             |p| p.eat_try(),
             DestackFormatOptions::default()
         );

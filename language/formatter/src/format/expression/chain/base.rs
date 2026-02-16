@@ -500,7 +500,7 @@ pub(crate) fn expression_prefix_annotation_source_len(
         .with_annotations(expression_id, |annotations| {
             let mut total_len = 0usize;
             for annotation_id in annotations {
-                let position = context.tree.get::<Annotation>(*annotation_id).position();
+                let position = context.get_annotation(*annotation_id).position();
                 if !matches!(
                     position,
                     AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
@@ -508,7 +508,7 @@ pub(crate) fn expression_prefix_annotation_source_len(
                     continue;
                 }
 
-                let span = context.get_span(*annotation_id);
+                let span = context.get_annotation_span(*annotation_id);
                 let annotation_len = context.span_char_len(span);
                 total_len = total_len.saturating_add(annotation_len);
             }

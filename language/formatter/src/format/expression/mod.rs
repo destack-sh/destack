@@ -1,14 +1,14 @@
 use std::borrow::Cow;
 
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator, Block,
-    Declaration, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
-    DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachDeclarationKind,
-    ForEachKind, FunctionKind, IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword,
-    LetKind, LocalNodeId, MatchKind, Member, Mutability, NodeTree, NodeType, OperatorPrecedence,
-    Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TokenType,
-    TypeBinaryOperator, TypeLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator,
-    UnaryOperator, WhereClause, WhileKind, YieldCardinality,
+    AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyKind,
+    DependencyMode, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, FunctionKind,
+    IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword, LetKind, LocalNodeId, MatchKind,
+    Member, Mutability, NodeTree, NodeType, OperatorPrecedence, Parameter, Pattern, PatternField,
+    PostfixPosition, Property, ScalarLiteral, TokenType, TypeBinaryOperator, TypeLiteral,
+    TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, WhereClause, WhileKind,
+    YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{FormatError, GroupId, text};
@@ -44,7 +44,8 @@ use crate::directive::{
 use crate::literal::{format_scalar_literal, format_template_literal};
 use crate::property::format_block_of_properties;
 use crate::{
-    DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
+    Annotation, DestackFormatContext, DestackFormatter, FormatNode,
+    empty_block_with_infix_annotations,
 };
 
 mod binary;

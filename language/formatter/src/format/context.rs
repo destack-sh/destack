@@ -2,15 +2,19 @@ use std::cell::{Cell, OnceCell, Ref, RefCell};
 use std::rc::Rc;
 
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Declarator,
-    Decorator, DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase,
-    Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
-    PatternField, Property, TokenSpan, TokenType, WhereClause,
+    ANNOTATION_NODE_TYPES, Annotation as AstAnnotation, AnnotationPosition, Argument,
+    AssignOperator, Blank, Block, Comment, CommentStyle, Declaration, Declarator, Decorator,
+    DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Member,
+    Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
+    Property, TokenSpan, TokenType, WhereClause,
 };
 use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter, GroupId};
 use destack_fir::print::PrintOptions;
-use destack_source::{File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSourceMap, Span};
+use destack_source::{
+    EnclosingSpan, File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSearchMode,
+    NodeSourceMap, Span,
+};
 use destack_workspace::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
     QuoteStyle, TrailingComma,
@@ -33,6 +37,72 @@ const NODE_SPAN_CHAR_LEN_UNKNOWN: u32 = u32::MAX;
 const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
 const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
 const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
+const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
+    TokenType::Newline,
+    TokenType::LineComment,
+    TokenType::DocLineComment,
+    TokenType::BlockComment,
+    TokenType::DocBlockComment,
+];
+
+/// Formatter-owned annotation payload for semantic annotations and placed trivia.
+#[derive(Debug, Clone, Copy)]
+pub enum Annotation {
+    /// Blank trivia annotation.
+    Blank {
+        /// The blank node.
+        node: LocalNodeId<Blank>,
+        /// The resolved annotation position.
+        position: AnnotationPosition,
+    },
+    /// Documentation annotation.
+    Doc {
+        /// The doc node.
+        node: LocalNodeId<Doc>,
+        /// The resolved annotation position.
+        position: AnnotationPosition,
+    },
+    /// Comment trivia annotation.
+    Comment {
+        /// The comment node.
+        node: LocalNodeId<Comment>,
+        /// The resolved annotation position.
+        position: AnnotationPosition,
+    },
+    /// Decorator annotation.
+    Decorator {
+        /// The decorator node.
+        node: LocalNodeId<Decorator>,
+        /// The resolved annotation position.
+        position: AnnotationPosition,
+    },
+}
+
+impl Node for Annotation {
+    const TYPE: NodeType = NodeType::Annotation;
+}
+
+impl Annotation {
+    /// Return the annotation position.
+    #[inline]
+    pub fn position(self) -> AnnotationPosition {
+        match self {
+            Annotation::Blank { position, .. } => position,
+            Annotation::Doc { position, .. } => position,
+            Annotation::Comment { position, .. } => position,
+            Annotation::Decorator { position, .. } => position,
+        }
+    }
+}
+
+/// Formatter-local annotation entry with resolved span.
+#[derive(Debug, Clone, Copy)]
+pub struct FormatterAnnotationEntry {
+    /// The annotation payload and position.
+    pub annotation: Annotation,
+    /// The annotation span.
+    pub span: Span,
+}
 
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
@@ -140,7 +210,10 @@ pub struct CachedAnnotationData {
 
 impl CachedAnnotationData {
     /// Build cached annotation metadata from annotation ids.
-    pub fn from_ids(tree: &NodeTree, ids: Vec<LocalNodeId<Annotation>>) -> Self {
+    pub fn from_ids(
+        ids: Vec<LocalNodeId<Annotation>>,
+        mut annotation_for: impl FnMut(LocalNodeId<Annotation>) -> Annotation,
+    ) -> Self {
         let mut has_non_blank = false;
         let mut has_prefix = false;
         let mut has_infix = false;
@@ -150,7 +223,7 @@ impl CachedAnnotationData {
         let mut has_blank_prefix_first = false;
 
         for (index, annotation_id) in ids.iter().enumerate() {
-            let annotation = tree.get::<Annotation>(*annotation_id);
+            let annotation = annotation_for(*annotation_id);
             let position = annotation.position();
             let is_non_blank = !matches!(annotation, Annotation::Blank { .. });
 
@@ -202,6 +275,1365 @@ impl CachedAnnotationData {
             has_blank_prefix_first,
         }
     }
+}
+
+/// Return whether one token is a side annotation token.
+#[inline]
+fn is_side_annotation_token(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::Newline
+            | TokenType::LineComment
+            | TokenType::DocLineComment
+            | TokenType::BlockComment
+            | TokenType::DocBlockComment
+    )
+}
+
+/// Return true when a node id belongs to one annotation node type.
+#[inline]
+fn is_annotation_node_id(tree: &NodeTree, node_id: u32) -> bool {
+    ANNOTATION_NODE_TYPES.contains(&tree.get_node_type(node_id))
+}
+
+/// Return true when candidate outranks current for the search mode.
+#[inline]
+fn is_better_enclosing_span(
+    search: NodeSearchMode,
+    candidate: &EnclosingSpan,
+    current: &EnclosingSpan,
+) -> bool {
+    let candidate_len = candidate.length;
+    let current_len = current.length;
+    let candidate_idx = candidate.idx;
+    let current_idx = current.idx;
+
+    match search {
+        NodeSearchMode::BiggestOutermost => {
+            candidate_len > current_len
+                || (candidate_len == current_len && candidate_idx > current_idx)
+        }
+        NodeSearchMode::SmallestOutermost => {
+            candidate_len < current_len
+                || (candidate_len == current_len && candidate_idx > current_idx)
+        }
+        NodeSearchMode::SmallestInnermost => {
+            candidate_len < current_len
+                || (candidate_len == current_len && candidate_idx < current_idx)
+        }
+    }
+}
+
+/// Select the best enclosing span for one range and filter.
+fn select_enclosing_span_with_filter(
+    source_map: &NodeSourceMap,
+    start: u32,
+    end_inclusive: u32,
+    search: NodeSearchMode,
+    filter: impl Fn(&EnclosingSpan) -> bool,
+) -> Option<EnclosingSpan> {
+    let mut best = None;
+    source_map.visit_enclosing_spans(start, end_inclusive, |candidate| {
+        if !filter(&candidate) {
+            return;
+        }
+        match best {
+            Some(current) => {
+                if is_better_enclosing_span(search, &candidate, &current) {
+                    best = Some(candidate);
+                }
+            }
+            None => best = Some(candidate),
+        }
+    });
+    best
+}
+
+/// Get the node starting at a token.
+fn find_node_starting_at(
+    source_map: &NodeSourceMap,
+    span: &Span,
+    search: NodeSearchMode,
+) -> Option<EnclosingSpan> {
+    select_enclosing_span_with_filter(
+        source_map,
+        span.start,
+        span.end.saturating_sub(1),
+        search,
+        |candidate| candidate.span.start == span.start,
+    )
+}
+
+/// Get the node ending at a token.
+fn find_node_ending_at(
+    source_map: &NodeSourceMap,
+    span: &Span,
+    search: NodeSearchMode,
+) -> Option<EnclosingSpan> {
+    select_enclosing_span_with_filter(
+        source_map,
+        span.start,
+        span.end.saturating_sub(1),
+        search,
+        |candidate| candidate.span.end == span.end,
+    )
+}
+
+/// Get the node enclosing a token.
+fn find_node_enclosing_at(
+    source_map: &NodeSourceMap,
+    span: &Span,
+    search: NodeSearchMode,
+    filter: impl Fn(&EnclosingSpan) -> bool,
+) -> Option<EnclosingSpan> {
+    select_enclosing_span_with_filter(
+        source_map,
+        span.start,
+        span.end.saturating_sub(1),
+        search,
+        filter,
+    )
+}
+
+/// Collect statement wrapper ids keyed by expression id.
+fn collect_statement_wrappers(tree: &NodeTree) -> Vec<Option<u32>> {
+    let total_nodes = tree.next_id() as usize;
+    let mut wrappers = vec![None; total_nodes];
+
+    let mut node_id = 0usize;
+    while node_id < total_nodes {
+        let global_id = node_id as u32;
+        if tree.get_node_type(global_id) == NodeType::Expression {
+            let expression = tree.get(LocalNodeId::<Expression>::new(global_id));
+            if let Expression::Statement(inner_id) = expression {
+                wrappers[inner_id.id as usize] = Some(global_id);
+            }
+        }
+        node_id += 1;
+    }
+
+    wrappers
+}
+
+/// Promote expression targets to their statement wrapper when required.
+fn annotation_promote_statement(
+    tree: &NodeTree,
+    start_token: TokenSpan,
+    target_node_id: u32,
+    statement_wrappers: &[Option<u32>],
+) -> u32 {
+    if start_token.token.ty == TokenType::Newline
+        && tree.get_node_type(target_node_id) == NodeType::Expression
+        && let Some(statement_id) = statement_wrappers
+            .get(target_node_id as usize)
+            .and_then(|id| *id)
+    {
+        return statement_id;
+    }
+
+    target_node_id
+}
+
+/// Return whether a block comment stays on a single line.
+fn annotation_is_single_line_block_comment(file: &File, start_token: TokenSpan) -> bool {
+    let raw = file.span_str(start_token.span);
+    for byte in raw.as_bytes() {
+        if *byte == b'\n' || *byte == b'\r' {
+            return false;
+        }
+    }
+    true
+}
+
+/// Find the previous targetable token within the enclosing span.
+fn annotation_prev_token(
+    token_idx: u32,
+    tokens: &[TokenSpan],
+    ignore_span: &MultiSpan,
+    enclosing_span: Option<Span>,
+) -> Option<(usize, TokenSpan)> {
+    if token_idx == 0 {
+        return None;
+    }
+
+    let mut prev_token_idx = token_idx as usize;
+    while prev_token_idx > 0 {
+        prev_token_idx -= 1;
+        let prev_token = tokens.get(prev_token_idx)?;
+        if ignore_span.contains(&prev_token.span) || prev_token.token.ty == TokenType::Whitespace {
+            continue;
+        }
+
+        if let Some(enclosing_span) = enclosing_span
+            && !enclosing_span.intersects(prev_token.span)
+        {
+            return None;
+        }
+
+        return Some((prev_token_idx, *prev_token));
+    }
+
+    None
+}
+
+/// Find the next targetable token within the enclosing span.
+fn annotation_next_token(
+    token_idx: u32,
+    group_len: usize,
+    tokens: &[TokenSpan],
+    ignore_span: &MultiSpan,
+    enclosing_span: Option<Span>,
+) -> Option<(usize, TokenSpan)> {
+    let mut next_token_idx = token_idx as usize + group_len;
+    loop {
+        let next_token = tokens.get(next_token_idx)?;
+        if ignore_span.contains(&next_token.span) || next_token.token.ty == TokenType::Whitespace {
+            next_token_idx += 1;
+            continue;
+        }
+
+        if let Some(enclosing_span) = enclosing_span
+            && !enclosing_span.intersects(next_token.span)
+        {
+            return None;
+        }
+
+        return Some((next_token_idx, *next_token));
+    }
+}
+
+/// Find the next non-annotation token from one token index.
+fn annotation_next_non_annotation_token(
+    token_idx: usize,
+    tokens: &[TokenSpan],
+    ignore_span: &MultiSpan,
+    enclosing_span: Option<Span>,
+) -> Option<(usize, TokenSpan)> {
+    let mut next_token_idx = token_idx;
+    loop {
+        let next_token = tokens.get(next_token_idx)?;
+        if ignore_span.contains(&next_token.span)
+            || next_token.token.ty == TokenType::Whitespace
+            || ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
+        {
+            next_token_idx += 1;
+            continue;
+        }
+
+        if let Some(enclosing_span) = enclosing_span
+            && !enclosing_span.intersects(next_token.span)
+        {
+            return None;
+        }
+
+        return Some((next_token_idx, *next_token));
+    }
+}
+
+/// Return whether a token type exists between two token indices.
+fn annotation_has_token_type_between(
+    tokens: &[TokenSpan],
+    start_idx: usize,
+    end_idx: usize,
+    token_type: TokenType,
+) -> bool {
+    let mut cursor = start_idx;
+    while cursor < end_idx {
+        if tokens
+            .get(cursor)
+            .is_some_and(|token| token.token.ty == token_type)
+        {
+            return true;
+        }
+        cursor += 1;
+    }
+
+    false
+}
+
+/// Return whether one token keeps separator comments as line-prefix on the following node.
+fn annotation_is_forward_prefix_separator(token: TokenSpan) -> bool {
+    token.token.ty == TokenType::Colon || AssignOperator::from_token(token.token.ty).is_some()
+}
+
+/// Return whether this `)` token closes a control head like `if (...)` or `while (...)`.
+fn annotation_is_control_head_close_parenthesis(
+    file: &File,
+    tokens: &[TokenSpan],
+    close_parenthesis_idx: usize,
+) -> bool {
+    let close_parenthesis = tokens.get(close_parenthesis_idx);
+    if close_parenthesis.is_none_or(|token| token.token.ty != TokenType::CloseParenthesis) {
+        return false;
+    }
+
+    let mut depth = 0u32;
+    let mut open_parenthesis_idx = None;
+    let mut cursor = close_parenthesis_idx;
+    while cursor > 0 {
+        cursor -= 1;
+        let token = tokens[cursor];
+        if token.token.ty == TokenType::CloseParenthesis {
+            depth += 1;
+            continue;
+        }
+        if token.token.ty == TokenType::OpenParenthesis {
+            if depth == 0 {
+                open_parenthesis_idx = Some(cursor);
+                break;
+            }
+            depth -= 1;
+        }
+    }
+
+    let Some(open_parenthesis_idx) = open_parenthesis_idx else {
+        return false;
+    };
+
+    let mut keyword_idx = open_parenthesis_idx;
+    while keyword_idx > 0 {
+        keyword_idx -= 1;
+        let token = tokens[keyword_idx];
+        if token.token.ty == TokenType::Whitespace || token.token.ty == TokenType::Newline {
+            continue;
+        }
+        if ANNOTATION_TOKEN_TYPES.contains(&token.token.ty) {
+            continue;
+        }
+
+        let keyword_text = file.span_str(token.span);
+        return matches!(
+            keyword_text,
+            "if" | "while" | "for" | "switch" | "catch" | "with"
+        );
+    }
+
+    false
+}
+
+/// Find the annotation target for one side annotation token group.
+#[allow(clippy::too_many_arguments)]
+fn find_side_annotation_target(
+    tree: &NodeTree,
+    source_map: &NodeSourceMap,
+    file: &File,
+    token_idx: u32,
+    tokens: &[TokenSpan],
+    line_indices: &[u32],
+    group_start_idx: usize,
+    group_end_idx: usize,
+    group_len: usize,
+    is_full_line: bool,
+    is_block_prefix_only: bool,
+    statement_wrappers: &[Option<u32>],
+    ignore_span: &MultiSpan,
+) -> Option<(AnnotationPosition, u32)> {
+    debug_assert!(group_len > 0);
+
+    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
+    let start_token = tokens[group_start_idx];
+    let is_block_comment = matches!(
+        start_token.token.ty,
+        TokenType::BlockComment | TokenType::DocBlockComment
+    );
+    let is_block_comment_single_line = if is_block_comment {
+        annotation_is_single_line_block_comment(file, start_token)
+    } else {
+        false
+    };
+    let is_one_line = if is_block_comment && !is_block_comment_single_line {
+        false
+    } else {
+        line_indices[group_start_idx] == line_indices[group_end_idx]
+    };
+    let enclosing_scope = find_node_enclosing_at(
+        source_map,
+        &start_token.span,
+        NodeSearchMode::SmallestInnermost,
+        |candidate| {
+            !is_annotation_node_id(tree, candidate.idx) && !ignore_span.contains(&candidate.span)
+        },
+    );
+    let enclosing_span = enclosing_scope.map(|scope| scope.span);
+
+    // line prefix or postfix
+    if !is_block_prefix_only && is_one_line {
+        let prev_token = annotation_prev_token(token_idx, tokens, ignore_span, enclosing_span);
+        let next_token =
+            annotation_next_token(token_idx, group_len, tokens, ignore_span, enclosing_span);
+
+        // inline member split: keep comments between receiver and dot on their own line
+        if let (Some((prev_idx, _)), Some((next_idx, next_token)), Some(enclosing_scope)) =
+            (prev_token, next_token, enclosing_scope)
+            && next_token.token.ty == TokenType::Dot
+            && line_indices[group_end_idx] == line_indices[next_idx]
+            && line_indices[prev_idx] == line_indices[group_end_idx]
+            && tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
+        {
+            let enclosing_expr_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
+            if matches!(tree.get(enclosing_expr_id), Expression::Path { .. }) {
+                return Some((AnnotationPosition::BlockInfix, enclosing_scope.idx));
+            }
+        }
+
+        // line postfix: check for directly preceding node that ends at the start token
+        let line_postfix_target = if let Some((prev_idx, prev_token)) = prev_token
+            && line_indices[prev_idx] == line_indices[group_end_idx]
+            && prev_token.token.ty != TokenType::Newline
+        {
+            let search_mode = if is_full_line {
+                NodeSearchMode::BiggestOutermost
+            } else {
+                NodeSearchMode::SmallestOutermost
+            };
+            find_node_ending_at(source_map, &prev_token.span, search_mode)
+                .or_else(|| {
+                    // if prev_token is a separator and comment is at end of line,
+                    // look past the separator to find the element (handles `3, // comment`)
+                    let is_end_of_line = next_token.is_none()
+                        || next_token.unwrap().1.token.ty == TokenType::Newline
+                        || next_token.unwrap().1.token.ty == TokenType::End;
+                    if is_end_of_line
+                        && matches!(
+                            prev_token.token.ty,
+                            TokenType::Comma | TokenType::Semicolon | TokenType::ElementwiseOr
+                        )
+                    {
+                        // semicolon seam comments belong to the enclosing statement or member
+                        if prev_token.token.ty == TokenType::Semicolon {
+                            if let Some(separator_owner) = find_node_enclosing_at(
+                                source_map,
+                                &prev_token.span,
+                                NodeSearchMode::SmallestOutermost,
+                                |candidate| {
+                                    !is_annotation_node_id(tree, candidate.idx)
+                                        && !ignore_span.contains(&candidate.span)
+                                },
+                            ) {
+                                return Some(separator_owner);
+                            }
+                        }
+
+                        if token_idx <= 1 {
+                            return None;
+                        }
+
+                        let mut before_sep_idx = token_idx as usize - 1;
+                        while before_sep_idx > 0 {
+                            before_sep_idx -= 1;
+                            let before_token = tokens.get(before_sep_idx)?;
+                            if ignore_span.contains(&before_token.span)
+                                || before_token.token.ty == TokenType::Whitespace
+                            {
+                                continue;
+                            }
+
+                            return find_node_ending_at(
+                                source_map,
+                                &before_token.span,
+                                search_mode,
+                            );
+                        }
+                    }
+                    None
+                })
+                .map(|span| span.idx)
+        } else {
+            None
+        };
+
+        if let Some(target_node_id) = line_postfix_target {
+            if next_token.is_none()
+                || next_token.unwrap().1.token.ty == TokenType::Newline
+                || next_token.unwrap().1.token.ty == TokenType::End
+            {
+                // control-head line comments like `if (x) // note` bind to the body
+                if start_token.token.ty == TokenType::LineComment
+                    && let Some((prev_idx, prev_token)) = prev_token
+                    && prev_token.token.ty == TokenType::CloseParenthesis
+                    && annotation_is_control_head_close_parenthesis(file, tokens, prev_idx)
+                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                        token_idx as usize + group_len,
+                        tokens,
+                        ignore_span,
+                        enclosing_span,
+                    )
+                    && let Some(forward_target_id) = find_node_starting_at(
+                        source_map,
+                        &forward_token.span,
+                        NodeSearchMode::SmallestInnermost,
+                    )
+                    .or_else(|| {
+                        find_node_enclosing_at(
+                            source_map,
+                            &forward_token.span,
+                            NodeSearchMode::SmallestInnermost,
+                            |candidate| !is_annotation_node_id(tree, candidate.idx),
+                        )
+                    })
+                    .map(|span| span.idx)
+                {
+                    if debug_trivia {
+                        eprintln!("target-debug: control-head -> line-prefix {forward_target_id}");
+                    }
+                    let mut forward_target_id = forward_target_id;
+
+                    // prefer the widest expression starting at the seam so `run` promotes to `run()`
+                    if tree.get_node_type(forward_target_id) == NodeType::Expression
+                        && let Some(outer_expression_id) = find_node_starting_at(
+                            source_map,
+                            &forward_token.span,
+                            NodeSearchMode::BiggestOutermost,
+                        )
+                        .map(|span| span.idx)
+                        .filter(|candidate_id| {
+                            tree.get_node_type(*candidate_id) == NodeType::Expression
+                        })
+                    {
+                        forward_target_id = outer_expression_id;
+                    }
+
+                    // unwrap implicit body blocks to their single statement expression
+                    if tree.get_node_type(forward_target_id) == NodeType::Expression {
+                        let expression_id = LocalNodeId::<Expression>::new(forward_target_id);
+                        if let Expression::Block(block_id) = tree.get(expression_id) {
+                            let block = tree.get::<Block>(*block_id);
+                            if block.format == destack_ast::BlockFormat::Implicit
+                                && block.expressions.len() == 1
+                            {
+                                forward_target_id = block.expressions[0].id;
+                            }
+                        }
+                    }
+
+                    let promoted_target_id =
+                        if tree.get_node_type(forward_target_id) == NodeType::Expression {
+                            statement_wrappers
+                                .get(forward_target_id as usize)
+                                .and_then(|id| *id)
+                                .unwrap_or(forward_target_id)
+                        } else {
+                            forward_target_id
+                        };
+                    return Some((AnnotationPosition::LinePrefix, promoted_target_id));
+                }
+
+                // continuation seams like `target // note` + newline + `?.()`
+                if start_token.token.ty == TokenType::LineComment
+                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                        token_idx as usize + group_len,
+                        tokens,
+                        ignore_span,
+                        enclosing_span,
+                    )
+                    && matches!(
+                        forward_token.token.ty,
+                        TokenType::Maybe
+                            | TokenType::Dot
+                            | TokenType::OpenParenthesis
+                            | TokenType::OpenBracket
+                    )
+                    && let Some(continuation_owner_id) = find_node_enclosing_at(
+                        source_map,
+                        &forward_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                        |candidate| !is_annotation_node_id(tree, candidate.idx),
+                    )
+                    .map(|span| span.idx)
+                    && continuation_owner_id != target_node_id
+                    && tree.get_node_type(continuation_owner_id) == NodeType::Expression
+                {
+                    if debug_trivia {
+                        eprintln!(
+                            "target-debug: continuation promotion {target_node_id} -> {continuation_owner_id}"
+                        );
+                    }
+                    return Some((AnnotationPosition::LinePostfix, continuation_owner_id));
+                }
+
+                // declaration and method heads: move `// comment` before `{` into block bodies
+                if start_token.token.ty == TokenType::LineComment
+                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                        token_idx as usize + group_len,
+                        tokens,
+                        ignore_span,
+                        enclosing_span,
+                    )
+                    && forward_token.token.ty == TokenType::OpenBrace
+                    && let Some(forward_target_id) = find_node_starting_at(
+                        source_map,
+                        &forward_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                    )
+                    .or_else(|| {
+                        find_node_enclosing_at(
+                            source_map,
+                            &forward_token.span,
+                            NodeSearchMode::SmallestOutermost,
+                            |candidate| !is_annotation_node_id(tree, candidate.idx),
+                        )
+                    })
+                    .map(|span| span.idx)
+                    && tree.get_node_type(forward_target_id) == NodeType::Expression
+                {
+                    let forward_expression_id = LocalNodeId::<Expression>::new(forward_target_id);
+                    if let Expression::Block(block_id) = tree.get(forward_expression_id) {
+                        let block = tree.get::<Block>(*block_id);
+                        if let Some(first_expression_id) = block.expressions.first().copied() {
+                            return Some((AnnotationPosition::BlockPrefix, first_expression_id.id));
+                        }
+
+                        return Some((AnnotationPosition::BlockInfix, forward_target_id));
+                    }
+                }
+
+                // field-like tails: keep boundary comments on member/property owners
+                if tree.get_node_type(target_node_id) == NodeType::Expression
+                    && statement_wrappers
+                        .get(target_node_id as usize)
+                        .and_then(|id| *id)
+                        .is_none()
+                    && let Some((_, prev_token)) = prev_token
+                    && let Some(field_owner_id) = find_node_enclosing_at(
+                        source_map,
+                        &prev_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                        |candidate| {
+                            !is_annotation_node_id(tree, candidate.idx)
+                                && matches!(
+                                    tree.get_node_type(candidate.idx),
+                                    NodeType::Member | NodeType::Property
+                                )
+                        },
+                    )
+                    .map(|span| span.idx)
+                {
+                    return Some((AnnotationPosition::LinePostfixBoundary, field_owner_id));
+                }
+
+                if debug_trivia {
+                    eprintln!("target-debug: line-postfix-boundary {target_node_id}");
+                }
+                return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
+            } else {
+                if debug_trivia {
+                    eprintln!("target-debug: line-postfix {target_node_id}");
+                }
+                return Some((AnnotationPosition::LinePostfix, target_node_id));
+            }
+        }
+        // separator seams like `name: // comment` and `lhs = // marker` stay on rhs line-prefix
+        else if start_token.token.ty == TokenType::LineComment
+            && let Some((prev_idx, prev_token)) = prev_token
+            && line_indices[prev_idx] == line_indices[group_end_idx]
+            && annotation_is_forward_prefix_separator(prev_token)
+            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                token_idx as usize + group_len,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            )
+            && let Some(forward_target_id) = find_node_starting_at(
+                source_map,
+                &forward_token.span,
+                NodeSearchMode::SmallestOutermost,
+            )
+            .or_else(|| {
+                find_node_enclosing_at(
+                    source_map,
+                    &forward_token.span,
+                    NodeSearchMode::SmallestOutermost,
+                    |candidate| !is_annotation_node_id(tree, candidate.idx),
+                )
+            })
+            .map(|span| span.idx)
+        {
+            return Some((
+                AnnotationPosition::LinePrefix,
+                annotation_promote_statement(
+                    tree,
+                    start_token,
+                    forward_target_id,
+                    statement_wrappers,
+                ),
+            ));
+        }
+        // comments before a leading semicolon stay on the previous statement boundary
+        else if start_token.token.ty == TokenType::LineComment
+            && let Some((_, prev_token)) = prev_token
+            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                token_idx as usize + group_len,
+                tokens,
+                ignore_span,
+                None,
+            )
+            && forward_token.token.ty == TokenType::Semicolon
+            && let Some(statement_owner_id) = find_node_enclosing_at(
+                source_map,
+                &prev_token.span,
+                NodeSearchMode::SmallestOutermost,
+                |candidate| {
+                    !is_annotation_node_id(tree, candidate.idx)
+                        && tree.get_node_type(candidate.idx) == NodeType::Expression
+                        && matches!(
+                            tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
+                            Expression::Statement(_)
+                        )
+                },
+            )
+            .map(|span| span.idx)
+        {
+            return Some((AnnotationPosition::LinePostfixBoundary, statement_owner_id));
+        }
+        // comments after statement semicolons stay on that statement line
+        else if let Some((prev_idx, prev_token)) = prev_token
+            && prev_token.token.ty == TokenType::Semicolon
+            && line_indices[prev_idx] == line_indices[group_end_idx]
+            && (next_token.is_none()
+                || next_token.unwrap().1.token.ty == TokenType::Newline
+                || next_token.unwrap().1.token.ty == TokenType::End)
+            && let Some(statement_owner_id) = find_node_enclosing_at(
+                source_map,
+                &prev_token.span,
+                NodeSearchMode::SmallestOutermost,
+                |candidate| {
+                    !is_annotation_node_id(tree, candidate.idx)
+                        && tree.get_node_type(candidate.idx) == NodeType::Expression
+                },
+            )
+            .map(|span| span.idx)
+        {
+            return Some((AnnotationPosition::LinePostfixBoundary, statement_owner_id));
+        }
+        // directive-tail block comments like `"use strict" /**/` stay on the directive line
+        else if is_block_comment_single_line
+            && let Some((prev_idx, prev_token)) = prev_token
+            && line_indices[prev_idx] == line_indices[group_end_idx]
+            && (next_token.is_none()
+                || next_token.unwrap().1.token.ty == TokenType::Newline
+                || next_token.unwrap().1.token.ty == TokenType::End)
+            && let Some(statement_owner_id) = find_node_enclosing_at(
+                source_map,
+                &prev_token.span,
+                NodeSearchMode::SmallestOutermost,
+                |candidate| {
+                    !is_annotation_node_id(tree, candidate.idx)
+                        && tree.get_node_type(candidate.idx) == NodeType::Expression
+                },
+            )
+            .map(|span| span.idx)
+            && matches!(
+                tree.get(LocalNodeId::<Expression>::new(statement_owner_id)),
+                Expression::Statement(_)
+            )
+        {
+            return Some((AnnotationPosition::LinePostfixBoundary, statement_owner_id));
+        }
+        // inline block comment before a node: keep on the same line
+        else if start_token.token.ty == TokenType::LineComment
+            && let Some((_, prev_token)) = prev_token
+            && prev_token.token.ty == TokenType::ElementwiseAnd
+            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
+        {
+            // keep `A & // note \n B` attached to the left member
+            let mut separator_owner = None;
+            let mut before_separator_idx = token_idx as usize;
+            while before_separator_idx > 0 {
+                before_separator_idx -= 1;
+                let Some(before_token) = tokens.get(before_separator_idx).copied() else {
+                    break;
+                };
+                if ignore_span.contains(&before_token.span)
+                    || before_token.token.ty == TokenType::Whitespace
+                    || before_token.token.ty == TokenType::Newline
+                {
+                    continue;
+                }
+                if before_token.token.ty == TokenType::ElementwiseAnd {
+                    continue;
+                }
+
+                separator_owner = find_node_ending_at(
+                    source_map,
+                    &before_token.span,
+                    NodeSearchMode::SmallestOutermost,
+                )
+                .map(|span| span.idx);
+                break;
+            }
+
+            if let Some(target_node_id) = separator_owner {
+                return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
+            }
+        }
+        // inline block comment before a node: keep on the same line
+        else if is_block_comment_single_line
+            && let Some((next_idx, next_token)) = next_token
+            && next_token.token.ty != TokenType::Newline
+            && !matches!(
+                next_token.token.ty,
+                TokenType::CloseParenthesis
+                    | TokenType::CloseBrace
+                    | TokenType::CloseBracket
+                    | TokenType::End
+            )
+            && (line_indices[group_end_idx] == line_indices[next_idx]
+                || line_indices[group_start_idx] == line_indices[next_idx])
+        {
+            let target_node_id = find_node_starting_at(
+                source_map,
+                &next_token.span,
+                NodeSearchMode::SmallestOutermost,
+            )
+            .or_else(|| {
+                find_node_enclosing_at(
+                    source_map,
+                    &next_token.span,
+                    NodeSearchMode::SmallestOutermost,
+                    |candidate| {
+                        !is_annotation_node_id(tree, candidate.idx)
+                            && !ignore_span.contains(&candidate.span)
+                    },
+                )
+            })
+            .or_else(|| {
+                find_node_enclosing_at(
+                    source_map,
+                    &next_token.span,
+                    NodeSearchMode::BiggestOutermost,
+                    |candidate| {
+                        !is_annotation_node_id(tree, candidate.idx)
+                            && !ignore_span.contains(&candidate.span)
+                    },
+                )
+            })
+            .map(|span| span.idx);
+
+            if let Some(target_node_id) = target_node_id {
+                return Some((
+                    AnnotationPosition::LinePrefix,
+                    annotation_promote_statement(
+                        tree,
+                        start_token,
+                        target_node_id,
+                        statement_wrappers,
+                    ),
+                ));
+            }
+        }
+        // special case: inline comment between path segments attaches to the path as postfix
+        else if let Some((_, prev_token)) = prev_token
+            && let Some(enclosing_scope) = enclosing_scope
+            && tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
+        {
+            let expression_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
+            if let Expression::Path { path, .. } = tree.get(expression_id)
+                && path.segments.len() > 1
+                && enclosing_scope.span.end > prev_token.span.end
+            {
+                return Some((
+                    AnnotationPosition::LinePostfixBoundary,
+                    annotation_promote_statement(
+                        tree,
+                        start_token,
+                        expression_id.id,
+                        statement_wrappers,
+                    ),
+                ));
+            }
+        }
+        // line prefix: check for directly following node that starts at the end token
+        else if let Some((next_idx, next_token)) = next_token
+            && next_token.token.ty != TokenType::Newline
+            && !matches!(
+                next_token.token.ty,
+                TokenType::CloseParenthesis
+                    | TokenType::CloseBrace
+                    | TokenType::CloseBracket
+                    | TokenType::End
+            )
+            && (line_indices[group_end_idx] == line_indices[next_idx]
+                || line_indices[group_start_idx] == line_indices[next_idx])
+        {
+            let target_node_id = find_node_starting_at(
+                source_map,
+                &next_token.span,
+                NodeSearchMode::SmallestOutermost,
+            )
+            .or_else(|| {
+                find_node_enclosing_at(
+                    source_map,
+                    &next_token.span,
+                    NodeSearchMode::SmallestOutermost,
+                    |candidate| {
+                        !is_annotation_node_id(tree, candidate.idx)
+                            && !ignore_span.contains(&candidate.span)
+                    },
+                )
+            })
+            .map(|span| span.idx);
+
+            if let Some(target_node_id) = target_node_id {
+                return Some((
+                    AnnotationPosition::LinePrefix,
+                    annotation_promote_statement(
+                        tree,
+                        start_token,
+                        target_node_id,
+                        statement_wrappers,
+                    ),
+                ));
+            }
+        }
+    }
+
+    // block prefix: find the following targetable node
+    let mut next_token_idx = token_idx as usize + group_len;
+    while let Some(next_token) = tokens.get(next_token_idx) {
+        if ignore_span.contains(&next_token.span)
+            || ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
+            || next_token.token.ty == TokenType::Whitespace
+        {
+            next_token_idx += 1;
+            continue;
+        }
+        if let Some(enclosing_span) = enclosing_span
+            && !enclosing_span.intersects(next_token.span)
+            && start_token.token.ty != TokenType::Newline
+        {
+            break;
+        }
+        let next_node = if is_block_prefix_only {
+            find_node_starting_at(
+                source_map,
+                &next_token.span,
+                NodeSearchMode::BiggestOutermost,
+            )
+            .or_else(|| {
+                find_node_enclosing_at(
+                    source_map,
+                    &next_token.span,
+                    NodeSearchMode::SmallestOutermost,
+                    |candidate| {
+                        !is_annotation_node_id(tree, candidate.idx)
+                            && !ignore_span.contains(&candidate.span)
+                    },
+                )
+            })
+        } else {
+            find_node_starting_at(
+                source_map,
+                &next_token.span,
+                NodeSearchMode::BiggestOutermost,
+            )
+        };
+
+        if let Some(next_node) = next_node {
+            let mut target_node_id =
+                annotation_promote_statement(tree, start_token, next_node.idx, statement_wrappers);
+
+            // blank runs before function declaration expressions should target the declaration node
+            if start_token.token.ty == TokenType::Newline
+                && !annotation_has_token_type_between(
+                    tokens,
+                    token_idx as usize + group_len,
+                    next_token_idx,
+                    TokenType::At,
+                )
+                && tree.get_node_type(target_node_id) == NodeType::Expression
+                && let Expression::Declaration(declaration_id) =
+                    tree.get(LocalNodeId::<Expression>::new(target_node_id))
+                && matches!(tree.get(*declaration_id), Declaration::Function { .. })
+            {
+                target_node_id = declaration_id.id;
+            }
+
+            return Some((AnnotationPosition::BlockPrefix, target_node_id));
+        }
+        if next_token.token.ty == TokenType::Dot {
+            let target_node_id = find_node_enclosing_at(
+                source_map,
+                &next_token.span,
+                NodeSearchMode::SmallestOutermost,
+                |candidate| {
+                    !is_annotation_node_id(tree, candidate.idx)
+                        && !ignore_span.contains(&candidate.span)
+                },
+            )
+            .map(|span| span.idx);
+            if let Some(target_node_id) = target_node_id {
+                return Some((
+                    AnnotationPosition::BlockPrefix,
+                    annotation_promote_statement(
+                        tree,
+                        start_token,
+                        target_node_id,
+                        statement_wrappers,
+                    ),
+                ));
+            }
+        }
+        next_token_idx += 1;
+    }
+
+    // block postfix: find the preceding targetable node
+    if !is_block_prefix_only && token_idx > 0 {
+        let mut prev_token_idx = token_idx as usize;
+        while prev_token_idx > 0 {
+            prev_token_idx -= 1;
+            let Some(prev_token) = tokens.get(prev_token_idx) else {
+                break;
+            };
+            if ignore_span.contains(&prev_token.span)
+                || ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.ty)
+                || prev_token.token.ty == TokenType::Whitespace
+            {
+                continue;
+            }
+            if let Some(enclosing_span) = enclosing_span
+                && !enclosing_span.intersects(prev_token.span)
+            {
+                break;
+            }
+            if let Some(prev_node) = find_node_ending_at(
+                source_map,
+                &prev_token.span,
+                NodeSearchMode::BiggestOutermost,
+            ) {
+                return Some((
+                    AnnotationPosition::BlockPostfix,
+                    annotation_promote_statement(
+                        tree,
+                        start_token,
+                        prev_node.idx,
+                        statement_wrappers,
+                    ),
+                ));
+            }
+        }
+    }
+
+    // find inner enclosing node (block infix)
+    if !is_block_prefix_only && let Some(enclosing_node) = enclosing_scope {
+        return Some((
+            AnnotationPosition::BlockInfix,
+            annotation_promote_statement(tree, start_token, enclosing_node.idx, statement_wrappers),
+        ));
+    }
+
+    None
+}
+
+/// Collect semantic and side tokens without whitespace in source order.
+fn collect_annotation_tokens(
+    tokens: &[TokenSpan],
+    side_tokens: &[TokenSpan],
+    file: &File,
+) -> (Vec<TokenSpan>, Vec<u32>) {
+    let mut merged = Vec::with_capacity(tokens.len() + side_tokens.len());
+    let mut line_indices = Vec::with_capacity(tokens.len() + side_tokens.len());
+
+    let mut main_index = 0usize;
+    let mut side_index = 0usize;
+    loop {
+        while let Some(token) = tokens.get(main_index) {
+            if token.token.ty != TokenType::Whitespace {
+                break;
+            }
+            main_index += 1;
+        }
+
+        while let Some(token) = side_tokens.get(side_index) {
+            if token.token.ty != TokenType::Whitespace {
+                break;
+            }
+            side_index += 1;
+        }
+
+        let main_token = tokens.get(main_index).copied();
+        let side_token = side_tokens.get(side_index).copied();
+        let next = match (main_token, side_token) {
+            (Some(main_token), Some(side_token)) => {
+                if main_token.span.start <= side_token.span.start {
+                    main_index += 1;
+                    Some(main_token)
+                } else {
+                    side_index += 1;
+                    Some(side_token)
+                }
+            }
+            (Some(main_token), None) => {
+                main_index += 1;
+                Some(main_token)
+            }
+            (None, Some(side_token)) => {
+                side_index += 1;
+                Some(side_token)
+            }
+            (None, None) => None,
+        };
+
+        let Some(next) = next else {
+            break;
+        };
+
+        let line_index = file
+            .get_position(next.span.start)
+            .map_or(0, |position| position.0);
+        merged.push(next);
+        line_indices.push(line_index);
+    }
+
+    (merged, line_indices)
+}
+
+/// Build formatter-owned annotation ids and entries from semantic attachments and trivia.
+fn build_formatter_annotation_projection(
+    file: &File,
+    tree: &NodeTree,
+    tokens: &[TokenSpan],
+    side_tokens: &[TokenSpan],
+    side_span: &MultiSpan,
+) -> (
+    Vec<FormatterAnnotationEntry>,
+    Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
+) {
+    let node_count = tree.next_id() as usize;
+    let mut entries = Vec::new();
+    let mut by_node_id = vec![SmallVec::new(); node_count];
+
+    // add parser semantic annotations first
+    for (&target_id, annotation_ids) in tree.get_all_annotations() {
+        if target_id as usize >= by_node_id.len() {
+            continue;
+        }
+
+        for &annotation_id in annotation_ids {
+            let ast_annotation = tree.get(annotation_id);
+            let annotation = match ast_annotation {
+                AstAnnotation::Doc { node, position } => Annotation::Doc {
+                    node: *node,
+                    position: *position,
+                },
+                AstAnnotation::Decorator { node, position } => Annotation::Decorator {
+                    node: *node,
+                    position: *position,
+                },
+            };
+
+            let local_id = LocalNodeId::new(entries.len() as u32);
+            entries.push(FormatterAnnotationEntry {
+                annotation,
+                span: tree.get_span(annotation_id),
+            });
+            by_node_id[target_id as usize].push(local_id);
+        }
+    }
+
+    // side annotation mapping
+    let statement_wrappers = collect_statement_wrappers(tree);
+    let (annotation_tokens, line_indices) = collect_annotation_tokens(tokens, side_tokens, file);
+
+    let mut token_index_by_span_and_type = FxHashMap::<(u32, u32, TokenType), usize>::default();
+    let mut newline_index_by_start = FxHashMap::<u32, usize>::default();
+    for (token_index, token) in annotation_tokens.iter().copied().enumerate() {
+        if !is_side_annotation_token(token.token.ty) {
+            continue;
+        }
+        token_index_by_span_and_type.insert(
+            (token.span.start, token.span.end, token.token.ty),
+            token_index,
+        );
+        if token.token.ty == TokenType::Newline {
+            newline_index_by_start.insert(token.span.start, token_index);
+        }
+    }
+
+    // add formatter-placed comment trivia with legacy-compatible targeting
+    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
+    for trivia in tree.comment_trivia().iter().copied() {
+        let comment = tree.get::<Comment>(trivia.comment);
+        let token_index = match comment.style {
+            CommentStyle::Slash => token_index_by_span_and_type
+                .get(&(trivia.span.start, trivia.span.end, TokenType::LineComment))
+                .copied()
+                .or_else(|| {
+                    token_index_by_span_and_type
+                        .get(&(
+                            trivia.span.start,
+                            trivia.span.end,
+                            TokenType::DocLineComment,
+                        ))
+                        .copied()
+                }),
+            CommentStyle::Star => token_index_by_span_and_type
+                .get(&(trivia.span.start, trivia.span.end, TokenType::BlockComment))
+                .copied()
+                .or_else(|| {
+                    token_index_by_span_and_type
+                        .get(&(
+                            trivia.span.start,
+                            trivia.span.end,
+                            TokenType::DocBlockComment,
+                        ))
+                        .copied()
+                }),
+        };
+        let Some(token_index) = token_index else {
+            continue;
+        };
+
+        let Some((position, target_id)) = find_side_annotation_target(
+            tree,
+            &tree.source_map,
+            file,
+            token_index as u32,
+            &annotation_tokens,
+            &line_indices,
+            token_index,
+            token_index,
+            1,
+            comment.style == CommentStyle::Slash,
+            false,
+            &statement_wrappers,
+            side_span,
+        ) else {
+            continue;
+        };
+        if debug_trivia {
+            let comment_text = file.span_str(trivia.span);
+            let previous_non_whitespace = file
+                .span_str(Span::new(file.id, 0, trivia.span.start))
+                .chars()
+                .rev()
+                .find(|character| !character.is_whitespace());
+            let target_type = tree.get_node_type(target_id);
+            if target_type == NodeType::Expression {
+                let expression = tree.get(LocalNodeId::<Expression>::new(target_id));
+                eprintln!(
+                    "comment {:?} => {:?} on {} ({:?}) prev_char={:?} expression={:?}",
+                    comment_text,
+                    position,
+                    target_id,
+                    target_type,
+                    previous_non_whitespace,
+                    expression
+                );
+            } else {
+                eprintln!(
+                    "comment {:?} => {:?} on {} ({:?}) prev_char={:?}",
+                    comment_text, position, target_id, target_type, previous_non_whitespace
+                );
+            }
+        }
+        if target_id as usize >= by_node_id.len() {
+            continue;
+        }
+
+        let local_id = LocalNodeId::new(entries.len() as u32);
+        entries.push(FormatterAnnotationEntry {
+            annotation: Annotation::Comment {
+                node: trivia.comment,
+                position,
+            },
+            span: trivia.span,
+        });
+        by_node_id[target_id as usize].push(local_id);
+    }
+
+    // add formatter-placed blank trivia with legacy-compatible targeting
+    for trivia in tree.blank_trivia().iter().copied() {
+        let Some(start_token_index) = newline_index_by_start.get(&trivia.span.start).copied()
+        else {
+            continue;
+        };
+
+        let mut end_token_index = start_token_index;
+        let mut cursor = start_token_index;
+        while let Some(token) = annotation_tokens.get(cursor).copied() {
+            if token.token.ty != TokenType::Newline {
+                break;
+            }
+            if token.span.start < trivia.span.start || token.span.end > trivia.span.end {
+                break;
+            }
+            end_token_index = cursor;
+            cursor += 1;
+        }
+
+        let group_len = end_token_index.saturating_sub(start_token_index) + 1;
+        if group_len <= 1 {
+            continue;
+        }
+
+        let Some((position, target_id)) = find_side_annotation_target(
+            tree,
+            &tree.source_map,
+            file,
+            start_token_index as u32,
+            &annotation_tokens,
+            &line_indices,
+            start_token_index,
+            end_token_index,
+            group_len,
+            false,
+            false,
+            &statement_wrappers,
+            side_span,
+        ) else {
+            continue;
+        };
+        if debug_trivia {
+            if tree.get_node_type(target_id) == NodeType::Expression {
+                eprintln!(
+                    "blank {:?} => {:?} on {} ({:?}) expression={:?}",
+                    file.span_str(trivia.span),
+                    position,
+                    target_id,
+                    tree.get_node_type(target_id),
+                    tree.get(LocalNodeId::<Expression>::new(target_id))
+                );
+            } else {
+                eprintln!(
+                    "blank {:?} => {:?} on {} ({:?})",
+                    file.span_str(trivia.span),
+                    position,
+                    target_id,
+                    tree.get_node_type(target_id)
+                );
+            }
+        }
+        if target_id as usize >= by_node_id.len() {
+            continue;
+        }
+
+        let local_id = LocalNodeId::new(entries.len() as u32);
+        entries.push(FormatterAnnotationEntry {
+            annotation: Annotation::Blank {
+                node: trivia.blank,
+                position,
+            },
+            span: trivia.span,
+        });
+        by_node_id[target_id as usize].push(local_id);
+    }
+
+    // keep node-local annotation order source-stable
+    for annotation_ids in &mut by_node_id {
+        annotation_ids.sort_by(
+            |left: &LocalNodeId<Annotation>, right: &LocalNodeId<Annotation>| {
+                let left_span = entries[left.id as usize].span;
+                let right_span = entries[right.id as usize].span;
+                left_span
+                    .start
+                    .cmp(&right_span.start)
+                    .then(left_span.end.cmp(&right_span.end))
+                    .then(left.id.cmp(&right.id))
+            },
+        );
+    }
+
+    (entries, by_node_id)
 }
 
 /// Cached argument annotation facts used by hot call formatting paths.
@@ -280,6 +1712,64 @@ pub struct CachedCallArgumentLayoutClass {
     pub trailing_collection_argument: bool,
     /// Whether this call can force hug-last inline layout.
     pub force_hug_last_inline: bool,
+}
+
+/// Dense formatter node caches keyed by node id.
+#[derive(Debug, Clone)]
+struct FormatterNodeCaches {
+    /// Cached span char lengths for node ids.
+    node_span_char_len: Vec<Cell<u32>>,
+    /// Cached node span newline predicates keyed by node id.
+    node_has_newline: Vec<Cell<u8>>,
+    /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
+    call_argument_expansion_profiles: RefCell<Vec<Option<CachedCallArgumentExpansionProfiles>>>,
+    /// Cached inline call length estimates without static arguments keyed by call expression id.
+    call_inline_len_without_static_arguments: RefCell<Vec<Option<Option<usize>>>>,
+    /// Cached call argument annotation profiles keyed by argument node id.
+    argument_annotation_profile: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
+    /// Cached compact simple unannotated argument predicate keyed by argument node id.
+    argument_compact_simple_unannotated: RefCell<Vec<Option<bool>>>,
+    /// Cached plain-call-argument predicate keyed by argument node id.
+    argument_plain_call_argument: RefCell<Vec<Option<bool>>>,
+    /// Cached call argument layout-class facts keyed by call expression node id.
+    call_argument_layout_class: RefCell<Vec<Option<CachedCallArgumentLayoutClass>>>,
+    /// Cached chain call force-expand decisions keyed by call expression node id.
+    call_argument_chain_force_expand: RefCell<Vec<Option<bool>>>,
+    /// Cached transparent inner expression ids keyed by expression node id.
+    transparent_inner_expression: RefCell<Vec<Option<LocalNodeId<Expression>>>>,
+    /// Cached type-context decisions keyed by expression node id.
+    expression_type_context: Vec<Cell<u8>>,
+    /// Cached template interpolation ancestry decisions keyed by expression node id.
+    expression_template_interpolation: Vec<Cell<u8>>,
+    /// Cached type-conditional ancestry decisions keyed by expression node id.
+    expression_type_conditional_ancestor: Vec<Cell<u8>>,
+}
+
+impl FormatterNodeCaches {
+    /// Build all dense formatter node caches.
+    fn new(node_count: usize) -> Self {
+        Self {
+            node_span_char_len: vec![Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN); node_count],
+            node_has_newline: vec![Cell::new(NODE_BOOL_STATE_UNKNOWN); node_count],
+            call_argument_expansion_profiles: RefCell::new(vec![None; node_count]),
+            call_inline_len_without_static_arguments: RefCell::new(vec![None; node_count]),
+            argument_annotation_profile: RefCell::new(vec![None; node_count]),
+            argument_compact_simple_unannotated: RefCell::new(vec![None; node_count]),
+            argument_plain_call_argument: RefCell::new(vec![None; node_count]),
+            call_argument_layout_class: RefCell::new(vec![None; node_count]),
+            call_argument_chain_force_expand: RefCell::new(vec![None; node_count]),
+            transparent_inner_expression: RefCell::new(vec![None; node_count]),
+            expression_type_context: vec![Cell::new(TYPE_CONTEXT_STATE_UNKNOWN); node_count],
+            expression_template_interpolation: vec![
+                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
+                node_count
+            ],
+            expression_type_conditional_ancestor: vec![
+                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
+                node_count
+            ],
+        }
+    }
 }
 
 /// Destack format options.
@@ -465,6 +1955,10 @@ pub struct DestackFormatContext<'a> {
     pub strings: &'a ImmutableStringPool,
     /// The current argument list group id, if any.
     pub current_argument_group_id: Option<GroupId>,
+    /// Formatter-owned annotation entries (semantic + placed trivia).
+    pub formatter_annotation_entries: Vec<FormatterAnnotationEntry>,
+    /// Formatter-owned annotation ids grouped by target node id.
+    pub formatter_annotation_ids_by_node_id: Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
     /// Cached node-to-annotation ids and annotation metadata for hot annotation lookups.
     pub annotation_ids_cache: RefCell<Vec<Option<CachedAnnotationData>>>,
     /// Cached annotation presence for node ids.
@@ -481,33 +1975,8 @@ pub struct DestackFormatContext<'a> {
     pub span_has_newline_cache: RefCell<FxHashMap<Span, bool>>,
     /// Cached comment checks for repeated span comment predicates.
     pub span_has_comment_cache: RefCell<FxHashMap<Span, bool>>,
-    /// Cached span char lengths for node ids.
-    pub node_span_char_len_cache: Vec<Cell<u32>>,
-    /// Cached node span newline predicates keyed by node id.
-    pub node_has_newline_cache: Vec<Cell<u8>>,
-    /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
-    pub call_argument_expansion_profiles_cache:
-        RefCell<Vec<Option<CachedCallArgumentExpansionProfiles>>>,
-    /// Cached inline call length estimates without static arguments keyed by call expression id.
-    pub call_inline_len_without_static_arguments_cache: RefCell<Vec<Option<Option<usize>>>>,
-    /// Cached call argument annotation profiles keyed by argument node id.
-    pub argument_annotation_profile_cache: RefCell<Vec<Option<CachedArgumentAnnotationProfile>>>,
-    /// Cached compact simple unannotated argument predicate keyed by argument node id.
-    pub argument_compact_simple_unannotated_cache: RefCell<Vec<Option<bool>>>,
-    /// Cached plain-call-argument predicate keyed by argument node id.
-    pub argument_plain_call_argument_cache: RefCell<Vec<Option<bool>>>,
-    /// Cached call argument layout-class facts keyed by call expression node id.
-    pub call_argument_layout_class_cache: RefCell<Vec<Option<CachedCallArgumentLayoutClass>>>,
-    /// Cached chain call force-expand decisions keyed by call expression node id.
-    pub call_argument_chain_force_expand_cache: RefCell<Vec<Option<bool>>>,
-    /// Cached transparent inner expression ids keyed by expression node id.
-    pub transparent_inner_expression_cache: RefCell<Vec<Option<LocalNodeId<Expression>>>>,
-    /// Cached type-context decisions keyed by expression node id.
-    pub expression_type_context_cache: Vec<Cell<u8>>,
-    /// Cached template interpolation ancestry decisions keyed by expression node id.
-    pub expression_template_interpolation_cache: Vec<Cell<u8>>,
-    /// Cached type-conditional ancestry decisions keyed by expression node id.
-    pub expression_type_conditional_ancestor_cache: Vec<Cell<u8>>,
+    /// Dense formatter caches keyed by node id.
+    node_caches: FormatterNodeCaches,
     /// Cached sorted comment tokens for ignore-range and comment-boundary scans.
     pub comment_tokens_cache: OnceCell<Vec<TokenSpan>>,
     /// Comment spans for this file, sorted by start position.
@@ -568,6 +2037,10 @@ impl<'a> DestackFormatContext<'a> {
             strings,
             parents,
         } = artifacts;
+        let (formatter_annotation_entries, formatter_annotation_ids_by_node_id) =
+            build_formatter_annotation_projection(file, tree, tokens, side_tokens, side_span);
+        let node_count = tree.next_id() as usize;
+        let node_caches = FormatterNodeCaches::new(node_count);
         let timings_enabled = timings_enabled || timings_enabled_from_env();
         let file_text = file.text();
         let has_ignore_directive_markers = file_text.contains("format-ignore")
@@ -594,10 +2067,13 @@ impl<'a> DestackFormatContext<'a> {
             .collect::<Vec<_>>();
         comment_spans.sort_by_key(|span| span.start);
 
-        let annotation_presence_cache =
-            vec![Cell::new(ANNOTATION_STATE_NONE); tree.next_id() as usize];
-        for node_id in tree.get_all_annotations().keys().copied() {
-            if let Some(annotation_state) = annotation_presence_cache.get(node_id as usize) {
+        let annotation_presence_cache = vec![Cell::new(ANNOTATION_STATE_NONE); node_count];
+        for (node_id, annotation_ids) in formatter_annotation_ids_by_node_id.iter().enumerate() {
+            if annotation_ids.is_empty() {
+                continue;
+            }
+
+            if let Some(annotation_state) = annotation_presence_cache.get(node_id) {
                 annotation_state.set(ANNOTATION_STATE_PRESENT);
             }
         }
@@ -613,7 +2089,9 @@ impl<'a> DestackFormatContext<'a> {
             parents,
             strings,
             current_argument_group_id: None,
-            annotation_ids_cache: RefCell::new(vec![None; tree.next_id() as usize]),
+            formatter_annotation_entries,
+            formatter_annotation_ids_by_node_id,
+            annotation_ids_cache: RefCell::new(vec![None; node_count]),
             annotation_presence_cache,
             span_text_cache: RefCell::new(FxHashMap::default()),
             span_char_len_cache: RefCell::new(FxHashMap::default()),
@@ -621,47 +2099,7 @@ impl<'a> DestackFormatContext<'a> {
             newline_offsets: OnceCell::new(),
             span_has_newline_cache: RefCell::new(FxHashMap::default()),
             span_has_comment_cache: RefCell::new(FxHashMap::default()),
-            node_span_char_len_cache: vec![
-                Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN);
-                tree.next_id() as usize
-            ],
-            node_has_newline_cache: vec![
-                Cell::new(NODE_BOOL_STATE_UNKNOWN);
-                tree.next_id() as usize
-            ],
-            call_argument_expansion_profiles_cache: RefCell::new(vec![
-                None;
-                tree.next_id() as usize
-            ]),
-            call_inline_len_without_static_arguments_cache: RefCell::new(vec![
-                None;
-                tree.next_id()
-                    as usize
-            ]),
-            argument_annotation_profile_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            argument_compact_simple_unannotated_cache: RefCell::new(vec![
-                None;
-                tree.next_id() as usize
-            ]),
-            argument_plain_call_argument_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            call_argument_layout_class_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            call_argument_chain_force_expand_cache: RefCell::new(vec![
-                None;
-                tree.next_id() as usize
-            ]),
-            transparent_inner_expression_cache: RefCell::new(vec![None; tree.next_id() as usize]),
-            expression_type_context_cache: vec![
-                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
-                tree.next_id() as usize
-            ],
-            expression_template_interpolation_cache: vec![
-                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
-                tree.next_id() as usize
-            ],
-            expression_type_conditional_ancestor_cache: vec![
-                Cell::new(TYPE_CONTEXT_STATE_UNKNOWN);
-                tree.next_id() as usize
-            ],
+            node_caches,
             comment_tokens_cache: OnceCell::new(),
             comment_spans,
             timings: timings_enabled.then(|| Rc::new(FormatterTimings::default())),
@@ -784,14 +2222,14 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
-        let cached = self.node_span_char_len_cache[node_index].get();
+        let cached = self.node_caches.node_span_char_len[node_index].get();
         if cached != NODE_SPAN_CHAR_LEN_UNKNOWN {
             return cached as usize;
         }
 
         let len = self.span_char_len(self.get_span(node_id));
         #[expect(clippy::cast_possible_truncation)]
-        self.node_span_char_len_cache[node_index].set(len as u32);
+        self.node_caches.node_span_char_len[node_index].set(len as u32);
 
         len
     }
@@ -804,7 +2242,7 @@ impl<'a> DestackFormatContext<'a> {
         NodeTree: NodeTreeImpl<T>,
     {
         let node_index = node_id.id as usize;
-        let cached = self.node_has_newline_cache[node_index].get();
+        let cached = self.node_caches.node_has_newline[node_index].get();
         if cached == NODE_BOOL_STATE_TRUE {
             return true;
         }
@@ -813,7 +2251,7 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         let has_newline = self.has_newline(self.get_span(node_id));
-        self.node_has_newline_cache[node_index].set(if has_newline {
+        self.node_caches.node_has_newline[node_index].set(if has_newline {
             NODE_BOOL_STATE_TRUE
         } else {
             NODE_BOOL_STATE_FALSE
@@ -916,7 +2354,7 @@ impl<'a> DestackFormatContext<'a> {
         let node_index = node_id.id as usize;
 
         {
-            let cache = self.transparent_inner_expression_cache.borrow();
+            let cache = self.node_caches.transparent_inner_expression.borrow();
             if let Some(inner_expression_id) = cache[node_index] {
                 return inner_expression_id;
             }
@@ -946,7 +2384,7 @@ impl<'a> DestackFormatContext<'a> {
             current_id = next_id;
         }
 
-        let mut cache = self.transparent_inner_expression_cache.borrow_mut();
+        let mut cache = self.node_caches.transparent_inner_expression.borrow_mut();
         for expression_index in visited_expression_indices {
             cache[expression_index] = Some(current_id);
         }
@@ -959,7 +2397,8 @@ impl<'a> DestackFormatContext<'a> {
     pub fn cached_expression_type_context(&self, node_id: LocalNodeId<Expression>) -> Option<bool> {
         let node_index = node_id.id as usize;
         let state = self
-            .expression_type_context_cache
+            .node_caches
+            .expression_type_context
             .get(node_index)
             .map(Cell::get)
             .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
@@ -987,7 +2426,7 @@ impl<'a> DestackFormatContext<'a> {
         } else {
             TYPE_CONTEXT_STATE_FALSE
         };
-        if let Some(cache_state) = self.expression_type_context_cache.get(node_index) {
+        if let Some(cache_state) = self.node_caches.expression_type_context.get(node_index) {
             cache_state.set(state);
         }
     }
@@ -1008,7 +2447,8 @@ impl<'a> DestackFormatContext<'a> {
         let has_template_interpolation_ancestor = loop {
             let current_index = current_id as usize;
             let cached_state = self
-                .expression_template_interpolation_cache
+                .node_caches
+                .expression_template_interpolation
                 .get(current_index)
                 .map(Cell::get)
                 .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
@@ -1044,7 +2484,8 @@ impl<'a> DestackFormatContext<'a> {
         };
         for expression_index in visited_expression_indices {
             if let Some(cache_state) = self
-                .expression_template_interpolation_cache
+                .node_caches
+                .expression_template_interpolation
                 .get(expression_index)
             {
                 cache_state.set(cached_state);
@@ -1066,7 +2507,8 @@ impl<'a> DestackFormatContext<'a> {
         let has_type_conditional_ancestor = loop {
             let current_index = current_id as usize;
             let cached_state = self
-                .expression_type_conditional_ancestor_cache
+                .node_caches
+                .expression_type_conditional_ancestor
                 .get(current_index)
                 .map(Cell::get)
                 .unwrap_or(TYPE_CONTEXT_STATE_UNKNOWN);
@@ -1103,7 +2545,8 @@ impl<'a> DestackFormatContext<'a> {
         };
         for expression_index in visited_expression_indices {
             if let Some(cache_state) = self
-                .expression_type_conditional_ancestor_cache
+                .node_caches
+                .expression_type_conditional_ancestor
                 .get(expression_index)
             {
                 cache_state.set(cached_state);
@@ -1268,6 +2711,18 @@ impl<'a> DestackFormatContext<'a> {
         true
     }
 
+    /// Get one formatter-owned annotation by id.
+    #[inline]
+    pub fn get_annotation(&self, annotation_id: LocalNodeId<Annotation>) -> Annotation {
+        self.formatter_annotation_entries[annotation_id.id as usize].annotation
+    }
+
+    /// Get one formatter-owned annotation span by id.
+    #[inline]
+    pub fn get_annotation_span(&self, annotation_id: LocalNodeId<Annotation>) -> Span {
+        self.formatter_annotation_entries[annotation_id.id as usize].span
+    }
+
     /// Return borrowed cached annotation data for a node.
     #[inline]
     fn annotation_data_for_node<T>(
@@ -1311,8 +2766,14 @@ impl<'a> DestackFormatContext<'a> {
         }
 
         // load annotations once and cache metadata
-        let annotation_data =
-            CachedAnnotationData::from_ids(self.tree, self.tree.get_annotations(node_id.id));
+        let annotation_ids = self
+            .formatter_annotation_ids_by_node_id
+            .get(node_index)
+            .map(|annotation_ids| annotation_ids.as_slice().to_vec())
+            .unwrap_or_default();
+        let annotation_data = CachedAnnotationData::from_ids(annotation_ids, |annotation_id| {
+            self.get_annotation(annotation_id)
+        });
         {
             let mut cache = self.annotation_ids_cache.borrow_mut();
             cache[node_index] = Some(annotation_data);
@@ -1466,9 +2927,10 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         argument_id: LocalNodeId<Argument>,
     ) -> CachedArgumentAnnotationProfile {
-        if let Some(profile) =
-            self.cache_get_copy_entry(&self.argument_annotation_profile_cache, argument_id.id)
-        {
+        if let Some(profile) = self.cache_get_copy_entry(
+            &self.node_caches.argument_annotation_profile,
+            argument_id.id,
+        ) {
             self.increment_counter("cache.argument_annotation_profile.hits", 1);
             return profile;
         }
@@ -1476,7 +2938,7 @@ impl<'a> DestackFormatContext<'a> {
         self.increment_counter("cache.argument_annotation_profile.misses", 1);
         let profile = self.compute_argument_annotation_profile(argument_id);
         self.cache_set_copy_entry(
-            &self.argument_annotation_profile_cache,
+            &self.node_caches.argument_annotation_profile,
             argument_id.id,
             profile,
         );
@@ -1491,7 +2953,7 @@ impl<'a> DestackFormatContext<'a> {
         argument_id: LocalNodeId<Argument>,
     ) -> Option<bool> {
         self.cache_get_copy_entry(
-            &self.argument_compact_simple_unannotated_cache,
+            &self.node_caches.argument_compact_simple_unannotated,
             argument_id.id,
         )
     }
@@ -1504,7 +2966,7 @@ impl<'a> DestackFormatContext<'a> {
         value: bool,
     ) {
         self.cache_set_copy_entry(
-            &self.argument_compact_simple_unannotated_cache,
+            &self.node_caches.argument_compact_simple_unannotated,
             argument_id.id,
             value,
         );
@@ -1516,7 +2978,10 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         argument_id: LocalNodeId<Argument>,
     ) -> Option<bool> {
-        self.cache_get_copy_entry(&self.argument_plain_call_argument_cache, argument_id.id)
+        self.cache_get_copy_entry(
+            &self.node_caches.argument_plain_call_argument,
+            argument_id.id,
+        )
     }
 
     /// Cache plain call argument predicate.
@@ -1527,7 +2992,7 @@ impl<'a> DestackFormatContext<'a> {
         value: bool,
     ) {
         self.cache_set_copy_entry(
-            &self.argument_plain_call_argument_cache,
+            &self.node_caches.argument_plain_call_argument,
             argument_id.id,
             value,
         );
@@ -1539,7 +3004,10 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         call_node_id: LocalNodeId<Expression>,
     ) -> Option<CachedCallArgumentLayoutClass> {
-        self.cache_get_copy_entry(&self.call_argument_layout_class_cache, call_node_id.id)
+        self.cache_get_copy_entry(
+            &self.node_caches.call_argument_layout_class,
+            call_node_id.id,
+        )
     }
 
     /// Cache call argument layout-class facts for one call expression node.
@@ -1550,7 +3018,7 @@ impl<'a> DestackFormatContext<'a> {
         layout_class: CachedCallArgumentLayoutClass,
     ) {
         self.cache_set_copy_entry(
-            &self.call_argument_layout_class_cache,
+            &self.node_caches.call_argument_layout_class,
             call_node_id.id,
             layout_class,
         );
@@ -1563,7 +3031,7 @@ impl<'a> DestackFormatContext<'a> {
         call_node_id: LocalNodeId<Expression>,
     ) -> Option<bool> {
         self.cache_get_copy_entry(
-            &self.call_argument_chain_force_expand_cache,
+            &self.node_caches.call_argument_chain_force_expand,
             call_node_id.id,
         )
     }
@@ -1576,7 +3044,7 @@ impl<'a> DestackFormatContext<'a> {
         force_expand: bool,
     ) {
         self.cache_set_copy_entry(
-            &self.call_argument_chain_force_expand_cache,
+            &self.node_caches.call_argument_chain_force_expand,
             call_node_id.id,
             force_expand,
         );
@@ -1589,7 +3057,7 @@ impl<'a> DestackFormatContext<'a> {
         call_node_id: LocalNodeId<Expression>,
     ) -> Option<CachedCallArgumentExpansionProfiles> {
         self.cache_get_copy_entry(
-            &self.call_argument_expansion_profiles_cache,
+            &self.node_caches.call_argument_expansion_profiles,
             call_node_id.id,
         )
     }
@@ -1602,7 +3070,7 @@ impl<'a> DestackFormatContext<'a> {
         profiles: CachedCallArgumentExpansionProfiles,
     ) {
         self.cache_set_copy_entry(
-            &self.call_argument_expansion_profiles_cache,
+            &self.node_caches.call_argument_expansion_profiles,
             call_node_id.id,
             profiles,
         );
@@ -1615,7 +3083,7 @@ impl<'a> DestackFormatContext<'a> {
         call_node_id: LocalNodeId<Expression>,
     ) -> Option<Option<usize>> {
         self.cache_get_copy_entry(
-            &self.call_inline_len_without_static_arguments_cache,
+            &self.node_caches.call_inline_len_without_static_arguments,
             call_node_id.id,
         )
     }
@@ -1628,7 +3096,7 @@ impl<'a> DestackFormatContext<'a> {
         inline_len_without_static_arguments: Option<usize>,
     ) {
         self.cache_set_copy_entry(
-            &self.call_inline_len_without_static_arguments_cache,
+            &self.node_caches.call_inline_len_without_static_arguments,
             call_node_id.id,
             inline_len_without_static_arguments,
         );
@@ -1648,7 +3116,7 @@ impl<'a> DestackFormatContext<'a> {
 
         self.with_annotations(argument_id, |annotations| {
             for annotation_id in annotations {
-                let annotation = self.tree.get::<Annotation>(*annotation_id);
+                let annotation = self.get_annotation(*annotation_id);
 
                 match annotation {
                     Annotation::Blank { .. } => {}
@@ -1667,12 +3135,12 @@ impl<'a> DestackFormatContext<'a> {
                         };
                         profile.has_comment = true;
 
-                        let comment = self.tree.get::<Comment>(*node);
+                        let comment = self.tree.get::<Comment>(node);
                         if comment.style != destack_ast::CommentStyle::Slash {
                             continue;
                         }
 
-                        let annotation_span = self.get_span::<Annotation>(*annotation_id);
+                        let annotation_span = self.get_annotation_span(*annotation_id);
                         if annotation_span.start >= argument_span.end {
                             profile.has_line_comment = true;
                         }
@@ -1890,7 +3358,7 @@ impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
             }
             NodeType::Annotation => {
                 let node_id = LocalNodeId::<Annotation>::new(self.id);
-                let node = context.tree.get(node_id);
+                let node = context.get_annotation(node_id);
                 node.format_node(node_id, f)
             }
             NodeType::Blank => {

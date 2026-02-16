@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
@@ -22,18 +23,9 @@ pub enum AnnotationPosition {
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Annotation {
-    Blank {
-        node: LocalNodeId<Blank>,
-        position: AnnotationPosition,
-    },
     /// A doc annotation (like `///` or `/**`).
     Doc {
         node: LocalNodeId<Doc>,
-        position: AnnotationPosition,
-    },
-    /// A comment annotation (like `//` or `/*`).
-    Comment {
-        node: LocalNodeId<Comment>,
         position: AnnotationPosition,
     },
     /// A decorator annotation (like `@foo` or `@foo(1, 2, 3)`).
@@ -50,9 +42,7 @@ impl Node for Annotation {
 impl Annotation {
     pub fn position(&self) -> AnnotationPosition {
         match self {
-            Annotation::Blank { position, .. } => *position,
             Annotation::Doc { position, .. } => *position,
-            Annotation::Comment { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
     }
@@ -69,17 +59,16 @@ impl Node for Blank {
     const TYPE: NodeType = NodeType::Blank;
 }
 
-/// A DocStyle is the style of a documentation comment.
+/// The style of a documentation comment.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum DocStyle {
+pub enum DocumentationStyle {
     /// End of line comment.
     Slash,
     /// Star delimited comment.
     Star,
 }
 
-/// A Doc is a block or line-scoped documentation comment string.
-/// Like comments, Docs are attached in a side tree outside of the main parse / tree.
+/// A block or line-scoped documentation comment string.
 ///
 /// Examples:
 /// ```
@@ -90,19 +79,25 @@ pub enum DocStyle {
 ///  */
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Doc {
+pub struct Documentation {
     /// The clean documentation comment string.
     /// Newlines preserved, leading/trailing whitespace stripped.
     pub string: StringId,
     /// The style of the documentation comment.
-    pub style: DocStyle,
+    pub style: DocumentationStyle,
 }
 
-impl Node for Doc {
+impl Node for Documentation {
     const TYPE: NodeType = NodeType::Doc;
 }
 
-/// A CommentStyle is the style of a comment.
+/// Compatibility alias for transition from `DocStyle`.
+pub type DocStyle = DocumentationStyle;
+
+/// Compatibility alias for transition from `Doc`.
+pub type Doc = Documentation;
+
+/// The style of a comment.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CommentStyle {
     /// End of line comment.
@@ -129,6 +124,119 @@ pub struct Comment {
 
 impl Node for Comment {
     const TYPE: NodeType = NodeType::Comment;
+}
+
+/// A normalized directive extracted from a comment in the lexer.
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CommentDirective {
+    /// No recognized directive marker.
+    #[default]
+    None = 0,
+    /// A legal header marker.
+    Legal = 1,
+    /// A `__PURE__` style marker.
+    Pure = 2,
+    /// A `#__NO_SIDE_EFFECTS__` style marker.
+    NoSideEffects = 3,
+    /// A TypeScript line directive marker.
+    TypeScript = 4,
+    /// A formatter ignore-next marker.
+    FormatIgnore = 5,
+    /// A formatter ignore-file directive marker.
+    FormatIgnoreFile = 6,
+    /// A formatter ignore-range start marker.
+    FormatIgnoreStart = 7,
+    /// A formatter ignore-range end marker.
+    FormatIgnoreEnd = 8,
+}
+
+/// Newline shape flags captured around one trivia record.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct TriviaNewlineFlags {
+    /// Bit flags that describe newline boundaries.
+    pub bits: u8,
+}
+
+impl TriviaNewlineFlags {
+    /// Leading newline bit.
+    pub const LEADING: u8 = 1 << 0;
+    /// Trailing newline bit.
+    pub const TRAILING: u8 = 1 << 1;
+
+    /// Create flags from booleans.
+    #[inline]
+    pub fn from_bools(has_leading_newline: bool, has_trailing_newline: bool) -> Self {
+        let mut bits = 0u8;
+
+        if has_leading_newline {
+            bits |= Self::LEADING;
+        }
+        if has_trailing_newline {
+            bits |= Self::TRAILING;
+        }
+
+        Self { bits }
+    }
+
+    /// Return whether a leading newline exists.
+    #[inline]
+    pub fn has_leading_newline(self) -> bool {
+        self.bits & Self::LEADING != 0
+    }
+
+    /// Return whether a trailing newline exists.
+    #[inline]
+    pub fn has_trailing_newline(self) -> bool {
+        self.bits & Self::TRAILING != 0
+    }
+}
+
+/// Common token-boundary metadata for trivia.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TriviaBoundary {
+    /// The semantic token before this trivia, or `u32::MAX`.
+    pub token_before: u32,
+    /// The semantic token after this trivia, or `u32::MAX`.
+    pub token_after: u32,
+    /// Newline shape around this trivia.
+    pub newlines: TriviaNewlineFlags,
+    /// Whether this trivia can be consumed as a leading candidate.
+    pub is_leading_candidate: bool,
+}
+
+/// Comment trivia payload with placement metadata.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CommentTrivia {
+    /// The comment node id.
+    pub comment: LocalNodeId<Comment>,
+    /// The original source span for this trivia record.
+    pub span: Span,
+    /// Token-boundary metadata.
+    pub boundary: TriviaBoundary,
+    /// Normalized lexer directive kind.
+    pub directive: CommentDirective,
+}
+
+/// Blank trivia payload with placement metadata.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BlankTrivia {
+    /// The blank node id.
+    pub blank: LocalNodeId<Blank>,
+    /// The original source span for this trivia record.
+    pub span: Span,
+    /// Token-boundary metadata.
+    pub boundary: TriviaBoundary,
+}
+
+/// Stable source-order reference into split trivia buffers.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriviaRef {
+    /// Index into `NodeTree::comment_trivia`.
+    Comment(u32),
+    /// Index into `NodeTree::blank_trivia`.
+    Blank(u32),
 }
 
 /// A Decorator is a block-scoped decorator annotation.

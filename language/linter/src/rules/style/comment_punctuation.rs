@@ -38,102 +38,99 @@ impl LintRule for CommentPunctuation {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // inline comments should not end with periods
+        for trivia in ctx.tree.comment_trivia().iter().copied() {
+            let comment = ctx.tree.get(trivia.comment);
+            let text = ctx.strings.get(comment.string);
+            let text = text.as_ref().trim();
+
+            // skip comments that have explicit exceptions
+            if text.is_empty()
+                || is_directive_comment(text)
+                || is_separator_comment(text)
+                || parse_keyword_comment_with_options(
+                    text,
+                    &ctx.options.comment_keywords,
+                    &ctx.options.comment_keyword_tags,
+                )
+                .is_some()
+            {
+                continue;
+            }
+
+            // report trailing periods
+            if text.ends_with('.') {
+                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let mut diagnostic = LintDiagnostic::new(
+                    COMMENT_PUNCTUATION.id,
+                    COMMENT_PUNCTUATION.code,
+                    COMMENT_PUNCTUATION.category,
+                    severity,
+                    "inline comment should not end with a period",
+                    ctx.module.file_id,
+                    trivia.span,
+                )
+                .with_label("remove trailing period");
+
+                // compute fixes only when requested by the runner
+                if ctx.compute_fixes
+                    && let Some(fix) = inline_comment_trailing_period_fix(ctx, trivia.span)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
+            }
+        }
+
+        // doc comments should end each prose line with punctuation
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
+            let ast::Annotation::Doc { node, .. } = annotation else {
+                continue;
+            };
 
-            match annotation {
-                // inline comments should not end with periods
-                ast::Annotation::Comment { node, .. } => {
-                    let comment = ctx.tree.get(*node);
-                    let text = ctx.strings.get(comment.string);
-                    let text = text.as_ref().trim();
+            let doc = ctx.tree.get(*node);
+            let text = ctx.strings.get(doc.string);
+            let mut has_missing_punctuation = false;
 
-                    // skip comments that have explicit exceptions
-                    if text.is_empty()
-                        || is_directive_comment(text)
-                        || is_separator_comment(text)
-                        || parse_keyword_comment_with_options(
-                            text,
-                            &ctx.options.comment_keywords,
-                            &ctx.options.comment_keyword_tags,
-                        )
-                        .is_some()
-                    {
-                        continue;
-                    }
-
-                    // report trailing periods
-                    if text.ends_with('.') {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        let mut diagnostic = LintDiagnostic::new(
-                            COMMENT_PUNCTUATION.id,
-                            COMMENT_PUNCTUATION.code,
-                            COMMENT_PUNCTUATION.category,
-                            severity,
-                            "inline comment should not end with a period",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("remove trailing period");
-
-                        // compute fixes only when requested by the runner
-                        if ctx.compute_fixes
-                            && let Some(fix) = inline_comment_trailing_period_fix(ctx, node_id)
-                        {
-                            diagnostic = diagnostic.with_fix(fix);
-                        }
-
-                        ctx.report(diagnostic);
-                    }
+            // inspect each prose line
+            for line in text.as_ref().lines() {
+                if is_non_prose_doc_line(line) {
+                    continue;
                 }
 
-                // doc comments should end each prose line with punctuation
-                ast::Annotation::Doc { node, .. } => {
-                    let doc = ctx.tree.get(*node);
-                    let text = ctx.strings.get(doc.string);
-                    let mut has_missing_punctuation = false;
-
-                    // inspect each prose line
-                    for line in text.as_ref().lines() {
-                        if is_non_prose_doc_line(line) {
-                            continue;
-                        }
-
-                        if has_doc_terminal_punctuation(line) {
-                            continue;
-                        }
-
-                        has_missing_punctuation = true;
-                        break;
-                    }
-
-                    // report missing punctuation once per comment
-                    if has_missing_punctuation {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        ctx.report(
-                            LintDiagnostic::new(
-                                COMMENT_PUNCTUATION.id,
-                                COMMENT_PUNCTUATION.code,
-                                COMMENT_PUNCTUATION.category,
-                                severity,
-                                "doc comment lines should end with punctuation",
-                                ctx.module.file_id,
-                                ctx.tree.get_span(node_id),
-                            )
-                            .with_label("add punctuation to each sentence line"),
-                        );
-                    }
+                if has_doc_terminal_punctuation(line) {
+                    continue;
                 }
 
-                _ => {}
+                has_missing_punctuation = true;
+                break;
+            }
+
+            // report missing punctuation once per comment
+            if has_missing_punctuation {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                ctx.report(
+                    LintDiagnostic::new(
+                        COMMENT_PUNCTUATION.id,
+                        COMMENT_PUNCTUATION.code,
+                        COMMENT_PUNCTUATION.category,
+                        severity,
+                        "doc comment lines should end with punctuation",
+                        ctx.module.file_id,
+                        ctx.tree.get_span(node_id),
+                    )
+                    .with_label("add punctuation to each sentence line"),
+                );
             }
         }
     }
@@ -142,10 +139,9 @@ impl LintRule for CommentPunctuation {
 /// Build a safe fix that removes one trailing period from an inline comment.
 fn inline_comment_trailing_period_fix(
     ctx: &LintModuleAstContext<'_>,
-    annotation_id: ast::LocalNodeId<ast::Annotation>,
+    comment_span: Span,
 ) -> Option<LintFix> {
-    let annotation_span = ctx.tree.get_span(annotation_id);
-    let annotation_text = ctx.get_span_text(annotation_span);
+    let annotation_text = ctx.get_span_text(comment_span);
 
     // find the last non-whitespace character in the comment text
     let mut last_non_whitespace = None;
@@ -160,9 +156,9 @@ fn inline_comment_trailing_period_fix(
     }
 
     let period_span = Span::new(
-        annotation_span.file,
-        annotation_span.start + offset as u32,
-        annotation_span.start + offset as u32 + 1,
+        comment_span.file,
+        comment_span.start + offset as u32,
+        comment_span.start + offset as u32 + 1,
     );
     let edits = ctx.edit_builder().delete(period_span).into_edits();
     Some(LintFix::safe("Remove trailing comment period").with_edits(edits))

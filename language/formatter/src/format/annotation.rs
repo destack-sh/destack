@@ -5,10 +5,10 @@ use destack_source::Span;
 
 use crate::directive::{is_any_ignore_directive_comment, is_ignore_directive_comment};
 use crate::scan::{next_non_whitespace_after_span, previous_non_whitespace_before_annotation};
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+    AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Expression,
+    LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
 };
 
 /// Return the concrete content span for an annotation node.
@@ -16,12 +16,7 @@ fn annotation_content_span(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> Span {
-    match context.tree.get::<Annotation>(annotation_id) {
-        Annotation::Blank { node, .. } => context.get_span(*node),
-        Annotation::Doc { node, .. } => context.get_span(*node),
-        Annotation::Comment { node, .. } => context.get_span(*node),
-        Annotation::Decorator { node, .. } => context.get_span(*node),
-    }
+    context.get_annotation_span(annotation_id)
 }
 
 impl<'ast> DestackFormatContext<'ast> {
@@ -164,14 +159,18 @@ fn annotation_follows_colon<'ast>(
 }
 
 /// Return whether an annotation directly follows an opening delimiter in source.
+#[inline]
+fn is_opening_delimiter_character(character: char) -> bool {
+    matches!(character, '(' | '[' | '{' | '<')
+}
+
+/// Return whether an annotation directly follows an opening delimiter in source.
 fn annotation_follows_opening_delimiter<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    matches!(
-        previous_non_whitespace_before_annotation(context, annotation_id),
-        Some('(' | '[' | '{' | '<')
-    )
+    previous_non_whitespace_before_annotation(context, annotation_id)
+        .is_some_and(is_opening_delimiter_character)
 }
 
 /// Return whether an annotation directly follows a separator in source.
@@ -349,12 +348,12 @@ where
         let mut previous_was_blank_annotation = false;
         for annotation_id in annotations {
             // read annotation
-            let annotation = f.context().tree.get::<Annotation>(annotation_id);
+            let annotation = f.context().get_annotation(annotation_id);
             let (node_type, position) = match annotation {
-                Annotation::Blank { position, .. } => (NodeType::Blank, *position),
-                Annotation::Doc { position, .. } => (NodeType::Doc, *position),
-                Annotation::Comment { position, .. } => (NodeType::Comment, *position),
-                Annotation::Decorator { position, .. } => (NodeType::Decorator, *position),
+                Annotation::Blank { position, .. } => (NodeType::Blank, position),
+                Annotation::Doc { position, .. } => (NodeType::Doc, position),
+                Annotation::Comment { position, .. } => (NodeType::Comment, position),
+                Annotation::Decorator { position, .. } => (NodeType::Decorator, position),
             };
             // filter annotation
             let is_included = annotation_capture_includes_position(self.position, position);
@@ -363,7 +362,7 @@ where
             }
 
             // collect annotation-specific rendering facts
-            let render_facts = annotation_render_facts(f.context(), annotation, annotation_id);
+            let render_facts = annotation_render_facts(f.context(), &annotation, annotation_id);
             let is_ignore_directive_postfix_comment = render_facts.is_slash_comment
                 && matches!(
                     position,
@@ -372,13 +371,13 @@ where
                         | AnnotationPosition::BlockPostfix
                 )
                 && {
-                    let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                    let annotation_span = f.context().get_annotation_span(annotation_id);
                     let annotation_source = f.context().get_span_str(annotation_span);
                     let comment_source = if let Annotation::Comment {
                         node: comment_id, ..
                     } = annotation
                     {
-                        let comment = f.context().tree.get::<Comment>(*comment_id);
+                        let comment = f.context().tree.get::<Comment>(comment_id);
                         f.context().strings.get(comment.string)
                     } else {
                         ""
@@ -419,6 +418,12 @@ where
                 && render_facts.next_character == Some(',');
             let inline_block_comment_follows_opening_delimiter =
                 is_inline_block_star_comment && render_facts.follows_opening_delimiter;
+            let is_no_semi_guard_statement_prefix_comment = position
+                == AnnotationPosition::BlockPrefix
+                && render_facts.is_slash_comment
+                && starts_on_own_line
+                && render_facts.next_character == Some(';')
+                && T::TYPE == NodeType::Expression;
 
             if render_facts.is_slash_comment
                 && position == AnnotationPosition::LinePostfixBoundary
@@ -452,7 +457,7 @@ where
             }
 
             if render_facts.is_slash_comment && position == AnnotationPosition::LinePrefix {
-                let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                let annotation_span = f.context().get_annotation_span(annotation_id);
                 let annotation_source = f.context().get_span_str(annotation_span);
 
                 // keep formatter directives on own lines but let formatter manage indentation
@@ -460,7 +465,7 @@ where
                     node: comment_id, ..
                 } = annotation
                 {
-                    let comment = f.context().tree.get::<Comment>(*comment_id);
+                    let comment = f.context().tree.get::<Comment>(comment_id);
                     f.context().strings.get(comment.string)
                 } else {
                     ""
@@ -515,7 +520,9 @@ where
                             if !render_facts.follows_colon {
                                 write!(f, [space()])?;
                             }
-                        } else if !is_block_prefix_after_colon {
+                        } else if !is_block_prefix_after_colon
+                            && !is_no_semi_guard_statement_prefix_comment
+                        {
                             write!(f, [hard_line_break()])?;
                         }
                     }
@@ -540,15 +547,21 @@ where
                 && T::TYPE == NodeType::Expression
                 && matches!(annotation, Annotation::Comment { .. })
                 && {
-                    let annotation_span = f.context().get_span::<Annotation>(annotation_id);
+                    let annotation_span = f.context().get_annotation_span(annotation_id);
                     let annotation_source = f.context().get_span_str(annotation_span);
                     let trimmed = annotation_source.trim_start();
                     !trimmed.starts_with("/**")
                 }
                 && matches!(render_facts.next_character, Some('|' | '&'));
-
             // format annotation itself
-            annotation.format_node(annotation_id, f)?;
+            if is_no_semi_guard_statement_prefix_comment {
+                let annotation_content = format_with(|f| annotation.format_node(annotation_id, f));
+                let indented_content =
+                    format_with(|f| write!(f, [hard_line_break(), annotation_content]));
+                write!(f, [indent(&indented_content)])?;
+            } else {
+                annotation.format_node(annotation_id, f)?;
+            }
 
             // insert space / newline
             match position {
@@ -631,15 +644,10 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     ) -> FormatResult<()> {
         match self {
             Annotation::Blank { node, .. } => {
-                // skip blanks at the end of the source
-                let container = f
-                    .context()
-                    .find_ancestor(node_id, |_, node_type| node_type == NodeType::Declaration);
-                if let Some((container_id, _)) = container {
-                    let container_span = f.context().get_span_by_id(container_id);
-                    if container_span.end >= f.context().file.len - 1 {
-                        return Ok(());
-                    }
+                // skip trailing blanks at the end of the source
+                let annotation_span = f.context().get_annotation_span(node_id);
+                if annotation_span.end >= f.context().file.len.saturating_sub(1) {
+                    return Ok(());
                 }
 
                 node.format(f)
@@ -917,13 +925,10 @@ fn is_identifier_or_static_member_only(
 #[cfg(test)]
 mod tests {
     use crate::{
-        DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
-        assert_format,
+        Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
+        TestFormatter, assert_format,
     };
-    use destack_ast::{
-        Annotation, AnnotationPosition, DeclarationDescriptor, LocalNodeId, NodeParentIndex,
-        NodeType,
-    };
+    use destack_ast::{AnnotationPosition, DeclarationDescriptor, LocalNodeId, NodeParentIndex};
     use destack_source::FileType;
 
     /// Build a formatter context for annotation routing assertions.
@@ -947,14 +952,9 @@ mod tests {
         context: &DestackFormatContext<'_>,
         marker: &str,
     ) -> Option<LocalNodeId<Annotation>> {
-        for raw_node_id in 0..context.tree.next_id() {
-            if context.tree.get_node_type(raw_node_id) != NodeType::Annotation {
-                continue;
-            }
-
-            let annotation_id = LocalNodeId::<Annotation>::new(raw_node_id);
-            let annotation_span = context.get_span(annotation_id);
-            let annotation_source = context.get_span_str(annotation_span);
+        for (entry_index, entry) in context.formatter_annotation_entries.iter().enumerate() {
+            let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
+            let annotation_source = context.get_span_str(entry.span);
             if annotation_source.contains(marker) {
                 return Some(annotation_id);
             }
@@ -978,7 +978,7 @@ mod tests {
 
         let annotation_id = find_annotation_by_marker(&context, "trailing-argument-marker")
             .expect("expected trailing marker annotation");
-        let position = context.tree.get::<Annotation>(annotation_id).position();
+        let position = context.get_annotation(annotation_id).position();
 
         assert!(matches!(
             position,
@@ -995,7 +995,7 @@ mod tests {
         let context = context_from_formatter(&formatter);
         let annotation_id =
             find_annotation_by_marker(&context, "between").expect("expected between annotation");
-        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let annotation = context.get_annotation(annotation_id);
         assert_eq!(annotation.position(), AnnotationPosition::LinePrefix);
 
         let formatted = formatter.format(&block_id, DestackFormatOptions::default());
@@ -1018,17 +1018,11 @@ mod tests {
         let second_annotation_id = find_annotation_by_marker(&context, "sat-between")
             .expect("expected sat-between annotation");
         assert_eq!(
-            context
-                .tree
-                .get::<Annotation>(first_annotation_id)
-                .position(),
+            context.get_annotation(first_annotation_id).position(),
             AnnotationPosition::LinePrefix
         );
         assert_eq!(
-            context
-                .tree
-                .get::<Annotation>(second_annotation_id)
-                .position(),
+            context.get_annotation(second_annotation_id).position(),
             AnnotationPosition::LinePrefix
         );
 
@@ -1054,8 +1048,8 @@ mod tests {
         let context = context_from_formatter(&formatter);
         let annotation_id = find_annotation_by_marker(&context, "separator-marker")
             .expect("expected marker-tagged separator annotation");
-        let annotation = context.tree.get::<Annotation>(annotation_id);
-        let facts = super::annotation_render_facts(&context, annotation, annotation_id);
+        let annotation = context.get_annotation(annotation_id);
+        let facts = super::annotation_render_facts(&context, &annotation, annotation_id);
 
         assert!(facts.precedes_separator);
     }
@@ -1327,7 +1321,7 @@ mod tests {
     fn test_format_empty_doc_comment_on_arrow() {
         assert_format!(
             "() /**/ => 1",
-            "() /**/ => 1",
+            "/**/ () => 1",
             |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );

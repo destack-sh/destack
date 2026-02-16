@@ -894,10 +894,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator, Comment,
-        CommentStyle, Declaration, DeclarationDescriptor, Expression, FunctionCardinality,
-        FunctionKind, FunctionMode, IntType, Parameter, ScalarLiteral, TypeLiteral,
-        VarianceModifier, WhereClause, YieldCardinality,
+        Argument, Asynchrony, BinaryOperator, Comment, CommentStyle, Declaration,
+        DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind, FunctionMode,
+        IntType, Parameter, ScalarLiteral, TypeLiteral, VarianceModifier, WhereClause,
+        YieldCardinality,
     };
 
     use destack_source::LanguageType;
@@ -1801,14 +1801,12 @@ function onResolve(
         parser.attach_trivia();
         assert_node!(parser.tree, function_id, Declaration::Function { .. } => {
             let annotations = parser.tree.get_annotations(function_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Star);
-                    assert_string!(parser, *string, "lambda-head");
-                });
-            });
+            assert!(annotations.is_empty());
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Star);
+            assert_string!(parser, *string, " lambda-head");
         });
     }
 
@@ -1825,15 +1823,13 @@ function onResolve(
                 assert_expression_path!(parser, parser.tree.get(*body_id), "x");
 
                 let annotations = parser.tree.get_annotations(body_id.id);
-                assert_eq!(annotations.len(), 1);
-                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "lambda-body");
-                    });
-                });
+                assert!(annotations.is_empty());
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "lambda-body");
         });
     }
 

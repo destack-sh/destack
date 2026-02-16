@@ -1,5 +1,9 @@
 use super::super::*;
 use super::common::expression_is_trivial_inline_without_annotations;
+use crate::scan::{
+    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
+};
+use destack_ast::{Comment, CommentStyle};
 use destack_fir::{format_args, write};
 
 // assignment inline width constants
@@ -9,6 +13,91 @@ const ASSIGNMENT_OPERATOR_PADDING_WIDTH: usize = 2;
 const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
 const EXPANDED_OBJECT_TARGET_PROPERTY_THRESHOLD: usize = 2;
 const SHORT_OBJECT_PROPERTY_MAX: usize = 3;
+
+/// Return whether one token is an assignment operator token.
+#[inline]
+fn is_assignment_operator_token(token_type: TokenType) -> bool {
+    AssignOperator::from_token(token_type).is_some()
+}
+
+/// Return whether one span contains at least one assignment operator token.
+fn span_contains_assignment_operator_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
+    for token in context.tokens {
+        if token.span.end <= span.start {
+            continue;
+        }
+        if token.span.start >= span.end {
+            break;
+        }
+        if is_assignment_operator_token(token.token.ty) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return whether one expression has a line-prefix slash comment on an assignment seam.
+fn expression_has_assignment_seam_line_prefix_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .with_annotations(expression_id, |annotation_ids| {
+            annotation_ids.iter().any(|annotation_id| {
+                let Annotation::Comment { node, position } = context.get_annotation(*annotation_id)
+                else {
+                    return false;
+                };
+                if position != AnnotationPosition::LinePrefix {
+                    return false;
+                }
+
+                let comment = context.tree.get::<Comment>(node);
+                if comment.style != CommentStyle::Slash {
+                    return false;
+                }
+
+                previous_non_whitespace_token_before_annotation(context, *annotation_id)
+                    .is_some_and(|token| is_assignment_operator_token(token.token.ty))
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether one assignment seam has a slash line comment between left and right.
+fn assignment_seam_has_line_comment_between(
+    context: &DestackFormatContext<'_>,
+    left: LocalNodeId<Expression>,
+    right: LocalNodeId<Expression>,
+) -> bool {
+    let left_span = context.get_span(left);
+    let right_span = context.get_span(right);
+    if left_span.file != right_span.file || left_span.end >= right_span.start {
+        return false;
+    }
+
+    let between_span = Span::new(left_span.file, left_span.end, right_span.start);
+    context
+        .comment_tokens()
+        .iter()
+        .copied()
+        .any(|comment_token| {
+            if !between_span.intersects(comment_token.span) {
+                return false;
+            }
+
+            if !matches!(
+                comment_token.token.ty,
+                TokenType::LineComment | TokenType::DocLineComment
+            ) {
+                return false;
+            }
+
+            previous_non_whitespace_token_before_span(context, comment_token.span)
+                .is_some_and(|token| is_assignment_operator_token(token.token.ty))
+        })
+}
 
 /// Format an assignment expression with shared rhs break policy.
 pub(super) fn format_assign_expression<'ast>(
@@ -96,6 +185,11 @@ pub(super) fn format_assign_expression<'ast>(
         || right_is_chain_tail_lambda
         || right_is_lambda;
     let right_has_prefix_annotation = f.context().has_prefix_annotation(right);
+    let right_has_assignment_seam_prefix_line_comment =
+        expression_has_assignment_seam_line_prefix_comment(f.context(), right)
+            || assignment_seam_has_line_comment_between(f.context(), left, right);
+    let right_has_prefix_annotation_that_forces_operator_break =
+        right_has_prefix_annotation && !right_has_assignment_seam_prefix_line_comment;
     let left_has_newline = f.context().node_has_newline(left);
     let right_has_newline = f.context().node_has_newline(right);
     let right_has_between_comment = has_comment_between_expressions(f.context(), left, right);
@@ -164,6 +258,21 @@ pub(super) fn format_assign_expression<'ast>(
         }
         Ok(())
     });
+
+    // keep assignment seam slash comments inline with the operator
+    if right_has_assignment_seam_prefix_line_comment {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                space_before_operator,
+                operator,
+                space(),
+                indent(&right)
+            ])]
+        )?;
+        return Ok(());
+    }
 
     // break long binary rhs values after the operator
     if right_is_long_binary {
@@ -239,14 +348,16 @@ pub(super) fn format_assign_expression<'ast>(
             // nested assignment chains: break by stable shape signals only
             !right_is_lambda
                 && (right_is_compact_long
-                    || right_has_prefix_annotation
+                    || right_has_prefix_annotation_that_forces_operator_break
                     || right_has_between_comment)
         } else if right_is_lambda {
-            right_has_prefix_annotation || right_has_between_comment || right_is_compact_long
+            right_has_prefix_annotation_that_forces_operator_break
+                || right_has_between_comment
+                || right_is_compact_long
         } else if right_is_chain {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
-                    || right_has_prefix_annotation
+                    || right_has_prefix_annotation_that_forces_operator_break
                     || (right_is_long
                         && (remaining_width == 0 || left_has_newline || !right_has_newline))
                     || right_has_between_comment)
@@ -255,21 +366,24 @@ pub(super) fn format_assign_expression<'ast>(
         else if right_is_binary {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
-                    || right_has_prefix_annotation
+                    || right_has_prefix_annotation_that_forces_operator_break
                     || right_has_between_comment)
                 && (right_is_compact_long
-                    || right_has_prefix_annotation
+                    || right_has_prefix_annotation_that_forces_operator_break
                     || right_has_between_comment)
         } else {
             !right_is_lambda
                 && (right_is_chain_tail_lambda
-                    || right_has_prefix_annotation
+                    || right_has_prefix_annotation_that_forces_operator_break
                     || right_is_compact_long
                     || right_has_between_comment)
         };
 
         let format_break_after_operator = format_with(|f| {
-            if right_has_prefix_annotation || right_has_between_comment || right_is_sequence {
+            if right_has_prefix_annotation_that_forces_operator_break
+                || right_has_between_comment
+                || right_is_sequence
+            {
                 write!(
                     f,
                     [
@@ -315,10 +429,8 @@ pub(super) fn format_assign_expression<'ast>(
             f.context().tree.get(left_inner_id),
             Expression::Assign { .. }
         );
-        let left_source_has_assignment_operator = f
-            .context()
-            .get_span_str(f.context().get_span(left))
-            .contains('=');
+        let left_source_has_assignment_operator =
+            span_contains_assignment_operator_token(f.context(), f.context().get_span(left));
         let left_is_expanded_object_target = matches!(
             f.context().tree.get(left_inner_id),
             Expression::ObjectExpression { properties, .. }

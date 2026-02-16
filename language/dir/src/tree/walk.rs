@@ -1590,10 +1590,6 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         Annotation::Doc {
             position: _,
             string: _,
-        }
-        | Annotation::Comment {
-            position: _,
-            string: _,
         } => {}
         Annotation::Decorator {
             position: _,

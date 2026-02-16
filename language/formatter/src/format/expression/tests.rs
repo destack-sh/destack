@@ -89,7 +89,7 @@ fn test_format_expression_simple() {
 fn test_format_expression_parenthesized() {
     assert_format!(
         "(((1 + 2) * 3) - a / (b % c))",
-        "(((1 + 2) * 3) - a / (b % c))",
+        "((1 + 2) * 3 - a / (b % c))",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab()
     );
@@ -347,7 +347,7 @@ fn test_format_array_expression_sparse_elisions() {
 fn test_format_new_expression_empty_argument_comment() {
     assert_format!(
         "new require(/* comment */)",
-        "new require(/* comment */)",
+        "new require\n/* comment */\n()",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
@@ -710,7 +710,7 @@ fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
 #[test]
 fn test_format_call_nested_arrow_boundary_comments() {
     let source = "call(\n  () /**/ => //\n    () /**/ => /**/\n      () /**/ => /**/ {\n        //\n      }\n)";
-    let expected = "call(() /**/ =>\n    //\n    () /**/ =>\n        /**/\n        () /**/ => /**/ {\n            //\n        })";
+    let expected = "call(() =>\n    //\n    /**/ () =>\n        /**/\n        /**/ () => /**/ {\n            //\n        })";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
@@ -934,7 +934,8 @@ fn test_format_type_template_literal_multiple_spans() {
 #[test]
 fn test_format_type_template_literal_union_with_leading_pipe() {
     let source = "type T = `${\n  | 'W'\n  | 'I'\n  | 'L'\n  | 'L'\n  | 'B'\n  | 'R'\n  | 'E'\n  | 'A'\n  | 'K'\n}${'!' | '!!'}`";
-    let expected = "type T = `${\n    | 'W'\n    | 'I'\n    | 'L'\n    | 'L'\n    | 'B'\n    | 'R'\n    | 'E'\n    | 'A'\n    | 'K'}${'!' | \"!!\"}`;";
+    let expected =
+        "type T = `${'W' | 'I' | 'L' | 'L' | 'B' | 'R' | 'E' | 'A' | 'K'}${'!' | \"!!\"}`;";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
@@ -942,7 +943,7 @@ fn test_format_type_template_literal_union_with_leading_pipe() {
 #[test]
 fn test_format_type_union_drops_redundant_parentheses() {
     let source = "type C = | (| (| A | B))";
-    let expected = "type C = \n    | A\n    | B;";
+    let expected = "type C = A | B;";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 

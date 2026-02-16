@@ -40,8 +40,7 @@ pub(super) fn format_inline_stub_comment<'ast>(
 
     let mut first = true;
     for annotation_id in annotations {
-        let Annotation::Comment { node, .. } = f.context().tree.get::<Annotation>(annotation_id)
-        else {
+        let Annotation::Comment { node, .. } = f.context().get_annotation(annotation_id) else {
             continue;
         };
 
@@ -50,7 +49,7 @@ pub(super) fn format_inline_stub_comment<'ast>(
         }
         first = false;
 
-        write!(f, [*node])?;
+        write!(f, [node])?;
     }
 
     Ok(())
@@ -1218,13 +1217,12 @@ fn expression_has_line_comment_annotation(
     };
 
     annotation_ids.into_iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
+        let Annotation::Comment { node, position } = context.get_annotation(annotation_id) else {
             return false;
         };
 
         let is_line_position = matches!(
-            *position,
+            position,
             AnnotationPosition::LinePrefix
                 | AnnotationPosition::LinePostfix
                 | AnnotationPosition::LinePostfixBoundary
@@ -1233,7 +1231,7 @@ fn expression_has_line_comment_annotation(
             return false;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        let comment = context.tree.get::<destack_ast::Comment>(node);
         comment.style == destack_ast::CommentStyle::Slash
     })
 }
@@ -1248,13 +1246,12 @@ fn argument_has_line_comment_annotation(
     };
 
     annotation_ids.into_iter().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
+        let Annotation::Comment { node, position } = context.get_annotation(annotation_id) else {
             return false;
         };
 
         let is_line_position = matches!(
-            *position,
+            position,
             AnnotationPosition::LinePrefix
                 | AnnotationPosition::LinePostfix
                 | AnnotationPosition::LinePostfixBoundary
@@ -1263,7 +1260,7 @@ fn argument_has_line_comment_annotation(
             return false;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
+        let comment = context.tree.get::<destack_ast::Comment>(node);
         comment.style == destack_ast::CommentStyle::Slash
     })
 }
