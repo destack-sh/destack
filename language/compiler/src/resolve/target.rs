@@ -3,7 +3,7 @@ use destack_dir::ModuleTarget;
 use destack_source::{ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{
     ModuleBindingReference, ModuleBindingRegistry, ModuleBindingTable, ModuleBindingTableKey,
-    ProfileId,
+    ModuleFormat, ProfileId,
 };
 use indexmap::IndexMap;
 
@@ -76,6 +76,75 @@ impl Compiler {
             return Ok(None);
         };
         Ok(cache.bindings_by_specifier.get(&specifier).cloned())
+    }
+
+    /// Detect one runtime module format for a target.
+    ///
+    /// Returns `None` when the target has no runtime module, or when bindings mix formats.
+    pub(super) fn module_format_for_target(
+        &self,
+        origin_module_id: ModuleId,
+        profile_id: ProfileId,
+        target: ModuleTarget,
+    ) -> ResolveResult<Option<ModuleFormat>> {
+        // module targets expose one direct runtime format
+        if let ModuleTarget::Module(module_id) = target {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+
+            // declaration modules do not encode runtime format
+            if module.language_type.is_declaration() {
+                return Ok(None);
+            }
+
+            return Ok(Some(module.module_format));
+        }
+
+        // binding targets may span declarations from multiple modules
+        let ModuleTarget::Binding(specifier) = target else {
+            return Ok(None);
+        };
+
+        let bindings =
+            self.module_bindings_for_specifier(origin_module_id, profile_id, specifier)?;
+        let Some(bindings) = bindings else {
+            return Ok(None);
+        };
+
+        // fold runtime formats across binding modules
+        let mut saw_commonjs = false;
+        let mut saw_esm = false;
+        for binding_ref in bindings {
+            let module = self.program.modules.get(binding_ref.module_id);
+            let module = module.read();
+
+            // declaration modules do not encode runtime format
+            if module.language_type.is_declaration() {
+                continue;
+            }
+
+            if module.module_format.is_commonjs() {
+                saw_commonjs = true;
+            } else {
+                saw_esm = true;
+            }
+
+            // mixed runtime formats are not interop-safe
+            if saw_commonjs && saw_esm {
+                return Ok(None);
+            }
+        }
+
+        // resolve the folded format
+        if saw_commonjs {
+            return Ok(Some(ModuleFormat::CommonJs));
+        }
+
+        if saw_esm {
+            return Ok(Some(ModuleFormat::Esm));
+        }
+
+        Ok(None)
     }
 
     /// Build the module binding table for one package and profile.
@@ -807,6 +876,63 @@ import { createHash, randomUUID } from "node:crypto";
 
 createHash("sha1");
 randomUUID();
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Resolve javascript default imports from node builtin modules.
+    #[test]
+    fn test_module_binding_node_builtin_default_import_in_javascript() {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        let main_module_id = test.add_module(
+            "main.js",
+            r#"
+import http from "http";
+
+http.request;
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+    }
+
+    /// Keep typescript default imports from node builtin modules strict.
+    #[test]
+    fn test_module_binding_node_builtin_default_import_in_typescript_reports_error() {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import http from "http";
+
+http.request;
+"#,
+        );
+
+        test.resolve_module(main_module_id);
+        test.compile_with_timeout(Duration::from_secs(30));
+        test.check_has_diagnostic("ER101");
+    }
+
+    /// Allow typescript default imports from node builtins with dsconfig interop enabled.
+    #[test]
+    fn test_module_binding_node_builtin_default_import_in_typescript_with_dsconfig_interop() {
+        let test = TestProgram::memory_sequential_with_prelude_and_libs();
+        test.add_dsconfig(
+            r#"
+{ "compilerOptions": { "esModuleInterop": true } }
+"#,
+        );
+        let main_module_id = test.add_module(
+            "main.ts",
+            r#"
+import http from "http";
+
+http.request;
 "#,
         );
 

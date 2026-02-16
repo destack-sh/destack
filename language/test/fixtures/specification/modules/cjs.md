@@ -87,6 +87,70 @@ import selected from "./cjs";
 selected();
 ```
 
+### typescript strict mode rejects synthetic default imports from named only commonjs exports
+
+> Without interop options, TypeScript default imports require an explicit default export target.
+
+```js:cjs.js
+function buildValue() {
+    return 1;
+}
+
+exports.buildValue = buildValue;
+```
+
+```ts:main.ts
+import cjs from "./cjs";
+
+cjs.buildValue();
+```
+
+- contains: does not exist on type unknown
+
+### es module interop enables synthetic default imports from named only commonjs exports
+
+> `compilerOptions.esModuleInterop` allows default imports to bind to the CommonJS namespace shape.
+
+```json:dsconfig.json
+{ "compilerOptions": { "esModuleInterop": true } }
+```
+
+```js:cjs.js
+function buildValue() {
+    return 1;
+}
+
+exports.buildValue = buildValue;
+```
+
+```ts:main.ts
+import cjs from "./cjs";
+
+cjs.buildValue();
+```
+
+### allow synthetic default imports enables synthetic default imports from named only commonjs exports
+
+> `compilerOptions.allowSyntheticDefaultImports` allows default imports to bind to the CommonJS namespace shape.
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowSyntheticDefaultImports": true } }
+```
+
+```js:cjs.js
+function buildValue() {
+    return 1;
+}
+
+exports.buildValue = buildValue;
+```
+
+```ts:main.ts
+import cjs from "./cjs";
+
+cjs.buildValue();
+```
+
 ## named imports from static property writes
 
 ### named imports read exports dot property assignment
