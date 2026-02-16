@@ -9,4 +9,5 @@ tags = ["backend", "framework", "server"]
 
 [discovery]
 include = ["lib/**/*.js", "index.js"]
+entrypoints = ["index.js"]
 exclude = ["**/*.test.*", "**/__tests__/**", "**/test/**", "**/bench/**", "**/dist/**", "**/node_modules/**"]

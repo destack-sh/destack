@@ -159,6 +159,9 @@ pub struct DiscoveryConfig {
     /// Package roots used for entrypoint ownership and manifest resolution.
     #[serde(default)]
     pub roots: Vec<String>,
+    /// Explicit entrypoint targets used when package manifests do not declare exports.
+    #[serde(default)]
+    pub entrypoints: Vec<String>,
 }
 
 /// Parser behavior overrides.
@@ -460,6 +463,26 @@ dependency_replacement = true
         assert!(manifest.patch.dependency_replacement());
     }
 
+    #[test]
+    fn test_parse_discovery_entrypoints() {
+        let manifest = parse_manifest(
+            r#"
+[package]
+name = "demo"
+repo = "https://example.com/repo.git"
+ref = "main"
+language = "ts"
+
+[discovery]
+entrypoints = ["src/index.ts", "src/server.ts"]
+"#,
+        );
+
+        assert_eq!(
+            manifest.discovery.entrypoints,
+            vec!["src/index.ts", "src/server.ts"]
+        );
+    }
     #[test]
     fn test_parse_patch_dependency_replacement_default_false() {
         let manifest = parse_manifest(

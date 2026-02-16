@@ -127,16 +127,20 @@ fn run_compiler_phase(
 ) -> PhaseTierResult {
     let mut stats = collect_read_stats.then_some(PhaseReadStats::default());
 
-    let entrypoints =
-        match select_phase_entrypoints_with_roots(package_dir, files, &manifest.discovery.roots) {
-            Ok(entrypoints) => entrypoints,
-            Err(message) => {
-                return PhaseTierResult {
-                    result: TestResult::Failed { message },
-                    stats,
-                };
-            }
-        };
+    let entrypoints = match select_phase_entrypoints_with_roots(
+        package_dir,
+        files,
+        &manifest.discovery.roots,
+        &manifest.discovery.entrypoints,
+    ) {
+        Ok(entrypoints) => entrypoints,
+        Err(message) => {
+            return PhaseTierResult {
+                result: TestResult::Failed { message },
+                stats,
+            };
+        }
+    };
 
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let session = Arc::new(Session::new(package_dir.to_path_buf()).with_fs(file_system));
@@ -904,7 +908,7 @@ fn enqueue_phase_task(
 /// Select phase entrypoints from package manifests.
 #[cfg(test)]
 fn select_phase_entrypoints(package_dir: &Path, files: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
-    select_phase_entrypoints_with_roots(package_dir, files, &[])
+    select_phase_entrypoints_with_roots(package_dir, files, &[], &[])
 }
 
 /// Select phase entrypoints from package manifests with optional root overrides.
@@ -912,12 +916,32 @@ fn select_phase_entrypoints_with_roots(
     package_dir: &Path,
     files: &[PathBuf],
     roots: &[String],
+    entrypoints: &[String],
 ) -> Result<Vec<PathBuf>, String> {
     let mut candidates = files.to_vec();
 
     // filter declaration files for semantic and lowering phases
     candidates.retain(|path| !is_declaration_file(path.as_path()));
     candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
+
+    // use explicit ecosystem entrypoints when configured
+    if !entrypoints.is_empty() {
+        let mut configured_candidates = candidates.clone();
+        include_entry_target_candidates(&mut configured_candidates, package_dir, entrypoints);
+        configured_candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
+        configured_candidates.dedup();
+
+        let configured_entrypoints =
+            select_manifest_entry_paths(package_dir, &configured_candidates, entrypoints);
+        if !configured_entrypoints.is_empty() {
+            return Ok(configured_entrypoints);
+        }
+
+        return Err(format!(
+            "no entrypoints matched configured discovery.entrypoints in {}",
+            package_dir.display(),
+        ));
+    }
 
     // load manifest sources once for deterministic selection
     let manifest_sources = load_manifest_entry_sources(package_dir, &candidates, roots)?;
@@ -943,23 +967,38 @@ fn select_phase_entrypoints_with_roots(
     expanded_candidates.dedup();
 
     // retry manifest entrypoint selection against expanded candidates
+    let mut declaration_only_manifest_entrypoints = Vec::new();
     let manifest_entrypoints = select_manifest_entrypoints_from_sources(
         package_dir,
         &expanded_candidates,
         &manifest_sources,
     );
     if !manifest_entrypoints.is_empty() {
-        return Ok(manifest_entrypoints);
+        // return manifest targets when any runtime source was resolved
+        if manifest_entrypoints
+            .iter()
+            .any(|path| !is_declaration_file(path.as_path()))
+        {
+            return Ok(manifest_entrypoints);
+        }
+
+        // otherwise keep declaration targets as a last resort
+        declaration_only_manifest_entrypoints = manifest_entrypoints;
     }
 
     // fall back to tsconfig source roots when manifest targets only point to build outputs
     let tsconfig_entrypoints = select_tsconfig_entrypoints_from_manifest_sources(
         package_dir,
-        &expanded_candidates,
+        &candidates,
         &manifest_sources,
     )?;
     if !tsconfig_entrypoints.is_empty() {
         return Ok(tsconfig_entrypoints);
+    }
+
+    // use declaration only manifest entrypoints when source resolution did not resolve
+    if !declaration_only_manifest_entrypoints.is_empty() {
+        return Ok(declaration_only_manifest_entrypoints);
     }
 
     Err(format!(
@@ -969,29 +1008,46 @@ fn select_phase_entrypoints_with_roots(
     ))
 }
 
-/// Include explicit manifest entry target files when candidate filters excluded them.
-fn include_manifest_target_candidates(
+/// Include entry target files when candidate filters excluded them.
+fn include_entry_target_candidates(
     candidates: &mut Vec<PathBuf>,
-    manifest_sources: &[ManifestEntrySource],
+    package_dir: &Path,
+    entry_targets: &[String],
 ) {
     let mut keys = candidates
         .iter()
         .map(|candidate| normalize_path_key(candidate.as_path()))
         .collect::<HashSet<_>>();
 
-    for source in manifest_sources {
-        for target in &source.entry_targets {
-            for candidate in manifest_target_candidate_paths(source.package_dir.as_path(), target) {
-                if !candidate.is_file() {
-                    continue;
-                }
+    for target in entry_targets {
+        for candidate in manifest_target_candidate_paths(package_dir, target) {
+            if !candidate.is_file() {
+                continue;
+            }
 
-                let key = normalize_path_key(candidate.as_path());
-                if keys.insert(key) {
-                    candidates.push(candidate);
-                }
+            if !path_is_supported_entrypoint_file(candidate.as_path()) {
+                continue;
+            }
+
+            let key = normalize_path_key(candidate.as_path());
+            if keys.insert(key) {
+                candidates.push(candidate);
             }
         }
+    }
+}
+
+/// Include explicit manifest entry target files when candidate filters excluded them.
+fn include_manifest_target_candidates(
+    candidates: &mut Vec<PathBuf>,
+    manifest_sources: &[ManifestEntrySource],
+) {
+    for source in manifest_sources {
+        include_entry_target_candidates(
+            candidates,
+            source.package_dir.as_path(),
+            &source.entry_targets,
+        );
     }
 }
 
@@ -1050,6 +1106,20 @@ fn is_declaration_file(path: &Path) -> bool {
     };
 
     file_name.ends_with(".d.ts") || file_name.ends_with(".d.mts") || file_name.ends_with(".d.cts")
+}
+
+/// Return whether one path is a supported compiler entrypoint source file.
+fn path_is_supported_entrypoint_file(path: &Path) -> bool {
+    matches!(
+        FileType::from_path(path),
+        Some(
+            FileType::TypeScript
+                | FileType::TypeScriptXml
+                | FileType::TypeScriptDeclaration
+                | FileType::JavaScript
+                | FileType::JavaScriptXml
+        )
+    )
 }
 
 /// One package manifest source used for entrypoint resolution.
@@ -2096,7 +2166,7 @@ mod tests {
 
         // select only entrypoints from configured discovery roots
         let roots = vec!["library".to_string()];
-        let selected = select_phase_entrypoints_with_roots(&temp_dir, &candidates, &roots)
+        let selected = select_phase_entrypoints_with_roots(&temp_dir, &candidates, &roots, &[])
             .expect("expected entrypoints");
         let selected_relative = selected
             .iter()
@@ -2131,7 +2201,7 @@ mod tests {
 
         // fail loudly when configured roots do not contain a package manifest
         let roots = vec!["library".to_string()];
-        let error = select_phase_entrypoints_with_roots(&temp_dir, &candidates, &roots)
+        let error = select_phase_entrypoints_with_roots(&temp_dir, &candidates, &roots, &[])
             .expect_err("expected invalid discovery root error");
 
         assert!(error.contains("discovery root 'library' missing package.json"));
@@ -2366,11 +2436,11 @@ mod tests {
     }
 
     #[test]
-    fn test_select_phase_entrypoints_errors_without_manifest_entries() {
+    fn test_select_phase_entrypoints_errors_without_manifest_or_tsconfig_entries() {
         let temp_dir = unique_temp_dir("missing-entrypoints");
         fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
 
-        // create a package manifest without entry targets
+        // create a package manifest without explicit entry targets
         write_text_file(
             &temp_dir.join("package.json"),
             r#"{
@@ -2382,11 +2452,109 @@ mod tests {
         let candidates = vec![temp_dir.join("src/index.ts")];
         write_text_file(&candidates[0], "export const value = 1;");
 
-        // fail loudly when no manifest or tsconfig entrypoints are available
+        // fail loudly when neither manifest nor tsconfig defines phase entrypoints
         let error = select_phase_entrypoints(&temp_dir, &candidates)
-            .expect_err("expected missing entrypoint error");
+            .expect_err("expected entrypoint discovery failure");
+        assert!(
+            error.contains("no entrypoints discovered from package manifest entries"),
+            "{error}",
+        );
 
-        assert!(error.contains("no entrypoints discovered from package manifest entries"));
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_uses_configured_discovery_entrypoints() {
+        let temp_dir = unique_temp_dir("configured-discovery-entrypoints");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create one package manifest without runtime entry fields
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root"
+}"#,
+        );
+
+        // create source candidates with one configured entrypoint
+        let candidates = vec![
+            temp_dir.join("src/index.ts"),
+            temp_dir.join("src/server.ts"),
+        ];
+        for path in &candidates {
+            write_text_file(path, "export const value = 1;");
+        }
+
+        // select configured discovery entrypoints in strict mode
+        let entrypoints = vec!["src/server.ts".to_string()];
+        let selected =
+            select_phase_entrypoints_with_roots(&temp_dir, &candidates, &[], &entrypoints)
+                .expect("expected configured entrypoint selection");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["src/server.ts"]);
+
+        fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
+    }
+
+    #[test]
+    fn test_select_phase_entrypoints_prefers_tsconfig_sources_over_declaration_targets() {
+        let temp_dir = unique_temp_dir("manifest-declaration-entry-fallback");
+        fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
+
+        // create package manifest with build output targets and one declaration entry
+        write_text_file(
+            &temp_dir.join("package.json"),
+            r#"{
+  "name": "root",
+  "main": "./lib/index.js",
+  "types": "./index.d.ts"
+}"#,
+        );
+
+        // create declaration entry that points to missing build output
+        write_text_file(
+            &temp_dir.join("index.d.ts"),
+            "export * from './lib';
+",
+        );
+
+        // create tsconfig source entry fallback
+        write_text_file(
+            &temp_dir.join("tsconfig.json"),
+            r#"{
+  "files": ["src/index.ts"]
+}"#,
+        );
+
+        // create source candidates in the package
+        let candidates = vec![temp_dir.join("src/index.ts"), temp_dir.join("src/extra.ts")];
+        for path in &candidates {
+            write_text_file(path, "export const value = 1;");
+        }
+
+        // prefer tsconfig source entrypoints over declaration-only manifest targets
+        let selected =
+            select_phase_entrypoints(&temp_dir, &candidates).expect("expected tsconfig fallback");
+        let selected_relative = selected
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&temp_dir)
+                    .expect("expected package relative path")
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(selected_relative, vec!["src/index.ts"]);
 
         fs::remove_dir_all(&temp_dir).expect("failed to remove temp directory");
     }
