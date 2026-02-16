@@ -24,20 +24,45 @@ pub(super) fn format_super_type_clause<'ast>(
     keyword: Keyword,
     types: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
+    format_super_type_clause_with_expand(f, keyword, types, false, false)
+}
+
+/// Format a super type clause and optionally force line breaking.
+pub(super) fn format_super_type_clause_with_expand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    keyword: Keyword,
+    types: &[LocalNodeId<Expression>],
+    force_expand: bool,
+    start_on_new_line: bool,
+) -> FormatResult<()> {
     assert!(!types.is_empty());
 
     write!(
         f,
         [group(&indent(&format_args![
-            soft_line_break_or_space(),
+            format_with(|f| {
+                if start_on_new_line {
+                    write!(f, [hard_line_break()])?;
+                } else {
+                    write!(f, [soft_line_break_or_space()])?;
+                }
+                Ok(())
+            }),
             keyword,
             space(),
             format_with(|f| {
-                f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                    .entries(types)
-                    .finish()
+                if start_on_new_line && !force_expand {
+                    f.join_with(&format_args![&token(","), space()])
+                        .entries(types)
+                        .finish()
+                } else {
+                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                        .entries(types)
+                        .finish()
+                }
             }),
-        ]))]
+        ]))
+        .should_expand(force_expand)]
     )
 }
 
@@ -228,7 +253,13 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 signature,
                 body,
             } => {
-                format_function_declaration(f, node_id, descriptor, signature, body)?;
+                format_function_declaration(
+                    f,
+                    node_id,
+                    descriptor,
+                    signature,
+                    body,
+                )?;
             }
         }
 

@@ -317,8 +317,15 @@ pub(super) fn format_function_declaration<'ast>(
         }
     }
 
-    // exported lambda declarations need trailing semicolon, non exported ones do not
-    if signature.kind == FunctionKind::Lambda && descriptor.export.is_some() {
+    // trailing semicolon policy
+    let is_exported_lambda_declaration =
+        signature.kind == FunctionKind::Lambda && descriptor.export.is_some();
+    let is_bodyless_function_declaration =
+        signature.kind == FunctionKind::Function && body.is_none();
+
+    let needs_trailing_semicolon = is_exported_lambda_declaration || is_bodyless_function_declaration;
+
+    if needs_trailing_semicolon {
         write!(f, [token(";")])?;
     }
 

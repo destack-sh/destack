@@ -220,16 +220,29 @@ pub(super) fn should_unwrap_parenthesized_member_object(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    // object members require explicit grouping: `({}).x`
+    if matches!(
+        context.tree.get(inner_expression_id),
+        Expression::ObjectExpression { .. }
+    ) {
+        return false;
+    }
+
     // keep nested grouping in type contexts stable across repeated formatting
     if is_type_context(context, parenthesized_id) {
         return false;
     }
 
     if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
-        return false;
+        // allow unwrapping only when inner annotations are prefix comments or docs
+        if !expression_has_only_prefix_comment_or_doc_annotations(context, inner_expression_id) {
+            return false;
+        }
     }
 
-    if parenthesized_has_leading_inner_comments(context, parenthesized_id, inner_expression_id) {
+    if parenthesized_has_leading_inner_comments(context, parenthesized_id, inner_expression_id)
+        && !expression_has_only_prefix_comment_or_doc_annotations(context, inner_expression_id)
+    {
         return false;
     }
 
@@ -669,6 +682,18 @@ fn should_drop_parenthesized_expression_wrapper(
         return should_drop_type_parentheses;
     };
     if parent_type != NodeType::Expression {
+        // declarator wrappers can drop when left spine carries prefix comment/doc annotations
+        let should_drop_declarator_prefix_wrapper = parent_type == NodeType::Declarator
+            && !context.has_annotation(node_id)
+            && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
+            && expression_has_prefix_comment_or_doc_annotation_in_left_spine(
+                context,
+                inner_expression_id,
+            );
+        if should_drop_declarator_prefix_wrapper {
+            return true;
+        }
+
         return should_drop_type_parentheses;
     }
 
@@ -690,6 +715,66 @@ fn should_drop_parenthesized_expression_wrapper(
                 Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
             )
     ) && !context.has_annotation(node_id);
-
     should_drop_assignment_must || should_drop_statement_lambda || should_drop_type_parentheses
+}
+
+/// Return whether annotations are only prefix comment/doc markers for this expression.
+fn expression_has_only_prefix_comment_or_doc_annotations(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .with_annotations(expression_id, |annotations| {
+            !annotations.is_empty()
+                && annotations.iter().all(|annotation_id| {
+                    matches!(
+                        context.tree.get::<Annotation>(*annotation_id),
+                        Annotation::Comment {
+                            position: AnnotationPosition::LinePrefix
+                                | AnnotationPosition::BlockPrefix,
+                            ..
+                        } | Annotation::Doc {
+                            position: AnnotationPosition::LinePrefix
+                                | AnnotationPosition::BlockPrefix,
+                            ..
+                        }
+                    )
+                })
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether any expression on the left spine has a prefix comment/doc annotation.
+fn expression_has_prefix_comment_or_doc_annotation_in_left_spine(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+
+    loop {
+        if expression_has_only_prefix_comment_or_doc_annotations(context, current_id) {
+            return true;
+        }
+
+        let next_id = match context.tree.get(current_id) {
+            Expression::Parenthesized { expression } => Some(*expression),
+            Expression::Call { left, .. }
+            | Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. }
+            | Expression::TypeBinary { left, .. }
+            | Expression::Binary { left, .. } => Some(*left),
+            _ => None,
+        };
+
+        let Some(next_id) = next_id else {
+            break;
+        };
+        current_id = next_id;
+    }
+
+    false
 }
