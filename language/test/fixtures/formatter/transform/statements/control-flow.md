@@ -198,7 +198,7 @@ for (item of items) { handle(item) }
 
 ```ds expected
 for (item of items) {
-    handle(item)
+    handle(item);
 }
 ```
 
@@ -226,7 +226,7 @@ for (key in object) { handle(key) }
 
 ```ds expected
 for (key in object) {
-    handle(key)
+    handle(key);
 }
 ```
 

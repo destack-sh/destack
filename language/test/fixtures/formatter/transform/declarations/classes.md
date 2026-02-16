@@ -817,9 +817,10 @@ class MyClass implements FirstInterface, SecondInterface, ThirdInterface { }
 
 ```ds expected
 class MyClass
-    implements FirstInterface,
-    SecondInterface,
-    ThirdInterface {}
+    implements
+        FirstInterface,
+        SecondInterface,
+        ThirdInterface {}
 ```
 
 ## Complex Classes

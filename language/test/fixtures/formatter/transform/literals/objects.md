@@ -158,7 +158,7 @@ const x = { "data-id": 1, "default": 2 }
 ```
 
 ```ds expected
-const x = { "data-id": 1, "default": 2 };
+const x = { "data-id": 1, default: 2 };
 ```
 
 ### mixed quoted and unquoted

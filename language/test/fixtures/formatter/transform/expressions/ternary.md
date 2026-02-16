@@ -51,9 +51,11 @@ const el = isLoading ? <Spinner /> : <Content data={data} />
 ```
 
 ```ds expected
-const el = isLoading ? <Spinner /> : <Content
-    data={data}
-/>;
+const el = isLoading ? (
+    <Spinner />
+) : (
+    <Content data={data} />
+);
 ```
 
 ### ternary with long branches breaks
@@ -111,8 +113,8 @@ const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue
 const x = isFirst
     ? firstValue
     : isSecond
-      ? secondValue
-      : defaultValue;
+        ? secondValue
+        : defaultValue;
 ```
 
 ## Ternary with Complex Expressions

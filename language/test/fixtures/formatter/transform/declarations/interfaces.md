@@ -106,7 +106,7 @@ interface Foo {
 
 ### optional method
 
-Destack uses `method()?` syntax for optional methods (question mark after parentheses).
+Destack uses `method?()` syntax for optional methods.
 
 ```ds
 interface Foo { bar?(): void }
@@ -114,7 +114,7 @@ interface Foo { bar?(): void }
 
 ```ds expected
 interface Foo {
-    bar()?: void;
+    bar?(): void;
 }
 ```
 

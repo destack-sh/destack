@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 FENCE_PATTERN = re.compile(r"(?ms)^```([^\n]*)\n(.*?)\n```[ \t]*$")
-SOURCE_LANGUAGES = {"js", "jsx", "ts", "tsx"}
+SOURCE_LANGUAGES = {"js", "jsx", "ts", "tsx", "ds"}
 FORMATTED_OUTPUT_PATTERN = re.compile(
     r"--- Formatted Code ---\n(.*?)\n--- End Formatted Code ---",
     re.S,
@@ -42,11 +42,29 @@ def parse_arguments() -> argparse.Namespace:
         help="indent width for expected output normalization",
     )
     parser.add_argument(
+        "--line-width",
+        type=int,
+        default=100,
+        help="print width passed to oxfmt when fixture blocks do not override it",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="report changes without writing files",
     )
     return parser.parse_args()
+
+
+def default_filename_for_language(language: str) -> str:
+    if language in {"js"}:
+        return "main.js"
+    if language in {"jsx"}:
+        return "main.jsx"
+    if language in {"ts", "ds"}:
+        return "main.ts"
+    if language in {"tsx"}:
+        return "main.tsx"
+    return "main.ts"
 
 
 def source_block_metadata(source_header: str) -> tuple[str, str, int | None] | None:
@@ -55,10 +73,11 @@ def source_block_metadata(source_header: str) -> tuple[str, str, int | None] | N
         return None
 
     language_and_name = parts[0]
-    if ":" not in language_and_name:
-        return None
-
-    language, filename = language_and_name.split(":", 1)
+    if ":" in language_and_name:
+        language, filename = language_and_name.split(":", 1)
+    else:
+        language = language_and_name
+        filename = default_filename_for_language(language)
     if language not in SOURCE_LANGUAGES:
         return None
 
@@ -71,6 +90,10 @@ def source_block_metadata(source_header: str) -> tuple[str, str, int | None] | N
             break
 
     return language, filename, line_width
+
+
+def source_block_should_skip(source_header: str) -> bool:
+    return "organize-imports=" in source_header
 
 
 def expected_header_language(expected_header: str) -> str | None:
@@ -110,7 +133,11 @@ def run_oxfmt(
     source_text: str,
     filename: str,
     line_width: int | None,
+    default_line_width: int | None,
 ) -> str | None:
+    if filename.endswith(".ds"):
+        filename = filename[:-3] + ".ts"
+
     suffix = Path(filename).suffix
     if not suffix:
         return None
@@ -120,8 +147,11 @@ def run_oxfmt(
         source_path.write_text(source_text + "\n", encoding="utf-8")
 
         command = [str(oxfmt_bin)]
-        if line_width is not None:
-            command.extend(["--print-width", str(line_width)])
+        effective_line_width = line_width
+        if effective_line_width is None:
+            effective_line_width = default_line_width
+        if effective_line_width is not None:
+            command.extend(["--print-width", str(effective_line_width)])
         command.append(str(source_path))
 
         result = subprocess.run(
@@ -152,6 +182,7 @@ def update_fixture_file(
     fixture_path: Path,
     oxfmt_bin: Path,
     indent_width: int,
+    default_line_width: int | None,
     dry_run: bool,
 ) -> tuple[int, int]:
     content = fixture_path.read_text(encoding="utf-8")
@@ -163,11 +194,14 @@ def update_fixture_file(
 
     for index, source_match in enumerate(matches[:-1]):
         source_header = source_match.group(1)
+        if source_block_should_skip(source_header):
+            continue
+
         source_metadata = source_block_metadata(source_header)
         if source_metadata is None:
             continue
 
-        source_language, source_filename, line_width = source_metadata
+        source_language, source_filename, source_line_width = source_metadata
         expected_match = matches[index + 1]
         expected_header = expected_match.group(1)
         expected_language = expected_header_language(expected_header)
@@ -181,7 +215,8 @@ def update_fixture_file(
             oxfmt_bin=oxfmt_bin,
             source_text=source_body,
             filename=source_filename,
-            line_width=line_width,
+            line_width=source_line_width,
+            default_line_width=default_line_width,
         )
         if formatted_body is None:
             skipped_cases += 1
@@ -225,6 +260,7 @@ def main() -> int:
             fixture_path=fixture_path,
             oxfmt_bin=arguments.oxfmt_bin,
             indent_width=arguments.indent_width,
+            default_line_width=arguments.line_width,
             dry_run=arguments.dry_run,
         )
 

@@ -60,9 +60,27 @@ type Maybe<T> = T extends string ? T | null : T;
 
 ### typescript template literal type keeps assignment readable
 
-Template literal types break after `=` when interpolation content is multiline.
+Template literal types stay inline with `=` at wider line widths.
 
 ```ts:main.ts
+type templateLiteralType = `${
+  TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+    ? "_"
+    : ""
+}`;
+```
+
+```ts expected
+type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+    ? "_"
+    : ""}`;
+```
+
+### typescript template literal type breaks after assignment at narrower widths
+
+Template literal types break after `=` when the configured line width is narrower.
+
+```ts:main.ts line-width=80
 type templateLiteralType = `${
   TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
     ? "_"
@@ -174,7 +192,7 @@ type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
 ```ds expected
-type Nested<T> = T extends string ? (T extends 'a' ? 1 : 2) : 3;
+type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
 ```
 
 ## Intersections and Unions
@@ -240,9 +258,7 @@ type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K]
 ```
 
 ```ts expected
-type EventHandlers<T> = {
-    [K in keyof T as `on${Capitalize<K & string>}`]?: T[K];
-};
+type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] };
 ```
 
 ## Conditional Types (TypeScript)

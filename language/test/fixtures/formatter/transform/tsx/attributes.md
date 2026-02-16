@@ -37,13 +37,7 @@ const node = <Input name="search" value={query} onChange={(e) => setQuery(e.targ
 ```
 
 ```tsx expected
-const node = (
-    <Input
-        name="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-    />
-);
+const node = <Input name="search" value={query} onChange={(e) => setQuery(e.target.value)} />;
 ```
 
 ### expression attribute with call

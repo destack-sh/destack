@@ -55,10 +55,7 @@ function process(@nonempty input: string) { return input }
 ```
 
 ```ds expected
-function process(
-    @nonempty
-    input: string,
-) {
+function process(@nonempty input: string) {
     return input;
 }
 ```
@@ -444,9 +441,7 @@ let Factory: new /* ctor-head */ (value: /* arg */ string) /* ctor-tail */ => Wi
 
 ```ts expected
 type Fn = /* fn-head */ (value: /* arg */ string) /* fn-tail */ => void;
-let Factory: new /* ctor-head */(
-    value: /* arg */ string,
-) /* ctor-tail */ => Widget;
+let Factory: new /* ctor-head */(value: /* arg */ string) /* ctor-tail */ => Widget;
 ```
 
 ## Union And Intersection Layout
