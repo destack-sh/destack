@@ -45,7 +45,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -78,7 +78,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.handshake"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -107,7 +107,7 @@ declare namespace tls {
             effect: "external",
             replay: "nonrecordable",
             requires: ["tls.session"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -139,7 +139,7 @@ declare namespace tls {
             effect: "external",
             replay: "nonrecordable",
             requires: ["tls.session"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -171,7 +171,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -200,7 +200,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -229,7 +229,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -258,7 +258,7 @@ declare namespace tls {
             effect: "external",
             replay: "nonrecordable",
             requires: ["tls.certificate.read"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -287,7 +287,7 @@ declare namespace tls {
             effect: "external",
             replay: "nonrecordable",
             requires: ["tls.session", "tls.exporter"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -321,7 +321,7 @@ declare namespace tls {
             effect: "external",
             replay: "recordable",
             requires: ["tls.session", "tls.resumption"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )

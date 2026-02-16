@@ -126,7 +126,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.spawn"],
+            requires: ["process.spawn", "process.spawn.actions"],
             scope: "os",
             blocking: "sometimes",
         },
