@@ -20,6 +20,7 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+use std::ffi::{CStr, CString};
 
 /// Change the current working directory.
 ///
@@ -39,12 +40,33 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_CWD_CHDIR)?;
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
-    core_process::process_chdir(&path)
+
+    if path.contains('\0') {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "path",
+            "path contains nul byte",
+        ))
+        .boxed());
+    }
+
+    let path = CString::new(path).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "path",
+            "path contains nul byte",
+        ))
+        .boxed()
+    })?;
+
+    let rc = unsafe { libc::chdir(path.as_ptr()) };
+    if rc != 0 {
+        return Err(RuntimeError::from(PlatformError::io("failed to change cwd")).boxed());
+    }
+
+    Ok(())
 }
 
 /// Return the current working directory.
@@ -68,11 +90,12 @@ pub(crate) unsafe fn destack_process_cwd(
     context: &RuntimeCallContext,
     out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_CWD_CWD)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let cwd = core_process::process_cwd()?;
+
+    let cwd = process_cwd()?;
+
     let path = core_fs::os_path_from_utf8_string(context, cwd);
 
     unsafe {
@@ -80,4 +103,20 @@ pub(crate) unsafe fn destack_process_cwd(
     }
 
     Ok(())
+}
+
+/// Read the current working directory as a UTF-8 string.
+pub(crate) fn process_cwd() -> RuntimeResult<String> {
+    let raw_cwd = unsafe { libc::getcwd(std::ptr::null_mut(), 0) };
+    if raw_cwd.is_null() {
+        return Err(RuntimeError::from(PlatformError::io("failed to read cwd")).boxed());
+    }
+
+    let cwd = unsafe { CStr::from_ptr(raw_cwd) };
+    let cwd = String::from_utf8_lossy(cwd.to_bytes()).to_string();
+    unsafe {
+        libc::free(raw_cwd as *mut libc::c_void);
+    }
+
+    Ok(cwd)
 }

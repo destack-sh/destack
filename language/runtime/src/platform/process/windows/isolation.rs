@@ -41,9 +41,12 @@ pub(crate) unsafe fn destack_process_chroot(
     context: &RuntimeCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ISOLATION_CHROOT)?;
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
-    core_process::process_chroot(&path)
+    let _ = path;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.isolation.chroot",
+    ))
+    .boxed())
 }
 
 /// Install one syscall filter program.
@@ -68,9 +71,12 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
     program: NativeArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER)?;
     let program = unsafe { program.as_slice()? };
-    core_process::process_install_syscall_filter(program, flags.0)
+    let _ = (program, flags);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.isolation.installSyscallFilter",
+    ))
+    .boxed())
 }
 
 /// Set process host name inside the active UTS namespace.
@@ -94,9 +100,12 @@ pub(crate) unsafe fn destack_process_set_host_name(
     context: &RuntimeCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ISOLATION_SET_HOST_NAME)?;
     let name = unsafe { name.as_str()? };
-    core_process::process_set_host_name(name)
+    let _ = name;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.isolation.setHostName",
+    ))
+    .boxed())
 }
 
 /// Set network namespace context for subsequent network operations.
@@ -120,9 +129,12 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
     context: &RuntimeCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ISOLATION_SET_NETWORK_NAMESPACE)?;
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
-    core_process::process_set_network_namespace(&path)
+    let _ = path;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.isolation.setNetworkNamespace",
+    ))
+    .boxed())
 }
 
 /// Enter one namespace owned by another process.
@@ -147,8 +159,11 @@ pub(crate) unsafe fn destack_process_setns(
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ISOLATION_SETNS)?;
-    core_process::process_setns(pid.0, namespace)
+    let _ = (pid, namespace);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.isolation.setns",
+    ))
+    .boxed())
 }
 
 /// Unshare one or more namespaces.
@@ -172,6 +187,9 @@ pub(crate) unsafe fn destack_process_unshare(
     context: &RuntimeCallContext,
     flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ISOLATION_UNSHARE)?;
-    core_process::process_unshare(flags.0)
+    let _ = flags;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.isolation.unshare",
+    ))
+    .boxed())
 }

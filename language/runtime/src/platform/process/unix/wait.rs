@@ -4,7 +4,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{bindings_generated as bindings, core as core_process};
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
 };
 
 use crate::runtime::RuntimeCallContext;
@@ -19,6 +19,7 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+use std::time::{Duration, Instant};
 
 /// Resolve a process handle into its process id payload.
 fn resolve_spawned_process_handle(
@@ -64,16 +65,15 @@ fn is_terminal_wait_status(status: &ProcessWaitStatus) -> bool {
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_wait_pid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessWaitStatus,
     pid: ProcessId,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_WAIT_PID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_wait_pid(pid.0, flags.0)?;
+    let value = process_wait_pid(pid.0, flags.0)?;
     unsafe {
         *out = value;
     }
@@ -103,13 +103,11 @@ pub(crate) unsafe fn destack_process_try_wait(
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_WAIT_TRY_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_spawned_process_handle(context, handle)?;
-    let status =
-        core_process::process_wait_pid(process_id.0, core_process::PROCESS_WAIT_FLAG_NOHANG)?;
+    let status = process_wait_pid(process_id.0, PROCESS_WAIT_FLAG_NOHANG)?;
 
     if is_terminal_wait_status(&status) {
         let _ = context.runtime().resources.remove_and_finalize(handle.0);
@@ -145,12 +143,11 @@ pub(crate) unsafe fn destack_process_wait(
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_WAIT_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_spawned_process_handle(context, handle)?;
-    let status = core_process::process_wait_pid(process_id.0, flags.0)?;
+    let status = process_wait_pid(process_id.0, flags.0)?;
 
     if is_terminal_wait_status(&status) {
         let _ = context.runtime().resources.remove_and_finalize(handle.0);
@@ -161,4 +158,190 @@ pub(crate) unsafe fn destack_process_wait(
     }
 
     Ok(())
+}
+
+/// Nonblocking wait flag used by process wait bindings.
+pub(crate) const PROCESS_WAIT_FLAG_NOHANG: u32 = libc::WNOHANG as u32;
+
+/// Wait for one child process state transition.
+pub(super) fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWaitStatus> {
+    let pid = core_process::process_pid_to_unix_target(pid, "pid")?;
+    let options = decode_wait_flags(flags)?;
+
+    let mut raw_status: libc::c_int = 0;
+    let waited = unsafe { libc::waitpid(pid, &mut raw_status, options) };
+
+    if waited == 0 {
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoWouldBlock),
+            None,
+            Some(libc::EWOULDBLOCK),
+            Some("waitpid".to_string()),
+            None,
+            format!("waitpid would block for pid {}", pid as u32),
+        ))
+        .boxed());
+    }
+
+    if waited < 0 {
+        return Err(waitpid_error(pid as u32, flags));
+    }
+
+    Ok(wait_status_from_raw(waited, raw_status))
+}
+
+/// Wait for one process state transition with a timeout.
+pub(super) fn process_wait_pid_timeout(
+    pid: u32,
+    timeout_ns: u64,
+) -> RuntimeResult<ProcessWaitStatus> {
+    if timeout_ns == 0 {
+        return process_wait_pid(pid, PROCESS_WAIT_FLAG_NOHANG);
+    }
+
+    let timeout = Duration::from_nanos(timeout_ns);
+    let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "timeoutns",
+            "timeout is too large",
+        ))
+        .boxed()
+    })?;
+
+    let mut sleep_duration = Duration::from_micros(100);
+    let max_sleep_duration = Duration::from_millis(10);
+    loop {
+        match process_wait_pid(pid, PROCESS_WAIT_FLAG_NOHANG) {
+            Ok(status) => return Ok(status),
+            Err(error) => {
+                if !is_would_block_error(&error) {
+                    return Err(error);
+                }
+
+                if Instant::now() >= deadline {
+                    return Err(error);
+                }
+            }
+        }
+
+        let now = Instant::now();
+        let remaining = deadline.saturating_duration_since(now);
+        let sleep = remaining.min(sleep_duration);
+        if !sleep.is_zero() {
+            std::thread::sleep(sleep);
+        }
+        sleep_duration = (sleep_duration * 2).min(max_sleep_duration);
+    }
+}
+
+/// Return true when a runtime error maps to `ioWouldBlock`.
+fn is_would_block_error(error: &RuntimeError) -> bool {
+    let Some(platform_error) = error.platform_error() else {
+        return false;
+    };
+
+    platform_error.code == PlatformErrorCode::IoWouldBlock
+}
+
+/// Decode public wait flags into host waitpid flags.
+fn decode_wait_flags(flags: u32) -> RuntimeResult<libc::c_int> {
+    let supported = (libc::WNOHANG | libc::WUNTRACED | libc::WCONTINUED) as u32;
+    if flags & !supported != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "unsupported process wait flags",
+        ))
+        .boxed());
+    }
+
+    Ok(flags as libc::c_int)
+}
+
+/// Build a process wait error from the current errno state.
+fn waitpid_error(pid: u32, flags: u32) -> Box<RuntimeError> {
+    let error = std::io::Error::last_os_error();
+    let errno = error.raw_os_error().unwrap_or(libc::EINVAL);
+
+    let code = match errno {
+        libc::ECHILD => PlatformErrorCode::ProcessNotFound,
+        libc::EACCES | libc::EPERM => PlatformErrorCode::ProcessPermissionDenied,
+        libc::EINTR => PlatformErrorCode::IoInterrupted,
+        value if value == libc::EAGAIN || value == libc::EWOULDBLOCK => {
+            PlatformErrorCode::IoWouldBlock
+        }
+        _ => PlatformErrorCode::ProcessWaitFailed,
+    };
+
+    if code == PlatformErrorCode::IoInterrupted || code == PlatformErrorCode::IoWouldBlock {
+        return RuntimeError::from(PlatformError::io_with(
+            Some(code),
+            None,
+            Some(errno),
+            Some("waitpid".to_string()),
+            None,
+            format!("waitpid failed for pid {pid} with flags {flags}"),
+        ))
+        .boxed();
+    }
+
+    RuntimeError::from(PlatformError::process_with(
+        Some(code),
+        Some(errno.to_string()),
+        None,
+        None,
+        Some("waitpid".to_string()),
+        format!("waitpid failed for pid {pid} with flags {flags}"),
+    ))
+    .boxed()
+}
+
+/// Decode a host wait status into the platform wait payload.
+fn wait_status_from_raw(waited: libc::pid_t, raw_status: libc::c_int) -> ProcessWaitStatus {
+    if libc::WIFEXITED(raw_status) {
+        return ProcessWaitStatus {
+            pid: ProcessId(waited as u32),
+            kind: ProcessWaitKind::Exited,
+            exit_code: libc::WEXITSTATUS(raw_status),
+            signal: Signal(0),
+            core_dumped: false,
+        };
+    }
+
+    if libc::WIFSIGNALED(raw_status) {
+        return ProcessWaitStatus {
+            pid: ProcessId(waited as u32),
+            kind: ProcessWaitKind::Signaled,
+            exit_code: 0,
+            signal: Signal(libc::WTERMSIG(raw_status) as u32),
+            core_dumped: libc::WCOREDUMP(raw_status),
+        };
+    }
+
+    if libc::WIFSTOPPED(raw_status) {
+        return ProcessWaitStatus {
+            pid: ProcessId(waited as u32),
+            kind: ProcessWaitKind::Stopped,
+            exit_code: 0,
+            signal: Signal(libc::WSTOPSIG(raw_status) as u32),
+            core_dumped: false,
+        };
+    }
+
+    if libc::WIFCONTINUED(raw_status) {
+        return ProcessWaitStatus {
+            pid: ProcessId(waited as u32),
+            kind: ProcessWaitKind::Continued,
+            exit_code: 0,
+            signal: Signal(0),
+            core_dumped: false,
+        };
+    }
+
+    ProcessWaitStatus {
+        pid: ProcessId(waited as u32),
+        kind: ProcessWaitKind::Running,
+        exit_code: 0,
+        signal: Signal(0),
+        core_dumped: false,
+    }
 }

@@ -1,9 +1,18 @@
 use std::time::Duration;
 
-use super::{is_would_block, with_harness_context};
-use crate::diagnostic::RuntimeError;
+use super::{assert_platform_error_code, is_would_block, with_harness_context};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::process::{Signal, SignalFdFlags, SignalMaskHow};
+use crate::platform::resource::{ResourceId, SignalFdHandle};
 
+/// Poll attempts used by nonblocking signal tests.
+const SIGNAL_POLL_ATTEMPTS: usize = 200;
+/// Poll sleep interval in milliseconds used by nonblocking signal tests.
+const SIGNAL_POLL_SLEEP_MS: u64 = 10;
+
+/// Block one signal and receive it through signal_try_wait polling.
 #[cfg(unix)]
 #[test]
 fn test_process_signal_mask_and_try_wait_roundtrip() {
@@ -19,21 +28,22 @@ fn test_process_signal_mask_and_try_wait_roundtrip() {
             assert_eq!(raise_result, 0);
 
             let mut received = None;
-            for _ in 0..20 {
+            for _ in 0..SIGNAL_POLL_ATTEMPTS {
                 match context.signal_try_wait(&[signal]) {
                     Ok(event) => {
                         received = Some(event);
                         break;
                     }
                     Err(error) if is_would_block(&error) => {
-                        std::thread::sleep(Duration::from_millis(10));
+                        std::thread::sleep(Duration::from_millis(SIGNAL_POLL_SLEEP_MS));
                     }
                     Err(error) => return Err(error),
                 }
             }
 
+            // signal_try_wait should eventually return the raised signal
             let received = received.ok_or_else(|| {
-                RuntimeError::from(crate::platform::PlatformError::io(
+                RuntimeError::from(PlatformError::io(
                     "signal did not become pending within timeout",
                 ))
                 .boxed()
@@ -48,6 +58,7 @@ fn test_process_signal_mask_and_try_wait_roundtrip() {
     });
 }
 
+/// Subscribe to one signal and receive it through signal_try_receive polling.
 #[cfg(unix)]
 #[test]
 fn test_process_signal_subscribe_try_receive_roundtrip() {
@@ -64,21 +75,22 @@ fn test_process_signal_subscribe_try_receive_roundtrip() {
             assert_eq!(raise_result, 0);
 
             let mut received = None;
-            for _ in 0..20 {
+            for _ in 0..SIGNAL_POLL_ATTEMPTS {
                 match context.signal_try_receive(handle) {
                     Ok(event) => {
                         received = Some(event);
                         break;
                     }
                     Err(error) if is_would_block(&error) => {
-                        std::thread::sleep(Duration::from_millis(10));
+                        std::thread::sleep(Duration::from_millis(SIGNAL_POLL_SLEEP_MS));
                     }
                     Err(error) => return Err(error),
                 }
             }
 
+            // signal_try_receive should eventually return the raised signal
             let received = received.ok_or_else(|| {
-                RuntimeError::from(crate::platform::PlatformError::io(
+                RuntimeError::from(PlatformError::io(
                     "signal did not become receivable within timeout",
                 ))
                 .boxed()
@@ -94,6 +106,7 @@ fn test_process_signal_subscribe_try_receive_roundtrip() {
     });
 }
 
+/// Read one blocked signal through signal_fd_try_read polling.
 #[cfg(unix)]
 #[test]
 fn test_process_signal_fd_try_read_roundtrip() {
@@ -110,21 +123,22 @@ fn test_process_signal_fd_try_read_roundtrip() {
             assert_eq!(raise_result, 0);
 
             let mut received = None;
-            for _ in 0..20 {
+            for _ in 0..SIGNAL_POLL_ATTEMPTS {
                 match context.signal_fd_try_read(handle) {
                     Ok(event) => {
                         received = Some(event);
                         break;
                     }
                     Err(error) if is_would_block(&error) => {
-                        std::thread::sleep(Duration::from_millis(10));
+                        std::thread::sleep(Duration::from_millis(SIGNAL_POLL_SLEEP_MS));
                     }
                     Err(error) => return Err(error),
                 }
             }
 
+            // signal_fd_try_read should eventually return the raised signal
             let received = received.ok_or_else(|| {
-                RuntimeError::from(crate::platform::PlatformError::io(
+                RuntimeError::from(PlatformError::io(
                     "signal fd did not become readable within timeout",
                 ))
                 .boxed()
@@ -137,5 +151,162 @@ fn test_process_signal_fd_try_read_roundtrip() {
 
         context.signal_mask_update(SignalMaskHow::Set, &original)?;
         test_result
+    });
+}
+
+/// Receive blocked signals through subscription receive and signal_wait paths.
+#[cfg(unix)]
+#[test]
+fn test_process_signal_receive_and_wait_roundtrip() {
+    let signal = Signal(libc::SIGUSR1 as u32);
+
+    with_harness_context(|mut context| {
+        let original = context.signal_mask_read()?;
+
+        let test_result = (|| {
+            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
+
+            let subscription = context.signal_subscribe(signal)?;
+
+            let first_raise = unsafe { libc::raise(signal.0 as libc::c_int) };
+            assert_eq!(first_raise, 0);
+
+            // both receive and wait paths should return the raised signal
+            let received = context.signal_receive(subscription)?;
+            assert_eq!(received.signal, signal);
+
+            context.signal_unsubscribe(subscription)?;
+
+            let second_raise = unsafe { libc::raise(signal.0 as libc::c_int) };
+            assert_eq!(second_raise, 0);
+
+            let waited = context.signal_wait(&[signal])?;
+            assert_eq!(waited.signal, signal);
+
+            Ok(())
+        })();
+
+        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        test_result
+    });
+}
+
+/// Read a blocked signal through signal_fd_read after updating signal_fd mask.
+#[cfg(unix)]
+#[test]
+fn test_process_signal_fd_read_and_set_mask_roundtrip() {
+    let signal = Signal(libc::SIGUSR2 as u32);
+
+    with_harness_context(|mut context| {
+        let original = context.signal_mask_read()?;
+
+        let test_result = (|| {
+            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
+            let handle = context.signal_fd_open(&[signal], SignalFdFlags(0))?;
+
+            context.signal_fd_set_mask(handle, &[signal])?;
+
+            let raise_result = unsafe { libc::raise(signal.0 as libc::c_int) };
+            assert_eq!(raise_result, 0);
+
+            let received = context.signal_fd_read(handle)?;
+            assert_eq!(received.signal, signal);
+
+            context.signal_fd_close(handle)?;
+            Ok(())
+        })();
+
+        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        test_result
+    });
+}
+
+/// Reject signal_wait calls that use an invalid signal value.
+#[cfg(unix)]
+#[test]
+fn test_process_signal_wait_rejects_invalid_signal_value() {
+    with_harness_context(|mut context| {
+        assert_platform_error_code(
+            context.signal_wait(&[Signal(0)]),
+            PlatformErrorCode::InvalidArgumentValue,
+        )
+    });
+}
+
+/// Require blocked signals before allowing signal_wait and signal_try_wait.
+#[cfg(unix)]
+#[test]
+fn test_process_signal_wait_requires_blocked_mask() {
+    let signal = Signal(libc::SIGUSR1 as u32);
+
+    with_harness_context(|mut context| {
+        let original = context.signal_mask_read()?;
+        let test_result = (|| {
+            context.signal_mask_update(SignalMaskHow::Unblock, &[signal])?;
+            assert_platform_error_code(
+                context.signal_wait(&[signal]),
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
+            assert_platform_error_code(
+                context.signal_try_wait(&[signal]),
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
+            Ok(())
+        })();
+
+        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        test_result
+    });
+}
+
+/// Report specific errors for invalid signal-fd flags and forged handles.
+#[cfg(unix)]
+#[test]
+fn test_process_signal_fd_validation_errors_are_specific() {
+    with_harness_context(|mut context| {
+        // invalid signal-fd arguments should return invalid-argument errors
+        assert_platform_error_code(
+            context.signal_fd_open(&[Signal(libc::SIGUSR1 as u32)], SignalFdFlags(1)),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        let invalid_handle = SignalFdHandle(ResourceId(0));
+        assert_platform_error_code(
+            context.signal_fd_try_read(invalid_handle),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+        assert_platform_error_code(
+            context.signal_fd_read(invalid_handle),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+        assert_platform_error_code(
+            context.signal_fd_set_mask(invalid_handle, &[Signal(libc::SIGUSR1 as u32)]),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+        assert_platform_error_code(
+            context.signal_fd_close(invalid_handle),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        // forged signal-fd handles must be rejected even when ids overlap
+        let original = context.signal_mask_read()?;
+        let signal = Signal(libc::SIGUSR2 as u32);
+        let forged_result: RuntimeResult<()> = (|| {
+            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
+            let subscription = context.signal_subscribe(signal)?;
+            let forged_handle = SignalFdHandle(subscription.0);
+
+            assert_platform_error_code(
+                context.signal_fd_close(forged_handle),
+                PlatformErrorCode::InvalidArgumentValue,
+            )?;
+
+            context.signal_unsubscribe(subscription)?;
+            Ok(())
+        })();
+        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        forged_result?;
+
+        Ok(())
     });
 }

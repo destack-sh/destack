@@ -91,7 +91,7 @@ fn resolve_file_fd(
     core_fs::require_resource(
         context,
         handle.0,
-        crate::platform::resource::ResourceKind::File,
+        resource::ResourceKind::File,
         "file",
         |entry| {
             entry.fd().ok_or_else(|| {
@@ -397,11 +397,9 @@ fn spawn_process(
     let process_id = ProcessId(child.id());
     std::mem::drop(child);
 
-    let entry = crate::platform::resource::ResourceEntry::new(
-        crate::platform::resource::ResourceKind::Process,
-    )
-    .with_label("process.spawn")
-    .with_payload(core_process::SpawnedProcess { pid: process_id });
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
+        .with_label("process.spawn")
+        .with_payload(core_process::SpawnedProcess { pid: process_id });
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {
@@ -435,7 +433,6 @@ pub(crate) unsafe fn destack_process_spawn(
     environment: NativeStringSlice,
     options: ProcessSpawnOptions,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SPAWN_SPAWN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -481,7 +478,6 @@ pub(crate) unsafe fn destack_process_spawn_with_actions(
     stdio: NativeSlice<ProcessStdio>,
     actions: NativeSlice<ProcessFdAction>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SPAWN_WITH_ACTIONS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }

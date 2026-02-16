@@ -19,6 +19,7 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
 /// Read a process resource limit.
 ///
 /// Read soft and hard limits for one host resource selector.
@@ -37,15 +38,26 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_LIMITS_GET_LIMIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_get_limit(resource.0)?;
+    let mut raw_limit = unsafe { std::mem::zeroed::<libc::rlimit>() };
+    let result = unsafe { libc::getrlimit(resource.0 as _, &mut raw_limit) };
+    if result != 0 {
+        return Err(core_process::process_last_error(
+            "getrlimit",
+            format!("failed to get limit for resource {}", resource.0),
+        ));
+    }
+
+    let value = ProcessLimit {
+        soft: raw_limit.rlim_cur as u64,
+        hard: raw_limit.rlim_max as u64,
+    };
     unsafe {
         *out = value;
     }
@@ -71,10 +83,30 @@ pub(crate) unsafe fn destack_process_get_limit(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_LIMITS_SET_LIMIT)?;
-    core_process::process_set_limit(resource.0, limit)
+    if limit.soft > limit.hard {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "limit.soft",
+            "soft limit must be less than or equal to hard limit",
+        ))
+        .boxed());
+    }
+
+    let raw_limit = libc::rlimit {
+        rlim_cur: limit.soft as libc::rlim_t,
+        rlim_max: limit.hard as libc::rlim_t,
+    };
+
+    let result = unsafe { libc::setrlimit(resource.0 as _, &raw_limit) };
+    if result != 0 {
+        return Err(core_process::process_last_error(
+            "setrlimit",
+            format!("failed to set limit for resource {}", resource.0),
+        ));
+    }
+
+    Ok(())
 }

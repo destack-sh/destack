@@ -19,6 +19,7 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
 /// Exit the current process with the given code.
 ///
 /// Terminate the current process without returning to the caller.
@@ -37,9 +38,8 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     code: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_EXIT_EXIT)?;
-    core_process::process_exit(code)
+    unsafe { libc::_exit(code as i32) }
 }

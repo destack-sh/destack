@@ -19,6 +19,7 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
 /// Return the effective group identifier.
 ///
 /// Read the effective primary group for the calling process.
@@ -37,14 +38,13 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_egid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_EGID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = GroupId(core_process::process_egid()?);
+    let value = GroupId(unsafe { libc::getegid() as u32 });
     unsafe {
         *out = value;
     }
@@ -70,14 +70,13 @@ pub(crate) unsafe fn destack_process_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_euid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_EUID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = UserId(core_process::process_euid()?);
+    let value = UserId(unsafe { libc::geteuid() as u32 });
     unsafe {
         *out = value;
     }
@@ -103,14 +102,13 @@ pub(crate) unsafe fn destack_process_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_gid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_GID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = GroupId(core_process::process_gid()?);
+    let value = GroupId(unsafe { libc::getgid() as u32 });
     unsafe {
         *out = value;
     }
@@ -136,14 +134,50 @@ pub(crate) unsafe fn destack_process_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_group_ids(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_GROUP_IDS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_group_ids()?;
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    let value = {
+        let mut real: libc::gid_t = 0;
+        let mut effective: libc::gid_t = 0;
+        let mut saved: libc::gid_t = 0;
+        let result = unsafe { libc::getresgid(&mut real, &mut effective, &mut saved) };
+        if result != 0 {
+            let error = std::io::Error::last_os_error();
+            return Err(RuntimeError::from(PlatformError::io(format!(
+                "failed to read group ids: {error}"
+            )))
+            .boxed());
+        }
+
+        ProcessGroupIds {
+            real: GroupId(real as u32),
+            effective: GroupId(effective as u32),
+            saved: GroupId(saved as u32),
+        }
+    };
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    let value = {
+        let real = unsafe { libc::getgid() as u32 };
+        let effective = unsafe { libc::getegid() as u32 };
+
+        ProcessGroupIds {
+            real: GroupId(real),
+            effective: GroupId(effective),
+            saved: GroupId(effective),
+        }
+    };
     unsafe {
         *out = value;
     }
@@ -172,11 +206,33 @@ pub(crate) unsafe fn destack_process_groups(
     context: &RuntimeCallContext,
     out: *mut NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_GROUPS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let groups = core_process::process_groups()?;
+    let count = unsafe { libc::getgroups(0, std::ptr::null_mut()) };
+    if count < 0 {
+        let error = std::io::Error::last_os_error();
+        return Err(RuntimeError::from(PlatformError::io(format!(
+            "failed to read supplementary groups: {error}"
+        )))
+        .boxed());
+    }
+
+    let mut groups = vec![0 as libc::gid_t; count as usize];
+    let result = unsafe { libc::getgroups(count, groups.as_mut_ptr()) };
+    if result < 0 {
+        let error = std::io::Error::last_os_error();
+        return Err(RuntimeError::from(PlatformError::io(format!(
+            "failed to read supplementary groups: {error}"
+        )))
+        .boxed());
+    }
+
+    let groups = groups
+        .into_iter()
+        .map(|group| GroupId(group as u32))
+        .collect::<Vec<_>>();
+
     unsafe {
         *out = context.store_slice(groups);
     }
@@ -202,14 +258,13 @@ pub(crate) unsafe fn destack_process_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_pid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_PID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = ProcessId(core_process::process_pid()?);
+    let value = ProcessId(unsafe { libc::getpid() as u32 });
     unsafe {
         *out = value;
     }
@@ -235,14 +290,13 @@ pub(crate) unsafe fn destack_process_pid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_ppid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_PPID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = ProcessId(core_process::process_ppid()?);
+    let value = ProcessId(unsafe { libc::getppid() as u32 });
     unsafe {
         *out = value;
     }
@@ -268,11 +322,18 @@ pub(crate) unsafe fn destack_process_ppid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_egid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_EGID)?;
-    core_process::process_set_egid(groupid.0)
+    let result = unsafe { libc::setegid(groupid.0 as libc::gid_t) };
+    if result != 0 {
+        return Err(core_process::process_last_error(
+            "setegid",
+            format!("failed to set effective group id to {}", groupid.0),
+        ));
+    }
+
+    Ok(())
 }
 
 /// Set the effective user identifier only.
@@ -293,11 +354,18 @@ pub(crate) unsafe fn destack_process_set_egid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_euid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_EUID)?;
-    core_process::process_set_euid(userid.0)
+    let result = unsafe { libc::seteuid(userid.0 as libc::uid_t) };
+    if result != 0 {
+        return Err(core_process::process_last_error(
+            "seteuid",
+            format!("failed to set effective user id to {}", userid.0),
+        ));
+    }
+
+    Ok(())
 }
 
 /// Set the effective group identifier.
@@ -318,11 +386,18 @@ pub(crate) unsafe fn destack_process_set_euid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_gid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_GID)?;
-    core_process::process_set_gid(groupid.0)
+    let result = unsafe { libc::setgid(groupid.0 as libc::gid_t) };
+    if result != 0 {
+        return Err(core_process::process_last_error(
+            "setgid",
+            format!("failed to set group id to {}", groupid.0),
+        ));
+    }
+
+    Ok(())
 }
 
 /// Set real, effective, and saved-set group identifiers together.
@@ -343,11 +418,56 @@ pub(crate) unsafe fn destack_process_set_gid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_group_ids(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     ids: ProcessGroupIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_GROUP_IDS)?;
-    core_process::process_set_group_ids(ids)
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        let result = unsafe {
+            libc::setresgid(
+                ids.real.0 as libc::gid_t,
+                ids.effective.0 as libc::gid_t,
+                ids.saved.0 as libc::gid_t,
+            )
+        };
+        if result != 0 {
+            return Err(core_process::process_last_error(
+                "setresgid",
+                format!("failed to set group ids to {:?}", ids),
+            ));
+        }
+
+        return Ok(());
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        if ids.saved != ids.effective {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "ids",
+                "saved group id must match effective group id on this platform",
+            ))
+            .boxed());
+        }
+
+        let result =
+            unsafe { libc::setregid(ids.real.0 as libc::gid_t, ids.effective.0 as libc::gid_t) };
+        if result != 0 {
+            return Err(core_process::process_last_error(
+                "setregid",
+                format!("failed to set group ids to {:?}", ids),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 /// Set supplementary group identifiers.
@@ -368,12 +488,31 @@ pub(crate) unsafe fn destack_process_set_group_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_groups(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     groups: NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_GROUPS)?;
     let groups = unsafe { groups.as_slice()? };
-    core_process::process_set_groups(groups)
+    let mut raw_groups = Vec::with_capacity(groups.len());
+    for group in groups {
+        raw_groups.push(group.0 as libc::gid_t);
+    }
+
+    let count = i32::try_from(raw_groups.len()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "groups",
+            "too many supplementary groups",
+        ))
+        .boxed()
+    })?;
+    let result = unsafe { libc::setgroups(count as _, raw_groups.as_ptr()) };
+    if result != 0 {
+        return Err(core_process::process_last_error(
+            "setgroups",
+            "failed to set supplementary groups",
+        ));
+    }
+
+    Ok(())
 }
 
 /// Set the effective user identifier.
@@ -394,11 +533,18 @@ pub(crate) unsafe fn destack_process_set_groups(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_uid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_UID)?;
-    core_process::process_set_uid(userid.0)
+    let result = unsafe { libc::setuid(userid.0 as libc::uid_t) };
+    if result != 0 {
+        return Err(core_process::process_last_error(
+            "setuid",
+            format!("failed to set user id to {}", userid.0),
+        ));
+    }
+
+    Ok(())
 }
 
 /// Set real, effective, and saved-set user identifiers together.
@@ -419,11 +565,56 @@ pub(crate) unsafe fn destack_process_set_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_user_ids(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     ids: ProcessUserIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_USER_IDS)?;
-    core_process::process_set_user_ids(ids)
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    {
+        let result = unsafe {
+            libc::setresuid(
+                ids.real.0 as libc::uid_t,
+                ids.effective.0 as libc::uid_t,
+                ids.saved.0 as libc::uid_t,
+            )
+        };
+        if result != 0 {
+            return Err(core_process::process_last_error(
+                "setresuid",
+                format!("failed to set user ids to {:?}", ids),
+            ));
+        }
+
+        return Ok(());
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        if ids.saved != ids.effective {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "ids",
+                "saved user id must match effective user id on this platform",
+            ))
+            .boxed());
+        }
+
+        let result =
+            unsafe { libc::setreuid(ids.real.0 as libc::uid_t, ids.effective.0 as libc::uid_t) };
+        if result != 0 {
+            return Err(core_process::process_last_error(
+                "setreuid",
+                format!("failed to set user ids to {:?}", ids),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 /// Return the current user identifier.
@@ -444,14 +635,13 @@ pub(crate) unsafe fn destack_process_set_user_ids(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_uid(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_UID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = UserId(core_process::process_uid()?);
+    let value = UserId(unsafe { libc::getuid() as u32 });
     unsafe {
         *out = value;
     }
@@ -477,14 +667,52 @@ pub(crate) unsafe fn destack_process_uid(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_user_ids(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_USER_IDS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_user_ids()?;
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    let value = {
+        let mut real: libc::uid_t = 0;
+        let mut effective: libc::uid_t = 0;
+        let mut saved: libc::uid_t = 0;
+        let result = unsafe { libc::getresuid(&mut real, &mut effective, &mut saved) };
+        if result != 0 {
+            let error = std::io::Error::last_os_error();
+            return Err(RuntimeError::from(PlatformError::io(format!(
+                "failed to read user ids: {error}"
+            )))
+            .boxed());
+        }
+
+        ProcessUserIds {
+            real: UserId(real as u32),
+            effective: UserId(effective as u32),
+            saved: UserId(saved as u32),
+        }
+    };
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    let value = {
+        let real = unsafe { libc::getuid() as u32 };
+        let effective = unsafe { libc::geteuid() as u32 };
+
+        ProcessUserIds {
+            real: UserId(real),
+            effective: UserId(effective),
+            saved: UserId(effective),
+        }
+    };
+
     unsafe {
         *out = value;
     }

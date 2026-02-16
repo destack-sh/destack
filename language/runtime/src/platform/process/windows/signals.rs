@@ -4,7 +4,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{bindings_generated as bindings, core as core_process};
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
+    core as core_platform,
 };
 
 use crate::runtime::RuntimeCallContext;
@@ -19,28 +20,6 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
-
-/// Resolve a signal subscription handle into its signal set.
-fn resolve_signal_subscription(
-    context: &RuntimeCallContext,
-    handle: resource::SignalHandle,
-) -> RuntimeResult<Vec<Signal>> {
-    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
-        entry
-            .payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<core_process::SignalSubscription>())
-            .map(|subscription| subscription.signals.clone())
-    });
-
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
-            "handle",
-            "unknown signal subscription handle",
-        ))
-        .boxed()
-    })
-}
 /// Send a signal to a target process.
 ///
 /// Deliver one signal value to the target process according to host signal semantics.
@@ -63,8 +42,7 @@ pub(crate) unsafe fn destack_process_kill(
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_KILL)?;
-    core_process::process_kill(pid.0, signal.0)
+    process_kill(pid.0, signal.0)
 }
 
 /// Read the current thread signal mask.
@@ -88,16 +66,14 @@ pub(crate) unsafe fn destack_process_signal_mask_read(
     context: &RuntimeCallContext,
     out: *mut NativeArray<Signal>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = core_process::process_signal_mask_read()?;
-    unsafe {
-        *out = context.store_array(signals);
-    }
-
-    Ok(())
+    let _ = (context, out);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signalMaskRead",
+    ))
+    .boxed())
 }
 
 /// Update the current thread signal mask.
@@ -122,9 +98,11 @@ pub(crate) unsafe fn destack_process_signal_mask_update(
     how: SignalMaskHow,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
-    let signals = unsafe { signals.as_slice()? };
-    core_process::process_signal_mask_update(how, signals)
+    let _ = (context, how, signals);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signalMaskUpdate",
+    ))
+    .boxed())
 }
 
 /// Receive the next signal event from a subscription.
@@ -149,12 +127,11 @@ pub(crate) unsafe fn destack_process_signal_receive(
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_RECEIVE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_subscription(context, handle)?;
-    let event = core_process::process_signal_wait(&signals)?;
+    let signals = core_process::resolve_signal_subscription(context, handle)?;
+    let event = process_signal_wait(&signals)?;
     unsafe {
         *out = event;
     }
@@ -184,7 +161,6 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
     out: *mut resource::SignalHandle,
     signal: Signal,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_SUBSCRIBE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -196,13 +172,11 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
         .boxed());
     }
 
-    let entry = crate::platform::resource::ResourceEntry::new(
-        crate::platform::resource::ResourceKind::Unknown,
-    )
-    .with_label("process.signal.subscription")
-    .with_payload(core_process::SignalSubscription {
-        signals: vec![signal],
-    });
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Unknown)
+        .with_label("process.signal.subscription")
+        .with_payload(core_process::SignalSubscription {
+            signals: vec![signal],
+        });
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {
@@ -234,12 +208,11 @@ pub(crate) unsafe fn destack_process_signal_try_receive(
     out: *mut SignalEvent,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let signals = resolve_signal_subscription(context, handle)?;
-    let event = core_process::process_signal_try_wait(&signals)?;
+    let signals = core_process::resolve_signal_subscription(context, handle)?;
+    let event = process_signal_try_wait(&signals)?;
     unsafe {
         *out = event;
     }
@@ -269,12 +242,11 @@ pub(crate) unsafe fn destack_process_signal_try_wait(
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = unsafe { signals.as_slice()? };
-    let event = core_process::process_signal_try_wait(signals)?;
+    let event = process_signal_try_wait(signals)?;
     unsafe {
         *out = event;
     }
@@ -303,7 +275,8 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
     context: &RuntimeCallContext,
     handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE)?;
+    let _ = core_process::resolve_signal_subscription(context, handle)?;
+
     let removed = context.runtime().resources.remove_and_finalize(handle.0);
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -338,15 +311,96 @@ pub(crate) unsafe fn destack_process_signal_wait(
     out: *mut SignalEvent,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SIGNALS_SIGNAL_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = unsafe { signals.as_slice()? };
-    let event = core_process::process_signal_wait(signals)?;
+    let event = process_signal_wait(signals)?;
     unsafe {
         *out = event;
     }
 
     Ok(())
+}
+
+/// Send a signal to the given process.
+pub(super) fn process_kill(pid: u32, signal: u32) -> RuntimeResult<()> {
+    use windows_sys::Win32::Foundation::{CloseHandle, ERROR_INVALID_PARAMETER};
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE, TerminateProcess,
+    };
+
+    let pid = core_process::process_pid_to_windows_target(pid, "pid")?;
+    let access = if signal == 0 {
+        PROCESS_QUERY_LIMITED_INFORMATION
+    } else {
+        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE
+    };
+
+    let process = unsafe { OpenProcess(access, 0, pid) };
+    if process == 0 {
+        let error = core_platform::last_error_code() as u32;
+        let code = if error == ERROR_INVALID_PARAMETER {
+            PlatformErrorCode::ProcessNotFound
+        } else {
+            PlatformErrorCode::ProcessPermissionDenied
+        };
+        return Err(RuntimeError::from(PlatformError::process_with(
+            Some(code),
+            Some(error.to_string()),
+            None,
+            None,
+            Some("OpenProcess".to_string()),
+            format!("failed to open process {pid}"),
+        ))
+        .boxed());
+    }
+
+    if signal == 0 {
+        unsafe {
+            CloseHandle(process);
+        }
+        return Ok(());
+    }
+
+    if signal != 1 && signal != 2 && signal != 9 && signal != 15 {
+        unsafe {
+            CloseHandle(process);
+        }
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "signal",
+            format!("unsupported signal {signal} on windows"),
+        ))
+        .boxed());
+    }
+
+    let result = unsafe { TerminateProcess(process, 128_u32.saturating_add(signal)) };
+    let status = if result == 0 {
+        let error = core_platform::last_error_code();
+        Err(RuntimeError::from(PlatformError::io(format!(
+            "failed to terminate process {pid}: {error}",
+        )))
+        .boxed())
+    } else {
+        Ok(())
+    };
+
+    unsafe {
+        CloseHandle(process);
+    }
+
+    status
+}
+
+/// Wait for one signal from the provided set.
+pub(super) fn process_signal_wait(_signals: &[Signal]) -> RuntimeResult<SignalEvent> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.process.signalWait")).boxed())
+}
+
+/// Poll for one signal from the provided set without blocking.
+pub(super) fn process_signal_try_wait(_signals: &[Signal]) -> RuntimeResult<SignalEvent> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signalTryWait",
+    ))
+    .boxed())
 }

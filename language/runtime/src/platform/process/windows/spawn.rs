@@ -3,13 +3,14 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::resource::{ResourceFinalizer, ResourceId};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
-use std::os::windows::io::{FromRawHandle, OwnedHandle};
+use std::os::windows::io::{FromRawHandle, IntoRawHandle, OwnedHandle};
 use std::process::Command;
 
 use crate::platform::fs::core as core_fs;
@@ -22,6 +23,29 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
+/// Finalizer that closes one Windows process handle.
+#[derive(Debug)]
+struct ProcessHandleFinalizer {
+    /// Raw process handle to close.
+    handle: windows_sys::Win32::Foundation::HANDLE,
+}
+
+impl ProcessHandleFinalizer {
+    /// Create a process handle finalizer from one raw handle.
+    fn new(handle: windows_sys::Win32::Foundation::HANDLE) -> Self {
+        Self { handle }
+    }
+}
+
+impl ResourceFinalizer for ProcessHandleFinalizer {
+    /// Close the process handle when the resource is finalized.
+    fn finalize(self: Box<Self>, _resource_id: ResourceId) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.handle);
+        }
+    }
+}
 
 /// Decode a native string slice into owned UTF-8 strings.
 unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<String>> {
@@ -62,7 +86,7 @@ fn resolve_file_handle(
     core_fs::require_resource(
         context,
         handle.0,
-        crate::platform::resource::ResourceKind::File,
+        resource::ResourceKind::File,
         "file",
         |entry| {
             entry.handle().map(|handle| handle as _).ok_or_else(|| {
@@ -229,13 +253,13 @@ fn spawn_process(
         .boxed()
     })?;
     let process_id = ProcessId(child.id());
-    std::mem::drop(child);
+    let process_handle = child.into_raw_handle();
 
-    let entry = crate::platform::resource::ResourceEntry::new(
-        crate::platform::resource::ResourceKind::Process,
-    )
-    .with_label("process.spawn")
-    .with_payload(core_process::SpawnedProcess { pid: process_id });
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
+        .with_label("process.spawn")
+        .with_payload(core_process::SpawnedProcess { pid: process_id })
+        .with_handle(process_handle)
+        .with_finalizer(ProcessHandleFinalizer::new(process_handle as _));
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {
@@ -270,7 +294,6 @@ pub(crate) unsafe fn destack_process_spawn(
     environment: NativeStringSlice,
     options: ProcessSpawnOptions,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SPAWN_SPAWN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -309,7 +332,6 @@ pub(crate) unsafe fn destack_process_spawn_with_actions(
     stdio: NativeSlice<ProcessStdio>,
     actions: NativeSlice<ProcessFdAction>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SPAWN_WITH_ACTIONS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }

@@ -41,12 +41,11 @@ pub(crate) unsafe fn destack_process_args(
     context: &RuntimeCallContext,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ARGS_ARGS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     // collect argument strings into call-local storage
-    let args = core_process::process_args(context.platform());
+    let args = context.platform().args();
     let mut values = Vec::with_capacity(args.len());
     for argument in args {
         values.push(context.store_string(argument));

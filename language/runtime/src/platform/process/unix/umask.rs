@@ -37,15 +37,14 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_umask(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u32,
     mask: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_UMASK_UMASK)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let previous = core_process::process_umask(mask)?;
+    let previous = unsafe { libc::umask(mask as libc::mode_t) as u32 };
     unsafe {
         *out = previous;
     }

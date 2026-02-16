@@ -3,8 +3,10 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::resource::{ResourceFinalizer, ResourceId};
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
+    core as core_platform,
 };
 
 use crate::runtime::RuntimeCallContext;
@@ -20,26 +22,274 @@ use crate::platform::process::{
 };
 use crate::platform::{fs, resource};
 
-/// Resolve a process-fd handle into its process id payload.
+/// Finalizer that closes one Windows process handle.
+#[derive(Debug)]
+struct ProcessHandleFinalizer {
+    /// Raw process handle to close.
+    handle: windows_sys::Win32::Foundation::HANDLE,
+}
+
+impl ProcessHandleFinalizer {
+    /// Create a process handle finalizer from one raw handle.
+    fn new(handle: windows_sys::Win32::Foundation::HANDLE) -> Self {
+        Self { handle }
+    }
+}
+
+impl ResourceFinalizer for ProcessHandleFinalizer {
+    /// Close the process handle when the resource is finalized.
+    fn finalize(self: Box<Self>, _resource_id: ResourceId) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.handle);
+        }
+    }
+}
+
+/// Open one process handle for process-fd operations.
+fn open_process_fd_handle(pid: ProcessId) -> RuntimeResult<windows_sys::Win32::Foundation::HANDLE> {
+    use windows_sys::Win32::Foundation::ERROR_INVALID_PARAMETER;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+    };
+
+    if pid.0 == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "pid",
+            "process id must be greater than zero",
+        ))
+        .boxed());
+    }
+
+    let process_handle = unsafe {
+        OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE | PROCESS_TERMINATE,
+            0,
+            pid.0,
+        )
+    };
+    if process_handle == 0 {
+        let error = core_platform::last_error_code() as u32;
+        let code = if error == ERROR_INVALID_PARAMETER {
+            PlatformErrorCode::ProcessNotFound
+        } else {
+            PlatformErrorCode::ProcessPermissionDenied
+        };
+        return Err(RuntimeError::from(PlatformError::process_with(
+            Some(code),
+            Some(error.to_string()),
+            None,
+            None,
+            Some("OpenProcess".to_string()),
+            format!("failed to open process {} for process-fd", pid.0),
+        ))
+        .boxed());
+    }
+
+    Ok(process_handle)
+}
+
+/// Resolve a process-fd handle into process id and raw process handle payload.
 fn resolve_process_fd(
     context: &RuntimeCallContext,
     handle: resource::ProcessFdHandle,
-) -> RuntimeResult<ProcessId> {
+) -> RuntimeResult<(ProcessId, windows_sys::Win32::Foundation::HANDLE)> {
     let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
         entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
-            .map(|binding| binding.pid)
+            .map(|binding| {
+                (
+                    binding.pid,
+                    entry.handle().map(|raw_handle| raw_handle as _),
+                )
+            })
     });
 
-    resolved.flatten().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_value(
+    let Some((pid, process_handle)) = resolved.flatten() else {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown process fd handle",
         ))
-        .boxed()
-    })
+        .boxed());
+    };
+    let Some(process_handle) = process_handle else {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "process fd handle is missing a raw process handle",
+        ))
+        .boxed());
+    };
+
+    Ok((pid, process_handle))
+}
+
+/// Wait one process handle with an explicit timeout in milliseconds.
+fn wait_process_handle_with_timeout(
+    pid: ProcessId,
+    process_handle: windows_sys::Win32::Foundation::HANDLE,
+    timeout_ms: u32,
+) -> RuntimeResult<ProcessWaitStatus> {
+    use windows_sys::Win32::Foundation::{STILL_ACTIVE, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
+
+    let wait_status = unsafe { WaitForSingleObject(process_handle, timeout_ms) };
+    match wait_status {
+        WAIT_TIMEOUT => Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoWouldBlock),
+            None,
+            None,
+            Some("WaitForSingleObject".to_string()),
+            None,
+            format!("wait timed out for pid {}", pid.0),
+        ))
+        .boxed()),
+        WAIT_OBJECT_0 => {
+            let mut exit_code = 0_u32;
+            let read_exit_code = unsafe { GetExitCodeProcess(process_handle, &mut exit_code) };
+            if read_exit_code == 0 {
+                let error = core_platform::last_error_code();
+                return Err(RuntimeError::from(PlatformError::io(format!(
+                    "failed to read process exit code: {error}",
+                )))
+                .boxed());
+            }
+
+            if exit_code == STILL_ACTIVE as u32 {
+                return Ok(ProcessWaitStatus {
+                    pid,
+                    kind: ProcessWaitKind::Running,
+                    exit_code: 0,
+                    signal: Signal(0),
+                    core_dumped: false,
+                });
+            }
+
+            Ok(ProcessWaitStatus {
+                pid,
+                kind: ProcessWaitKind::Exited,
+                exit_code: exit_code as i32,
+                signal: Signal(0),
+                core_dumped: false,
+            })
+        }
+        WAIT_FAILED => {
+            let error = core_platform::last_error_code();
+            Err(RuntimeError::from(PlatformError::io(format!(
+                "wait failed for pid {}: {error}",
+                pid.0
+            )))
+            .boxed())
+        }
+        _ => Err(RuntimeError::from(PlatformError::io("wait returned unexpected result")).boxed()),
+    }
+}
+
+/// Wait one process handle using process wait flags.
+fn wait_process_handle_with_flags(
+    pid: ProcessId,
+    process_handle: windows_sys::Win32::Foundation::HANDLE,
+    flags: ProcessWaitFlags,
+) -> RuntimeResult<ProcessWaitStatus> {
+    use windows_sys::Win32::System::Threading::INFINITE;
+
+    if flags.0 & !super::wait::PROCESS_WAIT_FLAG_NOHANG != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "unsupported process wait flags",
+        ))
+        .boxed());
+    }
+
+    let timeout_ms = if flags.0 & super::wait::PROCESS_WAIT_FLAG_NOHANG != 0 {
+        0
+    } else {
+        INFINITE
+    };
+    wait_process_handle_with_timeout(pid, process_handle, timeout_ms)
+}
+
+/// Wait one process handle with a nanosecond timeout.
+fn wait_process_handle_with_timeout_ns(
+    pid: ProcessId,
+    process_handle: windows_sys::Win32::Foundation::HANDLE,
+    timeout_ns: u64,
+) -> RuntimeResult<ProcessWaitStatus> {
+    if timeout_ns == 0 {
+        return wait_process_handle_with_flags(
+            pid,
+            process_handle,
+            ProcessWaitFlags(super::wait::PROCESS_WAIT_FLAG_NOHANG),
+        );
+    }
+
+    let timeout_ms = (timeout_ns / 1_000_000).max(1);
+    let timeout_ms = timeout_ms.min(u32::MAX as u64) as u32;
+    wait_process_handle_with_timeout(pid, process_handle, timeout_ms)
+}
+
+/// Send one signal through one process handle.
+fn send_signal_process_handle(
+    pid: ProcessId,
+    process_handle: windows_sys::Win32::Foundation::HANDLE,
+    signal: Signal,
+) -> RuntimeResult<()> {
+    use windows_sys::Win32::Foundation::ERROR_ACCESS_DENIED;
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, TerminateProcess};
+
+    if signal.0 == 0 {
+        let mut exit_code = 0_u32;
+        let read_exit_code = unsafe { GetExitCodeProcess(process_handle, &mut exit_code) };
+        if read_exit_code == 0 {
+            let error = core_platform::last_error_code() as u32;
+            let code = if error == ERROR_ACCESS_DENIED {
+                PlatformErrorCode::ProcessPermissionDenied
+            } else {
+                PlatformErrorCode::Process
+            };
+            return Err(RuntimeError::from(PlatformError::process_with(
+                Some(code),
+                Some(error.to_string()),
+                None,
+                None,
+                Some("GetExitCodeProcess".to_string()),
+                format!("failed to query process {}", pid.0),
+            ))
+            .boxed());
+        }
+
+        return Ok(());
+    }
+
+    if signal.0 != 1 && signal.0 != 2 && signal.0 != 9 && signal.0 != 15 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "signal",
+            format!("unsupported signal {} on windows", signal.0),
+        ))
+        .boxed());
+    }
+
+    let terminate_process =
+        unsafe { TerminateProcess(process_handle, 128_u32.saturating_add(signal.0)) };
+    if terminate_process == 0 {
+        let error = core_platform::last_error_code() as u32;
+        let code = if error == ERROR_ACCESS_DENIED {
+            PlatformErrorCode::ProcessPermissionDenied
+        } else {
+            PlatformErrorCode::Process
+        };
+        return Err(RuntimeError::from(PlatformError::process_with(
+            Some(code),
+            Some(error.to_string()),
+            None,
+            None,
+            Some("TerminateProcess".to_string()),
+            format!("failed to terminate process {}", pid.0),
+        ))
+        .boxed());
+    }
+
+    Ok(())
 }
 
 /// Resolve a signal-fd handle into its signal mask payload.
@@ -93,6 +343,54 @@ fn update_signal_fd(
 
     Ok(())
 }
+
+/// Ensure one process-fd handle resolves to a process-fd payload.
+fn ensure_process_fd_handle(
+    context: &RuntimeCallContext,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<()> {
+    let is_process_fd = context.runtime().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
+            .is_some()
+    });
+
+    if is_process_fd != Some(true) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process fd handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Ensure one signal-fd handle resolves to a signal-fd payload.
+fn ensure_signal_fd_handle(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    let is_signal_fd = context.runtime().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
+            .is_some()
+    });
+
+    if is_signal_fd != Some(true) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
 /// Close one process descriptor.
 ///
 /// Close one host process descriptor and release the kernel object reference.
@@ -114,7 +412,8 @@ pub(crate) unsafe fn destack_process_process_fd_close(
     context: &RuntimeCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_CLOSE)?;
+    ensure_process_fd_handle(context, handle)?;
+
     let removed = context.runtime().resources.remove_and_finalize(handle.0);
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -129,8 +428,8 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 
 /// Open one process descriptor for the target process id.
 ///
-/// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.
-/// Descriptor semantics follow pidfd on Linux and host-equivalent process-handle semantics on other targets.
+/// Open one runtime process handle bound to a process id for wait and signal operations.
+/// This handle keeps a stable process object reference to prevent pid reuse races.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -150,7 +449,6 @@ pub(crate) unsafe fn destack_process_process_fd_open(
     pid: ProcessId,
     flags: ProcessFdFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -162,12 +460,12 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .boxed());
     }
 
-    core_process::process_kill(pid.0, 0)?;
-    let entry = crate::platform::resource::ResourceEntry::new(
-        crate::platform::resource::ResourceKind::Unknown,
-    )
-    .with_label("process.fd")
-    .with_payload(core_process::ProcessFdBinding { pid });
+    let process_handle = open_process_fd_handle(pid)?;
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
+        .with_label("process.fd")
+        .with_payload(core_process::ProcessFdBinding { pid })
+        .with_handle(process_handle as _)
+        .with_finalizer(ProcessHandleFinalizer::new(process_handle));
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {
@@ -179,8 +477,8 @@ pub(crate) unsafe fn destack_process_process_fd_open(
 
 /// Send one signal through a process descriptor.
 ///
-/// Deliver one signal using a stable process descriptor rather than a numeric pid.
-/// Delivery semantics follow pidfd_send_signal on Linux and host-equivalent process-signal APIs on other targets.
+/// Deliver one signal through a process-backed handle.
+/// Delivery semantics use a stable process object reference on Windows.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -200,7 +498,6 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
     signal: Signal,
     flags: ProcessFdSignalFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
     if flags.0 != 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "flags",
@@ -209,8 +506,8 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
         .boxed());
     }
 
-    let process_id = resolve_process_fd(context, handle)?;
-    core_process::process_kill(process_id.0, signal.0)
+    let (process_id, process_handle) = resolve_process_fd(context, handle)?;
+    send_signal_process_handle(process_id, process_handle, signal)
 }
 
 /// Poll one process descriptor state transition without blocking.
@@ -235,13 +532,15 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_process_fd(context, handle)?;
-    let status =
-        core_process::process_wait_pid(process_id.0, core_process::PROCESS_WAIT_FLAG_NOHANG)?;
+    let (process_id, process_handle) = resolve_process_fd(context, handle)?;
+    let status = wait_process_handle_with_flags(
+        process_id,
+        process_handle,
+        ProcessWaitFlags(super::wait::PROCESS_WAIT_FLAG_NOHANG),
+    )?;
     unsafe {
         *out = status;
     }
@@ -251,8 +550,8 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
 
 /// Wait for one process descriptor state transition.
 ///
-/// Wait for one child-state transition associated with the process descriptor.
-/// Wait semantics follow pollable pidfd readiness on Linux and host process wait APIs on other targets.
+/// Wait for one child-state transition associated with the process handle.
+/// Wait semantics use a stable process object reference on Windows.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -272,12 +571,11 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let process_id = resolve_process_fd(context, handle)?;
-    let status = core_process::process_wait_pid_timeout(process_id.0, timeoutns)?;
+    let (process_id, process_handle) = resolve_process_fd(context, handle)?;
+    let status = wait_process_handle_with_timeout_ns(process_id, process_handle, timeoutns)?;
     unsafe {
         *out = status;
     }
@@ -306,7 +604,8 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
     context: &RuntimeCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_CLOSE)?;
+    ensure_signal_fd_handle(context, handle)?;
+
     let removed = context.runtime().resources.remove_and_finalize(handle.0);
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -342,7 +641,6 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     signals: NativeSlice<Signal>,
     flags: SignalFdFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -355,11 +653,9 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     }
 
     let signals = unsafe { signals.as_slice()? }.to_vec();
-    let entry = crate::platform::resource::ResourceEntry::new(
-        crate::platform::resource::ResourceKind::Unknown,
-    )
-    .with_label("process.signal.fd")
-    .with_payload(core_process::SignalFdBinding { signals });
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Unknown)
+        .with_label("process.signal.fd")
+        .with_payload(core_process::SignalFdBinding { signals });
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {
@@ -391,12 +687,11 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(context, handle)?;
-    let event = core_process::process_signal_wait(&signals)?;
+    let event = super::signals::process_signal_wait(&signals)?;
     unsafe {
         *out = event;
     }
@@ -426,7 +721,6 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
     let signals = unsafe { signals.as_slice()? }.to_vec();
     update_signal_fd(context, handle, signals)
 }
@@ -453,12 +747,11 @@ pub(crate) unsafe fn destack_process_signal_fd_try_read(
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(context, handle)?;
-    let event = core_process::process_signal_try_wait(&signals)?;
+    let event = super::signals::process_signal_try_wait(&signals)?;
     unsafe {
         *out = event;
     }

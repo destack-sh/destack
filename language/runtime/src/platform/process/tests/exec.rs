@@ -1,24 +1,34 @@
-use super::with_harness_context;
+use super::{assert_platform_error_code, with_harness_context};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::process::ExecAtFlags;
 use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceId};
 
+/// Report specific errors for missing executables and invalid exec handles.
 #[cfg(unix)]
 #[test]
 fn test_process_exec_error_paths() {
     with_harness_context(|mut context| {
         let empty = Vec::<String>::new();
 
-        let result = context.exec("/definitely/missing/destack-command", &empty, &empty);
-        assert!(result.is_err());
+        // missing executable path should map to process-not-found
+        assert_platform_error_code(
+            context.exec("/definitely/missing/destack-command", &empty, &empty),
+            PlatformErrorCode::ProcessNotFound,
+        )?;
 
         let missing_directory = DirectoryHandle(ResourceId(0));
         let missing_file = FileHandle(ResourceId(0));
 
-        let execat = context.execat(missing_directory, "missing", &empty, &empty, ExecAtFlags(0));
-        assert!(execat.is_err());
+        // invalid handles should map to invalid-argument errors
+        assert_platform_error_code(
+            context.execat(missing_directory, "missing", &empty, &empty, ExecAtFlags(0)),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
-        let fexec = context.fexec(missing_file, &empty, &empty);
-        assert!(fexec.is_err());
+        assert_platform_error_code(
+            context.fexec(missing_file, &empty, &empty),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
 
         Ok(())
     });

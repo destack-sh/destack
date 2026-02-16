@@ -93,6 +93,55 @@ fn update_signal_fd(
 
     Ok(())
 }
+
+/// Ensure one process-fd handle resolves to a process-fd payload.
+fn ensure_process_fd_handle(
+    context: &RuntimeCallContext,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<()> {
+    let is_process_fd = context.runtime().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
+            .is_some()
+    });
+
+    if is_process_fd != Some(true) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process fd handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Ensure one signal-fd handle resolves to a signal-fd payload.
+fn ensure_signal_fd_handle(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    let is_signal_fd = context.runtime().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
+            .is_some()
+    });
+
+    if is_signal_fd != Some(true) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
 /// Close one process descriptor.
 ///
 /// Close one host process descriptor and release the kernel object reference.
@@ -114,7 +163,8 @@ pub(crate) unsafe fn destack_process_process_fd_close(
     context: &RuntimeCallContext,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_CLOSE)?;
+    ensure_process_fd_handle(context, handle)?;
+
     let removed = context.runtime().resources.remove_and_finalize(handle.0);
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -129,8 +179,8 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 
 /// Open one process descriptor for the target process id.
 ///
-/// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.
-/// Descriptor semantics follow pidfd on Linux and host-equivalent process-handle semantics on other targets.
+/// Open one runtime process handle bound to a process id for wait and signal operations.
+/// This handle is pid-backed and does not yet guarantee pid-reuse immunity.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -150,7 +200,6 @@ pub(crate) unsafe fn destack_process_process_fd_open(
     pid: ProcessId,
     flags: ProcessFdFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -162,12 +211,10 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .boxed());
     }
 
-    core_process::process_kill(pid.0, 0)?;
-    let entry = crate::platform::resource::ResourceEntry::new(
-        crate::platform::resource::ResourceKind::Unknown,
-    )
-    .with_label("process.fd")
-    .with_payload(core_process::ProcessFdBinding { pid });
+    super::signals::process_kill(pid.0, 0)?;
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Unknown)
+        .with_label("process.fd")
+        .with_payload(core_process::ProcessFdBinding { pid });
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {
@@ -179,8 +226,8 @@ pub(crate) unsafe fn destack_process_process_fd_open(
 
 /// Send one signal through a process descriptor.
 ///
-/// Deliver one signal using a stable process descriptor rather than a numeric pid.
-/// Delivery semantics follow pidfd_send_signal on Linux and host-equivalent process-signal APIs on other targets.
+/// Deliver one signal through a pid-backed process handle.
+/// Delivery semantics currently map to pid-targeted host signaling.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -200,7 +247,6 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
     signal: Signal,
     flags: ProcessFdSignalFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
     if flags.0 != 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "flags",
@@ -210,7 +256,7 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
     }
 
     let process_id = resolve_process_fd(context, handle)?;
-    core_process::process_kill(process_id.0, signal.0)
+    super::signals::process_kill(process_id.0, signal.0)
 }
 
 /// Poll one process descriptor state transition without blocking.
@@ -235,13 +281,12 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
     out: *mut ProcessWaitStatus,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_process_fd(context, handle)?;
     let status =
-        core_process::process_wait_pid(process_id.0, core_process::PROCESS_WAIT_FLAG_NOHANG)?;
+        super::wait::process_wait_pid(process_id.0, super::wait::PROCESS_WAIT_FLAG_NOHANG)?;
     unsafe {
         *out = status;
     }
@@ -251,8 +296,8 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
 
 /// Wait for one process descriptor state transition.
 ///
-/// Wait for one child-state transition associated with the process descriptor.
-/// Wait semantics follow pollable pidfd readiness on Linux and host process wait APIs on other targets.
+/// Wait for one child-state transition associated with the pid-backed process handle.
+/// Wait semantics currently map to pid-targeted host wait APIs.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -272,12 +317,11 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_PROCESS_FD_WAIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_process_fd(context, handle)?;
-    let status = core_process::process_wait_pid_timeout(process_id.0, timeoutns)?;
+    let status = super::wait::process_wait_pid_timeout(process_id.0, timeoutns)?;
     unsafe {
         *out = status;
     }
@@ -306,7 +350,8 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
     context: &RuntimeCallContext,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_CLOSE)?;
+    ensure_signal_fd_handle(context, handle)?;
+
     let removed = context.runtime().resources.remove_and_finalize(handle.0);
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -342,7 +387,6 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     signals: NativeSlice<Signal>,
     flags: SignalFdFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -355,11 +399,9 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     }
 
     let signals = unsafe { signals.as_slice()? }.to_vec();
-    let entry = crate::platform::resource::ResourceEntry::new(
-        crate::platform::resource::ResourceKind::Unknown,
-    )
-    .with_label("process.signal.fd")
-    .with_payload(core_process::SignalFdBinding { signals });
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::Unknown)
+        .with_label("process.signal.fd")
+        .with_payload(core_process::SignalFdBinding { signals });
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {
@@ -391,12 +433,11 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(context, handle)?;
-    let event = core_process::process_signal_wait(&signals)?;
+    let event = super::signals::process_signal_wait(&signals)?;
     unsafe {
         *out = event;
     }
@@ -426,7 +467,6 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
     handle: resource::SignalFdHandle,
     signals: NativeSlice<Signal>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
     let signals = unsafe { signals.as_slice()? }.to_vec();
     update_signal_fd(context, handle, signals)
 }
@@ -453,12 +493,11 @@ pub(crate) unsafe fn destack_process_signal_fd_try_read(
     out: *mut SignalEvent,
     handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let signals = resolve_signal_fd(context, handle)?;
-    let event = core_process::process_signal_try_wait(&signals)?;
+    let event = super::signals::process_signal_try_wait(&signals)?;
     unsafe {
         *out = event;
     }

@@ -2,9 +2,10 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::diagnostic::process_error_code_from_errno;
+use crate::platform::process::bindings_generated as bindings;
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
 };
 
 use crate::runtime::RuntimeCallContext;
@@ -19,6 +20,250 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
+/// Resource selector for cgroup cpu controller limits.
+const CGROUP_RESOURCE_CPU: u32 = libc::RLIMIT_CPU as u32;
+/// Resource selector for cgroup memory controller limits.
+const CGROUP_RESOURCE_MEMORY: u32 = libc::RLIMIT_AS as u32;
+/// Resource selector for cgroup process count limits.
+const CGROUP_RESOURCE_PROCESSES: u32 = libc::RLIMIT_NPROC as u32;
+
+/// Parsed control file shape for one cgroup resource.
+#[derive(Debug, Clone, Copy)]
+enum CgroupLimitKind {
+    /// One scalar file where `max` means unlimited.
+    Scalar {
+        /// Controller file name.
+        file_name: &'static str,
+    },
+    /// Two-field cpu file `<quota|max> <period>`.
+    Cpu,
+}
+
+/// Validate one cgroup directory path.
+fn validate_cgroup_path(path: &str) -> RuntimeResult<()> {
+    if path.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "path",
+            "cgroup path must not be empty",
+        ))
+        .boxed());
+    }
+    if path.contains('\0') {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "path",
+            "cgroup path contains nul byte",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Resolve one cgroup resource id into a controller file shape.
+fn cgroup_limit_kind(resource: u32) -> RuntimeResult<CgroupLimitKind> {
+    if resource == CGROUP_RESOURCE_CPU {
+        return Ok(CgroupLimitKind::Cpu);
+    }
+    if resource == CGROUP_RESOURCE_MEMORY {
+        return Ok(CgroupLimitKind::Scalar {
+            file_name: "memory.max",
+        });
+    }
+    if resource == CGROUP_RESOURCE_PROCESSES {
+        return Ok(CgroupLimitKind::Scalar {
+            file_name: "pids.max",
+        });
+    }
+
+    Err(RuntimeError::from(PlatformError::invalid_argument_value(
+        "resource",
+        format!("unsupported cgroup resource selector {resource}"),
+    ))
+    .boxed())
+}
+
+/// Parse one scalar cgroup limit token.
+fn parse_scalar_limit(value: &str, label: &str) -> RuntimeResult<u64> {
+    let value = value.trim();
+    if value == "max" {
+        return Ok(u64::MAX);
+    }
+
+    value.parse::<u64>().map_err(|error| {
+        RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoInvalidData),
+            None,
+            None,
+            None,
+            Some(label.to_string()),
+            format!("failed to parse cgroup limit value '{value}': {error}"),
+        ))
+        .boxed()
+    })
+}
+
+/// Encode one scalar cgroup limit token.
+fn format_scalar_limit(value: u64) -> String {
+    if value == u64::MAX {
+        return "max".to_string();
+    }
+
+    value.to_string()
+}
+
+/// Parse one cgroup limit payload from controller text.
+fn parse_cgroup_limit(kind: CgroupLimitKind, raw: &str) -> RuntimeResult<ProcessLimit> {
+    match kind {
+        CgroupLimitKind::Scalar { file_name } => {
+            let value = parse_scalar_limit(raw, file_name)?;
+            Ok(ProcessLimit {
+                soft: value,
+                hard: value,
+            })
+        }
+        CgroupLimitKind::Cpu => {
+            let mut fields = raw.split_whitespace();
+            let Some(quota_raw) = fields.next() else {
+                return Err(RuntimeError::from(PlatformError::io_with(
+                    Some(PlatformErrorCode::IoInvalidData),
+                    None,
+                    None,
+                    None,
+                    Some("cpu.max".to_string()),
+                    "cpu.max is missing the quota field",
+                ))
+                .boxed());
+            };
+            let Some(period_raw) = fields.next() else {
+                return Err(RuntimeError::from(PlatformError::io_with(
+                    Some(PlatformErrorCode::IoInvalidData),
+                    None,
+                    None,
+                    None,
+                    Some("cpu.max".to_string()),
+                    "cpu.max is missing the period field",
+                ))
+                .boxed());
+            };
+            if fields.next().is_some() {
+                return Err(RuntimeError::from(PlatformError::io_with(
+                    Some(PlatformErrorCode::IoInvalidData),
+                    None,
+                    None,
+                    None,
+                    Some("cpu.max".to_string()),
+                    "cpu.max contains unexpected extra fields",
+                ))
+                .boxed());
+            }
+
+            let quota = parse_scalar_limit(quota_raw, "cpu.max")?;
+            let period = period_raw.parse::<u64>().map_err(|error| {
+                RuntimeError::from(PlatformError::io_with(
+                    Some(PlatformErrorCode::IoInvalidData),
+                    None,
+                    None,
+                    None,
+                    Some("cpu.max".to_string()),
+                    format!("failed to parse cpu.max period '{period_raw}': {error}"),
+                ))
+                .boxed()
+            })?;
+            if period == 0 {
+                return Err(RuntimeError::from(PlatformError::io_with(
+                    Some(PlatformErrorCode::IoInvalidData),
+                    None,
+                    None,
+                    None,
+                    Some("cpu.max".to_string()),
+                    "cpu.max period must be greater than zero",
+                ))
+                .boxed());
+            }
+
+            Ok(ProcessLimit {
+                soft: quota,
+                hard: period,
+            })
+        }
+    }
+}
+
+/// Encode one cgroup limit payload into controller text.
+fn format_cgroup_limit(kind: CgroupLimitKind, limit: ProcessLimit) -> RuntimeResult<String> {
+    match kind {
+        CgroupLimitKind::Scalar { file_name } => {
+            if limit.soft != limit.hard {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "limit",
+                    format!("{file_name} requires soft and hard to be identical"),
+                ))
+                .boxed());
+            }
+
+            Ok(format_scalar_limit(limit.soft))
+        }
+        CgroupLimitKind::Cpu => {
+            if limit.hard == 0 || limit.hard == u64::MAX {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "limit.hard",
+                    "cpu period must be a finite value greater than zero",
+                ))
+                .boxed());
+            }
+
+            let quota = format_scalar_limit(limit.soft);
+            Ok(format!("{quota} {}", limit.hard))
+        }
+    }
+}
+
+/// Build one control file path under a cgroup directory.
+fn cgroup_control_path(path: &str, file_name: &str) -> String {
+    format!("{path}/{file_name}")
+}
+
+/// Read one cgroup controller file as UTF-8 text.
+fn read_cgroup_control_file(path: &str, file_name: &str) -> RuntimeResult<String> {
+    let control_path = cgroup_control_path(path, file_name);
+    std::fs::read_to_string(&control_path).map_err(|error| {
+        let code = error
+            .raw_os_error()
+            .and_then(process_error_code_from_errno)
+            .unwrap_or(PlatformErrorCode::Process);
+        RuntimeError::from(PlatformError::process_with(
+            Some(code),
+            error.raw_os_error().map(|value| value.to_string()),
+            None,
+            None,
+            Some("read_to_string".to_string()),
+            format!("failed to read cgroup control file {control_path}: {error}"),
+        ))
+        .boxed()
+    })
+}
+
+/// Write one cgroup controller file as UTF-8 text.
+fn write_cgroup_control_file(path: &str, file_name: &str, value: &str) -> RuntimeResult<()> {
+    let control_path = cgroup_control_path(path, file_name);
+    std::fs::write(&control_path, value).map_err(|error| {
+        let code = error
+            .raw_os_error()
+            .and_then(process_error_code_from_errno)
+            .unwrap_or(PlatformErrorCode::Process);
+        RuntimeError::from(PlatformError::process_with(
+            Some(code),
+            error.raw_os_error().map(|value| value.to_string()),
+            None,
+            None,
+            Some("write".to_string()),
+            format!("failed to write cgroup control file {control_path}: {error}"),
+        ))
+        .boxed()
+    })
+}
+
 /// Read one control-group resource limit.
 ///
 /// Read one controller limit value from one control-group path.
@@ -37,22 +282,39 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_get_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessLimit,
     path: NativeStringRef,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let path = unsafe { path.as_str()? };
-    let value = core_process::process_cgroup_get_limit(path, resource.0)?;
-    unsafe {
-        *out = value;
+    validate_cgroup_path(path)?;
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let kind = cgroup_limit_kind(resource.0)?;
+        let raw = match kind {
+            CgroupLimitKind::Scalar { file_name } => read_cgroup_control_file(path, file_name)?,
+            CgroupLimitKind::Cpu => read_cgroup_control_file(path, "cpu.max")?,
+        };
+        let value = parse_cgroup_limit(kind, &raw)?;
+        unsafe {
+            *out = value;
+        }
+        return Ok(());
     }
 
-    Ok(())
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        let _ = (path, resource);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.group.cgroupGetLimit",
+        ))
+        .boxed())
+    }
 }
 
 /// Join one control group.
@@ -73,12 +335,25 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_join(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_CGROUP_JOIN)?;
     let path = unsafe { path.as_str()? };
-    core_process::process_cgroup_join(path)
+    validate_cgroup_path(path)?;
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let pid = unsafe { libc::getpid() };
+        write_cgroup_control_file(path, "cgroup.procs", &format!("{pid}\n"))
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.group.cgroupJoin",
+        ))
+        .boxed())
+    }
 }
 
 /// Write one control-group resource limit.
@@ -99,14 +374,34 @@ pub(crate) unsafe fn destack_process_cgroup_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_set_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
     let path = unsafe { path.as_str()? };
-    core_process::process_cgroup_set_limit(path, resource.0, limit)
+    validate_cgroup_path(path)?;
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let kind = cgroup_limit_kind(resource.0)?;
+        let encoded = format_cgroup_limit(kind, limit)?;
+        match kind {
+            CgroupLimitKind::Scalar { file_name } => {
+                write_cgroup_control_file(path, file_name, &encoded)
+            }
+            CgroupLimitKind::Cpu => write_cgroup_control_file(path, "cpu.max", &encoded),
+        }
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        let _ = (resource, limit);
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.process.group.cgroupSetLimit",
+        ))
+        .boxed())
+    }
 }
 
 /// Assign processes to one Windows job object.
@@ -127,14 +422,17 @@ pub(crate) unsafe fn destack_process_cgroup_set_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_assign(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeStringRef,
     pids: NativeSlice<ProcessId>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_JOB_ASSIGN)?;
-    let name = unsafe { name.as_str()? };
-    let pids = unsafe { pids.as_slice()? };
-    core_process::process_job_assign(name, pids)
+    let _ = unsafe { name.as_str()? };
+    let _ = unsafe { pids.as_slice()? };
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.group.jobAssign",
+    ))
+    .boxed())
 }
 
 /// Set one Windows job object resource limit.
@@ -155,12 +453,76 @@ pub(crate) unsafe fn destack_process_job_assign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_set_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_JOB_SET_LIMIT)?;
-    let name = unsafe { name.as_str()? };
-    core_process::process_job_set_limit(name, resource.0, limit)
+    let _ = unsafe { name.as_str()? };
+    let _ = (resource, limit);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.group.jobSetLimit",
+    ))
+    .boxed())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        CGROUP_RESOURCE_CPU, CGROUP_RESOURCE_MEMORY, CgroupLimitKind, cgroup_limit_kind,
+        format_cgroup_limit, parse_cgroup_limit,
+    };
+    use crate::platform::process::ProcessLimit;
+
+    /// Parse one scalar cgroup limit value into a process limit.
+    #[test]
+    fn test_parse_cgroup_scalar_limit() {
+        let kind = cgroup_limit_kind(CGROUP_RESOURCE_MEMORY).expect("resource should map");
+        let parsed = parse_cgroup_limit(kind, "4096\n").expect("parse should succeed");
+
+        // scalar limits should map to identical soft and hard values
+        assert_eq!(parsed.soft, 4096);
+        assert_eq!(parsed.hard, 4096);
+    }
+
+    /// Parse one cpu cgroup limit value into a process limit.
+    #[test]
+    fn test_parse_cgroup_cpu_limit() {
+        let kind = cgroup_limit_kind(CGROUP_RESOURCE_CPU).expect("resource should map");
+        let parsed = parse_cgroup_limit(kind, "200000 100000\n").expect("parse should succeed");
+
+        // cpu limits should preserve quota and period ordering
+        assert_eq!(parsed.soft, 200000);
+        assert_eq!(parsed.hard, 100000);
+    }
+
+    /// Reject scalar cgroup limit formatting when soft and hard differ.
+    #[test]
+    fn test_format_cgroup_scalar_limit_rejects_mismatch() {
+        let encoded = format_cgroup_limit(
+            CgroupLimitKind::Scalar {
+                file_name: "memory.max",
+            },
+            ProcessLimit { soft: 1, hard: 2 },
+        );
+        // scalar limit encoding should fail on mismatched soft and hard values
+        assert!(encoded.is_err());
+    }
+
+    /// Encode one cpu cgroup limit value with unlimited quota.
+    #[test]
+    fn test_format_cgroup_cpu_limit() {
+        let encoded = format_cgroup_limit(
+            CgroupLimitKind::Cpu,
+            ProcessLimit {
+                soft: u64::MAX,
+                hard: 100000,
+            },
+        )
+        .expect("encoding should succeed");
+
+        // unlimited cpu quota should encode to the cgroup max keyword
+        assert_eq!(encoded, "max 100000");
+    }
 }
