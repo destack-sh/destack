@@ -965,16 +965,17 @@ impl<'a> DomainWriter<'a> {
                     .parameters
                     .iter()
                     .any(|param| binding_type_requires_context_for_decode(&param.binding_type));
+                let decode_context_name = if decode_uses_context {
+                    "context"
+                } else {
+                    "_context"
+                };
                 output.push_str(&format!("/// Decode arguments for {}.\n", extern_name));
                 output.push_str("#[inline]\n");
                 output.push_str(&format!(
-                "fn {decode_helper}(\n    context: &mut vm::ExternalCallContext<'_>,\n    args: &[vm::Value],\n) -> RuntimeResult<{}> {{\n",
+                "fn {decode_helper}(\n    {decode_context_name}: &mut vm::ExternalCallContext<'_>,\n    args: &[vm::Value],\n) -> RuntimeResult<{}> {{\n",
                 vm_args_tuple_type(domain, &entry.parameters)
             ));
-                if !decode_uses_context {
-                    output.push_str("    // ignore unused context\n");
-                    output.push_str("    let _ = context;\n\n");
-                }
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = sanitize_param_name(&param.name, index);
                     let expected = param
@@ -1011,16 +1012,17 @@ impl<'a> DomainWriter<'a> {
             let encode_helper = encode_helper_name(&helper_base);
             let encode_uses_context =
                 binding_type_requires_context_for_encode(&entry.return_binding);
+            let encode_context_name = if encode_uses_context {
+                "context"
+            } else {
+                "_context"
+            };
             output.push_str(&format!("/// Encode the result for {}.\n", extern_name));
             output.push_str("#[inline]\n");
             output.push_str(&format!(
-            "fn {encode_helper}(\n    context: &mut vm::ExternalCallContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Value> {{\n",
+            "fn {encode_helper}(\n    {encode_context_name}: &mut vm::ExternalCallContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Value> {{\n",
             vm_return_type(domain, &entry.return_binding)
         ));
-            if !encode_uses_context {
-                output.push_str("    // ignore unused context\n");
-                output.push_str("    let _ = context;\n\n");
-            }
             for line in render_return_encode_lines(domain, &entry.return_binding) {
                 output.push_str(&format!("    {line}\n"));
             }
@@ -1812,13 +1814,13 @@ fn native_set_name_for_domain(domain: &str) -> String {
 
 /// Build the handler method name for an extern binding.
 /// Build the native symbol name for a binding.
-pub(super) fn native_fn_name(domain: &str, extern_name: &str) -> String {
+pub(crate) fn native_fn_name(domain: &str, extern_name: &str) -> String {
     let suffix = binding_suffix_for_extern(extern_name, Some(domain));
     format!("destack_{domain}_{suffix}")
 }
 
 /// Build the runtime implementation function name for a binding declaration.
-pub(super) fn implementation_fn_name(domain: &str, implementation_name: &str) -> String {
+pub(crate) fn implementation_fn_name(domain: &str, implementation_name: &str) -> String {
     format!("destack_{domain}_{}", snake_case(implementation_name))
 }
 

@@ -128,24 +128,18 @@ fn decode_string(
 /// Encode the result for destack.thread.local.create.
 #[inline]
 fn encode_destack_thread_local_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ThreadLocalKey>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.thread.local.delete.
 #[inline]
 fn decode_destack_thread_local_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadLocalKey,)> {
-    // ignore unused context
-    let _ = context;
-
     let key_value = arg_value(args, 0, "key", "ThreadLocalKey")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "ThreadLocalKey")?;
     let key_inner = resource::ResourceId(key_inner_inner);
@@ -156,24 +150,18 @@ fn decode_destack_thread_local_delete_args(
 /// Encode the result for destack.thread.local.delete.
 #[inline]
 fn encode_destack_thread_local_delete_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.local.get.
 #[inline]
 fn decode_destack_thread_local_get_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadLocalKey,)> {
-    // ignore unused context
-    let _ = context;
-
     let key_value = arg_value(args, 0, "key", "ThreadLocalKey")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "ThreadLocalKey")?;
     let key_inner = resource::ResourceId(key_inner_inner);
@@ -184,24 +172,18 @@ fn decode_destack_thread_local_get_args(
 /// Encode the result for destack.thread.local.get.
 #[inline]
 fn encode_destack_thread_local_get_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.thread.local.set.
 #[inline]
 fn decode_destack_thread_local_set_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadLocalKey, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let key_value = arg_value(args, 0, "key", "ThreadLocalKey")?;
     let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "ThreadLocalKey")?;
     let key_inner = resource::ResourceId(key_inner_inner);
@@ -214,24 +196,18 @@ fn decode_destack_thread_local_set_args(
 /// Encode the result for destack.thread.local.set.
 #[inline]
 fn encode_destack_thread_local_set_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.priority.getAffinity.
 #[inline]
 fn decode_destack_thread_priority_get_affinity_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -242,24 +218,18 @@ fn decode_destack_thread_priority_get_affinity_args(
 /// Encode the result for destack.thread.priority.getAffinity.
 #[inline]
 fn encode_destack_thread_priority_get_affinity_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.thread.priority.getPriority.
 #[inline]
 fn decode_destack_thread_priority_get_priority_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -270,24 +240,18 @@ fn decode_destack_thread_priority_get_priority_args(
 /// Encode the result for destack.thread.priority.getPriority.
 #[inline]
 fn encode_destack_thread_priority_get_priority_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::int(value as i64, 32))
 }
 
 /// Decode arguments for destack.thread.priority.setAffinity.
 #[inline]
 fn decode_destack_thread_priority_set_affinity_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -300,24 +264,18 @@ fn decode_destack_thread_priority_set_affinity_args(
 /// Encode the result for destack.thread.priority.setAffinity.
 #[inline]
 fn encode_destack_thread_priority_set_affinity_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.priority.setPriority.
 #[inline]
 fn decode_destack_thread_priority_set_priority_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle, i32)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -330,24 +288,18 @@ fn decode_destack_thread_priority_set_priority_args(
 /// Encode the result for destack.thread.priority.setPriority.
 #[inline]
 fn encode_destack_thread_priority_set_priority_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.spawn.detach.
 #[inline]
 fn decode_destack_thread_spawn_detach_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -358,24 +310,18 @@ fn decode_destack_thread_spawn_detach_args(
 /// Encode the result for destack.thread.spawn.detach.
 #[inline]
 fn encode_destack_thread_spawn_detach_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.spawn.join.
 #[inline]
 fn decode_destack_thread_spawn_join_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ThreadHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -386,12 +332,9 @@ fn decode_destack_thread_spawn_join_args(
 /// Encode the result for destack.thread.spawn.join.
 #[inline]
 fn encode_destack_thread_spawn_join_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
@@ -437,24 +380,18 @@ fn decode_destack_thread_spawn_spawn_args(
 /// Encode the result for destack.thread.spawn.spawn.
 #[inline]
 fn encode_destack_thread_spawn_spawn_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ThreadHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.thread.sync.addressWait.
 #[inline]
 fn decode_destack_thread_sync_address_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u32, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let expected_value = arg_value(args, 1, "expected", "uint32")?;
@@ -467,24 +404,18 @@ fn decode_destack_thread_sync_address_wait_args(
 /// Encode the result for destack.thread.sync.addressWait.
 #[inline]
 fn encode_destack_thread_sync_address_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.addressWakeAll.
 #[inline]
 fn decode_destack_thread_sync_address_wake_all_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     Ok((address,))
@@ -493,24 +424,18 @@ fn decode_destack_thread_sync_address_wake_all_args(
 /// Encode the result for destack.thread.sync.addressWakeAll.
 #[inline]
 fn encode_destack_thread_sync_address_wake_all_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.addressWakeOne.
 #[inline]
 fn decode_destack_thread_sync_address_wake_one_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     Ok((address,))
@@ -519,24 +444,18 @@ fn decode_destack_thread_sync_address_wake_one_args(
 /// Encode the result for destack.thread.sync.addressWakeOne.
 #[inline]
 fn encode_destack_thread_sync_address_wake_one_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.barrierCreate.
 #[inline]
 fn decode_destack_thread_sync_barrier_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let participants_value = arg_value(args, 0, "participants", "uint32")?;
     let participants = decode_uint32(participants_value, "participants", "uint32")?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
@@ -547,24 +466,18 @@ fn decode_destack_thread_sync_barrier_create_args(
 /// Encode the result for destack.thread.sync.barrierCreate.
 #[inline]
 fn encode_destack_thread_sync_barrier_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::BarrierHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.thread.sync.barrierWait.
 #[inline]
 fn decode_destack_thread_sync_barrier_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::BarrierHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "BarrierHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "BarrierHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -577,24 +490,18 @@ fn decode_destack_thread_sync_barrier_wait_args(
 /// Encode the result for destack.thread.sync.barrierWait.
 #[inline]
 fn encode_destack_thread_sync_barrier_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.thread.sync.condVarCreate.
 #[inline]
 fn decode_destack_thread_sync_cond_var_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
-    // ignore unused context
-    let _ = context;
-
     let flags_value = arg_value(args, 0, "flags", "uint32")?;
     let flags = decode_uint32(flags_value, "flags", "uint32")?;
     Ok((flags,))
@@ -603,24 +510,18 @@ fn decode_destack_thread_sync_cond_var_create_args(
 /// Encode the result for destack.thread.sync.condVarCreate.
 #[inline]
 fn encode_destack_thread_sync_cond_var_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CondVarHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.thread.sync.condVarNotifyAll.
 #[inline]
 fn decode_destack_thread_sync_cond_var_notify_all_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CondVarHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let condvar_value = arg_value(args, 0, "condvar", "CondVarHandle")?;
     let condvar_inner_inner = decode_uint64(condvar_value, "condvar_inner_inner", "CondVarHandle")?;
     let condvar_inner = resource::ResourceId(condvar_inner_inner);
@@ -631,24 +532,18 @@ fn decode_destack_thread_sync_cond_var_notify_all_args(
 /// Encode the result for destack.thread.sync.condVarNotifyAll.
 #[inline]
 fn encode_destack_thread_sync_cond_var_notify_all_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.condVarNotifyOne.
 #[inline]
 fn decode_destack_thread_sync_cond_var_notify_one_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CondVarHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let condvar_value = arg_value(args, 0, "condvar", "CondVarHandle")?;
     let condvar_inner_inner = decode_uint64(condvar_value, "condvar_inner_inner", "CondVarHandle")?;
     let condvar_inner = resource::ResourceId(condvar_inner_inner);
@@ -659,24 +554,18 @@ fn decode_destack_thread_sync_cond_var_notify_one_args(
 /// Encode the result for destack.thread.sync.condVarNotifyOne.
 #[inline]
 fn encode_destack_thread_sync_cond_var_notify_one_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.condVarWait.
 #[inline]
 fn decode_destack_thread_sync_cond_var_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CondVarHandle, resource::MutexHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let condvar_value = arg_value(args, 0, "condvar", "CondVarHandle")?;
     let condvar_inner_inner = decode_uint64(condvar_value, "condvar_inner_inner", "CondVarHandle")?;
     let condvar_inner = resource::ResourceId(condvar_inner_inner);
@@ -693,24 +582,18 @@ fn decode_destack_thread_sync_cond_var_wait_args(
 /// Encode the result for destack.thread.sync.condVarWait.
 #[inline]
 fn encode_destack_thread_sync_cond_var_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.mutexCreate.
 #[inline]
 fn decode_destack_thread_sync_mutex_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
-    // ignore unused context
-    let _ = context;
-
     let flags_value = arg_value(args, 0, "flags", "uint32")?;
     let flags = decode_uint32(flags_value, "flags", "uint32")?;
     Ok((flags,))
@@ -719,24 +602,18 @@ fn decode_destack_thread_sync_mutex_create_args(
 /// Encode the result for destack.thread.sync.mutexCreate.
 #[inline]
 fn encode_destack_thread_sync_mutex_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MutexHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.thread.sync.mutexLock.
 #[inline]
 fn decode_destack_thread_sync_mutex_lock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::MutexHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "MutexHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MutexHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -749,24 +626,18 @@ fn decode_destack_thread_sync_mutex_lock_args(
 /// Encode the result for destack.thread.sync.mutexLock.
 #[inline]
 fn encode_destack_thread_sync_mutex_lock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.mutexUnlock.
 #[inline]
 fn decode_destack_thread_sync_mutex_unlock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::MutexHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "MutexHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MutexHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -777,24 +648,18 @@ fn decode_destack_thread_sync_mutex_unlock_args(
 /// Encode the result for destack.thread.sync.mutexUnlock.
 #[inline]
 fn encode_destack_thread_sync_mutex_unlock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.rwlockCreate.
 #[inline]
 fn decode_destack_thread_sync_rwlock_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
-    // ignore unused context
-    let _ = context;
-
     let flags_value = arg_value(args, 0, "flags", "uint32")?;
     let flags = decode_uint32(flags_value, "flags", "uint32")?;
     Ok((flags,))
@@ -803,24 +668,18 @@ fn decode_destack_thread_sync_rwlock_create_args(
 /// Encode the result for destack.thread.sync.rwlockCreate.
 #[inline]
 fn encode_destack_thread_sync_rwlock_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::RwLockHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.thread.sync.rwlockReadLock.
 #[inline]
 fn decode_destack_thread_sync_rwlock_read_lock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::RwLockHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "RwLockHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "RwLockHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -833,24 +692,18 @@ fn decode_destack_thread_sync_rwlock_read_lock_args(
 /// Encode the result for destack.thread.sync.rwlockReadLock.
 #[inline]
 fn encode_destack_thread_sync_rwlock_read_lock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.rwlockUnlock.
 #[inline]
 fn decode_destack_thread_sync_rwlock_unlock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::RwLockHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "RwLockHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "RwLockHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -861,24 +714,18 @@ fn decode_destack_thread_sync_rwlock_unlock_args(
 /// Encode the result for destack.thread.sync.rwlockUnlock.
 #[inline]
 fn encode_destack_thread_sync_rwlock_unlock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.rwlockWriteLock.
 #[inline]
 fn decode_destack_thread_sync_rwlock_write_lock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::RwLockHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "RwLockHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "RwLockHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -891,24 +738,18 @@ fn decode_destack_thread_sync_rwlock_write_lock_args(
 /// Encode the result for destack.thread.sync.rwlockWriteLock.
 #[inline]
 fn encode_destack_thread_sync_rwlock_write_lock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.semaphoreCreate.
 #[inline]
 fn decode_destack_thread_sync_semaphore_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32, u32, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let initial_value = arg_value(args, 0, "initial", "uint32")?;
     let initial = decode_uint32(initial_value, "initial", "uint32")?;
     let maximum_value = arg_value(args, 1, "maximum", "uint32")?;
@@ -921,24 +762,18 @@ fn decode_destack_thread_sync_semaphore_create_args(
 /// Encode the result for destack.thread.sync.semaphoreCreate.
 #[inline]
 fn encode_destack_thread_sync_semaphore_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ThreadSemaphoreHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.thread.sync.semaphorePost.
 #[inline]
 fn decode_destack_thread_sync_semaphore_post_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadSemaphoreHandle, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadSemaphoreHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "ThreadSemaphoreHandle")?;
@@ -952,24 +787,18 @@ fn decode_destack_thread_sync_semaphore_post_args(
 /// Encode the result for destack.thread.sync.semaphorePost.
 #[inline]
 fn encode_destack_thread_sync_semaphore_post_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.thread.sync.semaphoreWait.
 #[inline]
 fn decode_destack_thread_sync_semaphore_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ThreadSemaphoreHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ThreadSemaphoreHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "ThreadSemaphoreHandle")?;
@@ -983,12 +812,9 @@ fn decode_destack_thread_sync_semaphore_wait_args(
 /// Encode the result for destack.thread.sync.semaphoreWait.
 #[inline]
 fn encode_destack_thread_sync_semaphore_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1555,6 +1381,7 @@ pub unsafe extern "C" fn destack_thread_local_create(
         let _ = &out;
 
         {
+            context.check_policy(THREAD_LOCAL_CREATE)?;
             let world = context.check_and_resolve_world(THREAD_LOCAL_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1576,6 +1403,7 @@ pub unsafe extern "C" fn destack_thread_local_delete(
         let _ = &key;
 
         {
+            context.check_policy(THREAD_LOCAL_DELETE)?;
             let world = context.check_and_resolve_world(THREAD_LOCAL_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1601,6 +1429,7 @@ pub unsafe extern "C" fn destack_thread_local_get(
         let _ = (&out, &key);
 
         {
+            context.check_policy(THREAD_LOCAL_GET)?;
             let world = context.check_and_resolve_world(THREAD_LOCAL_GET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1623,6 +1452,7 @@ pub unsafe extern "C" fn destack_thread_local_set(
         let _ = (&key, &argument_value);
 
         {
+            context.check_policy(THREAD_LOCAL_SET)?;
             let world = context.check_and_resolve_world(THREAD_LOCAL_SET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1652,6 +1482,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_affinity(
         let _ = (&out, &handle);
 
         {
+            context.check_policy(THREAD_PRIORITY_GET_AFFINITY)?;
             let world = context.check_and_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1677,6 +1508,7 @@ pub unsafe extern "C" fn destack_thread_priority_get_priority(
         let _ = (&out, &handle);
 
         {
+            context.check_policy(THREAD_PRIORITY_GET_PRIORITY)?;
             let world = context.check_and_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1699,6 +1531,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_affinity(
         let _ = (&handle, &mask);
 
         {
+            context.check_policy(THREAD_PRIORITY_SET_AFFINITY)?;
             let world = context.check_and_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1721,6 +1554,7 @@ pub unsafe extern "C" fn destack_thread_priority_set_priority(
         let _ = (&handle, &priority);
 
         {
+            context.check_policy(THREAD_PRIORITY_SET_PRIORITY)?;
             let world = context.check_and_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1744,6 +1578,7 @@ pub unsafe extern "C" fn destack_thread_spawn_detach(
         let _ = &handle;
 
         {
+            context.check_policy(THREAD_SPAWN_DETACH)?;
             let world = context.check_and_resolve_world(THREAD_SPAWN_DETACH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1769,6 +1604,7 @@ pub unsafe extern "C" fn destack_thread_spawn_join(
         let _ = (&out, &handle);
 
         {
+            context.check_policy(THREAD_SPAWN_JOIN)?;
             let world = context.check_and_resolve_world(THREAD_SPAWN_JOIN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1796,6 +1632,7 @@ pub unsafe extern "C" fn destack_thread_spawn_spawn(
         let _ = (&out, &entry, &argument, &options);
 
         {
+            context.check_policy(THREAD_SPAWN_SPAWN)?;
             let world = context.check_and_resolve_world(THREAD_SPAWN_SPAWN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1821,6 +1658,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wait(
         let _ = (&address, &expected, &timeoutns);
 
         {
+            context.check_policy(THREAD_SYNC_ADDRESS_WAIT)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1844,6 +1682,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_all(address: u64) -> R
         let _ = &address;
 
         {
+            context.check_policy(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1863,6 +1702,7 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_one(address: u64) -> R
         let _ = &address;
 
         {
+            context.check_policy(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1889,6 +1729,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_create(
         let _ = (&out, &participants, &flags);
 
         {
+            context.check_policy(THREAD_SYNC_BARRIER_CREATE)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1925,6 +1766,7 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_wait(
         let _ = (&out, &handle, &timeoutns);
 
         {
+            context.check_policy(THREAD_SYNC_BARRIER_WAIT)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1952,6 +1794,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_create(
         let _ = (&out, &flags);
 
         {
+            context.check_policy(THREAD_SYNC_COND_VAR_CREATE)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1973,6 +1816,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
         let _ = &condvar;
 
         {
+            context.check_policy(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1994,6 +1838,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
         let _ = &condvar;
 
         {
+            context.check_policy(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2017,6 +1862,7 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_wait(
         let _ = (&condvar, &mutex, &timeoutns);
 
         {
+            context.check_policy(THREAD_SYNC_COND_VAR_WAIT)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2046,6 +1892,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_create(
         let _ = (&out, &flags);
 
         {
+            context.check_policy(THREAD_SYNC_MUTEX_CREATE)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2068,6 +1915,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_lock(
         let _ = (&handle, &timeoutns);
 
         {
+            context.check_policy(THREAD_SYNC_MUTEX_LOCK)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2089,6 +1937,7 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_unlock(
         let _ = &handle;
 
         {
+            context.check_policy(THREAD_SYNC_MUTEX_UNLOCK)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2114,6 +1963,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_create(
         let _ = (&out, &flags);
 
         {
+            context.check_policy(THREAD_SYNC_RWLOCK_CREATE)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2136,6 +1986,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
         let _ = (&handle, &timeoutns);
 
         {
+            context.check_policy(THREAD_SYNC_RWLOCK_READ_LOCK)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2159,6 +2010,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
         let _ = &handle;
 
         {
+            context.check_policy(THREAD_SYNC_RWLOCK_UNLOCK)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2181,6 +2033,7 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
         let _ = (&handle, &timeoutns);
 
         {
+            context.check_policy(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2210,6 +2063,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_create(
         let _ = (&out, &initial, &maximum, &flags);
 
         {
+            context.check_policy(THREAD_SYNC_SEMAPHORE_CREATE)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2236,6 +2090,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_post(
         let _ = (&handle, &count);
 
         {
+            context.check_policy(THREAD_SYNC_SEMAPHORE_POST)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2258,6 +2113,7 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_wait(
         let _ = (&handle, &timeoutns);
 
         {
+            context.check_policy(THREAD_SYNC_SEMAPHORE_WAIT)?;
             let world = context.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -2284,6 +2140,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 with_runtime_call_context(|runtime| {
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_LOCAL_CREATE)?;
                         let world = runtime.check_and_resolve_world(THREAD_LOCAL_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2312,6 +2169,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_LOCAL_DELETE)?;
                         let world = runtime.check_and_resolve_world(THREAD_LOCAL_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2338,6 +2196,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
+                    runtime.check_policy(THREAD_LOCAL_GET)?;
                     let world = runtime.check_and_resolve_world(THREAD_LOCAL_GET)?;
                     match world {
                         RuntimeWorld::Host => {
@@ -2361,6 +2220,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
+                    runtime.check_policy(THREAD_LOCAL_SET)?;
                     let world = runtime.check_and_resolve_world(THREAD_LOCAL_SET)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_thread_local_set(
@@ -2395,6 +2255,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_PRIORITY_GET_AFFINITY)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
                         match world {
@@ -2427,6 +2288,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_PRIORITY_GET_PRIORITY)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
                         match world {
@@ -2459,6 +2321,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_PRIORITY_SET_AFFINITY)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
                         match world {
@@ -2491,6 +2354,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_PRIORITY_SET_PRIORITY)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
                         match world {
@@ -2522,6 +2386,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SPAWN_DETACH)?;
                         let world = runtime.check_and_resolve_world(THREAD_SPAWN_DETACH)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2552,6 +2417,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SPAWN_JOIN)?;
                         let world = runtime.check_and_resolve_world(THREAD_SPAWN_JOIN)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2581,6 +2447,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SPAWN_SPAWN)?;
                         let world = runtime.check_and_resolve_world(THREAD_SPAWN_SPAWN)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_spawn(
@@ -2610,6 +2477,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_ADDRESS_WAIT)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wait(
@@ -2641,6 +2509,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
                         match world {
@@ -2673,6 +2542,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
                         match world {
@@ -2705,6 +2575,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_BARRIER_CREATE)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_barrier_create(
@@ -2742,6 +2613,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_BARRIER_WAIT)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_barrier_wait(
@@ -2772,6 +2644,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_COND_VAR_CREATE)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2803,6 +2676,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
                         match world {
@@ -2835,6 +2709,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
                         match world {
@@ -2867,6 +2742,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_COND_VAR_WAIT)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_cond_var_wait(
@@ -2897,6 +2773,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_MUTEX_CREATE)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2928,6 +2805,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_MUTEX_LOCK)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_mutex_lock(
@@ -2958,6 +2836,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_MUTEX_UNLOCK)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2988,6 +2867,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_RWLOCK_CREATE)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -3019,6 +2899,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_RWLOCK_READ_LOCK)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
                         match world {
@@ -3050,6 +2931,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_RWLOCK_UNLOCK)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -3081,6 +2963,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
                         match world {
@@ -3113,6 +2996,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_SEMAPHORE_CREATE)?;
                         let world =
                             runtime.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
                         match world {
@@ -3145,6 +3029,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_SEMAPHORE_POST)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_post(
@@ -3176,6 +3061,7 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(THREAD_SYNC_SEMAPHORE_WAIT)?;
                         let world = runtime.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_wait(

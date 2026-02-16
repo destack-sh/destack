@@ -9,7 +9,9 @@ use super::{
 use super::{assert_platform_error_code, assert_platform_error_codes, is_would_block};
 #[cfg(unix)]
 use super::{fork_child_sleep_then_exit, unique_temp_file_path};
+#[cfg(unix)]
 use crate::diagnostic::RuntimeError;
+#[cfg(unix)]
 use crate::platform::PlatformError;
 #[cfg(unix)]
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -17,20 +19,29 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs;
 #[cfg(unix)]
 use crate::platform::process::ProcessFdActionKind;
+#[cfg(unix)]
+use crate::platform::process::ProcessId;
 use crate::platform::process::{
-    ProcessFdFlags, ProcessId, ProcessStdioKind, ProcessWaitFlags, ProcessWaitKind,
-    host as host_process,
+    ProcessFdFlags, ProcessStdioKind, ProcessWaitFlags, ProcessWaitKind,
 };
 #[cfg(unix)]
 use crate::platform::process::{ProcessFdSignalFlags, Signal};
 #[cfg(unix)]
 use crate::platform::resource::{ProcessFdHandle, ResourceId};
 
+/// Read the current process working directory as UTF-8 text.
+fn current_working_directory() -> String {
+    std::env::current_dir()
+        .expect("cwd should succeed")
+        .to_string_lossy()
+        .to_string()
+}
+
 /// Spawn a child process, wait for exit, and reject stale handle reuse.
 #[cfg(unix)]
 #[test]
 fn test_process_spawn_wait_handle_roundtrip() {
-    let cwd = host_process::process_cwd().expect("cwd should succeed");
+    let cwd = current_working_directory();
 
     with_harness_context(|mut context| {
         let options = ProcessSpawnOptionsSpec::inherit(cwd.clone());
@@ -78,7 +89,7 @@ fn test_process_fd_wait_roundtrip() {
 #[cfg(unix)]
 #[test]
 fn test_process_fd_close_rejects_forged_process_handle() {
-    let cwd = host_process::process_cwd().expect("cwd should succeed");
+    let cwd = current_working_directory();
 
     with_harness_context(|mut context| {
         let options = ProcessSpawnOptionsSpec::inherit(cwd.clone());
@@ -105,7 +116,7 @@ fn test_process_fd_close_rejects_forged_process_handle() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_process_spawn_with_actions_wait_roundtrip() {
-    let cwd = host_process::process_cwd().expect("cwd should succeed");
+    let cwd = current_working_directory();
 
     with_harness_context(|mut context| {
         let (command, arguments) = shell_exit_command(23);
@@ -153,7 +164,7 @@ fn test_process_spawn_with_actions_wait_roundtrip() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_process_spawn_wait_after_exit_delay_roundtrip() {
-    let cwd = host_process::process_cwd().expect("cwd should succeed");
+    let cwd = current_working_directory();
 
     with_harness_context(|mut context| {
         let (command, arguments) = shell_exit_command(29);
@@ -187,7 +198,7 @@ fn test_process_spawn_wait_after_exit_delay_roundtrip() {
 #[cfg(unix)]
 #[test]
 fn test_process_spawn_with_actions_open_stdout_roundtrip() {
-    let cwd = host_process::process_cwd().expect("cwd should succeed");
+    let cwd = current_working_directory();
 
     with_harness_context(|mut context| {
         let output_path = unique_temp_file_path("SPAWN_OPEN_STDOUT");
@@ -238,7 +249,7 @@ fn test_process_spawn_with_actions_open_stdout_roundtrip() {
 #[cfg(unix)]
 #[test]
 fn test_process_spawn_with_actions_dup2_stderr_roundtrip() {
-    let cwd = host_process::process_cwd().expect("cwd should succeed");
+    let cwd = current_working_directory();
 
     with_harness_context(|mut context| {
         let output_path = unique_temp_file_path("SPAWN_DUP2_STDERR");

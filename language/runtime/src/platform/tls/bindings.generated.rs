@@ -144,12 +144,9 @@ fn decode_slice<T>(
 /// Decode arguments for destack.tls.context.close.
 #[inline]
 fn decode_destack_tls_context_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -160,12 +157,9 @@ fn decode_destack_tls_context_close_args(
 /// Encode the result for destack.tls.context.close.
 #[inline]
 fn encode_destack_tls_context_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -253,12 +247,9 @@ fn decode_destack_tls_context_open_args(
 /// Encode the result for destack.tls.context.open.
 #[inline]
 fn encode_destack_tls_context_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TlsContextHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -281,12 +272,9 @@ fn decode_destack_tls_context_set_cipher_suites_args(
 /// Encode the result for destack.tls.context.setCipherSuites.
 #[inline]
 fn encode_destack_tls_context_set_cipher_suites_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -309,24 +297,18 @@ fn decode_destack_tls_context_set_groups_args(
 /// Encode the result for destack.tls.context.setGroups.
 #[inline]
 fn encode_destack_tls_context_set_groups_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.tls.context.setHostnameVerificationMode.
 #[inline]
 fn decode_destack_tls_context_set_hostname_verification_mode_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, TlsHostnameVerificationMode)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -351,12 +333,9 @@ fn decode_destack_tls_context_set_hostname_verification_mode_args(
 /// Encode the result for destack.tls.context.setHostnameVerificationMode.
 #[inline]
 fn encode_destack_tls_context_set_hostname_verification_mode_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -390,24 +369,18 @@ fn decode_destack_tls_context_set_identity_pem_args(
 /// Encode the result for destack.tls.context.setIdentityPem.
 #[inline]
 fn encode_destack_tls_context_set_identity_pem_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.tls.context.setKeylogEnabled.
 #[inline]
 fn decode_destack_tls_context_set_keylog_enabled_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, bool)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -420,24 +393,18 @@ fn decode_destack_tls_context_set_keylog_enabled_args(
 /// Encode the result for destack.tls.context.setKeylogEnabled.
 #[inline]
 fn encode_destack_tls_context_set_keylog_enabled_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.tls.context.setSessionResumption.
 #[inline]
 fn decode_destack_tls_context_set_session_resumption_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsContextHandle, TlsSessionResumptionMode)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsContextHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsContextHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -463,12 +430,9 @@ fn decode_destack_tls_context_set_session_resumption_args(
 /// Encode the result for destack.tls.context.setSessionResumption.
 #[inline]
 fn encode_destack_tls_context_set_session_resumption_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -491,12 +455,9 @@ fn decode_destack_tls_context_set_signature_algorithms_args(
 /// Encode the result for destack.tls.context.setSignatureAlgorithms.
 #[inline]
 fn encode_destack_tls_context_set_signature_algorithms_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -523,24 +484,18 @@ fn decode_destack_tls_context_set_trust_anchors_pem_args(
 /// Encode the result for destack.tls.context.setTrustAnchorsPem.
 #[inline]
 fn encode_destack_tls_context_set_trust_anchors_pem_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.tls.session.close.
 #[inline]
 fn decode_destack_tls_session_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -551,12 +506,9 @@ fn decode_destack_tls_session_close_args(
 /// Encode the result for destack.tls.session.close.
 #[inline]
 fn encode_destack_tls_session_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -601,12 +553,9 @@ fn encode_destack_tls_session_export_keying_material_result(
 /// Decode arguments for destack.tls.session.handshake.
 #[inline]
 fn decode_destack_tls_session_handshake_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -617,24 +566,18 @@ fn decode_destack_tls_session_handshake_args(
 /// Encode the result for destack.tls.session.handshake.
 #[inline]
 fn encode_destack_tls_session_handshake_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsHandshakeStatus>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.tls.session.negotiatedAlpn.
 #[inline]
 fn decode_destack_tls_session_negotiated_alpn_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -645,28 +588,22 @@ fn decode_destack_tls_session_negotiated_alpn_args(
 /// Encode the result for destack.tls.session.negotiatedAlpn.
 #[inline]
 fn encode_destack_tls_session_negotiated_alpn_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| value.value())
 }
 
 /// Decode arguments for destack.tls.session.open.
 #[inline]
 fn decode_destack_tls_session_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::TlsContextHandle,
     resource::SocketHandle,
     vm::StringHandle,
 )> {
-    // ignore unused context
-    let _ = context;
-
     let argument_context_value = arg_value(args, 0, "argument_context", "TlsContextHandle")?;
     let argument_context_inner_inner = decode_uint64(
         argument_context_value,
@@ -687,24 +624,18 @@ fn decode_destack_tls_session_open_args(
 /// Encode the result for destack.tls.session.open.
 #[inline]
 fn encode_destack_tls_session_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TlsSessionHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.tls.session.peerCertificatesPem.
 #[inline]
 fn decode_destack_tls_session_peer_certificates_pem_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -739,24 +670,18 @@ fn decode_destack_tls_session_read_args(
 /// Encode the result for destack.tls.session.read.
 #[inline]
 fn encode_destack_tls_session_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.tls.session.resumptionState.
 #[inline]
 fn decode_destack_tls_session_resumption_state_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -767,24 +692,18 @@ fn decode_destack_tls_session_resumption_state_args(
 /// Encode the result for destack.tls.session.resumptionState.
 #[inline]
 fn encode_destack_tls_session_resumption_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TlsSessionResumptionState>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Decode arguments for destack.tls.session.shutdown.
 #[inline]
 fn decode_destack_tls_session_shutdown_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TlsSessionHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TlsSessionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TlsSessionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -795,12 +714,9 @@ fn decode_destack_tls_session_shutdown_args(
 /// Encode the result for destack.tls.session.shutdown.
 #[inline]
 fn encode_destack_tls_session_shutdown_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -822,12 +738,9 @@ fn decode_destack_tls_session_write_args(
 /// Encode the result for destack.tls.session.write.
 #[inline]
 fn encode_destack_tls_session_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 

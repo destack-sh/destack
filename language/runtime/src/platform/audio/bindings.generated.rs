@@ -144,12 +144,9 @@ fn decode_slice<T>(
 /// Decode arguments for destack.audio.device.close.
 #[inline]
 fn decode_destack_audio_device_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioDeviceHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "AudioDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioDeviceHandle")?;
@@ -161,12 +158,9 @@ fn decode_destack_audio_device_close_args(
 /// Encode the result for destack.audio.device.close.
 #[inline]
 fn encode_destack_audio_device_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -182,12 +176,9 @@ fn encode_destack_audio_device_list_result(
 /// Decode arguments for destack.audio.device.open.
 #[inline]
 fn decode_destack_audio_device_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, AudioDeviceDirection)> {
-    // ignore unused context
-    let _ = context;
-
     let id_value = arg_value(args, 0, "id", "string")?;
     let id = decode_string(id_value, "id", "string")?;
     let direction_value = arg_value(args, 1, "direction", "AudioDeviceDirection")?;
@@ -210,24 +201,18 @@ fn decode_destack_audio_device_open_args(
 /// Encode the result for destack.audio.device.open.
 #[inline]
 fn encode_destack_audio_device_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::AudioDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.audio.stream.close.
 #[inline]
 fn decode_destack_audio_stream_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -239,12 +224,9 @@ fn decode_destack_audio_stream_close_args(
 /// Encode the result for destack.audio.stream.close.
 #[inline]
 fn encode_destack_audio_stream_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -312,24 +294,18 @@ fn decode_destack_audio_stream_open_args(
 /// Encode the result for destack.audio.stream.open.
 #[inline]
 fn encode_destack_audio_stream_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::AudioStreamHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.audio.stream.read.
 #[inline]
 fn decode_destack_audio_stream_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -352,12 +328,9 @@ fn encode_destack_audio_stream_read_result(
 /// Decode arguments for destack.audio.stream.start.
 #[inline]
 fn decode_destack_audio_stream_start_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -369,24 +342,18 @@ fn decode_destack_audio_stream_start_args(
 /// Encode the result for destack.audio.stream.start.
 #[inline]
 fn encode_destack_audio_stream_start_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.audio.stream.state.
 #[inline]
 fn decode_destack_audio_stream_state_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -412,12 +379,9 @@ fn encode_destack_audio_stream_state_result(
 /// Decode arguments for destack.audio.stream.stop.
 #[inline]
 fn decode_destack_audio_stream_stop_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::AudioStreamHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
@@ -429,12 +393,9 @@ fn decode_destack_audio_stream_stop_args(
 /// Encode the result for destack.audio.stream.stop.
 #[inline]
 fn encode_destack_audio_stream_stop_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -457,12 +418,9 @@ fn decode_destack_audio_stream_write_args(
 /// Encode the result for destack.audio.stream.write.
 #[inline]
 fn encode_destack_audio_stream_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 

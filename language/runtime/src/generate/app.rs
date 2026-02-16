@@ -29,7 +29,7 @@ use crate::binding::{
 use crate::catalog::collect_platform_bindings;
 use crate::model::BindingScope;
 use crate::option::parse_generator_options;
-use crate::refresh::{write_missing_stub_file, write_stub_file};
+use crate::refresh::{refresh_domain_binding_docs, write_missing_stub_file, write_stub_file};
 
 /// Compiler state used while generating bindings.
 struct GeneratorContext {
@@ -597,6 +597,10 @@ fn generate_bindings(
                 let runtime_vm_path = runtime_domain_runtime_vm_path(domain);
                 let stub = render_runtime_vm_stub(domain, bindings);
                 write_stub_file(&runtime_vm_path, &stub, refresh_stubs);
+            }
+
+            if refresh_stubs {
+                refresh_domain_binding_docs(domain, bindings);
             }
         }
 

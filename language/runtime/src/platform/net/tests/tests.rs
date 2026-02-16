@@ -149,6 +149,83 @@ where
     });
 }
 
+#[cfg(windows)]
+impl<'call> NetHarnessContext<'call> {
+    /// Return the VM context if available.
+    #[allow(clippy::mut_from_ref)]
+    fn vm_context_mut_manual(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+        self.vm_context
+            .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+    }
+
+    /// Create one connected socket pair.
+    pub(crate) fn socket_pair(
+        &mut self,
+        family: SocketFamily,
+        socket_type: SocketType,
+        protocol: SocketProtocol,
+    ) -> RuntimeResult<(SocketHandle, SocketHandle)> {
+        match self.vm_context_mut_manual() {
+            // dispatch through VM bindings
+            Some(context) => {
+                let pair = platform_vm::destack_net_socket_pair(
+                    self.call_context,
+                    context,
+                    family,
+                    socket_type,
+                    protocol,
+                )?;
+                Ok((pair.first, pair.second))
+            }
+
+            // dispatch through native bindings
+            None => {
+                let mut pair = platform_net::SocketPair {
+                    first: SocketHandle(ResourceId(0)),
+                    second: SocketHandle(ResourceId(0)),
+                };
+                let status = unsafe {
+                    platform_net::destack_net_socket_pair(&mut pair, family, socket_type, protocol)
+                };
+                self.status_ok(status, "socketPair")?;
+
+                Ok((pair.first, pair.second))
+            }
+        }
+    }
+
+    /// Create one connected unix-domain socket pair.
+    pub(crate) fn uds_socket_pair(
+        &mut self,
+        socket_type: SocketType,
+    ) -> RuntimeResult<(SocketHandle, SocketHandle)> {
+        match self.vm_context_mut_manual() {
+            // dispatch through VM bindings
+            Some(context) => {
+                let pair = platform_vm::destack_net_uds_socket_pair(
+                    self.call_context,
+                    context,
+                    socket_type,
+                )?;
+                Ok((pair.first, pair.second))
+            }
+
+            // dispatch through native bindings
+            None => {
+                let mut pair = platform_net::SocketPair {
+                    first: SocketHandle(ResourceId(0)),
+                    second: SocketHandle(ResourceId(0)),
+                };
+                let status =
+                    unsafe { platform_net::destack_net_uds_socket_pair(&mut pair, socket_type) };
+                self.status_ok(status, "udsSocketPair")?;
+
+                Ok((pair.first, pair.second))
+            }
+        }
+    }
+}
+
 /// Assert one result failed with one exact platform error code.
 pub(crate) fn assert_platform_error_code<T>(
     result: RuntimeResult<T>,

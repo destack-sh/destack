@@ -207,7 +207,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_priority(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     pid: ProcessId,
     priority: i32,
 ) -> RuntimeResult<()> {
@@ -216,7 +216,6 @@ pub(crate) unsafe fn destack_process_set_priority(
         OpenProcess, PROCESS_SET_INFORMATION, SetPriorityClass,
     };
 
-    let _ = context;
     let pid = core_process::process_pid_to_windows_target(pid.0, "pid")?;
     let process = unsafe { OpenProcess(PROCESS_SET_INFORMATION, 0, pid) };
     if process == 0 {
@@ -302,8 +301,7 @@ pub(crate) unsafe fn destack_process_set_scheduler(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_process_yield_now(context: &RuntimeCallContext) -> RuntimeResult<()> {
-    let _ = context;
+pub(crate) unsafe fn destack_process_yield_now(_context: &RuntimeCallContext) -> RuntimeResult<()> {
     std::thread::yield_now();
     Ok(())
 }

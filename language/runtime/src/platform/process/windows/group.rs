@@ -41,14 +41,12 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
     context: &RuntimeCallContext,
     out: *mut ProcessLimit,
     path: NativeStringRef,
-    resource: ProcessLimitResource,
+    _resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = unsafe { path.as_str()? };
-    let _ = resource;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.group.cgroupGetLimit",
     ))

@@ -62,9 +62,8 @@ pub(crate) fn destack_net_accept(
 pub(crate) fn destack_net_local_address(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.address.localAddress",
     ))
@@ -91,9 +90,8 @@ pub(crate) fn destack_net_local_address(
 pub(crate) fn destack_net_peer_address(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.address.peerAddress",
     ))
@@ -147,9 +145,8 @@ pub(crate) fn destack_net_bind(
 pub(crate) fn destack_net_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.close")).boxed())
 }
 
@@ -173,9 +170,8 @@ pub(crate) fn destack_net_close(
 pub(crate) fn destack_net_close_listener(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ListenerHandle,
+    _handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.closeListener")).boxed())
 }
 
@@ -253,9 +249,8 @@ pub(crate) fn destack_net_list_interfaces(
 pub(crate) fn destack_net_interface_index(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    name: vm::StringHandle,
+    _name: vm::StringHandle,
 ) -> RuntimeResult<u32> {
-    let _ = name;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.interfaceIndex")).boxed())
 }
 
@@ -279,9 +274,8 @@ pub(crate) fn destack_net_interface_index(
 pub(crate) fn destack_net_interface_name(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    index: u32,
+    _index: u32,
 ) -> RuntimeResult<vm::StringHandle> {
-    let _ = index;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.interfaceName")).boxed())
 }
 
@@ -332,9 +326,8 @@ pub(crate) fn destack_net_listen(
 pub(crate) fn destack_net_get_broadcast(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getBroadcast",
     ))
@@ -361,9 +354,8 @@ pub(crate) fn destack_net_get_broadcast(
 pub(crate) fn destack_net_get_linger(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<LingerVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getLinger",
     ))
@@ -390,9 +382,8 @@ pub(crate) fn destack_net_get_linger(
 pub(crate) fn destack_net_get_only_v6(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getOnlyV6",
     ))
@@ -419,9 +410,8 @@ pub(crate) fn destack_net_get_only_v6(
 pub(crate) fn destack_net_get_packet_mark(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getPacketMark",
     ))
@@ -448,9 +438,8 @@ pub(crate) fn destack_net_get_packet_mark(
 pub(crate) fn destack_net_get_read_timeout(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getReadTimeout",
     ))
@@ -477,9 +466,8 @@ pub(crate) fn destack_net_get_read_timeout(
 pub(crate) fn destack_net_get_recv_buffer(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getRecvBuffer",
     ))
@@ -506,9 +494,8 @@ pub(crate) fn destack_net_get_recv_buffer(
 pub(crate) fn destack_net_get_send_buffer(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getSendBuffer",
     ))
@@ -567,9 +554,8 @@ pub(crate) fn destack_net_get_sock_opt_raw(
 pub(crate) fn destack_net_get_timestamping(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<SocketTimestampingMode> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getTimestamping",
     ))
@@ -596,9 +582,8 @@ pub(crate) fn destack_net_get_timestamping(
 pub(crate) fn destack_net_get_tos(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.getTos")).boxed())
 }
 
@@ -622,9 +607,8 @@ pub(crate) fn destack_net_get_tos(
 pub(crate) fn destack_net_get_ttl(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.getTtl")).boxed())
 }
 
@@ -648,9 +632,8 @@ pub(crate) fn destack_net_get_ttl(
 pub(crate) fn destack_net_get_write_timeout(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.options.getWriteTimeout",
     ))
@@ -1033,9 +1016,8 @@ pub(crate) fn destack_net_set_write_timeout(
 pub(crate) fn destack_net_packet_clear_fanout(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.raw.packetClearFanout",
     ))
@@ -1062,9 +1044,8 @@ pub(crate) fn destack_net_packet_clear_fanout(
 pub(crate) fn destack_net_packet_clear_filter(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.raw.packetClearFilter",
     ))
@@ -1091,9 +1072,8 @@ pub(crate) fn destack_net_packet_clear_filter(
 pub(crate) fn destack_net_packet_clear_ring(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.raw.packetClearRing",
     ))
@@ -1120,9 +1100,8 @@ pub(crate) fn destack_net_packet_clear_ring(
 pub(crate) fn destack_net_packet_open(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    options: PacketCaptureOptionsVm,
+    _options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<resource::SocketHandle> {
-    let _ = options;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetOpen")).boxed())
 }
 
@@ -1353,9 +1332,8 @@ pub(crate) fn destack_net_packet_set_tx_ring(
 pub(crate) fn destack_net_packet_stats(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<PacketCaptureStatsVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetStats")).boxed())
 }
 
@@ -1586,9 +1564,8 @@ pub(crate) fn destack_net_recv_msg(
 pub(crate) fn destack_net_resolve(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    query: ResolveQueryVm,
+    _query: ResolveQueryVm,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
-    let _ = query;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve.resolve")).boxed())
 }
 
@@ -1642,9 +1619,8 @@ pub(crate) fn destack_net_reverse_lookup(
 pub(crate) fn destack_net_get_reuse_addr(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.reuse.getReuseAddr",
     ))
@@ -1671,9 +1647,8 @@ pub(crate) fn destack_net_get_reuse_addr(
 pub(crate) fn destack_net_get_reuse_port(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.reuse.getReusePort",
     ))
@@ -1760,9 +1735,8 @@ pub(crate) fn destack_net_set_reuse_port(
 pub(crate) fn destack_net_route_add(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    route: RouteEntryVm,
+    _route: RouteEntryVm,
 ) -> RuntimeResult<()> {
-    let _ = route;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeAdd")).boxed())
 }
 
@@ -1786,9 +1760,8 @@ pub(crate) fn destack_net_route_add(
 pub(crate) fn destack_net_route_delete(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    route: RouteEntryVm,
+    _route: RouteEntryVm,
 ) -> RuntimeResult<()> {
-    let _ = route;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeDelete")).boxed())
 }
 
@@ -1812,9 +1785,8 @@ pub(crate) fn destack_net_route_delete(
 pub(crate) fn destack_net_route_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    family: SocketFamily,
+    _family: SocketFamily,
 ) -> RuntimeResult<VmArray<RouteEntryVm>> {
-    let _ = family;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeList")).boxed())
 }
 
@@ -2031,9 +2003,8 @@ pub(crate) fn destack_net_socket_pair(
 pub(crate) fn destack_net_get_keep_alive(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<KeepAliveConfigVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.getKeepAlive")).boxed())
 }
 
@@ -2057,9 +2028,8 @@ pub(crate) fn destack_net_get_keep_alive(
 pub(crate) fn destack_net_get_no_delay(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.getNoDelay")).boxed())
 }
 
@@ -2191,9 +2161,8 @@ pub(crate) fn destack_net_udp_connect(
 pub(crate) fn destack_net_get_multicast_interface_v4(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<vm::StringHandle> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.udp.getMulticastInterfaceV4",
     ))
@@ -2220,9 +2189,8 @@ pub(crate) fn destack_net_get_multicast_interface_v4(
 pub(crate) fn destack_net_get_multicast_interface_v6(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.udp.getMulticastInterfaceV6",
     ))
@@ -2249,9 +2217,8 @@ pub(crate) fn destack_net_get_multicast_interface_v6(
 pub(crate) fn destack_net_get_multicast_loop(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.udp.getMulticastLoop",
     ))
@@ -2278,9 +2245,8 @@ pub(crate) fn destack_net_get_multicast_loop(
 pub(crate) fn destack_net_get_multicast_ttl(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::SocketHandle,
+    _handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.net.udp.getMulticastTtl",
     ))
@@ -2728,9 +2694,8 @@ pub(crate) fn destack_net_set_multicast_ttl(
 pub(crate) fn destack_net_udp_socket(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    family: SocketFamily,
+    _family: SocketFamily,
 ) -> RuntimeResult<resource::SocketHandle> {
-    let _ = family;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udp.socket")).boxed())
 }
 
@@ -2754,9 +2719,8 @@ pub(crate) fn destack_net_udp_socket(
 pub(crate) fn destack_net_uds_accept(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    listener: resource::ListenerHandle,
+    _listener: resource::ListenerHandle,
 ) -> RuntimeResult<resource::SocketHandle> {
-    let _ = listener;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsAccept")).boxed())
 }
 
@@ -2780,9 +2744,8 @@ pub(crate) fn destack_net_uds_accept(
 pub(crate) fn destack_net_uds_close_listener(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ListenerHandle,
+    _handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsCloseListener")).boxed())
 }
 
@@ -2806,9 +2769,8 @@ pub(crate) fn destack_net_uds_close_listener(
 pub(crate) fn destack_net_uds_connect(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    address: UdsAddressVm,
+    _address: UdsAddressVm,
 ) -> RuntimeResult<resource::SocketHandle> {
-    let _ = address;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
 }
 
@@ -2859,9 +2821,8 @@ pub(crate) fn destack_net_uds_listen(
 pub(crate) fn destack_net_uds_socket_pair(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    sockettype: SocketType,
+    _sockettype: SocketType,
 ) -> RuntimeResult<SocketPairVm> {
-    let _ = sockettype;
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsSocketPair")).boxed())
 }
 

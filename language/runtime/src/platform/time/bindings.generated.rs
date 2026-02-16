@@ -93,12 +93,9 @@ fn decode_uint64(
 /// Decode arguments for destack.time.clock.info.
 #[inline]
 fn decode_destack_time_clock_info_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ClockId,)> {
-    // ignore unused context
-    let _ = context;
-
     let clock_value = arg_value(args, 0, "clock", "ClockId")?;
     let clock_raw = decode_uint8(clock_value, "clock_raw", "ClockId")?;
     let clock = match clock_raw {
@@ -137,24 +134,18 @@ fn encode_destack_time_clock_info_result(
 /// Encode the result for destack.time.clock.monoNs.
 #[inline]
 fn encode_destack_time_clock_mono_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.time.clock.nowNs.
 #[inline]
 fn decode_destack_time_clock_now_ns_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ClockId,)> {
-    // ignore unused context
-    let _ = context;
-
     let clock_value = arg_value(args, 0, "clock", "ClockId")?;
     let clock_raw = decode_uint8(clock_value, "clock_raw", "ClockId")?;
     let clock = match clock_raw {
@@ -178,60 +169,45 @@ fn decode_destack_time_clock_now_ns_args(
 /// Encode the result for destack.time.clock.nowNs.
 #[inline]
 fn encode_destack_time_clock_now_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Encode the result for destack.time.clock.processCpuNs.
 #[inline]
 fn encode_destack_time_clock_process_cpu_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Encode the result for destack.time.clock.threadCpuNs.
 #[inline]
 fn encode_destack_time_clock_thread_cpu_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Encode the result for destack.time.clock.wallNs.
 #[inline]
 fn encode_destack_time_clock_wall_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.time.sleep.ns.
 #[inline]
 fn decode_destack_time_sleep_ns_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
-    // ignore unused context
-    let _ = context;
-
     let duration_value = arg_value(args, 0, "duration", "uint64")?;
     let duration = decode_uint64(duration_value, "duration", "uint64")?;
     Ok((duration,))
@@ -240,24 +216,18 @@ fn decode_destack_time_sleep_ns_args(
 /// Encode the result for destack.time.sleep.ns.
 #[inline]
 fn encode_destack_time_sleep_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.time.sleep.onNs.
 #[inline]
 fn decode_destack_time_sleep_on_ns_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, SleepClock)> {
-    // ignore unused context
-    let _ = context;
-
     let duration_value = arg_value(args, 0, "duration", "uint64")?;
     let duration = decode_uint64(duration_value, "duration", "uint64")?;
     let clock_value = arg_value(args, 1, "clock", "SleepClock")?;
@@ -279,24 +249,18 @@ fn decode_destack_time_sleep_on_ns_args(
 /// Encode the result for destack.time.sleep.onNs.
 #[inline]
 fn encode_destack_time_sleep_on_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.time.sleep.untilNs.
 #[inline]
 fn decode_destack_time_sleep_until_ns_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
-    // ignore unused context
-    let _ = context;
-
     let deadline_value = arg_value(args, 0, "deadline", "uint64")?;
     let deadline = decode_uint64(deadline_value, "deadline", "uint64")?;
     Ok((deadline,))
@@ -305,24 +269,18 @@ fn decode_destack_time_sleep_until_ns_args(
 /// Encode the result for destack.time.sleep.untilNs.
 #[inline]
 fn encode_destack_time_sleep_until_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.time.sleep.untilOnNs.
 #[inline]
 fn decode_destack_time_sleep_until_on_ns_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, SleepClock)> {
-    // ignore unused context
-    let _ = context;
-
     let deadline_value = arg_value(args, 0, "deadline", "uint64")?;
     let deadline = decode_uint64(deadline_value, "deadline", "uint64")?;
     let clock_value = arg_value(args, 1, "clock", "SleepClock")?;
@@ -344,12 +302,9 @@ fn decode_destack_time_sleep_until_on_ns_args(
 /// Encode the result for destack.time.sleep.untilOnNs.
 #[inline]
 fn encode_destack_time_sleep_until_on_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

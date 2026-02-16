@@ -55,7 +55,7 @@ fn session_pid_to_unix_target(pid: ProcessId, field: &str) -> RuntimeResult<libc
     Ok(pid.0 as libc::pid_t)
 }
 
-/// Read one process group id.
+/// Read a process group id.
 ///
 /// Read the process-group identifier currently assigned to the target process.
 /// Visibility and lookup behavior follow host process table rules.
@@ -101,7 +101,7 @@ pub(crate) unsafe fn destack_process_getpgid(
     Ok(())
 }
 
-/// Set one process group id for a process.
+/// Set a process group id for a process.
 ///
 /// Move the target process into the requested process group identifier.
 /// Cross-session moves and permission checks follow host kernel job-control rules.
@@ -143,7 +143,7 @@ pub(crate) unsafe fn destack_process_setpgid(
     Ok(())
 }
 
-/// Create one new session and return the new session leader id.
+/// Create a new session and return the new session leader id.
 ///
 /// Create a new session boundary and make the caller its session leader.
 /// Session and controlling-terminal semantics follow host job-control rules.

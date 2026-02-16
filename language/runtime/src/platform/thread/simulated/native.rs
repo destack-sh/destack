@@ -27,12 +27,9 @@ use crate::platform::thread::ThreadOptions;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::ThreadLocalKey,
+    _context: &RuntimeCallContext,
+    _out: *mut resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = out;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.create")).boxed())
 }
 
@@ -54,12 +51,9 @@ pub(crate) unsafe fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_delete(
-    context: &RuntimeCallContext,
-    key: resource::ThreadLocalKey,
+    _context: &RuntimeCallContext,
+    _key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = key;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.delete")).boxed())
 }
 
@@ -81,11 +75,10 @@ pub(crate) unsafe fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_get(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, key);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.get")).boxed())
@@ -109,11 +102,10 @@ pub(crate) unsafe fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_set(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     key: resource::ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (key, argument_value);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.set")).boxed())
@@ -137,11 +129,10 @@ pub(crate) unsafe fn destack_thread_local_set(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -168,11 +159,10 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_priority(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut i32,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -199,11 +189,10 @@ pub(crate) unsafe fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, mask);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -230,11 +219,10 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, priority);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -261,12 +249,9 @@ pub(crate) unsafe fn destack_thread_set_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_detach(
-    context: &RuntimeCallContext,
-    handle: resource::ThreadHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.detach")).boxed())
 }
 
@@ -288,11 +273,10 @@ pub(crate) unsafe fn destack_thread_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_join(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u32,
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.join")).boxed())
@@ -316,13 +300,12 @@ pub(crate) unsafe fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_spawn(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::ThreadHandle,
     entry: NativeStringRef,
     argument: u64,
     options: ThreadOptions,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, entry, argument, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.spawn")).boxed())
@@ -346,12 +329,11 @@ pub(crate) unsafe fn destack_thread_spawn(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wait(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     address: u64,
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (address, expected, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -378,12 +360,9 @@ pub(crate) unsafe fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_all(
-    context: &RuntimeCallContext,
-    address: u64,
+    _context: &RuntimeCallContext,
+    _address: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = address;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.addressWakeAll",
     ))
@@ -408,12 +387,9 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_one(
-    context: &RuntimeCallContext,
-    address: u64,
+    _context: &RuntimeCallContext,
+    _address: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = address;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.addressWakeOne",
     ))
@@ -438,12 +414,11 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_barrier_create(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::BarrierHandle,
     participants: u32,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, participants, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -470,12 +445,11 @@ pub(crate) unsafe fn destack_thread_barrier_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_barrier_wait(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut bool,
     handle: resource::BarrierHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -502,11 +476,10 @@ pub(crate) unsafe fn destack_thread_barrier_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_create(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::CondVarHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -533,12 +506,9 @@ pub(crate) unsafe fn destack_thread_cond_var_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_all(
-    context: &RuntimeCallContext,
-    condvar: resource::CondVarHandle,
+    _context: &RuntimeCallContext,
+    _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = condvar;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.condVarNotifyAll",
     ))
@@ -563,12 +533,9 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_one(
-    context: &RuntimeCallContext,
-    condvar: resource::CondVarHandle,
+    _context: &RuntimeCallContext,
+    _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = condvar;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.condVarNotifyOne",
     ))
@@ -593,12 +560,11 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_wait(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     condvar: resource::CondVarHandle,
     mutex: resource::MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (condvar, mutex, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -625,11 +591,10 @@ pub(crate) unsafe fn destack_thread_cond_var_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_create(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::MutexHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -656,11 +621,10 @@ pub(crate) unsafe fn destack_thread_mutex_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_lock(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -687,12 +651,9 @@ pub(crate) unsafe fn destack_thread_mutex_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_unlock(
-    context: &RuntimeCallContext,
-    handle: resource::MutexHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::MutexHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.mutexUnlock",
     ))
@@ -717,11 +678,10 @@ pub(crate) unsafe fn destack_thread_mutex_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_create(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::RwLockHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -748,11 +708,10 @@ pub(crate) unsafe fn destack_thread_rwlock_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_read_lock(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -779,12 +738,9 @@ pub(crate) unsafe fn destack_thread_rwlock_read_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_unlock(
-    context: &RuntimeCallContext,
-    handle: resource::RwLockHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::RwLockHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.rwlockUnlock",
     ))
@@ -809,11 +765,10 @@ pub(crate) unsafe fn destack_thread_rwlock_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_write_lock(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -840,13 +795,12 @@ pub(crate) unsafe fn destack_thread_rwlock_write_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_create(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::ThreadSemaphoreHandle,
     initial: u32,
     maximum: u32,
     flags: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, initial, maximum, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -873,11 +827,10 @@ pub(crate) unsafe fn destack_thread_semaphore_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_post(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::ThreadSemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, count);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -904,11 +857,10 @@ pub(crate) unsafe fn destack_thread_semaphore_post(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_wait(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::ThreadSemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, timeoutns);
 
     Err(RuntimeError::from(PlatformError::not_supported(

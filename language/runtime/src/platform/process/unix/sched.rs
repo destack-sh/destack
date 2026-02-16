@@ -202,7 +202,6 @@ pub(crate) unsafe fn destack_process_get_scheduler(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = pid;
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.process.sched.getScheduler",
         ))

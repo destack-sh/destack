@@ -8,7 +8,7 @@ use crate::platform::fs::StatFs;
 use super::{nanos_from_secs_and_nanos, statfs_u64};
 
 /// Return nanosecond timestamps for stat fields on netbsd.
-pub(super) fn stat_times(stat: libc::stat) -> (u64, u64, u64, u64) {
+pub(crate) fn stat_times(stat: libc::stat) -> (u64, u64, u64, u64) {
     (
         nanos_from_secs_and_nanos(stat.st_atime as u64, stat.st_atimensec as u64),
         nanos_from_secs_and_nanos(stat.st_mtime as u64, stat.st_mtimensec as u64),
@@ -40,7 +40,7 @@ fn fsid_to_u64(fsid: libc::fsid_t) -> u64 {
 }
 
 /// Fetch statfs data for a file descriptor.
-pub(super) fn statfs_for_fd(fd: RawFd) -> RuntimeResult<StatFs> {
+pub(crate) fn statfs_for_fd(fd: RawFd) -> RuntimeResult<StatFs> {
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::fstatvfs(fd, &mut stat) };
     if rc != 0 {
@@ -51,7 +51,7 @@ pub(super) fn statfs_for_fd(fd: RawFd) -> RuntimeResult<StatFs> {
 }
 
 /// Fetch statfs data for a path.
-pub(super) fn statfs_for_path(path: &CStr) -> RuntimeResult<StatFs> {
+pub(crate) fn statfs_for_path(path: &CStr) -> RuntimeResult<StatFs> {
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::statvfs(path.as_ptr(), &mut stat) };
     if rc != 0 {
@@ -62,6 +62,6 @@ pub(super) fn statfs_for_path(path: &CStr) -> RuntimeResult<StatFs> {
 }
 
 /// Call fdatasync on netbsd.
-pub(super) fn fdatasync(fd: RawFd) -> i32 {
+pub(crate) fn fdatasync(fd: RawFd) -> i32 {
     unsafe { libc::fsync(fd) }
 }

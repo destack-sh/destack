@@ -12,6 +12,8 @@ mod privileged;
 mod resolve;
 #[cfg(any(unix, windows))]
 mod shutdown;
+#[cfg(windows)]
+mod socket_pair;
 #[cfg(any(unix, windows))]
 mod tests;
 #[cfg(any(unix, windows))]

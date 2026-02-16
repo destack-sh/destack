@@ -1,0 +1,896 @@
+#![allow(unused_imports)]
+
+use super::core::*;
+use super::os;
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::fs::OsPath;
+use crate::platform::net::{core as core_net, *};
+use crate::platform::resource::*;
+use crate::platform::{core as core_platform, *};
+use crate::runtime::RuntimeCallContext;
+
+use std::ffi::{CStr, CString};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::os::unix::io::RawFd;
+
+/// Read from a socket into the provided slice.
+///
+/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses read(2)/recv(2) on Unix and recv on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_read(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // read on unix platforms
+    // resolve the socket descriptor
+    let fd = socket_descriptor(context, handle)?;
+
+    // decode the buffer
+    let buffer = unsafe { buffer.as_mut_slice()? };
+
+    // read from the socket
+    let rc = unsafe {
+        libc::recv(
+            fd,
+            buffer.as_mut_ptr() as *mut libc::c_void,
+            buffer.len(),
+            0,
+        )
+    };
+    if rc < 0 {
+        return Err(core_platform::net_error("recv"));
+    }
+
+    // write the output
+    unsafe {
+        *out = rc as u64;
+    }
+
+    Ok(())
+}
+
+/// Write to a socket from the provided slice.
+///
+/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses write(2)/send(2) on Unix and send on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_write(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // write on unix platforms
+    // resolve the socket descriptor
+    let fd = socket_descriptor(context, handle)?;
+
+    // decode the buffer
+    let buffer = unsafe { buffer.as_slice()? };
+
+    // write to the socket
+    let flags = os::send_flags();
+    let rc = unsafe {
+        libc::send(
+            fd,
+            buffer.as_ptr() as *const libc::c_void,
+            buffer.len(),
+            flags,
+        )
+    };
+    if rc < 0 {
+        return Err(core_platform::net_error("send"));
+    }
+
+    // write the output
+    unsafe {
+        *out = rc as u64;
+    }
+
+    Ok(())
+}
+
+/// Read into multiple buffers.
+///
+/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses readv(2)/recvmsg(2) on Unix and WSARecv on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_readv(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the socket descriptor and buffer list
+    let fd = socket_descriptor(context, handle)?;
+    let buffers = unsafe { buffers.as_slice()? };
+    let mut iovecs = Vec::with_capacity(buffers.len());
+    for buffer in buffers {
+        let slice = unsafe { buffer.as_mut_slice()? };
+        iovecs.push(libc::iovec {
+            iov_base: slice.as_mut_ptr() as *mut libc::c_void,
+            iov_len: slice.len(),
+        });
+    }
+
+    // read from the socket
+    let rc = unsafe { libc::readv(fd, iovecs.as_ptr(), iovecs.len() as libc::c_int) };
+    if rc < 0 {
+        return Err(core_platform::net_error("readv"));
+    }
+
+    unsafe {
+        *out = rc as u64;
+    }
+
+    Ok(())
+}
+
+/// Write from multiple buffers.
+///
+/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses writev(2)/sendmsg(2) on Unix and WSASend on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_writev(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the socket descriptor and buffer list
+    let fd = socket_descriptor(context, handle)?;
+    let buffers = unsafe { buffers.as_slice()? };
+    let mut iovecs = Vec::with_capacity(buffers.len());
+    for buffer in buffers {
+        let slice = unsafe { buffer.as_slice()? };
+        iovecs.push(libc::iovec {
+            iov_base: slice.as_ptr() as *mut libc::c_void,
+            iov_len: slice.len(),
+        });
+    }
+
+    // write to the socket
+    let rc = unsafe { libc::writev(fd, iovecs.as_ptr(), iovecs.len() as libc::c_int) };
+    if rc < 0 {
+        return Err(core_platform::net_error("writev"));
+    }
+
+    unsafe {
+        *out = rc as u64;
+    }
+
+    Ok(())
+}
+
+/// Receive multiple datagrams.
+///
+/// Receive multiple datagrams via host kernel APIs with per-message metadata and ancillary extraction.
+/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses recvmmsg(2) on linux and runtime loop fallback on other targets.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+#[allow(dead_code)]
+pub(crate) unsafe fn destack_net_recv_mmsg(
+    context: &RuntimeCallContext,
+    out: *mut NativeArray<u64>,
+    handle: SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+    recv_flags: SocketMessageFlags,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate receive flags
+    if recv_flags.0 > i32::MAX as u32 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "recvFlags",
+            "flags value is out of range",
+        ))
+        .boxed());
+    }
+
+    // resolve socket and buffers
+    let fd = socket_descriptor(context, handle)?;
+    let buffers = unsafe { buffers.as_slice()? };
+    let mut counts = Vec::with_capacity(buffers.len());
+
+    // receive into each buffer
+    for buffer in buffers {
+        let slice = unsafe { buffer.as_mut_slice()? };
+        let rc = unsafe {
+            libc::recv(
+                fd,
+                slice.as_mut_ptr() as *mut libc::c_void,
+                slice.len(),
+                recv_flags.0 as libc::c_int,
+            )
+        };
+
+        // stop on would-block once at least one packet is received
+        if rc < 0 {
+            let errno = core_platform::get_errno();
+            if !counts.is_empty() && (errno == libc::EAGAIN || errno == libc::EWOULDBLOCK) {
+                break;
+            }
+
+            return Err(core_platform::net_error("recv"));
+        }
+
+        // stop on orderly shutdown
+        if rc == 0 {
+            break;
+        }
+
+        counts.push(rc as u64);
+    }
+
+    // write the output array
+    unsafe {
+        *out = context.store_array(counts);
+    }
+
+    Ok(())
+}
+
+/// Receive a message with ancillary data.
+///
+/// Receive a message with ancillary data via host kernel APIs.
+/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses recvmsg(2) on Unix and WSARecvMsg on Windows where available.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_recv_msg(
+    context: &RuntimeCallContext,
+    out: *mut SocketRecvMessage,
+    handle: SocketHandle,
+    buffer: NativeSlice<u8>,
+    recv_flags: SocketMessageFlags,
+    max_fds: u32,
+    want_credentials: bool,
+    max_control_bytes: u32,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the socket descriptor and buffer
+    let fd = socket_descriptor(context, handle)?;
+    let buffer = unsafe { buffer.as_mut_slice()? };
+
+    // build the iovec
+    let mut iovec = libc::iovec {
+        iov_base: buffer.as_mut_ptr() as *mut libc::c_void,
+        iov_len: buffer.len(),
+    };
+
+    // compute control buffer length
+    let mut control_len = 0usize;
+    if max_fds > 0 {
+        let fd_bytes = (max_fds as usize)
+            .checked_mul(std::mem::size_of::<RawFd>())
+            .ok_or_else(|| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "maxFds",
+                    "fd count is too large",
+                ))
+                .boxed()
+            })?;
+        if fd_bytes > u32::MAX as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "maxFds",
+                "fd count is too large",
+            ))
+            .boxed());
+        }
+        control_len =
+            control_len.saturating_add(unsafe { libc::CMSG_SPACE(fd_bytes as u32) } as usize);
+    }
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    if want_credentials {
+        control_len = control_len.saturating_add(unsafe {
+            libc::CMSG_SPACE(std::mem::size_of::<libc::ucred>() as u32)
+        } as usize);
+    }
+
+    // cap control extraction to caller budget
+    if max_control_bytes > 0 {
+        control_len = control_len.min(max_control_bytes as usize);
+    }
+
+    // allocate the control buffer
+    let mut control = vec![0u8; control_len];
+
+    // build the message header
+    let mut message: libc::msghdr = unsafe { std::mem::zeroed() };
+    message.msg_iov = &mut iovec;
+    message.msg_iovlen = 1;
+    if !control.is_empty() {
+        let control_len = control.len();
+        if control_len > u32::MAX as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "buffer",
+                "control buffer too large",
+            ))
+            .boxed());
+        }
+        message.msg_control = control.as_mut_ptr() as *mut libc::c_void;
+        message.msg_controllen = control_len as _;
+    }
+
+    // validate receive flags
+    if recv_flags.0 > i32::MAX as u32 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "recvFlags",
+            "flags value is out of range",
+        ))
+        .boxed());
+    }
+
+    // receive the message
+    let rc = unsafe { libc::recvmsg(fd, &mut message, recv_flags.0 as libc::c_int) };
+    if rc < 0 {
+        return Err(core_platform::net_error("recvmsg"));
+    }
+
+    // decode recvmsg flags
+    let recv_flags = SocketMessageFlags(message.msg_flags as u32);
+    let payload_truncated = (message.msg_flags & libc::MSG_TRUNC) != 0;
+    let control_truncated = (message.msg_flags & libc::MSG_CTRUNC) != 0;
+
+    // decode ancillary data
+    let mut received_fds: Vec<RawFd> = Vec::new();
+    let mut credentials: Option<SocketCredentials> = None;
+    let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(&message) };
+    while !cmsg.is_null() {
+        let header = unsafe { &*cmsg };
+        if header.cmsg_level == libc::SOL_SOCKET && header.cmsg_type == libc::SCM_RIGHTS {
+            let data_len = header.cmsg_len as usize - unsafe { libc::CMSG_LEN(0) as usize };
+            let count = data_len / std::mem::size_of::<RawFd>();
+            let data = unsafe { libc::CMSG_DATA(cmsg) as *const RawFd };
+            for index in 0..count {
+                received_fds.push(unsafe { *data.add(index) });
+            }
+        }
+        if header.cmsg_level == libc::SOL_SOCKET {
+            #[cfg(any(target_os = "linux", target_os = "android"))]
+            if header.cmsg_type == libc::SCM_CREDENTIALS {
+                let data = unsafe { libc::CMSG_DATA(cmsg) as *const libc::ucred };
+                let ucred = unsafe { *data };
+                if want_credentials {
+                    credentials = Some(SocketCredentials {
+                        pid: ucred.pid as u32,
+                        uid: ucred.uid,
+                        gid: ucred.gid,
+                    });
+                }
+            }
+        }
+        cmsg = unsafe { libc::CMSG_NXTHDR(&message, cmsg) };
+    }
+
+    // register received file descriptors
+    let mut handles = Vec::with_capacity(received_fds.len().min(max_fds as usize));
+    for (index, descriptor) in received_fds.into_iter().enumerate() {
+        if index >= max_fds as usize {
+            unsafe {
+                libc::close(descriptor);
+            }
+            continue;
+        }
+        let kind = kind_from_received_descriptor(descriptor)?;
+        let entry = ResourceEntry::new(kind)
+            .with_fd(descriptor)
+            .with_finalizer(FileFinalizer { fd: descriptor });
+        let id = context.runtime().resources.insert(entry);
+        handles.push(TransferredHandle(id));
+    }
+
+    // resolve missing credentials through peer socket metadata
+    if want_credentials && credentials.is_none() {
+        credentials = Some(peer_socket_credentials(fd)?);
+    }
+
+    // build the response payload
+    let fds = context.store_array(handles);
+    let control = context.store_array(Vec::<u8>::new());
+    let address = SocketAddress {
+        family: 0,
+        length: 0,
+        bytes: context.store_array(Vec::new()),
+    };
+    let has_credentials = credentials.is_some();
+    let credentials = if let Some(credentials) = credentials {
+        credentials
+    } else {
+        SocketCredentials {
+            pid: 0,
+            uid: 0,
+            gid: 0,
+        }
+    };
+    unsafe {
+        *out = SocketRecvMessage {
+            bytes: rc as u64,
+            has_address: false,
+            address,
+            recv_flags,
+            payload_truncated,
+            control_truncated,
+            control: SocketControlBufferAbi(control),
+            fds,
+            has_credentials,
+            credentials,
+        };
+    }
+
+    Ok(())
+}
+
+/// Send a message with ancillary data.
+///
+/// Send a message with ancillary data via host kernel APIs.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses sendmsg(2) on Unix and WSASendMsg on Windows where available.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_send_msg(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffer: NativeSlice<u8>,
+    message: SocketSendMessage,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the socket descriptor and buffer
+    let fd = socket_descriptor(context, handle)?;
+    let buffer = unsafe { buffer.as_slice()? };
+
+    // resolve file descriptors to send
+    let fds = unsafe { message.fds.as_slice()? };
+    let mut raw_fds = Vec::with_capacity(fds.len());
+    for handle in fds {
+        raw_fds.push(transferable_descriptor(context, *handle)?);
+    }
+
+    // validate credentials support
+    if message.has_credentials {
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        {
+            return Err(
+                RuntimeError::from(PlatformError::not_supported("destack.net.sendMsg")).boxed(),
+            );
+        }
+    }
+
+    // validate send flags before dispatch
+    if message.flags.0 > i32::MAX as u32 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "message.flags",
+            "flags value is out of range",
+        ))
+        .boxed());
+    }
+
+    // build the iovec
+    let mut iovec = libc::iovec {
+        iov_base: buffer.as_ptr() as *mut libc::c_void,
+        iov_len: buffer.len(),
+    };
+
+    // compute control buffer length
+    let mut control_len = 0usize;
+    if !raw_fds.is_empty() {
+        let fd_bytes = raw_fds
+            .len()
+            .checked_mul(std::mem::size_of::<RawFd>())
+            .ok_or_else(|| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    "message.fds",
+                    "fd count is too large",
+                ))
+                .boxed()
+            })?;
+        if fd_bytes > u32::MAX as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "message.fds",
+                "fd count is too large",
+            ))
+            .boxed());
+        }
+        control_len =
+            control_len.saturating_add(unsafe { libc::CMSG_SPACE(fd_bytes as u32) } as usize);
+    }
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    if message.has_credentials {
+        control_len = control_len.saturating_add(unsafe {
+            libc::CMSG_SPACE(std::mem::size_of::<libc::ucred>() as u32)
+        } as usize);
+    }
+
+    // allocate the control buffer
+    let mut control = vec![0u8; control_len];
+
+    // build the message header
+    let mut hdr: libc::msghdr = unsafe { std::mem::zeroed() };
+    hdr.msg_iov = &mut iovec;
+    hdr.msg_iovlen = 1;
+    if !control.is_empty() {
+        let control_len = control.len();
+        if control_len > u32::MAX as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "buffer",
+                "control buffer too large",
+            ))
+            .boxed());
+        }
+        hdr.msg_control = control.as_mut_ptr() as *mut libc::c_void;
+        hdr.msg_controllen = control_len as _;
+    }
+
+    // fill control messages
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr) };
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr) };
+    if !raw_fds.is_empty() {
+        let header = unsafe { &mut *cmsg };
+        header.cmsg_level = libc::SOL_SOCKET;
+        header.cmsg_type = libc::SCM_RIGHTS;
+        let cmsg_len =
+            unsafe { libc::CMSG_LEN((raw_fds.len() * std::mem::size_of::<RawFd>()) as u32) }
+                as usize;
+        header.cmsg_len = cmsg_len as _;
+        let data = unsafe { libc::CMSG_DATA(cmsg) as *mut RawFd };
+        unsafe {
+            std::ptr::copy_nonoverlapping(raw_fds.as_ptr(), data, raw_fds.len());
+        }
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            cmsg = unsafe { libc::CMSG_NXTHDR(&hdr, cmsg) };
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        {
+            let _ = cmsg;
+        }
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    if message.has_credentials {
+        if cmsg.is_null() {
+            return Err(RuntimeError::from(PlatformError::io("missing control buffer")).boxed());
+        }
+        let header = unsafe { &mut *cmsg };
+        header.cmsg_level = libc::SOL_SOCKET;
+        header.cmsg_type = libc::SCM_CREDENTIALS;
+        let cmsg_len =
+            unsafe { libc::CMSG_LEN(std::mem::size_of::<libc::ucred>() as u32) } as usize;
+        header.cmsg_len = cmsg_len as _;
+        let data = unsafe { libc::CMSG_DATA(cmsg) as *mut libc::ucred };
+        unsafe {
+            *data = libc::ucred {
+                pid: message.credentials.pid as libc::pid_t,
+                uid: message.credentials.uid,
+                gid: message.credentials.gid,
+            };
+        }
+    }
+
+    // send the message
+    let rc = unsafe { libc::sendmsg(fd, &hdr, message.flags.0 as libc::c_int) };
+    if rc < 0 {
+        return Err(core_platform::net_error("sendmsg"));
+    }
+
+    unsafe {
+        *out = rc as u64;
+    }
+
+    Ok(())
+}
+
+/// Send multiple datagrams.
+///
+/// Send multiple datagrams via host kernel APIs with per-message metadata and address control.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses sendmmsg(2) on linux and runtime loop fallback on other targets.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+#[allow(dead_code)]
+pub(crate) unsafe fn destack_net_send_mmsg(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
+    send_flags: SocketMessageFlags,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // validate send flags
+    if send_flags.0 > i32::MAX as u32 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "sendFlags",
+            "flags value is out of range",
+        ))
+        .boxed());
+    }
+
+    // resolve socket and buffers
+    let fd = socket_descriptor(context, handle)?;
+    let buffers = unsafe { buffers.as_slice()? };
+    let mut sent_count = 0u64;
+
+    // send each buffer as an individual message
+    for buffer in buffers {
+        let slice = unsafe { buffer.as_slice()? };
+        let rc = unsafe {
+            libc::send(
+                fd,
+                slice.as_ptr() as *const libc::c_void,
+                slice.len(),
+                send_flags.0 as libc::c_int,
+            )
+        };
+
+        // stop after partial progress on transient send errors
+        if rc < 0 {
+            let errno = core_platform::get_errno();
+            if sent_count > 0 && (errno == libc::EAGAIN || errno == libc::EWOULDBLOCK) {
+                break;
+            }
+
+            return Err(core_platform::net_error("send"));
+        }
+
+        sent_count = sent_count.saturating_add(1);
+    }
+
+    // write the output count
+    unsafe {
+        *out = sent_count;
+    }
+
+    Ok(())
+}
+
+/// Receive a packet from a remote socket address.
+///
+/// Receive one datagram and source address from a datagram socket.
+/// Source address decoding and flag reporting follow host kernel recvfrom semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses recvfrom(2) on Unix and recvfrom on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(unix)]
+pub(crate) unsafe fn destack_net_recv_from(
+    context: &RuntimeCallContext,
+    out: *mut SocketRecvFrom,
+    handle: SocketHandle,
+    buffer: crate::platform::NativeSlice<u8>,
+    recv_flags: SocketMessageFlags,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve runtime values
+    let fd = socket_descriptor(context, handle)?;
+    let buffer = unsafe { buffer.as_mut_slice()? };
+    let mut storage = unsafe { std::mem::zeroed::<libc::sockaddr_storage>() };
+    let mut length = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
+
+    // receive the datagram and source address
+    let bytes = unsafe {
+        libc::recvfrom(
+            fd,
+            buffer.as_mut_ptr() as *mut libc::c_void,
+            buffer.len(),
+            recv_flags.0 as libc::c_int,
+            &mut storage as *mut _ as *mut libc::sockaddr,
+            &mut length,
+        )
+    };
+    if bytes < 0 {
+        return Err(RuntimeError::from(PlatformError::io("recvfrom failed".to_string())).boxed());
+    }
+
+    // encode the source address and output payload
+    let address = socket_address_raw_from_storage(context, &storage, length)?;
+    unsafe {
+        *out = SocketRecvFrom {
+            bytes: bytes as u64,
+            address,
+            recv_flags: SocketMessageFlags(0),
+        };
+    }
+
+    Ok(())
+}
+
+/// Send a packet to a remote socket address.
+///
+/// Send a packet to a remote socket address via host kernel APIs.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses sendto(2) on Unix and sendto on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(unix)]
+pub(crate) unsafe fn destack_net_send_to(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffer: crate::platform::NativeSlice<u8>,
+    message: SocketSendTo,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve runtime values
+    let fd = socket_descriptor(context, handle)?;
+    let buffer = unsafe { buffer.as_slice()? };
+
+    // send the datagram to the raw destination
+    with_socket_address_raw(message.address, |sockaddr, length| {
+        let bytes = unsafe {
+            libc::sendto(
+                fd,
+                buffer.as_ptr() as *const libc::c_void,
+                buffer.len(),
+                message.flags.0 as libc::c_int,
+                sockaddr,
+                length,
+            )
+        };
+        if bytes < 0 {
+            return Err(RuntimeError::from(PlatformError::io("sendto failed".to_string())).boxed());
+        }
+
+        unsafe {
+            *out = bytes as u64;
+        }
+
+        Ok(())
+    })
+}

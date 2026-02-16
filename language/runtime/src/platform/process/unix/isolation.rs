@@ -216,7 +216,6 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = path;
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.process.isolation.setNetworkNamespace",
         ))
@@ -308,7 +307,6 @@ pub(crate) unsafe fn destack_process_unshare(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
-        let _ = flags;
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.process.isolation.unshare",
         ))

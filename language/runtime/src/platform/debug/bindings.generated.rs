@@ -120,24 +120,18 @@ fn decode_string(
 /// Encode the result for destack.debug.core.breakNow.
 #[inline]
 fn encode_destack_debug_core_break_now_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.debug.core.mark.
 #[inline]
 fn decode_destack_debug_core_mark_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let label_value = arg_value(args, 0, "label", "string")?;
     let label = decode_string(label_value, "label", "string")?;
     Ok((label,))
@@ -146,24 +140,18 @@ fn decode_destack_debug_core_mark_args(
 /// Encode the result for destack.debug.core.mark.
 #[inline]
 fn encode_destack_debug_core_mark_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.debug.inspector.endpoint.
 #[inline]
 fn decode_destack_debug_inspector_endpoint_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InspectorHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "InspectorHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "InspectorHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -187,12 +175,9 @@ fn encode_destack_debug_inspector_endpoint_result(
 /// Decode arguments for destack.debug.inspector.start.
 #[inline]
 fn decode_destack_debug_inspector_start_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u16)> {
-    // ignore unused context
-    let _ = context;
-
     let host_value = arg_value(args, 0, "host", "string")?;
     let host = decode_string(host_value, "host", "string")?;
     let port_value = arg_value(args, 1, "port", "uint16")?;
@@ -203,24 +188,18 @@ fn decode_destack_debug_inspector_start_args(
 /// Encode the result for destack.debug.inspector.start.
 #[inline]
 fn encode_destack_debug_inspector_start_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InspectorHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.debug.inspector.stop.
 #[inline]
 fn decode_destack_debug_inspector_stop_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InspectorHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "InspectorHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "InspectorHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -231,24 +210,18 @@ fn decode_destack_debug_inspector_stop_args(
 /// Encode the result for destack.debug.inspector.stop.
 #[inline]
 fn encode_destack_debug_inspector_stop_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.debug.profile.snapshot.
 #[inline]
 fn decode_destack_debug_profile_snapshot_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProfileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProfileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProfileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -268,12 +241,9 @@ fn encode_destack_debug_profile_snapshot_result(
 /// Decode arguments for destack.debug.profile.start.
 #[inline]
 fn decode_destack_debug_profile_start_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProfileKind,)> {
-    // ignore unused context
-    let _ = context;
-
     let kind_value = arg_value(args, 0, "kind", "ProfileKind")?;
     let kind_raw = decode_uint8(kind_value, "kind_raw", "ProfileKind")?;
     let kind = match kind_raw {
@@ -294,24 +264,18 @@ fn decode_destack_debug_profile_start_args(
 /// Encode the result for destack.debug.profile.start.
 #[inline]
 fn encode_destack_debug_profile_start_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProfileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.debug.profile.stop.
 #[inline]
 fn decode_destack_debug_profile_stop_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProfileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProfileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProfileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -322,24 +286,18 @@ fn decode_destack_debug_profile_stop_args(
 /// Encode the result for destack.debug.profile.stop.
 #[inline]
 fn encode_destack_debug_profile_stop_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.debug.trace.emit.
 #[inline]
 fn decode_destack_debug_trace_emit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, vm::StringHandle)> {
-    // ignore unused context
-    let _ = context;
-
     let category_value = arg_value(args, 0, "category", "string")?;
     let category = decode_string(category_value, "category", "string")?;
     let name_value = arg_value(args, 1, "name", "string")?;
@@ -352,24 +310,18 @@ fn decode_destack_debug_trace_emit_args(
 /// Encode the result for destack.debug.trace.emit.
 #[inline]
 fn encode_destack_debug_trace_emit_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.debug.trace.start.
 #[inline]
 fn decode_destack_debug_trace_start_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(TraceLevel, vm::StringHandle)> {
-    // ignore unused context
-    let _ = context;
-
     let level_value = arg_value(args, 0, "level", "TraceLevel")?;
     let level_raw = decode_uint8(level_value, "level_raw", "TraceLevel")?;
     let level = match level_raw {
@@ -393,24 +345,18 @@ fn decode_destack_debug_trace_start_args(
 /// Encode the result for destack.debug.trace.start.
 #[inline]
 fn encode_destack_debug_trace_start_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TraceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.debug.trace.stop.
 #[inline]
 fn decode_destack_debug_trace_stop_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TraceHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TraceHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TraceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -421,12 +367,9 @@ fn decode_destack_debug_trace_stop_args(
 /// Encode the result for destack.debug.trace.stop.
 #[inline]
 fn encode_destack_debug_trace_stop_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

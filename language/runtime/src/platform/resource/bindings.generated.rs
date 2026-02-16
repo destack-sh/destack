@@ -80,12 +80,9 @@ fn decode_uint64(
 /// Decode arguments for destack.resource.id.close.
 #[inline]
 fn decode_destack_resource_id_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId,)> {
-    // ignore unused context
-    let _ = context;
-
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
     let id_inner = decode_uint64(id_value, "id_inner", "ResourceId")?;
     let id = ResourceId(id_inner);
@@ -95,24 +92,18 @@ fn decode_destack_resource_id_close_args(
 /// Encode the result for destack.resource.id.close.
 #[inline]
 fn encode_destack_resource_id_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.resource.id.kind.
 #[inline]
 fn decode_destack_resource_id_kind_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId,)> {
-    // ignore unused context
-    let _ = context;
-
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
     let id_inner = decode_uint64(id_value, "id_inner", "ResourceId")?;
     let id = ResourceId(id_inner);
@@ -122,24 +113,18 @@ fn decode_destack_resource_id_kind_args(
 /// Encode the result for destack.resource.id.kind.
 #[inline]
 fn encode_destack_resource_id_kind_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ResourceKindVm>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| value.0.value())
 }
 
 /// Decode arguments for destack.resource.id.remove.
 #[inline]
 fn decode_destack_resource_id_remove_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId,)> {
-    // ignore unused context
-    let _ = context;
-
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
     let id_inner = decode_uint64(id_value, "id_inner", "ResourceId")?;
     let id = ResourceId(id_inner);
@@ -149,24 +134,18 @@ fn decode_destack_resource_id_remove_args(
 /// Encode the result for destack.resource.id.remove.
 #[inline]
 fn encode_destack_resource_id_remove_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.resource.id.transfer.
 #[inline]
 fn decode_destack_resource_id_transfer_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResourceId, ResourceOwnership)> {
-    // ignore unused context
-    let _ = context;
-
     let id_value = arg_value(args, 0, "id", "ResourceId")?;
     let id_inner = decode_uint64(id_value, "id_inner", "ResourceId")?;
     let id = ResourceId(id_inner);
@@ -189,12 +168,9 @@ fn decode_destack_resource_id_transfer_args(
 /// Encode the result for destack.resource.id.transfer.
 #[inline]
 fn encode_destack_resource_id_transfer_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

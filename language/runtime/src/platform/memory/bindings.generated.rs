@@ -101,12 +101,9 @@ fn decode_uint64(
 /// Decode arguments for destack.memory.advise.advise.
 #[inline]
 fn decode_destack_memory_advise_advise_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -119,24 +116,18 @@ fn decode_destack_memory_advise_advise_args(
 /// Encode the result for destack.memory.advise.advise.
 #[inline]
 fn encode_destack_memory_advise_advise_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.advise.discard.
 #[inline]
 fn decode_destack_memory_advise_discard_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -147,24 +138,18 @@ fn decode_destack_memory_advise_discard_args(
 /// Encode the result for destack.memory.advise.discard.
 #[inline]
 fn encode_destack_memory_advise_discard_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.advise.hugePage.
 #[inline]
 fn decode_destack_memory_advise_huge_page_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, bool)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -177,24 +162,18 @@ fn decode_destack_memory_advise_huge_page_args(
 /// Encode the result for destack.memory.advise.hugePage.
 #[inline]
 fn encode_destack_memory_advise_huge_page_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.lock.lock.
 #[inline]
 fn decode_destack_memory_lock_lock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -205,24 +184,18 @@ fn decode_destack_memory_lock_lock_args(
 /// Encode the result for destack.memory.lock.lock.
 #[inline]
 fn encode_destack_memory_lock_lock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.lock.unlock.
 #[inline]
 fn decode_destack_memory_lock_unlock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -233,24 +206,18 @@ fn decode_destack_memory_lock_unlock_args(
 /// Encode the result for destack.memory.lock.unlock.
 #[inline]
 fn encode_destack_memory_lock_unlock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.map.commit.
 #[inline]
 fn decode_destack_memory_map_commit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -263,24 +230,18 @@ fn decode_destack_memory_map_commit_args(
 /// Encode the result for destack.memory.map.commit.
 #[inline]
 fn encode_destack_memory_map_commit_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.map.decommit.
 #[inline]
 fn decode_destack_memory_map_decommit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -291,24 +252,18 @@ fn decode_destack_memory_map_decommit_args(
 /// Encode the result for destack.memory.map.decommit.
 #[inline]
 fn encode_destack_memory_map_decommit_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.map.numaBind.
 #[inline]
 fn decode_destack_memory_map_numa_bind_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -323,24 +278,18 @@ fn decode_destack_memory_map_numa_bind_args(
 /// Encode the result for destack.memory.map.numaBind.
 #[inline]
 fn encode_destack_memory_map_numa_bind_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.map.release.
 #[inline]
 fn decode_destack_memory_map_release_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -351,24 +300,18 @@ fn decode_destack_memory_map_release_args(
 /// Encode the result for destack.memory.map.release.
 #[inline]
 fn encode_destack_memory_map_release_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.map.reserve.
 #[inline]
 fn decode_destack_memory_map_reserve_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let length_value = arg_value(args, 0, "length", "uint64")?;
     let length = decode_uint64(length_value, "length", "uint64")?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
@@ -392,12 +335,9 @@ fn encode_destack_memory_map_reserve_result(
 /// Decode arguments for destack.memory.protect.execute.
 #[inline]
 fn decode_destack_memory_protect_execute_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, bool)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -410,24 +350,18 @@ fn decode_destack_memory_protect_execute_args(
 /// Encode the result for destack.memory.protect.execute.
 #[inline]
 fn encode_destack_memory_protect_execute_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.protect.flushInstructionCache.
 #[inline]
 fn decode_destack_memory_protect_flush_instruction_cache_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -438,24 +372,18 @@ fn decode_destack_memory_protect_flush_instruction_cache_args(
 /// Encode the result for destack.memory.protect.flushInstructionCache.
 #[inline]
 fn encode_destack_memory_protect_flush_instruction_cache_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.protect.protect.
 #[inline]
 fn decode_destack_memory_protect_protect_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -468,24 +396,18 @@ fn decode_destack_memory_protect_protect_args(
 /// Encode the result for destack.memory.protect.protect.
 #[inline]
 fn encode_destack_memory_protect_protect_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.memory.protect.remap.
 #[inline]
 fn decode_destack_memory_protect_remap_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64, u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let oldlength_value = arg_value(args, 1, "oldlength", "uint64")?;
@@ -513,12 +435,9 @@ fn encode_destack_memory_protect_remap_result(
 /// Decode arguments for destack.memory.protect.setWriteXorExecute.
 #[inline]
 fn decode_destack_memory_protect_set_write_xor_execute_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(bool,)> {
-    // ignore unused context
-    let _ = context;
-
     let enabled_value = arg_value(args, 0, "enabled", "boolean")?;
     let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
     Ok((enabled,))
@@ -527,12 +446,9 @@ fn decode_destack_memory_protect_set_write_xor_execute_args(
 /// Encode the result for destack.memory.protect.setWriteXorExecute.
 #[inline]
 fn encode_destack_memory_protect_set_write_xor_execute_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

@@ -2,15 +2,16 @@
 
 use std::mem;
 use windows_sys::Win32::Networking::WinSock::{
-    LPFN_WSARECVMSG, MSG_CTRUNC, MSG_TRUNC, SIO_GET_EXTENSION_FUNCTION_POINTER, SOCKET_ERROR,
-    WSABUF, WSAEMSGSIZE, WSAID_WSARECVMSG, WSAIoctl, WSAMSG, WSASendMsg, recv, send,
+    LPFN_WSARECVMSG, MSG_CTRUNC, MSG_TRUNC, SIO_GET_EXTENSION_FUNCTION_POINTER, SOCKADDR,
+    SOCKADDR_STORAGE, SOCKET_ERROR, WSABUF, WSAEMSGSIZE, WSAID_WSARECVMSG, WSAIoctl, WSAMSG,
+    WSASendMsg, recv, recvfrom, send, sendto,
 };
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{
     SocketAddress, SocketControlBufferAbi, SocketCredentials, SocketHandle, SocketMessageFlags,
-    SocketRecvMessage, SocketSendMessage,
+    SocketRecvFrom, SocketRecvMessage, SocketSendMessage, SocketSendTo,
 };
 use crate::platform::resource::TransferredHandle;
 use crate::platform::{NativeArray, NativeSlice, PlatformError, core as core_platform};
@@ -52,7 +53,23 @@ fn receive_message_extension(socket: usize) -> RuntimeResult<LPFN_WSARECVMSG> {
     Ok(receive_message)
 }
 
-/// Read from a socket into a buffer.
+/// Read from a socket into the provided slice.
+///
+/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses read(2)/recv(2) on Unix and recv on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_read(
     _context: &RuntimeCallContext,
     out: *mut u64,
@@ -91,7 +108,23 @@ pub(crate) unsafe fn destack_net_read(
     Ok(())
 }
 
-/// Write to a socket from a buffer.
+/// Write to a socket from the provided slice.
+///
+/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses write(2)/send(2) on Unix and send on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_write(
     _context: &RuntimeCallContext,
     out: *mut u64,
@@ -130,7 +163,23 @@ pub(crate) unsafe fn destack_net_write(
     Ok(())
 }
 
-/// Read from a socket into multiple buffers.
+/// Read into multiple buffers.
+///
+/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses readv(2)/recvmsg(2) on Unix and WSARecv on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_readv(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -161,7 +210,23 @@ pub(crate) unsafe fn destack_net_readv(
     Ok(())
 }
 
-/// Write to a socket from multiple buffers.
+/// Write from multiple buffers.
+///
+/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses writev(2)/sendmsg(2) on Unix and WSASend on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.connect`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_writev(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -193,6 +258,22 @@ pub(crate) unsafe fn destack_net_writev(
 }
 
 /// Receive a message with ancillary data.
+///
+/// Receive a message with ancillary data via host kernel APIs.
+/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses recvmsg(2) on Unix and WSARecvMsg on Windows where available.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_recv_msg(
     context: &RuntimeCallContext,
     out: *mut SocketRecvMessage,
@@ -201,7 +282,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     recv_flags: SocketMessageFlags,
     max_fds: u32,
     want_credentials: bool,
-    max_control_bytes: u32,
+    _max_control_bytes: u32,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
     if out.is_null() {
@@ -216,8 +297,6 @@ pub(crate) unsafe fn destack_net_recv_msg(
     }
 
     // reserve explicit control size support for future winsock paths
-    let _ = max_control_bytes;
-
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
 
@@ -233,7 +312,9 @@ pub(crate) unsafe fn destack_net_recv_msg(
 
     // resolve the recvmsg extension entrypoint
     let receive_message = receive_message_extension(socket)?;
-    let receive_message = receive_message.unwrap();
+    let receive_message = receive_message.ok_or_else(|| {
+        RuntimeError::from(PlatformError::not_supported("destack.net.recvMsg")).boxed()
+    })?;
 
     // prepare the winsock message payload
     let mut data = WSABUF {
@@ -313,13 +394,29 @@ pub(crate) unsafe fn destack_net_recv_msg(
     Ok(())
 }
 
-/// Receive multiple messages into multiple buffers.
+/// Receive multiple datagrams.
+///
+/// Receive multiple datagrams via host kernel APIs with per-message metadata and ancillary extraction.
+/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses recvmmsg(2) on linux and runtime loop fallback on other targets.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_recv_mmsg(
     context: &RuntimeCallContext,
     out: *mut NativeArray<u64>,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
-    recv_flags: SocketMessageFlags,
+    _recv_flags: SocketMessageFlags,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
     if out.is_null() {
@@ -357,12 +454,26 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
     }
 
     // preserve the explicit flags parameter for future Winsock support
-    let _ = recv_flags;
-
     Ok(())
 }
 
 /// Send a message with ancillary data.
+///
+/// Send a message with ancillary data via host kernel APIs.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses sendmsg(2) on Unix and WSASendMsg on Windows where available.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_send_msg(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -437,13 +548,29 @@ pub(crate) unsafe fn destack_net_send_msg(
     Ok(())
 }
 
-/// Send multiple messages from multiple buffers.
+/// Send multiple datagrams.
+///
+/// Send multiple datagrams via host kernel APIs with per-message metadata and address control.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses sendmmsg(2) on linux and runtime loop fallback on other targets.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_send_mmsg(
     context: &RuntimeCallContext,
     out: *mut u64,
     handle: SocketHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
-    send_flags: SocketMessageFlags,
+    _send_flags: SocketMessageFlags,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
     if out.is_null() {
@@ -467,7 +594,147 @@ pub(crate) unsafe fn destack_net_send_mmsg(
     }
 
     // preserve the explicit flags parameter for future Winsock support
-    let _ = send_flags;
+    Ok(())
+}
+
+/// Receive a packet from a remote socket address.
+///
+/// Receive one datagram and source address from a datagram socket.
+/// Source address decoding and flag reporting follow host kernel recvfrom semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses recvfrom(2) on Unix and recvfrom on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_recv_from(
+    context: &RuntimeCallContext,
+    out: *mut SocketRecvFrom,
+    handle: SocketHandle,
+    buffer: crate::platform::NativeSlice<u8>,
+    recv_flags: SocketMessageFlags,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // ensure winsock is initialized
+    ensure_winsock()?;
+
+    // resolve runtime values
+    let socket = socket_descriptor(context, handle)?;
+    let buffer = unsafe { buffer.as_mut_slice()? };
+    let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "buffer",
+            "buffer too large",
+        ))
+        .boxed()
+    })?;
+    let mut address = unsafe { mem::zeroed::<SOCKADDR_STORAGE>() };
+    let mut address_length = mem::size_of::<SOCKADDR_STORAGE>() as i32;
+
+    // receive one datagram
+    let bytes = unsafe {
+        recvfrom(
+            socket,
+            buffer.as_mut_ptr() as *mut _,
+            buffer_len,
+            recv_flags.0 as i32,
+            &mut address as *mut _ as *mut SOCKADDR,
+            &mut address_length,
+        )
+    };
+    if bytes == SOCKET_ERROR {
+        return Err(last_net_error("recvfrom"));
+    }
+
+    // encode sender metadata and payload length
+    let address = socket_address_raw_from_storage(context, &address, address_length)?;
+    unsafe {
+        *out = SocketRecvFrom {
+            bytes: bytes as u64,
+            address,
+            recv_flags: SocketMessageFlags(0),
+        };
+    }
 
     Ok(())
+}
+
+/// Send a packet to a remote socket address.
+///
+/// Send a packet to a remote socket address via host kernel APIs.
+/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses sendto(2) on Unix and sendto on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.udp`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_send_to(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    buffer: crate::platform::NativeSlice<u8>,
+    message: SocketSendTo,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // ensure winsock is initialized
+    ensure_winsock()?;
+
+    // resolve runtime values
+    let socket = socket_descriptor(context, handle)?;
+    let buffer = unsafe { buffer.as_slice()? };
+    let buffer_len = i32::try_from(buffer.len()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "buffer",
+            "buffer too large",
+        ))
+        .boxed()
+    })?;
+
+    // send one datagram
+    with_socket_address_raw(message.address, |sockaddr, length| {
+        let bytes = unsafe {
+            sendto(
+                socket,
+                buffer.as_ptr() as *const _,
+                buffer_len,
+                message.flags.0 as i32,
+                sockaddr,
+                length,
+            )
+        };
+        if bytes == SOCKET_ERROR {
+            return Err(last_net_error("sendto"));
+        }
+
+        unsafe {
+            *out = bytes as u64;
+        }
+
+        Ok(())
+    })
 }

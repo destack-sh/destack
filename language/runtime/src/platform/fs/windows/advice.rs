@@ -11,7 +11,23 @@ use crate::platform::PlatformError;
 use crate::platform::fs::{AllocFlags, FileAdvice, FileHandle, FileOffset, FileSize, SyncFlags};
 use crate::runtime::RuntimeCallContext;
 
-/// Advise the OS about file access patterns.
+/// Advise the kernel about access patterns.
+///
+/// Provide expected access pattern hints for one descriptor range.
+/// Advice is best effort and does not change correctness or visibility semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses posix_fadvise(2) on Unix and notSupported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
     _context: &RuntimeCallContext,
     _handle: FileHandle,
@@ -22,7 +38,23 @@ pub(crate) unsafe fn destack_fs_fadvise(
     Ok(())
 }
 
-/// Allocate space for a file handle.
+/// Allocate or punch file space.
+///
+/// Reserve, deallocate, or punch one byte range using host allocation controls.
+/// Flag combinations define keep-size and hole-punch behavior where supported.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fallocate(2) or posix_fallocate on Unix and allocation/truncate APIs on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
     _context: &RuntimeCallContext,
     handle: FileHandle,
@@ -87,7 +119,22 @@ pub(crate) unsafe fn destack_fs_fallocate(
     Ok(())
 }
 
-/// Sync a file range to disk.
+/// Synchronize a file range.
+///
+/// Request writeback of one byte range for the target descriptor.
+/// Range ordering, blocking behavior, and fallback support follow host kernel policy.
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses sync_file_range(2) on linux and runtime fallback on other targets.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.sync`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
     _context: &RuntimeCallContext,
     handle: FileHandle,

@@ -53,9 +53,8 @@ pub(crate) fn destack_thread_local_create(
 pub(crate) fn destack_thread_local_delete(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    key: resource::ThreadLocalKey,
+    _key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
-    let _ = key;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.local.delete is not available in the VM yet",
     ))
@@ -82,9 +81,8 @@ pub(crate) fn destack_thread_local_delete(
 pub(crate) fn destack_thread_local_get(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    key: resource::ThreadLocalKey,
+    _key: resource::ThreadLocalKey,
 ) -> RuntimeResult<u64> {
-    let _ = key;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.local.get is not available in the VM yet",
     ))
@@ -141,9 +139,8 @@ pub(crate) fn destack_thread_local_set(
 pub(crate) fn destack_thread_get_affinity(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadHandle,
+    _handle: resource::ThreadHandle,
 ) -> RuntimeResult<u64> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.priority.getAffinity is not available in the VM yet",
     ))
@@ -170,9 +167,8 @@ pub(crate) fn destack_thread_get_affinity(
 pub(crate) fn destack_thread_get_priority(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadHandle,
+    _handle: resource::ThreadHandle,
 ) -> RuntimeResult<i32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.priority.getPriority is not available in the VM yet",
     ))
@@ -259,9 +255,8 @@ pub(crate) fn destack_thread_set_priority(
 pub(crate) fn destack_thread_detach(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadHandle,
+    _handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.spawn.detach is not available in the VM yet",
     ))
@@ -288,9 +283,8 @@ pub(crate) fn destack_thread_detach(
 pub(crate) fn destack_thread_join(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadHandle,
+    _handle: resource::ThreadHandle,
 ) -> RuntimeResult<u32> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.spawn.join is not available in the VM yet",
     ))
@@ -379,9 +373,8 @@ pub(crate) fn destack_thread_address_wait(
 pub(crate) fn destack_thread_address_wake_all(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    address: u64,
+    _address: u64,
 ) -> RuntimeResult<()> {
-    let _ = address;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.addressWakeAll is not available in the VM yet",
     ))
@@ -408,9 +401,8 @@ pub(crate) fn destack_thread_address_wake_all(
 pub(crate) fn destack_thread_address_wake_one(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    address: u64,
+    _address: u64,
 ) -> RuntimeResult<()> {
-    let _ = address;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.addressWakeOne is not available in the VM yet",
     ))
@@ -497,9 +489,8 @@ pub(crate) fn destack_thread_barrier_wait(
 pub(crate) fn destack_thread_cond_var_create(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    flags: u32,
+    _flags: u32,
 ) -> RuntimeResult<resource::CondVarHandle> {
-    let _ = flags;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.condVarCreate is not available in the VM yet",
     ))
@@ -526,9 +517,8 @@ pub(crate) fn destack_thread_cond_var_create(
 pub(crate) fn destack_thread_cond_var_notify_all(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    condvar: resource::CondVarHandle,
+    _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
-    let _ = condvar;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.condVarNotifyAll is not available in the VM yet",
     ))
@@ -555,9 +545,8 @@ pub(crate) fn destack_thread_cond_var_notify_all(
 pub(crate) fn destack_thread_cond_var_notify_one(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    condvar: resource::CondVarHandle,
+    _condvar: resource::CondVarHandle,
 ) -> RuntimeResult<()> {
-    let _ = condvar;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.condVarNotifyOne is not available in the VM yet",
     ))
@@ -615,9 +604,8 @@ pub(crate) fn destack_thread_cond_var_wait(
 pub(crate) fn destack_thread_mutex_create(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    flags: u32,
+    _flags: u32,
 ) -> RuntimeResult<resource::MutexHandle> {
-    let _ = flags;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.mutexCreate is not available in the VM yet",
     ))
@@ -674,9 +662,8 @@ pub(crate) fn destack_thread_mutex_lock(
 pub(crate) fn destack_thread_mutex_unlock(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MutexHandle,
+    _handle: resource::MutexHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.mutexUnlock is not available in the VM yet",
     ))
@@ -703,9 +690,8 @@ pub(crate) fn destack_thread_mutex_unlock(
 pub(crate) fn destack_thread_rwlock_create(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    flags: u32,
+    _flags: u32,
 ) -> RuntimeResult<resource::RwLockHandle> {
-    let _ = flags;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.rwlockCreate is not available in the VM yet",
     ))
@@ -762,9 +748,8 @@ pub(crate) fn destack_thread_rwlock_read_lock(
 pub(crate) fn destack_thread_rwlock_unlock(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::RwLockHandle,
+    _handle: resource::RwLockHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.thread.sync.rwlockUnlock is not available in the VM yet",
     ))

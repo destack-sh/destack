@@ -171,12 +171,9 @@ fn decode_destack_random_secure_bytes_args(
 /// Encode the result for destack.random.secure.bytes.
 #[inline]
 fn encode_destack_random_secure_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -194,12 +191,9 @@ fn decode_destack_random_secure_bytes_try_args(
 /// Encode the result for destack.random.secure.bytesTry.
 #[inline]
 fn encode_destack_random_secure_bytes_try_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -226,12 +220,9 @@ fn encode_destack_random_secure_info_result(
 /// Decode arguments for destack.random.stream.export.
 #[inline]
 fn decode_destack_random_stream_export_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream,)> {
-    // ignore unused context
-    let _ = context;
-
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
     let stream_inner = decode_uint64(stream_value, "stream_inner", "RandomStream")?;
     let stream = RandomStream(stream_inner);
@@ -265,12 +256,9 @@ fn decode_destack_random_stream_fill_bytes_args(
 /// Encode the result for destack.random.stream.fillBytes.
 #[inline]
 fn encode_destack_random_stream_fill_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -291,12 +279,9 @@ fn decode_destack_random_stream_fill_bytes_from_args(
 /// Encode the result for destack.random.stream.fillBytesFrom.
 #[inline]
 fn encode_destack_random_stream_fill_bytes_from_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -341,24 +326,18 @@ fn decode_destack_random_stream_import_args(
 /// Encode the result for destack.random.stream.import.
 #[inline]
 fn encode_destack_random_stream_import_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.random.stream.in.
 #[inline]
 fn decode_destack_random_stream_in_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStreamDomain,)> {
-    // ignore unused context
-    let _ = context;
-
     let domain_value = arg_value(args, 0, "domain", "RandomStreamDomain")?;
     let domain_raw = decode_uint8(domain_value, "domain_raw", "RandomStreamDomain")?;
     let domain = match domain_raw {
@@ -378,24 +357,18 @@ fn decode_destack_random_stream_in_args(
 /// Encode the result for destack.random.stream.in.
 #[inline]
 fn encode_destack_random_stream_in_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Decode arguments for destack.random.stream.jump.
 #[inline]
 fn decode_destack_random_stream_jump_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
     let stream_inner = decode_uint64(stream_value, "stream_inner", "RandomStream")?;
     let stream = RandomStream(stream_inner);
@@ -407,36 +380,27 @@ fn decode_destack_random_stream_jump_args(
 /// Encode the result for destack.random.stream.jump.
 #[inline]
 fn encode_destack_random_stream_jump_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Encode the result for destack.random.stream.nextU64.
 #[inline]
 fn encode_destack_random_stream_next_u64_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.random.stream.nextU64From.
 #[inline]
 fn decode_destack_random_stream_next_u64_from_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream,)> {
-    // ignore unused context
-    let _ = context;
-
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
     let stream_inner = decode_uint64(stream_value, "stream_inner", "RandomStream")?;
     let stream = RandomStream(stream_inner);
@@ -446,24 +410,18 @@ fn decode_destack_random_stream_next_u64_from_args(
 /// Encode the result for destack.random.stream.nextU64From.
 #[inline]
 fn encode_destack_random_stream_next_u64_from_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.random.stream.split.
 #[inline]
 fn decode_destack_random_stream_split_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream,)> {
-    // ignore unused context
-    let _ = context;
-
     let parent_value = arg_value(args, 0, "parent", "RandomStream")?;
     let parent_inner = decode_uint64(parent_value, "parent_inner", "RandomStream")?;
     let parent = RandomStream(parent_inner);
@@ -473,24 +431,18 @@ fn decode_destack_random_stream_split_args(
 /// Encode the result for destack.random.stream.split.
 #[inline]
 fn encode_destack_random_stream_split_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0, 64))
 }
 
 /// Encode the result for destack.random.stream.stream.
 #[inline]
 fn encode_destack_random_stream_stream_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStream>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0, 64))
 }
 

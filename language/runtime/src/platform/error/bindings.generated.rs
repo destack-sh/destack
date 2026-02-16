@@ -72,12 +72,9 @@ fn decode_uint64(
 /// Decode arguments for destack.error.error.takePlatformError.
 #[inline]
 fn decode_destack_error_error_take_platform_error_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64,)> {
-    // ignore unused context
-    let _ = context;
-
     let errorid_value = arg_value(args, 0, "errorid", "uint64")?;
     let errorid = decode_uint64(errorid_value, "errorid", "uint64")?;
     Ok((errorid,))
