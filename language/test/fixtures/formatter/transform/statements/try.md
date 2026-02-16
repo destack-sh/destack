@@ -42,7 +42,7 @@ try { foo() } catch match (e) { Error(err) => err; _ => null }
 
 ```ds expected
 try {
-    foo()
+    foo();
 } catch match (e) {
     Error(err) => err
     _ => null

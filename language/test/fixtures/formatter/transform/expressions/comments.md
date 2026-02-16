@@ -340,9 +340,9 @@ Block ignore comments keep the next expression unchanged.
 ```ts expected
 /* prettier-ignore */
 (() =>
-  c +
-    b +
-  d
+    c +
+        b +
+    d
 );
 ```
 

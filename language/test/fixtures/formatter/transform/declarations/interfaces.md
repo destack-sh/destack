@@ -114,7 +114,7 @@ interface Foo { bar?(): void }
 
 ```ds expected
 interface Foo {
-    bar?(): void;
+    bar()?: void;
 }
 ```
 

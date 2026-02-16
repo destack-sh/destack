@@ -27,3 +27,12 @@ cargo test --release --test formatter -- transform   # only transform tests
 cargo test --release --test formatter -- smoke       # only smoke tests
 just test-formatter-conformance    # external suite conformance harness
 ```
+
+## Fixture Sync
+
+Use the oxfmt sync helper to refresh transform expected blocks from the external baseline.
+
+```bash
+python language/test/src/formatter/scripts/sync_transform_fixtures_with_oxfmt.py --dry-run
+python language/test/src/formatter/scripts/sync_transform_fixtures_with_oxfmt.py
+```

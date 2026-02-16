@@ -104,17 +104,14 @@ const { a, ...rest } = value;
 
 ### const with default destructuring
 
-Default values in patterns keep spacing around `=`.
+Default values in short patterns stay inline with spacing around `=`.
 
 ```ds
 const { a = 1, b: { c = 2 } } = value
 ```
 
 ```ds expected
-const {
-    a = 1,
-    b: { c = 2 },
-} = value;
+const { a = 1, b: { c = 2 } } = value;
 ```
 
 ### const with array defaults and holes
@@ -145,16 +142,14 @@ let x = 1;
 
 ### let with multiple declarators
 
-Multiple declarators use commas and spacing.
+Multiple short declarators stay inline with commas and spacing.
 
 ```ds
 let a=1, b=2, c=3
 ```
 
 ```ds expected
-let a = 1,
-    b = 2,
-    c = 3;
+let a = 1, b = 2, c = 3;
 ```
 
 ## var

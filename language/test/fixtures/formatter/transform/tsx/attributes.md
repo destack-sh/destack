@@ -37,7 +37,13 @@ const node = <Input name="search" value={query} onChange={(e) => setQuery(e.targ
 ```
 
 ```tsx expected
-const node = <Input name="search" value={query} onChange={(e) => setQuery(e.target.value)} />;
+const node = (
+    <Input
+        name="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+    />
+);
 ```
 
 ### expression attribute with call
@@ -113,11 +119,5 @@ const node = <Button variant="primary" size="large" disabled />
 ```
 
 ```tsx expected
-const node = (
-    <Button
-        variant="primary"
-        size="large"
-        disabled
-    />
-);
+const node = <Button variant="primary" size="large" disabled />;
 ```

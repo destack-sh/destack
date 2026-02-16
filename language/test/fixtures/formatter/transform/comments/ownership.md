@@ -108,7 +108,7 @@ export type Value = /** keep-doc
 
 ```ts expected
 export type Value = /** keep-doc
-     */
+   */
     { ok: true } | { ok: false; value: bigint | null };
 ```
 

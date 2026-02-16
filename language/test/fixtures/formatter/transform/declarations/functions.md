@@ -157,8 +157,8 @@ async function* items() { yield await fetch("a"); yield await fetch("b") }
 
 ```ds expected
 async function* items() {
-    yield await fetch("a");
-    yield await fetch("b");
+    yield await fetch('a');
+    yield await fetch('b');
 }
 ```
 
