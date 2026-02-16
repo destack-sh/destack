@@ -1969,17 +1969,17 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_parameter_with_readonly_public_modifier_order() {
+    fn test_parse_parameter_with_readonly_public_modifier_order_reports_error() {
         // readonly public x: number
         let mut test =
             TestParser::new_with_options("readonly public x: number", LanguageType::TypeScript);
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
 
-        assert!(
-            !parser.errors.is_empty(),
-            "expected parser error for readonly/public modifier order"
-        );
+        // parser reports one modifier ordering error
+        assert_eq!(parser.errors.len(), 1);
+
+        // parameter shape remains recoverable for downstream parsing
         assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
             assert_string!(parser, *name, "x");
             assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
@@ -1989,7 +1989,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_constructor_parameter_with_readonly_public_modifier_order() {
+    fn test_parse_constructor_parameter_with_readonly_public_modifier_order_reports_error() {
         // class D { constructor(readonly public x: number) {} }
         let mut test = TestParser::new_with_options(
             "class D { constructor(readonly public x: number) {} }",
@@ -1998,12 +1998,11 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
+        // parser reports one modifier ordering error
+        assert_eq!(parser.errors.len(), 1);
         assert_eq!(expressions.len(), 1);
-        assert!(
-            !parser.errors.is_empty(),
-            "expected parser error for readonly/public modifier order"
-        );
 
+        // constructor parameter remains available in the recovered class ast
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {

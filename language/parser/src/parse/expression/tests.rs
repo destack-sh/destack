@@ -6402,5 +6402,51 @@ fn test_parse_tsx_typed_arrow_parameter_with_generic_function_type_annotation() 
                 });
             });
         });
+
+    });
+}
+
+#[test]
+fn test_parse_assignment_object_spread_ternary_value_javascript() {
+    let mut test = TestParser::new_with_options(
+        "target = { ...tls ? { cert: tls.cert } : {}, ...node }",
+        LanguageType::JavaScript,
+    );
+    let mut parser = test.prepare();
+
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // assignment target and rhs object
+    assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+        assert_expression_path!(parser, parser.tree.get(*left), "target");
+
+        assert_node!(parser.tree, *right, Expression::ObjectExpression { properties, .. } => {
+            assert_eq!(properties.len(), 2);
+
+            // first spread keeps ternary shape
+            assert_node!(parser.tree, properties[0], Property::Spread { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::If {
+                    kind: IfKind::Ternary,
+                    condition: IfCondition::Expression { condition },
+                    then_expression,
+                    else_expression,
+                } => {
+                    assert_expression_path!(parser, parser.tree.get(*condition), "tls");
+                    assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 1);
+                    });
+                    let else_expression = else_expression.expect("expected ternary else branch");
+                    assert_node!(parser.tree, else_expression, Expression::ObjectExpression { properties, .. } => {
+                        assert!(properties.is_empty());
+                    });
+                });
+            });
+
+            // second spread remains a plain path
+            assert_node!(parser.tree, properties[1], Property::Spread { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "node");
+            });
+        });
     });
 }
