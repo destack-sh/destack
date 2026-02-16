@@ -52,6 +52,14 @@ struct EcosystemOptions {
     #[arg(long, value_enum, default_value_t = EcosystemTscTool::Tsgo)]
     tsc_tool: EcosystemTscTool,
 
+    /// Print loaded module and line totals in the phase summary table.
+    #[arg(long)]
+    read_stats: bool,
+
+    /// Print discovered source file paths for each package phase run.
+    #[arg(long)]
+    dump_read_paths: bool,
+
     /// Common test options.
     #[command(flatten)]
     test: TestOptions,
@@ -77,6 +85,8 @@ fn main() -> ExitCode {
         max_files: options.max_files,
         tsc_mode: options.tsc_mode,
         tsc_tool: options.tsc_tool,
+        read_stats: options.read_stats,
+        dump_read_paths: options.dump_read_paths,
     };
 
     run_ecosystem_tests(&options.test, &run_options)

@@ -65,14 +65,12 @@ express-lower
 fastify-analyze
 fastify-lower
 fastify-resolve
-firebase-js-sdk-parse
 fluentui-analyze
 fluentui-lower
 fluentui-resolve
 fp-ts-analyze
 fp-ts-lower
 fp-ts-resolve
-grafana-parse
 graphql-codegen-analyze
 graphql-codegen-lower
 graphql-codegen-resolve
@@ -88,20 +86,15 @@ hono-resolve
 hoppscotch-analyze
 hoppscotch-lower
 hoppscotch-resolve
-immich-parse
-insomnia-parse
 io-ts-analyze
 io-ts-lower
 io-ts-resolve
 jest-analyze
 jest-lower
 jest-resolve
-jitsi-meet-parse
-joplin-parse
 jotai-analyze
 jotai-lower
 jotai-resolve
-kibana-parse
 koa-analyze
 koa-lower
 kysely-analyze
@@ -112,7 +105,6 @@ langchainjs-lower
 langchainjs-resolve
 lodash-analyze
 lodash-lower
-mattermost-parse
 medusa-analyze
 medusa-lower
 medusa-resolve
@@ -121,7 +113,6 @@ mysql2-lower
 mysql2-resolve
 n8n-analyze
 n8n-lower
-n8n-parse
 n8n-resolve
 nest-analyze
 nest-lower
@@ -132,7 +123,6 @@ nextjs-resolve
 nitro-analyze
 nitro-lower
 nitro-resolve
-nocodb-parse
 node-postgres-analyze
 node-postgres-lower
 node-postgres-resolve
@@ -153,7 +143,6 @@ openai-node-lower
 openai-node-resolve
 payload-analyze
 payload-lower
-payload-parse
 payload-resolve
 pglite-analyze
 pglite-lower
@@ -184,8 +173,6 @@ react-hook-form-analyze
 react-hook-form-lower
 react-hook-form-resolve
 react-lower
-react-native-parse
-react-native-web-parse
 react-query-analyze
 react-query-lower
 react-query-resolve
@@ -202,7 +189,6 @@ remeda-resolve
 remix-analyze
 remix-lower
 remix-resolve
-rocket-chat-parse
 runtypes-analyze
 runtypes-lower
 runtypes-resolve
