@@ -386,8 +386,78 @@ impl DsConfig {
         if compiler.tsconfig.is_none() {
             compiler.tsconfig = parent_compiler.tsconfig.clone();
         }
+        if self.content.compiler_options.module_resolution.is_none() {
+            compiler.module_resolution = parent_compiler.module_resolution;
+        }
+        if self
+            .content
+            .compiler_options
+            .allow_arbitrary_extensions
+            .is_none()
+        {
+            compiler.allow_arbitrary_extensions = parent_compiler.allow_arbitrary_extensions;
+        }
+        if self
+            .content
+            .compiler_options
+            .allow_importing_ts_extensions
+            .is_none()
+        {
+            compiler.allow_importing_ts_extensions = parent_compiler.allow_importing_ts_extensions;
+        }
+        if self
+            .content
+            .compiler_options
+            .resolve_package_json_exports
+            .is_none()
+        {
+            compiler.resolve_package_json_exports = parent_compiler.resolve_package_json_exports;
+        }
+        if self
+            .content
+            .compiler_options
+            .resolve_package_json_imports
+            .is_none()
+        {
+            compiler.resolve_package_json_imports = parent_compiler.resolve_package_json_imports;
+        }
+        if self.content.compiler_options.custom_conditions.is_none() {
+            compiler.custom_conditions = parent_compiler.custom_conditions.clone();
+        }
+        if self.content.compiler_options.module_detection.is_none() {
+            compiler.module_detection = parent_compiler.module_detection;
+        }
         if self.content.compiler_options.js_as_jsx.is_none() {
             compiler.js_as_jsx = parent_compiler.js_as_jsx;
+        }
+        if self.content.compiler_options.es_module_interop.is_none() {
+            compiler.es_module_interop = parent_compiler.es_module_interop;
+        }
+        if self
+            .content
+            .compiler_options
+            .allow_synthetic_default_imports
+            .is_none()
+        {
+            compiler.allow_synthetic_default_imports =
+                parent_compiler.allow_synthetic_default_imports;
+        }
+        if self
+            .content
+            .compiler_options
+            .verbatim_module_syntax
+            .is_none()
+        {
+            compiler.verbatim_module_syntax = parent_compiler.verbatim_module_syntax;
+        }
+        if self
+            .content
+            .compiler_options
+            .rewrite_relative_import_extensions
+            .is_none()
+        {
+            compiler.rewrite_relative_import_extensions =
+                parent_compiler.rewrite_relative_import_extensions;
         }
 
         // inherit formatter options (child overrides if explicitly set in JSON)

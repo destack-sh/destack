@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::{BorrowMode, EsTarget, ModuleTarget};
+use crate::{BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarget};
 
 /// Path alias mapping (resolved from dsconfig paths).
 pub type DsPathAliases = IndexMap<String, Vec<String>>;
@@ -25,6 +25,16 @@ pub struct DsConfigCompilerOptions {
     pub module: ModuleTarget,
     /// ECMAScript target version.
     pub es_target: EsTarget,
+    /// Module resolution strategy.
+    pub module_resolution: ModuleResolution,
+    /// Use package.json exports field during module resolution.
+    pub resolve_package_json_exports: bool,
+    /// Use package.json imports field during module resolution.
+    pub resolve_package_json_imports: bool,
+    /// Custom package export conditions for module resolution.
+    pub custom_conditions: Vec<String>,
+    /// How to detect modules versus scripts.
+    pub module_detection: ModuleDetection,
     /// Library files to include (e.g., "es2024", "dom", "worker").
     pub lib: Vec<String>,
     /// Additional ambient type entries to include (e.g., "node", "@types/node", "dom.iterable").
@@ -161,6 +171,18 @@ pub struct DsConfigCompilerOptions {
     pub js_as_jsx: bool,
     /// Type-check JavaScript files.
     pub check_js: bool,
+    /// Allow arbitrary file extensions in import specifiers.
+    pub allow_arbitrary_extensions: bool,
+    /// Allow TypeScript file extensions in import specifiers.
+    pub allow_importing_ts_extensions: bool,
+    /// Enable TypeScript CommonJS default import interop semantics.
+    pub es_module_interop: bool,
+    /// Allow synthetic default imports from modules without explicit defaults.
+    pub allow_synthetic_default_imports: bool,
+    /// Preserve import and export syntax verbatim.
+    pub verbatim_module_syntax: bool,
+    /// Rewrite relative import extensions.
+    pub rewrite_relative_import_extensions: bool,
     /// Skip type checking of declaration files.
     pub skip_lib_check: bool,
 }
@@ -172,8 +194,15 @@ impl Default for DsConfigCompilerOptions {
         Self {
             base_url: None,
             paths: None,
+            module_resolution: ModuleResolution::default(),
+            allow_arbitrary_extensions: false,
+            allow_importing_ts_extensions: false,
+            resolve_package_json_exports: true,
+            resolve_package_json_imports: true,
+            custom_conditions: Vec::new(),
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
+            module_detection: ModuleDetection::default(),
             lib: Vec::new(), // derived from runtime/platform if empty
             types: Vec::new(),
             profile: None,
@@ -258,6 +287,10 @@ impl Default for DsConfigCompilerOptions {
             allow_js: true,
             js_as_jsx: false,
             check_js: false,
+            es_module_interop: false,
+            allow_synthetic_default_imports: false,
+            verbatim_module_syntax: false,
+            rewrite_relative_import_extensions: false,
             skip_lib_check: false,
         }
     }
@@ -529,6 +562,16 @@ pub struct CompilerOptionsJson {
     pub module: Option<String>,
     /// ECMAScript target version (e.g., "es2022", "esnext").
     pub target: Option<String>,
+    /// Module resolution strategy (e.g., "bundler", "node16", "nodenext").
+    pub module_resolution: Option<String>,
+    /// Use package.json exports field during module resolution.
+    pub resolve_package_json_exports: Option<bool>,
+    /// Use package.json imports field during module resolution.
+    pub resolve_package_json_imports: Option<bool>,
+    /// Custom package export conditions for module resolution.
+    pub custom_conditions: Option<Vec<String>>,
+    /// How to detect modules versus scripts (e.g., "auto", "force", "legacy").
+    pub module_detection: Option<String>,
     /// Library files to include (e.g., ["es2024", "dom"]).
     pub lib: Option<Vec<String>>,
     /// Additional ambient type entries to include (e.g., ["node", "@types/node", "dom.iterable"]).
@@ -669,16 +712,47 @@ pub struct CompilerOptionsJson {
     pub js_as_jsx: Option<bool>,
     /// Type-check JavaScript files.
     pub check_js: Option<bool>,
+    /// Allow arbitrary file extensions in import specifiers.
+    pub allow_arbitrary_extensions: Option<bool>,
+    /// Allow TypeScript file extensions in import specifiers.
+    pub allow_importing_ts_extensions: Option<bool>,
+    /// Enable TypeScript CommonJS default import interop semantics.
+    pub es_module_interop: Option<bool>,
+    /// Allow synthetic default imports from modules without explicit defaults.
+    pub allow_synthetic_default_imports: Option<bool>,
+    /// Preserve import and export syntax verbatim.
+    pub verbatim_module_syntax: Option<bool>,
+    /// Rewrite relative import extensions.
+    pub rewrite_relative_import_extensions: Option<bool>,
     /// Skip type checking of declaration files (.d.ts, .d.ds).
     pub skip_lib_check: Option<bool>,
 }
 
 impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
     fn from(json: &CompilerOptionsJson) -> Self {
+        let module_resolution = json
+            .module_resolution
+            .as_deref()
+            .and_then(ModuleResolution::parse)
+            .unwrap_or_default();
+        let resolve_package_json_default = matches!(
+            module_resolution,
+            ModuleResolution::Node16 | ModuleResolution::NodeNext | ModuleResolution::Bundler
+        );
         let strict = json.strict.unwrap_or(true);
         let mut options = Self {
             base_url: json.base_url.as_ref().map(PathBuf::from),
             paths: json.paths.clone(),
+            module_resolution,
+            allow_arbitrary_extensions: json.allow_arbitrary_extensions.unwrap_or(false),
+            allow_importing_ts_extensions: json.allow_importing_ts_extensions.unwrap_or(false),
+            resolve_package_json_exports: json
+                .resolve_package_json_exports
+                .unwrap_or(resolve_package_json_default),
+            resolve_package_json_imports: json
+                .resolve_package_json_imports
+                .unwrap_or(resolve_package_json_default),
+            custom_conditions: json.custom_conditions.clone().unwrap_or_default(),
             module: json
                 .module
                 .as_deref()
@@ -688,6 +762,11 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
                 .target
                 .as_deref()
                 .and_then(EsTarget::parse)
+                .unwrap_or_default(),
+            module_detection: json
+                .module_detection
+                .as_deref()
+                .and_then(ModuleDetection::parse)
                 .unwrap_or_default(),
             lib: json.lib.clone().unwrap_or_default(),
             types: json.types.clone().unwrap_or_default(),
@@ -885,6 +964,14 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             allow_js: json.allow_js.unwrap_or(true),
             js_as_jsx: json.js_as_jsx.unwrap_or(false),
             check_js: json.check_js.unwrap_or(false),
+            es_module_interop: json.es_module_interop.unwrap_or(false),
+            allow_synthetic_default_imports: json
+                .allow_synthetic_default_imports
+                .unwrap_or(json.es_module_interop.unwrap_or(false)),
+            verbatim_module_syntax: json.verbatim_module_syntax.unwrap_or(false),
+            rewrite_relative_import_extensions: json
+                .rewrite_relative_import_extensions
+                .unwrap_or(false),
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
         };
 
@@ -905,6 +992,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
 #[cfg(test)]
 mod tests {
     use super::{CompilerOptionsJson, DsConfigCompilerOptions};
+    use crate::ModuleResolution;
 
     /// Parse js_as_jsx as false by default.
     #[test]
@@ -925,5 +1013,46 @@ mod tests {
         let options = DsConfigCompilerOptions::from(&json);
 
         assert!(options.js_as_jsx);
+    }
+
+    /// Parse es module interop as synthetic default imports when enabled.
+    #[test]
+    fn test_parse_compiler_options_es_module_interop_enables_synthetic_defaults() {
+        let json = CompilerOptionsJson {
+            es_module_interop: Some(true),
+            ..CompilerOptionsJson::default()
+        };
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert!(options.es_module_interop);
+        assert!(options.allow_synthetic_default_imports);
+    }
+
+    /// Parse explicit synthetic default overrides over es module interop.
+    #[test]
+    fn test_parse_compiler_options_synthetic_default_imports_override() {
+        let json = CompilerOptionsJson {
+            es_module_interop: Some(true),
+            allow_synthetic_default_imports: Some(false),
+            ..CompilerOptionsJson::default()
+        };
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert!(options.es_module_interop);
+        assert!(!options.allow_synthetic_default_imports);
+    }
+
+    /// Parse module resolution package defaults from moduleResolution.
+    #[test]
+    fn test_parse_compiler_options_module_resolution_sets_package_defaults() {
+        let json = CompilerOptionsJson {
+            module_resolution: Some("node16".to_string()),
+            ..CompilerOptionsJson::default()
+        };
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert_eq!(options.module_resolution, ModuleResolution::Node16);
+        assert!(options.resolve_package_json_exports);
+        assert!(options.resolve_package_json_imports);
     }
 }
