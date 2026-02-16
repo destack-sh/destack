@@ -1,6 +1,8 @@
 use super::super::super::timing::tags;
 use super::super::*;
 use super::common::expression_is_trivial_inline_without_annotations;
+use crate::scan::previous_non_whitespace_before_annotation;
+use destack_fir::format::text;
 use destack_fir::{format_args, write};
 
 // binary inline width constants
@@ -156,6 +158,154 @@ fn type_binary_operands_have_slash_comments(
             comment.style == destack_ast::CommentStyle::Slash
         })
     })
+}
+
+/// Return whether expression annotations are only doc-like block-prefix comments.
+fn expression_has_only_doc_like_block_prefix_annotations(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    if annotation_ids.is_empty() {
+        return false;
+    }
+
+    annotation_ids.into_iter().all(|annotation_id| {
+        match context.tree.get::<Annotation>(annotation_id) {
+            Annotation::Doc {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } => true,
+            Annotation::Comment {
+                position: AnnotationPosition::BlockPrefix,
+                ..
+            } => {
+                let annotation_span = context.get_span::<Annotation>(annotation_id);
+                let annotation_source = context.get_span_str(annotation_span);
+                annotation_source.trim_start().starts_with("/**")
+            }
+            _ => false,
+        }
+    })
+}
+
+/// Return whether expression has only one separator-adjacent line boundary comment annotation.
+fn expression_has_only_type_separator_line_boundary_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.get_annotations(expression_id) else {
+        return false;
+    };
+
+    if annotation_ids.len() != 1 {
+        return false;
+    }
+
+    let annotation_id = annotation_ids[0];
+    let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+    else {
+        return false;
+    };
+    if *position != AnnotationPosition::LinePostfixBoundary {
+        return false;
+    }
+
+    let comment = context.tree.get::<destack_ast::Comment>(*node);
+    if comment.style != destack_ast::CommentStyle::Slash {
+        return false;
+    }
+
+    matches!(
+        previous_non_whitespace_before_annotation(context, annotation_id),
+        Some('|' | '&')
+    )
+}
+
+/// Format one binary operand while skipping prefix and postfix annotation emission.
+fn format_binary_operand_without_annotations_with_grouping_parentheses<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parent_operator: BinaryOperator,
+    operand_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let expression = f.context().tree.get(operand_id);
+    let needs_type_grouping_parentheses =
+        type_binary_operand_needs_grouping_parentheses(f.context(), parent_operator, operand_id);
+    let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
+        && expression_precedence(expression) < parent_operator.precedence();
+
+    if needs_type_grouping_parentheses || needs_precedence_parentheses {
+        write!(f, [token("(")])?;
+        format_expression(
+            f,
+            operand_id,
+            expression,
+            directive_for_node(f.context(), operand_id),
+        )?;
+        write!(f, [token(")")])?;
+    } else {
+        format_expression(
+            f,
+            operand_id,
+            expression,
+            directive_for_node(f.context(), operand_id),
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Try formatting type operators with `//` comments that follow a source separator.
+fn try_format_type_separator_line_comment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    operator: BinaryOperator,
+    operands: &BinaryOperands,
+) -> FormatResult<bool> {
+    if !matches!(
+        operator,
+        BinaryOperator::ElementwiseAnd | BinaryOperator::ElementwiseOr
+    ) {
+        return Ok(false);
+    }
+
+    if operands.len() != 2 {
+        return Ok(false);
+    }
+
+    let left = operands[0].expression;
+    let right = operands[1].expression;
+    let Some(line_comment) = line_comment_between_expressions(f.context(), left, right) else {
+        return Ok(false);
+    };
+    if !expression_has_only_type_separator_line_boundary_comment(f.context(), left) {
+        return Ok(false);
+    }
+
+    write!(
+        f,
+        [group(&format_args![
+            format_with(|f| {
+                format_binary_operand_without_annotations_with_grouping_parentheses(
+                    f, operator, left,
+                )
+            }),
+            space(),
+            operator,
+            space(),
+            text(line_comment.as_str()),
+            indent(&format_args![
+                hard_line_break(),
+                format_with(|f| format_binary_operand_with_grouping_parentheses(
+                    f, operator, right
+                ))
+            ])
+        ])]
+    )?;
+
+    Ok(true)
 }
 
 /// Format type binary operands as a flat sequence with inline separators.
@@ -402,8 +552,16 @@ fn should_use_leading_pipe_union_style(
     node_id: LocalNodeId<Expression>,
     operands: &BinaryOperands,
 ) -> bool {
+    let operands_have_annotations = operands
+        .iter()
+        .any(|operand| context.has_annotation(operand.expression));
+    let has_prefix_annotations = union_has_prefix_annotations(context, node_id, operands);
+
     if union_source_has_leading_pipe(context, node_id) {
-        return true;
+        if !context.has_annotation(node_id) && !has_prefix_annotations && !operands_have_annotations
+        {
+            return true;
+        }
     }
 
     if let Some(first_operand) = operands.first() {
@@ -412,12 +570,16 @@ fn should_use_leading_pipe_union_style(
         if first_source.trim_start().starts_with('|')
             || previous_non_whitespace_before_span(context, first_span) == Some('|')
         {
-            return true;
+            if !has_prefix_annotations && !operands_have_annotations {
+                return true;
+            }
         }
     }
 
     if !context.node_has_newline(node_id) {
-        return false;
+        let line_width = usize::from(context.options.line_width);
+        return type_binary_operands_have_non_doc_comments(context, operands)
+            && expression_source_len(context, node_id) > line_width;
     }
 
     operands.iter().any(|operand| {
@@ -445,6 +607,41 @@ fn should_use_leading_pipe_union_style(
             comment.style == destack_ast::CommentStyle::Slash
         })
     })
+}
+
+/// Return whether type binary operands contain non-doc comments.
+fn type_binary_operands_have_non_doc_comments(
+    context: &DestackFormatContext<'_>,
+    operands: &BinaryOperands,
+) -> bool {
+    operands.iter().any(|operand| {
+        let Some(annotation_ids) = context.get_annotations(operand.expression) else {
+            return false;
+        };
+
+        annotation_ids.into_iter().any(|annotation_id| {
+            matches!(
+                context.tree.get::<Annotation>(annotation_id),
+                Annotation::Comment { .. }
+            )
+        })
+    })
+}
+
+/// Return whether this union has prefix annotations on the node or first operand.
+fn union_has_prefix_annotations(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    operands: &BinaryOperands,
+) -> bool {
+    if context.has_prefix_annotation(node_id) {
+        return true;
+    }
+
+    let Some(first_operand) = operands.first() else {
+        return false;
+    };
+    context.has_prefix_annotation(first_operand.expression)
 }
 
 /// Build leading-pipe union render policy from current annotation context.
@@ -662,6 +859,11 @@ pub(super) fn format_binary_expression<'ast>(
         return Ok(());
     }
 
+    // type operators with separator-adjacent line comments keep operator before the comment
+    if try_format_type_separator_line_comment(f, *operator, &operands)? {
+        return Ok(());
+    }
+
     // nullable union hugging
     if is_type_union && should_hug_nullable_union_type(f.context(), &operands) {
         write!(
@@ -690,10 +892,17 @@ pub(super) fn format_binary_expression<'ast>(
     // keep type unions and intersections flat unless slash-line comments require multiline layout
     if (is_type_union || is_type_intersection)
         && !is_destack
+        && (!f.context().has_annotation(node_id)
+            || expression_has_only_doc_like_block_prefix_annotations(f.context(), node_id))
         && !type_binary_operands_have_slash_comments(f.context(), &operands)
-        && operands
-            .iter()
-            .all(|operand| !f.context().node_has_newline(operand.expression))
+        && operands.iter().all(|operand| {
+            !f.context().node_has_newline(operand.expression)
+                && (!f.context().has_annotation(operand.expression)
+                    || expression_has_only_doc_like_block_prefix_annotations(
+                        f.context(),
+                        operand.expression,
+                    ))
+        })
     {
         write!(f, [format_flat_type_binary_operands(*operator, &operands)])?;
         return Ok(());

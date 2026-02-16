@@ -347,7 +347,7 @@ pub(super) fn format_type_alias_declaration<'ast>(
             format_inline.format(f)?;
         } else if value_has_prefix_annotation {
             if value_has_doc_like_block_prefix_annotation {
-                format_soft_break.format(f)?;
+                format_inline.format(f)?;
             } else {
                 let can_inline_prefixed_value =
                     !value_has_newline && inline_total_len <= line_width;

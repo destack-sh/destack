@@ -406,11 +406,11 @@ where
             if is_ignore_directive_postfix_comment {
                 continue;
             }
+            let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id);
             let is_inline_block_star_comment = matches!(
                 position,
                 AnnotationPosition::BlockPrefix | AnnotationPosition::BlockInfix
             ) && render_facts.is_star_comment
-                && !annotation_starts_on_own_line(f.context(), annotation_id)
                 && annotation_next_token_is_on_same_line(f.context(), annotation_id)
                 && !render_facts.follows_colon;
             let is_inline_delimited_block_postfix_star_comment = position
@@ -421,11 +421,28 @@ where
                 is_inline_block_star_comment && render_facts.follows_opening_delimiter;
 
             if render_facts.is_slash_comment
+                && position == AnnotationPosition::LinePostfixBoundary
+                && starts_on_own_line
+            {
+                write!(
+                    f,
+                    [indent(&format_with(|f| {
+                        write!(f, [hard_line_break()])?;
+                        annotation.format_node(annotation_id, f)?;
+                        write!(f, [soft_line_break()])?;
+                        Ok(())
+                    }))]
+                )?;
+                continue;
+            }
+
+            let can_render_inline_slash_line_postfix = render_facts.is_slash_comment
                 && matches!(
                     position,
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
                 )
-            {
+                && !(position == AnnotationPosition::LinePostfixBoundary && starts_on_own_line);
+            if can_render_inline_slash_line_postfix {
                 let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                     write!(f, [space()])?;
                     annotation.format_node(annotation_id, f)
@@ -469,7 +486,9 @@ where
                 match position {
                     AnnotationPosition::BlockInfix => {
                         if is_inline_block_star_comment {
-                            if !inline_block_comment_follows_opening_delimiter {
+                            if !inline_block_comment_follows_opening_delimiter
+                                && !starts_on_own_line
+                            {
                                 write!(f, [space()])?;
                             }
                         } else {
@@ -487,7 +506,9 @@ where
                     }
                     AnnotationPosition::BlockPrefix => {
                         if is_inline_block_star_comment {
-                            if !inline_block_comment_follows_opening_delimiter {
+                            if !inline_block_comment_follows_opening_delimiter
+                                && !starts_on_own_line
+                            {
                                 write!(f, [space()])?;
                             }
                         } else if is_inline_decorator_prefix {
@@ -499,8 +520,14 @@ where
                         }
                     }
                     AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
-                        // block comments in line postfix still need spacing (slash handled above)
-                        write!(f, [space()])?;
+                        // keep own-line boundary comments on their own line
+                        if position == AnnotationPosition::LinePostfixBoundary && starts_on_own_line
+                        {
+                            write!(f, [hard_line_break()])?;
+                        } else {
+                            // block comments in line postfix still need spacing (slash handled above)
+                            write!(f, [space()])?;
+                        }
                     }
                     AnnotationPosition::LinePrefix => {
                         // no spacing needed for line prefix
@@ -579,6 +606,8 @@ where
                         render_facts.is_slash_comment && render_facts.follows_separator;
                     if should_keep_inline_slash_separator_comment {
                         write!(f, [space()])?;
+                    } else if render_facts.is_star_comment && !starts_on_own_line {
+                        // keep block boundary comments adjacent to list separators
                     } else {
                         write!(f, [soft_line_break()])?;
                     }

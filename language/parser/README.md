@@ -97,6 +97,21 @@ label: // next-statement: line-prefix on labelled body
 while (true) {}
 ```
 
+#### comma after-separator seams defer to generic line-seam resolution
+Comma seams have one extra step.
+The parser first resolves a right candidate owner.
+If that owner is not a call or new argument owner and not a class heritage expression owner, comma ownership defers to generic line-seam resolution.
+This keeps `a, /* b */ c` style seams on `c` while preserving trailing comma line-comment seams on the left item boundary.
+
+```ds
+[first, /* next-element: line-prefix on second */ second]
+
+makePair</* key: line-prefix on string */ string, /* value: line-prefix on number */ number>
+
+[first, // first-tail: line-postfix-boundary on first
+second]
+```
+
 #### before-separator trivia binds to the previous item
 If trivia is immediately before a separator token, it attaches to the previous item as postfix.
 
@@ -184,15 +199,18 @@ value()
 // eof-own-line-tail: block-postfix on value
 ```
 
-#### call-and-new paren seams bind to the callee owner
-Trivia in the callee-to-`(` seam for `Call` and `New` attaches to the callee owner, including empty argument lists.
+#### call-and-new paren seams bind inside argument lists
+Trivia in the callee-to-`(` seam for `Call` and `New` attaches to the first argument when arguments exist.
+When the call or new argument list is empty, the seam trivia attaches to the call or new owner as infix.
 
 ```ds
-target(/* call-boundary: block-postfix on callee target */)
+target /* call-boundary: line-prefix on first argument */ (arg)
 
-new Factory(/* new-boundary: block-postfix on callee Factory */)
+new Factory /* new-boundary: line-prefix on first argument */ (arg)
 
-items.map /* keep: line-postfix on callee items.map */ ((item) => item)
+target(/* empty-call: block-infix on call owner */)
+
+new Factory(/* empty-new: block-infix on new owner */)
 ```
 
 #### wrapper owners outrank inner value owners
@@ -307,16 +325,22 @@ value()
 This is a fixed and minimal exception set.
 No other ownership exceptions should be added outside this list.
 
-#### as-const token-gap trivia binds to the as-const owner as infix
-For TypeScript `as const`, trivia between `as` and `const` attaches to the `AsConst` owner as infix.
+#### as-const token-gap trivia uses split ownership by trivia shape
+For TypeScript `as const`, trivia between `as` and `const` uses two paths.
+Line comments and multiline block comments attach to the `AsConst` owner as boundary postfix.
+Single-line block comments attach to the left operand as postfix.
 
 ```ds
-1 as // before-const: block-infix on as-const node
+1 as // before-const: line-postfix-boundary on as-const node
 const
 
 1 as
-/* between: block-infix on as-const node */
+/*
+between
+*/ // between-multiline: line-postfix-boundary on as-const node
 const
+
+1 as /* between-inline: line-postfix on left operand */ const
 ```
 
 #### directive comments stick to the following statement
@@ -328,4 +352,59 @@ value = compute()
 
 // @ts-expect-error: block-prefix on following statement
 call(a, b)
+```
+
+#### formatter directive range markers are always leading
+Formatter range markers are directive comments, not trailing list comments.
+In comma seams, they must attach as prefix to the next wrapper owner so ignore ranges resolve from the intended node.
+This applies to `format`, `prettier`, `fmt`, and `biome` range start and end markers.
+
+```ds
+doThing(
+    first,
+    // format-ignore-start: line-prefix on second argument wrapper
+    second,
+    third,
+    // format-ignore-end: line-prefix on fourth argument wrapper
+    fourth,
+)
+
+doThing(
+    first,
+    // prettier-ignore-start: line-prefix on second argument wrapper
+    second,
+    // prettier-ignore-end: line-prefix on third argument wrapper
+    third,
+)
+```
+
+#### declaration-head seams use generic seam rules
+Comments between declaration heads and following `{` or `<...>` tokens are not special-cased.
+They resolve through the generic seam model like any other two-sided seam.
+
+```ds
+class Box /* declaration-body: line-prefix on declaration expression seam owner */ {}
+
+enum Kind /* enum-body: line-prefix on declaration expression seam owner */ { A }
+
+class Value {
+    run(): number // method-body: line-postfix-boundary on return type
+    {}
+}
+```
+
+#### heritage seams use generic list and boundary rules
+Comments around `extends` and `implements` clauses are resolved by the same separator and boundary rules as other lists.
+
+```ds
+class Child extends Base // extends-tail: line-postfix-boundary on Base
+{
+    value = 1
+}
+
+class Child implements First, // impl-first: line-postfix-boundary on First
+Second // impl-second: line-postfix-boundary on Second
+{
+    value = 1
+}
 ```

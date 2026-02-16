@@ -1447,6 +1447,19 @@ impl Lexer {
         }
 
         match self.peek() {
+            // js and ts compatibility: `123..prop` and `0..prop`
+            // consume the first dot into a float literal so the second dot can start member access
+            '.' if self.peek_next() == '.'
+                && is_identifier_start(self.peek_next_next())
+                && (self.language.is_javascript() || self.language.is_typescript()) =>
+            {
+                self.eat();
+                LiteralType::Float {
+                    base,
+                    is_empty_exponent: false,
+                }
+            }
+
             // don't be greedy if this is actually an
             // integer literal followed by field or method access
             // (`12.foo()` and `12..toString()`)

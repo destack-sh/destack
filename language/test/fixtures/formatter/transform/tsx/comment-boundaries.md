@@ -13,7 +13,11 @@ const node = <div>{/* only-child */}</div>
 ```
 
 ```tsx expected
-const node = <div>{/* only-child */}</div>;
+const node = (
+    <div>
+        {/* only-child */}
+    </div>
+);
 ```
 
 ### comment between sibling children
@@ -49,7 +53,11 @@ const node = (
 ```
 
 ```tsx expected
-const node = <div>{isVideo ? <Video /> : /* video-comment */ <Image /> /* image-comment */}</div>;
+const node = (
+    <div>
+        {isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}
+    </div>
+);
 ```
 
 ### ternary alternate trailing line comment
@@ -68,11 +76,7 @@ const node = (
 ```tsx expected
 const node = (
     <>
-        {x ? (
-            <A /> // alt-line
-        ) : (
-            <B />
-        )}
+        {x ? <A /> : <B />} // alt-line
     </>
 );
 ```
@@ -88,7 +92,11 @@ const node = <div>{items.map((item) => item /* map-inline */)}</div>
 ```
 
 ```tsx expected
-const node = <div>{items.map((item) => item /* map-inline */)}</div>;
+const node = (
+    <div>
+        {items.map((item) => item /* map-inline */)}
+    </div>
+);
 ```
 
 ### logical expression with trailing comment
@@ -103,9 +111,7 @@ const node = <div>{ready && <Body /> // logical-tail
 ```tsx expected
 const node = (
     <div>
-        {
-            ready && <Body /> // logical-tail
-        }
+        {ready && <Body />} // logical-tail
     </div>
 );
 ```

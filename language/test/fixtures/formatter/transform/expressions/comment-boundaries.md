@@ -15,7 +15,7 @@ const value = cond ? left /* left-note */ : right /* right-note */
 ```ts expected
 const value = cond
     ? left /* left-note */
-    : right; /* right-note */
+    : right /* right-note */;
 ```
 
 ### ternary alternate line comment
@@ -76,8 +76,8 @@ const value = left + /* plus-note */ right + next
 ```
 
 ```ts expected
-const value =
-    left + /* plus-note */ right + next;
+const value = left
+    + /* plus-note */ right + next;
 ```
 
 ### assignment right side comment
@@ -184,7 +184,8 @@ const value = source
 ```
 
 ```ts expected
-const value = source.first /* first-boundary */
+const value = source
+    .first /* first-boundary */
     ?.second();
 ```
 
@@ -223,7 +224,7 @@ const value = test((/** @type {array} */ numberOrString).map((x) => x))
 ```
 
 ```js expected
-const value = test(/** @type {array} */ numberOrString.map((x) => x));
+const value = test((/** @type {array} */ numberOrString).map((x) => x));
 ```
 
 
@@ -250,7 +251,7 @@ const value = `${source /* member-note */ .name}`
 ```
 
 ```ts expected
-const value = `${source /* member-note */.name}`;
+const value = `${source /* member-note */ .name}`;
 ```
 
 ### unary negative numeric comment boundary
@@ -262,7 +263,7 @@ const value = -/* unary-note */ 1
 ```
 
 ```ts expected
-const value = -(/* unary-note */ 1);
+const value = -/* unary-note */ 1;
 ```
 
 ### label expression boundary comment

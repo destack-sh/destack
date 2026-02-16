@@ -5,6 +5,44 @@ use super::policy::{
 use super::*;
 use destack_fir::write;
 
+/// Return whether one call operation should emit its prefix annotations.
+fn call_operation_should_emit_prefix_annotations(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Call { left, .. } = context.tree.get(call_node_id) else {
+        return context.has_prefix_annotation(call_node_id);
+    };
+
+    if !context.has_prefix_annotation(call_node_id) {
+        return false;
+    }
+
+    if !context.has_prefix_annotation(*left) {
+        return true;
+    }
+
+    let left_span = context.get_span(*left);
+    let has_leading_prefix_before_left = context
+        .with_annotations(call_node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                if !matches!(
+                    annotation.position(),
+                    AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                ) {
+                    return false;
+                }
+
+                let annotation_span = context.get_span::<Annotation>(*annotation_id);
+                annotation_span.start < left_span.start
+            })
+        })
+        .unwrap_or(false);
+
+    !has_leading_prefix_before_left
+}
+
 /// Format a member/call/maybe/index chain with prettier-style breaking.
 pub(crate) fn format_expression_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -24,9 +62,9 @@ pub(crate) fn format_expression_chain<'ast>(
 
     // inline variant keeps everything on one line when it fits
     let format_inline = format_with(|f| {
-        format_chain_base(f, &base)?;
+        format_chain_base(f, node_id, &base)?;
         for line in &lines {
-            format_chain_expression_line(f, line)?;
+            format_chain_expression_line(f, node_id, line)?;
         }
         Ok(())
     });
@@ -39,7 +77,7 @@ pub(crate) fn format_expression_chain<'ast>(
 
         group(&format_with(|f| {
             // always print the base first so indentation aligns subsequent lines
-            format_chain_base(f, &base)?;
+            format_chain_base(f, node_id, &base)?;
             // indent chained entries so each operation sits on its own line
             // use indent with manual line breaks instead of block_indent to avoid trailing newline
             // this keeps semicolons on the same line as the last chain element
@@ -52,7 +90,7 @@ pub(crate) fn format_expression_chain<'ast>(
                         {
                             write!(f, [hard_line_break()])?;
                         }
-                        format_chain_expression_line(f, line)?;
+                        format_chain_expression_line(f, node_id, line)?;
                     }
                     Ok(())
                 });
@@ -114,6 +152,7 @@ pub(crate) fn format_expression_chain<'ast>(
 /// Format the base segment of a chain.
 fn format_chain_base<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    formatted_root_id: LocalNodeId<Expression>,
     base: &ChainExpressionBase,
 ) -> FormatResult<()> {
     match &base.head {
@@ -150,7 +189,7 @@ fn format_chain_base<'ast>(
     }
 
     for op in &base.body {
-        format_chain_expression(f, op)?;
+        format_chain_expression(f, formatted_root_id, op)?;
     }
 
     Ok(())
@@ -159,6 +198,7 @@ fn format_chain_base<'ast>(
 /// Format one chained operation.
 fn format_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    formatted_root_id: LocalNodeId<Expression>,
     op: &ChainExpression,
 ) -> FormatResult<()> {
     // output any line prefix annotations before the operation
@@ -177,8 +217,17 @@ fn format_chain_expression<'ast>(
         | ChainExpression::Call { node_id, .. }
         | ChainExpression::Index { node_id, .. }
         | ChainExpression::Maybe { node_id, .. }
-        | ChainExpression::Must { node_id, .. } => (*node_id, true, true),
+        | ChainExpression::Must { node_id, .. } => {
+            let should_emit_prefix_annotations = match op {
+                ChainExpression::Call { node_id, .. } => {
+                    call_operation_should_emit_prefix_annotations(f.context(), *node_id)
+                }
+                _ => true,
+            };
+            (*node_id, should_emit_prefix_annotations, true)
+        }
     };
+    let emit_prefix_annotations = emit_prefix_annotations && node_id != formatted_root_id;
     if emit_prefix_annotations {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
     }
@@ -274,10 +323,11 @@ pub(crate) fn should_parenthesize_index_expression(
 /// Format all operations for one chain line.
 fn format_chain_expression_line<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    formatted_root_id: LocalNodeId<Expression>,
     ops: &[ChainExpression],
 ) -> FormatResult<()> {
     for op in ops {
-        format_chain_expression(f, op)?;
+        format_chain_expression(f, formatted_root_id, op)?;
     }
     Ok(())
 }

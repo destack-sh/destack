@@ -241,6 +241,8 @@ pub(super) fn format_assign_expression<'ast>(
                 && (right_is_compact_long
                     || right_has_prefix_annotation
                     || right_has_between_comment)
+        } else if right_is_lambda {
+            right_has_prefix_annotation || right_has_between_comment || right_is_compact_long
         } else if right_is_chain {
             !right_is_lambda
                 && (right_is_chain_tail_lambda

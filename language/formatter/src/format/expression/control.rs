@@ -21,13 +21,35 @@ pub(super) fn format_statement_body_block<'ast>(
         write!(f, [token(";")])?;
     } else if block.expressions.len() == 1 {
         let expression_id = block.expressions[0];
-        write!(f, [expression_id])?;
+        let has_expression_prefix_annotation = f.context().has_prefix_annotation(expression_id);
+        if has_expression_prefix_annotation {
+            write!(
+                f,
+                [
+                    hard_line_break(),
+                    group(&block_indent(&format_with(|f| {
+                        write!(f, [expression_id])?;
 
-        let expression = f.context().tree.get(expression_id);
-        let needs_terminator =
-            !matches!(expression, Expression::Statement(_)) && !expression.is_top_level_statement();
-        if needs_terminator {
-            write!(f, [token(";")])?;
+                        let expression = f.context().tree.get(expression_id);
+                        let needs_terminator = !matches!(expression, Expression::Statement(_))
+                            && !expression.is_top_level_statement();
+                        if needs_terminator {
+                            write!(f, [token(";")])?;
+                        }
+
+                        Ok(())
+                    })))
+                ]
+            )?;
+        } else {
+            write!(f, [expression_id])?;
+
+            let expression = f.context().tree.get(expression_id);
+            let needs_terminator = !matches!(expression, Expression::Statement(_))
+                && !expression.is_top_level_statement();
+            if needs_terminator {
+                write!(f, [token(";")])?;
+            }
         }
     } else {
         write!(f, [block_id])?;
