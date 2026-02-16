@@ -5,10 +5,9 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::{VmValueCodec, timer as platform_timer};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::timer as platform_timer;
 
 /// ABI newtype for TimerFdFlags.
 #[repr(transparent)]
@@ -137,4 +136,3 @@ pub struct TimerOptions {
 }
 
 pub type TimerOptionsVm = TimerOptions;
-

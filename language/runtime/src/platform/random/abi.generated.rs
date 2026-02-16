@@ -4,12 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{VmValueCodec, random as platform_random};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::random as platform_random;
 
 /// ABI newtype for RandomStream.
 #[repr(transparent)]
@@ -93,17 +92,23 @@ pub type RandomStreamStateVm = RandomStreamStateAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for RandomStreamStateAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("RandomStreamStateAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("RandomStreamStateAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for RandomStreamStateAbi<NativeAbi> {}
 impl Clone for RandomStreamStateAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for RandomStreamStateAbi<VmAbi> {}
 impl Clone for RandomStreamStateAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for SecureRandomInfo.
@@ -130,17 +135,23 @@ pub type SecureRandomInfoVm = SecureRandomInfoAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for SecureRandomInfoAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SecureRandomInfoAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("SecureRandomInfoAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for SecureRandomInfoAbi<NativeAbi> {}
 impl Clone for SecureRandomInfoAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for SecureRandomInfoAbi<VmAbi> {}
 impl Clone for SecureRandomInfoAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// Replay struct for RandomStreamState.
@@ -170,4 +181,3 @@ pub struct SecureRandomInfoReplayRecord {
     /// The entropy_bits_per_byte field.
     pub entropy_bits_per_byte: f64,
 }
-

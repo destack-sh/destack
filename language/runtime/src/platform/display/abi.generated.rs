@@ -5,8 +5,8 @@
 #![allow(unreachable_pub)]
 
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use serde::{Deserialize, Serialize};
 use crate::platform::display as platform_display;
+use serde::{Deserialize, Serialize};
 
 /// ABI struct for DisplayInfo.
 #[repr(C)]
@@ -28,17 +28,23 @@ pub type DisplayInfoVm = DisplayInfoAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for DisplayInfoAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("DisplayInfoAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("DisplayInfoAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for DisplayInfoAbi<NativeAbi> {}
 impl Clone for DisplayInfoAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for DisplayInfoAbi<VmAbi> {}
 impl Clone for DisplayInfoAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for DisplayMode.
@@ -95,17 +101,23 @@ pub type WindowOptionsVm = WindowOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for WindowOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WindowOptionsAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("WindowOptionsAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for WindowOptionsAbi<NativeAbi> {}
 impl Clone for WindowOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for WindowOptionsAbi<VmAbi> {}
 impl Clone for WindowOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// Replay struct for DisplayInfo.
@@ -139,4 +151,3 @@ pub struct WindowOptionsReplayRecord {
     /// The title field.
     pub title: String,
 }
-

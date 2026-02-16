@@ -53,7 +53,6 @@ fn render_native_like_stub(
 
     // render the stub file content
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("#![allow(dead_code)]\n");
     output.push_str("#![allow(unused_imports)]\n");
     output.push_str("#![allow(clippy::missing_safety_doc)]\n");
@@ -171,7 +170,6 @@ pub(crate) fn render_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> St
 
     // render the stub file content
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("#![allow(dead_code)]\n");
     output.push_str("#![allow(unused_imports)]\n");
     output.push_str("use destack_vm as vm;\n");
@@ -259,7 +257,6 @@ pub(crate) fn render_simulated_native_stub(domain: &str, bindings: &BindingCatal
 
     // render the stub file content
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("#![allow(dead_code)]\n");
     output.push_str("#![allow(unused_imports)]\n");
     output.push_str("#![allow(clippy::missing_safety_doc)]\n");
@@ -363,7 +360,6 @@ pub(crate) fn render_simulated_vm_stub(domain: &str, bindings: &BindingCatalogEn
 
     // render the stub file content
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("#![allow(dead_code)]\n");
     output.push_str("#![allow(unused_imports)]\n");
     output.push_str("use destack_vm as vm;\n");
@@ -437,7 +433,6 @@ pub(crate) fn render_simulated_vm_stub(domain: &str, bindings: &BindingCatalogEn
 /// Render a simulated module re-export stub for a runtime domain.
 pub(crate) fn render_simulated_mod_stub() -> String {
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("pub(crate) mod native;\n");
     output.push_str("pub(crate) mod vm;\n");
     output
@@ -449,7 +444,6 @@ pub(crate) fn render_domain_mod_stub(
     has_runtime_dispatch: bool,
 ) -> String {
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("#[path = \"abi.generated.rs\"]\n");
     output.push_str("mod abi_generated;\n");
     output.push_str("#[path = \"bindings.generated.rs\"]\n");
@@ -475,7 +469,6 @@ pub(crate) fn render_domain_mod_stub(
 /// Render a host router stub for world-dispatched domains.
 pub(crate) fn render_host_router_stub() -> String {
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("#[cfg(unix)]\n");
     output.push_str("#[path = \"unix/mod.rs\"]\n");
     output.push_str("mod unix;\n");
@@ -500,7 +493,6 @@ pub(crate) fn render_host_router_stub() -> String {
 /// Render a unix or windows backend shim for world-dispatched domains.
 pub(crate) fn render_os_backend_mod_stub() -> String {
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("#[path = \"../unsupported.rs\"]\n");
     output.push_str("mod unsupported;\n\n");
     output.push_str("#[allow(unused_imports)]\n");
@@ -511,7 +503,6 @@ pub(crate) fn render_os_backend_mod_stub() -> String {
 /// Render a runtime module re-export stub for a runtime domain.
 pub(crate) fn render_runtime_mod_stub() -> String {
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("pub(crate) mod native;\n");
     output.push_str("pub(crate) mod vm;\n");
     output
@@ -540,7 +531,6 @@ pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalog
     let native_alias = format!("{domain}_native");
 
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("use crate::diagnostic::RuntimeResult;\n");
     output.push_str("use crate::platform::{\n");
     if usage.uses_platform_slice {
@@ -631,7 +621,6 @@ pub(crate) fn render_runtime_vm_stub(domain: &str, bindings: &BindingCatalogEntr
     let vm_alias = format!("{domain}_vm");
 
     let mut output = String::new();
-    output.push_str(GENERATED_STUB_MARKER);
     output.push_str("use destack_vm as vm;\n\n");
     output.push_str("use crate::diagnostic::RuntimeResult;\n");
     let mut vm_imports = Vec::new();

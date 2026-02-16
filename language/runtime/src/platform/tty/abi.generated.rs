@@ -4,10 +4,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
+use crate::platform::{resource, resource as platform_resource, tty as platform_tty};
 use serde::{Deserialize, Serialize};
-use crate::platform::{resource};
-use crate::platform::resource as platform_resource;
-use crate::platform::tty as platform_tty;
 
 /// ABI struct for PtyPair.
 #[repr(C)]
@@ -52,4 +50,3 @@ pub struct TtySize {
 }
 
 pub type TtySizeVm = TtySize;
-

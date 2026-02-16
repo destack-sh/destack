@@ -4,12 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{VmValueCodec, error as platform_error};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::error as platform_error;
 
 /// ABI enum for PlatformErrorCode.
 #[repr(u16)]
@@ -337,17 +336,23 @@ pub type PlatformErrorVm = PlatformErrorAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorAbi<NativeAbi> {}
 impl Clone for PlatformErrorAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorAbi<VmAbi> {}
 impl Clone for PlatformErrorAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for PlatformErrorContext.
@@ -410,17 +415,23 @@ pub type PlatformErrorContextVm = PlatformErrorContextAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformErrorContextAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformErrorContextAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformErrorContextAbi<NativeAbi> {}
 impl Clone for PlatformErrorContextAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformErrorContextAbi<VmAbi> {}
 impl Clone for PlatformErrorContextAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for PlatformPathPayload.
@@ -437,17 +448,23 @@ pub type PlatformPathPayloadVm = PlatformPathPayloadAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformPathPayloadAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformPathPayloadAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformPathPayloadAbi<NativeAbi> {}
 impl Clone for PlatformPathPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformPathPayloadAbi<VmAbi> {}
 impl Clone for PlatformPathPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// ABI struct for PlatformSystemSource.
@@ -466,17 +483,23 @@ pub type PlatformSystemSourceVm = PlatformSystemSourceAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("PlatformSystemSourceAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("PlatformSystemSourceAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for PlatformSystemSourceAbi<NativeAbi> {}
 impl Clone for PlatformSystemSourceAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for PlatformSystemSourceAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// Replay struct for PlatformError.
@@ -568,4 +591,3 @@ pub struct PlatformSystemSourceReplayRecord {
     /// The name field.
     pub name: String,
 }
-

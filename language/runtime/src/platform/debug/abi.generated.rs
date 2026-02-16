@@ -4,12 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::diagnostic::RuntimeResult;
-use crate::platform::VmValueCodec;
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use crate::platform::{VmValueCodec, debug as platform_debug};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use crate::platform::debug as platform_debug;
 
 /// ABI enum for ProfileKind.
 #[repr(u8)]
@@ -73,17 +72,23 @@ pub type InspectorEndpointVm = InspectorEndpointAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for InspectorEndpointAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("InspectorEndpointAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("InspectorEndpointAbi")
+            .finish_non_exhaustive()
     }
 }
 
 impl Copy for InspectorEndpointAbi<NativeAbi> {}
 impl Clone for InspectorEndpointAbi<NativeAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl Copy for InspectorEndpointAbi<VmAbi> {}
 impl Clone for InspectorEndpointAbi<VmAbi> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 /// Replay struct for InspectorEndpoint.
@@ -94,4 +99,3 @@ pub struct InspectorEndpointReplayRecord {
     /// The pid field.
     pub pid: u32,
 }
-
