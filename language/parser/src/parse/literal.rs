@@ -577,7 +577,7 @@ impl Parser {
         }
     }
 
-    /// Eat a template literal. The path (i.e. tag) must be passed in explicitly.
+    /// Eat a template literal.
     ///
     /// Examples:
     /// ```
@@ -588,9 +588,24 @@ impl Parser {
     /// `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
     pub fn eat_template_literal(&mut self) -> ParseResult<TemplateLiteral> {
+        self.eat_template_literal_with_options(false)
+    }
+
+    /// Eat a tagged template literal.
+    pub fn eat_tagged_template_literal(&mut self) -> ParseResult<TemplateLiteral> {
+        self.eat_template_literal_with_options(true)
+    }
+
+    /// Eat a template literal with parser-mode constraints.
+    fn eat_template_literal_with_options(
+        &mut self,
+        allow_legacy_octal_escapes: bool,
+    ) -> ParseResult<TemplateLiteral> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
-        let (strings, arguments) =
-            self.eat_template_literal_parts(|parser| parser.eat_template_literal_argument())?;
+        let (strings, arguments) = self
+            .eat_template_literal_parts(allow_legacy_octal_escapes, |parser| {
+                parser.eat_template_literal_argument()
+            })?;
 
         if arguments.is_empty() && strings.len() == 1 {
             Ok(TemplateLiteral::String { string: strings[0] })
@@ -609,7 +624,7 @@ impl Parser {
     pub fn eat_type_template_literal_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark_span();
-        let (strings, spans) = self.eat_template_literal_parts(|parser| {
+        let (strings, spans) = self.eat_template_literal_parts(false, |parser| {
             // reset outer precedence so interpolation unions parse fully
             let interpolation_options = parser
                 .options
@@ -628,6 +643,7 @@ impl Parser {
     /// Eat the parts of a template literal.
     fn eat_template_literal_parts<T>(
         &mut self,
+        allow_legacy_octal_escapes: bool,
         mut parse_span: impl FnMut(&mut Parser) -> ParseResult<T>,
     ) -> ParseResult<(Vec<StringId>, Vec<T>)> {
         let next = *self.eat()?;
@@ -636,37 +652,55 @@ impl Parser {
         // template string without interpolation
         if next.token.ty == TokenType::TemplateString {
             let string = next_str.trim_start_matches('`').trim_end_matches('`');
+            self.validate_template_literal_chunk_maybe(
+                next.span,
+                string,
+                allow_legacy_octal_escapes,
+            )?;
+
             let string_id = self.strings.intern(string);
             return Ok((vec![string_id], Vec::new()));
         }
+
         // template string with interpolation
         if next.token.ty == TokenType::TemplateStringStart {
             let mut strings: Vec<StringId> = Vec::new();
             let mut spans: Vec<T> = Vec::new();
 
-            // start: remove ` prefix and ${ suffix
+            // start chunk: remove ` prefix and ${ suffix
             let string = next_str
                 .strip_prefix('`')
                 .and_then(|s| s.strip_suffix("${"))
                 .unwrap_or("");
+            self.validate_template_literal_chunk_maybe(
+                next.span,
+                string,
+                allow_legacy_octal_escapes,
+            )?;
+
             let string_id = self.strings.intern(string);
             strings.push(string_id);
 
             // eat until the end
             while !self.peek_is(TokenType::TemplateStringEnd) {
-                // string
+                // middle chunk: remove } prefix and ${ suffix
                 if self.peek_is(TokenType::TemplateStringMiddle) {
                     let token = *self.eat()?;
                     let token_str = self.file.span_str(token.span);
-                    // remove } prefix and ${ suffix
                     let string = token_str
                         .strip_prefix('}')
                         .and_then(|s| s.strip_suffix("${"))
                         .unwrap_or("");
+                    self.validate_template_literal_chunk_maybe(
+                        token.span,
+                        string,
+                        allow_legacy_octal_escapes,
+                    )?;
+
                     let string_id = self.strings.intern(string);
                     strings.push(string_id);
                 }
-                // span
+                // interpolation expression
                 else {
                     self.eat_newlines_maybe()?;
                     let span = parse_span(self)?;
@@ -680,13 +714,19 @@ impl Parser {
                 }
             }
 
-            // end: remove } prefix and ` suffix
+            // end chunk: remove } prefix and ` suffix
             let token = *self.eat_token(TokenType::TemplateStringEnd)?;
             let token_str = self.file.span_str(token.span);
             let string = token_str
                 .strip_prefix('}')
                 .and_then(|s| s.strip_suffix('`'))
                 .unwrap_or("");
+            self.validate_template_literal_chunk_maybe(
+                token.span,
+                string,
+                allow_legacy_octal_escapes,
+            )?;
+
             let string_id = self.strings.intern(string);
             strings.push(string_id);
 
@@ -694,6 +734,63 @@ impl Parser {
         }
 
         Err(ParseError::unexpected(next.span))
+    }
+
+    /// Return true when the template chunk contains legacy octal escapes.
+    fn template_chunk_has_legacy_octal_escape(string: &str) -> bool {
+        let bytes = string.as_bytes();
+        let mut index = 0;
+
+        while index < bytes.len() {
+            if bytes[index] != b'\\' {
+                index += 1;
+                continue;
+            }
+
+            index += 1;
+            if index >= bytes.len() {
+                break;
+            }
+
+            let escaped = bytes[index];
+
+            // invalid legacy octal: \1 through \9
+            if escaped.is_ascii_digit() && escaped != b'0' {
+                return true;
+            }
+
+            // invalid legacy octal: \0 followed by another digit
+            if escaped == b'0' {
+                index += 1;
+                if index < bytes.len() && bytes[index].is_ascii_digit() {
+                    return true;
+                }
+                continue;
+            }
+
+            // skip escaped code unit
+            index += 1;
+        }
+
+        false
+    }
+
+    /// Reject template chunks with legacy octal escapes when the mode does not allow them.
+    fn validate_template_literal_chunk_maybe(
+        &self,
+        span: destack_source::Span,
+        string: &str,
+        allow_legacy_octal_escapes: bool,
+    ) -> ParseResult<()> {
+        if allow_legacy_octal_escapes {
+            return Ok(());
+        }
+
+        if Self::template_chunk_has_legacy_octal_escape(string) {
+            return Err(ParseError::unexpected(span));
+        }
+
+        Ok(())
     }
 
     /// Eat a template literal interpolation argument.
@@ -1768,6 +1865,17 @@ mod tests {
             }
             other => panic!("unexpected {other:?}"),
         }
+    }
+
+    /// Reject untagged template literals with legacy octal escapes.
+    #[test]
+    fn test_parse_template_literal_rejects_legacy_octal_escape() {
+        let mut test = TestParser::new(r"`\1`");
+        let mut parser = test.prepare();
+
+        let result = parser.eat_template_literal();
+
+        assert!(result.is_err());
     }
 
     #[test]

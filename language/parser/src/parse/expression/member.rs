@@ -106,10 +106,11 @@ impl Parser {
             return false;
         }
 
-        // accept valid optional chain targets after ?.
-        let next_next_token_type = self.token_type_at(maybe_index.saturating_add(2));
+        // accept valid optional chain targets after ?., including line-delimited targets
+        let next_target_index = self.first_non_newline_index_from(maybe_index.saturating_add(2));
+        let next_target_type = self.token_type_at(next_target_index);
         matches!(
-            next_next_token_type,
+            next_target_type,
             TokenType::Identifier
                 | TokenType::OpenBracket
                 | TokenType::OpenParenthesis

@@ -33,7 +33,9 @@ impl Parser {
             return false;
         }
         if self.has_shift_left_tree_static_arguments() {
-            return self.peek_tree_literal().is_ok();
+            return self.with_options(self.options.not_in_position(), |parser| {
+                parser.peek_tree_literal().is_ok()
+            });
         }
 
         let mark = self.mark_rewind();
@@ -45,7 +47,9 @@ impl Parser {
             return false;
         }
 
-        self.peek_tree_literal().is_ok()
+        self.with_options(self.options.not_in_position(), |parser| {
+            parser.peek_tree_literal().is_ok()
+        })
     }
 
     /// Return true when a line break is followed by a tree literal start.

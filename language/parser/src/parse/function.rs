@@ -792,8 +792,12 @@ impl Parser {
                 ));
                 let return_type_span = self.get_span_from(&type_start);
 
-                // where
-                let where_clauses = self.eat_where_maybe()?;
+                // where clauses are a destack only feature
+                let where_clauses = if self.language.is_destack() {
+                    self.eat_where_maybe()?
+                } else {
+                    None
+                };
 
                 (Some(return_type), Some(return_type_span), where_clauses)
             }
@@ -842,8 +846,12 @@ impl Parser {
                     (None, None)
                 };
 
-                // where
-                let where_clauses = self.eat_where_maybe()?;
+                // where clauses are a destack only feature
+                let where_clauses = if self.language.is_destack() {
+                    self.eat_where_maybe()?
+                } else {
+                    None
+                };
 
                 (return_type, return_type_span, where_clauses)
             }
@@ -856,6 +864,11 @@ impl Parser {
         // body
         // only for functions or lambda values
         let body = {
+            // function bodies may start on the next line in js and ts
+            if kind == FunctionKind::Function && !self.options.in_type {
+                self.eat_newlines_maybe()?;
+            }
+
             // expect body but no opening brace
             if expect_body && !self.peek_is(TokenType::OpenBrace) {
                 return Err(ParseError::expected(
@@ -863,6 +876,7 @@ impl Parser {
                     TokenType::OpenBrace,
                 ));
             }
+
             // function with body
             if kind == FunctionKind::Function && self.peek_is(TokenType::OpenBrace) {
                 let mut options = self

@@ -385,6 +385,7 @@ impl Parser {
         if has_binding {
             self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::From)?;
+            self.eat_newlines_maybe()?;
         }
         let (target, target_span) = self.eat_dependency_target_with_span()?;
 
@@ -689,6 +690,7 @@ impl Parser {
             self.bump(); // eat *
             self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::From)?;
+            self.eat_newlines_maybe()?;
             let (target, target_span) = self.eat_dependency_target_with_span()?;
             let arguments = self.eat_dependency_arguments_maybe()?;
             let item = DependencyItem {
@@ -728,6 +730,7 @@ impl Parser {
         let (target, target_span) = if has_from_target {
             self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::From)?;
+            self.eat_newlines_maybe()?;
             let (target, span) = self.eat_dependency_target_with_span()?;
             (Some(target), Some(span))
         } else {
@@ -806,10 +809,18 @@ impl Parser {
     /// Return true when the next tokens can start a dependency binding.
     #[inline]
     pub(crate) fn peek_dependency_binding_is(&mut self) -> bool {
-        self.peek_is(TokenType::OpenBrace)
-            || self.peek_is(TokenType::Multiply)
-            || (self.peek_is(TokenType::Identifier)
-                && (self.peek_next_is(TokenType::Comma) || self.is_next_keyword(Keyword::From)))
+        if self.peek_is(TokenType::OpenBrace) || self.peek_is(TokenType::Multiply) {
+            return true;
+        }
+
+        if self.peek_is(TokenType::Identifier) {
+            let next_index = self.next_non_newline_index_from(self.pos_index() + 1);
+            let next_token_type = self.token_type_at(next_index);
+            return next_token_type == TokenType::Comma
+                || self.keyword_for_index(next_index) == Some(Keyword::From);
+        }
+
+        false
     }
 
     /// Return true when tokens after `import` can start an import statement.
@@ -850,14 +861,34 @@ impl Parser {
         let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
 
         // `Default,` or `foo from`
-        if self.peek_is(TokenType::Identifier)
-            && (self.peek_next_is(TokenType::Comma) || self.is_next_keyword(Keyword::From))
-        {
+        let can_start_default_item = if self.peek_is(TokenType::Identifier) {
+            let next_index = self.next_non_newline_index_from(self.pos_index() + 1);
+            let next_token_type = self.token_type_at(next_index);
+            next_token_type == TokenType::Comma
+                || self.keyword_for_index(next_index) == Some(Keyword::From)
+        } else {
+            false
+        };
+
+        if can_start_default_item {
             let start = self.mark_span();
             let (alias, alias_span) = self.eat_identifier_with_span()?;
+
+            // parse optional default binding separator
             if self.peek_is(TokenType::Comma) {
-                self.bump(); // eat comma (leave from)
+                self.bump(); // eat comma
+                self.eat_newlines_maybe()?;
+
+                // require a supported binding continuation
+                if !self.peek_is(TokenType::OpenBrace) && !self.peek_is(TokenType::Multiply) {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
             }
+            // allow line breaks before `from`
+            else {
+                self.eat_newlines_maybe()?;
+            }
+
             let item = DependencyItem {
                 mode: DependencyMode::Default,
                 kind: None,
@@ -1243,6 +1274,110 @@ mod tests {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, None);
                 assert_string!(parser, name.string(), "A");
+                assert!(alias.is_none());
+            });
+            assert_import_target_string(&parser, target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_default_with_newline_before_from() {
+        let mut test = TestParser::new(
+            "import HeaderNavigationButton
+from 'foo'",
+        );
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        // parse multiline default import with from on the next line
+        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
+            assert_eq!(*source, ImportSource::ImportStatement);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: None, alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Default);
+                assert_eq!(*kind, None);
+                assert_string!(parser, *alias, "HeaderNavigationButton");
+            });
+            assert_import_target_string(&parser, target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_default_with_newline_block_items() {
+        let mut test = TestParser::new(
+            "import Default,
+{ type Item }
+from 'foo'",
+        );
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        // parse multiline default plus named imports
+        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
+            assert_eq!(*source, ImportSource::ImportStatement);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 2);
+
+            // default binding
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: None, alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Default);
+                assert_string!(parser, *alias, "Default");
+            });
+
+            // type named binding
+            assert_node!(parser.tree, items[1], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, Some(DependencyKind::Type));
+                assert_string!(parser, name.string(), "Item");
+                assert!(alias.is_none());
+            });
+
+            assert_import_target_string(&parser, target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_default_with_newline_comment_before_from() {
+        let mut test = TestParser::new(
+            "import BreakoutRooms
+// @ts-ignore
+from 'foo'",
+        );
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        // parse default import with comment between binding and from
+        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
+            assert_eq!(*source, ImportSource::ImportStatement);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind: None, name: None, alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Default);
+                assert_string!(parser, *alias, "BreakoutRooms");
+            });
+            assert_import_target_string(&parser, target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_with_newline_after_from() {
+        let mut test = TestParser::new(
+            "import { goBack } from
+'foo'",
+        );
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        // parse import target on the next line after from
+        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
+            assert_eq!(*source, ImportSource::ImportStatement);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
+                assert_string!(parser, name.string(), "goBack");
                 assert!(alias.is_none());
             });
             assert_import_target_string(&parser, target, "foo");

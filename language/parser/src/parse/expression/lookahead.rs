@@ -163,6 +163,24 @@ impl Parser {
         open_token_type: TokenType,
     ) -> ParseResult<Option<usize>> {
         let open_index = open_pos as usize;
+
+        // tree literals can contain raw `)` text, so groups that start as tree literals use expression matching
+        let tree_literals_allowed = self.language.supports_jsx()
+            && !self.options.in_type
+            && (self.allow_tree_literals() || self.options.in_tree_literal);
+        let needs_tree_aware_parenthesis_matching = open_token_type == TokenType::OpenParenthesis
+            && tree_literals_allowed
+            && (self.options.in_tree_literal
+                || self.parenthesized_group_starts_with_tree_literal(open_index));
+        if needs_tree_aware_parenthesis_matching {
+            let close_pos = self.find_matching_close_in_expression(
+                open_pos,
+                TokenType::OpenParenthesis,
+                TokenType::CloseParenthesis,
+            )?;
+            return Ok(Some(close_pos as usize));
+        }
+
         if !self.has_active_split()
             && self
                 .token_ref_at(open_index)
@@ -191,6 +209,18 @@ impl Parser {
             _ => return Ok(None),
         };
         Ok(Some(close_pos as usize))
+    }
+
+    /// Return true when the immediate parenthesized payload starts with a tree literal.
+    fn parenthesized_group_starts_with_tree_literal(&mut self, open_index: usize) -> bool {
+        if !self.language.supports_jsx() {
+            return false;
+        }
+
+        // skip non semantic newlines before testing tree literal starts
+        let next_index = self.next_non_newline_index_from(open_index + 1);
+
+        self.with_pos(next_index, |parser| parser.can_start_tree_literal())
     }
 
     /// Scan parenthesized contents once and collect top-level shape metadata.

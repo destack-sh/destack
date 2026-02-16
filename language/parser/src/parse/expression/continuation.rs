@@ -152,7 +152,7 @@ impl Parser {
                         return Err(ParseError::unexpected(self.peek()?.span));
                     }
 
-                    let template_literal = self.eat_template_literal()?;
+                    let template_literal = self.eat_tagged_template_literal()?;
                     left_expression_id = self.tree.insert(
                         Expression::TaggedTemplateExpression {
                             tag: left_expression_id,

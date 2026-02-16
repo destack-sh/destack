@@ -1282,10 +1282,19 @@ impl Parser {
         else {
             let name = self.eat_tree_literal_identifier()?;
 
+            // explicit value separators, including newline wrapped forms
+            let has_value_separator = self.peek_is(TokenType::Colon)
+                || self.peek_is(TokenType::Assign)
+                || self.peek_is(TokenType::Newline)
+                    && (self.is_token_after_newlines(self.pos(), TokenType::Colon)
+                        || self.is_token_after_newlines(self.pos(), TokenType::Assign));
+
             // named argument with value
-            let value = if self.peek_is(TokenType::Colon) || self.peek_is(TokenType::Assign) {
+            let value = if has_value_separator {
+                self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or assign
                 self.eat_newlines_maybe()?;
+
                 // tsx expression container: attr={expr}
                 if self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat {
@@ -2117,6 +2126,24 @@ class Test {
             assert_string!(parser, *name, "title");
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
                 assert_string!(parser, *string, "hello");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_named_argument_with_newline_before_assign_in_tsx() {
+        let mut test = TestParser::new_with_options(
+            "onBroadcastSelected\n    = { this._onYouTubeBroadcastIDSelected }",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_tree_literal_argument().unwrap();
+
+        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+            assert_string!(parser, *name, "onBroadcastSelected");
+            assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
+                assert_node!(parser.tree, *left, Expression::This);
+                assert_string!(parser, *name, "_onYouTubeBroadcastIDSelected");
             });
         });
     }
