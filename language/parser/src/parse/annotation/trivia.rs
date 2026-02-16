@@ -2314,7 +2314,6 @@ impl Parser {
         is_block_prefix_only: bool,
         statement_wrappers: &[Option<u32>],
         ignore_span: &MultiSpan,
-        enclosing_span: Option<Span>,
     ) -> Option<(AnnotationPosition, u32)> {
         let mut next_index = token_index as usize + group_len;
         while let Some(next_token) = tokens.get(next_index) {
@@ -2335,14 +2334,6 @@ impl Parser {
 
             // stop at hard statement or container boundaries
             if next_token.token.ty == TokenType::OpenBrace || self.is_closer_token(*next_token) {
-                break;
-            }
-
-            // keep non-newline comments scoped to their enclosing owner span
-            if let Some(enclosing_span) = enclosing_span
-                && !enclosing_span.intersects(next_token.span)
-                && start_token.token.ty != TokenType::Newline
-            {
                 break;
             }
 
@@ -2800,7 +2791,6 @@ impl Parser {
             is_block_prefix_only,
             statement_wrappers,
             ignore_span,
-            enclosing_span,
         ) {
             return Some(target);
         }
