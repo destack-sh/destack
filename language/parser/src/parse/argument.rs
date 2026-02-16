@@ -192,7 +192,7 @@ impl Parser {
                         self.error(&ParseError::unexpected(span));
                     }
                 } else {
-                    if validate_modifier_order && (seen_static || seen_override) {
+                    if validate_modifier_order && (seen_static || seen_override || seen_readonly) {
                         self.error(&ParseError::unexpected(span));
                     }
                     modifiers.visibility = Some(visibility);
@@ -1543,14 +1543,16 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BinaryOperator, BindingKind, BindingOperator, Declaration, Decorator,
-        Expression, FunctionMode, IfKind, IntType, Member, Mutability, Name, Parameter, Pattern,
-        PatternField, ScalarLiteral, Timing, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
-        Visibility,
+        Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator, BindingKind,
+        BindingOperator, Declaration, Decorator, Expression, FunctionMode, IfKind, IntType, Member,
+        Mutability, Name, Parameter, Pattern, PatternField, ScalarLiteral, Timing,
+        TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_parameter_type_only() {
@@ -1974,6 +1976,10 @@ mod tests {
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
 
+        assert!(
+            !parser.errors.is_empty(),
+            "expected parser error for readonly/public modifier order"
+        );
         assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
             assert_string!(parser, *name, "x");
             assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
@@ -1993,6 +1999,10 @@ mod tests {
         let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 1);
+        assert!(
+            !parser.errors.is_empty(),
+            "expected parser error for readonly/public modifier order"
+        );
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -2057,13 +2067,100 @@ class Test {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        // ensure decorators are attached on parameters
-        let decorators = parser.tree.get_nodes::<Decorator>();
         assert_eq!(expressions.len(), 1);
-        assert_eq!(decorators.len(), 6, "decorators: {decorators:?}");
-    }
 
-    // named arguments (only valid for tree literals, not dynamic or static arguments)
+        // class Test { ... }
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+                assert_eq!(members.len(), 2);
+
+                // constructor(@p1 t1, @p2 t2, @p3 ...t3)
+                assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                    assert_eq!(signature.mode, Some(FunctionMode::Constructor));
+                    assert_eq!(signature.dynamic_parameters.len(), 3);
+
+                    // @p1 t1
+                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: None, name, ty: None, default: None } => {
+                        assert_string!(parser, *name, "t1");
+                    });
+                    let t1_annotations = parser.tree.get_annotations(signature.dynamic_parameters[0].id);
+                    assert_eq!(t1_annotations.len(), 1);
+                    assert_node!(parser.tree, t1_annotations[0], Annotation::Decorator { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Decorator { expression } => {
+                            assert_expression_path!(parser, parser.tree.get(*expression), "p1");
+                        });
+                    });
+
+                    // @p2 t2
+                    assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { modifiers: Some(modifiers), name, ty: None, default: None } => {
+                        assert_string!(parser, *name, "t2");
+                        assert_eq!(modifiers.visibility, Some(Visibility::Private));
+                    });
+                    let t2_annotations = parser.tree.get_annotations(signature.dynamic_parameters[1].id);
+                    assert_eq!(t2_annotations.len(), 1);
+                    assert_node!(parser.tree, t2_annotations[0], Annotation::Decorator { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Decorator { expression } => {
+                            assert_expression_path!(parser, parser.tree.get(*expression), "p2");
+                        });
+                    });
+
+                    // @p3 ...t3
+                    assert_node!(parser.tree, signature.dynamic_parameters[2], Parameter::VariadicNamed { modifiers: None, name, ty: None } => {
+                        assert_string!(parser, *name, "t3");
+                    });
+                    let t3_annotations = parser.tree.get_annotations(signature.dynamic_parameters[2].id);
+                    assert_eq!(t3_annotations.len(), 1);
+                    assert_node!(parser.tree, t3_annotations[0], Annotation::Decorator { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Decorator { expression } => {
+                            assert_expression_path!(parser, parser.tree.get(*expression), "p3");
+                        });
+                    });
+                });
+
+                // method(@p1 t1, @p2 ...t2)
+                assert_node!(parser.tree, members[1], Member::Method { signature, .. } => {
+                    assert_eq!(signature.mode, None);
+                    assert_eq!(signature.dynamic_parameters.len(), 2);
+
+                    // @p1 t1
+                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: None, name, ty: None, default: None } => {
+                        assert_string!(parser, *name, "t1");
+                    });
+                    let method_t1_annotations = parser.tree.get_annotations(signature.dynamic_parameters[0].id);
+                    assert_eq!(method_t1_annotations.len(), 1);
+                    assert_node!(parser.tree, method_t1_annotations[0], Annotation::Decorator { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Decorator { expression } => {
+                            assert_expression_path!(parser, parser.tree.get(*expression), "p1");
+                        });
+                    });
+
+                    // @p2 ...t2
+                    assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::VariadicNamed { modifiers: None, name, ty: None } => {
+                        assert_string!(parser, *name, "t2");
+                    });
+                    let method_t2_annotations = parser.tree.get_annotations(signature.dynamic_parameters[1].id);
+                    assert_eq!(method_t2_annotations.len(), 2);
+                    assert_node!(parser.tree, method_t2_annotations[0], Annotation::Decorator { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Decorator { expression } => {
+                            assert_expression_path!(parser, parser.tree.get(*expression), "p1");
+                        });
+                    });
+                    assert_node!(parser.tree, method_t2_annotations[1], Annotation::Decorator { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Decorator { expression } => {
+                            assert_expression_path!(parser, parser.tree.get(*expression), "p2");
+                        });
+                    });
+                });
+            });
+        });
+    }
 
     #[test]
     fn test_parse_named_argument() {

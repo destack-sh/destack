@@ -378,10 +378,6 @@ impl Parser {
             end_token.span.end,
         );
 
-        // line comments have stronger postfix preference than block comments
-        let is_line_comment = start_token.token.ty == TokenType::LineComment
-            || start_token.token.ty == TokenType::DocLineComment;
-
         let Some((position, target_node_id)) = self.find_trivia_target(
             token_index,
             tokens,
@@ -389,7 +385,6 @@ impl Parser {
             group_start_index,
             group_end_index,
             group_len,
-            is_line_comment,
             false,
             statement_wrappers,
             ignore_span,
@@ -798,10 +793,10 @@ impl Parser {
         ignore_span: &MultiSpan,
     ) -> Option<u32> {
         // prefer exact start owners at the seam token
-        if let Some(owner) =
-            self.find_node_starting_at(&token.span, NodeSearchMode::BiggestOutermost)
+        if let Some(owner_id) =
+            self.find_non_annotation_node_starting_at(&token.span, NodeSearchMode::BiggestOutermost)
         {
-            return Some(owner.idx);
+            return Some(owner_id);
         }
 
         // otherwise use the smallest enclosing semantic owner
@@ -876,8 +871,30 @@ impl Parser {
 
     /// Find a left owner for postfix attachment at one token seam.
     fn find_postfix_owner_for_token(&self, token: TokenSpan) -> Option<u32> {
-        self.find_node_ending_at(&token.span, NodeSearchMode::BiggestOutermost)
-            .map(|span| span.idx)
+        self.find_non_annotation_node_ending_at(&token.span, NodeSearchMode::BiggestOutermost)
+    }
+
+    /// Return whether a node id is an annotation node type.
+    fn is_annotation_node_id(&self, node_id: u32) -> bool {
+        ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(node_id))
+    }
+
+    /// Find a non-annotation owner that starts at the given span with one search mode.
+    fn find_non_annotation_node_starting_at(
+        &self,
+        span: &Span,
+        mode: NodeSearchMode,
+    ) -> Option<u32> {
+        self.find_node_starting_at(span, mode)
+            .map(|owner| owner.idx)
+            .filter(|owner_id| !self.is_annotation_node_id(*owner_id))
+    }
+
+    /// Find a non-annotation owner that ends at the given span with one search mode.
+    fn find_non_annotation_node_ending_at(&self, span: &Span, mode: NodeSearchMode) -> Option<u32> {
+        self.find_node_ending_at(span, mode)
+            .map(|owner| owner.idx)
+            .filter(|owner_id| !self.is_annotation_node_id(*owner_id))
     }
 
     /// Find a structural member or property owner that ends at the given token.
@@ -1263,9 +1280,11 @@ impl Parser {
     ) -> Option<(AnnotationPosition, u32)> {
         let separator_kind = self.separator_kind_for_token(next_token)?;
         let mut target_node_id = if self.is_closer_token(previous_token) {
-            self.find_node_ending_at(&previous_token.span, NodeSearchMode::SmallestOutermost)
-                .map(|span| span.idx)
-                .or_else(|| self.find_postfix_owner_for_token(previous_token))
+            self.find_non_annotation_node_ending_at(
+                &previous_token.span,
+                NodeSearchMode::SmallestOutermost,
+            )
+            .or_else(|| self.find_postfix_owner_for_token(previous_token))
         } else {
             self.find_postfix_owner_for_token(previous_token)
         }?;
@@ -1982,8 +2001,7 @@ impl Parser {
             .previous_non_trivia_token(previous_index as u32, tokens, ignore_span, None)
             .map(|(index, token)| (index as usize, token))?;
 
-        self.find_node_ending_at(&before_separator_token.span, search_mode)
-            .map(|span| span.idx)
+        self.find_non_annotation_node_ending_at(&before_separator_token.span, search_mode)
     }
 
     /// Resolve same-line postfix ownership for line and block comment seams.
@@ -2008,6 +2026,18 @@ impl Parser {
             return None;
         }
 
+        // leading semicolon seams are forward-prefix seams, not postfix seams
+        if previous_token.token.ty == TokenType::Semicolon {
+            let has_same_line_token_before_semicolon = self
+                .previous_non_trivia_token(previous_index as u32, tokens, ignore_span, None)
+                .is_some_and(|(before_index, _)| {
+                    line_indices[before_index] == line_indices[previous_index]
+                });
+            if !has_same_line_token_before_semicolon {
+                return None;
+            }
+        }
+
         // classify end-of-line status and select owner search mode
         let is_end_of_line = next_token.is_none()
             || next_token.is_some_and(|(_, token)| {
@@ -2023,8 +2053,7 @@ impl Parser {
 
         // find the left owner at the seam token, with separator fallback at line end
         let target_node_id = self
-            .find_node_ending_at(&previous_token.span, search_mode)
-            .map(|span| span.idx)
+            .find_non_annotation_node_ending_at(&previous_token.span, search_mode)
             .or_else(|| {
                 if !is_end_of_line {
                     return None;
@@ -2077,12 +2106,13 @@ impl Parser {
         include_outermost_fallback: bool,
     ) -> Option<u32> {
         let target_node_id = self
-            .find_node_starting_at(&next_token.span, start_search_mode)
+            .find_non_annotation_node_starting_at(&next_token.span, start_search_mode)
             .or_else(|| {
                 self.find_node_enclosing_at(&next_token.span, start_search_mode, |candidate| {
                     !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(candidate.idx))
                         && !ignore_span.contains(&candidate.span)
                 })
+                .map(|owner| owner.idx)
             })
             .or_else(|| {
                 if !include_outermost_fallback {
@@ -2097,8 +2127,8 @@ impl Parser {
                             && !ignore_span.contains(&candidate.span)
                     },
                 )
-            })
-            .map(|span| span.idx);
+                .map(|owner| owner.idx)
+            });
 
         target_node_id
     }
@@ -2130,6 +2160,12 @@ impl Parser {
                 && line_indices[next_index] == line_indices[group_end_index]
         });
         let is_full_line_trivia = !has_left_same_line && !has_right_same_line;
+        let inline_prefix_token =
+            if next_token.is_some_and(|(_, token)| self.is_trivia_token(token)) {
+                next_non_trivia_token
+            } else {
+                next_token
+            };
 
         // keep same-line comment seams before dotted continuation on the parent path
         if let (Some((previous_index, _)), Some((next_index, next_token)), Some(enclosing_scope_id)) =
@@ -2165,7 +2201,7 @@ impl Parser {
 
         // inline block comment before a node on the same line is a prefix seam
         if is_block_comment_single_line
-            && let Some((next_index, next_token)) = next_token
+            && let Some((next_index, next_token)) = inline_prefix_token
             && self.is_inline_prefix_candidate_token(next_token)
             && self.is_same_line_prefix_seam(
                 next_index,
@@ -2208,7 +2244,7 @@ impl Parser {
         }
 
         // resolve same-line inline prefix seams when no postfix or path seam matched
-        if let Some((next_index, next_token)) = next_token
+        if let Some((next_index, next_token)) = inline_prefix_token
             && self.is_inline_prefix_candidate_token(next_token)
             && self.is_same_line_prefix_seam(
                 next_index,
@@ -2416,13 +2452,12 @@ impl Parser {
         }
 
         // prefer first body statement for expression block owners
-        if let Some(block_expression_scope) = self.find_node_starting_at(
+        if let Some(block_expression_scope_id) = self.find_non_annotation_node_starting_at(
             &next_non_trivia_token.span,
             NodeSearchMode::BiggestOutermost,
         ) {
-            if self.tree.get_node_type(block_expression_scope.idx) == NodeType::Expression {
-                let block_expression_id =
-                    LocalNodeId::<Expression>::new(block_expression_scope.idx);
+            if self.tree.get_node_type(block_expression_scope_id) == NodeType::Expression {
+                let block_expression_id = LocalNodeId::<Expression>::new(block_expression_scope_id);
                 if let Expression::Block(block_id) = self.tree.get(block_expression_id) {
                     let block = self.tree.get(*block_id);
                     if let Some(first_expression_id) = block.expressions.first() {
@@ -2504,28 +2539,34 @@ impl Parser {
             }
 
             // prefer owners that start exactly at the next token
-            let next_node = if is_block_prefix_only {
-                self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
-                    .or_else(|| {
-                        self.find_node_enclosing_at(
-                            &next_token.span,
-                            NodeSearchMode::SmallestOutermost,
-                            |candidate| {
-                                !ANNOTATION_NODE_TYPES
-                                    .contains(&self.tree.get_node_type(candidate.idx))
-                                    && !ignore_span.contains(&candidate.span)
-                            },
-                        )
-                    })
+            let next_node_id = if is_block_prefix_only {
+                self.find_non_annotation_node_starting_at(
+                    &next_token.span,
+                    NodeSearchMode::BiggestOutermost,
+                )
+                .or_else(|| {
+                    self.find_node_enclosing_at(
+                        &next_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                        |candidate| {
+                            !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(candidate.idx))
+                                && !ignore_span.contains(&candidate.span)
+                        },
+                    )
+                    .map(|owner| owner.idx)
+                })
             } else {
-                self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
+                self.find_non_annotation_node_starting_at(
+                    &next_token.span,
+                    NodeSearchMode::BiggestOutermost,
+                )
             };
 
             // attach as forward block-prefix when we found a stable owner
-            if let Some(next_node) = next_node {
+            if let Some(next_node_id) = next_node_id {
                 return Some((
                     AnnotationPosition::BlockPrefix,
-                    self.promote_statement_owner(start_token, next_node.idx, statement_wrappers),
+                    self.promote_statement_owner(start_token, next_node_id, statement_wrappers),
                 ));
             }
 
@@ -2595,19 +2636,18 @@ impl Parser {
             }
 
             // bind backward to the closest postfix owner
-            if let Some(previous_node) = (!self.is_opener_token(*previous_token))
+            if let Some(previous_node_id) = (!self.is_opener_token(*previous_token))
                 .then(|| {
-                    self.find_node_ending_at(&previous_token.span, NodeSearchMode::BiggestOutermost)
+                    self.find_non_annotation_node_ending_at(
+                        &previous_token.span,
+                        NodeSearchMode::BiggestOutermost,
+                    )
                 })
                 .flatten()
             {
                 return Some((
                     AnnotationPosition::BlockPostfix,
-                    self.promote_statement_owner(
-                        start_token,
-                        previous_node.idx,
-                        statement_wrappers,
-                    ),
+                    self.promote_statement_owner(start_token, previous_node_id, statement_wrappers),
                 ));
             }
         }
@@ -2733,7 +2773,6 @@ impl Parser {
         group_start_index: usize,
         group_end_index: usize,
         group_len: usize,
-        _is_full_line_hint: bool,
         is_block_prefix_only: bool,
         statement_wrappers: &[Option<u32>],
         ignore_span: &MultiSpan,

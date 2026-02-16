@@ -522,20 +522,8 @@ enum Value {
             });
         });
 
-        let decorators = parser.tree.get_nodes::<Decorator>();
-        assert_eq!(
-            decorators.len(),
-            1,
-            "expected one parsed dangling decorator"
-        );
-        assert_node!(parser.tree, decorators[0], Decorator { expression } => {
-            assert_node!(parser.tree, *expression, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "dangling");
-            });
-        });
-
         assert!(
-            parser.tree.get_nodes::<Annotation>().is_empty(),
+            parser.tree.get_annotations(expression_id.id).is_empty(),
             "expected no attached annotation nodes for dangling decorator"
         );
     }

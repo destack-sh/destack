@@ -1753,11 +1753,11 @@ foo(): string;"#,
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let _ = parser.parse();
+        parser.parse();
 
         assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
+            !parser.errors.is_empty(),
+            "expected parser error for readonly/public modifier order, got: {:?}",
             parser.errors
         );
     }
