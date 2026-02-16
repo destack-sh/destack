@@ -18,14 +18,14 @@ const x = "hello";
 
 ### single quoted string
 
-Single character strings normalize to single quotes.
+Single quoted input normalizes to formatter quote style.
 
 ```ds
 const x = 'a'
 ```
 
 ```ds expected
-const x = 'a';
+const x = "a";
 ```
 
 ### empty string
@@ -99,7 +99,7 @@ const x = "say \"hello\""
 ```
 
 ```ds expected
-const x = "say \"hello\"";
+const x = 'say "hello"';
 ```
 
 ## Template Literals
@@ -278,14 +278,14 @@ css`color: ${color}; font-size: ${size}px;`;
 
 ### string concatenation
 
-String concatenation uses `+` operator. Single-character strings are normalized to single quotes.
+String concatenation uses `+` operator.
 
 ```ds
 "hello" + " " + "world"
 ```
 
 ```ds expected
-"hello" + ' ' + "world";
+"hello" + " " + "world";
 ```
 
 ### string concat with variables
@@ -316,14 +316,14 @@ foo("hello");
 
 ### string in array
 
-Strings can be array elements. Single-character strings are normalized to single quotes.
+Strings can be array elements.
 
 ```ds
 ["a", "b", "c"]
 ```
 
 ```ds expected
-['a', 'b', 'c'];
+["a", "b", "c"];
 ```
 
 ### string in object
@@ -435,7 +435,7 @@ const x = 0xFF
 ```
 
 ```ds expected
-const x = 0xFF;
+const x = 0xff;
 ```
 
 ### octal
@@ -603,15 +603,14 @@ const msg =
     "This is a very long string that exceeds the line width but should not be broken";
 ```
 
-### long template literal assignment breaks after operator
+### long template literal assignment stays inline
 
-Long template literal declarator values follow the same break-after-operator rule.
+Long template literal declarator values stay inline even when they exceed line width.
 
 ```ds line-width=40
 const msg = `This is a very long template literal that exceeds the line width but should not be broken`
 ```
 
 ```ds expected
-const msg =
-    `This is a very long template literal that exceeds the line width but should not be broken`;
+const msg = `This is a very long template literal that exceeds the line width but should not be broken`;
 ```

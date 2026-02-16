@@ -261,8 +261,7 @@ expect(genCode(createVNodeCall(null, "`div`", mockProps)))
 ```
 
 ```ts expected
-expect(genCode(createVNodeCall(null, "`div`", mockProps)))
-    .toMatchInlineSnapshot(`
+expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot(`
     `);
 ```
 
@@ -364,7 +363,8 @@ data.filter(x => x.active).map(x => x.name).join(", ")
 ```
 
 ```ds expected
-data.filter((x) => x.active)
+data
+    .filter((x) => x.active)
     .map((x) => x.name)
     .join(", ");
 ```

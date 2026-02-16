@@ -88,11 +88,8 @@ When the line width is exceeded, arrays break to multiple lines.
 
 ```ds expected
 [
-    1,
-    2,
-    3,
-    4,
-    5,
+    1, 2, 3,
+    4, 5,
 ];
 ```
 
@@ -171,14 +168,17 @@ Multiple spread elements keep spacing normalized.
 
 ### nested array
 
-Nested arrays stay on one line if short.
+Nested arrays break with one nested element per line.
 
 ```ds
 [[1, 2], [3, 4]]
 ```
 
 ```ds expected
-[[1, 2], [3, 4]];
+[
+    [1, 2],
+    [3, 4],
+];
 ```
 
 ### deeply nested array
@@ -495,41 +495,41 @@ Method chains on array literals work. Arrow params get parens.
 [1, 2, 3].map((x) => x * 2);
 ```
 
-## Single Element Hugging
+## Single Element Expansion
 
-### single object in array hugs brackets
+### single object in array expands outer array
 
-When an array contains a single object that expands, it should hug the brackets.
+When an array contains a single object that expands, the outer array also expands.
 
 ```ds line-width=20
 [{ a: 1, b: 2, c: 3 }]
 ```
 
 ```ds expected
-[{
-    a: 1,
-    b: 2,
-    c: 3,
-}];
+[
+    {
+        a: 1,
+        b: 2,
+        c: 3,
+    },
+];
 ```
 
-### single array in array hugs brackets
+### single array in array expands outer array
 
-Nested arrays also hug when single element expands.
+Nested arrays also expand when the single nested array element expands.
 
 ```ds line-width=20
 [[1, 2, 3, 4, 5, 6]]
 ```
 
 ```ds expected
-[[
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-]];
+[
+    [
+        1, 2, 3, 4, 5,
+        6,
+    ],
+];
 ```
 
 ## Type Assertions

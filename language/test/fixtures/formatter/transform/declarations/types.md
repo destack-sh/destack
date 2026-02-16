@@ -72,16 +72,17 @@ type Foo = {
 
 ## Multi-line Type Unions
 
-### long union breaks after the first member
+### long union breaks with leading separators
 
-Long unions break after the first member and then keep leading `|` separators.
+Long unions break into leading `|` separator lines.
 
 ```ds line-width=30
 type Result = Success | Failure | Pending | Unknown
 ```
 
 ```ds expected
-type Result = Success
+type Result =
+    | Success
     | Failure
     | Pending
     | Unknown;
@@ -116,24 +117,27 @@ type Combined = HasName &
     HasEmail;
 ```
 
-### nullable union with object type hugs
+### nullable union with object type breaks into union arms
 
-Nullable unions keep inline `|` separators, even when the object literal breaks.
+Nullable unions break into union arms, and object arm formatting follows object type rules.
 
 ```ds line-width=20
 type MaybeUser = { name: string, email: string } | null | undefined
 ```
 
 ```ds expected
-type MaybeUser = {
-    name: string,
-    email: string,
-} | null | undefined;
+type MaybeUser =
+    | {
+            name: string;
+            email: string;
+        }
+    | null
+    | undefined;
 ```
 
-### nullable union with comment breaks
+### nullable union with comment keeps comment on object arm
 
-Nullable union hugging is disabled when comments appear between members.
+Comments between members stay attached to the object union arm while preserving the union layout.
 
 ```ds line-width=20
 type MaybeUser = { name: string, email: string } /* note */ | null | undefined
@@ -142,9 +146,9 @@ type MaybeUser = { name: string, email: string } /* note */ | null | undefined
 ```ds expected
 type MaybeUser =
     | {
-        name: string,
-        email: string,
-    } /* note */
+            name: string;
+            email: string;
+        } /* note */
     | null
     | undefined;
 ```
@@ -159,11 +163,11 @@ type WithDetails = { id: string, name: string } & HasMeta & { created: int32 }
 
 ```ds expected
 type WithDetails = {
-    id: string,
-    name: string,
+    id: string;
+    name: string;
 } & HasMeta & {
-    created: int32,
-};
+        created: int32;
+    };
 ```
 
 ## Mapped Types
@@ -201,7 +205,7 @@ type Explicit<T> = { +readonly [K in keyof T]+?: T[K] }
 ```
 
 ```ds expected
-type Explicit<T> = { readonly [K in keyof T]?: T[K] };
+type Explicit<T> = { +readonly [K in keyof T]+?: T[K] };
 ```
 
 ### mapped type with optional modifier
@@ -238,7 +242,9 @@ type DeepReadonly<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> }
 
 ```ds expected
 type DeepReadonly<T> = {
-    readonly [K in keyof T]: DeepReadonly<T[K]>,
+    readonly [K in keyof T]: DeepReadonly<
+        T[K]
+    >;
 };
 ```
 

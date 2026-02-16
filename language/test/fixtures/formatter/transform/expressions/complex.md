@@ -55,7 +55,8 @@ data.filter((x) => x.active).map((x) => x.name).reduce((a, b) => a + b)
 ```
 
 ```ds expected
-data.filter((x) => x.active)
+data
+    .filter((x) => x.active)
     .map((x) => x.name)
     .reduce((a, b) => a + b);
 ```
@@ -86,9 +87,7 @@ outer.map((x) => x.items.filter((y) => y.ok).map((y) => y.value))
 
 ```ds expected
 outer.map((x) =>
-    x.items
-        .filter((y) => y.ok)
-        .map((y) => y.value),
+    x.items.filter((y) => y.ok).map((y) => y.value),
 );
 ```
 
@@ -240,11 +239,7 @@ const x = a + b + c + d + e
 
 ```ds expected
 const x =
-    a +
-    b +
-    c +
-    d +
-    e;
+    a + b + c + d + e;
 ```
 
 ### logical chain with calls
@@ -737,9 +732,9 @@ data.filter((x) => isValid ? x.active : x.pending).map((x) => x.id)
 ```
 
 ```ds expected
-data.filter((x) =>
-    isValid ? x.active : x.pending,
-).map((x) => x.id);
+data
+    .filter((x) => (isValid ? x.active : x.pending))
+    .map((x) => x.id);
 ```
 
 ### chain with array index
@@ -849,11 +844,7 @@ const value = first ?? second ?? third ?? fourth ?? fallback
 
 ```ds expected
 const value =
-    first ??
-    second ??
-    third ??
-    fourth ??
-    fallback;
+    first ?? second ?? third ?? fourth ?? fallback;
 ```
 
 ### comparison chain with logical
