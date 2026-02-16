@@ -111,6 +111,7 @@ pub struct EcosystemSuite {
 impl EcosystemSuite {
     /// Load suite metadata, manifests, and status files.
     pub fn load(options: &EcosystemRunOptions, test_options: &TestOptions) -> Self {
+        // resolve suite paths
         let ecosystem_dir = fixtures_dir().join("ecosystem");
         let packages_dir = ecosystem_dir.join("packages");
         let checkouts_dir = ecosystem_dir.join("checkouts");
@@ -118,9 +119,9 @@ impl EcosystemSuite {
         let known_failures_path = ecosystem_dir.join("known-failures.txt");
         let ignored_path = ecosystem_dir.join("ignored.txt");
 
+        // load all manifests and keep lookup maps in sync
         let mut manifests = Vec::new();
         let mut manifests_by_name = HashMap::new();
-
         for path in EcosystemManifest::discover_all(&packages_dir) {
             match EcosystemManifest::load(&path) {
                 Ok(manifest) => {
@@ -132,18 +133,20 @@ impl EcosystemSuite {
                 }
             }
         }
-
         manifests.sort_by(|left, right| left.package.name.cmp(&right.package.name));
 
+        // derive selected phases and valid case identifiers
         let phases = options.selected_phases();
         let valid_case_ids = build_valid_case_ids(&manifests_by_name);
 
+        // load known failure and ignored status sets
         let status = load_status_sets(
             known_failures_path.as_path(),
             ignored_path.as_path(),
             &valid_case_ids,
         );
 
+        // auto fetch missing checkouts for selected packages
         let fetch_failures = fetch::auto_fetch_missing_checkouts(
             &manifests,
             &phases,
@@ -153,6 +156,7 @@ impl EcosystemSuite {
             test_options.list,
         );
 
+        // auto prepare selected packages after fetch
         let prepare_failures = auto_prepare_selected_packages(
             &manifests,
             &phases,
@@ -162,6 +166,7 @@ impl EcosystemSuite {
             test_options.list,
         );
 
+        // construct the suite state
         Self {
             phases,
             include: options.include.clone(),
@@ -1566,21 +1571,23 @@ fn print_phase_summary_table(
     phases: &[EcosystemPhase],
     phase_rows: &BTreeMap<EcosystemPhase, PhaseSummary>,
 ) {
+    // skip table rendering when no phases were selected
     if phases.is_empty() {
         return;
     }
 
+    // build selected phase label
     let selected = phases
         .iter()
         .map(EcosystemPhase::name)
         .collect::<Vec<_>>()
         .join(", ");
 
+    // print table header
     println!();
     println!("{}", color::bold("ECOSYSTEM PHASE SUMMARY"));
     println!("  selected phases: {}", color::cyan(&selected));
     println!();
-
     println!(
         "  {:10}  {:>6}  {:>6}  {:>6}  {:>6}  {:>6}  {:>6}  {:>6}  {:>6}  {:>8}  {:>8}  {:>10}  {:>10}",
         "Phase",
@@ -1599,6 +1606,7 @@ fn print_phase_summary_table(
     );
     println!("  {}", "─".repeat(123));
 
+    // print per phase rows and accumulate totals
     let mut total = PhaseSummary::default();
     for phase in phases {
         let row = phase_rows.get(phase).copied().unwrap_or_default();
@@ -1656,6 +1664,7 @@ fn print_phase_summary_table(
         );
     }
 
+    // format total row values
     let total_rate = total.pass_rate();
     let total_rate_text = format_phase_rate(total_rate);
     let total_status_text = format_phase_status(&total);
@@ -1691,6 +1700,7 @@ fn print_phase_summary_table(
     let total_modules_text = format_stats_value(total.read_modules, 10);
     let total_lines_text = format_stats_value(total.read_lines, 10);
 
+    // print total row
     println!("  {}", "─".repeat(123));
     println!(
         "  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}",
