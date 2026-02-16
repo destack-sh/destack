@@ -1,0 +1,467 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(clippy::missing_safety_doc)]
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+};
+
+use crate::runtime::RuntimeCallContext;
+use bindings::*;
+
+use crate::platform::process::{
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
+    ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
+    ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions,
+    ProcessStdio, ProcessStdioKind, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
+    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
+    SyscallFilterFlags, UserId,
+};
+use crate::platform::{fs, resource};
+
+/// Resolve a process-fd handle into its process id payload.
+fn resolve_process_fd(
+    context: &RuntimeCallContext,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<ProcessId> {
+    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::ProcessFdBinding>())
+            .map(|binding| binding.pid)
+    });
+
+    resolved.flatten().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process fd handle",
+        ))
+        .boxed()
+    })
+}
+
+/// Resolve a signal-fd handle into its signal mask payload.
+fn resolve_signal_fd(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<Vec<Signal>> {
+    let resolved = context.runtime().resources.with_entry(handle.0, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<core_process::SignalFdBinding>())
+            .map(|binding| binding.signals.clone())
+    });
+
+    resolved.flatten().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed()
+    })
+}
+
+/// Replace the signal mask payload for one signal-fd handle.
+fn update_signal_fd(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+    signals: Vec<Signal>,
+) -> RuntimeResult<()> {
+    let updated = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<core_process::SignalFdBinding>())
+                .map(|binding| {
+                    binding.signals = signals;
+                })
+        });
+
+    if updated.flatten().is_none() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+/// Close one process descriptor.
+///
+/// Close one host process descriptor and release the kernel object reference.
+/// Closing semantics follow host descriptor teardown behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_process_fd_close(
+    context: &RuntimeCallContext,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_PROCESS_FD_CLOSE)?;
+    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    if !removed {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown process fd handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Open one process descriptor for the target process id.
+///
+/// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.
+/// Descriptor semantics follow pidfd on Linux and host-equivalent process-handle semantics on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pidfd_open(2) on Linux and process handle duplication on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_process_fd_open(
+    context: &RuntimeCallContext,
+    out: *mut resource::ProcessFdHandle,
+    pid: ProcessId,
+    flags: ProcessFdFlags,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_PROCESS_FD_OPEN)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    if flags.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "process fd flags are not supported",
+        ))
+        .boxed());
+    }
+
+    core_process::process_kill(pid.0, 0)?;
+    let entry = crate::platform::resource::ResourceEntry::new(
+        crate::platform::resource::ResourceKind::Unknown,
+    )
+    .with_label("process.fd")
+    .with_payload(core_process::ProcessFdBinding { pid });
+    let resource_id = context.runtime().resources.insert(entry);
+
+    unsafe {
+        *out = resource::ProcessFdHandle(resource_id);
+    }
+
+    Ok(())
+}
+
+/// Send one signal through a process descriptor.
+///
+/// Deliver one signal using a stable process descriptor rather than a numeric pid.
+/// Delivery semantics follow pidfd_send_signal on Linux and host-equivalent process-signal APIs on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pidfd_send_signal(2) on Linux and process-handle control APIs on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.send`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_process_fd_send_signal(
+    context: &RuntimeCallContext,
+    handle: resource::ProcessFdHandle,
+    signal: Signal,
+    flags: ProcessFdSignalFlags,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
+    if flags.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "process fd signal flags are not supported",
+        ))
+        .boxed());
+    }
+
+    let process_id = resolve_process_fd(context, handle)?;
+    core_process::process_kill(process_id.0, signal.0)
+}
+
+/// Poll one process descriptor state transition without blocking.
+///
+/// Poll one process descriptor for state transition readiness and return immediately when no transition is pending.
+/// Non-ready state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking poll over pidfd on Linux and zero-timeout process wait on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.wait`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_process_fd_try_wait(
+    context: &RuntimeCallContext,
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessFdHandle,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let process_id = resolve_process_fd(context, handle)?;
+    let status =
+        core_process::process_wait_pid(process_id.0, core_process::PROCESS_WAIT_FLAG_NOHANG)?;
+    unsafe {
+        *out = status;
+    }
+
+    Ok(())
+}
+
+/// Wait for one process descriptor state transition.
+///
+/// Wait for one child-state transition associated with the process descriptor.
+/// Wait semantics follow pollable pidfd readiness on Linux and host process wait APIs on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses poll or waitid over pidfd on Linux and WaitForSingleObject plus status queries on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.wait`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_process_fd_wait(
+    context: &RuntimeCallContext,
+    out: *mut ProcessWaitStatus,
+    handle: resource::ProcessFdHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_PROCESS_FD_WAIT)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let process_id = resolve_process_fd(context, handle)?;
+    let status = core_process::process_wait_pid_timeout(process_id.0, timeoutns)?;
+    unsafe {
+        *out = status;
+    }
+
+    Ok(())
+}
+
+/// Close one signal descriptor.
+///
+/// Close one descriptor-backed signal queue and release host resources.
+/// Close semantics follow host descriptor teardown behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_signal_fd_close(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_SIGNAL_FD_CLOSE)?;
+    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    if !removed {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown signal fd handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Open one signal descriptor for the provided signal mask.
+///
+/// Open one descriptor-backed signal queue that can be polled and read like other fd resources.
+/// Signal mask semantics follow signalfd on Linux and host-equivalent runtime adapters on other targets.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses signalfd(2) on Linux and runtime-backed signal queue descriptors elsewhere.
+///
+/// # Errors
+/// Returns invalidArgument, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_signal_fd_open(
+    context: &RuntimeCallContext,
+    out: *mut resource::SignalFdHandle,
+    signals: NativeSlice<Signal>,
+    flags: SignalFdFlags,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_SIGNAL_FD_OPEN)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    if flags.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "flags",
+            "signal fd flags are not supported",
+        ))
+        .boxed());
+    }
+
+    let signals = unsafe { signals.as_slice()? }.to_vec();
+    let entry = crate::platform::resource::ResourceEntry::new(
+        crate::platform::resource::ResourceKind::Unknown,
+    )
+    .with_label("process.signal.fd")
+    .with_payload(core_process::SignalFdBinding { signals });
+    let resource_id = context.runtime().resources.insert(entry);
+
+    unsafe {
+        *out = resource::SignalFdHandle(resource_id);
+    }
+
+    Ok(())
+}
+
+/// Read one queued signal event from a signal descriptor.
+///
+/// Read the next queued signal payload from one descriptor-backed signal queue.
+/// Queue ordering and coalescing behavior follow host signal queue semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses read(2) over signalfd on Linux and runtime queue reads on other targets.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_signal_fd_read(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_SIGNAL_FD_READ)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let signals = resolve_signal_fd(context, handle)?;
+    let event = core_process::process_signal_wait(&signals)?;
+    unsafe {
+        *out = event;
+    }
+
+    Ok(())
+}
+
+/// Replace the active signal mask for one signal descriptor.
+///
+/// Replace the descriptor signal mask with one explicit signal-set value.
+/// Mask transitions are atomic under host signal-descriptor APIs.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses signalfd mask update semantics on Linux and runtime queue mask update elsewhere.
+///
+/// # Errors
+/// Returns invalidArgument, processPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_signal_fd_set_mask(
+    context: &RuntimeCallContext,
+    handle: resource::SignalFdHandle,
+    signals: NativeSlice<Signal>,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
+    let signals = unsafe { signals.as_slice()? }.to_vec();
+    update_signal_fd(context, handle, signals)
+}
+
+/// Poll one queued signal event from a signal descriptor without blocking.
+///
+/// Poll one descriptor-backed signal queue for one signal event and return immediately when empty.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking reads over signalfd on Linux and runtime queue polling elsewhere.
+///
+/// # Errors
+/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `process.signal.receive`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_signal_fd_try_read(
+    context: &RuntimeCallContext,
+    out: *mut SignalEvent,
+    handle: resource::SignalFdHandle,
+) -> RuntimeResult<()> {
+    context.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let signals = resolve_signal_fd(context, handle)?;
+    let event = core_process::process_signal_try_wait(&signals)?;
+    unsafe {
+        *out = event;
+    }
+
+    Ok(())
+}

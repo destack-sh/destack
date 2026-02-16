@@ -1,5 +1,9 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{NetHarnessKind, native_slice, native_slice_mut, with_harness_context};
+use super::{
+    NetHarnessKind, assert_platform_error_code, native_slice, native_slice_mut,
+    with_harness_context,
+};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
     AcceptFlags, destack_net_accept, destack_net_close, destack_net_close_listener,
     destack_net_read, destack_net_write,
@@ -33,18 +37,24 @@ fn test_net_invalid_handles() {
                 context.status_err(status, "read invalid socket")?;
             }
             NetHarnessKind::Vm => {
-                let result = context.close(SocketHandle(ResourceId(9999)));
-                assert!(result.is_err(), "close invalid socket should error");
-
-                let result = context.close_listener(ListenerHandle(ResourceId(9999)));
-                assert!(result.is_err(), "close invalid listener should error");
-
-                let result = context.write(SocketHandle(ResourceId(9999)), b"data");
-                assert!(result.is_err(), "write invalid socket should error");
+                assert_platform_error_code(
+                    context.close(SocketHandle(ResourceId(9999))),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
+                assert_platform_error_code(
+                    context.close_listener(ListenerHandle(ResourceId(9999))),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
+                assert_platform_error_code(
+                    context.write(SocketHandle(ResourceId(9999)), b"data"),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
 
                 let mut buffer = vec![0u8; 8];
-                let result = context.read(SocketHandle(ResourceId(9999)), &mut buffer);
-                assert!(result.is_err(), "read invalid socket should error");
+                assert_platform_error_code(
+                    context.read(SocketHandle(ResourceId(9999)), &mut buffer),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
             }
         }
 
@@ -69,8 +79,10 @@ fn test_net_accept_after_close() {
                 context.status_err(status, "accept after close")?;
             }
             NetHarnessKind::Vm => {
-                let result = context.accept(listener);
-                assert!(result.is_err(), "accept after close should error");
+                assert_platform_error_code(
+                    context.accept(listener),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
             }
         }
 

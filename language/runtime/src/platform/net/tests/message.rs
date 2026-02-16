@@ -1,4 +1,5 @@
-use super::{allow_not_supported, with_harness_context};
+use super::{assert_platform_error_code, with_harness_context};
+use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(unix)]
 #[test]
@@ -39,7 +40,7 @@ fn test_net_raw_address_roundtrip() {
 #[test]
 fn test_net_mmsg_roundtrip() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // set up a connected pair
             let listener = context.listen("127.0.0.1", 0, 128)?;
             let port = context.listener_port(listener);
@@ -65,7 +66,13 @@ fn test_net_mmsg_roundtrip() {
             context.close_listener(listener)?;
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 
@@ -73,7 +80,7 @@ fn test_net_mmsg_roundtrip() {
 #[test]
 fn test_net_sendmsg_recvmsg_roundtrip() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // set up a connected pair
             let listener = context.listen("127.0.0.1", 0, 128)?;
             let port = context.listener_port(listener);
@@ -102,7 +109,13 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
             context.close_listener(listener)?;
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 
@@ -110,7 +123,7 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
 #[test]
 fn test_net_recvmsg_rejects_ancillary_requests() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // set up a connected pair
             let listener = context.listen("127.0.0.1", 0, 128)?;
             let port = context.listener_port(listener);
@@ -123,8 +136,10 @@ fn test_net_recvmsg_rejects_ancillary_requests() {
 
             // reject descriptor capture on windows
             let mut buffer = vec![0u8; 16];
-            let result = context.recv_msg(server, &mut buffer, 1, false);
-            assert!(result.is_err());
+            assert_platform_error_code(
+                context.recv_msg(server, &mut buffer, 1, false),
+                PlatformErrorCode::NotSupported,
+            )?;
 
             // close resources
             context.close(server)?;
@@ -132,11 +147,17 @@ fn test_net_recvmsg_rejects_ancillary_requests() {
             context.close_listener(listener)?;
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
 #[test]
 fn test_net_sendmsg_rejects_credential_requests() {
     with_harness_context(|mut context| {
@@ -146,9 +167,11 @@ fn test_net_sendmsg_rejects_credential_requests() {
         let client = context.connect("127.0.0.1", port)?;
         let server = context.accept(listener)?;
 
-        // reject explicit credentials on windows sendmsg
-        let result = context.send_msg_with_options(client, b"hello", 0, true);
-        assert!(result.is_err());
+        // reject explicit credentials on unsupported unix targets
+        assert_platform_error_code(
+            context.send_msg_with_options(client, b"hello", 0, true),
+            PlatformErrorCode::NotSupported,
+        )?;
 
         // close resources
         context.close(server)?;

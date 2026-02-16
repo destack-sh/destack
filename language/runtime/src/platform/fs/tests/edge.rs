@@ -1,4 +1,5 @@
-use super::{FsHarnessKind, temp_dir, with_harness_context};
+use super::{FsHarnessKind, assert_platform_error_code, temp_dir, with_harness_context};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs as platform_fs;
 use crate::platform::fs::FileMode;
 use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceId};
@@ -23,10 +24,14 @@ fn test_fs_invalid_file_handle() {
                 context.status_err(status, "close invalid handle")?;
             }
             FsHarnessKind::Vm => {
-                let result = context.read(FileHandle(ResourceId(9999)), &mut buffer);
-                assert!(result.is_err(), "read invalid handle should error");
-                let result = context.close(FileHandle(ResourceId(9999)));
-                assert!(result.is_err(), "close invalid handle should error");
+                assert_platform_error_code(
+                    context.read(FileHandle(ResourceId(9999)), &mut buffer),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
+                assert_platform_error_code(
+                    context.close(FileHandle(ResourceId(9999))),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
             }
         }
 
@@ -62,10 +67,14 @@ fn test_fs_invalid_directory_handle() {
                 context.status_err(status, "closedir invalid handle")?;
             }
             FsHarnessKind::Vm => {
-                let result = context.closedir(handle);
-                assert!(result.is_err(), "closedir after close should error");
-                let result = context.closedir(DirectoryHandle(ResourceId(9999)));
-                assert!(result.is_err(), "closedir invalid handle should error");
+                assert_platform_error_code(
+                    context.closedir(handle),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
+                assert_platform_error_code(
+                    context.closedir(DirectoryHandle(ResourceId(9999))),
+                    PlatformErrorCode::InvalidArgumentValue,
+                )?;
             }
         }
 
