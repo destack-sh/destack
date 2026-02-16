@@ -453,7 +453,6 @@ impl_dump_display! {
     Mutability,
     PostfixPosition,
     ReferenceType,
-    Runtime,
     IntrinsicType,
     TypeBinaryOperator,
     TypeUnaryOperator,

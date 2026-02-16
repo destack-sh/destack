@@ -167,15 +167,6 @@ pub enum Visibility {
     Private,
 }
 
-/// A Runtime is the evaluation context of an expression / function.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Runtime {
-    /// The dynamic runtime (regular runtime).
-    Dynamic,
-    /// The static runtime ("comptime").
-    Static,
-}
-
 /// The asynchrony of a function.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Asynchrony {
