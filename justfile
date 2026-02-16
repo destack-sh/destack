@@ -105,6 +105,11 @@ alias test-editor := test-ide
 test-windows-runtime:
     just language/test-windows-runtime
 
+# run privileged language runtime platform tests
+test-runtime-privileged:
+    just language/test-runtime-privileged
+
+
 # --- bench ---
 
 # run benchmarks

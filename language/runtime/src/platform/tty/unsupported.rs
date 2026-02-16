@@ -29,12 +29,11 @@ use crate::platform::tty::{PtyPair, TtyMode, TtySize};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_read(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_IO_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -61,12 +60,11 @@ pub(crate) unsafe fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_write(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::TtyHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_IO_WRITE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -93,11 +91,10 @@ pub(crate) unsafe fn destack_tty_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_mode(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut TtyMode,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_MODE_GET_MODE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -124,11 +121,10 @@ pub(crate) unsafe fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_mode(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TtyHandle,
     mode: TtyMode,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_MODE_SET_MODE)?;
     let _ = (handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.setMode")).boxed())
@@ -152,10 +148,9 @@ pub(crate) unsafe fn destack_tty_set_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_close(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_PTY_CLOSE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.pty.close")).boxed())
@@ -179,13 +174,12 @@ pub(crate) unsafe fn destack_tty_pty_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut PtyPair,
     rows: u32,
     columns: u32,
     flags: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_PTY_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -212,11 +206,10 @@ pub(crate) unsafe fn destack_tty_pty_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_get_size(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut TtySize,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_SIZE_GET_SIZE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -243,11 +236,10 @@ pub(crate) unsafe fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tty_set_size(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TtyHandle,
     size: TtySize,
 ) -> RuntimeResult<()> {
-    context.check_policy(TTY_SIZE_SET_SIZE)?;
     let _ = (handle, size);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.setSize")).boxed())

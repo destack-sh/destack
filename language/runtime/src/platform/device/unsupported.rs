@@ -29,14 +29,13 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_control(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::DeviceHandle,
     operation: DeviceControlOperation,
     input: NativeSlice<u8>,
     output: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(DEVICE_CONTROL_CONTROL)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -66,10 +65,9 @@ pub(crate) unsafe fn destack_device_control(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_close(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(DEVICE_IO_CLOSE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.close")).boxed())
@@ -93,13 +91,12 @@ pub(crate) unsafe fn destack_device_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::DeviceHandle,
     path: fs::OsPath,
     flags: u32,
     mode: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(DEVICE_IO_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -126,12 +123,11 @@ pub(crate) unsafe fn destack_device_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_read(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(DEVICE_IO_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -158,12 +154,11 @@ pub(crate) unsafe fn destack_device_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_device_write(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::DeviceHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(DEVICE_IO_WRITE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }

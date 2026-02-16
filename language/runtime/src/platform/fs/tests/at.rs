@@ -8,6 +8,7 @@ use crate::platform::fs::{
     AtFlags, FileMode, OpenFlags, OpenOptions, OpenResolveFlags, RenameFlags,
 };
 
+/// Use *at bindings for open, stat, rename, and unlink operations.
 #[cfg(unix)]
 #[test]
 fn test_fs_openat_statat_renameat_unlinkat() {
@@ -42,7 +43,7 @@ fn test_fs_openat_statat_renameat_unlinkat() {
         context.write(handle, b"openat2")?;
         context.close(handle)?;
 
-        // statat
+        // statat should observe the written payload length
         let file = context.path_bytes(file_name);
         let stat = context.statat(dir_handle, file, AtFlags(0))?;
         assert_eq!(stat.size.0, 6);
@@ -72,6 +73,7 @@ fn test_fs_openat_statat_renameat_unlinkat() {
     });
 }
 
+/// Read and write file contents through openat with sequential io.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_openat_sequential_read_write() {
@@ -114,6 +116,7 @@ fn test_fs_openat_sequential_read_write() {
     });
 }
 
+/// Create a hard link through linkat and validate the linked file metadata.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_linkat() {
@@ -135,13 +138,21 @@ fn test_fs_linkat() {
         context.write(handle, b"linkat")?;
         context.close(handle)?;
 
-        let allowed = [PlatformErrorCode::NotSupported];
         let existing = context.path_bytes(file_name);
         let new = context.path_bytes(link_name);
-        let link_result = context.linkat(dir_handle, existing, dir_handle, new, AtFlags(0));
-        let linked = context.result_ok_or_codes(link_result, "linkat", &allowed)?;
+        #[cfg(unix)]
+        context.linkat(dir_handle, existing, dir_handle, new, AtFlags(0))?;
+        #[cfg(windows)]
+        let allowed = [PlatformErrorCode::NotSupported];
+        #[cfg(windows)]
+        let _ = context.result_ok_or_codes(
+            context.linkat(dir_handle, existing, dir_handle, new, AtFlags(0)),
+            "linkat",
+            &allowed,
+        )?;
 
-        if linked.is_some() {
+        #[cfg(unix)]
+        {
             let link = context.path_bytes(link_name);
             let stat = context.statat(dir_handle, link, AtFlags(0))?;
             assert_eq!(stat.size.0, 6);
@@ -161,6 +172,7 @@ fn test_fs_linkat() {
     });
 }
 
+/// Create and resolve a symlink through symlinkat and readlinkat.
 #[cfg(unix)]
 #[test]
 fn test_fs_symlinkat_readlinkat() {
@@ -181,21 +193,18 @@ fn test_fs_symlinkat_readlinkat() {
         let handle = context.openat(dir_handle, file, flags, FileMode(0o644))?;
         context.close(handle)?;
 
-        let allowed = [PlatformErrorCode::NotSupported];
         let target = context.path_bytes(file_name);
         let link = context.path_bytes(link_name);
-        let symlink_result = context.symlinkat(target, dir_handle, link, SymlinkType::File);
-        let linked = context.result_ok_or_codes(symlink_result, "symlinkat", &allowed)?;
+        context.symlinkat(target, dir_handle, link, SymlinkType::File)?;
 
-        if linked.is_some() {
-            let link = context.path_bytes(link_name);
-            let resolved = context.readlinkat(dir_handle, link)?;
-            let name = context.path_ref_string(resolved);
-            assert!(name.ends_with("target.txt"));
+        // readlinkat should return the target path
+        let link = context.path_bytes(link_name);
+        let resolved = context.readlinkat(dir_handle, link)?;
+        let name = context.path_ref_string(resolved);
+        assert!(name.ends_with("target.txt"));
 
-            let link = context.path_bytes(link_name);
-            context.unlinkat(dir_handle, link, AtFlags(0))?;
-        }
+        let link = context.path_bytes(link_name);
+        context.unlinkat(dir_handle, link, AtFlags(0))?;
 
         let file = context.path_bytes(file_name);
         context.unlinkat(dir_handle, file, AtFlags(0))?;
@@ -208,6 +217,7 @@ fn test_fs_symlinkat_readlinkat() {
     });
 }
 
+/// Exercise chmodat, chownat, and utimensat attribute updates.
 #[cfg(unix)]
 #[test]
 fn test_fs_fchmodat_fchownat_utimensat() {
@@ -229,18 +239,11 @@ fn test_fs_fchmodat_fchownat_utimensat() {
 
         // run chmodat
         let file = context.path_bytes(file_name);
-        let chmod_result = context.fchmodat(dir_handle, file, FileMode(0o600), AtFlags(0));
-        context.result_ok_or_codes(chmod_result, "fchmodat", &[PlatformErrorCode::NotSupported])?;
+        context.fchmodat(dir_handle, file, FileMode(0o600), AtFlags(0))?;
 
         // run utimensat
         let file = context.path_bytes(file_name);
-        let utimens_result =
-            context.utimensat(dir_handle, file, 1_000_000_000, 2_000_000_000, AtFlags(0));
-        context.result_ok_or_codes(
-            utimens_result,
-            "utimensat",
-            &[PlatformErrorCode::NotSupported],
-        )?;
+        context.utimensat(dir_handle, file, 1_000_000_000, 2_000_000_000, AtFlags(0))?;
 
         // run chownat: this usually needs privileges
         let file = context.path_bytes(file_name);
@@ -248,11 +251,7 @@ fn test_fs_fchmodat_fchownat_utimensat() {
         context.result_ok_or_codes(
             chown_result,
             "fchownat",
-            &[
-                PlatformErrorCode::NotSupported,
-                PlatformErrorCode::IoPermissionDenied,
-                PlatformErrorCode::Io,
-            ],
+            &[PlatformErrorCode::IoPermissionDenied, PlatformErrorCode::Io],
         )?;
 
         // cleanup
@@ -267,6 +266,7 @@ fn test_fs_fchmodat_fchownat_utimensat() {
     });
 }
 
+/// Reject unsupported openat2 resolve flags on windows hosts.
 #[cfg(windows)]
 #[test]
 fn test_fs_openat2_rejects_resolve_flags() {
@@ -274,8 +274,6 @@ fn test_fs_openat2_rejects_resolve_flags() {
         // runtime and temp directory
         let temp_dir = temp_dir("fs_openat2_flags_windows");
         let file_name = Path::new("flags.txt");
-        let allowed = [PlatformErrorCode::NotSupported];
-
         // create parent directory and open handle
         let directory = context.path_bytes(&temp_dir);
         context.mkdir(directory, FileMode(0o755))?;
@@ -290,7 +288,7 @@ fn test_fs_openat2_rejects_resolve_flags() {
             resolve: OpenResolveFlags(0x1),
         };
         let result = context.openat2(dir_handle, path, options);
-        context.result_ok_or_codes(result, "openat2", &allowed)?;
+        super::assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
 
         // cleanup
         context.closedir(dir_handle)?;
@@ -301,6 +299,7 @@ fn test_fs_openat2_rejects_resolve_flags() {
     });
 }
 
+/// Reject renameat2 exchange semantics on windows hosts.
 #[cfg(windows)]
 #[test]
 fn test_fs_renameat2_rejects_exchange_flags() {
@@ -309,8 +308,6 @@ fn test_fs_renameat2_rejects_exchange_flags() {
         let temp_dir = temp_dir("fs_renameat2_flags_windows");
         let first_name = Path::new("first.txt");
         let second_name = Path::new("second.txt");
-        let allowed = [PlatformErrorCode::NotSupported];
-
         // create parent directory and open handle
         let directory = context.path_bytes(&temp_dir);
         context.mkdir(directory, FileMode(0o755))?;
@@ -335,7 +332,7 @@ fn test_fs_renameat2_rejects_exchange_flags() {
         let first = context.path_bytes(first_name);
         let second = context.path_bytes(second_name);
         let result = context.renameat2(dir_handle, first, dir_handle, second, RenameFlags(0x2));
-        context.result_ok_or_codes(result, "renameat2", &allowed)?;
+        super::assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
 
         // cleanup
         let first = context.path_bytes(first_name);

@@ -1309,6 +1309,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_delete(
         let _ = &handle;
 
         {
+            context.check_policy(CRYPTO_CERTIFICATE_DELETE)?;
             let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1335,6 +1336,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_export(
         let _ = (&out, &handle, &format);
 
         {
+            context.check_policy(CRYPTO_CERTIFICATE_EXPORT)?;
             let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_EXPORT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1364,6 +1366,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_import(
         let _ = (&out, &store, &format, &certificate);
 
         {
+            context.check_policy(CRYPTO_CERTIFICATE_IMPORT)?;
             let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_IMPORT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1401,6 +1404,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_metadata(
         let _ = (&out, &handle);
 
         {
+            context.check_policy(CRYPTO_CERTIFICATE_METADATA)?;
             let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_METADATA)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1428,6 +1432,7 @@ pub unsafe extern "C" fn destack_crypto_certificate_verify(
         let _ = (&out, &request);
 
         {
+            context.check_policy(CRYPTO_CERTIFICATE_VERIFY)?;
             let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_VERIFY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1457,6 +1462,7 @@ pub unsafe extern "C" fn destack_crypto_key_decrypt(
         let _ = (&out, &handle, &scheme, &argument_payload);
 
         {
+            context.check_policy(CRYPTO_KEY_DECRYPT)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_DECRYPT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1490,6 +1496,7 @@ pub unsafe extern "C" fn destack_crypto_key_delete(
         let _ = &handle;
 
         {
+            context.check_policy(CRYPTO_KEY_DELETE)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1517,6 +1524,7 @@ pub unsafe extern "C" fn destack_crypto_key_encrypt(
         let _ = (&out, &handle, &scheme, &argument_payload);
 
         {
+            context.check_policy(CRYPTO_KEY_ENCRYPT)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_ENCRYPT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1555,6 +1563,7 @@ pub unsafe extern "C" fn destack_crypto_key_export_public(
         let _ = (&out, &handle, &format);
 
         {
+            context.check_policy(CRYPTO_KEY_EXPORT_PUBLIC)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_EXPORT_PUBLIC)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1583,6 +1592,7 @@ pub unsafe extern "C" fn destack_crypto_key_generate(
         let _ = (&out, &store, &spec);
 
         {
+            context.check_policy(CRYPTO_KEY_GENERATE)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_GENERATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1614,6 +1624,7 @@ pub unsafe extern "C" fn destack_crypto_key_import(
         let _ = (&out, &store, &format, &argument_bytes, &usagemask, &label);
 
         {
+            context.check_policy(CRYPTO_KEY_IMPORT)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_IMPORT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1655,6 +1666,7 @@ pub unsafe extern "C" fn destack_crypto_key_metadata(
         let _ = (&out, &handle);
 
         {
+            context.check_policy(CRYPTO_KEY_METADATA)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_METADATA)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1682,6 +1694,7 @@ pub unsafe extern "C" fn destack_crypto_key_sign(
         let _ = (&out, &handle, &scheme, &argument_payload);
 
         {
+            context.check_policy(CRYPTO_KEY_SIGN)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_SIGN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1722,6 +1735,7 @@ pub unsafe extern "C" fn destack_crypto_key_verify(
         let _ = (&out, &handle, &scheme, &argument_payload, &signature);
 
         {
+            context.check_policy(CRYPTO_KEY_VERIFY)?;
             let world = context.check_and_resolve_world(CRYPTO_KEY_VERIFY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1757,6 +1771,7 @@ pub unsafe extern "C" fn destack_crypto_store_close(
         let _ = &handle;
 
         {
+            context.check_policy(CRYPTO_STORE_CLOSE)?;
             let world = context.check_and_resolve_world(CRYPTO_STORE_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1783,6 +1798,7 @@ pub unsafe extern "C" fn destack_crypto_store_list_certificates(
         let _ = (&out, &handle, &query);
 
         {
+            context.check_policy(CRYPTO_STORE_LIST_CERTIFICATES)?;
             let world = context.check_and_resolve_world(CRYPTO_STORE_LIST_CERTIFICATES)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1813,6 +1829,7 @@ pub unsafe extern "C" fn destack_crypto_store_list_keys(
         let _ = (&out, &handle, &query);
 
         {
+            context.check_policy(CRYPTO_STORE_LIST_KEYS)?;
             let world = context.check_and_resolve_world(CRYPTO_STORE_LIST_KEYS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1840,6 +1857,7 @@ pub unsafe extern "C" fn destack_crypto_store_open(
         let _ = (&out, &options);
 
         {
+            context.check_policy(CRYPTO_STORE_OPEN)?;
             let world = context.check_and_resolve_world(CRYPTO_STORE_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1867,6 +1885,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_CERTIFICATE_DELETE)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_DELETE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_delete(
@@ -1898,6 +1917,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_CERTIFICATE_EXPORT)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_EXPORT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_export(
@@ -1929,6 +1949,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_CERTIFICATE_IMPORT)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_IMPORT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_import(
@@ -1967,6 +1988,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_CERTIFICATE_METADATA)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_METADATA)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_metadata(
@@ -1997,6 +2019,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_CERTIFICATE_VERIFY)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_VERIFY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_verify(
@@ -2028,6 +2051,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_DECRYPT)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_DECRYPT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_decrypt(
@@ -2066,6 +2090,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_DELETE)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2097,6 +2122,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_ENCRYPT)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_ENCRYPT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_encrypt(
@@ -2136,6 +2162,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_EXPORT_PUBLIC)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_EXPORT_PUBLIC)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_export_public(
@@ -2166,6 +2193,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_GENERATE)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_GENERATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_generate(
@@ -2197,6 +2225,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_IMPORT)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_IMPORT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_import(
@@ -2239,6 +2268,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_METADATA)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_METADATA)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2266,6 +2296,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
+                    runtime.check_policy(CRYPTO_KEY_SIGN)?;
                     let world = runtime.check_and_resolve_world(CRYPTO_KEY_SIGN)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_crypto_key_sign(
@@ -2302,6 +2333,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_KEY_VERIFY)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_VERIFY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_verify(
@@ -2342,6 +2374,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_STORE_CLOSE)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_STORE_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -2373,6 +2406,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_STORE_LIST_CERTIFICATES)?;
                         let world =
                             runtime.check_and_resolve_world(CRYPTO_STORE_LIST_CERTIFICATES)?;
                         match world {
@@ -2407,6 +2441,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_STORE_LIST_KEYS)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_STORE_LIST_KEYS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_store_list_keys(
@@ -2437,6 +2472,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(CRYPTO_STORE_OPEN)?;
                         let world = runtime.check_and_resolve_world(CRYPTO_STORE_OPEN)?;
                         match world {
                             RuntimeWorld::Host => {

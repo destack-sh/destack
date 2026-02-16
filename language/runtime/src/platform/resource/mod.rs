@@ -8,6 +8,8 @@ mod resolve;
 pub(crate) mod runtime;
 mod snapshot;
 mod table;
+#[cfg(test)]
+mod tests;
 pub mod vm;
 
 pub use bindings_generated::*;

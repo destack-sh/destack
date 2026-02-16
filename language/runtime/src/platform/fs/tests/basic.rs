@@ -1,6 +1,7 @@
 use super::{temp_dir, with_harness_context};
 use crate::platform::fs::{FileMode, FileOffset, OpenFlags};
 
+/// Open, write, read, and close a file through the harness.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_open_read_write_close() {

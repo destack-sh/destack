@@ -87,6 +87,33 @@ pub(crate) fn runtime_domain_abi_types_path(domain: &str) -> PathBuf {
     language_root().join(format!("runtime/src/platform/{domain}/abi.generated.rs"))
 }
 
+/// Resolve the handwritten tests harness path for a runtime domain.
+pub(crate) fn runtime_domain_tests_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/tests/tests.rs"))
+}
+
+/// Resolve the tests directory path for a runtime domain.
+pub(crate) fn runtime_domain_tests_dir_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/tests"))
+}
+
+/// Resolve the tests module path for a runtime domain.
+pub(crate) fn runtime_domain_tests_mod_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/tests/mod.rs"))
+}
+
+/// Resolve the basic tests module path for a runtime domain.
+pub(crate) fn runtime_domain_tests_basic_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/tests/basic.rs"))
+}
+
+/// Resolve the generated tests harness adapter path for a runtime domain.
+pub(crate) fn runtime_domain_test_harness_generated_path(domain: &str) -> PathBuf {
+    language_root().join(format!(
+        "runtime/src/platform/{domain}/tests/harness.generated.rs"
+    ))
+}
+
 /// Resolve the generated platform binding list path.
 pub(crate) fn runtime_platform_generated_path() -> PathBuf {
     language_root().join("runtime/src/platform/generated.rs")

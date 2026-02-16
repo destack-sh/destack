@@ -13543,6 +13543,7 @@ pub unsafe extern "C" fn destack_net_accept(
         }
         let _ = (&out, &listener, &flags);
 
+        context.check_policy(NET_ACCEPT)?;
         let world = context.check_and_resolve_world(NET_ACCEPT)?;
         destack_net_accept_replay(context, world, out, listener, flags)
     })
@@ -13559,6 +13560,7 @@ pub unsafe extern "C" fn destack_net_address_local_address(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_ADDRESS_LOCAL_ADDRESS)?;
         let world = context.check_and_resolve_world(NET_ADDRESS_LOCAL_ADDRESS)?;
         destack_net_address_local_address_replay(context, world, out, handle)
     })
@@ -13575,6 +13577,7 @@ pub unsafe extern "C" fn destack_net_address_peer_address(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_ADDRESS_PEER_ADDRESS)?;
         let world = context.check_and_resolve_world(NET_ADDRESS_PEER_ADDRESS)?;
         destack_net_address_peer_address_replay(context, world, out, handle)
     })
@@ -13588,6 +13591,7 @@ pub unsafe extern "C" fn destack_net_bind(
     native_call(|context| {
         let _ = (&handle, &address);
 
+        context.check_policy(NET_BIND)?;
         let world = context.check_and_resolve_world(NET_BIND)?;
         destack_net_bind_replay(context, world, handle, address)
     })
@@ -13598,6 +13602,7 @@ pub unsafe extern "C" fn destack_net_close(handle: resource::SocketHandle) -> Ru
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(NET_CLOSE)?;
         let world = context.check_and_resolve_world(NET_CLOSE)?;
         destack_net_close_replay(context, world, handle)
     })
@@ -13610,6 +13615,7 @@ pub unsafe extern "C" fn destack_net_close_listener(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(NET_CLOSE_LISTENER)?;
         let world = context.check_and_resolve_world(NET_CLOSE_LISTENER)?;
         destack_net_close_listener_replay(context, world, handle)
     })
@@ -13623,6 +13629,7 @@ pub unsafe extern "C" fn destack_net_connect(
     native_call(|context| {
         let _ = (&handle, &address);
 
+        context.check_policy(NET_CONNECT)?;
         let world = context.check_and_resolve_world(NET_CONNECT)?;
         destack_net_connect_replay(context, world, handle, address)
     })
@@ -13638,6 +13645,7 @@ pub unsafe extern "C" fn destack_net_interface_list_interfaces(
         }
         let _ = &out;
 
+        context.check_policy(NET_INTERFACE_LIST_INTERFACES)?;
         let world = context.check_and_resolve_world(NET_INTERFACE_LIST_INTERFACES)?;
         destack_net_interface_list_interfaces_replay(context, world, out)
     })
@@ -13654,6 +13662,7 @@ pub unsafe extern "C" fn destack_net_interface_index(
         }
         let _ = (&out, &name);
 
+        context.check_policy(NET_INTERFACE_INDEX)?;
         let world = context.check_and_resolve_world(NET_INTERFACE_INDEX)?;
         destack_net_interface_index_replay(context, world, out, name)
     })
@@ -13670,6 +13679,7 @@ pub unsafe extern "C" fn destack_net_interface_name(
         }
         let _ = (&out, &index);
 
+        context.check_policy(NET_INTERFACE_NAME)?;
         let world = context.check_and_resolve_world(NET_INTERFACE_NAME)?;
         destack_net_interface_name_replay(context, world, out, index)
     })
@@ -13687,6 +13697,7 @@ pub unsafe extern "C" fn destack_net_listen(
         }
         let _ = (&out, &address, &backlog);
 
+        context.check_policy(NET_LISTEN)?;
         let world = context.check_and_resolve_world(NET_LISTEN)?;
         destack_net_listen_replay(context, world, out, address, backlog)
     })
@@ -13703,6 +13714,7 @@ pub unsafe extern "C" fn destack_net_options_get_broadcast(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_BROADCAST)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_BROADCAST)?;
         destack_net_options_get_broadcast_replay(context, world, out, handle)
     })
@@ -13719,6 +13731,7 @@ pub unsafe extern "C" fn destack_net_options_get_linger(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_LINGER)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_LINGER)?;
         destack_net_options_get_linger_replay(context, world, out, handle)
     })
@@ -13735,6 +13748,7 @@ pub unsafe extern "C" fn destack_net_options_get_only_v6(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_ONLY_V6)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_ONLY_V6)?;
         destack_net_options_get_only_v6_replay(context, world, out, handle)
     })
@@ -13751,6 +13765,7 @@ pub unsafe extern "C" fn destack_net_options_get_packet_mark(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_PACKET_MARK)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_PACKET_MARK)?;
         destack_net_options_get_packet_mark_replay(context, world, out, handle)
     })
@@ -13767,6 +13782,7 @@ pub unsafe extern "C" fn destack_net_options_get_read_timeout(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_READ_TIMEOUT)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_READ_TIMEOUT)?;
         destack_net_options_get_read_timeout_replay(context, world, out, handle)
     })
@@ -13783,6 +13799,7 @@ pub unsafe extern "C" fn destack_net_options_get_recv_buffer(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_RECV_BUFFER)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_RECV_BUFFER)?;
         destack_net_options_get_recv_buffer_replay(context, world, out, handle)
     })
@@ -13799,6 +13816,7 @@ pub unsafe extern "C" fn destack_net_options_get_send_buffer(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_SEND_BUFFER)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_SEND_BUFFER)?;
         destack_net_options_get_send_buffer_replay(context, world, out, handle)
     })
@@ -13818,6 +13836,7 @@ pub unsafe extern "C" fn destack_net_options_get_sock_opt_raw(
         }
         let _ = (&out, &handle, &level, &name, &maxbytes);
 
+        context.check_policy(NET_OPTIONS_GET_SOCK_OPT_RAW)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_SOCK_OPT_RAW)?;
         destack_net_options_get_sock_opt_raw_replay(
             context, world, out, handle, level, name, maxbytes,
@@ -13836,6 +13855,7 @@ pub unsafe extern "C" fn destack_net_options_get_timestamping(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_TIMESTAMPING)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_TIMESTAMPING)?;
         destack_net_options_get_timestamping_replay(context, world, out, handle)
     })
@@ -13852,6 +13872,7 @@ pub unsafe extern "C" fn destack_net_options_get_tos(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_TOS)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_TOS)?;
         destack_net_options_get_tos_replay(context, world, out, handle)
     })
@@ -13868,6 +13889,7 @@ pub unsafe extern "C" fn destack_net_options_get_ttl(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_TTL)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_TTL)?;
         destack_net_options_get_ttl_replay(context, world, out, handle)
     })
@@ -13884,6 +13906,7 @@ pub unsafe extern "C" fn destack_net_options_get_write_timeout(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_OPTIONS_GET_WRITE_TIMEOUT)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_GET_WRITE_TIMEOUT)?;
         destack_net_options_get_write_timeout_replay(context, world, out, handle)
     })
@@ -13897,6 +13920,7 @@ pub unsafe extern "C" fn destack_net_options_set_broadcast(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_OPTIONS_SET_BROADCAST)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_BROADCAST)?;
         destack_net_options_set_broadcast_replay(context, world, handle, enabled)
     })
@@ -13910,6 +13934,7 @@ pub unsafe extern "C" fn destack_net_options_set_linger(
     native_call(|context| {
         let _ = (&handle, &linger);
 
+        context.check_policy(NET_OPTIONS_SET_LINGER)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_LINGER)?;
         destack_net_options_set_linger_replay(context, world, handle, linger)
     })
@@ -13923,6 +13948,7 @@ pub unsafe extern "C" fn destack_net_options_set_only_v6(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_OPTIONS_SET_ONLY_V6)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_ONLY_V6)?;
         destack_net_options_set_only_v6_replay(context, world, handle, enabled)
     })
@@ -13936,6 +13962,7 @@ pub unsafe extern "C" fn destack_net_options_set_packet_mark(
     native_call(|context| {
         let _ = (&handle, &mark);
 
+        context.check_policy(NET_OPTIONS_SET_PACKET_MARK)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_PACKET_MARK)?;
         destack_net_options_set_packet_mark_replay(context, world, handle, mark)
     })
@@ -13949,6 +13976,7 @@ pub unsafe extern "C" fn destack_net_options_set_read_timeout(
     native_call(|context| {
         let _ = (&handle, &timeoutms);
 
+        context.check_policy(NET_OPTIONS_SET_READ_TIMEOUT)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_READ_TIMEOUT)?;
         destack_net_options_set_read_timeout_replay(context, world, handle, timeoutms)
     })
@@ -13962,6 +13990,7 @@ pub unsafe extern "C" fn destack_net_options_set_recv_buffer(
     native_call(|context| {
         let _ = (&handle, &size);
 
+        context.check_policy(NET_OPTIONS_SET_RECV_BUFFER)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_RECV_BUFFER)?;
         destack_net_options_set_recv_buffer_replay(context, world, handle, size)
     })
@@ -13975,6 +14004,7 @@ pub unsafe extern "C" fn destack_net_options_set_send_buffer(
     native_call(|context| {
         let _ = (&handle, &size);
 
+        context.check_policy(NET_OPTIONS_SET_SEND_BUFFER)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_SEND_BUFFER)?;
         destack_net_options_set_send_buffer_replay(context, world, handle, size)
     })
@@ -13990,6 +14020,7 @@ pub unsafe extern "C" fn destack_net_options_set_sock_opt_raw(
     native_call(|context| {
         let _ = (&handle, &level, &name, &argument_value);
 
+        context.check_policy(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
         destack_net_options_set_sock_opt_raw_replay(
             context,
@@ -14010,6 +14041,7 @@ pub unsafe extern "C" fn destack_net_options_set_timestamping(
     native_call(|context| {
         let _ = (&handle, &mode);
 
+        context.check_policy(NET_OPTIONS_SET_TIMESTAMPING)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_TIMESTAMPING)?;
         destack_net_options_set_timestamping_replay(context, world, handle, mode)
     })
@@ -14023,6 +14055,7 @@ pub unsafe extern "C" fn destack_net_options_set_tos(
     native_call(|context| {
         let _ = (&handle, &tos);
 
+        context.check_policy(NET_OPTIONS_SET_TOS)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_TOS)?;
         destack_net_options_set_tos_replay(context, world, handle, tos)
     })
@@ -14036,6 +14069,7 @@ pub unsafe extern "C" fn destack_net_options_set_ttl(
     native_call(|context| {
         let _ = (&handle, &ttl);
 
+        context.check_policy(NET_OPTIONS_SET_TTL)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_TTL)?;
         destack_net_options_set_ttl_replay(context, world, handle, ttl)
     })
@@ -14049,6 +14083,7 @@ pub unsafe extern "C" fn destack_net_options_set_write_timeout(
     native_call(|context| {
         let _ = (&handle, &timeoutms);
 
+        context.check_policy(NET_OPTIONS_SET_WRITE_TIMEOUT)?;
         let world = context.check_and_resolve_world(NET_OPTIONS_SET_WRITE_TIMEOUT)?;
         destack_net_options_set_write_timeout_replay(context, world, handle, timeoutms)
     })
@@ -14061,6 +14096,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_clear_fanout(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(NET_RAW_PACKET_CLEAR_FANOUT)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_CLEAR_FANOUT)?;
         destack_net_raw_packet_clear_fanout_replay(context, world, handle)
     })
@@ -14073,6 +14109,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_clear_filter(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(NET_RAW_PACKET_CLEAR_FILTER)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_CLEAR_FILTER)?;
         destack_net_raw_packet_clear_filter_replay(context, world, handle)
     })
@@ -14085,6 +14122,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_clear_ring(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(NET_RAW_PACKET_CLEAR_RING)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_CLEAR_RING)?;
         destack_net_raw_packet_clear_ring_replay(context, world, handle)
     })
@@ -14101,6 +14139,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_open(
         }
         let _ = (&out, &options);
 
+        context.check_policy(NET_RAW_PACKET_OPEN)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_OPEN)?;
         destack_net_raw_packet_open_replay(context, world, out, options)
     })
@@ -14118,6 +14157,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_receive(
         }
         let _ = (&out, &handle, &argument_payload);
 
+        context.check_policy(NET_RAW_PACKET_RECEIVE)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_RECEIVE)?;
         destack_net_raw_packet_receive_replay(context, world, out, handle, argument_payload)
     })
@@ -14135,6 +14175,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_send(
         }
         let _ = (&out, &handle, &argument_payload);
 
+        context.check_policy(NET_RAW_PACKET_SEND)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_SEND)?;
         destack_net_raw_packet_send_replay(context, world, out, handle, argument_payload)
     })
@@ -14148,6 +14189,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_fanout(
     native_call(|context| {
         let _ = (&handle, &options);
 
+        context.check_policy(NET_RAW_PACKET_SET_FANOUT)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_SET_FANOUT)?;
         destack_net_raw_packet_set_fanout_replay(context, world, handle, options)
     })
@@ -14161,6 +14203,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_filter(
     native_call(|context| {
         let _ = (&handle, &filterprogram);
 
+        context.check_policy(NET_RAW_PACKET_SET_FILTER)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_SET_FILTER)?;
         destack_net_raw_packet_set_filter_replay(context, world, handle, filterprogram)
     })
@@ -14174,6 +14217,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_rx_ring(
     native_call(|context| {
         let _ = (&handle, &options);
 
+        context.check_policy(NET_RAW_PACKET_SET_RX_RING)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_SET_RX_RING)?;
         destack_net_raw_packet_set_rx_ring_replay(context, world, handle, options)
     })
@@ -14187,6 +14231,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_timestamp_mode(
     native_call(|context| {
         let _ = (&handle, &mode);
 
+        context.check_policy(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?;
         destack_net_raw_packet_set_timestamp_mode_replay(context, world, handle, mode)
     })
@@ -14200,6 +14245,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_set_tx_ring(
     native_call(|context| {
         let _ = (&handle, &options);
 
+        context.check_policy(NET_RAW_PACKET_SET_TX_RING)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_SET_TX_RING)?;
         destack_net_raw_packet_set_tx_ring_replay(context, world, handle, options)
     })
@@ -14216,6 +14262,7 @@ pub unsafe extern "C" fn destack_net_raw_packet_stats(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_RAW_PACKET_STATS)?;
         let world = context.check_and_resolve_world(NET_RAW_PACKET_STATS)?;
         destack_net_raw_packet_stats_replay(context, world, out, handle)
     })
@@ -14229,6 +14276,7 @@ pub unsafe extern "C" fn destack_net_raw_set_header_included(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_RAW_SET_HEADER_INCLUDED)?;
         let world = context.check_and_resolve_world(NET_RAW_SET_HEADER_INCLUDED)?;
         destack_net_raw_set_header_included_replay(context, world, handle, enabled)
     })
@@ -14246,6 +14294,7 @@ pub unsafe extern "C" fn destack_net_raw_socket(
         }
         let _ = (&out, &family, &protocol);
 
+        context.check_policy(NET_RAW_SOCKET)?;
         let world = context.check_and_resolve_world(NET_RAW_SOCKET)?;
         destack_net_raw_socket_replay(context, world, out, family, protocol)
     })
@@ -14263,6 +14312,7 @@ pub unsafe extern "C" fn destack_net_read(
         }
         let _ = (&out, &handle, &buffer);
 
+        context.check_policy(NET_READ)?;
         let world = context.check_and_resolve_world(NET_READ)?;
         destack_net_read_replay(context, world, out, handle, buffer)
     })
@@ -14280,6 +14330,7 @@ pub unsafe extern "C" fn destack_net_readv(
         }
         let _ = (&out, &handle, &buffers);
 
+        context.check_policy(NET_READV)?;
         let world = context.check_and_resolve_world(NET_READV)?;
         destack_net_readv_replay(context, world, out, handle, buffers)
     })
@@ -14298,6 +14349,7 @@ pub unsafe extern "C" fn destack_net_recv_from(
         }
         let _ = (&out, &handle, &buffer, &recvflags);
 
+        context.check_policy(NET_RECV_FROM)?;
         let world = context.check_and_resolve_world(NET_RECV_FROM)?;
         destack_net_recv_from_replay(context, world, out, handle, buffer, recvflags)
     })
@@ -14325,6 +14377,7 @@ pub unsafe extern "C" fn destack_net_recv_mmsg(
             &maxcontrolbytes,
         );
 
+        context.check_policy(NET_RECV_MMSG)?;
         let world = context.check_and_resolve_world(NET_RECV_MMSG)?;
         destack_net_recv_mmsg_replay(
             context,
@@ -14363,6 +14416,7 @@ pub unsafe extern "C" fn destack_net_recv_msg(
             &maxcontrolbytes,
         );
 
+        context.check_policy(NET_RECV_MSG)?;
         let world = context.check_and_resolve_world(NET_RECV_MSG)?;
         destack_net_recv_msg_replay(
             context,
@@ -14389,6 +14443,7 @@ pub unsafe extern "C" fn destack_net_resolve_resolve(
         }
         let _ = (&out, &query);
 
+        context.check_policy(NET_RESOLVE_RESOLVE)?;
         let world = context.check_and_resolve_world(NET_RESOLVE_RESOLVE)?;
         destack_net_resolve_resolve_replay(context, world, out, query)
     })
@@ -14406,6 +14461,7 @@ pub unsafe extern "C" fn destack_net_resolve_reverse_lookup(
         }
         let _ = (&out, &address, &flags);
 
+        context.check_policy(NET_RESOLVE_REVERSE_LOOKUP)?;
         let world = context.check_and_resolve_world(NET_RESOLVE_REVERSE_LOOKUP)?;
         destack_net_resolve_reverse_lookup_replay(context, world, out, address, flags)
     })
@@ -14422,6 +14478,7 @@ pub unsafe extern "C" fn destack_net_reuse_get_reuse_addr(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_REUSE_GET_REUSE_ADDR)?;
         let world = context.check_and_resolve_world(NET_REUSE_GET_REUSE_ADDR)?;
         destack_net_reuse_get_reuse_addr_replay(context, world, out, handle)
     })
@@ -14438,6 +14495,7 @@ pub unsafe extern "C" fn destack_net_reuse_get_reuse_port(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_REUSE_GET_REUSE_PORT)?;
         let world = context.check_and_resolve_world(NET_REUSE_GET_REUSE_PORT)?;
         destack_net_reuse_get_reuse_port_replay(context, world, out, handle)
     })
@@ -14451,6 +14509,7 @@ pub unsafe extern "C" fn destack_net_reuse_set_reuse_addr(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_REUSE_SET_REUSE_ADDR)?;
         let world = context.check_and_resolve_world(NET_REUSE_SET_REUSE_ADDR)?;
         destack_net_reuse_set_reuse_addr_replay(context, world, handle, enabled)
     })
@@ -14464,6 +14523,7 @@ pub unsafe extern "C" fn destack_net_reuse_set_reuse_port(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_REUSE_SET_REUSE_PORT)?;
         let world = context.check_and_resolve_world(NET_REUSE_SET_REUSE_PORT)?;
         destack_net_reuse_set_reuse_port_replay(context, world, handle, enabled)
     })
@@ -14474,6 +14534,7 @@ pub unsafe extern "C" fn destack_net_route_add(route: RouteEntry) -> RuntimeStat
     native_call(|context| {
         let _ = &route;
 
+        context.check_policy(NET_ROUTE_ADD)?;
         let world = context.check_and_resolve_world(NET_ROUTE_ADD)?;
         destack_net_route_add_replay(context, world, route)
     })
@@ -14484,6 +14545,7 @@ pub unsafe extern "C" fn destack_net_route_delete(route: RouteEntry) -> RuntimeS
     native_call(|context| {
         let _ = &route;
 
+        context.check_policy(NET_ROUTE_DELETE)?;
         let world = context.check_and_resolve_world(NET_ROUTE_DELETE)?;
         destack_net_route_delete_replay(context, world, route)
     })
@@ -14500,6 +14562,7 @@ pub unsafe extern "C" fn destack_net_route_list(
         }
         let _ = (&out, &family);
 
+        context.check_policy(NET_ROUTE_LIST)?;
         let world = context.check_and_resolve_world(NET_ROUTE_LIST)?;
         destack_net_route_list_replay(context, world, out, family)
     })
@@ -14517,6 +14580,7 @@ pub unsafe extern "C" fn destack_net_send_mmsg(
         }
         let _ = (&out, &handle, &messages);
 
+        context.check_policy(NET_SEND_MMSG)?;
         let world = context.check_and_resolve_world(NET_SEND_MMSG)?;
         destack_net_send_mmsg_replay(context, world, out, handle, messages)
     })
@@ -14535,6 +14599,7 @@ pub unsafe extern "C" fn destack_net_send_msg(
         }
         let _ = (&out, &handle, &buffer, &message);
 
+        context.check_policy(NET_SEND_MSG)?;
         let world = context.check_and_resolve_world(NET_SEND_MSG)?;
         destack_net_send_msg_replay(context, world, out, handle, buffer, message)
     })
@@ -14553,6 +14618,7 @@ pub unsafe extern "C" fn destack_net_send_to(
         }
         let _ = (&out, &handle, &buffer, &message);
 
+        context.check_policy(NET_SEND_TO)?;
         let world = context.check_and_resolve_world(NET_SEND_TO)?;
         destack_net_send_to_replay(context, world, out, handle, buffer, message)
     })
@@ -14566,6 +14632,7 @@ pub unsafe extern "C" fn destack_net_set_nonblocking(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_SET_NONBLOCKING)?;
         let world = context.check_and_resolve_world(NET_SET_NONBLOCKING)?;
         destack_net_set_nonblocking_replay(context, world, handle, enabled)
     })
@@ -14579,6 +14646,7 @@ pub unsafe extern "C" fn destack_net_shutdown(
     native_call(|context| {
         let _ = (&handle, &how);
 
+        context.check_policy(NET_SHUTDOWN)?;
         let world = context.check_and_resolve_world(NET_SHUTDOWN)?;
         destack_net_shutdown_replay(context, world, handle, how)
     })
@@ -14597,6 +14665,7 @@ pub unsafe extern "C" fn destack_net_socket(
         }
         let _ = (&out, &family, &sockettype, &protocol);
 
+        context.check_policy(NET_SOCKET)?;
         let world = context.check_and_resolve_world(NET_SOCKET)?;
         destack_net_socket_replay(context, world, out, family, sockettype, protocol)
     })
@@ -14615,6 +14684,7 @@ pub unsafe extern "C" fn destack_net_socket_pair(
         }
         let _ = (&out, &family, &sockettype, &protocol);
 
+        context.check_policy(NET_SOCKET_PAIR)?;
         let world = context.check_and_resolve_world(NET_SOCKET_PAIR)?;
         destack_net_socket_pair_replay(context, world, out, family, sockettype, protocol)
     })
@@ -14631,6 +14701,7 @@ pub unsafe extern "C" fn destack_net_tcp_get_keep_alive(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_TCP_GET_KEEP_ALIVE)?;
         let world = context.check_and_resolve_world(NET_TCP_GET_KEEP_ALIVE)?;
         destack_net_tcp_get_keep_alive_replay(context, world, out, handle)
     })
@@ -14647,6 +14718,7 @@ pub unsafe extern "C" fn destack_net_tcp_get_no_delay(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_TCP_GET_NO_DELAY)?;
         let world = context.check_and_resolve_world(NET_TCP_GET_NO_DELAY)?;
         destack_net_tcp_get_no_delay_replay(context, world, out, handle)
     })
@@ -14660,6 +14732,7 @@ pub unsafe extern "C" fn destack_net_tcp_set_keep_alive(
     native_call(|context| {
         let _ = (&handle, &config);
 
+        context.check_policy(NET_TCP_SET_KEEP_ALIVE)?;
         let world = context.check_and_resolve_world(NET_TCP_SET_KEEP_ALIVE)?;
         destack_net_tcp_set_keep_alive_replay(context, world, handle, config)
     })
@@ -14673,6 +14746,7 @@ pub unsafe extern "C" fn destack_net_tcp_set_no_delay(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_TCP_SET_NO_DELAY)?;
         let world = context.check_and_resolve_world(NET_TCP_SET_NO_DELAY)?;
         destack_net_tcp_set_no_delay_replay(context, world, handle, enabled)
     })
@@ -14686,6 +14760,7 @@ pub unsafe extern "C" fn destack_net_udp_bind(
     native_call(|context| {
         let _ = (&handle, &address);
 
+        context.check_policy(NET_UDP_BIND)?;
         let world = context.check_and_resolve_world(NET_UDP_BIND)?;
         destack_net_udp_bind_replay(context, world, handle, address)
     })
@@ -14699,6 +14774,7 @@ pub unsafe extern "C" fn destack_net_udp_connect(
     native_call(|context| {
         let _ = (&handle, &address);
 
+        context.check_policy(NET_UDP_CONNECT)?;
         let world = context.check_and_resolve_world(NET_UDP_CONNECT)?;
         destack_net_udp_connect_replay(context, world, handle, address)
     })
@@ -14715,6 +14791,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_interface_v4(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_UDP_GET_MULTICAST_INTERFACE_V4)?;
         let world = context.check_and_resolve_world(NET_UDP_GET_MULTICAST_INTERFACE_V4)?;
         destack_net_udp_get_multicast_interface_v4_replay(context, world, out, handle)
     })
@@ -14731,6 +14808,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_interface_v6(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_UDP_GET_MULTICAST_INTERFACE_V6)?;
         let world = context.check_and_resolve_world(NET_UDP_GET_MULTICAST_INTERFACE_V6)?;
         destack_net_udp_get_multicast_interface_v6_replay(context, world, out, handle)
     })
@@ -14747,6 +14825,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_loop(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_UDP_GET_MULTICAST_LOOP)?;
         let world = context.check_and_resolve_world(NET_UDP_GET_MULTICAST_LOOP)?;
         destack_net_udp_get_multicast_loop_replay(context, world, out, handle)
     })
@@ -14763,6 +14842,7 @@ pub unsafe extern "C" fn destack_net_udp_get_multicast_ttl(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(NET_UDP_GET_MULTICAST_TTL)?;
         let world = context.check_and_resolve_world(NET_UDP_GET_MULTICAST_TTL)?;
         destack_net_udp_get_multicast_ttl_replay(context, world, out, handle)
     })
@@ -14776,6 +14856,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_source_v4(
     native_call(|context| {
         let _ = (&handle, &membership);
 
+        context.check_policy(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?;
         let world = context.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?;
         destack_net_udp_join_multicast_source_v4_replay(context, world, handle, membership)
     })
@@ -14789,6 +14870,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_source_v6(
     native_call(|context| {
         let _ = (&handle, &membership);
 
+        context.check_policy(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?;
         let world = context.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?;
         destack_net_udp_join_multicast_source_v6_replay(context, world, handle, membership)
     })
@@ -14803,6 +14885,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_v4(
     native_call(|context| {
         let _ = (&handle, &group, &interfaceaddress);
 
+        context.check_policy(NET_UDP_JOIN_MULTICAST_V4)?;
         let world = context.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_V4)?;
         destack_net_udp_join_multicast_v4_replay(context, world, handle, group, interfaceaddress)
     })
@@ -14817,6 +14900,7 @@ pub unsafe extern "C" fn destack_net_udp_join_multicast_v6(
     native_call(|context| {
         let _ = (&handle, &group, &interfaceindex);
 
+        context.check_policy(NET_UDP_JOIN_MULTICAST_V6)?;
         let world = context.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_V6)?;
         destack_net_udp_join_multicast_v6_replay(context, world, handle, group, interfaceindex)
     })
@@ -14830,6 +14914,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_source_v4(
     native_call(|context| {
         let _ = (&handle, &membership);
 
+        context.check_policy(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?;
         let world = context.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?;
         destack_net_udp_leave_multicast_source_v4_replay(context, world, handle, membership)
     })
@@ -14843,6 +14928,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_source_v6(
     native_call(|context| {
         let _ = (&handle, &membership);
 
+        context.check_policy(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?;
         let world = context.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?;
         destack_net_udp_leave_multicast_source_v6_replay(context, world, handle, membership)
     })
@@ -14857,6 +14943,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_v4(
     native_call(|context| {
         let _ = (&handle, &group, &interfaceaddress);
 
+        context.check_policy(NET_UDP_LEAVE_MULTICAST_V4)?;
         let world = context.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_V4)?;
         destack_net_udp_leave_multicast_v4_replay(context, world, handle, group, interfaceaddress)
     })
@@ -14871,6 +14958,7 @@ pub unsafe extern "C" fn destack_net_udp_leave_multicast_v6(
     native_call(|context| {
         let _ = (&handle, &group, &interfaceindex);
 
+        context.check_policy(NET_UDP_LEAVE_MULTICAST_V6)?;
         let world = context.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_V6)?;
         destack_net_udp_leave_multicast_v6_replay(context, world, handle, group, interfaceindex)
     })
@@ -14889,6 +14977,7 @@ pub unsafe extern "C" fn destack_net_udp_recv_from(
         }
         let _ = (&out, &handle, &buffer, &recvflags);
 
+        context.check_policy(NET_UDP_RECV_FROM)?;
         let world = context.check_and_resolve_world(NET_UDP_RECV_FROM)?;
         destack_net_udp_recv_from_replay(context, world, out, handle, buffer, recvflags)
     })
@@ -14908,6 +14997,7 @@ pub unsafe extern "C" fn destack_net_udp_send_to(
         }
         let _ = (&out, &handle, &address, &buffer, &sendflags);
 
+        context.check_policy(NET_UDP_SEND_TO)?;
         let world = context.check_and_resolve_world(NET_UDP_SEND_TO)?;
         destack_net_udp_send_to_replay(context, world, out, handle, address, buffer, sendflags)
     })
@@ -14921,6 +15011,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_interface_v4(
     native_call(|context| {
         let _ = (&handle, &interfaceaddress);
 
+        context.check_policy(NET_UDP_SET_MULTICAST_INTERFACE_V4)?;
         let world = context.check_and_resolve_world(NET_UDP_SET_MULTICAST_INTERFACE_V4)?;
         destack_net_udp_set_multicast_interface_v4_replay(context, world, handle, interfaceaddress)
     })
@@ -14934,6 +15025,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_interface_v6(
     native_call(|context| {
         let _ = (&handle, &interfaceindex);
 
+        context.check_policy(NET_UDP_SET_MULTICAST_INTERFACE_V6)?;
         let world = context.check_and_resolve_world(NET_UDP_SET_MULTICAST_INTERFACE_V6)?;
         destack_net_udp_set_multicast_interface_v6_replay(context, world, handle, interfaceindex)
     })
@@ -14947,6 +15039,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_loop(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
+        context.check_policy(NET_UDP_SET_MULTICAST_LOOP)?;
         let world = context.check_and_resolve_world(NET_UDP_SET_MULTICAST_LOOP)?;
         destack_net_udp_set_multicast_loop_replay(context, world, handle, enabled)
     })
@@ -14960,6 +15053,7 @@ pub unsafe extern "C" fn destack_net_udp_set_multicast_ttl(
     native_call(|context| {
         let _ = (&handle, &ttl);
 
+        context.check_policy(NET_UDP_SET_MULTICAST_TTL)?;
         let world = context.check_and_resolve_world(NET_UDP_SET_MULTICAST_TTL)?;
         destack_net_udp_set_multicast_ttl_replay(context, world, handle, ttl)
     })
@@ -14976,6 +15070,7 @@ pub unsafe extern "C" fn destack_net_udp_socket(
         }
         let _ = (&out, &family);
 
+        context.check_policy(NET_UDP_SOCKET)?;
         let world = context.check_and_resolve_world(NET_UDP_SOCKET)?;
         destack_net_udp_socket_replay(context, world, out, family)
     })
@@ -14992,6 +15087,7 @@ pub unsafe extern "C" fn destack_net_uds_accept(
         }
         let _ = (&out, &listener);
 
+        context.check_policy(NET_UDS_ACCEPT)?;
         let world = context.check_and_resolve_world(NET_UDS_ACCEPT)?;
         destack_net_uds_accept_replay(context, world, out, listener)
     })
@@ -15004,6 +15100,7 @@ pub unsafe extern "C" fn destack_net_uds_close_listener(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(NET_UDS_CLOSE_LISTENER)?;
         let world = context.check_and_resolve_world(NET_UDS_CLOSE_LISTENER)?;
         destack_net_uds_close_listener_replay(context, world, handle)
     })
@@ -15020,6 +15117,7 @@ pub unsafe extern "C" fn destack_net_uds_connect(
         }
         let _ = (&out, &address);
 
+        context.check_policy(NET_UDS_CONNECT)?;
         let world = context.check_and_resolve_world(NET_UDS_CONNECT)?;
         destack_net_uds_connect_replay(context, world, out, address)
     })
@@ -15037,6 +15135,7 @@ pub unsafe extern "C" fn destack_net_uds_listen(
         }
         let _ = (&out, &address, &backlog);
 
+        context.check_policy(NET_UDS_LISTEN)?;
         let world = context.check_and_resolve_world(NET_UDS_LISTEN)?;
         destack_net_uds_listen_replay(context, world, out, address, backlog)
     })
@@ -15053,6 +15152,7 @@ pub unsafe extern "C" fn destack_net_uds_socket_pair(
         }
         let _ = (&out, &sockettype);
 
+        context.check_policy(NET_UDS_SOCKET_PAIR)?;
         let world = context.check_and_resolve_world(NET_UDS_SOCKET_PAIR)?;
         destack_net_uds_socket_pair_replay(context, world, out, sockettype)
     })
@@ -15070,6 +15170,7 @@ pub unsafe extern "C" fn destack_net_write(
         }
         let _ = (&out, &handle, &buffer);
 
+        context.check_policy(NET_WRITE)?;
         let world = context.check_and_resolve_world(NET_WRITE)?;
         destack_net_write_replay(context, world, out, handle, buffer)
     })
@@ -15087,6 +15188,7 @@ pub unsafe extern "C" fn destack_net_writev(
         }
         let _ = (&out, &handle, &buffers);
 
+        context.check_policy(NET_WRITEV)?;
         let world = context.check_and_resolve_world(NET_WRITEV)?;
         destack_net_writev_replay(context, world, out, handle, buffers)
     })
@@ -22215,6 +22317,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (listener, flags) = decode_destack_net_accept_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_ACCEPT)?;
                 let world = runtime.check_and_resolve_world(NET_ACCEPT)?;
                 destack_net_accept_vm_replay(runtime, context, world, listener, flags)
             })
@@ -22232,6 +22335,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_address_local_address_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_ADDRESS_LOCAL_ADDRESS)?;
                     let world = runtime.check_and_resolve_world(NET_ADDRESS_LOCAL_ADDRESS)?;
                     destack_net_address_local_address_vm_replay(runtime, context, world, handle)
                 })
@@ -22250,6 +22354,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_address_peer_address_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_ADDRESS_PEER_ADDRESS)?;
                     let world = runtime.check_and_resolve_world(NET_ADDRESS_PEER_ADDRESS)?;
                     destack_net_address_peer_address_vm_replay(runtime, context, world, handle)
                 })
@@ -22264,6 +22369,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, address) = decode_destack_net_bind_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_BIND)?;
                 let world = runtime.check_and_resolve_world(NET_BIND)?;
                 destack_net_bind_vm_replay(runtime, context, world, handle, address)
             })
@@ -22277,6 +22383,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle,) = decode_destack_net_close_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_CLOSE)?;
                 let world = runtime.check_and_resolve_world(NET_CLOSE)?;
                 destack_net_close_vm_replay(runtime, context, world, handle)
             })
@@ -22294,6 +22401,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_close_listener_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_CLOSE_LISTENER)?;
                     let world = runtime.check_and_resolve_world(NET_CLOSE_LISTENER)?;
                     destack_net_close_listener_vm_replay(runtime, context, world, handle)
                 })
@@ -22308,6 +22416,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, address) = decode_destack_net_connect_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_CONNECT)?;
                 let world = runtime.check_and_resolve_world(NET_CONNECT)?;
                 destack_net_connect_vm_replay(runtime, context, world, handle, address)
             })
@@ -22322,6 +22431,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(NET_INTERFACE_LIST_INTERFACES)?;
                     let world = runtime.check_and_resolve_world(NET_INTERFACE_LIST_INTERFACES)?;
                     destack_net_interface_list_interfaces_vm_replay(runtime, context, world)
                 })
@@ -22340,6 +22450,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (name,) = decode_destack_net_interface_index_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_INTERFACE_INDEX)?;
                     let world = runtime.check_and_resolve_world(NET_INTERFACE_INDEX)?;
                     destack_net_interface_index_vm_replay(runtime, context, world, name)
                 })
@@ -22358,6 +22469,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (index,) = decode_destack_net_interface_name_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_INTERFACE_NAME)?;
                     let world = runtime.check_and_resolve_world(NET_INTERFACE_NAME)?;
                     destack_net_interface_name_vm_replay(runtime, context, world, index)
                 })
@@ -22372,6 +22484,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (address, backlog) = decode_destack_net_listen_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_LISTEN)?;
                 let world = runtime.check_and_resolve_world(NET_LISTEN)?;
                 destack_net_listen_vm_replay(runtime, context, world, address, backlog)
             })
@@ -22389,6 +22502,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_broadcast_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_BROADCAST)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_BROADCAST)?;
                     destack_net_options_get_broadcast_vm_replay(runtime, context, world, handle)
                 })
@@ -22407,6 +22521,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_linger_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_LINGER)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_LINGER)?;
                     destack_net_options_get_linger_vm_replay(runtime, context, world, handle)
                 })
@@ -22425,6 +22540,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_only_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_ONLY_V6)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_ONLY_V6)?;
                     destack_net_options_get_only_v6_vm_replay(runtime, context, world, handle)
                 })
@@ -22443,6 +22559,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_packet_mark_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_PACKET_MARK)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_PACKET_MARK)?;
                     destack_net_options_get_packet_mark_vm_replay(runtime, context, world, handle)
                 })
@@ -22462,6 +22579,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_get_read_timeout_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_READ_TIMEOUT)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_READ_TIMEOUT)?;
                     destack_net_options_get_read_timeout_vm_replay(runtime, context, world, handle)
                 })
@@ -22480,6 +22598,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_recv_buffer_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_RECV_BUFFER)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_RECV_BUFFER)?;
                     destack_net_options_get_recv_buffer_vm_replay(runtime, context, world, handle)
                 })
@@ -22498,6 +22617,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_send_buffer_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_SEND_BUFFER)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_SEND_BUFFER)?;
                     destack_net_options_get_send_buffer_vm_replay(runtime, context, world, handle)
                 })
@@ -22517,6 +22637,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_get_sock_opt_raw_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_SOCK_OPT_RAW)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_SOCK_OPT_RAW)?;
                     destack_net_options_get_sock_opt_raw_vm_replay(
                         runtime, context, world, handle, level, name, maxbytes,
@@ -22538,6 +22659,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_get_timestamping_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_TIMESTAMPING)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_TIMESTAMPING)?;
                     destack_net_options_get_timestamping_vm_replay(runtime, context, world, handle)
                 })
@@ -22556,6 +22678,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_tos_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_TOS)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_TOS)?;
                     destack_net_options_get_tos_vm_replay(runtime, context, world, handle)
                 })
@@ -22574,6 +22697,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_options_get_ttl_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_TTL)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_TTL)?;
                     destack_net_options_get_ttl_vm_replay(runtime, context, world, handle)
                 })
@@ -22593,6 +22717,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_get_write_timeout_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_GET_WRITE_TIMEOUT)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_GET_WRITE_TIMEOUT)?;
                     destack_net_options_get_write_timeout_vm_replay(runtime, context, world, handle)
                 })
@@ -22612,6 +22737,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_broadcast_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_BROADCAST)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_BROADCAST)?;
                     destack_net_options_set_broadcast_vm_replay(
                         runtime, context, world, handle, enabled,
@@ -22633,6 +22759,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_linger_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_LINGER)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_LINGER)?;
                     destack_net_options_set_linger_vm_replay(
                         runtime, context, world, handle, linger,
@@ -22654,6 +22781,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_only_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_ONLY_V6)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_ONLY_V6)?;
                     destack_net_options_set_only_v6_vm_replay(
                         runtime, context, world, handle, enabled,
@@ -22675,6 +22803,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_packet_mark_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_PACKET_MARK)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_PACKET_MARK)?;
                     destack_net_options_set_packet_mark_vm_replay(
                         runtime, context, world, handle, mark,
@@ -22696,6 +22825,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_read_timeout_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_READ_TIMEOUT)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_READ_TIMEOUT)?;
                     destack_net_options_set_read_timeout_vm_replay(
                         runtime, context, world, handle, timeoutms,
@@ -22717,6 +22847,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_recv_buffer_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_RECV_BUFFER)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_RECV_BUFFER)?;
                     destack_net_options_set_recv_buffer_vm_replay(
                         runtime, context, world, handle, size,
@@ -22738,6 +22869,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_send_buffer_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_SEND_BUFFER)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_SEND_BUFFER)?;
                     destack_net_options_set_send_buffer_vm_replay(
                         runtime, context, world, handle, size,
@@ -22759,6 +22891,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_sock_opt_raw_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_SOCK_OPT_RAW)?;
                     destack_net_options_set_sock_opt_raw_vm_replay(
                         runtime,
@@ -22786,6 +22919,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_timestamping_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_TIMESTAMPING)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_TIMESTAMPING)?;
                     destack_net_options_set_timestamping_vm_replay(
                         runtime, context, world, handle, mode,
@@ -22806,6 +22940,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle, tos) = decode_destack_net_options_set_tos_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_TOS)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_TOS)?;
                     destack_net_options_set_tos_vm_replay(runtime, context, world, handle, tos)
                 })
@@ -22824,6 +22959,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle, ttl) = decode_destack_net_options_set_ttl_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_TTL)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_TTL)?;
                     destack_net_options_set_ttl_vm_replay(runtime, context, world, handle, ttl)
                 })
@@ -22843,6 +22979,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_options_set_write_timeout_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_OPTIONS_SET_WRITE_TIMEOUT)?;
                     let world = runtime.check_and_resolve_world(NET_OPTIONS_SET_WRITE_TIMEOUT)?;
                     destack_net_options_set_write_timeout_vm_replay(
                         runtime, context, world, handle, timeoutms,
@@ -22863,6 +23000,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_raw_packet_clear_fanout_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_CLEAR_FANOUT)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_CLEAR_FANOUT)?;
                     destack_net_raw_packet_clear_fanout_vm_replay(runtime, context, world, handle)
                 })
@@ -22881,6 +23019,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_raw_packet_clear_filter_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_CLEAR_FILTER)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_CLEAR_FILTER)?;
                     destack_net_raw_packet_clear_filter_vm_replay(runtime, context, world, handle)
                 })
@@ -22899,6 +23038,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_raw_packet_clear_ring_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_CLEAR_RING)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_CLEAR_RING)?;
                     destack_net_raw_packet_clear_ring_vm_replay(runtime, context, world, handle)
                 })
@@ -22917,6 +23057,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (options,) = decode_destack_net_raw_packet_open_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_OPEN)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_OPEN)?;
                     destack_net_raw_packet_open_vm_replay(runtime, context, world, options)
                 })
@@ -22936,6 +23077,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_packet_receive_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_RECEIVE)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_RECEIVE)?;
                     destack_net_raw_packet_receive_vm_replay(
                         runtime,
@@ -22961,6 +23103,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_packet_send_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_SEND)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_SEND)?;
                     destack_net_raw_packet_send_vm_replay(
                         runtime,
@@ -22986,6 +23129,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_packet_set_fanout_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_SET_FANOUT)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_SET_FANOUT)?;
                     destack_net_raw_packet_set_fanout_vm_replay(
                         runtime, context, world, handle, options,
@@ -23007,6 +23151,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_packet_set_filter_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_SET_FILTER)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_SET_FILTER)?;
                     destack_net_raw_packet_set_filter_vm_replay(
                         runtime,
@@ -23032,6 +23177,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_packet_set_rx_ring_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_SET_RX_RING)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_SET_RX_RING)?;
                     destack_net_raw_packet_set_rx_ring_vm_replay(
                         runtime, context, world, handle, options,
@@ -23053,6 +23199,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_packet_set_timestamp_mode_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?;
                     let world =
                         runtime.check_and_resolve_world(NET_RAW_PACKET_SET_TIMESTAMP_MODE)?;
                     destack_net_raw_packet_set_timestamp_mode_vm_replay(
@@ -23075,6 +23222,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_packet_set_tx_ring_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_SET_TX_RING)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_SET_TX_RING)?;
                     destack_net_raw_packet_set_tx_ring_vm_replay(
                         runtime, context, world, handle, options,
@@ -23095,6 +23243,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_raw_packet_stats_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_PACKET_STATS)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_PACKET_STATS)?;
                     destack_net_raw_packet_stats_vm_replay(runtime, context, world, handle)
                 })
@@ -23114,6 +23263,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_raw_set_header_included_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RAW_SET_HEADER_INCLUDED)?;
                     let world = runtime.check_and_resolve_world(NET_RAW_SET_HEADER_INCLUDED)?;
                     destack_net_raw_set_header_included_vm_replay(
                         runtime, context, world, handle, enabled,
@@ -23130,6 +23280,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (family, protocol) = decode_destack_net_raw_socket_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_RAW_SOCKET)?;
                 let world = runtime.check_and_resolve_world(NET_RAW_SOCKET)?;
                 destack_net_raw_socket_vm_replay(runtime, context, world, family, protocol)
             })
@@ -23143,6 +23294,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer) = decode_destack_net_read_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_READ)?;
                 let world = runtime.check_and_resolve_world(NET_READ)?;
                 destack_net_read_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -23156,6 +23308,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffers) = decode_destack_net_readv_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_READV)?;
                 let world = runtime.check_and_resolve_world(NET_READV)?;
                 destack_net_readv_vm_replay(runtime, context, world, handle, buffers)
             })
@@ -23169,6 +23322,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer, recvflags) = decode_destack_net_recv_from_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_RECV_FROM)?;
                 let world = runtime.check_and_resolve_world(NET_RECV_FROM)?;
                 destack_net_recv_from_vm_replay(runtime, context, world, handle, buffer, recvflags)
             })
@@ -23183,6 +23337,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_net_recv_mmsg_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_RECV_MMSG)?;
                 let world = runtime.check_and_resolve_world(NET_RECV_MMSG)?;
                 destack_net_recv_mmsg_vm_replay(
                     runtime,
@@ -23206,6 +23361,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_net_recv_msg_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_RECV_MSG)?;
                 let world = runtime.check_and_resolve_world(NET_RECV_MSG)?;
                 destack_net_recv_msg_vm_replay(
                     runtime,
@@ -23233,6 +23389,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (query,) = decode_destack_net_resolve_resolve_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RESOLVE_RESOLVE)?;
                     let world = runtime.check_and_resolve_world(NET_RESOLVE_RESOLVE)?;
                     destack_net_resolve_resolve_vm_replay(runtime, context, world, query)
                 })
@@ -23252,6 +23409,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_resolve_reverse_lookup_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_RESOLVE_REVERSE_LOOKUP)?;
                     let world = runtime.check_and_resolve_world(NET_RESOLVE_REVERSE_LOOKUP)?;
                     destack_net_resolve_reverse_lookup_vm_replay(
                         runtime, context, world, address, flags,
@@ -23272,6 +23430,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_reuse_get_reuse_addr_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_REUSE_GET_REUSE_ADDR)?;
                     let world = runtime.check_and_resolve_world(NET_REUSE_GET_REUSE_ADDR)?;
                     destack_net_reuse_get_reuse_addr_vm_replay(runtime, context, world, handle)
                 })
@@ -23290,6 +23449,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_reuse_get_reuse_port_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_REUSE_GET_REUSE_PORT)?;
                     let world = runtime.check_and_resolve_world(NET_REUSE_GET_REUSE_PORT)?;
                     destack_net_reuse_get_reuse_port_vm_replay(runtime, context, world, handle)
                 })
@@ -23309,6 +23469,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_reuse_set_reuse_addr_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_REUSE_SET_REUSE_ADDR)?;
                     let world = runtime.check_and_resolve_world(NET_REUSE_SET_REUSE_ADDR)?;
                     destack_net_reuse_set_reuse_addr_vm_replay(
                         runtime, context, world, handle, enabled,
@@ -23330,6 +23491,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_reuse_set_reuse_port_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_REUSE_SET_REUSE_PORT)?;
                     let world = runtime.check_and_resolve_world(NET_REUSE_SET_REUSE_PORT)?;
                     destack_net_reuse_set_reuse_port_vm_replay(
                         runtime, context, world, handle, enabled,
@@ -23346,6 +23508,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (route,) = decode_destack_net_route_add_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_ROUTE_ADD)?;
                 let world = runtime.check_and_resolve_world(NET_ROUTE_ADD)?;
                 destack_net_route_add_vm_replay(runtime, context, world, route)
             })
@@ -23359,6 +23522,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (route,) = decode_destack_net_route_delete_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_ROUTE_DELETE)?;
                 let world = runtime.check_and_resolve_world(NET_ROUTE_DELETE)?;
                 destack_net_route_delete_vm_replay(runtime, context, world, route)
             })
@@ -23372,6 +23536,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (family,) = decode_destack_net_route_list_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_ROUTE_LIST)?;
                 let world = runtime.check_and_resolve_world(NET_ROUTE_LIST)?;
                 destack_net_route_list_vm_replay(runtime, context, world, family)
             })
@@ -23385,6 +23550,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, messages) = decode_destack_net_send_mmsg_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_SEND_MMSG)?;
                 let world = runtime.check_and_resolve_world(NET_SEND_MMSG)?;
                 destack_net_send_mmsg_vm_replay(runtime, context, world, handle, messages)
             })
@@ -23398,6 +23564,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer, message) = decode_destack_net_send_msg_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_SEND_MSG)?;
                 let world = runtime.check_and_resolve_world(NET_SEND_MSG)?;
                 destack_net_send_msg_vm_replay(runtime, context, world, handle, buffer, message)
             })
@@ -23411,6 +23578,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer, message) = decode_destack_net_send_to_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_SEND_TO)?;
                 let world = runtime.check_and_resolve_world(NET_SEND_TO)?;
                 destack_net_send_to_vm_replay(runtime, context, world, handle, buffer, message)
             })
@@ -23428,6 +23596,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle, enabled) = decode_destack_net_set_nonblocking_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_SET_NONBLOCKING)?;
                     let world = runtime.check_and_resolve_world(NET_SET_NONBLOCKING)?;
                     destack_net_set_nonblocking_vm_replay(runtime, context, world, handle, enabled)
                 })
@@ -23442,6 +23611,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, how) = decode_destack_net_shutdown_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_SHUTDOWN)?;
                 let world = runtime.check_and_resolve_world(NET_SHUTDOWN)?;
                 destack_net_shutdown_vm_replay(runtime, context, world, handle, how)
             })
@@ -23455,6 +23625,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (family, sockettype, protocol) = decode_destack_net_socket_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_SOCKET)?;
                 let world = runtime.check_and_resolve_world(NET_SOCKET)?;
                 destack_net_socket_vm_replay(runtime, context, world, family, sockettype, protocol)
             })
@@ -23469,6 +23640,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_net_socket_pair_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_SOCKET_PAIR)?;
                 let world = runtime.check_and_resolve_world(NET_SOCKET_PAIR)?;
                 destack_net_socket_pair_vm_replay(
                     runtime, context, world, family, sockettype, protocol,
@@ -23488,6 +23660,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_tcp_get_keep_alive_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_TCP_GET_KEEP_ALIVE)?;
                     let world = runtime.check_and_resolve_world(NET_TCP_GET_KEEP_ALIVE)?;
                     destack_net_tcp_get_keep_alive_vm_replay(runtime, context, world, handle)
                 })
@@ -23506,6 +23679,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_tcp_get_no_delay_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_TCP_GET_NO_DELAY)?;
                     let world = runtime.check_and_resolve_world(NET_TCP_GET_NO_DELAY)?;
                     destack_net_tcp_get_no_delay_vm_replay(runtime, context, world, handle)
                 })
@@ -23525,6 +23699,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_tcp_set_keep_alive_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_TCP_SET_KEEP_ALIVE)?;
                     let world = runtime.check_and_resolve_world(NET_TCP_SET_KEEP_ALIVE)?;
                     destack_net_tcp_set_keep_alive_vm_replay(
                         runtime, context, world, handle, config,
@@ -23546,6 +23721,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_tcp_set_no_delay_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_TCP_SET_NO_DELAY)?;
                     let world = runtime.check_and_resolve_world(NET_TCP_SET_NO_DELAY)?;
                     destack_net_tcp_set_no_delay_vm_replay(runtime, context, world, handle, enabled)
                 })
@@ -23560,6 +23736,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, address) = decode_destack_net_udp_bind_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_UDP_BIND)?;
                 let world = runtime.check_and_resolve_world(NET_UDP_BIND)?;
                 destack_net_udp_bind_vm_replay(runtime, context, world, handle, address)
             })
@@ -23573,6 +23750,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, address) = decode_destack_net_udp_connect_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_UDP_CONNECT)?;
                 let world = runtime.check_and_resolve_world(NET_UDP_CONNECT)?;
                 destack_net_udp_connect_vm_replay(runtime, context, world, handle, address)
             })
@@ -23591,6 +23769,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_get_multicast_interface_v4_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_GET_MULTICAST_INTERFACE_V4)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_GET_MULTICAST_INTERFACE_V4)?;
                     destack_net_udp_get_multicast_interface_v4_vm_replay(
@@ -23613,6 +23792,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_get_multicast_interface_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_GET_MULTICAST_INTERFACE_V6)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_GET_MULTICAST_INTERFACE_V6)?;
                     destack_net_udp_get_multicast_interface_v6_vm_replay(
@@ -23634,6 +23814,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_udp_get_multicast_loop_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_GET_MULTICAST_LOOP)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_GET_MULTICAST_LOOP)?;
                     destack_net_udp_get_multicast_loop_vm_replay(runtime, context, world, handle)
                 })
@@ -23652,6 +23833,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_udp_get_multicast_ttl_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_GET_MULTICAST_TTL)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_GET_MULTICAST_TTL)?;
                     destack_net_udp_get_multicast_ttl_vm_replay(runtime, context, world, handle)
                 })
@@ -23671,6 +23853,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_join_multicast_source_v4_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_SOURCE_V4)?;
                     destack_net_udp_join_multicast_source_v4_vm_replay(
@@ -23693,6 +23876,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_join_multicast_source_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_SOURCE_V6)?;
                     destack_net_udp_join_multicast_source_v6_vm_replay(
@@ -23715,6 +23899,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_join_multicast_v4_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_JOIN_MULTICAST_V4)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_V4)?;
                     destack_net_udp_join_multicast_v4_vm_replay(
                         runtime,
@@ -23741,6 +23926,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_join_multicast_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_JOIN_MULTICAST_V6)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_JOIN_MULTICAST_V6)?;
                     destack_net_udp_join_multicast_v6_vm_replay(
                         runtime,
@@ -23767,6 +23953,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_leave_multicast_source_v4_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_SOURCE_V4)?;
                     destack_net_udp_leave_multicast_source_v4_vm_replay(
@@ -23789,6 +23976,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_leave_multicast_source_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_SOURCE_V6)?;
                     destack_net_udp_leave_multicast_source_v6_vm_replay(
@@ -23811,6 +23999,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_leave_multicast_v4_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_LEAVE_MULTICAST_V4)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_V4)?;
                     destack_net_udp_leave_multicast_v4_vm_replay(
                         runtime,
@@ -23837,6 +24026,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_leave_multicast_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_LEAVE_MULTICAST_V6)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_LEAVE_MULTICAST_V6)?;
                     destack_net_udp_leave_multicast_v6_vm_replay(
                         runtime,
@@ -23863,6 +24053,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_recv_from_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_RECV_FROM)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_RECV_FROM)?;
                     destack_net_udp_recv_from_vm_replay(
                         runtime, context, world, handle, buffer, recvflags,
@@ -23880,6 +24071,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_net_udp_send_to_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_UDP_SEND_TO)?;
                 let world = runtime.check_and_resolve_world(NET_UDP_SEND_TO)?;
                 destack_net_udp_send_to_vm_replay(
                     runtime, context, world, handle, address, buffer, sendflags,
@@ -23900,6 +24092,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_set_multicast_interface_v4_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_SET_MULTICAST_INTERFACE_V4)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_SET_MULTICAST_INTERFACE_V4)?;
                     destack_net_udp_set_multicast_interface_v4_vm_replay(
@@ -23926,6 +24119,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_set_multicast_interface_v6_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_SET_MULTICAST_INTERFACE_V6)?;
                     let world =
                         runtime.check_and_resolve_world(NET_UDP_SET_MULTICAST_INTERFACE_V6)?;
                     destack_net_udp_set_multicast_interface_v6_vm_replay(
@@ -23952,6 +24146,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_set_multicast_loop_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_SET_MULTICAST_LOOP)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_SET_MULTICAST_LOOP)?;
                     destack_net_udp_set_multicast_loop_vm_replay(
                         runtime, context, world, handle, enabled,
@@ -23973,6 +24168,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_net_udp_set_multicast_ttl_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDP_SET_MULTICAST_TTL)?;
                     let world = runtime.check_and_resolve_world(NET_UDP_SET_MULTICAST_TTL)?;
                     destack_net_udp_set_multicast_ttl_vm_replay(
                         runtime, context, world, handle, ttl,
@@ -23989,6 +24185,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (family,) = decode_destack_net_udp_socket_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_UDP_SOCKET)?;
                 let world = runtime.check_and_resolve_world(NET_UDP_SOCKET)?;
                 destack_net_udp_socket_vm_replay(runtime, context, world, family)
             })
@@ -24002,6 +24199,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (listener,) = decode_destack_net_uds_accept_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_UDS_ACCEPT)?;
                 let world = runtime.check_and_resolve_world(NET_UDS_ACCEPT)?;
                 destack_net_uds_accept_vm_replay(runtime, context, world, listener)
             })
@@ -24019,6 +24217,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_net_uds_close_listener_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDS_CLOSE_LISTENER)?;
                     let world = runtime.check_and_resolve_world(NET_UDS_CLOSE_LISTENER)?;
                     destack_net_uds_close_listener_vm_replay(runtime, context, world, handle)
                 })
@@ -24033,6 +24232,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (address,) = decode_destack_net_uds_connect_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_UDS_CONNECT)?;
                 let world = runtime.check_and_resolve_world(NET_UDS_CONNECT)?;
                 destack_net_uds_connect_vm_replay(runtime, context, world, address)
             })
@@ -24046,6 +24246,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (address, backlog) = decode_destack_net_uds_listen_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_UDS_LISTEN)?;
                 let world = runtime.check_and_resolve_world(NET_UDS_LISTEN)?;
                 destack_net_uds_listen_vm_replay(runtime, context, world, address, backlog)
             })
@@ -24063,6 +24264,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (sockettype,) = decode_destack_net_uds_socket_pair_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(NET_UDS_SOCKET_PAIR)?;
                     let world = runtime.check_and_resolve_world(NET_UDS_SOCKET_PAIR)?;
                     destack_net_uds_socket_pair_vm_replay(runtime, context, world, sockettype)
                 })
@@ -24077,6 +24279,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffer) = decode_destack_net_write_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_WRITE)?;
                 let world = runtime.check_and_resolve_world(NET_WRITE)?;
                 destack_net_write_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -24090,6 +24293,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle, buffers) = decode_destack_net_writev_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(NET_WRITEV)?;
                 let world = runtime.check_and_resolve_world(NET_WRITEV)?;
                 destack_net_writev_vm_replay(runtime, context, world, handle, buffers)
             })

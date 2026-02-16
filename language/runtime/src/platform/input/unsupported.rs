@@ -29,10 +29,9 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_close(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(INPUT_DEVICE_CLOSE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.close")).boxed())
@@ -56,10 +55,9 @@ pub(crate) unsafe fn destack_input_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_list(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<InputDeviceInfo>,
 ) -> RuntimeResult<()> {
-    context.check_policy(INPUT_DEVICE_LIST)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -86,11 +84,10 @@ pub(crate) unsafe fn destack_input_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::InputDeviceHandle,
     id: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(INPUT_DEVICE_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -117,11 +114,10 @@ pub(crate) unsafe fn destack_input_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_read(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(INPUT_EVENT_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -148,11 +144,10 @@ pub(crate) unsafe fn destack_input_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_set_grab(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
     enable: bool,
 ) -> RuntimeResult<()> {
-    context.check_policy(INPUT_EVENT_SET_GRAB)?;
     let _ = (handle, enable);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.setGrab")).boxed())
@@ -176,11 +171,10 @@ pub(crate) unsafe fn destack_input_set_grab(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_input_try_read(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut InputEvent,
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(INPUT_EVENT_TRY_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }

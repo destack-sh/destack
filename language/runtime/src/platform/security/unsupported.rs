@@ -31,11 +31,10 @@ use crate::platform::security::{
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_has(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut bool,
     capability: PlatformCapability,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_CAPABILITY_HAS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -65,10 +64,9 @@ pub(crate) unsafe fn destack_security_capability_has(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_capability_list(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_CAPABILITY_LIST)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -98,11 +96,10 @@ pub(crate) unsafe fn destack_security_capability_list(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_security_sandbox_install_filter(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::SandboxHandle,
     filter: SecurityFilter,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
     let _ = (handle, filter);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -129,10 +126,9 @@ pub(crate) unsafe fn destack_security_sandbox_install_filter(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_seal(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_ENFORCE_SANDBOX_SEAL)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -159,11 +155,10 @@ pub(crate) unsafe fn destack_security_sandbox_seal(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::SandboxHandle,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES)?;
     let _ = (handle, capabilities);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -190,11 +185,10 @@ pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<PlatformCapability>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_POLICY_GET)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -221,11 +215,10 @@ pub(crate) unsafe fn destack_security_policy_get(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get_rules(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<SecurityPolicyRule>,
     scope: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_POLICY_GET_RULES)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -255,11 +248,10 @@ pub(crate) unsafe fn destack_security_policy_get_rules(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     scope: NativeStringRef,
     capabilities: NativeSlice<PlatformCapability>,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_POLICY_SET)?;
     let _ = (scope, capabilities);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.security.policy.set")).boxed())
@@ -283,11 +275,10 @@ pub(crate) unsafe fn destack_security_policy_set(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set_rules(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     scope: NativeStringRef,
     rules: NativeSlice<SecurityPolicyRule>,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_POLICY_SET_RULES)?;
     let _ = (scope, rules);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -314,11 +305,10 @@ pub(crate) unsafe fn destack_security_policy_set_rules(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_enter(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::SandboxHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_SANDBOX_ENTER)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -348,10 +338,9 @@ pub(crate) unsafe fn destack_security_sandbox_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_exit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::SandboxHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(SECURITY_SANDBOX_EXIT)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(

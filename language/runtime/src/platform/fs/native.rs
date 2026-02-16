@@ -1,12 +1,11 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{OsPath, XattrFlags, core as core_fs};
+use crate::platform::fs::{OsPath, XattrFlags};
 use crate::platform::resource::FileHandle;
 use crate::platform::{NativeArray, NativeSlice, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
 #[allow(unused_imports)]
 pub(crate) use crate::platform::fs::host::*;
-pub(crate) use core_fs::*;
 
 /// Read an extended attribute by path with a raw name payload.
 ///

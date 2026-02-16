@@ -32,10 +32,9 @@ use crate::platform::tls::{
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_close(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_CLOSE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.context.close")).boxed())
@@ -59,11 +58,10 @@ pub(crate) unsafe fn destack_tls_context_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_context_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::TlsContextHandle,
     options: TlsContextOptions,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -90,11 +88,10 @@ pub(crate) unsafe fn destack_tls_context_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     suites: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_CIPHER_SUITES)?;
     let _ = (handle, suites);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -121,11 +118,10 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_groups(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     groups: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_GROUPS)?;
     let _ = (handle, groups);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -152,11 +148,10 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE)?;
     let _ = (handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -183,12 +178,11 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_identity_pem(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     certificatechainpem: NativeSlice<u8>,
     privatekeypem: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_IDENTITY_PEM)?;
     let _ = (handle, certificatechainpem, privatekeypem);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -215,11 +209,10 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_KEYLOG_ENABLED)?;
     let _ = (handle, enabled);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -246,11 +239,10 @@ pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_session_resumption(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_SESSION_RESUMPTION)?;
     let _ = (handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -277,11 +269,10 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     algorithms: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS)?;
     let _ = (handle, algorithms);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -308,11 +299,10 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsContextHandle,
     trustanchorspem: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_CONTEXT_SET_TRUST_ANCHORS_PEM)?;
     let _ = (handle, trustanchorspem);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -339,10 +329,9 @@ pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_close(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_CLOSE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.close")).boxed())
@@ -366,14 +355,13 @@ pub(crate) unsafe fn destack_tls_session_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_export_keying_material(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
     label: NativeStringRef,
     argument_context: NativeSlice<u8>,
     outputlength: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_EXPORT_KEYING_MATERIAL)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -403,11 +391,10 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_handshake(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut TlsHandshakeStatus,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_HANDSHAKE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -437,11 +424,10 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeStringRef,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_NEGOTIATED_ALPN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -471,13 +457,12 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::TlsSessionHandle,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
     servername: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -504,11 +489,10 @@ pub(crate) unsafe fn destack_tls_session_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_PEER_CERTIFICATES_PEM)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -538,12 +522,11 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_read(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -570,11 +553,10 @@ pub(crate) unsafe fn destack_tls_session_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_resumption_state(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut TlsSessionResumptionState,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_RESUMPTION_STATE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -604,10 +586,9 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_shutdown(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_SHUTDOWN)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.shutdown")).boxed())
@@ -631,12 +612,11 @@ pub(crate) unsafe fn destack_tls_session_shutdown(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_write(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::TlsSessionHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(TLS_SESSION_WRITE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }

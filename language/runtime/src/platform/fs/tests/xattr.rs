@@ -3,6 +3,7 @@ use super::{temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{FileMode, OpenFlags, XattrFlags};
 
+/// Roundtrip extended attributes through path and file-descriptor apis.
 #[cfg(unix)]
 #[test]
 fn test_fs_xattr_roundtrip() {
@@ -27,6 +28,7 @@ fn test_fs_xattr_roundtrip() {
         let set_result = context.setxattr(path.clone(), name, value, XattrFlags(0));
         let wrote = context.result_ok_or_codes(set_result, "setxattr", &allowed)?;
 
+        // when supported, path xattr reads and lists should reflect writes
         if wrote.is_some() {
             let path = context.path_bytes(&file_path);
             let read = context.getxattr(path.clone(), name)?;
@@ -43,6 +45,7 @@ fn test_fs_xattr_roundtrip() {
         let set_result = context.fsetxattr(handle, name, value, XattrFlags(0));
         let wrote = context.result_ok_or_codes(set_result, "fsetxattr", &allowed)?;
 
+        // when supported, fd xattr reads and lists should reflect writes
         if wrote.is_some() {
             let read = context.fgetxattr(handle, name)?;
             assert_eq!(read, value);
@@ -63,6 +66,7 @@ fn test_fs_xattr_roundtrip() {
     });
 }
 
+/// Roundtrip extended attributes on symlink paths.
 #[cfg(unix)]
 #[test]
 fn test_fs_xattr_symlink() {
@@ -93,6 +97,7 @@ fn test_fs_xattr_symlink() {
         let set_result = context.lsetxattr(link.clone(), name, value, XattrFlags(0));
         let wrote = context.result_ok_or_codes(set_result, "lsetxattr", &allowed)?;
 
+        // when supported, symlink xattr reads and lists should reflect writes
         if wrote.is_some() {
             let link = context.path_bytes(&link_path);
             let read = context.lgetxattr(link, name)?;

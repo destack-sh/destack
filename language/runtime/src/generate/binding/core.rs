@@ -27,9 +27,11 @@ pub(crate) use path::{
     runtime_domain_mod_path, runtime_domain_native_path, runtime_domain_runtime_mod_path,
     runtime_domain_runtime_native_path, runtime_domain_runtime_vm_path,
     runtime_domain_simulated_mod_path, runtime_domain_simulated_native_path,
-    runtime_domain_simulated_vm_path, runtime_domain_unix_mod_path,
-    runtime_domain_unsupported_path, runtime_domain_vm_path, runtime_domain_windows_mod_path,
-    runtime_platform_generated_path, write_domain_bindings,
+    runtime_domain_simulated_vm_path, runtime_domain_test_harness_generated_path,
+    runtime_domain_tests_basic_path, runtime_domain_tests_dir_path, runtime_domain_tests_mod_path,
+    runtime_domain_tests_path, runtime_domain_unix_mod_path, runtime_domain_unsupported_path,
+    runtime_domain_vm_path, runtime_domain_windows_mod_path, runtime_platform_generated_path,
+    write_domain_bindings,
 };
 use replay::*;
 pub(crate) use stub::{
@@ -1225,12 +1227,11 @@ impl<'a> DomainWriter<'a> {
             match replay_kind {
                 BindingReplayKind::Regular => {
                     if uses_binding_replay {
-                        if entry.scope == BindingScope::Runtime {
-                            output.push_str(&format!(
-                                "        context.check_policy({})?;\n",
-                                binding.const_name
-                            ));
-                        } else {
+                        output.push_str(&format!(
+                            "        context.check_policy({})?;\n",
+                            binding.const_name
+                        ));
+                        if entry.scope != BindingScope::Runtime {
                             output.push_str(&format!(
                                 "        let world = context.check_and_resolve_world({})?;\n",
                                 binding.const_name
@@ -1419,21 +1420,21 @@ impl<'a> DomainWriter<'a> {
                 BindingReplayKind::Regular => {
                     if uses_binding_replay {
                         let replay_fn = vm_replay_fn_name(domain, binding.extern_name);
-                        if binding.entry.scope == BindingScope::Runtime {
-                            output.push_str(&format!(
-                                "                runtime.check_policy({})?;\n",
-                                binding.const_name
-                            ));
-                            output.push_str(&format!(
-                                "                {replay_fn}(runtime, context{invoke_args})\n"
-                            ));
-                        } else {
+                        output.push_str(&format!(
+                            "                runtime.check_policy({})?;\n",
+                            binding.const_name
+                        ));
+                        if binding.entry.scope != BindingScope::Runtime {
                             output.push_str(&format!(
                                 "                let world = runtime.check_and_resolve_world({})?;\n",
                                 binding.const_name
                             ));
                             output.push_str(&format!(
                                 "                {replay_fn}(runtime, context, world{invoke_args})\n"
+                            ));
+                        } else {
+                            output.push_str(&format!(
+                                "                {replay_fn}(runtime, context{invoke_args})\n"
                             ));
                         }
                     } else {
@@ -1627,7 +1628,7 @@ fn render_native_checked_world_dispatch_expr(
     };
 
     format!(
-        "{{\n            let world = context.check_and_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulated => {simulated},\n            }}\n        }}"
+        "{{\n            context.check_policy({binding_const})?;\n            let world = context.check_and_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulated => {simulated},\n            }}\n        }}"
     )
 }
 
@@ -1650,7 +1651,7 @@ fn render_vm_checked_world_dispatch_expr(
         format!("platform_simulated_vm::{implementation_fn_name}(runtime, context{invoke_args})");
 
     format!(
-        "{{\n                        let world = runtime.check_and_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulated => {simulated},\n                        }}\n                    }}"
+        "{{\n                        runtime.check_policy({binding_const})?;\n                        let world = runtime.check_and_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulated => {simulated},\n                        }}\n                    }}"
     )
 }
 

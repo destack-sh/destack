@@ -6,6 +6,8 @@ mod edge;
 mod message;
 #[cfg(any(unix, windows))]
 mod options;
+#[cfg(unix)]
+mod privileged;
 #[cfg(any(unix, windows))]
 mod resolve;
 #[cfg(any(unix, windows))]

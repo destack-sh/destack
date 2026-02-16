@@ -3,6 +3,7 @@ use super::{temp_dir, with_harness_context};
 use crate::platform::fs::SymlinkType;
 use crate::platform::fs::{FileMode, OpenFlags};
 
+/// Read file metadata through stat and fstat and compare sizes.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_stat_and_fstat() {
@@ -41,6 +42,7 @@ fn test_fs_stat_and_fstat() {
     });
 }
 
+/// Read filesystem statistics for one directory path.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_statfs() {
@@ -64,6 +66,7 @@ fn test_fs_statfs() {
     });
 }
 
+/// Read filesystem statistics for one open file handle.
 #[cfg(unix)]
 #[test]
 fn test_fs_fstatfs() {
@@ -96,6 +99,7 @@ fn test_fs_fstatfs() {
     });
 }
 
+/// Read link metadata without following the symlink target.
 #[cfg(unix)]
 #[test]
 fn test_fs_lstat() {

@@ -1062,6 +1062,7 @@ pub unsafe extern "C" fn destack_time_clock_info(
         }
         let _ = (&out, &clock);
 
+        context.check_policy(TIME_CLOCK_INFO)?;
         let world = context.check_and_resolve_world(TIME_CLOCK_INFO)?;
         destack_time_clock_info_replay(context, world, out, clock)
     })
@@ -1079,6 +1080,7 @@ pub unsafe extern "C" fn destack_time_clock_mono_ns(out: *mut u64) -> RuntimeSta
             .replay()
             .run_time_read(TimeEventKind::MonotonicSample, || {
                 {
+                    context.check_policy(TIME_CLOCK_MONO_NS)?;
                     let world = context.check_and_resolve_world(TIME_CLOCK_MONO_NS)?;
                     match world {
                         RuntimeWorld::Host => unsafe {
@@ -1106,6 +1108,7 @@ pub unsafe extern "C" fn destack_time_clock_now_ns(out: *mut u64, clock: ClockId
         }
         let _ = (&out, &clock);
 
+        context.check_policy(TIME_CLOCK_NOW_NS)?;
         let world = context.check_and_resolve_world(TIME_CLOCK_NOW_NS)?;
         destack_time_clock_now_ns_replay(context, world, out, clock)
     })
@@ -1119,6 +1122,7 @@ pub unsafe extern "C" fn destack_time_clock_process_cpu_ns(out: *mut u64) -> Run
         }
         let _ = &out;
 
+        context.check_policy(TIME_CLOCK_PROCESS_CPU_NS)?;
         let world = context.check_and_resolve_world(TIME_CLOCK_PROCESS_CPU_NS)?;
         destack_time_clock_process_cpu_ns_replay(context, world, out)
     })
@@ -1132,6 +1136,7 @@ pub unsafe extern "C" fn destack_time_clock_thread_cpu_ns(out: *mut u64) -> Runt
         }
         let _ = &out;
 
+        context.check_policy(TIME_CLOCK_THREAD_CPU_NS)?;
         let world = context.check_and_resolve_world(TIME_CLOCK_THREAD_CPU_NS)?;
         destack_time_clock_thread_cpu_ns_replay(context, world, out)
     })
@@ -1149,6 +1154,7 @@ pub unsafe extern "C" fn destack_time_clock_wall_ns(out: *mut u64) -> RuntimeSta
             .replay()
             .run_time_read(TimeEventKind::WallClockRead, || {
                 {
+                    context.check_policy(TIME_CLOCK_WALL_NS)?;
                     let world = context.check_and_resolve_world(TIME_CLOCK_WALL_NS)?;
                     match world {
                         RuntimeWorld::Host => unsafe {
@@ -1173,6 +1179,7 @@ pub unsafe extern "C" fn destack_time_sleep_ns(duration: u64) -> RuntimeStatus {
     native_call(|context| {
         let _ = &duration;
 
+        context.check_policy(TIME_SLEEP_NS)?;
         let world = context.check_and_resolve_world(TIME_SLEEP_NS)?;
         destack_time_sleep_ns_replay(context, world, duration)
     })
@@ -1186,6 +1193,7 @@ pub unsafe extern "C" fn destack_time_sleep_on_ns(
     native_call(|context| {
         let _ = (&duration, &clock);
 
+        context.check_policy(TIME_SLEEP_ON_NS)?;
         let world = context.check_and_resolve_world(TIME_SLEEP_ON_NS)?;
         destack_time_sleep_on_ns_replay(context, world, duration, clock)
     })
@@ -1196,6 +1204,7 @@ pub unsafe extern "C" fn destack_time_sleep_until_ns(deadline: u64) -> RuntimeSt
     native_call(|context| {
         let _ = &deadline;
 
+        context.check_policy(TIME_SLEEP_UNTIL_NS)?;
         let world = context.check_and_resolve_world(TIME_SLEEP_UNTIL_NS)?;
         destack_time_sleep_until_ns_replay(context, world, deadline)
     })
@@ -1209,6 +1218,7 @@ pub unsafe extern "C" fn destack_time_sleep_until_on_ns(
     native_call(|context| {
         let _ = (&deadline, &clock);
 
+        context.check_policy(TIME_SLEEP_UNTIL_ON_NS)?;
         let world = context.check_and_resolve_world(TIME_SLEEP_UNTIL_ON_NS)?;
         destack_time_sleep_until_on_ns_replay(context, world, deadline, clock)
     })
@@ -1682,6 +1692,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (clock,) = decode_destack_time_clock_info_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIME_CLOCK_INFO)?;
                 let world = runtime.check_and_resolve_world(TIME_CLOCK_INFO)?;
                 destack_time_clock_info_vm_replay(runtime, context, world, clock)
             })
@@ -1700,6 +1711,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         runtime
                             .replay()
                             .run_time_read(TimeEventKind::MonotonicSample, || {
+                                runtime.check_policy(TIME_CLOCK_MONO_NS)?;
                                 let world = runtime.check_and_resolve_world(TIME_CLOCK_MONO_NS)?;
                                 match world {
                                     RuntimeWorld::Host => {
@@ -1729,6 +1741,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (clock,) = decode_destack_time_clock_now_ns_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(TIME_CLOCK_NOW_NS)?;
                     let world = runtime.check_and_resolve_world(TIME_CLOCK_NOW_NS)?;
                     destack_time_clock_now_ns_vm_replay(runtime, context, world, clock)
                 })
@@ -1744,6 +1757,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(TIME_CLOCK_PROCESS_CPU_NS)?;
                     let world = runtime.check_and_resolve_world(TIME_CLOCK_PROCESS_CPU_NS)?;
                     destack_time_clock_process_cpu_ns_vm_replay(runtime, context, world)
                 })
@@ -1759,6 +1773,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(TIME_CLOCK_THREAD_CPU_NS)?;
                     let world = runtime.check_and_resolve_world(TIME_CLOCK_THREAD_CPU_NS)?;
                     destack_time_clock_thread_cpu_ns_vm_replay(runtime, context, world)
                 })
@@ -1778,6 +1793,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         runtime
                             .replay()
                             .run_time_read(TimeEventKind::WallClockRead, || {
+                                runtime.check_policy(TIME_CLOCK_WALL_NS)?;
                                 let world = runtime.check_and_resolve_world(TIME_CLOCK_WALL_NS)?;
                                 match world {
                                     RuntimeWorld::Host => {
@@ -1803,6 +1819,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (duration,) = decode_destack_time_sleep_ns_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIME_SLEEP_NS)?;
                 let world = runtime.check_and_resolve_world(TIME_SLEEP_NS)?;
                 destack_time_sleep_ns_vm_replay(runtime, context, world, duration)
             })
@@ -1816,6 +1833,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (duration, clock) = decode_destack_time_sleep_on_ns_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIME_SLEEP_ON_NS)?;
                 let world = runtime.check_and_resolve_world(TIME_SLEEP_ON_NS)?;
                 destack_time_sleep_on_ns_vm_replay(runtime, context, world, duration, clock)
             })
@@ -1833,6 +1851,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (deadline,) = decode_destack_time_sleep_until_ns_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(TIME_SLEEP_UNTIL_NS)?;
                     let world = runtime.check_and_resolve_world(TIME_SLEEP_UNTIL_NS)?;
                     destack_time_sleep_until_ns_vm_replay(runtime, context, world, deadline)
                 })
@@ -1852,6 +1871,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         decode_destack_time_sleep_until_on_ns_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(TIME_SLEEP_UNTIL_ON_NS)?;
                     let world = runtime.check_and_resolve_world(TIME_SLEEP_UNTIL_ON_NS)?;
                     destack_time_sleep_until_on_ns_vm_replay(
                         runtime, context, world, deadline, clock,

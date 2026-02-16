@@ -161,6 +161,7 @@ pub(crate) fn assert_platform_error_code<T>(
     let platform = error
         .platform_error()
         .expect("error should contain one platform error");
+    assert_no_permission_denied_in_privileged_mode(platform.code, &[expected]);
     assert_eq!(platform.code, expected);
 
     Ok(())
@@ -178,6 +179,7 @@ pub(crate) fn assert_platform_error_codes<T>(
     let platform = error
         .platform_error()
         .expect("error should contain one platform error");
+    assert_no_permission_denied_in_privileged_mode(platform.code, expected);
     assert!(
         expected.contains(&platform.code),
         "unexpected platform error code: {:?}, expected one of {:?}",
@@ -186,6 +188,39 @@ pub(crate) fn assert_platform_error_codes<T>(
     );
 
     Ok(())
+}
+
+/// Return true when privileged test mode is enabled.
+fn is_privileged_test_mode() -> bool {
+    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
+    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
+}
+
+/// Return true when one platform code represents a permission denial.
+fn is_permission_denied_code(code: PlatformErrorCode) -> bool {
+    matches!(
+        code,
+        PlatformErrorCode::IoPermissionDenied
+            | PlatformErrorCode::ProcessPermissionDenied
+            | PlatformErrorCode::SecurityDenied
+    )
+}
+
+/// Fail privileged runs when assertions observe permission-denied errors.
+fn assert_no_permission_denied_in_privileged_mode(
+    observed: PlatformErrorCode,
+    expected: &[PlatformErrorCode],
+) {
+    if !is_privileged_test_mode() {
+        return;
+    }
+
+    if is_permission_denied_code(observed) {
+        panic!(
+            "permission-denied error {:?} is not allowed when DESTACK_TEST_PRIVILEGED=1 (expected one of {:?})",
+            observed, expected,
+        );
+    }
 }
 
 /// Build a NativeSlice from a mutable byte buffer.

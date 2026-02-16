@@ -10,6 +10,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 
+/// Reject operations that use invalid socket and listener handles.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_net_invalid_handles() {
@@ -37,6 +38,7 @@ fn test_net_invalid_handles() {
                 context.status_err(status, "read invalid socket")?;
             }
             NetHarnessKind::Vm => {
+                // vm bindings should report invalid-argument errors for forged handles
                 assert_platform_error_code(
                     context.close(SocketHandle(ResourceId(9999))),
                     PlatformErrorCode::InvalidArgumentValue,
@@ -62,6 +64,7 @@ fn test_net_invalid_handles() {
     });
 }
 
+/// Reject accept calls on a listener that has already been closed.
 #[cfg(unix)]
 #[test]
 fn test_net_accept_after_close() {

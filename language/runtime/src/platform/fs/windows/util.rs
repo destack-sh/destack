@@ -56,6 +56,10 @@ pub(super) const DELETE_ACCESS: u32 = 0x0001_0000;
 pub(super) const REPARSE_TAG_SYMLINK: u32 = 0xA000000C;
 /// Reparse tag for mount points.
 pub(super) const REPARSE_TAG_MOUNT_POINT: u32 = 0xA0000003;
+/// Buffer capacity for legacy windows path APIs.
+const WINDOWS_LEGACY_PATH_CAPACITY: usize = 260;
+/// Initial buffer capacity for dynamic windows path APIs.
+const WINDOWS_DYNAMIC_PATH_INITIAL_CAPACITY: usize = 512;
 
 /// Finalizer that closes a raw handle.
 #[derive(Debug)]
@@ -1018,7 +1022,7 @@ pub(super) fn volume_path_from_path(path: &[u16]) -> RuntimeResult<Vec<u16>> {
     let path = ensure_wide_nul(path);
 
     // query the volume path
-    let mut buffer = vec![0u16; 260];
+    let mut buffer = vec![0u16; WINDOWS_LEGACY_PATH_CAPACITY];
     let rc = unsafe { GetVolumePathNameW(path.as_ptr(), buffer.as_mut_ptr(), buffer.len() as u32) };
     if rc == 0 {
         return Err(last_os_error("GetVolumePathNameW", None));
@@ -1080,8 +1084,8 @@ pub(super) fn statfs_from_path(path: &[u16]) -> RuntimeResult<StatFs> {
     let mut serial = 0u32;
     let mut max_component = 0u32;
     let mut flags = 0u32;
-    let mut volume_name = vec![0u16; 260];
-    let mut fs_name = vec![0u16; 260];
+    let mut volume_name = vec![0u16; WINDOWS_LEGACY_PATH_CAPACITY];
+    let mut fs_name = vec![0u16; WINDOWS_LEGACY_PATH_CAPACITY];
     let rc = unsafe {
         GetVolumeInformationW(
             volume.as_ptr(),
@@ -1119,9 +1123,9 @@ pub(super) fn statfs_from_path(path: &[u16]) -> RuntimeResult<StatFs> {
 }
 
 /// Convert a handle to a wide path using GetFinalPathNameByHandleW.
-pub(super) fn final_path_from_handle(handle: HANDLE) -> RuntimeResult<Vec<u16>> {
+pub(crate) fn final_path_from_handle(handle: HANDLE) -> RuntimeResult<Vec<u16>> {
     // grow the buffer until the path fits
-    let mut buffer = vec![0u16; 512];
+    let mut buffer = vec![0u16; WINDOWS_DYNAMIC_PATH_INITIAL_CAPACITY];
     loop {
         let len = unsafe {
             GetFinalPathNameByHandleW(handle, buffer.as_mut_ptr(), buffer.len() as u32, 0)

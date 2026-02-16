@@ -2,6 +2,7 @@
 use super::with_harness_context;
 use crate::platform::net::SocketFamily;
 
+/// Send one udp datagram and verify sender metadata on receipt.
 #[cfg(unix)]
 #[test]
 fn test_net_udp_roundtrip() {
@@ -25,6 +26,7 @@ fn test_net_udp_roundtrip() {
         let (host, recv_port, family, bytes) = context.udp_recv_from(server, &mut buffer)?;
         buffer.truncate(bytes as usize);
 
+        // sender metadata and payload should match the sent datagram
         assert_eq!(family, SocketFamily::IPv4);
         assert_eq!(host, "127.0.0.1");
         assert!(recv_port > 0);
@@ -38,6 +40,7 @@ fn test_net_udp_roundtrip() {
     });
 }
 
+/// Connect udp sockets and exchange bytes through stream-style read and write.
 #[cfg(unix)]
 #[test]
 fn test_net_udp_connect_roundtrip() {

@@ -16,6 +16,8 @@ mod file;
 mod mmap;
 #[cfg(any(unix, windows))]
 mod path;
+#[cfg(unix)]
+mod privileged;
 #[cfg(any(unix, windows))]
 mod stat;
 #[cfg(any(unix, windows))]

@@ -6,6 +6,7 @@ use crate::platform::fs::{
     SyncFlags,
 };
 
+/// Seek within files, lock ranges, and duplicate descriptors.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_seek_dup_lock() {
@@ -88,6 +89,7 @@ fn test_fs_seek_dup_lock() {
     });
 }
 
+/// Copy file ranges between two open file handles.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_copy_file_range() {
@@ -118,6 +120,7 @@ fn test_fs_copy_file_range() {
         );
         let copied = context.result_ok_or_codes(copy_result, "copy_file_range", &allowed)?;
 
+        // when supported, copied bytes should match the source payload
         if copied.is_some() {
             let mut buffer = vec![0u8; 16];
             let out = context.pread(dst_handle, &mut buffer, FileOffset(0))?;
@@ -138,6 +141,7 @@ fn test_fs_copy_file_range() {
     });
 }
 
+/// Send file contents into a socket with sendfile.
 #[cfg(unix)]
 #[test]
 fn test_fs_sendfile() {
@@ -167,6 +171,7 @@ fn test_fs_sendfile() {
         );
         let sent = context.result_ok_or_codes(send_result, "sendfile", &allowed)?;
 
+        // when supported, the socket payload should match the file payload
         if sent.is_some() {
             let mut buffer = vec![0u8; payload.len()];
             let out = context.socket_read(client, &mut buffer)?;
@@ -186,6 +191,7 @@ fn test_fs_sendfile() {
     });
 }
 
+/// Exercise sync, allocation, and advice operations on one file handle.
 #[cfg(unix)]
 #[test]
 fn test_fs_sync_alloc_advice() {

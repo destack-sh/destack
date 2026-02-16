@@ -1681,6 +1681,7 @@ pub unsafe extern "C" fn destack_memory_advise_advise(
     native_call(|context| {
         let _ = (&address, &length, &advice);
 
+        context.check_policy(MEMORY_ADVISE_ADVISE)?;
         let world = context.check_and_resolve_world(MEMORY_ADVISE_ADVISE)?;
         destack_memory_advise_advise_replay(context, world, address, length, advice)
     })
@@ -1691,6 +1692,7 @@ pub unsafe extern "C" fn destack_memory_advise_discard(address: u64, length: u64
     native_call(|context| {
         let _ = (&address, &length);
 
+        context.check_policy(MEMORY_ADVISE_DISCARD)?;
         let world = context.check_and_resolve_world(MEMORY_ADVISE_DISCARD)?;
         destack_memory_advise_discard_replay(context, world, address, length)
     })
@@ -1705,6 +1707,7 @@ pub unsafe extern "C" fn destack_memory_advise_huge_page(
     native_call(|context| {
         let _ = (&address, &length, &enabled);
 
+        context.check_policy(MEMORY_ADVISE_HUGE_PAGE)?;
         let world = context.check_and_resolve_world(MEMORY_ADVISE_HUGE_PAGE)?;
         destack_memory_advise_huge_page_replay(context, world, address, length, enabled)
     })
@@ -1715,6 +1718,7 @@ pub unsafe extern "C" fn destack_memory_lock_lock(address: u64, length: u64) -> 
     native_call(|context| {
         let _ = (&address, &length);
 
+        context.check_policy(MEMORY_LOCK_LOCK)?;
         let world = context.check_and_resolve_world(MEMORY_LOCK_LOCK)?;
         destack_memory_lock_lock_replay(context, world, address, length)
     })
@@ -1725,6 +1729,7 @@ pub unsafe extern "C" fn destack_memory_lock_unlock(address: u64, length: u64) -
     native_call(|context| {
         let _ = (&address, &length);
 
+        context.check_policy(MEMORY_LOCK_UNLOCK)?;
         let world = context.check_and_resolve_world(MEMORY_LOCK_UNLOCK)?;
         destack_memory_lock_unlock_replay(context, world, address, length)
     })
@@ -1739,6 +1744,7 @@ pub unsafe extern "C" fn destack_memory_map_commit(
     native_call(|context| {
         let _ = (&address, &length, &flags);
 
+        context.check_policy(MEMORY_MAP_COMMIT)?;
         let world = context.check_and_resolve_world(MEMORY_MAP_COMMIT)?;
         destack_memory_map_commit_replay(context, world, address, length, flags)
     })
@@ -1749,6 +1755,7 @@ pub unsafe extern "C" fn destack_memory_map_decommit(address: u64, length: u64) 
     native_call(|context| {
         let _ = (&address, &length);
 
+        context.check_policy(MEMORY_MAP_DECOMMIT)?;
         let world = context.check_and_resolve_world(MEMORY_MAP_DECOMMIT)?;
         destack_memory_map_decommit_replay(context, world, address, length)
     })
@@ -1764,6 +1771,7 @@ pub unsafe extern "C" fn destack_memory_map_numa_bind(
     native_call(|context| {
         let _ = (&address, &length, &policy, &nodemask);
 
+        context.check_policy(MEMORY_MAP_NUMA_BIND)?;
         let world = context.check_and_resolve_world(MEMORY_MAP_NUMA_BIND)?;
         destack_memory_map_numa_bind_replay(context, world, address, length, policy, nodemask)
     })
@@ -1774,6 +1782,7 @@ pub unsafe extern "C" fn destack_memory_map_release(address: u64, length: u64) -
     native_call(|context| {
         let _ = (&address, &length);
 
+        context.check_policy(MEMORY_MAP_RELEASE)?;
         let world = context.check_and_resolve_world(MEMORY_MAP_RELEASE)?;
         destack_memory_map_release_replay(context, world, address, length)
     })
@@ -1791,6 +1800,7 @@ pub unsafe extern "C" fn destack_memory_map_reserve(
         }
         let _ = (&out, &length, &flags);
 
+        context.check_policy(MEMORY_MAP_RESERVE)?;
         let world = context.check_and_resolve_world(MEMORY_MAP_RESERVE)?;
         destack_memory_map_reserve_replay(context, world, out, length, flags)
     })
@@ -1805,6 +1815,7 @@ pub unsafe extern "C" fn destack_memory_protect_execute(
     native_call(|context| {
         let _ = (&address, &length, &enabled);
 
+        context.check_policy(MEMORY_PROTECT_EXECUTE)?;
         let world = context.check_and_resolve_world(MEMORY_PROTECT_EXECUTE)?;
         destack_memory_protect_execute_replay(context, world, address, length, enabled)
     })
@@ -1818,6 +1829,7 @@ pub unsafe extern "C" fn destack_memory_protect_flush_instruction_cache(
     native_call(|context| {
         let _ = (&address, &length);
 
+        context.check_policy(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?;
         let world = context.check_and_resolve_world(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?;
         destack_memory_protect_flush_instruction_cache_replay(context, world, address, length)
     })
@@ -1832,6 +1844,7 @@ pub unsafe extern "C" fn destack_memory_protect_protect(
     native_call(|context| {
         let _ = (&address, &length, &protection);
 
+        context.check_policy(MEMORY_PROTECT_PROTECT)?;
         let world = context.check_and_resolve_world(MEMORY_PROTECT_PROTECT)?;
         destack_memory_protect_protect_replay(context, world, address, length, protection)
     })
@@ -1851,6 +1864,7 @@ pub unsafe extern "C" fn destack_memory_protect_remap(
         }
         let _ = (&out, &address, &oldlength, &newlength, &flags);
 
+        context.check_policy(MEMORY_PROTECT_REMAP)?;
         let world = context.check_and_resolve_world(MEMORY_PROTECT_REMAP)?;
         destack_memory_protect_remap_replay(
             context, world, out, address, oldlength, newlength, flags,
@@ -2698,6 +2712,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_advise_advise_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_ADVISE_ADVISE)?;
                     let world = runtime.check_and_resolve_world(MEMORY_ADVISE_ADVISE)?;
                     destack_memory_advise_advise_vm_replay(
                         runtime, context, world, address, length, advice,
@@ -2719,6 +2734,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_advise_discard_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_ADVISE_DISCARD)?;
                     let world = runtime.check_and_resolve_world(MEMORY_ADVISE_DISCARD)?;
                     destack_memory_advise_discard_vm_replay(
                         runtime, context, world, address, length,
@@ -2740,6 +2756,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_advise_huge_page_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_ADVISE_HUGE_PAGE)?;
                     let world = runtime.check_and_resolve_world(MEMORY_ADVISE_HUGE_PAGE)?;
                     destack_memory_advise_huge_page_vm_replay(
                         runtime, context, world, address, length, enabled,
@@ -2756,6 +2773,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (address, length) = decode_destack_memory_lock_lock_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(MEMORY_LOCK_LOCK)?;
                 let world = runtime.check_and_resolve_world(MEMORY_LOCK_LOCK)?;
                 destack_memory_lock_lock_vm_replay(runtime, context, world, address, length)
             })
@@ -2773,6 +2791,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (address, length) = decode_destack_memory_lock_unlock_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_LOCK_UNLOCK)?;
                     let world = runtime.check_and_resolve_world(MEMORY_LOCK_UNLOCK)?;
                     destack_memory_lock_unlock_vm_replay(runtime, context, world, address, length)
                 })
@@ -2792,6 +2811,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_map_commit_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_MAP_COMMIT)?;
                     let world = runtime.check_and_resolve_world(MEMORY_MAP_COMMIT)?;
                     destack_memory_map_commit_vm_replay(
                         runtime, context, world, address, length, flags,
@@ -2812,6 +2832,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (address, length) = decode_destack_memory_map_decommit_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_MAP_DECOMMIT)?;
                     let world = runtime.check_and_resolve_world(MEMORY_MAP_DECOMMIT)?;
                     destack_memory_map_decommit_vm_replay(runtime, context, world, address, length)
                 })
@@ -2831,6 +2852,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_map_numa_bind_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_MAP_NUMA_BIND)?;
                     let world = runtime.check_and_resolve_world(MEMORY_MAP_NUMA_BIND)?;
                     destack_memory_map_numa_bind_vm_replay(
                         runtime, context, world, address, length, policy, nodemask,
@@ -2851,6 +2873,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (address, length) = decode_destack_memory_map_release_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_MAP_RELEASE)?;
                     let world = runtime.check_and_resolve_world(MEMORY_MAP_RELEASE)?;
                     destack_memory_map_release_vm_replay(runtime, context, world, address, length)
                 })
@@ -2869,6 +2892,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (length, flags) = decode_destack_memory_map_reserve_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_MAP_RESERVE)?;
                     let world = runtime.check_and_resolve_world(MEMORY_MAP_RESERVE)?;
                     destack_memory_map_reserve_vm_replay(runtime, context, world, length, flags)
                 })
@@ -2888,6 +2912,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_protect_execute_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_PROTECT_EXECUTE)?;
                     let world = runtime.check_and_resolve_world(MEMORY_PROTECT_EXECUTE)?;
                     destack_memory_protect_execute_vm_replay(
                         runtime, context, world, address, length, enabled,
@@ -2909,6 +2934,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_protect_flush_instruction_cache_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?;
                     let world =
                         runtime.check_and_resolve_world(MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE)?;
                     destack_memory_protect_flush_instruction_cache_vm_replay(
@@ -2931,6 +2957,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_protect_protect_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_PROTECT_PROTECT)?;
                     let world = runtime.check_and_resolve_world(MEMORY_PROTECT_PROTECT)?;
                     destack_memory_protect_protect_vm_replay(
                         runtime, context, world, address, length, protection,
@@ -2952,6 +2979,7 @@ pub fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_memory_protect_remap_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(MEMORY_PROTECT_REMAP)?;
                     let world = runtime.check_and_resolve_world(MEMORY_PROTECT_REMAP)?;
                     destack_memory_protect_remap_vm_replay(
                         runtime, context, world, address, oldlength, newlength, flags,

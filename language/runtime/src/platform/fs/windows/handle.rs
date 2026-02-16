@@ -87,6 +87,7 @@ pub(crate) unsafe fn destack_fs_dup(
 
     // register the new resource
     let entry = ResourceEntry::new(ResourceKind::File)
+        .with_handle(duplicated as _)
         .with_payload(FileResource {
             handle: duplicated,
             cursor: Arc::new(Mutex::new(0)),

@@ -3,6 +3,7 @@ mod windows_tests {
     use super::super::{temp_dir, with_harness_context};
     use crate::platform::fs::{FileMode, OpenFlags};
 
+    /// Open, rename, and unlink files through utf16 path bindings on windows.
     #[test]
     fn test_fs_utf16_open_rename_unlink() {
         with_harness_context(|mut context| {

@@ -129,10 +129,6 @@ fn render_native_like_stub(
                 format!(", {}", params.join(", "))
             }
         ));
-        output.push_str(&format!(
-            "    context.check_policy({})?;\n",
-            binding.const_name
-        ));
         if entry.return_binding != BindingType::Void {
             output.push_str("    if out.is_null() {\n");
             output.push_str(

@@ -3,6 +3,7 @@ use super::{temp_dir, with_harness_context};
 use crate::platform::fs::SymlinkType;
 use crate::platform::fs::{CopyFlags, FileMode, OpenFlags};
 
+/// Rename, hard link, and copy files while preserving payload bytes.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_rename_unlink_copyfile() {
@@ -38,6 +39,7 @@ fn test_fs_rename_unlink_copyfile() {
         let to = context.path_bytes(&file_d);
         context.copyfile(from, to, CopyFlags(0))?;
 
+        // linked file should contain the original payload
         let path = context.path_bytes(&file_c);
         let flags = OpenFlags(libc::O_RDONLY as u32);
         let handle = context.open(path, flags, FileMode(0o644))?;
@@ -47,6 +49,7 @@ fn test_fs_rename_unlink_copyfile() {
         assert_eq!(buffer, b"destack");
         context.close(handle)?;
 
+        // copied file should contain the original payload
         let path = context.path_bytes(&file_d);
         let handle = context.open(path, flags, FileMode(0o644))?;
         let mut buffer = vec![0u8; 16];
@@ -70,6 +73,7 @@ fn test_fs_rename_unlink_copyfile() {
     });
 }
 
+/// Create a symlink and read back its target path bytes.
 #[cfg(unix)]
 #[test]
 fn test_fs_symlink_readlink() {
@@ -112,6 +116,7 @@ fn test_fs_symlink_readlink() {
     });
 }
 
+/// Resolve a canonical path for an existing file.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_realpath() {
@@ -145,6 +150,7 @@ fn test_fs_realpath() {
     });
 }
 
+/// Preserve non-utf8 bytes when resolving realpath and readlink on unix.
 #[cfg(any(
     target_os = "linux",
     target_os = "android",
@@ -203,6 +209,7 @@ fn test_fs_non_utf8_realpath_and_readlink_bytes() {
     });
 }
 
+/// Accept utf16 input paths on unix by routing through utf8 byte paths.
 #[cfg(unix)]
 #[test]
 fn test_fs_utf16_input_path_on_unix_uses_utf8_bytes() {
@@ -242,6 +249,7 @@ fn test_fs_utf16_input_path_on_unix_uses_utf8_bytes() {
     });
 }
 
+/// Reject utf16 output path decoding on unix for non-utf8 targets.
 #[cfg(any(
     target_os = "linux",
     target_os = "android",
