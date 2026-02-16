@@ -89,7 +89,11 @@ const result = if (x > 0) { "positive" } else { "negative" }
 ```
 
 ```ds expected
-const result = if (x > 0) { "positive" } else { "negative" };
+const result = if (x > 0) {
+    "positive";
+} else {
+    "negative";
+};
 ```
 
 ### nested if
@@ -162,7 +166,7 @@ loop { process() }
 
 ```ds expected
 loop {
-    process()
+    process();
 }
 ```
 
@@ -208,7 +212,7 @@ for await (const item of stream) { consume(item) }
 
 ```ts expected
 for await (const item of stream) {
-    consume(item)
+    consume(item);
 }
 ```
 
@@ -251,7 +255,9 @@ for(let i=0;i<4;i++){process(i)}
 
 ```ds expected
 @unroll
-for (let i = 0; i < 4; i++) { process(i) }
+for (let i = 0; i < 4; i++) {
+    process(i);
+}
 ```
 
 ### for of loop

@@ -58,9 +58,9 @@ type Maybe<T> = T extends string ? T | null : T;
 
 ## Type Template Literals
 
-### typescript template literal type stays inline
+### typescript template literal type keeps assignment readable
 
-Template literal types keep the header inline and use double quotes.
+Template literal types break after `=` when interpolation content is multiline.
 
 ```ts:main.ts
 type templateLiteralType = `${
@@ -71,9 +71,10 @@ type templateLiteralType = `${
 ```
 
 ```ts expected
-type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-    ? "_"
-    : ""}`;
+type templateLiteralType =
+    `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+        ? "_"
+        : ""}`;
 ```
 
 ### typescript template literal type with nested conditionals
@@ -93,8 +94,8 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
 type CamelToSnakeCase<TCamelCaseString extends string> =
     TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
         ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-              ? "_"
-              : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
+                ? "_"
+                : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
         : TCamelCaseString;
 ```
 
@@ -123,7 +124,7 @@ type Borrowed = &Buffer
 ```
 
 ```ds expected
-type Borrowed = Buffer;
+type Borrowed = &Buffer;
 ```
 
 ### readonly borrowed reference type
@@ -173,7 +174,7 @@ type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
 ```ds expected
-type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
+type Nested<T> = T extends string ? (T extends 'a' ? 1 : 2) : 3;
 ```
 
 ## Intersections and Unions
@@ -239,7 +240,9 @@ type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K]
 ```
 
 ```ts expected
-type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] };
+type EventHandlers<T> = {
+    [K in keyof T as `on${Capitalize<K & string>}`]?: T[K];
+};
 ```
 
 ## Conditional Types (TypeScript)

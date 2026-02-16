@@ -158,7 +158,7 @@ const x = { "data-id": 1, "default": 2 }
 ```
 
 ```ds expected
-const x = { "data-id": 1, default: 2 };
+const x = { "data-id": 1, "default": 2 };
 ```
 
 ### mixed quoted and unquoted
@@ -194,7 +194,7 @@ const x = { a: 1, "needs-quotes": 2, "default": 3 }
 ```
 
 ```ts expected
-const x = { "a": 1, "needs-quotes": 2, "default": 3 };
+const x = { a: 1, "needs-quotes": 2, default: 3 };
 ```
 
 ### typescript quote props preserve
@@ -206,7 +206,7 @@ const x = { "normal": 1, "needs-quotes": 2, default: 3 }
 ```
 
 ```ts expected
-const x = { "normal": 1, "needs-quotes": 2, default: 3 };
+const x = { normal: 1, "needs-quotes": 2, default: 3 };
 ```
 
 ## Methods

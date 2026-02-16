@@ -92,8 +92,8 @@ class Box {
 
 ```ts expected
 class Box {
-    run(): number // method-body
-    {
+    run(): number {
+        // method-body
         return 1;
     }
 }
@@ -211,10 +211,9 @@ export type Value = /** union-doc
 ```
 
 ```ts expected
-export type Value =
-/** union-doc
- */
-{ ok: true } | { ok: false; value: bigint | null };
+export type Value = /** union-doc
+   */
+    { ok: true } | { ok: false; value: bigint | null };
 ```
 
 ### union last arm trailing line comment
@@ -228,9 +227,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | First
-    | Second; // second-tail
+type Value = First | Second; // second-tail
 ```
 
 ### parenthesized union comment attachment
@@ -244,10 +241,10 @@ Second) & Third
 
 ```ts expected
 type Value = (
-        | First // paren-union
-        | Second
-)
-    & Third;
+    | First // paren-union
+    | Second
+) &
+    Third;
 ```
 
 ### mapped type property comments
@@ -312,11 +309,10 @@ class Outer extends
 ```
 
 ```js expected
-class Outer
-    extends (
-        @deco
-        class {}
-    ) {}
+class Outer extends (
+    @deco
+    class {}
+) {}
 ```
 
 ### typescript accessor modifiers with decorators
@@ -351,8 +347,7 @@ longVariableName1 = // @ts-ignore
 ```
 
 ```ts expected
-longVariableName1 =
-    // @ts-ignore
+longVariableName1 = // @ts-ignore
     (variable01 + veryLongVariableNameNumber2).method();
 ```
 
@@ -370,11 +365,11 @@ const handler = /* marker */
 
 ```ts expected
 const handler =
-/* marker */
+    /* marker */
 
-// before-arrow
+    // before-arrow
 
-() => {};
+    () => {};
 ```
 
 ## Class Heritage And Generics
@@ -393,12 +388,12 @@ B // impl-tail
 ```
 
 ```ts expected
-class Derived extends Base // base-tail
-    implements
+class Derived
+    extends Base // base-tail
     // impl-head
-    A,
-    B // impl-tail
-{}
+    implements A, B {
+    // impl-tail
+}
 ```
 
 ### declare class with implements and generic comment
@@ -413,9 +408,9 @@ declare class Box // box-head
 ```
 
 ```ts expected
-declare class Box<
-// box-head
-T,> implements Item<T>, Other {
+declare class Box<T> // box-head
+    implements Item<T>, Other
+{
     value: T;
 }
 ```
@@ -434,7 +429,7 @@ interface Methods {
 
 ```ts expected
 interface Methods {
-    /* name */ /* q */ run(value: /* arg */ string)?: /* ret */ string;
+    run /* name */? /* q */(value: /* arg */ string): /* ret */ string;
 }
 ```
 
@@ -449,7 +444,9 @@ let Factory: new /* ctor-head */ (value: /* arg */ string) /* ctor-tail */ => Wi
 
 ```ts expected
 type Fn = /* fn-head */ (value: /* arg */ string) /* fn-tail */ => void;
-let Factory: /* ctor-head */ new (value: /* arg */ string) /* ctor-tail */ => Widget;
+let Factory: new /* ctor-head */(
+    value: /* arg */ string,
+) /* ctor-tail */ => Widget;
 ```
 
 ## Union And Intersection Layout
@@ -467,8 +464,8 @@ type Result = (
 
 ```ts expected
 type Result = (
-        | "a" // arm-a
-        | "b" // arm-b
+    | "a" // arm-a
+    | "b" // arm-b
 )[]; // final-tail
 ```
 
@@ -483,8 +480,8 @@ string)["toString"]
 
 ```ts expected
 type Key = (
-        | number // key-note
-        | string
+    | number // key-note
+    | string
 )["toString"];
 ```
 
@@ -506,9 +503,9 @@ type Mixed = null // null-arm
 type Mixed =
     | null // null-arm
     | {
-        y: number;
-        z: string;
-    } // object-arm
+            y: number;
+            z: string;
+        } // object-arm
     | void; // void-arm
 ```
 
@@ -613,10 +610,10 @@ function fn5() {}
 ```
 
 ```ts expected
-function fn4a(x?: number, y: string)
+function fn4a(x?: number, y: string);
 function fn4a() {}
 
-function fn5(x: string, ...y: any[], z: string)
+function fn5(x: string, ...y: any[], z: string);
 function fn5() {}
 ```
 
@@ -638,8 +635,8 @@ type Value<T> = {
 ```ts expected
 // prettier-ignore
 type Value<T> = {
-  [K in keyof T as // mapped-key
-    `${K & string}`]: T[K]
+    [K in keyof T as // mapped-key
+        `${K & string}`]: T[K]
 }
 ```
 
@@ -677,9 +674,9 @@ interface Shape {
 ```
 
 ```ts expected
-export interface Shape {
+export // export-head
+interface Shape {
     value: string; // value-tail
-// export-head
 }
 ```
 
@@ -772,9 +769,9 @@ Right & Tail
 ```
 
 ```ts expected
-type Value = Left // inter-note
-    & Right
-    & Tail;
+type Value = Left & // inter-note
+    Right &
+    Tail;
 ```
 
 ### tuple dangling type comments
@@ -809,8 +806,8 @@ class Child extends Base // extends-tail
 ```
 
 ```ts expected
-class Child extends Base // extends-tail
-{
+class Child extends Base {
+    // extends-tail
     value = 1;
 }
 ```
@@ -828,8 +825,12 @@ Second // impl-second
 ```
 
 ```ts expected
-class Child implements First, Second // impl-first // impl-second
+class Child
+    implements
+        First, // impl-first
+        Second
 {
+    // impl-second
     value = 1;
 }
 ```
@@ -867,8 +868,9 @@ type Value =
 ```ts expected
 // prettier-ignore
 type Value =
-  | A // a-tail
-  | B // b-tail
+    | A // a-tail
+    | B // b-tail
+;
 ```
 
 ### union last comment boundary
@@ -882,9 +884,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | A
-    | B; // last-union
+type Value = A | B; // last-union
 ```
 
 ## Mapped Type Conformance Permutations
@@ -919,8 +919,7 @@ type Paths<T> = {
 
 ```ts expected
 type Paths<T> = {
-    [K in keyof T as
-    // remap-note
-    `get${Capitalize<K & string>}`]: () => T[K];
+    [K in keyof T as `get${Capitalize<K & string> // remap-note
+    }`]: () => T[K];
 };
 ```

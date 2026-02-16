@@ -397,7 +397,7 @@ import styles from "styles.css" with { type: "css", scope: "local" }
 ```
 
 ```ds expected
-import styles from "styles.css" with { type: "css",scope: "local" };
+import styles from "styles.css" with { type: "css", scope: "local" };
 ```
 
 ### re-export with attributes

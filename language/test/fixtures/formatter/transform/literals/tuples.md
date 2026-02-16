@@ -13,7 +13,7 @@ Tuple literals get a trailing comma to distinguish from parenthesized expression
 ```
 
 ```ds expected
-(1, 2, 3);
+(1, 2, 3,);
 ```
 
 ### tuple destructuring

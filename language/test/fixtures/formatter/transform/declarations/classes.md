@@ -342,9 +342,9 @@ class Options { normal = 1; "data-id" = 2; "default"() { } }
 
 ```ts expected
 class Options {
-    "normal" = 1;
+    normal = 1;
     "data-id" = 2;
-    "default"() {}
+    default() {}
 }
 ```
 
@@ -739,7 +739,8 @@ class Foo { @observable x: number }
 
 ```ds expected
 class Foo {
-    @observable x: number;
+    @observable
+    x: number;
 }
 ```
 
@@ -753,7 +754,8 @@ class Foo { @memoize compute(): number { return 42 } }
 
 ```ds expected
 class Foo {
-    @memoize compute(): number {
+    @memoize
+    compute(): number {
         return 42;
     }
 }
@@ -815,10 +817,9 @@ class MyClass implements FirstInterface, SecondInterface, ThirdInterface { }
 
 ```ds expected
 class MyClass
-    implements
-        FirstInterface,
-        SecondInterface,
-        ThirdInterface {}
+    implements FirstInterface,
+    SecondInterface,
+    ThirdInterface {}
 ```
 
 ## Complex Classes

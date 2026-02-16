@@ -6,7 +6,7 @@ Tests for directive prologue formatting.
 
 ### single directive
 
-Directives keep quotes and end with semicolons.
+Directives keep quotes, end with semicolons, and separate the prologue from following code.
 
 ```ts:main.ts
 "use strict"
@@ -20,7 +20,7 @@ doWork();
 
 ### multiple directives
 
-Multiple directives stay grouped without blank lines.
+Multiple directives stay grouped with one blank line before following code.
 
 ```ts:main.ts
 "use client"

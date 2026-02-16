@@ -48,16 +48,16 @@ declare namespace Foo {
 
 ## Module Alias
 
-### module keyword normalizes to namespace
+### module keyword stays module for string literal names
 
-Module declarations format like namespaces.
+String-literal declarations keep the `module` keyword.
 
 ```ts:main.ts
 module   "Bar" { export const value:number }
 ```
 
 ```ts expected
-namespace "Bar" {
+module "Bar" {
     export const value: number;
 }
 ```

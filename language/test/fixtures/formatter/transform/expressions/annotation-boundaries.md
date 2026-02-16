@@ -175,7 +175,11 @@ const data = functionCall(
 ```
 
 ```js expected
-const data = functionCall(arg1, arg2, /** @type {{height: number, width: number}} */ (arg3));
+const data = functionCall(
+    arg1,
+    arg2,
+    /** @type {{height: number, width: number}} */ (arg3),
+);
 ```
 
 ## TypeScript Assertions And Satisfies Comments
@@ -251,7 +255,9 @@ const count = (await
 
 ```ts expected
 const count = (
-    await ((await (await focusOnSection("bookmarks")).findItem("mine")) as TreeItem).getChildren()
+    await (
+        (await (await focusOnSection("bookmarks")).findItem("mine")) as TreeItem
+    ).getChildren()
 ).length;
 ```
 
@@ -337,7 +343,10 @@ const value = /** @type {{ok: boolean}} */ ({ ok: true }) satisfies Record<strin
 ```
 
 ```ts expected
-const value = /** @type {{ok: boolean}} */ ({ ok: true }) satisfies Record<string, unknown>;
+const value = /** @type {{ok: boolean}} */ ({ ok: true }) satisfies Record<
+    string,
+    unknown
+>;
 ```
 
 ## Closure Type Cast Conformance Permutations

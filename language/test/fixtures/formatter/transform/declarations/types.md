@@ -72,17 +72,16 @@ type Foo = {
 
 ## Multi-line Type Unions
 
-### long union breaks at operators
+### long union breaks after the first member
 
-When a union type exceeds line width, it breaks with operators at the start of lines.
+Long unions break after the first member and then keep leading `|` separators.
 
 ```ds line-width=30
 type Result = Success | Failure | Pending | Unknown
 ```
 
 ```ds expected
-type Result =
-    | Success
+type Result = Success
     | Failure
     | Pending
     | Unknown;
@@ -103,9 +102,9 @@ type Combined = HasName &
     HasEmail;
 ```
 
-### long intersection breaks with leading operators in TypeScript
+### long intersection stays inline in TypeScript
 
-TypeScript intersections break with leading `&` operators.
+TypeScript intersections stay inline when the formatter keeps the expression compact.
 
 ```ts:main.ts line-width=30
 type Combined = HasName & HasAge & HasEmail
@@ -126,13 +125,10 @@ type MaybeUser = { name: string, email: string } | null | undefined
 ```
 
 ```ds expected
-type MaybeUser =
-    | {
-          name: string;
-          email: string;
-      }
-    | null
-    | undefined;
+type MaybeUser = {
+    name: string,
+    email: string,
+} | null | undefined;
 ```
 
 ### nullable union with comment breaks
@@ -146,9 +142,9 @@ type MaybeUser = { name: string, email: string } /* note */ | null | undefined
 ```ds expected
 type MaybeUser =
     | {
-          name: string;
-          email: string;
-      } /* note */
+        name: string,
+        email: string,
+    } /* note */
     | null
     | undefined;
 ```
@@ -163,11 +159,11 @@ type WithDetails = { id: string, name: string } & HasMeta & { created: int32 }
 
 ```ds expected
 type WithDetails = {
-    id: string;
-    name: string;
+    id: string,
+    name: string,
 } & HasMeta & {
-        created: int32;
-    };
+    created: int32,
+};
 ```
 
 ## Mapped Types
@@ -205,7 +201,7 @@ type Explicit<T> = { +readonly [K in keyof T]+?: T[K] }
 ```
 
 ```ds expected
-type Explicit<T> = { +readonly [K in keyof T]+?: T[K] };
+type Explicit<T> = { readonly [K in keyof T]?: T[K] };
 ```
 
 ### mapped type with optional modifier
@@ -242,9 +238,7 @@ type DeepReadonly<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> }
 
 ```ds expected
 type DeepReadonly<T> = {
-    readonly [K in keyof T]: DeepReadonly<
-        T[K]
-    >;
+    readonly [K in keyof T]: DeepReadonly<T[K]>,
 };
 ```
 
