@@ -2,8 +2,8 @@ use destack_ast::{
     Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator, Blank, Block,
     BlockFormat, Comment, CommentStyle, Declaration, DeclarationAbstraction, DeclarationDescriptor,
     Declarator, Decorator, DependencyItem, Doc, DocStyle, Expression, FunctionKind, FunctionMode,
-    IfCondition, IfKind, ImportTarget, Key, Member, Name, Parameter, Property, TypeBinaryOperator,
-    TypeKind, TypeLiteral, TypeUnaryOperator, WhileKind,
+    IfCondition, IfKind, ImportTarget, Key, LocalNodeId, Member, Name, Parameter, Property,
+    TypeBinaryOperator, TypeKind, TypeLiteral, TypeUnaryOperator, WhileKind,
 };
 use destack_source::LanguageType;
 
@@ -49,9 +49,10 @@ fn test_attach_leading_comment_before_semicolon_statement() {
     );
     assert_eq!(expressions.len(), 1);
 
-    let annotations = parser.tree.get_nodes::<Annotation>();
-    assert_eq!(annotations.len(), 1);
-    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, .. } => {
+    let value_annotations = parser.tree.get_annotations(expressions[0].id);
+    assert_eq!(value_annotations.len(), 1);
+    assert_node!(parser.tree, value_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
         assert_node!(parser.tree, *node, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "lead");
@@ -113,12 +114,12 @@ function foo() { }",
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    // function foo() { }
-    let decorators = parser.tree.get_nodes::<Decorator>();
-    assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
     assert_eq!(expressions.len(), 1);
+
+    // function foo() { }
     let annotations = parser.tree.get_annotations(expressions[0].id);
     assert_eq!(annotations.len(), 1, "annotations: {annotations:?}",);
+
     // @foo
     assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
         assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -590,23 +591,22 @@ class Foo {}",
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    // @f<<T>(v: T) => void>()
-    let decorators = parser.tree.get_nodes::<Decorator>();
-    assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
-    let decorator_span = parser.tree.get_span(decorators[0]);
-    assert_eq!(
-        parser.file.span_str(decorator_span),
-        "@f<<T>(v: T) => void>()",
-    );
-
     // class Foo {}
     assert_eq!(expressions.len(), 1);
     let annotations = parser.tree.get_annotations(expressions[0].id);
     assert_eq!(annotations.len(), 1, "annotations: {annotations:?}");
 
-    // <<T>(v: T) => void
+    // @f<<T>(v: T) => void>()
     assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
         assert_eq!(*position, AnnotationPosition::BlockPrefix);
+
+        let decorator_span = parser.tree.get_span(*node);
+        assert_eq!(
+            parser.file.span_str(decorator_span),
+            "@f<<T>(v: T) => void>()",
+        );
+
+        // <<T>(v: T) => void
         assert_node!(parser.tree, *node, Decorator { expression } => {
             assert_node!(parser.tree, *expression, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "f");
@@ -1761,8 +1761,7 @@ fn test_attach_empty_new_boundary_comment_to_callee_expression() {
     assert_node!(
         parser.tree,
         expression_id,
-        Expression::New { left, dynamic_arguments, .. } => {
-            let _ = left;
+        Expression::New { left: _left, dynamic_arguments, .. } => {
             assert!(dynamic_arguments.is_empty());
             let annotations = parser.tree.get_annotations(expression_id.id);
             assert_eq!(annotations.len(), 1);
@@ -1792,8 +1791,7 @@ fn test_attach_empty_call_boundary_comment_to_callee_expression() {
     assert_node!(
         parser.tree,
         expression_id,
-        Expression::Call { left, dynamic_arguments, .. } => {
-            let _ = left;
+        Expression::Call { left: _left, dynamic_arguments, .. } => {
             assert!(dynamic_arguments.is_empty());
             let annotations = parser.tree.get_annotations(expression_id.id);
             assert_eq!(annotations.len(), 1);
@@ -3629,6 +3627,74 @@ fn test_attach_assignment_rhs_ts_ignore_comment_single_owner() {
     );
 }
 
+/// Assignment seams before lambda values should attach comments to the lambda value prefix.
+#[test]
+fn test_attach_assignment_rhs_separator_comments_to_lambda_value_prefix() {
+    let mut test = TestParser::new_with_options(
+        r"const handler = /* marker */
+
+// before-arrow
+
+() => {}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+                let value_id = value.expect("expected initializer");
+                assert_node!(parser.tree, value_id, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                    });
+                });
+
+                let assignment_annotations = parser.tree.get_annotations(expression_id.id);
+                assert!(
+                    assignment_annotations.is_empty(),
+                    "assignment should not own rhs separator comments"
+                );
+
+                let value_annotations = parser.tree.get_annotations(value_id.id);
+                assert_eq!(value_annotations.len(), 4);
+                assert_node!(parser.tree, value_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Star);
+                        assert_string!(parser, *string, "marker");
+                    });
+                });
+                assert_node!(parser.tree, value_annotations[1], Annotation::Blank { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Blank { lines } => {
+                        assert_eq!(*lines, 1);
+                    });
+                });
+                assert_node!(parser.tree, value_annotations[2], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "before-arrow");
+                    });
+                });
+                assert_node!(parser.tree, value_annotations[3], Annotation::Blank { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                    assert_node!(parser.tree, *node, Blank { lines } => {
+                        assert_eq!(*lines, 1);
+                    });
+                });
+            });
+        }
+    );
+}
+
 /// Format-ignore comments should attach as statement prefixes.
 #[test]
 fn test_attach_format_ignore_comment_as_statement_prefix() {
@@ -3673,6 +3739,36 @@ call(   a, b)"#,
     assert_node!(
         parser.tree,
         annotations[0],
+        Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_string!(parser, *string, "prettier-ignore");
+                assert_eq!(*style, CommentStyle::Slash);
+            });
+        }
+    );
+}
+
+/// Prettier-ignore before a type declaration should bind to the statement prefix.
+#[test]
+fn test_attach_prettier_ignore_comment_as_type_declaration_statement_prefix() {
+    let mut test = TestParser::new_with_options(
+        r#"// prettier-ignore
+type Value =
+  | A // a-tail
+  | B // b-tail
+;"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let statement_annotations = parser.tree.get_annotations(expressions[0].id);
+    assert_eq!(statement_annotations.len(), 1);
+    assert_node!(
+        parser.tree,
+        statement_annotations[0],
         Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
@@ -4755,6 +4851,47 @@ fn test_attach_type_union_line_comment_before_separator_to_left_operand_postfix(
     });
 }
 
+/// Separator comments in parenthesized unions should stay on the left union arm.
+#[test]
+fn test_attach_parenthesized_type_union_separator_comment_to_left_arm() {
+    let mut test = TestParser::new_with_options(
+        r"type Value = (First | // paren-union
+Second) & Third",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    let first_union_arm_id = assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                assert_expression_path!(parser, parser.tree.get(*right), "Third");
+                assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Binary { operator, left, right } => {
+                        assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        assert_expression_path!(parser, parser.tree.get(*left), "First");
+                        assert_expression_path!(parser, parser.tree.get(*right), "Second");
+                        *left
+                    })
+                })
+            })
+        })
+    });
+
+    let first_union_arm_annotations = parser.tree.get_annotations(first_union_arm_id.id);
+    assert_eq!(first_union_arm_annotations.len(), 1);
+    assert_node!(parser.tree, first_union_arm_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "paren-union");
+        });
+    });
+}
+
 #[test]
 fn test_attach_type_union_line_comment_after_separator_to_left_operand_postfix_boundary() {
     let mut test = TestParser::new_with_options(
@@ -4907,6 +5044,39 @@ fn test_attach_type_union_doc_block_comment_after_equals_as_value_line_prefix() 
         assert_node!(parser.tree, *node, Doc { string, style } => {
             assert_eq!(*style, DocStyle::Star);
             assert_string!(parser, *string, "keep-doc\n");
+        });
+    });
+}
+
+/// Mapped key-remap separator comments should stay attached to the remap expression seam.
+#[test]
+fn test_attach_mapped_type_key_remap_separator_comment_to_remap_expression() {
+    let mut test = TestParser::new_with_options(
+        r"type Paths<T> = {
+  [K in keyof T as // remap-note
+    `get${Capitalize<K & string>}`]: () => T[K]
+}",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    assert_eq!(expressions.len(), 1);
+
+    let key_remap_id = assert_node!(parser.tree, parser.unwrap_statement_expression(expressions[0]), Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::TypeMapped { parameter, .. } => {
+                parameter.key_remap.expect("expected key remap expression")
+            })
+        })
+    });
+
+    let key_remap_annotations = parser.tree.get_annotations(key_remap_id.id);
+    assert_eq!(key_remap_annotations.len(), 1);
+    assert_node!(parser.tree, key_remap_annotations[0], Annotation::Comment { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "remap-note");
         });
     });
 }

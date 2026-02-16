@@ -28,9 +28,10 @@ impl Parser {
         let next_token_type = self.token_type_at(next_token_index);
         let is_postfix_or_assign = UnaryOperator::from_postfix_token(next_token_type).is_some()
             || AssignOperator::from_token(next_token_type).is_some();
-        let is_followup_chain = matches!(next_token_type, TokenType::Dot | TokenType::Maybe);
 
-        is_postfix_or_assign || is_followup_chain
+        // only postfix and assign continuations force statement termination:
+        // `expr\n(arg).member` remains one continued expression
+        is_postfix_or_assign
     }
 
     /// Parse expression continuation operators after a primary expression.
