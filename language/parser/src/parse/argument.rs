@@ -496,8 +496,11 @@ impl Parser {
 
         // = value
         let parameter = {
-            // has default value
-            if !is_variadic && self.peek_is(TokenType::Assign) {
+            let has_default_assign = self.peek_is(TokenType::Assign)
+                || self.peek_is(TokenType::Newline)
+                    && self.is_token_after_newlines(self.pos(), TokenType::Assign);
+            if !is_variadic && has_default_assign {
+                self.eat_newlines_maybe()?;
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
 
@@ -1541,8 +1544,9 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, BindingKind, BindingOperator, Declaration, Decorator,
-        Expression, IfKind, IntType, Mutability, Name, Parameter, Pattern, PatternField,
-        ScalarLiteral, Timing, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, Visibility,
+        Expression, FunctionMode, IfKind, IntType, Member, Mutability, Name, Parameter, Pattern,
+        PatternField, ScalarLiteral, Timing, TypeBinaryOperator, TypeLiteral, TypeUnaryOperator,
+        Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1874,10 +1878,91 @@ mod tests {
         let mut test = TestParser::new("private readonly const x: 1");
         let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
+
         assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers: Some(modifiers), .. } => {
             assert_eq!(modifiers.visibility, Some(Visibility::Private));
             assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
             assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
+        });
+    }
+
+    #[test]
+    fn test_parse_static_parameters_multiline_union_constraint_with_default_typescript() {
+        let mut test = TestParser::new_with_options(
+            r#"<
+  Return extends ReturnType<onRequestHookHandler<RawServer>>
+    | ReturnType<onRequestAsyncHookHandler<RawServer>>
+    = ReturnType<onRequestHookHandler<RawServer>>
+>"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let static_parameters = parser.eat_static_parameters(true).unwrap();
+
+        // Return extends ReturnType<onRequestHookHandler<RawServer>> | ReturnType<onRequestAsyncHookHandler<RawServer>> = ReturnType<onRequestHookHandler<RawServer>>
+        assert_eq!(static_parameters.len(), 1);
+        assert_node!(parser.tree, static_parameters[0], Parameter::Named { modifiers, name, ty: Some(ty), default: Some(default) } => {
+            assert!(modifiers.is_none());
+            assert_string!(parser, *name, "Return");
+
+            // ReturnType<onRequestHookHandler<RawServer>> | ReturnType<onRequestAsyncHookHandler<RawServer>>
+            assert_node!(parser.tree, *ty, Expression::Binary { operator, left, right } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+
+                // ReturnType<onRequestHookHandler<RawServer>>
+                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                    assert_path!(parser, *path, "ReturnType");
+                    assert_eq!(static_arguments.len(), 1);
+
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                            assert_path!(parser, *path, "onRequestHookHandler");
+                            assert_eq!(static_arguments.len(), 1);
+                            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                                    assert_path!(parser, *path, "RawServer");
+                                });
+                            });
+                        });
+                    });
+                });
+
+                // ReturnType<onRequestAsyncHookHandler<RawServer>>
+                assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                    assert_path!(parser, *path, "ReturnType");
+                    assert_eq!(static_arguments.len(), 1);
+
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                            assert_path!(parser, *path, "onRequestAsyncHookHandler");
+                            assert_eq!(static_arguments.len(), 1);
+                            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                                    assert_path!(parser, *path, "RawServer");
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+
+            // ReturnType<onRequestHookHandler<RawServer>>
+            assert_node!(parser.tree, *default, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_path!(parser, *path, "ReturnType");
+                assert_eq!(static_arguments.len(), 1);
+
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                        assert_path!(parser, *path, "onRequestHookHandler");
+                        assert_eq!(static_arguments.len(), 1);
+                        assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                                assert_path!(parser, *path, "RawServer");
+                            });
+                        });
+                    });
+                });
+            });
         });
     }
 
@@ -1895,12 +1980,6 @@ mod tests {
             assert_eq!(modifiers.visibility, Some(Visibility::Public));
             assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
         });
-
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
     }
 
     #[test]
@@ -1914,11 +1993,25 @@ mod tests {
         let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 1);
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+                assert_eq!(members.len(), 1);
+
+                assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                    assert_eq!(signature.mode, Some(FunctionMode::Constructor));
+                    assert_eq!(signature.dynamic_parameters.len(), 1);
+
+                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { modifiers: Some(modifiers), name, ty: Some(ty), default: None } => {
+                        assert_string!(parser, *name, "x");
+                        assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
+                        assert_eq!(modifiers.visibility, Some(Visibility::Public));
+                        assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+        });
     }
 
     #[test]

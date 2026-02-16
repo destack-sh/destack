@@ -1323,13 +1323,8 @@ impl Parser {
             expressions.append(&mut body_expressions);
         }
 
-        // comment-only files need one stable target node
-        self.token_stream.lex_to_end();
-        if expressions.is_empty() && self.token_stream.has_comment_trivia_tokens() {
-            let stub_span = Span::new(self.file_id, 0, self.file.len);
-            let stub = self.tree.insert(Expression::Stub, stub_span);
-            expressions.push(stub);
-        }
+        // ensure one stable owner for trivia-only files
+        self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
 
         // attach trivia in the default parse pipeline
         self.attach_trivia();
@@ -1357,15 +1352,58 @@ impl Parser {
             expressions.append(&mut body_expressions);
         }
 
-        // comment-only files need one stable target node
-        self.token_stream.lex_to_end();
-        if expressions.is_empty() && self.token_stream.has_comment_trivia_tokens() {
-            let stub_span = Span::new(self.file_id, 0, self.file.len);
-            let stub = self.tree.insert(Expression::Stub, stub_span);
-            expressions.push(stub);
-        }
+        // ensure one stable owner for trivia-only files
+        self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
 
         expressions
+    }
+
+    /// Ensure one stable owner for comment and blank trivia in trivia only files.
+    fn ensure_trivia_anchor_maybe(
+        &mut self,
+        expressions: &mut Vec<LocalNodeId<Expression>>,
+        consumed_to_end: bool,
+    ) {
+        // materialize the full stream before trivia ownership checks
+        self.token_stream.lex_to_end();
+
+        // skip files without trivia tokens
+        if !self.token_stream.has_comment_trivia_tokens()
+            && !self.token_stream.has_blank_trivia_tokens()
+        {
+            return;
+        }
+
+        let stub_span = Span::new(self.file_id, 0, self.file.len);
+
+        // comment only files need one returned expression owner
+        if expressions.is_empty() {
+            let stub = self.tree.insert(Expression::Stub, stub_span);
+            expressions.push(stub);
+            return;
+        }
+
+        // only directive only files need an internal trivia owner
+        if !consumed_to_end {
+            return;
+        }
+
+        // ignore trivia tokens when checking for semantic source content
+        let has_semantic_tokens = self.token_stream.tokens().iter().any(|token| {
+            !matches!(
+                token.token.ty,
+                TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::Newline
+                    | TokenType::End
+            )
+        });
+        if has_semantic_tokens {
+            return;
+        }
+
+        // insert one internal anchor so trivia can attach without parse errors
+        let _ = self.tree.insert(Expression::Stub, stub_span);
     }
 
     /// Get the current position in the tokens.

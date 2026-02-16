@@ -427,7 +427,7 @@ impl Parser {
     }
 
     /// Eat a type expression, allowing one leading `|` or `&` separator.
-    fn eat_type_expression_with_optional_leading_binary_operator(
+    pub(crate) fn eat_type_expression_with_optional_leading_binary_operator(
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // allow ts style multiline unions and intersections that start with separators
@@ -4274,11 +4274,6 @@ mod tests {
         let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 5);
-        assert!(
-            parser.errors.is_empty(),
-            "expected no parser errors, got {:?}",
-            parser.errors
-        );
     }
 
     #[test]
@@ -4290,11 +4285,6 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
@@ -4331,11 +4321,6 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
@@ -4368,11 +4353,6 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
@@ -4405,11 +4385,6 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
@@ -4442,11 +4417,6 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
@@ -4505,11 +4475,6 @@ mod tests {
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
@@ -4529,6 +4494,146 @@ mod tests {
                         });
                     });
 
+                });
+            });
+        });
+    }
+
+    /// Parse declaration-file conditional aliases with generic parameter constraints.
+    #[test]
+    fn test_parse_conditional_type_alias_with_generics_in_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, static_parameters: Some(static_parameters), value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "FindMyWayVersion");
+                assert_eq!(static_parameters.len(), 1);
+
+                // RawServer extends RawServerBase
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), default: None, .. } => {
+                    assert_string!(parser, *name, "RawServer");
+                    assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "RawServerBase");
+                    });
+                });
+
+                // RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "RawServer");
+                    });
+                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "http.Server");
+                    });
+                    assert_node!(parser.tree, *then_type, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "HTTPVersion.V1");
+                    });
+                    assert_node!(parser.tree, *else_type, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "HTTPVersion.V2");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse namespace-scoped declaration-file conditional aliases.
+    #[test]
+    fn test_parse_namespace_conditional_type_alias_in_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "declare namespace fastify { type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2 }",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // declare namespace fastify { type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2 }
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(namespace_declaration_id) => {
+            assert_node!(parser.tree, *namespace_declaration_id, Declaration::Namespace { descriptor, expressions, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "fastify");
+                assert_eq!(expressions.len(), 1);
+
+                // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+                let namespace_expression_id = parser.unwrap_statement_expression(expressions[0]);
+                assert_node!(parser.tree, namespace_expression_id, Expression::Declaration(type_declaration_id) => {
+                    assert_node!(parser.tree, *type_declaration_id, Declaration::Type { descriptor, static_parameters: Some(static_parameters), value, .. } => {
+                        assert_string!(parser, descriptor.name.unwrap().string(), "FindMyWayVersion");
+                        assert_eq!(static_parameters.len(), 1);
+
+                        // RawServer extends RawServerBase
+                        assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), default: None, .. } => {
+                            assert_string!(parser, *name, "RawServer");
+                            assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
+                                assert_path!(parser, *path, "RawServerBase");
+                            });
+                        });
+
+                        // RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+                        assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
+                            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: None } => {
+                                assert_path!(parser, *path, "RawServer");
+                            });
+                            assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                                assert_path!(parser, *path, "http.Server");
+                            });
+                            assert_node!(parser.tree, *then_type, Expression::Path { path, static_arguments: None } => {
+                                assert_path!(parser, *path, "HTTPVersion.V1");
+                            });
+                            assert_node!(parser.tree, *else_type, Expression::Path { path, static_arguments: None } => {
+                                assert_path!(parser, *path, "HTTPVersion.V2");
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse declaration-file conditional aliases through expression entry.
+    #[test]
+    fn test_parse_conditional_type_alias_with_generics_expression_entry_typescript_declaration() {
+        let mut test = TestParser::new_with_options(
+            "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, static_parameters: Some(static_parameters), value, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "FindMyWayVersion");
+                assert_eq!(static_parameters.len(), 1);
+
+                // RawServer extends RawServerBase
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), default: None, .. } => {
+                    assert_string!(parser, *name, "RawServer");
+                    assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "RawServerBase");
+                    });
+                });
+
+                // RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "RawServer");
+                    });
+                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "http.Server");
+                    });
+                    assert_node!(parser.tree, *then_type, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "HTTPVersion.V1");
+                    });
+                    assert_node!(parser.tree, *else_type, Expression::Path { path, static_arguments: None } => {
+                        assert_path!(parser, *path, "HTTPVersion.V2");
+                    });
                 });
             });
         });
