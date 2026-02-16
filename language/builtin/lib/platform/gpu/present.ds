@@ -46,7 +46,7 @@ declare namespace gpu {
         effect: "external",
         replay: "nonrecordable",
         requires: ["gpu.present"],
-        scope: "hybrid",
+        scope: "os",
         blocking: "sometimes",
     })
     export function surfaceConfigure(
@@ -76,7 +76,7 @@ declare namespace gpu {
         effect: "external",
         replay: "nonrecordable",
         requires: ["gpu.present"],
-        scope: "hybrid",
+        scope: "os",
         blocking: "sometimes",
     })
     export function queuePresent(

@@ -180,7 +180,7 @@ declare namespace process {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses signalfd(2) on Linux and runtime-backed signal queue descriptors elsewhere.
+    /// Uses signalfd(2) on Linux and host-equivalent process-signal descriptor adapters elsewhere.
     ///
     /// # Errors
     /// Returns invalidArgument, processPermissionDenied, notSupported.
@@ -196,7 +196,7 @@ declare namespace process {
             effect: "external",
             replay: "recordable",
             requires: ["process.signal.receive"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -228,7 +228,7 @@ declare namespace process {
             effect: "external",
             replay: "recordable",
             requires: ["process.signal.receive"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "never",
         },
     )
@@ -241,7 +241,7 @@ declare namespace process {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses read(2) over signalfd on Linux and runtime queue reads on other targets.
+    /// Uses read(2) over signalfd on Linux and host-equivalent signal descriptor reads on other targets.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
@@ -257,7 +257,7 @@ declare namespace process {
             effect: "external",
             replay: "recordable",
             requires: ["process.signal.receive"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
@@ -270,7 +270,7 @@ declare namespace process {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking reads over signalfd on Linux and runtime queue polling elsewhere.
+    /// Uses nonblocking reads over signalfd on Linux and host-equivalent signal descriptor polling elsewhere.
     ///
     /// # Errors
     /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
@@ -286,7 +286,7 @@ declare namespace process {
             effect: "external",
             replay: "recordable",
             requires: ["process.signal.receive"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "never",
         },
     )
@@ -299,7 +299,7 @@ declare namespace process {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses signalfd mask update semantics on Linux and runtime queue mask update elsewhere.
+    /// Uses signalfd mask update semantics on Linux and host-equivalent signal descriptor mask updates elsewhere.
     ///
     /// # Errors
     /// Returns invalidArgument, processPermissionDenied, notSupported.
@@ -315,7 +315,7 @@ declare namespace process {
             effect: "external",
             replay: "recordable",
             requires: ["process.signal.receive"],
-            scope: "hybrid",
+            scope: "os",
             blocking: "sometimes",
         },
     )
