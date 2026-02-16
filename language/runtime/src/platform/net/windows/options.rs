@@ -7,10 +7,10 @@ use windows_sys::Win32::Networking::WinSock::{
     AF_INET, AF_INET6, FIONBIO, IN_ADDR, IN_ADDR_0, IN6_ADDR, IN6_ADDR_0, IP_ADD_MEMBERSHIP,
     IP_DROP_MEMBERSHIP, IP_MREQ, IP_MULTICAST_LOOP, IP_MULTICAST_TTL, IP_TOS, IP_TTL, IPPROTO_IP,
     IPPROTO_IPV6, IPPROTO_TCP, IPV6_JOIN_GROUP, IPV6_LEAVE_GROUP, IPV6_MREQ, IPV6_MULTICAST_HOPS,
-    IPV6_MULTICAST_LOOP, LINGER, SIO_KEEPALIVE_VALS, SO_BROADCAST, SO_KEEPALIVE, SO_LINGER,
-    SO_RCVBUF, SO_RCVTIMEO, SO_REUSEADDR, SO_SNDBUF, SO_SNDTIMEO, SOCKADDR, SOCKADDR_STORAGE,
-    SOCKET, SOL_SOCKET, TCP_KEEPCNT, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_NODELAY, WSAIoctl,
-    getsockname, getsockopt, ioctlsocket, setsockopt, tcp_keepalive,
+    IPV6_MULTICAST_LOOP, IPV6_V6ONLY, LINGER, SIO_KEEPALIVE_VALS, SO_BROADCAST, SO_KEEPALIVE,
+    SO_LINGER, SO_RCVBUF, SO_RCVTIMEO, SO_REUSEADDR, SO_SNDBUF, SO_SNDTIMEO, SOCKADDR,
+    SOCKADDR_STORAGE, SOCKET, SOL_SOCKET, TCP_KEEPCNT, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_NODELAY,
+    WSAIoctl, getsockname, getsockopt, ioctlsocket, setsockopt, tcp_keepalive,
 };
 
 use super::util::*;
@@ -101,7 +101,61 @@ fn milliseconds_from_seconds(value: u32, label: &str) -> RuntimeResult<u32> {
     Ok(milliseconds)
 }
 
-/// Enable or disable non-blocking mode.
+fn get_socket_bool(socket: SOCKET, level: i32, option: i32, syscall: &str) -> RuntimeResult<bool> {
+    let mut value: u32 = 0;
+    let mut length = mem::size_of::<u32>() as i32;
+    let rc = unsafe {
+        getsockopt(
+            socket,
+            level,
+            option,
+            &mut value as *mut _ as *mut u8,
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error(syscall));
+    }
+
+    Ok(value != 0)
+}
+
+fn get_socket_u32(socket: SOCKET, level: i32, option: i32, syscall: &str) -> RuntimeResult<u32> {
+    let mut value: u32 = 0;
+    let mut length = mem::size_of::<u32>() as i32;
+    let rc = unsafe {
+        getsockopt(
+            socket,
+            level,
+            option,
+            &mut value as *mut _ as *mut u8,
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error(syscall));
+    }
+
+    Ok(value)
+}
+
+/// Enable or disable nonblocking mode on a socket.
+///
+/// Enable or disable nonblocking mode on a socket descriptor.
+/// Subsequent I/O blocking behavior follows host kernel descriptor state.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses fcntl/ioctl on Unix and ioctlsocket on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_nonblocking(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -121,6 +175,22 @@ pub(crate) unsafe fn destack_net_set_nonblocking(
 }
 
 /// Enable or disable TCP_NODELAY.
+///
+/// Set TCP_NODELAY on the target TCP socket.
+/// Nagle aggregation behavior changes immediately according to host TCP stack semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(TCP_NODELAY) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_no_delay(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -148,6 +218,22 @@ pub(crate) unsafe fn destack_net_set_no_delay(
 }
 
 /// Set socket linger settings.
+///
+/// Set SO_LINGER parameters on the target socket.
+/// The host kernel validates and applies linger policy exactly once for this call.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_LINGER) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_linger(
     context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -173,7 +259,23 @@ pub(crate) unsafe fn destack_net_set_linger(
     Ok(())
 }
 
-/// Enable or disable TCP keepalive.
+/// Write full TCP keepalive parameters.
+///
+/// Set host keepalive configuration fields for this TCP socket.
+/// Unsupported subfields are returned as `notSupported` rather than silently ignored.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_KEEPALIVE and TCP_KEEP*) on Unix and WSAIoctl on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_keep_alive(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -268,7 +370,23 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
     Ok(())
 }
 
-/// Read full TCP keepalive settings.
+/// Read full TCP keepalive parameters.
+///
+/// Read host keepalive configuration fields for this TCP socket.
+/// Field units and defaults follow platform TCP stack semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_KEEPALIVE and TCP_KEEP*) on Unix and WSAIoctl on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_get_keep_alive(
     _context: &RuntimeCallContext,
     out: *mut KeepAliveConfig,
@@ -359,6 +477,22 @@ pub(crate) unsafe fn destack_net_get_keep_alive(
 }
 
 /// Enable or disable SO_REUSEADDR.
+///
+/// Enable or disable SO_REUSEADDR via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_REUSEADDR) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_addr(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -386,6 +520,22 @@ pub(crate) unsafe fn destack_net_set_reuse_addr(
 }
 
 /// Enable or disable SO_REUSEPORT.
+///
+/// Enable or disable SO_REUSEPORT via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix only. This operation returns `notSupported` on Windows.
+/// Uses setsockopt(SO_REUSEPORT) on Unix and notSupported on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_port(
     _context: &RuntimeCallContext,
     _handle: SocketHandle,
@@ -395,6 +545,22 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
 }
 
 /// Set the receive buffer size.
+///
+/// Set SO_RCVBUF on the target socket.
+/// The host kernel clamps requested values according to platform limits.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_RCVBUF) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_recv_buffer(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -420,6 +586,22 @@ pub(crate) unsafe fn destack_net_set_recv_buffer(
 }
 
 /// Set the send buffer size.
+///
+/// Set SO_SNDBUF on the target socket.
+/// The host kernel clamps requested values according to platform limits.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_SNDBUF) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_send_buffer(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -445,6 +627,22 @@ pub(crate) unsafe fn destack_net_set_send_buffer(
 }
 
 /// Enable or disable broadcast.
+///
+/// Enable or disable broadcast via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_BROADCAST) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_broadcast(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -471,6 +669,22 @@ pub(crate) unsafe fn destack_net_set_broadcast(
 }
 
 /// Set the IP time-to-live.
+///
+/// Set the requested control value on the descriptor through the native option interface.
+/// The binding performs one control transaction and returns the exact host outcome without policy retries.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_TTL/IPV6_UNICAST_HOPS) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_ttl(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -496,6 +710,22 @@ pub(crate) unsafe fn destack_net_set_ttl(
 }
 
 /// Set the IP type-of-service field.
+///
+/// Set the requested control value on the descriptor through the native option interface.
+/// The binding performs one control transaction and returns the exact host outcome without policy retries.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_TOS/IPV6_TCLASS) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_tos(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -521,6 +751,22 @@ pub(crate) unsafe fn destack_net_set_tos(
 }
 
 /// Set the read timeout in milliseconds.
+///
+/// Set SO_RCVTIMEO on the target socket.
+/// Timeout interpretation and rounding follow host kernel socket-timeout semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_RCVTIMEO) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_read_timeout(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -546,6 +792,22 @@ pub(crate) unsafe fn destack_net_set_read_timeout(
 }
 
 /// Set the write timeout in milliseconds.
+///
+/// Set SO_SNDTIMEO on the target socket.
+/// Timeout interpretation and rounding follow host kernel socket-timeout semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(SO_SNDTIMEO) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_write_timeout(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -777,6 +1039,22 @@ pub(crate) unsafe fn destack_net_leave_multicast(
 }
 
 /// Join an IPv4 multicast group.
+///
+/// Join an IPv4 multicast membership on the selected interface.
+/// Group membership tracking and validation follow host IGMP implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_ADD_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v4(
     context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -787,6 +1065,22 @@ pub(crate) unsafe fn destack_net_join_multicast_v4(
 }
 
 /// Join an IPv6 multicast group.
+///
+/// Join an IPv6 multicast membership on the selected interface index.
+/// Group membership tracking and validation follow host MLD implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IPV6_JOIN_GROUP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v6(
     context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -798,6 +1092,22 @@ pub(crate) unsafe fn destack_net_join_multicast_v6(
 }
 
 /// Leave an IPv4 multicast group.
+///
+/// Leave an IPv4 multicast membership on the selected interface.
+/// Group membership tracking and validation follow host IGMP implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_DROP_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v4(
     context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -808,6 +1118,22 @@ pub(crate) unsafe fn destack_net_leave_multicast_v4(
 }
 
 /// Leave an IPv6 multicast group.
+///
+/// Leave an IPv6 multicast membership on the selected interface index.
+/// Group membership tracking and validation follow host MLD implementation rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IPV6_LEAVE_GROUP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v6(
     context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -819,6 +1145,22 @@ pub(crate) unsafe fn destack_net_leave_multicast_v6(
 }
 
 /// Enable or disable multicast loopback.
+///
+/// Enable or disable local loopback delivery for outgoing multicast packets.
+/// Loopback behavior follows host multicast socket-option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_MULTICAST_LOOP/IPV6_MULTICAST_LOOP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_loop(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -859,6 +1201,22 @@ pub(crate) unsafe fn destack_net_set_multicast_loop(
 }
 
 /// Set multicast TTL.
+///
+/// Set multicast TTL or hop-limit for outgoing datagrams.
+/// Hop-limit interpretation follows host IP stack option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_MULTICAST_TTL/IPV6_MULTICAST_HOPS) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_ttl(
     _context: &RuntimeCallContext,
     handle: SocketHandle,
@@ -894,5 +1252,513 @@ pub(crate) unsafe fn destack_net_set_multicast_ttl(
     if rc != 0 {
         return Err(last_net_error("setsockopt"));
     }
+    Ok(())
+}
+
+/// Restrict an IPv6 socket to IPv6 traffic only.
+///
+/// Set IPV6_V6ONLY on the target socket.
+/// Dual-stack behavior follows host kernel policy after this option is applied.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IPV6_V6ONLY) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_set_only_v6(
+    _context: &RuntimeCallContext,
+    handle: SocketHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    // resolve the socket descriptor
+    let socket = socket_descriptor(_context, handle)?;
+
+    // apply IPV6_V6ONLY
+    let value: u32 = if enabled { 1 } else { 0 };
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IPV6,
+            IPV6_V6ONLY,
+            &value as *const _ as *const u8,
+            mem::size_of::<u32>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(IPV6_V6ONLY)"));
+    }
+
+    Ok(())
+}
+
+/// Read TCP_NODELAY.
+///
+/// Read the current TCP_NODELAY setting from the host TCP option layer.
+/// The returned boolean reflects whether Nagle aggregation is disabled for this socket.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(TCP_NODELAY) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_no_delay(
+    _context: &RuntimeCallContext,
+    out: *mut bool,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_bool(socket, IPPROTO_TCP, TCP_NODELAY, "getsockopt(TCP_NODELAY)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read SO_REUSEADDR.
+///
+/// Read the current SO_REUSEADDR value from the host socket option layer.
+/// The returned boolean reflects host option state at the instant of the call.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_REUSEADDR) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_reuse_addr(
+    _context: &RuntimeCallContext,
+    out: *mut bool,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_bool(socket, SOL_SOCKET, SO_REUSEADDR, "getsockopt(SO_REUSEADDR)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read SO_REUSEPORT.
+///
+/// Read the current SO_REUSEPORT value from the host socket option layer.
+/// The returned boolean reflects host option state at the instant of the call.
+///
+/// # Platform
+/// Unix only. This operation returns `notSupported` on Windows.
+/// Uses getsockopt(SO_REUSEPORT) on Unix and notSupported on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_reuse_port(
+    _context: &RuntimeCallContext,
+    _out: *mut bool,
+    _handle: SocketHandle,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.getReusePort")).boxed())
+}
+
+/// Read socket linger settings.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_LINGER) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_linger(
+    _context: &RuntimeCallContext,
+    out: *mut Linger,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let mut value = LINGER {
+        l_onoff: 0,
+        l_linger: 0,
+    };
+    let mut length = mem::size_of::<LINGER>() as i32;
+    let rc = unsafe {
+        getsockopt(
+            socket,
+            SOL_SOCKET,
+            SO_LINGER,
+            &mut value as *mut _ as *mut u8,
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("getsockopt(SO_LINGER)"));
+    }
+
+    unsafe {
+        *out = Linger {
+            enabled: value.l_onoff != 0,
+            seconds: value.l_linger as u32,
+        };
+    }
+
+    Ok(())
+}
+
+/// Read the receive buffer size.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_RCVBUF) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_recv_buffer(
+    _context: &RuntimeCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_u32(socket, SOL_SOCKET, SO_RCVBUF, "getsockopt(SO_RCVBUF)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read the send buffer size.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_SNDBUF) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_send_buffer(
+    _context: &RuntimeCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_u32(socket, SOL_SOCKET, SO_SNDBUF, "getsockopt(SO_SNDBUF)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read broadcast mode.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_BROADCAST) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_broadcast(
+    _context: &RuntimeCallContext,
+    out: *mut bool,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_bool(socket, SOL_SOCKET, SO_BROADCAST, "getsockopt(SO_BROADCAST)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read the IP time-to-live.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_TTL/IPV6_UNICAST_HOPS) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_ttl(
+    _context: &RuntimeCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_u32(socket, IPPROTO_IP, IP_TTL, "getsockopt(IP_TTL)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read the IP type-of-service field.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_TOS/IPV6_TCLASS) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_tos(
+    _context: &RuntimeCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_u32(socket, IPPROTO_IP, IP_TOS, "getsockopt(IP_TOS)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read the read timeout in milliseconds.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_RCVTIMEO) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_read_timeout(
+    _context: &RuntimeCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_u32(socket, SOL_SOCKET, SO_RCVTIMEO, "getsockopt(SO_RCVTIMEO)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read the write timeout in milliseconds.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(SO_SNDTIMEO) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_write_timeout(
+    _context: &RuntimeCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_u32(socket, SOL_SOCKET, SO_SNDTIMEO, "getsockopt(SO_SNDTIMEO)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read IPv6-only mode.
+///
+/// Read the current option value from the host socket option layer.
+/// Returned units and ranges follow host option semantics for the active platform.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IPV6_V6ONLY) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+#[cfg(not(unix))]
+pub(crate) unsafe fn destack_net_get_only_v6(
+    _context: &RuntimeCallContext,
+    out: *mut bool,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read the socket option
+    let socket = socket_descriptor(_context, handle)?;
+    let value = get_socket_bool(socket, IPPROTO_IPV6, IPV6_V6ONLY, "getsockopt(IPV6_V6ONLY)")?;
+    unsafe {
+        *out = value;
+    }
+
     Ok(())
 }

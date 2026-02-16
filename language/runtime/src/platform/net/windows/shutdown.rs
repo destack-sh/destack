@@ -5,7 +5,23 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::net::{SocketHandle, SocketShutdown};
 use crate::runtime::RuntimeCallContext;
 
-/// Shutdown a socket.
+/// Shut down a socket for reads, writes, or both.
+///
+/// Shut down read, write, or both directions on a connected socket.
+/// Half-close and peer-observed behavior follow host kernel shutdown semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses shutdown(2) on Unix and shutdown on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.close`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_net_shutdown(
     _context: &RuntimeCallContext,
     handle: SocketHandle,

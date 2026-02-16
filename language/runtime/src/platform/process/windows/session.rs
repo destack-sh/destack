@@ -20,7 +20,7 @@ use crate::platform::process::{
 };
 use crate::platform::{fs, resource};
 
-/// Read one process group id.
+/// Read a process group id.
 ///
 /// Read the process-group identifier currently assigned to the target process.
 /// Visibility and lookup behavior follow host process table rules.
@@ -40,20 +40,18 @@ use crate::platform::{fs, resource};
 pub(crate) unsafe fn destack_process_getpgid(
     context: &RuntimeCallContext,
     out: *mut ProcessId,
-    pid: ProcessId,
+    _pid: ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = pid;
-
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.session.getpgid",
     ))
     .boxed())
 }
 
-/// Set one process group id for a process.
+/// Set a process group id for a process.
 ///
 /// Move the target process into the requested process group identifier.
 /// Cross-session moves and permission checks follow host kernel job-control rules.
@@ -83,7 +81,7 @@ pub(crate) unsafe fn destack_process_setpgid(
     .boxed())
 }
 
-/// Create one new session and return the new session leader id.
+/// Create a new session and return the new session leader id.
 ///
 /// Create a new session boundary and make the caller its session leader.
 /// Session and controlling-terminal semantics follow host job-control rules.

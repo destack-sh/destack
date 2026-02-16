@@ -318,14 +318,13 @@ pub(crate) fn render_simulated_native_stub(domain: &str, bindings: &BindingCatal
 
         write_stub_docs(&mut output, entry, binding.extern_name, true);
         output.push_str(&format!(
-            "pub(crate) unsafe fn {function_name}(context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            "pub(crate) unsafe fn {function_name}(_context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
             if params.is_empty() {
                 String::new()
             } else {
                 format!(", {}", params.join(", "))
             }
         ));
-        output.push_str("    let _ = context;\n");
         if let Some((first, rest)) = unused.split_first() {
             if rest.is_empty() {
                 output.push_str(&format!("    let _ = {first};\n"));

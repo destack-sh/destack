@@ -858,8 +858,6 @@ pub fn destack_fs_preadv2(
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: honor read flags in vm mode
-    let _ = flags;
-
     destack_fs_preadv(runtime, context, handle, buffers, offset)
 }
 
@@ -946,8 +944,6 @@ pub fn destack_fs_pwritev2(
     flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: honor write flags in vm mode
-    let _ = flags;
-
     destack_fs_pwritev(runtime, context, handle, buffers, offset)
 }
 

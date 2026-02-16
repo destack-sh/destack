@@ -145,11 +145,9 @@ fn test_fs_linkat() {
         #[cfg(windows)]
         let allowed = [PlatformErrorCode::NotSupported];
         #[cfg(windows)]
-        let _ = context.result_ok_or_codes(
-            context.linkat(dir_handle, existing, dir_handle, new, AtFlags(0)),
-            "linkat",
-            &allowed,
-        )?;
+        let link_result = context.linkat(dir_handle, existing, dir_handle, new, AtFlags(0));
+        #[cfg(windows)]
+        let _ = context.result_ok_or_codes(link_result, "linkat", &allowed)?;
 
         #[cfg(unix)]
         {
@@ -159,6 +157,13 @@ fn test_fs_linkat() {
 
             let link = context.path_bytes(link_name);
             context.unlinkat(dir_handle, link, AtFlags(0))?;
+        }
+        #[cfg(windows)]
+        {
+            let allowed = [PlatformErrorCode::IoNotFound];
+            let link = context.path_bytes(link_name);
+            let unlink_result = context.unlinkat(dir_handle, link, AtFlags(0));
+            let _ = context.result_ok_or_codes(unlink_result, "unlinkat(link)", &allowed)?;
         }
 
         let file = context.path_bytes(file_name);

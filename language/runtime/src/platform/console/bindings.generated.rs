@@ -57,12 +57,9 @@ fn decode_string(
 /// Decode arguments for destack.console.console.error.
 #[inline]
 fn decode_destack_console_console_error_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let argument_value_value = arg_value(args, 0, "argument_value", "string")?;
     let argument_value = decode_string(argument_value_value, "argument_value", "string")?;
     Ok((argument_value,))
@@ -71,24 +68,18 @@ fn decode_destack_console_console_error_args(
 /// Encode the result for destack.console.console.error.
 #[inline]
 fn encode_destack_console_console_error_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.console.console.info.
 #[inline]
 fn decode_destack_console_console_info_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let argument_value_value = arg_value(args, 0, "argument_value", "string")?;
     let argument_value = decode_string(argument_value_value, "argument_value", "string")?;
     Ok((argument_value,))
@@ -97,24 +88,18 @@ fn decode_destack_console_console_info_args(
 /// Encode the result for destack.console.console.info.
 #[inline]
 fn encode_destack_console_console_info_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.console.console.log.
 #[inline]
 fn decode_destack_console_console_log_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let argument_value_value = arg_value(args, 0, "argument_value", "string")?;
     let argument_value = decode_string(argument_value_value, "argument_value", "string")?;
     Ok((argument_value,))
@@ -123,24 +108,18 @@ fn decode_destack_console_console_log_args(
 /// Encode the result for destack.console.console.log.
 #[inline]
 fn encode_destack_console_console_log_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.console.console.warn.
 #[inline]
 fn decode_destack_console_console_warn_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let argument_value_value = arg_value(args, 0, "argument_value", "string")?;
     let argument_value = decode_string(argument_value_value, "argument_value", "string")?;
     Ok((argument_value,))
@@ -149,12 +128,9 @@ fn decode_destack_console_console_warn_args(
 /// Encode the result for destack.console.console.warn.
 #[inline]
 fn encode_destack_console_console_warn_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

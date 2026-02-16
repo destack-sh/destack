@@ -53,7 +53,23 @@ fn add_offset(base: i64, delta: u64, name: &str) -> RuntimeResult<i64> {
     })
 }
 
-/// Read from a file handle at a specific offset.
+/// Read from a file at the given file offset.
+///
+/// Read bytes into one contiguous caller-provided buffer at an explicit file offset.
+/// The descriptor's current file position is not changed by positioned reads.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses pread(2) on Unix and positioned ReadFile on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_pread(
     _context: &RuntimeCallContext,
     out: *mut u64,
@@ -113,7 +129,23 @@ pub(crate) unsafe fn destack_fs_pread(
     Ok(())
 }
 
-/// Write to a file handle at a specific offset.
+/// Write to a file at the given file offset.
+///
+/// Write bytes from one contiguous caller-provided buffer at an explicit file offset.
+/// The descriptor's current file position is not changed by positioned writes.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses pwrite(2) on Unix and positioned WriteFile on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_pwrite(
     _context: &RuntimeCallContext,
     out: *mut u64,
@@ -173,7 +205,23 @@ pub(crate) unsafe fn destack_fs_pwrite(
     Ok(())
 }
 
-/// Read from a file handle into multiple buffers at a specific offset.
+/// Read into multiple buffers at the given file offset.
+///
+/// Read bytes into a scatter buffer list at an explicit file offset.
+/// The descriptor's current file position is not changed by positioned vectored reads.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses preadv(2) on Unix and vectored positioned file I/O loop on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -218,7 +266,23 @@ pub(crate) unsafe fn destack_fs_preadv(
     Ok(())
 }
 
-/// Write to a file handle from multiple buffers at a specific offset.
+/// Write from multiple buffers at the given file offset.
+///
+/// Write bytes from a gather buffer list at an explicit file offset.
+/// The descriptor's current file position is not changed by positioned vectored writes.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses pwritev(2) on Unix and vectored positioned file I/O loop on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -263,7 +327,23 @@ pub(crate) unsafe fn destack_fs_pwritev(
     Ok(())
 }
 
-/// Read from a file handle into multiple buffers with explicit read flags.
+/// Read into multiple buffers at the given file offset with explicit read flags.
+///
+/// Read bytes into a scatter buffer list at an explicit file offset and apply host read flags.
+/// Flag bits are passed through directly and may enable nowait or high-priority reads on supported kernels.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses preadv2(2) on Linux and runtime fallback to preadv on other targets when flags are zero.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv2(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -278,7 +358,23 @@ pub(crate) unsafe fn destack_fs_preadv2(
     unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
 }
 
-/// Write to a file handle from multiple buffers with explicit write flags.
+/// Write from multiple buffers at the given file offset with explicit write flags.
+///
+/// Write bytes from a gather buffer list at an explicit file offset and apply host write flags.
+/// Flag bits are passed through directly and may enable append, sync, or nowait behavior on supported kernels.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses pwritev2(2) on Linux and runtime fallback to pwritev on other targets when flags are zero.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev2(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -293,7 +389,23 @@ pub(crate) unsafe fn destack_fs_pwritev2(
     unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
 }
 
-/// Read from a file handle using the current file offset.
+/// Read from a file into the provided slice.
+///
+/// Read bytes into one contiguous caller-provided buffer from the current file position.
+/// The file position advances by the exact byte count returned by the host.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses read(2) on Unix and ReadFile on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_read(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -320,7 +432,23 @@ pub(crate) unsafe fn destack_fs_read(
     Ok(())
 }
 
-/// Write to a file handle using the current file offset.
+/// Write to a file from the provided slice.
+///
+/// Write bytes from one contiguous caller-provided buffer at the current file position.
+/// The file position advances by the exact byte count accepted by the host.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses write(2) on Unix and WriteFile on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_write(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -348,6 +476,22 @@ pub(crate) unsafe fn destack_fs_write(
 }
 
 /// Send file data to a socket.
+///
+/// Transfer file bytes directly from storage-backed pages to a socket endpoint.
+/// Host fast-path behavior may bypass user-space copies when supported.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses sendfile(2) on Unix variants and TransmitFile or copy fallback on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_sendfile(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -404,7 +548,23 @@ pub(crate) unsafe fn destack_fs_sendfile(
     Ok(())
 }
 
-/// Move data between resources using in-kernel transfer paths.
+/// Transfer bytes between descriptors using kernel splice pipelines.
+///
+/// Move bytes between descriptor endpoints and optionally update explicit cursors for each side.
+/// This operation is intended for zero-copy file, pipe, and socket data paths where the host supports splice semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses splice(2) on Linux and runtime fallback on targets without splice support.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.zero.copy`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
     context: &RuntimeCallContext,
     _out: *mut u64,
@@ -427,7 +587,23 @@ pub(crate) unsafe fn destack_fs_splice(
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.splice")).boxed())
 }
 
-/// Duplicate pipe data without copying into userspace.
+/// Duplicate bytes from one pipe to another without consuming source bytes.
+///
+/// Clone bytes between two pipe descriptors while preserving source pipe contents.
+/// This operation is useful for fanout pipelines where consumers share the same byte stream.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses tee(2) on Linux and runtime fallback on targets without tee support.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.zero.copy`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_tee(
     context: &RuntimeCallContext,
     _out: *mut u64,
@@ -440,7 +616,23 @@ pub(crate) unsafe fn destack_fs_tee(
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.tee")).boxed())
 }
 
-/// Move user buffers into a pipe.
+/// Map user memory pages into a pipe as queued pipe buffers.
+///
+/// Publish one set of user buffers into a pipe endpoint for downstream splice pipelines.
+/// Host kernels may pin pages or copy data depending on flags and memory state.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses vmsplice(2) on Linux and runtime fallback on targets without vmsplice support.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.zero.copy`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_vmsplice(
     context: &RuntimeCallContext,
     _out: *mut u64,
@@ -452,7 +644,23 @@ pub(crate) unsafe fn destack_fs_vmsplice(
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.vmsplice")).boxed())
 }
 
-/// Read from a file handle into multiple buffers.
+/// Read into multiple buffers.
+///
+/// Read bytes into a scatter buffer list from the current file position.
+/// Buffer fill order follows host iovec semantics and advances the file position by bytes read.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses readv(2) on Unix and vectored file I/O loop on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_readv(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -487,7 +695,23 @@ pub(crate) unsafe fn destack_fs_readv(
     Ok(())
 }
 
-/// Write to a file handle from multiple buffers.
+/// Write from multiple buffers.
+///
+/// Write bytes from a gather buffer list at the current file position.
+/// Buffer consumption order follows host iovec semantics and advances the file position by bytes written.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses writev(2) on Unix and vectored file I/O loop on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_writev(
     context: &RuntimeCallContext,
     out: *mut u64,

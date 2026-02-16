@@ -371,9 +371,8 @@ pub(crate) fn destack_fs_utimes(
 pub(crate) fn destack_fs_closedir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::DirectoryHandle,
+    _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.closedir")).boxed())
 }
 
@@ -397,9 +396,8 @@ pub(crate) fn destack_fs_closedir(
 pub(crate) fn destack_fs_dirfd(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::DirectoryHandle,
+    _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<resource::FileHandle> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.dirfd")).boxed())
 }
 
@@ -478,9 +476,8 @@ pub(crate) fn destack_fs_mkdirat(
 pub(crate) fn destack_fs_mkdtemp(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    template: OsPathVm,
+    _template: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
-    let _ = template;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdtemp")).boxed())
 }
 
@@ -504,9 +501,8 @@ pub(crate) fn destack_fs_mkdtemp(
 pub(crate) fn destack_fs_opendir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<resource::DirectoryHandle> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.opendir")).boxed())
 }
 
@@ -530,9 +526,8 @@ pub(crate) fn destack_fs_opendir(
 pub(crate) fn destack_fs_readdir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::DirectoryHandle,
+    _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<VmArray<DirentVm>> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdir")).boxed())
 }
 
@@ -556,9 +551,8 @@ pub(crate) fn destack_fs_readdir(
 pub(crate) fn destack_fs_readdir_next(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::DirectoryHandle,
+    _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<DirentNextVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdirNext")).boxed())
 }
 
@@ -582,9 +576,8 @@ pub(crate) fn destack_fs_readdir_next(
 pub(crate) fn destack_fs_rewinddir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::DirectoryHandle,
+    _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rewinddir")).boxed())
 }
 
@@ -608,9 +601,8 @@ pub(crate) fn destack_fs_rewinddir(
 pub(crate) fn destack_fs_rmdir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<()> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rmdir")).boxed())
 }
 
@@ -634,9 +626,8 @@ pub(crate) fn destack_fs_rmdir(
 pub(crate) fn destack_fs_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.close")).boxed())
 }
 
@@ -693,9 +684,8 @@ pub(crate) fn destack_fs_copy_file_range(
 pub(crate) fn destack_fs_dup(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<resource::FileHandle> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup")).boxed())
 }
 
@@ -831,9 +821,8 @@ pub(crate) fn destack_fs_fallocate(
 pub(crate) fn destack_fs_fdatasync(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fdatasync")).boxed())
 }
 
@@ -857,9 +846,8 @@ pub(crate) fn destack_fs_fdatasync(
 pub(crate) fn destack_fs_fsync(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fsync")).boxed())
 }
 
@@ -910,9 +898,8 @@ pub(crate) fn destack_fs_ftruncate(
 pub(crate) fn destack_fs_get_fd_flags(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<FdFlags> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.getFdFlags")).boxed())
 }
 
@@ -936,9 +923,8 @@ pub(crate) fn destack_fs_get_fd_flags(
 pub(crate) fn destack_fs_get_status_flags(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<StatusFlags> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.file.getStatusFlags",
     ))
@@ -1476,9 +1462,8 @@ pub(crate) fn destack_fs_sync_file_range(
 pub(crate) fn destack_fs_syncfs(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.syncfs")).boxed())
 }
 
@@ -1721,9 +1706,8 @@ pub(crate) fn destack_fs_msync(
 pub(crate) fn destack_fs_munmap(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    mapping: VmSlice<u8>,
+    _mapping: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = mapping;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.munmap")).boxed())
 }
 
@@ -2004,7 +1988,6 @@ pub(crate) fn destack_fs_readlink(
     _context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.readlink")).boxed())
 }
 
@@ -2057,7 +2040,6 @@ pub(crate) fn destack_fs_realpath(
     _context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.realpath")).boxed())
 }
 
@@ -2226,7 +2208,6 @@ pub(crate) fn destack_fs_unlink(
     _context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<()> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlink")).boxed())
 }
 
@@ -2278,9 +2259,8 @@ pub(crate) fn destack_fs_unlinkat(
 pub(crate) fn destack_fs_fstat(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<StatVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstat")).boxed())
 }
 
@@ -2304,9 +2284,8 @@ pub(crate) fn destack_fs_fstat(
 pub(crate) fn destack_fs_fstatfs(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<StatFsVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstatfs")).boxed())
 }
 
@@ -2330,9 +2309,8 @@ pub(crate) fn destack_fs_fstatfs(
 pub(crate) fn destack_fs_lstat(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<StatVm> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.lstat")).boxed())
 }
 
@@ -2356,9 +2334,8 @@ pub(crate) fn destack_fs_lstat(
 pub(crate) fn destack_fs_stat(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<StatVm> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.stat")).boxed())
 }
 
@@ -2410,9 +2387,8 @@ pub(crate) fn destack_fs_statat(
 pub(crate) fn destack_fs_statfs(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<StatFsVm> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statfs")).boxed())
 }
 
@@ -2492,9 +2468,8 @@ pub(crate) fn destack_fs_watch(
 pub(crate) fn destack_fs_watch_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::WatchHandle,
+    _handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchClose")).boxed())
 }
 
@@ -2518,9 +2493,8 @@ pub(crate) fn destack_fs_watch_close(
 pub(crate) fn destack_fs_watch_read(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::WatchHandle,
+    _handle: resource::WatchHandle,
 ) -> RuntimeResult<WatchBatchVm> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchRead")).boxed())
 }
 
@@ -2629,9 +2603,8 @@ pub(crate) fn destack_fs_fgetxattr_bytes(
 pub(crate) fn destack_fs_flistxattr(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.flistxattr")).boxed())
 }
 
@@ -2655,9 +2628,8 @@ pub(crate) fn destack_fs_flistxattr(
 pub(crate) fn destack_fs_flistxattr_bytes(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::FileHandle,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
-    let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.flistxattrBytes",
     ))
@@ -2919,9 +2891,8 @@ pub(crate) fn destack_fs_lgetxattr_bytes(
 pub(crate) fn destack_fs_listxattr(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.listxattr")).boxed())
 }
 
@@ -2945,9 +2916,8 @@ pub(crate) fn destack_fs_listxattr(
 pub(crate) fn destack_fs_listxattr_bytes(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.listxattrBytes",
     ))
@@ -2974,9 +2944,8 @@ pub(crate) fn destack_fs_listxattr_bytes(
 pub(crate) fn destack_fs_llistxattr(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.llistxattr")).boxed())
 }
 
@@ -3000,9 +2969,8 @@ pub(crate) fn destack_fs_llistxattr(
 pub(crate) fn destack_fs_llistxattr_bytes(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<VmArray<VmArray<u8>>> {
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.fs.xattr.llistxattrBytes",
     ))

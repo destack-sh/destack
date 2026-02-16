@@ -1317,8 +1317,6 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 ) -> RuntimeResult<()> {
     // validate pointer and keep arguments used
     unsafe { check_out_pointer(out, "out")? };
-    let _ = out;
-
     missing_binding("destack.net.listInterfaces")
 }
 
@@ -1458,10 +1456,8 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_fanout(
     _context: &RuntimeCallContext,
-    handle: SocketHandle,
+    _handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-
     missing_binding("destack.net.packetClearFanout")
 }
 
@@ -1484,10 +1480,8 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_filter(
     _context: &RuntimeCallContext,
-    handle: SocketHandle,
+    _handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-
     missing_binding("destack.net.packetClearFilter")
 }
 
@@ -1510,10 +1504,8 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_ring(
     _context: &RuntimeCallContext,
-    handle: SocketHandle,
+    _handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-
     missing_binding("destack.net.packetClearRing")
 }
 
@@ -2004,11 +1996,9 @@ pub(crate) unsafe fn destack_net_raw_socket(
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
     _context: &RuntimeCallContext,
-    route: RouteEntry,
+    _route: RouteEntry,
 ) -> RuntimeResult<()> {
     // keep arguments used
-    let _ = route;
-
     missing_binding("destack.net.routeAdd")
 }
 
@@ -2031,11 +2021,9 @@ pub(crate) unsafe fn destack_net_route_add(
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
     _context: &RuntimeCallContext,
-    route: RouteEntry,
+    _route: RouteEntry,
 ) -> RuntimeResult<()> {
     // keep arguments used
-    let _ = route;
-
     missing_binding("destack.net.routeDelete")
 }
 

@@ -16,11 +16,29 @@ use windows_sys::Win32::System::Threading::GetCurrentProcess;
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::fs::{FileHandle, FileMode, FileOffset, OpenFlags, SeekWhence, Stat, StatFs};
+use crate::platform::fs::{
+    FdFlags, FileHandle, FileMode, FileOffset, OpenFlags, SeekWhence, Stat, StatFs, StatusFlags,
+};
 use crate::platform::resource::{DirectoryHandle, ResourceEntry, ResourceKind};
 use crate::runtime::RuntimeCallContext;
 
-/// Close a file handle.
+/// Close an open file handle.
+///
+/// Close the target handle by forwarding the descriptor teardown to the host kernel.
+/// The descriptor becomes invalid immediately for subsequent read or write operations.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses close(2) on Unix and CloseHandle on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_close(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -45,6 +63,22 @@ pub(crate) unsafe fn destack_fs_close(
 }
 
 /// Duplicate a file handle.
+///
+/// Duplicate one descriptor and return a new descriptor that references the same open file description.
+/// Both descriptors share file-offset and status-flag state per host dup semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses dup(2) on Unix and DuplicateHandle on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_dup(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -101,7 +135,23 @@ pub(crate) unsafe fn destack_fs_dup(
     Ok(())
 }
 
-/// Duplicate a file handle, closing the target handle if needed.
+/// Duplicate a file handle to a specific target.
+///
+/// Duplicate one descriptor onto a caller-provided target descriptor number.
+/// Existing target descriptor state is replaced according to host dup2 semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses dup2(2) on Unix and DuplicateHandle target replacement on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_dup2(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -124,7 +174,23 @@ pub(crate) unsafe fn destack_fs_dup2(
     unsafe { destack_fs_dup(context, out, handle) }
 }
 
-/// Duplicate a file handle with flags.
+/// Duplicate a file handle to a specific target with flags.
+///
+/// Duplicate one descriptor onto a target descriptor while applying explicit duplication flags.
+/// Flag support and close-on-exec semantics follow host dup3 behavior.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses dup3(2) on linux and runtime emulation on other targets.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_dup3(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -136,6 +202,22 @@ pub(crate) unsafe fn destack_fs_dup3(
 }
 
 /// Close a directory handle.
+///
+/// Close the target handle by forwarding the descriptor teardown to the host kernel.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses closedir(3) on Unix and FindClose/CloseHandle on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_closedir(
     context: &RuntimeCallContext,
     handle: DirectoryHandle,
@@ -159,7 +241,23 @@ pub(crate) unsafe fn destack_fs_closedir(
     Ok(())
 }
 
-/// Change permissions for a file handle.
+/// Change file permissions by handle.
+///
+/// Change file permissions by handle via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchmod(2) on Unix and handle-based mode updates on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chmod`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmod(
     _context: &RuntimeCallContext,
     handle: FileHandle,
@@ -191,7 +289,23 @@ pub(crate) unsafe fn destack_fs_fchmod(
     Ok(())
 }
 
-/// Change ownership for a file handle.
+/// Change file owner and group by handle.
+///
+/// Change file owner and group by handle via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchown(2) on Unix and handle owner updates where supported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chown`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchown(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -221,7 +335,22 @@ pub(crate) unsafe fn destack_fs_fchown(
     Ok(())
 }
 
-/// Flush file data to disk.
+/// Synchronize file data only.
+///
+/// Flush file data pages for the target descriptor without requiring full metadata durability.
+/// Metadata needed for data reachability may still be persisted per host kernel rules.
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fdatasync(2) on Unix and FlushFileBuffers on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.sync`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fdatasync(
     _context: &RuntimeCallContext,
     handle: FileHandle,
@@ -238,7 +367,23 @@ pub(crate) unsafe fn destack_fs_fdatasync(
     Ok(())
 }
 
-/// Stat a file handle.
+/// Stat a file by handle.
+///
+/// Stat a file by handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fstat(2) on Unix and GetFileInformationByHandleEx on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fstat(
     _context: &RuntimeCallContext,
     out: *mut Stat,
@@ -263,7 +408,23 @@ pub(crate) unsafe fn destack_fs_fstat(
     Ok(())
 }
 
-/// Statfs a file handle.
+/// Stat a filesystem by handle.
+///
+/// Stat a filesystem by handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fstatfs/statvfs by handle on Unix and volume information by handle on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fstatfs(
     _context: &RuntimeCallContext,
     out: *mut StatFs,
@@ -289,7 +450,23 @@ pub(crate) unsafe fn destack_fs_fstatfs(
     Ok(())
 }
 
-/// Flush file buffers for a file handle.
+/// Synchronize a file's in-core state with storage.
+///
+/// Synchronize buffered file state to storage for the target file descriptor.
+/// Completion guarantees and writeback scope follow host kernel fsync semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fsync(2) on Unix and FlushFileBuffers on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.sync`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_fsync(
     context: &RuntimeCallContext,
     handle: FileHandle,
@@ -297,7 +474,23 @@ pub(crate) unsafe fn destack_fs_fsync(
     unsafe { destack_fs_fdatasync(context, handle) }
 }
 
-/// Truncate a file handle to a size.
+/// Truncate a file by handle.
+///
+/// Truncate the target file to the requested size using host file-size control APIs.
+/// Growth behavior for sparse expansion and zero-fill follows host filesystem policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses ftruncate(2) on Unix and SetEndOfFile on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_ftruncate(
     _context: &RuntimeCallContext,
     handle: FileHandle,
@@ -320,7 +513,23 @@ pub(crate) unsafe fn destack_fs_ftruncate(
     Ok(())
 }
 
-/// Seek within a file handle.
+/// Seek within a file and return the new offset.
+///
+/// Reposition the descriptor file offset using the supplied origin and delta.
+/// Returned offset is the new descriptor position after host seek processing.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses lseek(2) on Unix and SetFilePointerEx on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_seek(
     _context: &RuntimeCallContext,
     out: *mut FileOffset,
@@ -356,7 +565,23 @@ pub(crate) unsafe fn destack_fs_seek(
     Ok(())
 }
 
-/// Update file times for a handle.
+/// Update access and modification times by handle.
+///
+/// Update access and modification times by handle via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses futimens/futimes on Unix and SetFileTime on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_futimes(
     _context: &RuntimeCallContext,
     handle: FileHandle,
@@ -366,4 +591,280 @@ pub(crate) unsafe fn destack_fs_futimes(
     // update the handle timestamps
     let handle = file_handle(_context, handle)?;
     set_handle_times(handle, atime_ns, mtime_ns)
+}
+
+/// Resolve the directory descriptor for an open directory handle.
+///
+/// Extract the underlying file descriptor or handle value from an open directory stream.
+/// The returned handle is valid only while the source directory handle remains open.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses dirfd(3) on Unix and directory handle extraction on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_dirfd(
+    context: &RuntimeCallContext,
+    out: *mut FileHandle,
+    handle: DirectoryHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    #[cfg(unix)]
+    {
+        let directory_fd = directory_descriptor(context, handle)?;
+        let file_fd = unsafe { libc::dup(directory_fd) };
+        if file_fd < 0 {
+            return Err(RuntimeError::from(PlatformError::io("dup failed".to_string())).boxed());
+        }
+
+        let resource = ResourceEntry::new(ResourceKind::File)
+            .with_fd(file_fd)
+            .with_finalizer(DescriptorFinalizer { fd: file_fd });
+        let resource_id = context.runtime().resources.insert(resource);
+        unsafe {
+            *out = FileHandle(resource_id);
+        }
+
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (context, handle);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dirfd")).boxed())
+    }
+}
+
+/// Read file descriptor flags.
+///
+/// Read descriptor flags such as close-on-exec from the target file descriptor.
+/// Returned bits reflect current host descriptor state at call time.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fcntl(F_GETFD) on Unix and runtime handle metadata on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_get_fd_flags(
+    context: &RuntimeCallContext,
+    out: *mut FdFlags,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    #[cfg(unix)]
+    {
+        let fd = file_descriptor(context, handle)?;
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        if flags < 0 {
+            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
+        }
+        unsafe {
+            *out = FdFlags(flags as u32);
+        }
+
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (context, handle);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getFdFlags")).boxed())
+    }
+}
+
+/// Read file status flags.
+///
+/// Read status flags such as append and nonblocking from the target file descriptor.
+/// Returned bits reflect current host descriptor state at call time.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fcntl(F_GETFL) on Unix and runtime handle metadata on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_get_status_flags(
+    context: &RuntimeCallContext,
+    out: *mut StatusFlags,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    #[cfg(unix)]
+    {
+        let fd = file_descriptor(context, handle)?;
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        if flags < 0 {
+            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
+        }
+        unsafe {
+            *out = StatusFlags(flags as u32);
+        }
+
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (context, handle);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.getStatusFlags")).boxed())
+    }
+}
+
+/// Write file descriptor flags.
+///
+/// Write descriptor flags such as close-on-exec to the target file descriptor.
+/// Unsupported flag bits are rejected according to host descriptor control rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fcntl(F_SETFD) on Unix and runtime handle metadata on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_set_fd_flags(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+    flags: FdFlags,
+) -> RuntimeResult<()> {
+    #[cfg(unix)]
+    {
+        let fd = file_descriptor(context, handle)?;
+        let result = unsafe { libc::fcntl(fd, libc::F_SETFD, flags.0 as libc::c_int) };
+        if result < 0 {
+            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (context, handle, flags);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.setFdFlags")).boxed())
+    }
+}
+
+/// Write file status flags.
+///
+/// Write status flags such as append and nonblocking to the target file descriptor.
+/// Unsupported or immutable status bits are rejected by host fcntl validation.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fcntl(F_SETFL) on Unix and runtime handle metadata on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_set_status_flags(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+    flags: StatusFlags,
+) -> RuntimeResult<()> {
+    #[cfg(unix)]
+    {
+        let fd = file_descriptor(context, handle)?;
+        let result = unsafe { libc::fcntl(fd, libc::F_SETFL, flags.0 as libc::c_int) };
+        if result < 0 {
+            return Err(RuntimeError::from(PlatformError::io("fcntl failed".to_string())).boxed());
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (context, handle, flags);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.setStatusFlags")).boxed())
+    }
+}
+
+/// Synchronize a filesystem by file handle.
+///
+/// Flush pending filesystem writeback for the mount that contains this handle.
+/// Scope and ordering guarantees follow host mount-level sync semantics.
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses syncfs(2) on Unix and volume flush APIs on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.sync`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_syncfs(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    #[cfg(unix)]
+    {
+        let fd = file_descriptor(context, handle)?;
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            let result = unsafe { libc::syncfs(fd) };
+            if result != 0 {
+                return Err(
+                    RuntimeError::from(PlatformError::io("syncfs failed".to_string())).boxed(),
+                );
+            }
+            Ok(())
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        {
+            let result = unsafe { libc::fsync(fd) };
+            if result != 0 {
+                return Err(
+                    RuntimeError::from(PlatformError::io("fsync failed".to_string())).boxed(),
+                );
+            }
+            Ok(())
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = (context, handle);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.syncfs")).boxed())
+    }
 }

@@ -158,12 +158,9 @@ fn encode_destack_os_host_identity_result(
 /// Encode the result for destack.os.info.bootTimeUnixNs.
 #[inline]
 fn encode_destack_os_info_boot_time_unix_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -199,12 +196,9 @@ fn encode_destack_os_info_system_info_result(
 /// Encode the result for destack.os.info.uptimeNs.
 #[inline]
 fn encode_destack_os_info_uptime_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -316,12 +310,9 @@ fn decode_destack_os_mount_add_args(
 /// Encode the result for destack.os.mount.add.
 #[inline]
 fn encode_destack_os_mount_add_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -390,36 +381,27 @@ fn decode_destack_os_mount_remove_args(
 /// Encode the result for destack.os.mount.remove.
 #[inline]
 fn encode_destack_os_mount_remove_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Encode the result for destack.os.power.state.
 #[inline]
 fn encode_destack_os_power_state_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PowerState>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value as u8 as u64, 8))
 }
 
 /// Encode the result for destack.os.power.suspend.
 #[inline]
 fn encode_destack_os_power_suspend_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

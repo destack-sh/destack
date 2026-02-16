@@ -117,12 +117,9 @@ fn decode_slice<T>(
 /// Decode arguments for destack.ipc.message.queueClose.
 #[inline]
 fn decode_destack_ipc_message_queue_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::MessageQueueHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "MessageQueueHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "MessageQueueHandle")?;
@@ -134,24 +131,18 @@ fn decode_destack_ipc_message_queue_close_args(
 /// Encode the result for destack.ipc.message.queueClose.
 #[inline]
 fn encode_destack_ipc_message_queue_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.message.queueOpen.
 #[inline]
 fn decode_destack_ipc_message_queue_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u32, u32, u32, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
@@ -168,12 +159,9 @@ fn decode_destack_ipc_message_queue_open_args(
 /// Encode the result for destack.ipc.message.queueOpen.
 #[inline]
 fn encode_destack_ipc_message_queue_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::MessageQueueHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -236,24 +224,18 @@ fn decode_destack_ipc_message_queue_send_args(
 /// Encode the result for destack.ipc.message.queueSend.
 #[inline]
 fn encode_destack_ipc_message_queue_send_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.message.queueUnlink.
 #[inline]
 fn decode_destack_ipc_message_queue_unlink_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((name,))
@@ -262,24 +244,18 @@ fn decode_destack_ipc_message_queue_unlink_args(
 /// Encode the result for destack.ipc.message.queueUnlink.
 #[inline]
 fn encode_destack_ipc_message_queue_unlink_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.pipe.close.
 #[inline]
 fn decode_destack_ipc_pipe_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::PipeHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "PipeHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "PipeHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -290,24 +266,18 @@ fn decode_destack_ipc_pipe_close_args(
 /// Encode the result for destack.ipc.pipe.close.
 #[inline]
 fn encode_destack_ipc_pipe_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.pipe.open.
 #[inline]
 fn decode_destack_ipc_pipe_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
-    // ignore unused context
-    let _ = context;
-
     let flags_value = arg_value(args, 0, "flags", "uint32")?;
     let flags = decode_uint32(flags_value, "flags", "uint32")?;
     Ok((flags,))
@@ -344,12 +314,9 @@ fn decode_destack_ipc_pipe_read_args(
 /// Encode the result for destack.ipc.pipe.read.
 #[inline]
 fn encode_destack_ipc_pipe_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -371,24 +338,18 @@ fn decode_destack_ipc_pipe_write_args(
 /// Encode the result for destack.ipc.pipe.write.
 #[inline]
 fn encode_destack_ipc_pipe_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.close.
 #[inline]
 fn decode_destack_ipc_shared_memory_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SharedMemoryHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SharedMemoryHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "SharedMemoryHandle")?;
@@ -400,24 +361,18 @@ fn decode_destack_ipc_shared_memory_close_args(
 /// Encode the result for destack.ipc.sharedMemory.close.
 #[inline]
 fn encode_destack_ipc_shared_memory_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.create.
 #[inline]
 fn decode_destack_ipc_shared_memory_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     let size_value = arg_value(args, 1, "size", "uint64")?;
@@ -430,24 +385,18 @@ fn decode_destack_ipc_shared_memory_create_args(
 /// Encode the result for destack.ipc.sharedMemory.create.
 #[inline]
 fn encode_destack_ipc_shared_memory_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.map.
 #[inline]
 fn decode_destack_ipc_shared_memory_map_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SharedMemoryHandle, u64, u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SharedMemoryHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "SharedMemoryHandle")?;
@@ -478,12 +427,9 @@ fn encode_destack_ipc_shared_memory_map_result(
 /// Decode arguments for destack.ipc.sharedMemory.open.
 #[inline]
 fn decode_destack_ipc_shared_memory_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
@@ -494,24 +440,18 @@ fn decode_destack_ipc_shared_memory_open_args(
 /// Encode the result for destack.ipc.sharedMemory.open.
 #[inline]
 fn encode_destack_ipc_shared_memory_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SharedMemoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ipc.sharedMemory.unmap.
 #[inline]
 fn decode_destack_ipc_shared_memory_unmap_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let address_value = arg_value(args, 0, "address", "uint64")?;
     let address = decode_uint64(address_value, "address", "uint64")?;
     let length_value = arg_value(args, 1, "length", "uint64")?;
@@ -522,24 +462,18 @@ fn decode_destack_ipc_shared_memory_unmap_args(
 /// Encode the result for destack.ipc.sharedMemory.unmap.
 #[inline]
 fn encode_destack_ipc_shared_memory_unmap_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.sync.futexWait.
 #[inline]
 fn decode_destack_ipc_sync_futex_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SharedMemoryHandle, u64, u32, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let sharedmemory_value = arg_value(args, 0, "sharedmemory", "SharedMemoryHandle")?;
     let sharedmemory_inner_inner = decode_uint64(
         sharedmemory_value,
@@ -560,24 +494,18 @@ fn decode_destack_ipc_sync_futex_wait_args(
 /// Encode the result for destack.ipc.sync.futexWait.
 #[inline]
 fn encode_destack_ipc_sync_futex_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.sync.futexWake.
 #[inline]
 fn decode_destack_ipc_sync_futex_wake_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SharedMemoryHandle, u64, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let sharedmemory_value = arg_value(args, 0, "sharedmemory", "SharedMemoryHandle")?;
     let sharedmemory_inner_inner = decode_uint64(
         sharedmemory_value,
@@ -596,24 +524,18 @@ fn decode_destack_ipc_sync_futex_wake_args(
 /// Encode the result for destack.ipc.sync.futexWake.
 #[inline]
 fn encode_destack_ipc_sync_futex_wake_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.ipc.sync.semaphoreCreate.
 #[inline]
 fn decode_destack_ipc_sync_semaphore_create_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u32, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     let initial_value = arg_value(args, 1, "initial", "uint32")?;
@@ -626,24 +548,18 @@ fn decode_destack_ipc_sync_semaphore_create_args(
 /// Encode the result for destack.ipc.sync.semaphoreCreate.
 #[inline]
 fn encode_destack_ipc_sync_semaphore_create_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SemaphoreHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.ipc.sync.semaphorePost.
 #[inline]
 fn decode_destack_ipc_sync_semaphore_post_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SemaphoreHandle, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SemaphoreHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SemaphoreHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -656,24 +572,18 @@ fn decode_destack_ipc_sync_semaphore_post_args(
 /// Encode the result for destack.ipc.sync.semaphorePost.
 #[inline]
 fn encode_destack_ipc_sync_semaphore_post_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.sync.semaphoreWait.
 #[inline]
 fn decode_destack_ipc_sync_semaphore_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SemaphoreHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SemaphoreHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SemaphoreHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -686,24 +596,18 @@ fn decode_destack_ipc_sync_semaphore_wait_args(
 /// Encode the result for destack.ipc.sync.semaphoreWait.
 #[inline]
 fn encode_destack_ipc_sync_semaphore_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.ipc.unix.receive.
 #[inline]
 fn decode_destack_ipc_unix_receive_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let socket_value = arg_value(args, 0, "socket", "SocketHandle")?;
     let socket_inner_inner = decode_uint64(socket_value, "socket_inner_inner", "SocketHandle")?;
     let socket_inner = resource::ResourceId(socket_inner_inner);
@@ -766,12 +670,9 @@ fn decode_destack_ipc_unix_send_args(
 /// Encode the result for destack.ipc.unix.send.
 #[inline]
 fn encode_destack_ipc_unix_send_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 

@@ -137,12 +137,9 @@ fn decode_slice<T>(
 /// Decode arguments for destack.crypto.certificate.delete.
 #[inline]
 fn decode_destack_crypto_certificate_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoCertificateHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
     let handle_inner_inner = decode_uint64(
         handle_value,
@@ -157,24 +154,18 @@ fn decode_destack_crypto_certificate_delete_args(
 /// Encode the result for destack.crypto.certificate.delete.
 #[inline]
 fn encode_destack_crypto_certificate_delete_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.crypto.certificate.export.
 #[inline]
 fn decode_destack_crypto_certificate_export_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoCertificateHandle, CryptoCertificateFormat)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
     let handle_inner_inner = decode_uint64(
         handle_value,
@@ -244,24 +235,18 @@ fn decode_destack_crypto_certificate_import_args(
 /// Encode the result for destack.crypto.certificate.import.
 #[inline]
 fn encode_destack_crypto_certificate_import_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoCertificateHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.certificate.metadata.
 #[inline]
 fn decode_destack_crypto_certificate_metadata_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoCertificateHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
     let handle_inner_inner = decode_uint64(
         handle_value,
@@ -418,12 +403,9 @@ fn encode_destack_crypto_key_decrypt_result(
 /// Decode arguments for destack.crypto.key.delete.
 #[inline]
 fn decode_destack_crypto_key_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoKeyHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -434,12 +416,9 @@ fn decode_destack_crypto_key_delete_args(
 /// Encode the result for destack.crypto.key.delete.
 #[inline]
 fn encode_destack_crypto_key_delete_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -482,12 +461,9 @@ fn encode_destack_crypto_key_encrypt_result(
 /// Decode arguments for destack.crypto.key.exportPublic.
 #[inline]
 fn decode_destack_crypto_key_export_public_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoKeyFormat)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -587,12 +563,9 @@ fn decode_destack_crypto_key_generate_args(
 /// Encode the result for destack.crypto.key.generate.
 #[inline]
 fn encode_destack_crypto_key_generate_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -647,24 +620,18 @@ fn decode_destack_crypto_key_import_args(
 /// Encode the result for destack.crypto.key.import.
 #[inline]
 fn encode_destack_crypto_key_import_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.crypto.key.metadata.
 #[inline]
 fn decode_destack_crypto_key_metadata_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoKeyHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -758,24 +725,18 @@ fn decode_destack_crypto_key_verify_args(
 /// Encode the result for destack.crypto.key.verify.
 #[inline]
 fn encode_destack_crypto_key_verify_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.crypto.store.close.
 #[inline]
 fn decode_destack_crypto_store_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CryptoStoreHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "CryptoStoreHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "CryptoStoreHandle")?;
@@ -787,12 +748,9 @@ fn decode_destack_crypto_store_close_args(
 /// Encode the result for destack.crypto.store.close.
 #[inline]
 fn encode_destack_crypto_store_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -956,12 +914,9 @@ fn decode_destack_crypto_store_open_args(
 /// Encode the result for destack.crypto.store.open.
 #[inline]
 fn encode_destack_crypto_store_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoStoreHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 

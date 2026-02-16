@@ -242,12 +242,9 @@ fn decode_destack_fs_attrs_access_args(
 /// Encode the result for destack.fs.attrs.access.
 #[inline]
 fn encode_destack_fs_attrs_access_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -312,12 +309,9 @@ fn decode_destack_fs_attrs_accessat_args(
 /// Encode the result for destack.fs.attrs.accessat.
 #[inline]
 fn encode_destack_fs_attrs_accessat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -375,12 +369,9 @@ fn decode_destack_fs_attrs_chmod_args(
 /// Encode the result for destack.fs.attrs.chmod.
 #[inline]
 fn encode_destack_fs_attrs_chmod_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -439,24 +430,18 @@ fn decode_destack_fs_attrs_chown_args(
 /// Encode the result for destack.fs.attrs.chown.
 #[inline]
 fn encode_destack_fs_attrs_chown_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.attrs.fchmod.
 #[inline]
 fn decode_destack_fs_attrs_fchmod_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileMode)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -470,12 +455,9 @@ fn decode_destack_fs_attrs_fchmod_args(
 /// Encode the result for destack.fs.attrs.fchmod.
 #[inline]
 fn encode_destack_fs_attrs_fchmod_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -540,24 +522,18 @@ fn decode_destack_fs_attrs_fchmodat_args(
 /// Encode the result for destack.fs.attrs.fchmodat.
 #[inline]
 fn encode_destack_fs_attrs_fchmodat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.attrs.fchown.
 #[inline]
 fn decode_destack_fs_attrs_fchown_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, u32, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -572,12 +548,9 @@ fn decode_destack_fs_attrs_fchown_args(
 /// Encode the result for destack.fs.attrs.fchown.
 #[inline]
 fn encode_destack_fs_attrs_fchown_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -643,24 +616,18 @@ fn decode_destack_fs_attrs_fchownat_args(
 /// Encode the result for destack.fs.attrs.fchownat.
 #[inline]
 fn encode_destack_fs_attrs_fchownat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.attrs.futimes.
 #[inline]
 fn decode_destack_fs_attrs_futimes_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, u64, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -675,12 +642,9 @@ fn decode_destack_fs_attrs_futimes_args(
 /// Encode the result for destack.fs.attrs.futimes.
 #[inline]
 fn encode_destack_fs_attrs_futimes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -739,12 +703,9 @@ fn decode_destack_fs_attrs_lutimes_args(
 /// Encode the result for destack.fs.attrs.lutimes.
 #[inline]
 fn encode_destack_fs_attrs_lutimes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -810,12 +771,9 @@ fn decode_destack_fs_attrs_utimensat_args(
 /// Encode the result for destack.fs.attrs.utimensat.
 #[inline]
 fn encode_destack_fs_attrs_utimensat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -874,24 +832,18 @@ fn decode_destack_fs_attrs_utimes_args(
 /// Encode the result for destack.fs.attrs.utimes.
 #[inline]
 fn encode_destack_fs_attrs_utimes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.dir.closedir.
 #[inline]
 fn decode_destack_fs_dir_closedir_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "DirectoryHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DirectoryHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -902,24 +854,18 @@ fn decode_destack_fs_dir_closedir_args(
 /// Encode the result for destack.fs.dir.closedir.
 #[inline]
 fn encode_destack_fs_dir_closedir_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.dir.dirfd.
 #[inline]
 fn decode_destack_fs_dir_dirfd_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "DirectoryHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DirectoryHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -930,12 +876,9 @@ fn decode_destack_fs_dir_dirfd_args(
 /// Encode the result for destack.fs.dir.dirfd.
 #[inline]
 fn encode_destack_fs_dir_dirfd_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -993,12 +936,9 @@ fn decode_destack_fs_dir_mkdir_args(
 /// Encode the result for destack.fs.dir.mkdir.
 #[inline]
 fn encode_destack_fs_dir_mkdir_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1060,12 +1000,9 @@ fn decode_destack_fs_dir_mkdirat_args(
 /// Encode the result for destack.fs.dir.mkdirat.
 #[inline]
 fn encode_destack_fs_dir_mkdirat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1185,24 +1122,18 @@ fn decode_destack_fs_dir_opendir_args(
 /// Encode the result for destack.fs.dir.opendir.
 #[inline]
 fn encode_destack_fs_dir_opendir_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DirectoryHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.dir.readdir.
 #[inline]
 fn decode_destack_fs_dir_readdir_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "DirectoryHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DirectoryHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1222,12 +1153,9 @@ fn encode_destack_fs_dir_readdir_result(
 /// Decode arguments for destack.fs.dir.readdirNext.
 #[inline]
 fn decode_destack_fs_dir_readdir_next_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "DirectoryHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DirectoryHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1260,12 +1188,9 @@ fn encode_destack_fs_dir_readdir_next_result(
 /// Decode arguments for destack.fs.dir.rewinddir.
 #[inline]
 fn decode_destack_fs_dir_rewinddir_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DirectoryHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "DirectoryHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DirectoryHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1276,12 +1201,9 @@ fn decode_destack_fs_dir_rewinddir_args(
 /// Encode the result for destack.fs.dir.rewinddir.
 #[inline]
 fn encode_destack_fs_dir_rewinddir_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1336,24 +1258,18 @@ fn decode_destack_fs_dir_rmdir_args(
 /// Encode the result for destack.fs.dir.rmdir.
 #[inline]
 fn encode_destack_fs_dir_rmdir_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.close.
 #[inline]
 fn decode_destack_fs_file_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1364,19 +1280,16 @@ fn decode_destack_fs_file_close_args(
 /// Encode the result for destack.fs.file.close.
 #[inline]
 fn encode_destack_fs_file_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.copyFileRange.
 #[inline]
 fn decode_destack_fs_file_copy_file_range_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::FileHandle,
@@ -1385,9 +1298,6 @@ fn decode_destack_fs_file_copy_file_range_args(
     FileOffset,
     FileSize,
 )> {
-    // ignore unused context
-    let _ = context;
-
     let src_value = arg_value(args, 0, "src", "FileHandle")?;
     let src_inner_inner = decode_uint64(src_value, "src_inner_inner", "FileHandle")?;
     let src_inner = resource::ResourceId(src_inner_inner);
@@ -1411,24 +1321,18 @@ fn decode_destack_fs_file_copy_file_range_args(
 /// Encode the result for destack.fs.file.copyFileRange.
 #[inline]
 fn encode_destack_fs_file_copy_file_range_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.dup.
 #[inline]
 fn decode_destack_fs_file_dup_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1439,24 +1343,18 @@ fn decode_destack_fs_file_dup_args(
 /// Encode the result for destack.fs.file.dup.
 #[inline]
 fn encode_destack_fs_file_dup_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.dup2.
 #[inline]
 fn decode_destack_fs_file_dup2_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, resource::FileHandle)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1471,24 +1369,18 @@ fn decode_destack_fs_file_dup2_args(
 /// Encode the result for destack.fs.file.dup2.
 #[inline]
 fn encode_destack_fs_file_dup2_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.dup3.
 #[inline]
 fn decode_destack_fs_file_dup3_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, resource::FileHandle, OpenFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1506,24 +1398,18 @@ fn decode_destack_fs_file_dup3_args(
 /// Encode the result for destack.fs.file.dup3.
 #[inline]
 fn encode_destack_fs_file_dup3_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.fadvise.
 #[inline]
 fn decode_destack_fs_file_fadvise_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, FileSize, FileAdvice)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1557,24 +1443,18 @@ fn decode_destack_fs_file_fadvise_args(
 /// Encode the result for destack.fs.file.fadvise.
 #[inline]
 fn encode_destack_fs_file_fadvise_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.fallocate.
 #[inline]
 fn decode_destack_fs_file_fallocate_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, FileSize, AllocFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1594,24 +1474,18 @@ fn decode_destack_fs_file_fallocate_args(
 /// Encode the result for destack.fs.file.fallocate.
 #[inline]
 fn encode_destack_fs_file_fallocate_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.fdatasync.
 #[inline]
 fn decode_destack_fs_file_fdatasync_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1622,24 +1496,18 @@ fn decode_destack_fs_file_fdatasync_args(
 /// Encode the result for destack.fs.file.fdatasync.
 #[inline]
 fn encode_destack_fs_file_fdatasync_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.fsync.
 #[inline]
 fn decode_destack_fs_file_fsync_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1650,24 +1518,18 @@ fn decode_destack_fs_file_fsync_args(
 /// Encode the result for destack.fs.file.fsync.
 #[inline]
 fn encode_destack_fs_file_fsync_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.ftruncate.
 #[inline]
 fn decode_destack_fs_file_ftruncate_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1681,24 +1543,18 @@ fn decode_destack_fs_file_ftruncate_args(
 /// Encode the result for destack.fs.file.ftruncate.
 #[inline]
 fn encode_destack_fs_file_ftruncate_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.getFdFlags.
 #[inline]
 fn decode_destack_fs_file_get_fd_flags_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1709,24 +1565,18 @@ fn decode_destack_fs_file_get_fd_flags_args(
 /// Encode the result for destack.fs.file.getFdFlags.
 #[inline]
 fn encode_destack_fs_file_get_fd_flags_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<FdFlags>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.fs.file.getStatusFlags.
 #[inline]
 fn decode_destack_fs_file_get_status_flags_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1737,24 +1587,18 @@ fn decode_destack_fs_file_get_status_flags_args(
 /// Encode the result for destack.fs.file.getStatusFlags.
 #[inline]
 fn encode_destack_fs_file_get_status_flags_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<StatusFlags>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.fs.file.lock.
 #[inline]
 fn decode_destack_fs_file_lock_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileLockFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1768,12 +1612,9 @@ fn decode_destack_fs_file_lock_args(
 /// Encode the result for destack.fs.file.lock.
 #[inline]
 fn encode_destack_fs_file_lock_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1834,12 +1675,9 @@ fn decode_destack_fs_file_open_args(
 /// Encode the result for destack.fs.file.open.
 #[inline]
 fn encode_destack_fs_file_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -1904,12 +1742,9 @@ fn decode_destack_fs_file_openat_args(
 /// Encode the result for destack.fs.file.openat.
 #[inline]
 fn encode_destack_fs_file_openat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -1999,12 +1834,9 @@ fn decode_destack_fs_file_openat2_args(
 /// Encode the result for destack.fs.file.openat2.
 #[inline]
 fn encode_destack_fs_file_openat2_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -2029,12 +1861,9 @@ fn decode_destack_fs_file_pread_args(
 /// Encode the result for destack.fs.file.pread.
 #[inline]
 fn encode_destack_fs_file_pread_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2060,12 +1889,9 @@ fn decode_destack_fs_file_preadv_args(
 /// Encode the result for destack.fs.file.preadv.
 #[inline]
 fn encode_destack_fs_file_preadv_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2099,12 +1925,9 @@ fn decode_destack_fs_file_preadv2_args(
 /// Encode the result for destack.fs.file.preadv2.
 #[inline]
 fn encode_destack_fs_file_preadv2_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2129,12 +1952,9 @@ fn decode_destack_fs_file_pwrite_args(
 /// Encode the result for destack.fs.file.pwrite.
 #[inline]
 fn encode_destack_fs_file_pwrite_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2160,12 +1980,9 @@ fn decode_destack_fs_file_pwritev_args(
 /// Encode the result for destack.fs.file.pwritev.
 #[inline]
 fn encode_destack_fs_file_pwritev_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2199,12 +2016,9 @@ fn decode_destack_fs_file_pwritev2_args(
 /// Encode the result for destack.fs.file.pwritev2.
 #[inline]
 fn encode_destack_fs_file_pwritev2_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2226,12 +2040,9 @@ fn decode_destack_fs_file_read_args(
 /// Encode the result for destack.fs.file.read.
 #[inline]
 fn encode_destack_fs_file_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2254,24 +2065,18 @@ fn decode_destack_fs_file_readv_args(
 /// Encode the result for destack.fs.file.readv.
 #[inline]
 fn encode_destack_fs_file_readv_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.seek.
 #[inline]
 fn decode_destack_fs_file_seek_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, SeekWhence)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2299,19 +2104,16 @@ fn decode_destack_fs_file_seek_args(
 /// Encode the result for destack.fs.file.seek.
 #[inline]
 fn encode_destack_fs_file_seek_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<FileOffset>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::int(value.0, 64))
 }
 
 /// Decode arguments for destack.fs.file.sendfile.
 #[inline]
 fn decode_destack_fs_file_sendfile_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::SocketHandle,
@@ -2319,9 +2121,6 @@ fn decode_destack_fs_file_sendfile_args(
     FileOffset,
     FileSize,
 )> {
-    // ignore unused context
-    let _ = context;
-
     let socket_value = arg_value(args, 0, "socket", "SocketHandle")?;
     let socket_inner_inner = decode_uint64(socket_value, "socket_inner_inner", "SocketHandle")?;
     let socket_inner = resource::ResourceId(socket_inner_inner);
@@ -2342,24 +2141,18 @@ fn decode_destack_fs_file_sendfile_args(
 /// Encode the result for destack.fs.file.sendfile.
 #[inline]
 fn encode_destack_fs_file_sendfile_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.setFdFlags.
 #[inline]
 fn decode_destack_fs_file_set_fd_flags_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FdFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2373,24 +2166,18 @@ fn decode_destack_fs_file_set_fd_flags_args(
 /// Encode the result for destack.fs.file.setFdFlags.
 #[inline]
 fn encode_destack_fs_file_set_fd_flags_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.setStatusFlags.
 #[inline]
 fn decode_destack_fs_file_set_status_flags_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, StatusFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2404,12 +2191,9 @@ fn decode_destack_fs_file_set_status_flags_args(
 /// Encode the result for destack.fs.file.setStatusFlags.
 #[inline]
 fn encode_destack_fs_file_set_status_flags_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2502,24 +2286,18 @@ fn decode_destack_fs_file_splice_args(
 /// Encode the result for destack.fs.file.splice.
 #[inline]
 fn encode_destack_fs_file_splice_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.fs.file.syncFileRange.
 #[inline]
 fn decode_destack_fs_file_sync_file_range_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, FileOffset, FileSize, SyncFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2539,24 +2317,18 @@ fn decode_destack_fs_file_sync_file_range_args(
 /// Encode the result for destack.fs.file.syncFileRange.
 #[inline]
 fn encode_destack_fs_file_sync_file_range_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.syncfs.
 #[inline]
 fn decode_destack_fs_file_syncfs_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2567,19 +2339,16 @@ fn decode_destack_fs_file_syncfs_args(
 /// Encode the result for destack.fs.file.syncfs.
 #[inline]
 fn encode_destack_fs_file_syncfs_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.file.tee.
 #[inline]
 fn decode_destack_fs_file_tee_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::PipeHandle,
@@ -2587,9 +2356,6 @@ fn decode_destack_fs_file_tee_args(
     FileSize,
     SpliceFlags,
 )> {
-    // ignore unused context
-    let _ = context;
-
     let sourcepipe_value = arg_value(args, 0, "sourcepipe", "PipeHandle")?;
     let sourcepipe_inner_inner =
         decode_uint64(sourcepipe_value, "sourcepipe_inner_inner", "PipeHandle")?;
@@ -2612,12 +2378,9 @@ fn decode_destack_fs_file_tee_args(
 /// Encode the result for destack.fs.file.tee.
 #[inline]
 fn encode_destack_fs_file_tee_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2675,12 +2438,9 @@ fn decode_destack_fs_file_truncate_args(
 /// Encode the result for destack.fs.file.truncate.
 #[inline]
 fn encode_destack_fs_file_truncate_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2706,12 +2466,9 @@ fn decode_destack_fs_file_vmsplice_args(
 /// Encode the result for destack.fs.file.vmsplice.
 #[inline]
 fn encode_destack_fs_file_vmsplice_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2733,12 +2490,9 @@ fn decode_destack_fs_file_write_args(
 /// Encode the result for destack.fs.file.write.
 #[inline]
 fn encode_destack_fs_file_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2761,12 +2515,9 @@ fn decode_destack_fs_file_writev_args(
 /// Encode the result for destack.fs.file.writev.
 #[inline]
 fn encode_destack_fs_file_writev_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -2800,12 +2551,9 @@ fn decode_destack_fs_mmap_madvise_args(
 /// Encode the result for destack.fs.mmap.madvise.
 #[inline]
 fn encode_destack_fs_mmap_madvise_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2826,12 +2574,9 @@ fn decode_destack_fs_mmap_mprotect_args(
 /// Encode the result for destack.fs.mmap.mprotect.
 #[inline]
 fn encode_destack_fs_mmap_mprotect_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2852,12 +2597,9 @@ fn decode_destack_fs_mmap_msync_args(
 /// Encode the result for destack.fs.mmap.msync.
 #[inline]
 fn encode_destack_fs_mmap_msync_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2875,24 +2617,18 @@ fn decode_destack_fs_mmap_munmap_args(
 /// Encode the result for destack.fs.mmap.munmap.
 #[inline]
 fn encode_destack_fs_mmap_munmap_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.mmapAnonymous.
 #[inline]
 fn decode_destack_fs_mmap_anonymous_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(FileSize, MmapProt, MmapFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let length_value = arg_value(args, 0, "length", "FileSize")?;
     let length_inner = decode_uint64(length_value, "length_inner", "FileSize")?;
     let length = FileSize(length_inner);
@@ -2917,7 +2653,7 @@ fn encode_destack_fs_mmap_anonymous_result(
 /// Decode arguments for destack.fs.mmapFile.
 #[inline]
 fn decode_destack_fs_mmap_file_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::FileHandle,
@@ -2926,9 +2662,6 @@ fn decode_destack_fs_mmap_file_args(
     MmapProt,
     MmapFlags,
 )> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -3050,12 +2783,9 @@ fn decode_destack_fs_path_copyfile_args(
 /// Encode the result for destack.fs.path.copyfile.
 #[inline]
 fn encode_destack_fs_path_copyfile_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3159,12 +2889,9 @@ fn decode_destack_fs_path_link_args(
 /// Encode the result for destack.fs.path.link.
 #[inline]
 fn encode_destack_fs_path_link_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3289,12 +3016,9 @@ fn decode_destack_fs_path_linkat_args(
 /// Encode the result for destack.fs.path.linkat.
 #[inline]
 fn encode_destack_fs_path_linkat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3352,12 +3076,9 @@ fn decode_destack_fs_path_mkfifo_args(
 /// Encode the result for destack.fs.path.mkfifo.
 #[inline]
 fn encode_destack_fs_path_mkfifo_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3419,12 +3140,9 @@ fn decode_destack_fs_path_mkfifoat_args(
 /// Encode the result for destack.fs.path.mkfifoat.
 #[inline]
 fn encode_destack_fs_path_mkfifoat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3485,12 +3203,9 @@ fn decode_destack_fs_path_mknod_args(
 /// Encode the result for destack.fs.path.mknod.
 #[inline]
 fn encode_destack_fs_path_mknod_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3555,12 +3270,9 @@ fn decode_destack_fs_path_mknodat_args(
 /// Encode the result for destack.fs.path.mknodat.
 #[inline]
 fn encode_destack_fs_path_mknodat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3844,12 +3556,9 @@ fn decode_destack_fs_path_rename_args(
 /// Encode the result for destack.fs.path.rename.
 #[inline]
 fn encode_destack_fs_path_rename_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -3957,12 +3666,9 @@ fn decode_destack_fs_path_renameat_args(
 /// Encode the result for destack.fs.path.renameat.
 #[inline]
 fn encode_destack_fs_path_renameat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -4074,12 +3780,9 @@ fn decode_destack_fs_path_renameat2_args(
 /// Encode the result for destack.fs.path.renameat2.
 #[inline]
 fn encode_destack_fs_path_renameat2_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -4190,12 +3893,9 @@ fn decode_destack_fs_path_symlink_args(
 /// Encode the result for destack.fs.path.symlink.
 #[inline]
 fn encode_destack_fs_path_symlink_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -4310,12 +4010,9 @@ fn decode_destack_fs_path_symlinkat_args(
 /// Encode the result for destack.fs.path.symlinkat.
 #[inline]
 fn encode_destack_fs_path_symlinkat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -4370,12 +4067,9 @@ fn decode_destack_fs_path_unlink_args(
 /// Encode the result for destack.fs.path.unlink.
 #[inline]
 fn encode_destack_fs_path_unlink_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -4437,24 +4131,18 @@ fn decode_destack_fs_path_unlinkat_args(
 /// Encode the result for destack.fs.path.unlinkat.
 #[inline]
 fn encode_destack_fs_path_unlinkat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.stat.fstat.
 #[inline]
 fn decode_destack_fs_stat_fstat_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -4493,12 +4181,9 @@ fn encode_destack_fs_stat_fstat_result(
 /// Decode arguments for destack.fs.stat.fstatfs.
 #[inline]
 fn decode_destack_fs_stat_fstatfs_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -5009,24 +4694,18 @@ fn decode_destack_fs_watch_args(
 /// Encode the result for destack.fs.watch.
 #[inline]
 fn encode_destack_fs_watch_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.watchClose.
 #[inline]
 fn decode_destack_fs_watch_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WatchHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "WatchHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "WatchHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -5037,24 +4716,18 @@ fn decode_destack_fs_watch_close_args(
 /// Encode the result for destack.fs.watchClose.
 #[inline]
 fn encode_destack_fs_watch_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.fs.watchRead.
 #[inline]
 fn decode_destack_fs_watch_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WatchHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "WatchHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "WatchHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -5161,24 +4834,18 @@ fn decode_destack_fs_watchat_args(
 /// Encode the result for destack.fs.watchat.
 #[inline]
 fn encode_destack_fs_watchat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WatchHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.fs.xattr.fgetxattr.
 #[inline]
 fn decode_destack_fs_xattr_fgetxattr_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, vm::StringHandle)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -5224,12 +4891,9 @@ fn encode_destack_fs_xattr_fgetxattr_bytes_result(
 /// Decode arguments for destack.fs.xattr.flistxattr.
 #[inline]
 fn decode_destack_fs_xattr_flistxattr_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -5249,12 +4913,9 @@ fn encode_destack_fs_xattr_flistxattr_result(
 /// Decode arguments for destack.fs.xattr.flistxattrBytes.
 #[inline]
 fn decode_destack_fs_xattr_flistxattr_bytes_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -5274,12 +4935,9 @@ fn encode_destack_fs_xattr_flistxattr_bytes_result(
 /// Decode arguments for destack.fs.xattr.fremovexattr.
 #[inline]
 fn decode_destack_fs_xattr_fremovexattr_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::FileHandle, vm::StringHandle)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -5292,12 +4950,9 @@ fn decode_destack_fs_xattr_fremovexattr_args(
 /// Encode the result for destack.fs.xattr.fremovexattr.
 #[inline]
 fn encode_destack_fs_xattr_fremovexattr_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -5319,12 +4974,9 @@ fn decode_destack_fs_xattr_fremovexattr_bytes_args(
 /// Encode the result for destack.fs.xattr.fremovexattrBytes.
 #[inline]
 fn encode_destack_fs_xattr_fremovexattr_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -5361,12 +5013,9 @@ fn decode_destack_fs_xattr_fsetxattr_args(
 /// Encode the result for destack.fs.xattr.fsetxattr.
 #[inline]
 fn encode_destack_fs_xattr_fsetxattr_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -5398,12 +5047,9 @@ fn decode_destack_fs_xattr_fsetxattr_bytes_args(
 /// Encode the result for destack.fs.xattr.fsetxattrBytes.
 #[inline]
 fn encode_destack_fs_xattr_fsetxattr_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -5924,12 +5570,9 @@ fn decode_destack_fs_xattr_lremovexattr_args(
 /// Encode the result for destack.fs.xattr.lremovexattr.
 #[inline]
 fn encode_destack_fs_xattr_lremovexattr_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -5986,12 +5629,9 @@ fn decode_destack_fs_xattr_lremovexattr_bytes_args(
 /// Encode the result for destack.fs.xattr.lremovexattrBytes.
 #[inline]
 fn encode_destack_fs_xattr_lremovexattr_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -6058,12 +5698,9 @@ fn decode_destack_fs_xattr_lsetxattr_args(
 /// Encode the result for destack.fs.xattr.lsetxattr.
 #[inline]
 fn encode_destack_fs_xattr_lsetxattr_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -6130,12 +5767,9 @@ fn decode_destack_fs_xattr_lsetxattr_bytes_args(
 /// Encode the result for destack.fs.xattr.lsetxattrBytes.
 #[inline]
 fn encode_destack_fs_xattr_lsetxattr_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -6192,12 +5826,9 @@ fn decode_destack_fs_xattr_removexattr_args(
 /// Encode the result for destack.fs.xattr.removexattr.
 #[inline]
 fn encode_destack_fs_xattr_removexattr_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -6254,12 +5885,9 @@ fn decode_destack_fs_xattr_removexattr_bytes_args(
 /// Encode the result for destack.fs.xattr.removexattrBytes.
 #[inline]
 fn encode_destack_fs_xattr_removexattr_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -6326,12 +5954,9 @@ fn decode_destack_fs_xattr_setxattr_args(
 /// Encode the result for destack.fs.xattr.setxattr.
 #[inline]
 fn encode_destack_fs_xattr_setxattr_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -6398,12 +6023,9 @@ fn decode_destack_fs_xattr_setxattr_bytes_args(
 /// Encode the result for destack.fs.xattr.setxattrBytes.
 #[inline]
 fn encode_destack_fs_xattr_setxattr_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

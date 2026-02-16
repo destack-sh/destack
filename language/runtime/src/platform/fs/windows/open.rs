@@ -15,7 +15,8 @@ use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::fs::{
-    DirectoryHandle, FileHandle, FileMode, OpenFlags, OpenOptions, PathBytes, PathUtf16,
+    DirectoryHandle, FileHandle, FileMode, OpenFlags, OpenOptions, OsPath, PathBytes, PathUtf16,
+    core as core_fs,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::runtime::RuntimeCallContext;
@@ -23,7 +24,23 @@ use crate::runtime::RuntimeCallContext;
 /// Open flag value for directory-only opens.
 const O_DIRECTORY: u32 = 0o200000;
 
-/// Open a file with byte paths.
+/// Open a file and return a handle.
+///
+/// Open one filesystem entry by path and return a host-backed file handle.
+/// Flag interpretation, creation behavior, and inheritance defaults follow host open semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses open(2) on Unix and CreateFileW on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_open_bytes(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -86,7 +103,23 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     Ok(())
 }
 
-/// Open a file with UTF-16 paths.
+/// Open a file and return a handle.
+///
+/// Open one filesystem entry by path and return a host-backed file handle.
+/// Flag interpretation, creation behavior, and inheritance defaults follow host open semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses open(2) on Unix and CreateFileW on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_open_utf16(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -149,7 +182,23 @@ pub(crate) unsafe fn destack_fs_open_utf16(
     Ok(())
 }
 
-/// Open a file relative to a directory with byte paths.
+/// Open a file relative to a directory handle.
+///
+/// Open one filesystem entry resolved relative to an explicit directory handle.
+/// This avoids ambient current-working-directory resolution and keeps caller-controlled base directory scope.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses openat(2) on Unix and NtCreateFile relative opens on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_bytes(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -218,7 +267,23 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
     Ok(())
 }
 
-/// Open a file relative to a directory with UTF-16 paths.
+/// Open a file relative to a directory handle.
+///
+/// Open one filesystem entry resolved relative to an explicit directory handle.
+/// This avoids ambient current-working-directory resolution and keeps caller-controlled base directory scope.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses openat(2) on Unix and NtCreateFile relative opens on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_utf16(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -287,7 +352,23 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
     Ok(())
 }
 
-/// Open a file relative to a directory with openat2 semantics and byte paths.
+/// Open a file relative to a directory handle with openat2 semantics.
+///
+/// Open one filesystem entry relative to an explicit directory handle with resolve policy flags.
+/// Resolve behavior is passed through to supported hosts and rejected when the host backend cannot honor requested guarantees.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses openat2(2) on Linux and Android, falls back to openat semantics on other Unix targets when resolve flags are empty, and maps to openat semantics on Windows with resolve flags rejected.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_bytes(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -304,7 +385,23 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
     unsafe { destack_fs_openat_bytes(context, out, dir, path, how.flags, how.mode) }
 }
 
-/// Open a file relative to a directory with openat2 semantics and UTF-16 paths.
+/// Open a file relative to a directory handle with openat2 semantics.
+///
+/// Open one filesystem entry relative to an explicit directory handle with resolve policy flags.
+/// Resolve behavior is passed through to supported hosts and rejected when the host backend cannot honor requested guarantees.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses openat2(2) on Linux and Android, falls back to openat semantics on other Unix targets when resolve flags are empty, and maps to openat semantics on Windows with resolve flags rejected.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_utf16(
     context: &RuntimeCallContext,
     out: *mut FileHandle,
@@ -319,4 +416,101 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
 
     // delegate to openat with the provided flags
     unsafe { destack_fs_openat_utf16(context, out, dir, path, how.flags, how.mode) }
+}
+
+/// Open a file and return a handle.
+///
+/// Open one filesystem entry by path and return a host-backed file handle.
+/// Flag interpretation, creation behavior, and inheritance defaults follow host open semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses open(2) on Unix and CreateFileW on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_open(
+    context: &RuntimeCallContext,
+    out: *mut FileHandle,
+    path: OsPath,
+    flags: OpenFlags,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_open_bytes(context, out, path, flags, mode) },
+        |path| unsafe { destack_fs_open_utf16(context, out, path, flags, mode) },
+    )
+}
+
+/// Open a file relative to a directory handle.
+///
+/// Open one filesystem entry resolved relative to an explicit directory handle.
+/// This avoids ambient current-working-directory resolution and keeps caller-controlled base directory scope.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses openat(2) on Unix and NtCreateFile relative opens on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_openat(
+    context: &RuntimeCallContext,
+    out: *mut FileHandle,
+    dir: DirectoryHandle,
+    path: OsPath,
+    flags: OpenFlags,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_openat_bytes(context, out, dir, path, flags, mode) },
+        |path| unsafe { destack_fs_openat_utf16(context, out, dir, path, flags, mode) },
+    )
+}
+
+/// Open a file relative to a directory handle with openat2 semantics.
+///
+/// Open one filesystem entry relative to an explicit directory handle with resolve policy flags.
+/// Resolve behavior is passed through to supported hosts and rejected when the host backend cannot honor requested guarantees.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses openat2(2) on Linux and Android, falls back to openat semantics on other Unix targets when resolve flags are empty, and maps to openat semantics on Windows with resolve flags rejected.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_openat2(
+    context: &RuntimeCallContext,
+    out: *mut FileHandle,
+    dir: DirectoryHandle,
+    path: OsPath,
+    how: OpenOptions,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_openat2_bytes(context, out, dir, path, how) },
+        |path| unsafe { destack_fs_openat2_utf16(context, out, dir, path, how) },
+    )
 }

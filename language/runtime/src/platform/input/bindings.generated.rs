@@ -175,12 +175,9 @@ fn decode_string(
 /// Decode arguments for destack.input.device.close.
 #[inline]
 fn decode_destack_input_device_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
@@ -192,12 +189,9 @@ fn decode_destack_input_device_close_args(
 /// Encode the result for destack.input.device.close.
 #[inline]
 fn encode_destack_input_device_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -213,12 +207,9 @@ fn encode_destack_input_device_list_result(
 /// Decode arguments for destack.input.device.open.
 #[inline]
 fn decode_destack_input_device_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let id_value = arg_value(args, 0, "id", "string")?;
     let id = decode_string(id_value, "id", "string")?;
     Ok((id,))
@@ -227,24 +218,18 @@ fn decode_destack_input_device_open_args(
 /// Encode the result for destack.input.device.open.
 #[inline]
 fn encode_destack_input_device_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::InputDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.input.event.read.
 #[inline]
 fn decode_destack_input_event_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
@@ -277,12 +262,9 @@ fn encode_destack_input_event_read_result(
 /// Decode arguments for destack.input.event.setGrab.
 #[inline]
 fn decode_destack_input_event_set_grab_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle, bool)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;
@@ -296,24 +278,18 @@ fn decode_destack_input_event_set_grab_args(
 /// Encode the result for destack.input.event.setGrab.
 #[inline]
 fn encode_destack_input_event_set_grab_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.input.event.tryRead.
 #[inline]
 fn decode_destack_input_event_try_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::InputDeviceHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "InputDeviceHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "InputDeviceHandle")?;

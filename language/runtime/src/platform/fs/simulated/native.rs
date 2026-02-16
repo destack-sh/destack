@@ -33,11 +33,10 @@ use crate::platform::resource;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.access")).boxed())
@@ -61,13 +60,12 @@ pub(crate) unsafe fn destack_fs_access(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_accessat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: AccessMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, mode, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.accessat")).boxed())
@@ -91,11 +89,10 @@ pub(crate) unsafe fn destack_fs_accessat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.chmod")).boxed())
@@ -119,12 +116,11 @@ pub(crate) unsafe fn destack_fs_chmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, uid, gid);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.chown")).boxed())
@@ -148,11 +144,10 @@ pub(crate) unsafe fn destack_fs_chown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmod(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchmod")).boxed())
@@ -176,13 +171,12 @@ pub(crate) unsafe fn destack_fs_fchmod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, mode, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchmodat")).boxed())
@@ -206,12 +200,11 @@ pub(crate) unsafe fn destack_fs_fchmodat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchown(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, uid, gid);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchown")).boxed())
@@ -235,14 +228,13 @@ pub(crate) unsafe fn destack_fs_fchown(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     uid: u32,
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, uid, gid, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.fchownat")).boxed())
@@ -266,12 +258,11 @@ pub(crate) unsafe fn destack_fs_fchownat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_futimes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, atimens, mtimens);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.futimes")).boxed())
@@ -295,12 +286,11 @@ pub(crate) unsafe fn destack_fs_futimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, atimens, mtimens);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.lutimes")).boxed())
@@ -324,14 +314,13 @@ pub(crate) unsafe fn destack_fs_lutimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     atimens: u64,
     mtimens: u64,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, atimens, mtimens, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.utimensat")).boxed())
@@ -355,12 +344,11 @@ pub(crate) unsafe fn destack_fs_utimensat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, atimens, mtimens);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.attrs.utimes")).boxed())
@@ -384,12 +372,9 @@ pub(crate) unsafe fn destack_fs_utimes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_closedir(
-    context: &RuntimeCallContext,
-    handle: resource::DirectoryHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.closedir")).boxed())
 }
 
@@ -411,11 +396,10 @@ pub(crate) unsafe fn destack_fs_closedir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dirfd(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.dirfd")).boxed())
@@ -439,11 +423,10 @@ pub(crate) unsafe fn destack_fs_dirfd(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdir")).boxed())
@@ -467,12 +450,11 @@ pub(crate) unsafe fn destack_fs_mkdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdirat")).boxed())
@@ -496,11 +478,10 @@ pub(crate) unsafe fn destack_fs_mkdirat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut OsPath,
     template: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, template);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.mkdtemp")).boxed())
@@ -524,11 +505,10 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::DirectoryHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.opendir")).boxed())
@@ -552,11 +532,10 @@ pub(crate) unsafe fn destack_fs_opendir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<Dirent>,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdir")).boxed())
@@ -580,11 +559,10 @@ pub(crate) unsafe fn destack_fs_readdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir_next(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut DirentNext,
     handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.readdirNext")).boxed())
@@ -608,12 +586,9 @@ pub(crate) unsafe fn destack_fs_readdir_next(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rewinddir(
-    context: &RuntimeCallContext,
-    handle: resource::DirectoryHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::DirectoryHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rewinddir")).boxed())
 }
 
@@ -635,12 +610,9 @@ pub(crate) unsafe fn destack_fs_rewinddir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir(
-    context: &RuntimeCallContext,
-    path: OsPath,
+    _context: &RuntimeCallContext,
+    _path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = path;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.dir.rmdir")).boxed())
 }
 
@@ -662,12 +634,9 @@ pub(crate) unsafe fn destack_fs_rmdir(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_close(
-    context: &RuntimeCallContext,
-    handle: resource::FileHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.close")).boxed())
 }
 
@@ -689,7 +658,7 @@ pub(crate) unsafe fn destack_fs_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     src: resource::FileHandle,
     srcoffset: FileOffset,
@@ -697,7 +666,6 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     dstoffset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, src, srcoffset, dst, dstoffset, length);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -724,11 +692,10 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup")).boxed())
@@ -752,12 +719,11 @@ pub(crate) unsafe fn destack_fs_dup(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup2(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
     target: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, target);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup2")).boxed())
@@ -781,13 +747,12 @@ pub(crate) unsafe fn destack_fs_dup2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_dup3(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     handle: resource::FileHandle,
     target: resource::FileHandle,
     flags: OpenFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, target, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.dup3")).boxed())
@@ -811,13 +776,12 @@ pub(crate) unsafe fn destack_fs_dup3(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fadvise(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
     advice: FileAdvice,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, offset, length, advice);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fadvise")).boxed())
@@ -841,13 +805,12 @@ pub(crate) unsafe fn destack_fs_fadvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fallocate(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: AllocFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, offset, length, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fallocate")).boxed())
@@ -870,12 +833,9 @@ pub(crate) unsafe fn destack_fs_fallocate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fdatasync(
-    context: &RuntimeCallContext,
-    handle: resource::FileHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fdatasync")).boxed())
 }
 
@@ -897,12 +857,9 @@ pub(crate) unsafe fn destack_fs_fdatasync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsync(
-    context: &RuntimeCallContext,
-    handle: resource::FileHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.fsync")).boxed())
 }
 
@@ -924,11 +881,10 @@ pub(crate) unsafe fn destack_fs_fsync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_ftruncate(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, size);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.ftruncate")).boxed())
@@ -952,11 +908,10 @@ pub(crate) unsafe fn destack_fs_ftruncate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_fd_flags(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut FdFlags,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.getFdFlags")).boxed())
@@ -980,11 +935,10 @@ pub(crate) unsafe fn destack_fs_get_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_get_status_flags(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut StatusFlags,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1011,11 +965,10 @@ pub(crate) unsafe fn destack_fs_get_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lock(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     flags: FileLockFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.lock")).boxed())
@@ -1039,13 +992,12 @@ pub(crate) unsafe fn destack_fs_lock(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     path: OsPath,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path, flags, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.open")).boxed())
@@ -1069,14 +1021,13 @@ pub(crate) unsafe fn destack_fs_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
     path: OsPath,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, dir, path, flags, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.openat")).boxed())
@@ -1100,13 +1051,12 @@ pub(crate) unsafe fn destack_fs_openat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
     path: OsPath,
     how: OpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, dir, path, how);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.openat2")).boxed())
@@ -1130,13 +1080,12 @@ pub(crate) unsafe fn destack_fs_openat2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pread(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffer, offset);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pread")).boxed())
@@ -1160,13 +1109,12 @@ pub(crate) unsafe fn destack_fs_pread(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffers, offset);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.preadv")).boxed())
@@ -1190,14 +1138,13 @@ pub(crate) unsafe fn destack_fs_preadv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_preadv2(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffers, offset, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.preadv2")).boxed())
@@ -1221,13 +1168,12 @@ pub(crate) unsafe fn destack_fs_preadv2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwrite(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffer, offset);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pwrite")).boxed())
@@ -1251,13 +1197,12 @@ pub(crate) unsafe fn destack_fs_pwrite(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffers, offset);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pwritev")).boxed())
@@ -1281,14 +1226,13 @@ pub(crate) unsafe fn destack_fs_pwritev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_pwritev2(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffers, offset, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.pwritev2")).boxed())
@@ -1312,12 +1256,11 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_read(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.read")).boxed())
@@ -1341,12 +1284,11 @@ pub(crate) unsafe fn destack_fs_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readv(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffers);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.readv")).boxed())
@@ -1370,13 +1312,12 @@ pub(crate) unsafe fn destack_fs_readv(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_seek(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut FileOffset,
     handle: resource::FileHandle,
     offset: FileOffset,
     whence: SeekWhence,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, offset, whence);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.seek")).boxed())
@@ -1400,14 +1341,13 @@ pub(crate) unsafe fn destack_fs_seek(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sendfile(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     socket: resource::SocketHandle,
     file: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, socket, file, offset, length);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.sendfile")).boxed())
@@ -1431,11 +1371,10 @@ pub(crate) unsafe fn destack_fs_sendfile(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_fd_flags(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.setFdFlags")).boxed())
@@ -1459,11 +1398,10 @@ pub(crate) unsafe fn destack_fs_set_fd_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_set_status_flags(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1490,7 +1428,7 @@ pub(crate) unsafe fn destack_fs_set_status_flags(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     source: resource::ResourceId,
     sourcecursor: SpliceCursor,
@@ -1499,7 +1437,6 @@ pub(crate) unsafe fn destack_fs_splice(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (
         out,
         source,
@@ -1530,13 +1467,12 @@ pub(crate) unsafe fn destack_fs_splice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_sync_file_range(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     offset: FileOffset,
     length: FileSize,
     flags: SyncFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, offset, length, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -1562,12 +1498,9 @@ pub(crate) unsafe fn destack_fs_sync_file_range(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_syncfs(
-    context: &RuntimeCallContext,
-    handle: resource::FileHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.syncfs")).boxed())
 }
 
@@ -1589,14 +1522,13 @@ pub(crate) unsafe fn destack_fs_syncfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_tee(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     sourcepipe: resource::PipeHandle,
     targetpipe: resource::PipeHandle,
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, sourcepipe, targetpipe, length, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.tee")).boxed())
@@ -1620,11 +1552,10 @@ pub(crate) unsafe fn destack_fs_tee(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, size);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.truncate")).boxed())
@@ -1648,13 +1579,12 @@ pub(crate) unsafe fn destack_fs_truncate(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_vmsplice(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     pipe: resource::PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, pipe, buffers, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.vmsplice")).boxed())
@@ -1678,12 +1608,11 @@ pub(crate) unsafe fn destack_fs_vmsplice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_write(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffer: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffer);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.write")).boxed())
@@ -1707,12 +1636,11 @@ pub(crate) unsafe fn destack_fs_write(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_writev(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     handle: resource::FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, buffers);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.writev")).boxed())
@@ -1736,11 +1664,10 @@ pub(crate) unsafe fn destack_fs_writev(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_madvise(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
     advice: MmapAdvice,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (mapping, advice);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.madvise")).boxed())
@@ -1764,11 +1691,10 @@ pub(crate) unsafe fn destack_fs_madvise(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mprotect(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
     prot: MmapProt,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (mapping, prot);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.mprotect")).boxed())
@@ -1792,11 +1718,10 @@ pub(crate) unsafe fn destack_fs_mprotect(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_msync(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     mapping: NativeSlice<u8>,
     flags: MmapSyncFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (mapping, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.msync")).boxed())
@@ -1820,12 +1745,9 @@ pub(crate) unsafe fn destack_fs_msync(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_munmap(
-    context: &RuntimeCallContext,
-    mapping: NativeSlice<u8>,
+    _context: &RuntimeCallContext,
+    _mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = mapping;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmap.munmap")).boxed())
 }
 
@@ -1847,13 +1769,12 @@ pub(crate) unsafe fn destack_fs_munmap(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     length: FileSize,
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, length, prot, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapAnonymous")).boxed())
@@ -1877,7 +1798,7 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_file(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::FileHandle,
     offset: FileOffset,
@@ -1885,7 +1806,6 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, offset, length, prot, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mmapFile")).boxed())
@@ -1909,12 +1829,11 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     from: OsPath,
     to: OsPath,
     flags: CopyFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (from, to, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.copyfile")).boxed())
@@ -1938,11 +1857,10 @@ pub(crate) unsafe fn destack_fs_copyfile(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     existingpath: OsPath,
     newpath: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (existingpath, newpath);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.link")).boxed())
@@ -1966,14 +1884,13 @@ pub(crate) unsafe fn destack_fs_link(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     existingdir: resource::DirectoryHandle,
     existingpath: OsPath,
     newdir: resource::DirectoryHandle,
     newpath: OsPath,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (existingdir, existingpath, newdir, newpath, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.linkat")).boxed())
@@ -1997,11 +1914,10 @@ pub(crate) unsafe fn destack_fs_linkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifo(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mkfifo")).boxed())
@@ -2025,12 +1941,11 @@ pub(crate) unsafe fn destack_fs_mkfifo(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifoat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, mode);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mkfifoat")).boxed())
@@ -2054,12 +1969,11 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mknod(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, mode, device);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mknod")).boxed())
@@ -2083,13 +1997,12 @@ pub(crate) unsafe fn destack_fs_mknod(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mknodat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     mode: FileMode,
     device: NodeDevice,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, mode, device);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.mknodat")).boxed())
@@ -2113,11 +2026,10 @@ pub(crate) unsafe fn destack_fs_mknodat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.readlink")).boxed())
@@ -2141,12 +2053,11 @@ pub(crate) unsafe fn destack_fs_readlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut OsPath,
     dir: resource::DirectoryHandle,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, dir, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.readlinkat")).boxed())
@@ -2170,11 +2081,10 @@ pub(crate) unsafe fn destack_fs_readlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut OsPath,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.realpath")).boxed())
@@ -2198,11 +2108,10 @@ pub(crate) unsafe fn destack_fs_realpath(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     from: OsPath,
     to: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (from, to);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.rename")).boxed())
@@ -2226,13 +2135,12 @@ pub(crate) unsafe fn destack_fs_rename(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
     todir: resource::DirectoryHandle,
     to: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (fromdir, from, todir, to);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.renameat")).boxed())
@@ -2256,14 +2164,13 @@ pub(crate) unsafe fn destack_fs_renameat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     fromdir: resource::DirectoryHandle,
     from: OsPath,
     todir: resource::DirectoryHandle,
     to: OsPath,
     flags: RenameFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (fromdir, from, todir, to, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.renameat2")).boxed())
@@ -2287,12 +2194,11 @@ pub(crate) unsafe fn destack_fs_renameat2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     target: OsPath,
     path: OsPath,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (target, path, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.symlink")).boxed())
@@ -2316,13 +2222,12 @@ pub(crate) unsafe fn destack_fs_symlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     target: OsPath,
     dir: resource::DirectoryHandle,
     path: OsPath,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (target, dir, path, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.symlinkat")).boxed())
@@ -2346,12 +2251,9 @@ pub(crate) unsafe fn destack_fs_symlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = path;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlink")).boxed())
 }
 
@@ -2373,12 +2275,11 @@ pub(crate) unsafe fn destack_fs_unlink(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
     path: OsPath,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (dir, path, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlinkat")).boxed())
@@ -2402,11 +2303,10 @@ pub(crate) unsafe fn destack_fs_unlinkat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut Stat,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstat")).boxed())
@@ -2430,11 +2330,10 @@ pub(crate) unsafe fn destack_fs_fstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fstatfs(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut StatFs,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.fstatfs")).boxed())
@@ -2458,11 +2357,10 @@ pub(crate) unsafe fn destack_fs_fstatfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.lstat")).boxed())
@@ -2486,11 +2384,10 @@ pub(crate) unsafe fn destack_fs_lstat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut Stat,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.stat")).boxed())
@@ -2514,13 +2411,12 @@ pub(crate) unsafe fn destack_fs_stat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut Stat,
     dir: resource::DirectoryHandle,
     path: OsPath,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, dir, path, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statat")).boxed())
@@ -2544,11 +2440,10 @@ pub(crate) unsafe fn destack_fs_statat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut StatFs,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statfs")).boxed())
@@ -2572,14 +2467,13 @@ pub(crate) unsafe fn destack_fs_statfs(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statx(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut Statx,
     dir: resource::DirectoryHandle,
     path: OsPath,
     flags: StatxFlags,
     mask: StatxMask,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, dir, path, flags, mask);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat.statx")).boxed())
@@ -2603,12 +2497,11 @@ pub(crate) unsafe fn destack_fs_statx(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::WatchHandle,
     path: OsPath,
     options: WatchOptions,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watch")).boxed())
@@ -2632,12 +2525,9 @@ pub(crate) unsafe fn destack_fs_watch(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_close(
-    context: &RuntimeCallContext,
-    handle: resource::WatchHandle,
+    _context: &RuntimeCallContext,
+    _handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
-    let _ = handle;
-
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchClose")).boxed())
 }
 
@@ -2659,11 +2549,10 @@ pub(crate) unsafe fn destack_fs_watch_close(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_read(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut WatchBatch,
     handle: resource::WatchHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchRead")).boxed())
@@ -2687,13 +2576,12 @@ pub(crate) unsafe fn destack_fs_watch_read(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_watchat(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::WatchHandle,
     directory: resource::DirectoryHandle,
     path: OsPath,
     options: WatchOptions,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, directory, path, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchat")).boxed())
@@ -2717,12 +2605,11 @@ pub(crate) unsafe fn destack_fs_watchat(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, name);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.fgetxattr")).boxed())
@@ -2746,12 +2633,11 @@ pub(crate) unsafe fn destack_fs_fgetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2778,11 +2664,10 @@ pub(crate) unsafe fn destack_fs_fgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.flistxattr")).boxed())
@@ -2806,11 +2691,10 @@ pub(crate) unsafe fn destack_fs_flistxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     handle: resource::FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, handle);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2837,11 +2721,10 @@ pub(crate) unsafe fn destack_fs_flistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2868,11 +2751,10 @@ pub(crate) unsafe fn destack_fs_fremovexattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2899,13 +2781,12 @@ pub(crate) unsafe fn destack_fs_fremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     name: NativeStringRef,
     argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.fsetxattr")).boxed())
@@ -2929,13 +2810,12 @@ pub(crate) unsafe fn destack_fs_fsetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::FileHandle,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (handle, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -2962,12 +2842,11 @@ pub(crate) unsafe fn destack_fs_fsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.getxattr")).boxed())
@@ -2991,12 +2870,11 @@ pub(crate) unsafe fn destack_fs_getxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3023,12 +2901,11 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.lgetxattr")).boxed())
@@ -3052,12 +2929,11 @@ pub(crate) unsafe fn destack_fs_lgetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<u8>,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3084,11 +2960,10 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.listxattr")).boxed())
@@ -3112,11 +2987,10 @@ pub(crate) unsafe fn destack_fs_listxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3143,11 +3017,10 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<NativeStringRef>,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.llistxattr")).boxed())
@@ -3171,11 +3044,10 @@ pub(crate) unsafe fn destack_fs_llistxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     path: OsPath,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (out, path);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3202,11 +3074,10 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3233,11 +3104,10 @@ pub(crate) unsafe fn destack_fs_lremovexattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3264,13 +3134,12 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
     argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.lsetxattr")).boxed())
@@ -3294,13 +3163,12 @@ pub(crate) unsafe fn destack_fs_lsetxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3327,11 +3195,10 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.removexattr")).boxed())
@@ -3355,11 +3222,10 @@ pub(crate) unsafe fn destack_fs_removexattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name);
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -3386,13 +3252,12 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeStringRef,
     argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.xattr.setxattr")).boxed())
@@ -3416,13 +3281,12 @@ pub(crate) unsafe fn destack_fs_setxattr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: OsPath,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = context;
     let _ = (path, name, argument_value, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported(

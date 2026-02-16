@@ -3,11 +3,29 @@ use windows_sys::Win32::Storage::FileSystem::CopyFileW;
 use super::io::{destack_fs_pread, destack_fs_pwrite};
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{CopyFlags, FileHandle, FileOffset, FileSize, PathBytes, PathUtf16};
+use crate::platform::fs::{
+    CopyFlags, FileHandle, FileOffset, FileSize, OsPath, PathBytes, PathUtf16, core as core_fs,
+};
 use crate::platform::{NativeSlice, PlatformError};
 use crate::runtime::RuntimeCallContext;
 
-/// Copy a file with byte paths.
+/// Copy a file.
+///
+/// Copy file contents and requested metadata behavior from source path to destination path.
+/// Copy flags control overwrite behavior and host fast-copy strategies.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
     _context: &RuntimeCallContext,
     from: PathBytes,
@@ -30,7 +48,23 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
     Ok(())
 }
 
-/// Copy a file with UTF-16 paths.
+/// Copy a file.
+///
+/// Copy file contents and requested metadata behavior from source path to destination path.
+/// Copy flags control overwrite behavior and host fast-copy strategies.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
     _context: &RuntimeCallContext,
     from: PathUtf16,
@@ -53,7 +87,23 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
     Ok(())
 }
 
-/// Copy a file range between handles.
+/// Copy a range between file descriptors.
+///
+/// Copy bytes from one file descriptor range into another descriptor range.
+/// Source and destination offsets are applied exactly as provided to the host operation.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses copy_file_range(2) on linux and runtime copy fallback on other targets.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
     context: &RuntimeCallContext,
     out: *mut u64,
@@ -118,4 +168,36 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
     }
 
     Ok(())
+}
+
+/// Copy a file.
+///
+/// Copy file contents and requested metadata behavior from source path to destination path.
+/// Copy flags control overwrite behavior and host fast-copy strategies.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses copy_file_range/copy fallback on Unix and CopyFileW/CopyFile2 on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.read`, `fs.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_copyfile(
+    context: &RuntimeCallContext,
+    from: OsPath,
+    to: OsPath,
+    flags: CopyFlags,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref_pair(
+        from,
+        to,
+        "path",
+        |from, to| unsafe { destack_fs_copyfile_bytes(context, from, to, flags) },
+        |from, to| unsafe { destack_fs_copyfile_utf16(context, from, to, flags) },
+    )
 }

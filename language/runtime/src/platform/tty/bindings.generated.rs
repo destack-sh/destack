@@ -109,12 +109,9 @@ fn decode_destack_tty_io_read_args(
 /// Encode the result for destack.tty.io.read.
 #[inline]
 fn encode_destack_tty_io_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -136,24 +133,18 @@ fn decode_destack_tty_io_write_args(
 /// Encode the result for destack.tty.io.write.
 #[inline]
 fn encode_destack_tty_io_write_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.tty.mode.getMode.
 #[inline]
 fn decode_destack_tty_mode_get_mode_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -221,24 +212,18 @@ fn decode_destack_tty_mode_set_mode_args(
 /// Encode the result for destack.tty.mode.setMode.
 #[inline]
 fn encode_destack_tty_mode_set_mode_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.tty.pty.close.
 #[inline]
 fn decode_destack_tty_pty_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::PtyHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "PtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "PtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -249,24 +234,18 @@ fn decode_destack_tty_pty_close_args(
 /// Encode the result for destack.tty.pty.close.
 #[inline]
 fn encode_destack_tty_pty_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.tty.pty.open.
 #[inline]
 fn decode_destack_tty_pty_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32, u32, u32)> {
-    // ignore unused context
-    let _ = context;
-
     let rows_value = arg_value(args, 0, "rows", "uint32")?;
     let rows = decode_uint32(rows_value, "rows", "uint32")?;
     let columns_value = arg_value(args, 1, "columns", "uint32")?;
@@ -292,12 +271,9 @@ fn encode_destack_tty_pty_open_result(
 /// Decode arguments for destack.tty.size.getSize.
 #[inline]
 fn decode_destack_tty_size_get_size_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TtyHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -365,12 +341,9 @@ fn decode_destack_tty_size_set_size_args(
 /// Encode the result for destack.tty.size.setSize.
 #[inline]
 fn encode_destack_tty_size_set_size_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

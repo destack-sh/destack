@@ -1,8 +1,43 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::binding::write_domain_bindings;
+use crate::binding::{
+    implementation_fn_name, native_fn_name, runtime_domain_mod_path, write_domain_bindings,
+};
+use crate::model::BindingEntry;
+
+/// Refresh binding docs across one domain by function name.
+pub(crate) fn refresh_domain_binding_docs(domain: &str, bindings: &BTreeMap<String, BindingEntry>) {
+    let docs = collect_domain_function_docs(domain, bindings);
+    if docs.is_empty() {
+        return;
+    }
+
+    let Some(domain_path) = runtime_domain_mod_path(domain)
+        .parent()
+        .map(Path::to_path_buf)
+    else {
+        return;
+    };
+
+    let mut files = Vec::new();
+    collect_rust_files(&domain_path, &mut files);
+
+    for file in files {
+        let Ok(existing) = fs::read_to_string(&file) else {
+            continue;
+        };
+
+        let Some(merged) = merge_function_docs_map(&existing, &docs) else {
+            continue;
+        };
+
+        if merged != existing {
+            write_domain_bindings(&file, &merged);
+        }
+    }
+}
 
 /// Write one generated stub file when generation rules allow it.
 pub(crate) fn write_stub_file(path: &Path, generated: &str, refresh_stubs: bool) {
@@ -79,7 +114,100 @@ fn collect_function_names(source: &str) -> BTreeSet<String> {
 /// Merge generated function docs into an existing stub by function name.
 fn merge_function_docs(existing: &str, generated: &str) -> Option<String> {
     let generated_docs = collect_function_docs(generated);
-    if generated_docs.is_empty() {
+    merge_function_docs_map(existing, &generated_docs)
+}
+
+/// Collect generated function docs indexed by function name.
+fn collect_function_docs(source: &str) -> BTreeMap<String, Vec<String>> {
+    let lines = source.lines().map(ToString::to_string).collect::<Vec<_>>();
+    let mut docs = BTreeMap::new();
+
+    for (index, line) in lines.iter().enumerate() {
+        let Some(function_name) = function_name_from_line(line) else {
+            continue;
+        };
+        let item_start = function_item_start(&lines, index);
+        let Some(start) = doc_block_start(&lines, item_start) else {
+            continue;
+        };
+
+        docs.insert(function_name, lines[start..item_start].to_vec());
+    }
+
+    docs
+}
+
+/// Return the contiguous doc block start that appears immediately before one function line.
+fn doc_block_start(lines: &[String], item_index: usize) -> Option<usize> {
+    if item_index == 0 {
+        return None;
+    }
+
+    let mut index = item_index;
+    while index > 0 {
+        let line = lines[index - 1].trim_start();
+        if line.starts_with("///") {
+            index -= 1;
+            continue;
+        }
+        break;
+    }
+
+    if index == item_index {
+        return None;
+    }
+
+    Some(index)
+}
+
+/// Return the contiguous doc block start before one function item, allowing one or more blank lines.
+fn doc_block_range_with_spacing(lines: &[String], item_index: usize) -> Option<(usize, usize)> {
+    if item_index == 0 {
+        return None;
+    }
+
+    let mut docs_end = item_index;
+    while docs_end > 0 && lines[docs_end - 1].trim().is_empty() {
+        docs_end -= 1;
+    }
+
+    let mut doc_start = docs_end;
+    while doc_start > 0 {
+        let line = lines[doc_start - 1].trim_start();
+        if line.starts_with("///") {
+            doc_start -= 1;
+            continue;
+        }
+        break;
+    }
+
+    if doc_start == docs_end {
+        return None;
+    }
+
+    Some((doc_start, docs_end))
+}
+
+/// Return the item start for one function, including any preceding attributes.
+fn function_item_start(lines: &[String], function_index: usize) -> usize {
+    let mut index = function_index;
+    while index > 0 {
+        let line = lines[index - 1].trim_start();
+        if line.starts_with("#[") {
+            index -= 1;
+            continue;
+        }
+        break;
+    }
+    index
+}
+
+/// Merge docs by function name using one prepared doc map.
+fn merge_function_docs_map(
+    existing: &str,
+    docs_by_function: &BTreeMap<String, Vec<String>>,
+) -> Option<String> {
+    if docs_by_function.is_empty() {
         return None;
     }
 
@@ -93,12 +221,23 @@ fn merge_function_docs(existing: &str, generated: &str) -> Option<String> {
         let Some(function_name) = function_name_from_line(line) else {
             continue;
         };
-        let Some(new_docs) = generated_docs.get(function_name.as_str()) else {
+        let item_start = function_item_start(&existing_lines, index);
+        let doc_range = doc_block_range_with_spacing(&existing_lines, item_start);
+
+        let Some(new_docs) = resolve_docs_for_function(docs_by_function, &function_name) else {
+            if let Some((doc_start, docs_end)) = doc_range
+                && docs_end != item_start
+            {
+                let docs = existing_lines[doc_start..docs_end].to_vec();
+                replacements.push((doc_start, item_start, docs));
+            }
             continue;
         };
 
-        let start = doc_block_start(&existing_lines, index).unwrap_or(index);
-        replacements.push((start, index, new_docs.clone()));
+        let start = doc_range
+            .map(|(doc_start, _)| doc_start)
+            .unwrap_or(item_start);
+        replacements.push((start, item_start, new_docs.clone()));
     }
 
     if replacements.is_empty() {
@@ -109,54 +248,223 @@ fn merge_function_docs(existing: &str, generated: &str) -> Option<String> {
         existing_lines.splice(start..end, docs);
     }
 
+    remove_redundant_placeholder_docs(&mut existing_lines);
+
     let mut merged = existing_lines.join("\n");
-    if existing.ends_with('\n') || generated.ends_with('\n') {
+    if existing.ends_with('\n') {
         merged.push('\n');
     }
 
     Some(merged)
 }
 
-/// Collect generated function docs indexed by function name.
-fn collect_function_docs(source: &str) -> BTreeMap<String, Vec<String>> {
-    let lines = source.lines().map(ToString::to_string).collect::<Vec<_>>();
-    let mut docs = BTreeMap::new();
+/// Resolve docs for one function name, including legacy path-encoding suffix fallbacks.
+fn resolve_docs_for_function<'a>(
+    docs_by_function: &'a BTreeMap<String, Vec<String>>,
+    function_name: &str,
+) -> Option<&'a Vec<String>> {
+    if let Some(docs) = docs_by_function.get(function_name) {
+        return Some(docs);
+    }
 
-    for (index, line) in lines.iter().enumerate() {
-        let Some(function_name) = function_name_from_line(line) else {
-            continue;
-        };
-        let Some(start) = doc_block_start(&lines, index) else {
-            continue;
-        };
+    for suffix in ["_bytes", "_utf16", "_handle"] {
+        if let Some(base_name) = function_name.strip_suffix(suffix)
+            && let Some(docs) = docs_by_function.get(base_name)
+        {
+            return Some(docs);
+        }
+    }
 
-        docs.insert(function_name, lines[start..index].to_vec());
+    None
+}
+
+/// Remove placeholder binding docs that are followed by a real doc block before the same function.
+fn remove_redundant_placeholder_docs(lines: &mut Vec<String>) {
+    let mut index = 0;
+    while index < lines.len() {
+        if !is_placeholder_doc_line(lines[index].as_str()) {
+            index += 1;
+            continue;
+        }
+
+        let block_start = index;
+        while index < lines.len() && is_placeholder_doc_line(lines[index].as_str()) {
+            index += 1;
+        }
+
+        let mut has_real_docs = false;
+        let mut probe = index;
+        while probe < lines.len() {
+            if function_name_from_line(lines[probe].as_str()).is_some() {
+                break;
+            }
+
+            let trimmed = lines[probe].trim_start();
+            if trimmed.starts_with("///") && !is_placeholder_doc_line(lines[probe].as_str()) {
+                has_real_docs = true;
+                break;
+            }
+
+            probe += 1;
+        }
+
+        if !has_real_docs {
+            continue;
+        }
+
+        let mut remove_end = index;
+        while remove_end < lines.len() && lines[remove_end].trim().is_empty() {
+            remove_end += 1;
+        }
+        lines.drain(block_start..remove_end);
+        index = block_start;
+    }
+}
+
+/// Return true when one doc line uses the placeholder binding format.
+fn is_placeholder_doc_line(line: &str) -> bool {
+    line.trim_start()
+        .starts_with("/// Binding implementation for `destack.")
+}
+
+/// Collect one documentation map by implementation function name for one domain.
+fn collect_domain_function_docs(
+    domain: &str,
+    bindings: &BTreeMap<String, BindingEntry>,
+) -> BTreeMap<String, Vec<String>> {
+    let mut docs_by_function = BTreeMap::<String, Vec<String>>::new();
+    let mut legacy_docs_by_function = BTreeMap::<String, Vec<String>>::new();
+    let mut ambiguous_legacy_functions = BTreeSet::<String>::new();
+
+    for (extern_name, entry) in bindings {
+        let implementation_function_name =
+            implementation_fn_name(domain, &entry.implementation_name);
+        let native_function_name = native_fn_name(domain, extern_name);
+        let docs = render_binding_docs(entry, extern_name);
+
+        // bind docs for canonical implementation and native names
+        for function_name in [implementation_function_name, native_function_name] {
+            docs_by_function
+                .entry(function_name)
+                .or_insert_with(|| docs.clone());
+        }
+
+        // treat legacy names as best effort only to avoid alias collisions
+        let legacy_function_name = legacy_native_fn_name(domain, extern_name);
+        if docs_by_function.contains_key(&legacy_function_name) {
+            continue;
+        }
+
+        match legacy_docs_by_function.get(&legacy_function_name) {
+            Some(existing_docs) if existing_docs != &docs => {
+                ambiguous_legacy_functions.insert(legacy_function_name);
+            }
+            Some(_) => {}
+            None => {
+                legacy_docs_by_function.insert(legacy_function_name, docs);
+            }
+        }
+    }
+
+    // drop ambiguous legacy aliases so no function ever gets merged docs
+    for function_name in ambiguous_legacy_functions {
+        legacy_docs_by_function.remove(&function_name);
+    }
+
+    // include non-ambiguous legacy docs for pre-reorg files
+    for (function_name, docs) in legacy_docs_by_function {
+        docs_by_function.entry(function_name).or_insert(docs);
+    }
+
+    docs_by_function
+}
+
+/// Render one documentation block for one binding entry.
+fn render_binding_docs(entry: &BindingEntry, extern_name: &str) -> Vec<String> {
+    let Some(documentation) = entry.documentation.as_deref() else {
+        return vec![format!("/// Binding for `{extern_name}`.")];
+    };
+
+    let mut docs = Vec::new();
+    for line in documentation.lines() {
+        if line.trim().is_empty() {
+            docs.push("///".to_string());
+        } else {
+            docs.push(format!("/// {line}"));
+        }
+    }
+
+    if docs.is_empty() {
+        return vec![format!("/// Binding for `{extern_name}`.")];
     }
 
     docs
 }
 
-/// Return the contiguous doc block start that appears immediately before one function line.
-fn doc_block_start(lines: &[String], function_index: usize) -> Option<usize> {
-    if function_index == 0 {
-        return None;
-    }
+/// Collect all non-generated Rust files under one directory recursively.
+fn collect_rust_files(directory: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
 
-    let mut index = function_index;
-    while index > 0 {
-        let line = lines[index - 1].trim_start();
-        if line.starts_with("///") {
-            index -= 1;
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        if path.is_dir() {
+            collect_rust_files(&path, files);
             continue;
         }
-        break;
+
+        let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !file_name.ends_with(".rs") || file_name.ends_with(".generated.rs") {
+            continue;
+        }
+
+        files.push(path);
+    }
+}
+
+/// Build the legacy symbol name used by pre-reorg host files.
+fn legacy_native_fn_name(domain: &str, extern_name: &str) -> String {
+    let suffix = extern_name
+        .split('.')
+        .next_back()
+        .map(snake_case)
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "binding".to_string());
+
+    format!("destack_{domain}_{suffix}")
+}
+
+/// Convert one identifier to snake_case.
+fn snake_case(name: &str) -> String {
+    let mut out = String::new();
+    let mut previous_was_lower = false;
+
+    for character in name.chars() {
+        if character.is_ascii_alphanumeric() {
+            if character.is_ascii_uppercase() {
+                if previous_was_lower && !out.ends_with('_') {
+                    out.push('_');
+                }
+                out.push(character.to_ascii_lowercase());
+                previous_was_lower = true;
+            } else {
+                out.push(character.to_ascii_lowercase());
+                previous_was_lower = true;
+            }
+            continue;
+        }
+
+        if !out.ends_with('_') && !out.is_empty() {
+            out.push('_');
+        }
+        previous_was_lower = false;
     }
 
-    if index == function_index {
-        return None;
-    }
-
-    Some(index)
+    out.trim_matches('_').to_string()
 }
 
 /// Extract one function name from a Rust function signature line.

@@ -157,12 +157,9 @@ fn decode_string(
 /// Decode arguments for destack.display.monitor.close.
 #[inline]
 fn decode_destack_display_monitor_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DisplayHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -173,12 +170,9 @@ fn decode_destack_display_monitor_close_args(
 /// Encode the result for destack.display.monitor.close.
 #[inline]
 fn encode_destack_display_monitor_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -194,12 +188,9 @@ fn encode_destack_display_monitor_list_result(
 /// Decode arguments for destack.display.monitor.modes.
 #[inline]
 fn decode_destack_display_monitor_modes_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DisplayHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "DisplayHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DisplayHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -219,12 +210,9 @@ fn encode_destack_display_monitor_modes_result(
 /// Decode arguments for destack.display.monitor.open.
 #[inline]
 fn decode_destack_display_monitor_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let id_value = arg_value(args, 0, "id", "string")?;
     let id = decode_string(id_value, "id", "string")?;
     Ok((id,))
@@ -233,12 +221,9 @@ fn decode_destack_display_monitor_open_args(
 /// Encode the result for destack.display.monitor.open.
 #[inline]
 fn encode_destack_display_monitor_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::DisplayHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -289,24 +274,18 @@ fn decode_destack_display_monitor_set_mode_args(
 /// Encode the result for destack.display.monitor.setMode.
 #[inline]
 fn encode_destack_display_monitor_set_mode_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.display.window.close.
 #[inline]
 fn decode_destack_display_window_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
@@ -317,24 +296,18 @@ fn decode_destack_display_window_close_args(
 /// Encode the result for destack.display.window.close.
 #[inline]
 fn encode_destack_display_window_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.display.window.event.
 #[inline]
 fn decode_destack_display_window_event_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
@@ -407,24 +380,18 @@ fn decode_destack_display_window_open_args(
 /// Encode the result for destack.display.window.open.
 #[inline]
 fn encode_destack_display_window_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.display.window.setTitle.
 #[inline]
 fn decode_destack_display_window_set_title_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, vm::StringHandle)> {
-    // ignore unused context
-    let _ = context;
-
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
@@ -437,24 +404,18 @@ fn decode_destack_display_window_set_title_args(
 /// Encode the result for destack.display.window.setTitle.
 #[inline]
 fn encode_destack_display_window_set_title_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.display.window.tryEvent.
 #[inline]
 fn decode_destack_display_window_try_event_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
@@ -480,12 +441,9 @@ fn encode_destack_display_window_try_event_result(
 /// Decode arguments for destack.display.window.vsyncWait.
 #[inline]
 fn decode_destack_display_window_vsync_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
@@ -498,12 +456,9 @@ fn decode_destack_display_window_vsync_wait_args(
 /// Encode the result for destack.display.window.vsyncWait.
 #[inline]
 fn encode_destack_display_window_vsync_wait_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 

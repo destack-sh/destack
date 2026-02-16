@@ -108,12 +108,9 @@ fn decode_uint64(
 /// Decode arguments for destack.timer.control.cancel.
 #[inline]
 fn decode_destack_timer_control_cancel_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -124,24 +121,18 @@ fn decode_destack_timer_control_cancel_args(
 /// Encode the result for destack.timer.control.cancel.
 #[inline]
 fn encode_destack_timer_control_cancel_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.timer.control.isActive.
 #[inline]
 fn decode_destack_timer_control_is_active_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -152,24 +143,18 @@ fn decode_destack_timer_control_is_active_args(
 /// Encode the result for destack.timer.control.isActive.
 #[inline]
 fn encode_destack_timer_control_is_active_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(vm::Value::bool)
 }
 
 /// Decode arguments for destack.timer.control.pause.
 #[inline]
 fn decode_destack_timer_control_pause_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -180,24 +165,18 @@ fn decode_destack_timer_control_pause_args(
 /// Encode the result for destack.timer.control.pause.
 #[inline]
 fn encode_destack_timer_control_pause_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.timer.control.remainingNs.
 #[inline]
 fn decode_destack_timer_control_remaining_ns_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -208,24 +187,18 @@ fn decode_destack_timer_control_remaining_ns_args(
 /// Encode the result for destack.timer.control.remainingNs.
 #[inline]
 fn encode_destack_timer_control_remaining_ns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.timer.control.reset.
 #[inline]
 fn decode_destack_timer_control_reset_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -238,24 +211,18 @@ fn decode_destack_timer_control_reset_args(
 /// Encode the result for destack.timer.control.reset.
 #[inline]
 fn encode_destack_timer_control_reset_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.timer.control.resume.
 #[inline]
 fn decode_destack_timer_control_resume_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -266,24 +233,18 @@ fn decode_destack_timer_control_resume_args(
 /// Encode the result for destack.timer.control.resume.
 #[inline]
 fn encode_destack_timer_control_resume_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.timer.control.updateInterval.
 #[inline]
 fn decode_destack_timer_control_update_interval_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -296,24 +257,18 @@ fn decode_destack_timer_control_update_interval_args(
 /// Encode the result for destack.timer.control.updateInterval.
 #[inline]
 fn encode_destack_timer_control_update_interval_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.timer.fd.close.
 #[inline]
 fn decode_destack_timer_fd_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -324,24 +279,18 @@ fn decode_destack_timer_fd_close_args(
 /// Encode the result for destack.timer.fd.close.
 #[inline]
 fn encode_destack_timer_fd_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.timer.fd.get.
 #[inline]
 fn decode_destack_timer_fd_get_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -365,12 +314,9 @@ fn encode_destack_timer_fd_get_result(
 /// Decode arguments for destack.timer.fd.open.
 #[inline]
 fn decode_destack_timer_fd_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(TimerFdClock, TimerFdFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let clock_value = arg_value(args, 0, "clock", "TimerFdClock")?;
     let clock_raw = decode_uint8(clock_value, "clock_raw", "TimerFdClock")?;
     let clock = match clock_raw {
@@ -394,24 +340,18 @@ fn decode_destack_timer_fd_open_args(
 /// Encode the result for destack.timer.fd.open.
 #[inline]
 fn encode_destack_timer_fd_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.timer.fd.read.
 #[inline]
 fn decode_destack_timer_fd_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -422,12 +362,9 @@ fn decode_destack_timer_fd_read_args(
 /// Encode the result for destack.timer.fd.read.
 #[inline]
 fn encode_destack_timer_fd_read_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u64>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value, 64))
 }
 
@@ -476,12 +413,9 @@ fn decode_destack_timer_fd_set_args(
 /// Encode the result for destack.timer.fd.set.
 #[inline]
 fn encode_destack_timer_fd_set_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -537,12 +471,9 @@ fn decode_destack_timer_schedule_at_args(
 /// Encode the result for destack.timer.schedule.at.
 #[inline]
 fn encode_destack_timer_schedule_at_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -598,12 +529,9 @@ fn decode_destack_timer_schedule_interval_args(
 /// Encode the result for destack.timer.schedule.interval.
 #[inline]
 fn encode_destack_timer_schedule_interval_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -659,12 +587,9 @@ fn decode_destack_timer_schedule_once_args(
 /// Encode the result for destack.timer.schedule.once.
 #[inline]
 fn encode_destack_timer_schedule_once_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::TimerHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 

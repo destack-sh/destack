@@ -251,12 +251,9 @@ fn decode_destack_process_cwd_chdir_args(
 /// Encode the result for destack.process.cwd.chdir.
 #[inline]
 fn encode_destack_process_cwd_chdir_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -277,12 +274,9 @@ fn encode_destack_process_cwd_cwd_result(
 /// Decode arguments for destack.process.env.delete.
 #[inline]
 fn decode_destack_process_env_delete_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((name,))
@@ -291,12 +285,9 @@ fn decode_destack_process_env_delete_args(
 /// Encode the result for destack.process.env.delete.
 #[inline]
 fn encode_destack_process_env_delete_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -314,24 +305,18 @@ fn decode_destack_process_env_delete_bytes_args(
 /// Encode the result for destack.process.env.deleteBytes.
 #[inline]
 fn encode_destack_process_env_delete_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.env.get.
 #[inline]
 fn decode_destack_process_env_get_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((name,))
@@ -340,12 +325,9 @@ fn decode_destack_process_env_get_args(
 /// Encode the result for destack.process.env.get.
 #[inline]
 fn encode_destack_process_env_get_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<vm::StringHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| value.value())
 }
 
@@ -372,12 +354,9 @@ fn encode_destack_process_env_get_bytes_result(
 /// Decode arguments for destack.process.env.set.
 #[inline]
 fn decode_destack_process_env_set_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     let argument_value_value = arg_value(args, 1, "argument_value", "string")?;
@@ -388,12 +367,9 @@ fn decode_destack_process_env_set_args(
 /// Encode the result for destack.process.env.set.
 #[inline]
 fn encode_destack_process_env_set_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -418,12 +394,9 @@ fn decode_destack_process_env_set_bytes_args(
 /// Encode the result for destack.process.env.setBytes.
 #[inline]
 fn encode_destack_process_env_set_bytes_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -495,12 +468,9 @@ fn decode_destack_process_exec_exec_args(
 /// Encode the result for destack.process.exec.exec.
 #[inline]
 fn encode_destack_process_exec_exec_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -579,12 +549,9 @@ fn decode_destack_process_exec_execat_args(
 /// Encode the result for destack.process.exec.execat.
 #[inline]
 fn encode_destack_process_exec_execat_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -619,24 +586,18 @@ fn decode_destack_process_exec_fexec_args(
 /// Encode the result for destack.process.exec.fexec.
 #[inline]
 fn encode_destack_process_exec_fexec_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.exit.exit.
 #[inline]
 fn decode_destack_process_exit_exit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
-    // ignore unused context
-    let _ = context;
-
     let code_value = arg_value(args, 0, "code", "uint32")?;
     let code = decode_uint32(code_value, "code", "uint32")?;
     Ok((code,))
@@ -645,24 +606,18 @@ fn decode_destack_process_exit_exit_args(
 /// Encode the result for destack.process.exit.exit.
 #[inline]
 fn encode_destack_process_exit_exit_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.fd.processFdClose.
 #[inline]
 fn decode_destack_process_fd_process_fd_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -673,24 +628,18 @@ fn decode_destack_process_fd_process_fd_close_args(
 /// Encode the result for destack.process.fd.processFdClose.
 #[inline]
 fn encode_destack_process_fd_process_fd_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.fd.processFdOpen.
 #[inline]
 fn decode_destack_process_fd_process_fd_open_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessFdFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -703,24 +652,18 @@ fn decode_destack_process_fd_process_fd_open_args(
 /// Encode the result for destack.process.fd.processFdOpen.
 #[inline]
 fn encode_destack_process_fd_process_fd_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.fd.processFdSendSignal.
 #[inline]
 fn decode_destack_process_fd_process_fd_send_signal_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle, Signal, ProcessFdSignalFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -737,24 +680,18 @@ fn decode_destack_process_fd_process_fd_send_signal_args(
 /// Encode the result for destack.process.fd.processFdSendSignal.
 #[inline]
 fn encode_destack_process_fd_process_fd_send_signal_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.fd.processFdTryWait.
 #[inline]
 fn decode_destack_process_fd_process_fd_try_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -781,12 +718,9 @@ fn encode_destack_process_fd_process_fd_try_wait_result(
 /// Decode arguments for destack.process.fd.processFdWait.
 #[inline]
 fn decode_destack_process_fd_process_fd_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessFdHandle, u64)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProcessFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -815,12 +749,9 @@ fn encode_destack_process_fd_process_fd_wait_result(
 /// Decode arguments for destack.process.fd.signalFdClose.
 #[inline]
 fn decode_destack_process_fd_signal_fd_close_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -831,12 +762,9 @@ fn decode_destack_process_fd_signal_fd_close_args(
 /// Encode the result for destack.process.fd.signalFdClose.
 #[inline]
 fn encode_destack_process_fd_signal_fd_close_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -857,24 +785,18 @@ fn decode_destack_process_fd_signal_fd_open_args(
 /// Encode the result for destack.process.fd.signalFdOpen.
 #[inline]
 fn encode_destack_process_fd_signal_fd_open_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalFdHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.fd.signalFdRead.
 #[inline]
 fn decode_destack_process_fd_signal_fd_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -913,24 +835,18 @@ fn decode_destack_process_fd_signal_fd_set_mask_args(
 /// Encode the result for destack.process.fd.signalFdSetMask.
 #[inline]
 fn encode_destack_process_fd_signal_fd_set_mask_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.fd.signalFdTryRead.
 #[inline]
 fn decode_destack_process_fd_signal_fd_try_read_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalFdHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SignalFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -954,12 +870,9 @@ fn encode_destack_process_fd_signal_fd_try_read_result(
 /// Decode arguments for destack.process.group.cgroupGetLimit.
 #[inline]
 fn decode_destack_process_group_cgroup_get_limit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ProcessLimitResource)> {
-    // ignore unused context
-    let _ = context;
-
     let path_value = arg_value(args, 0, "path", "string")?;
     let path = decode_string(path_value, "path", "string")?;
     let resource_value = arg_value(args, 1, "resource", "ProcessLimitResource")?;
@@ -984,12 +897,9 @@ fn encode_destack_process_group_cgroup_get_limit_result(
 /// Decode arguments for destack.process.group.cgroupJoin.
 #[inline]
 fn decode_destack_process_group_cgroup_join_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let path_value = arg_value(args, 0, "path", "string")?;
     let path = decode_string(path_value, "path", "string")?;
     Ok((path,))
@@ -998,12 +908,9 @@ fn decode_destack_process_group_cgroup_join_args(
 /// Encode the result for destack.process.group.cgroupJoin.
 #[inline]
 fn encode_destack_process_group_cgroup_join_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1050,12 +957,9 @@ fn decode_destack_process_group_cgroup_set_limit_args(
 /// Encode the result for destack.process.group.cgroupSetLimit.
 #[inline]
 fn encode_destack_process_group_cgroup_set_limit_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1075,12 +979,9 @@ fn decode_destack_process_group_job_assign_args(
 /// Encode the result for destack.process.group.jobAssign.
 #[inline]
 fn encode_destack_process_group_job_assign_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1127,48 +1028,36 @@ fn decode_destack_process_group_job_set_limit_args(
 /// Encode the result for destack.process.group.jobSetLimit.
 #[inline]
 fn encode_destack_process_group_job_set_limit_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Encode the result for destack.process.ids.egid.
 #[inline]
 fn encode_destack_process_ids_egid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.euid.
 #[inline]
 fn encode_destack_process_ids_euid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UserId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.gid.
 #[inline]
 fn encode_destack_process_ids_gid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<GroupId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
@@ -1198,36 +1087,27 @@ fn encode_destack_process_ids_groups_result(
 /// Encode the result for destack.process.ids.pid.
 #[inline]
 fn encode_destack_process_ids_pid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Encode the result for destack.process.ids.ppid.
 #[inline]
 fn encode_destack_process_ids_ppid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.process.ids.setEgid.
 #[inline]
 fn decode_destack_process_ids_set_egid_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(GroupId,)> {
-    // ignore unused context
-    let _ = context;
-
     let groupid_value = arg_value(args, 0, "groupid", "GroupId")?;
     let groupid_inner = decode_uint32(groupid_value, "groupid_inner", "GroupId")?;
     let groupid = GroupId(groupid_inner);
@@ -1237,24 +1117,18 @@ fn decode_destack_process_ids_set_egid_args(
 /// Encode the result for destack.process.ids.setEgid.
 #[inline]
 fn encode_destack_process_ids_set_egid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.ids.setEuid.
 #[inline]
 fn decode_destack_process_ids_set_euid_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UserId,)> {
-    // ignore unused context
-    let _ = context;
-
     let userid_value = arg_value(args, 0, "userid", "UserId")?;
     let userid_inner = decode_uint32(userid_value, "userid_inner", "UserId")?;
     let userid = UserId(userid_inner);
@@ -1264,24 +1138,18 @@ fn decode_destack_process_ids_set_euid_args(
 /// Encode the result for destack.process.ids.setEuid.
 #[inline]
 fn encode_destack_process_ids_set_euid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.ids.setGid.
 #[inline]
 fn decode_destack_process_ids_set_gid_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(GroupId,)> {
-    // ignore unused context
-    let _ = context;
-
     let groupid_value = arg_value(args, 0, "groupid", "GroupId")?;
     let groupid_inner = decode_uint32(groupid_value, "groupid_inner", "GroupId")?;
     let groupid = GroupId(groupid_inner);
@@ -1291,12 +1159,9 @@ fn decode_destack_process_ids_set_gid_args(
 /// Encode the result for destack.process.ids.setGid.
 #[inline]
 fn encode_destack_process_ids_set_gid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1343,12 +1208,9 @@ fn decode_destack_process_ids_set_group_ids_args(
 /// Encode the result for destack.process.ids.setGroupIds.
 #[inline]
 fn encode_destack_process_ids_set_group_ids_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1366,24 +1228,18 @@ fn decode_destack_process_ids_set_groups_args(
 /// Encode the result for destack.process.ids.setGroups.
 #[inline]
 fn encode_destack_process_ids_set_groups_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.ids.setUid.
 #[inline]
 fn decode_destack_process_ids_set_uid_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UserId,)> {
-    // ignore unused context
-    let _ = context;
-
     let userid_value = arg_value(args, 0, "userid", "UserId")?;
     let userid_inner = decode_uint32(userid_value, "userid_inner", "UserId")?;
     let userid = UserId(userid_inner);
@@ -1393,12 +1249,9 @@ fn decode_destack_process_ids_set_uid_args(
 /// Encode the result for destack.process.ids.setUid.
 #[inline]
 fn encode_destack_process_ids_set_uid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1445,24 +1298,18 @@ fn decode_destack_process_ids_set_user_ids_args(
 /// Encode the result for destack.process.ids.setUserIds.
 #[inline]
 fn encode_destack_process_ids_set_user_ids_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Encode the result for destack.process.ids.uid.
 #[inline]
 fn encode_destack_process_ids_uid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UserId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
@@ -1531,12 +1378,9 @@ fn decode_destack_process_isolation_chroot_args(
 /// Encode the result for destack.process.isolation.chroot.
 #[inline]
 fn encode_destack_process_isolation_chroot_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1557,24 +1401,18 @@ fn decode_destack_process_isolation_install_syscall_filter_args(
 /// Encode the result for destack.process.isolation.installSyscallFilter.
 #[inline]
 fn encode_destack_process_isolation_install_syscall_filter_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.isolation.setHostName.
 #[inline]
 fn decode_destack_process_isolation_set_host_name_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let name_value = arg_value(args, 0, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((name,))
@@ -1583,12 +1421,9 @@ fn decode_destack_process_isolation_set_host_name_args(
 /// Encode the result for destack.process.isolation.setHostName.
 #[inline]
 fn encode_destack_process_isolation_set_host_name_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -1643,24 +1478,18 @@ fn decode_destack_process_isolation_set_network_namespace_args(
 /// Encode the result for destack.process.isolation.setNetworkNamespace.
 #[inline]
 fn encode_destack_process_isolation_set_network_namespace_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.isolation.setns.
 #[inline]
 fn decode_destack_process_isolation_setns_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessNamespaceKind)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -1689,24 +1518,18 @@ fn decode_destack_process_isolation_setns_args(
 /// Encode the result for destack.process.isolation.setns.
 #[inline]
 fn encode_destack_process_isolation_setns_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.isolation.unshare.
 #[inline]
 fn decode_destack_process_isolation_unshare_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessUnshareFlags,)> {
-    // ignore unused context
-    let _ = context;
-
     let flags_value = arg_value(args, 0, "flags", "ProcessUnshareFlags")?;
     let flags_inner = decode_uint64(flags_value, "flags_inner", "ProcessUnshareFlags")?;
     let flags = ProcessUnshareFlags(flags_inner);
@@ -1716,24 +1539,18 @@ fn decode_destack_process_isolation_unshare_args(
 /// Encode the result for destack.process.isolation.unshare.
 #[inline]
 fn encode_destack_process_isolation_unshare_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.limits.getLimit.
 #[inline]
 fn decode_destack_process_limits_get_limit_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessLimitResource,)> {
-    // ignore unused context
-    let _ = context;
-
     let resource_value = arg_value(args, 0, "resource", "ProcessLimitResource")?;
     let resource_inner = decode_uint32(resource_value, "resource_inner", "ProcessLimitResource")?;
     let resource = ProcessLimitResource(resource_inner);
@@ -1794,24 +1611,18 @@ fn decode_destack_process_limits_set_limit_args(
 /// Encode the result for destack.process.limits.setLimit.
 #[inline]
 fn encode_destack_process_limits_set_limit_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.sched.getAffinity.
 #[inline]
 fn decode_destack_process_sched_get_affinity_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId,)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -1833,12 +1644,9 @@ fn encode_destack_process_sched_get_affinity_result(
 /// Decode arguments for destack.process.sched.getPriority.
 #[inline]
 fn decode_destack_process_sched_get_priority_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId,)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -1848,24 +1656,18 @@ fn decode_destack_process_sched_get_priority_args(
 /// Encode the result for destack.process.sched.getPriority.
 #[inline]
 fn encode_destack_process_sched_get_priority_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<i32>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::int(value as i64, 32))
 }
 
 /// Decode arguments for destack.process.sched.getScheduler.
 #[inline]
 fn decode_destack_process_sched_get_scheduler_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId,)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -1923,24 +1725,18 @@ fn decode_destack_process_sched_set_affinity_args(
 /// Encode the result for destack.process.sched.setAffinity.
 #[inline]
 fn encode_destack_process_sched_set_affinity_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.sched.setPriority.
 #[inline]
 fn decode_destack_process_sched_set_priority_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, i32)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -1952,12 +1748,9 @@ fn decode_destack_process_sched_set_priority_args(
 /// Encode the result for destack.process.sched.setPriority.
 #[inline]
 fn encode_destack_process_sched_set_priority_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2019,36 +1812,27 @@ fn decode_destack_process_sched_set_scheduler_args(
 /// Encode the result for destack.process.sched.setScheduler.
 #[inline]
 fn encode_destack_process_sched_set_scheduler_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Encode the result for destack.process.sched.yieldNow.
 #[inline]
 fn encode_destack_process_sched_yield_now_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.session.getpgid.
 #[inline]
 fn decode_destack_process_session_getpgid_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId,)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -2058,24 +1842,18 @@ fn decode_destack_process_session_getpgid_args(
 /// Encode the result for destack.process.session.getpgid.
 #[inline]
 fn encode_destack_process_session_getpgid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.process.session.setpgid.
 #[inline]
 fn decode_destack_process_session_setpgid_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessId)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -2088,36 +1866,27 @@ fn decode_destack_process_session_setpgid_args(
 /// Encode the result for destack.process.session.setpgid.
 #[inline]
 fn encode_destack_process_session_setpgid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Encode the result for destack.process.session.setsid.
 #[inline]
 fn encode_destack_process_session_setsid_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProcessId>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0 as u64, 32))
 }
 
 /// Decode arguments for destack.process.signals.kill.
 #[inline]
 fn decode_destack_process_signals_kill_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, Signal)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -2130,12 +1899,9 @@ fn decode_destack_process_signals_kill_args(
 /// Encode the result for destack.process.signals.kill.
 #[inline]
 fn encode_destack_process_signals_kill_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2176,24 +1942,18 @@ fn decode_destack_process_signals_signal_mask_update_args(
 /// Encode the result for destack.process.signals.signalMaskUpdate.
 #[inline]
 fn encode_destack_process_signals_signal_mask_update_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.process.signals.signalReceive.
 #[inline]
 fn decode_destack_process_signals_signal_receive_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SignalHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2217,12 +1977,9 @@ fn encode_destack_process_signals_signal_receive_result(
 /// Decode arguments for destack.process.signals.signalSubscribe.
 #[inline]
 fn decode_destack_process_signals_signal_subscribe_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(Signal,)> {
-    // ignore unused context
-    let _ = context;
-
     let signal_value = arg_value(args, 0, "signal", "Signal")?;
     let signal_inner = decode_uint32(signal_value, "signal_inner", "Signal")?;
     let signal = Signal(signal_inner);
@@ -2232,24 +1989,18 @@ fn decode_destack_process_signals_signal_subscribe_args(
 /// Encode the result for destack.process.signals.signalSubscribe.
 #[inline]
 fn encode_destack_process_signals_signal_subscribe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::SignalHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.signals.signalTryReceive.
 #[inline]
 fn decode_destack_process_signals_signal_try_receive_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SignalHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2297,12 +2048,9 @@ fn encode_destack_process_signals_signal_try_wait_result(
 /// Decode arguments for destack.process.signals.signalUnsubscribe.
 #[inline]
 fn decode_destack_process_signals_signal_unsubscribe_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SignalHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "SignalHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SignalHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2313,12 +2061,9 @@ fn decode_destack_process_signals_signal_unsubscribe_args(
 /// Encode the result for destack.process.signals.signalUnsubscribe.
 #[inline]
 fn encode_destack_process_signals_signal_unsubscribe_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|_| vm::Value::VOID)
 }
 
@@ -2490,12 +2235,9 @@ fn decode_destack_process_spawn_spawn_args(
 /// Encode the result for destack.process.spawn.spawn.
 #[inline]
 fn encode_destack_process_spawn_spawn_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
@@ -2655,24 +2397,18 @@ fn decode_destack_process_spawn_with_actions_args(
 /// Encode the result for destack.process.spawn.withActions.
 #[inline]
 fn encode_destack_process_spawn_with_actions_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::ProcessHandle>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.process.umask.umask.
 #[inline]
 fn decode_destack_process_umask_umask_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(u32,)> {
-    // ignore unused context
-    let _ = context;
-
     let mask_value = arg_value(args, 0, "mask", "uint32")?;
     let mask = decode_uint32(mask_value, "mask", "uint32")?;
     Ok((mask,))
@@ -2681,24 +2417,18 @@ fn decode_destack_process_umask_umask_args(
 /// Encode the result for destack.process.umask.umask.
 #[inline]
 fn encode_destack_process_umask_umask_result(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<u32>,
 ) -> RuntimeResult<vm::Value> {
-    // ignore unused context
-    let _ = context;
-
     result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.process.wait.pid.
 #[inline]
 fn decode_destack_process_wait_pid_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ProcessId, ProcessWaitFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let pid_value = arg_value(args, 0, "pid", "ProcessId")?;
     let pid_inner = decode_uint32(pid_value, "pid_inner", "ProcessId")?;
     let pid = ProcessId(pid_inner);
@@ -2727,12 +2457,9 @@ fn encode_destack_process_wait_pid_result(
 /// Decode arguments for destack.process.wait.tryWait.
 #[inline]
 fn decode_destack_process_wait_try_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessHandle,)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProcessHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2759,12 +2486,9 @@ fn encode_destack_process_wait_try_wait_result(
 /// Decode arguments for destack.process.wait.wait.
 #[inline]
 fn decode_destack_process_wait_wait_args(
-    context: &mut vm::ExternalCallContext<'_>,
+    _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ProcessHandle, ProcessWaitFlags)> {
-    // ignore unused context
-    let _ = context;
-
     let handle_value = arg_value(args, 0, "handle", "ProcessHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "ProcessHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);

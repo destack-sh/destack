@@ -1,0 +1,549 @@
+#![allow(unused_imports)]
+
+use super::core::*;
+use super::os;
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::NativeAbi;
+use crate::platform::fs::{core as core_fs, *};
+use crate::platform::resource::*;
+use crate::platform::{core as core_platform, net as platform_net, *};
+use crate::runtime::RuntimeCallContext;
+
+use std::ffi::{CStr, CString};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::io::RawFd;
+use std::path::PathBuf;
+
+/// Check file access permissions.
+///
+/// Check file access permissions via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses access(2) on Unix and GetFileAttributesW plus ACL checks on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_access_bytes(
+    _context: &RuntimeCallContext,
+    path: PathBytes,
+    mode: AccessMode,
+) -> RuntimeResult<()> {
+    // run the access check on unix platforms
+    let c_path = resolve_path_bytes_cstring(path, "path")?;
+    let rc = unsafe { libc::access(c_path.as_ptr(), mode.0 as libc::c_int) };
+    if rc == 0 {
+        return Ok(());
+    }
+
+    Err(core_platform::io_error("access", None))
+}
+
+/// Check file access permissions.
+///
+/// Check file access permissions via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses access(2) on Unix and GetFileAttributesW plus ACL checks on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_access_utf16(
+    _context: &RuntimeCallContext,
+    path: PathUtf16,
+    mode: AccessMode,
+) -> RuntimeResult<()> {
+    // report unsupported access checks on non-windows platforms
+    let _ = (path, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessUtf16")).boxed())
+}
+
+/// Change file permissions.
+///
+/// Change file permissions via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses chmod(2) on Unix and file attribute/security updates on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chmod`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_chmod_bytes(
+    _context: &RuntimeCallContext,
+    path: PathBytes,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    // apply permissions on unix platforms
+    let c_path = resolve_path_bytes_cstring(path, "path")?;
+    let rc = unsafe { libc::chmod(c_path.as_ptr(), mode.0 as libc::mode_t) };
+    if rc == 0 {
+        return Ok(());
+    }
+
+    Err(core_platform::io_error("chmod", None))
+}
+
+/// Change file permissions.
+///
+/// Change file permissions via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses chmod(2) on Unix and file attribute/security updates on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chmod`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_chmod_utf16(
+    _context: &RuntimeCallContext,
+    path: PathUtf16,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    // report unsupported chmod calls on non-windows platforms
+    let _ = (path, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chmodUtf16")).boxed())
+}
+
+/// Change file permissions relative to a directory handle.
+///
+/// Change file permissions relative to a directory handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchmodat(2) on Unix and handle-relative mode updates on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chmod`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_fchmodat_bytes(
+    context: &RuntimeCallContext,
+    dir: DirectoryHandle,
+    path: PathBytes,
+    mode: FileMode,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    // apply permissions relative to the directory on unix platforms
+    let resource = directory_resource(context, dir)?;
+    let c_path = resolve_path_bytes_cstring(path, "path")?;
+    let rc = unsafe {
+        libc::fchmodat(
+            resource.fd,
+            c_path.as_ptr(),
+            mode.0 as libc::mode_t,
+            flags.0 as libc::c_int,
+        )
+    };
+    if rc == 0 {
+        return Ok(());
+    }
+
+    Err(core_platform::io_error("fchmodat", None))
+}
+
+/// Change file permissions relative to a directory handle.
+///
+/// Change file permissions relative to a directory handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchmodat(2) on Unix and handle-relative mode updates on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chmod`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_fchmodat_utf16(
+    _context: &RuntimeCallContext,
+    dir: DirectoryHandle,
+    path: PathUtf16,
+    mode: FileMode,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    // report unsupported fchmodat calls on non-windows platforms
+    let _ = (dir, path, mode, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchmodatUtf16")).boxed())
+}
+
+/// Change file owner and group.
+///
+/// Change file owner and group via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses chown(2) on Unix and token/owner updates where supported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chown`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_chown_bytes(
+    _context: &RuntimeCallContext,
+    path: PathBytes,
+    uid: u32,
+    gid: u32,
+) -> RuntimeResult<()> {
+    // apply ownership on unix platforms
+    let c_path = resolve_path_bytes_cstring(path, "path")?;
+    let rc = unsafe { libc::chown(c_path.as_ptr(), uid, gid) };
+    if rc == 0 {
+        return Ok(());
+    }
+
+    Err(core_platform::io_error("chown", None))
+}
+
+/// Change file owner and group.
+///
+/// Change file owner and group via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses chown(2) on Unix and token/owner updates where supported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chown`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_chown_utf16(
+    _context: &RuntimeCallContext,
+    path: PathUtf16,
+    uid: u32,
+    gid: u32,
+) -> RuntimeResult<()> {
+    // report unsupported chown calls on non-windows platforms
+    let _ = (path, uid, gid);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chownUtf16")).boxed())
+}
+
+/// Change file owner and group relative to a directory handle.
+///
+/// Change file owner and group relative to a directory handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchownat(2) on Unix and handle-relative owner updates where supported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chown`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_fchownat_bytes(
+    context: &RuntimeCallContext,
+    dir: DirectoryHandle,
+    path: PathBytes,
+    uid: u32,
+    gid: u32,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    // apply ownership relative to the directory on unix platforms
+    let resource = directory_resource(context, dir)?;
+    let c_path = resolve_path_bytes_cstring(path, "path")?;
+    let rc = unsafe { libc::fchownat(resource.fd, c_path.as_ptr(), uid, gid, flags.0 as i32) };
+    if rc == 0 {
+        return Ok(());
+    }
+
+    Err(core_platform::io_error("fchownat", None))
+}
+
+/// Change file owner and group relative to a directory handle.
+///
+/// Change file owner and group relative to a directory handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchownat(2) on Unix and handle-relative owner updates where supported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chown`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_fchownat_utf16(
+    _context: &RuntimeCallContext,
+    dir: DirectoryHandle,
+    path: PathUtf16,
+    uid: u32,
+    gid: u32,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    // report unsupported fchownat calls on non-windows platforms
+    let _ = (dir, path, uid, gid, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchownatUtf16")).boxed())
+}
+
+/// Check file access permissions.
+///
+/// Check file access permissions via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses access(2) on Unix and GetFileAttributesW plus ACL checks on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_access(
+    context: &RuntimeCallContext,
+    path: OsPath,
+    mode: AccessMode,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_access_bytes(context, path, mode) },
+        |path| unsafe { destack_fs_access_utf16(context, path, mode) },
+    )
+}
+
+/// Change file permissions.
+///
+/// Change file permissions via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses chmod(2) on Unix and file attribute/security updates on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chmod`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_chmod(
+    context: &RuntimeCallContext,
+    path: OsPath,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_chmod_bytes(context, path, mode) },
+        |path| unsafe { destack_fs_chmod_utf16(context, path, mode) },
+    )
+}
+
+/// Change file permissions relative to a directory handle.
+///
+/// Change file permissions relative to a directory handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchmodat(2) on Unix and handle-relative mode updates on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chmod`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_fchmodat(
+    context: &RuntimeCallContext,
+    dir: DirectoryHandle,
+    path: OsPath,
+    mode: FileMode,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_fchmodat_bytes(context, dir, path, mode, flags) },
+        |path| unsafe { destack_fs_fchmodat_utf16(context, dir, path, mode, flags) },
+    )
+}
+
+/// Change file owner and group.
+///
+/// Change file owner and group via host kernel APIs.
+/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses chown(2) on Unix and token/owner updates where supported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chown`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_chown(
+    context: &RuntimeCallContext,
+    path: OsPath,
+    uid: u32,
+    gid: u32,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_chown_bytes(context, path, uid, gid) },
+        |path| unsafe { destack_fs_chown_utf16(context, path, uid, gid) },
+    )
+}
+
+/// Change file owner and group relative to a directory handle.
+///
+/// Change file owner and group relative to a directory handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses fchownat(2) on Unix and handle-relative owner updates where supported on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.chown`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_fchownat(
+    context: &RuntimeCallContext,
+    dir: DirectoryHandle,
+    path: OsPath,
+    uid: u32,
+    gid: u32,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| unsafe { destack_fs_fchownat_bytes(context, dir, path, uid, gid, flags) },
+        |path| unsafe { destack_fs_fchownat_utf16(context, dir, path, uid, gid, flags) },
+    )
+}
+
+/// Check file access permissions relative to a directory handle.
+///
+/// Check file access permissions relative to a directory handle via host kernel APIs.
+/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
+/// Uses faccessat(2) on Unix and relative path checks via native handles on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `fs.metadata`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_fs_accessat(
+    context: &RuntimeCallContext,
+    dir: DirectoryHandle,
+    path: OsPath,
+    mode: AccessMode,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    core_fs::with_path_ref(
+        path,
+        "path",
+        |path| {
+            #[cfg(unix)]
+            {
+                let directory_fd = directory_descriptor(context, dir)?;
+                let path = path_bytes_to_cstring(path, "path")?;
+                let result = unsafe {
+                    libc::faccessat(
+                        directory_fd,
+                        path.as_ptr(),
+                        mode.0 as libc::c_int,
+                        flags.0 as libc::c_int,
+                    )
+                };
+                if result != 0 {
+                    return Err(RuntimeError::from(PlatformError::io(
+                        "faccessat failed".to_string(),
+                    ))
+                    .boxed());
+                }
+
+                Ok(())
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = (context, dir, path, mode, flags);
+                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessat")).boxed())
+            }
+        },
+        |_path| {
+            Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessat")).boxed())
+        },
+    )
+}

@@ -42,7 +42,6 @@ pub(crate) unsafe fn destack_process_chroot(
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.chroot",
     ))
@@ -101,7 +100,6 @@ pub(crate) unsafe fn destack_process_set_host_name(
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
     let name = unsafe { name.as_str()? };
-    let _ = name;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.setHostName",
     ))
@@ -130,7 +128,6 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
-    let _ = path;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.setNetworkNamespace",
     ))
@@ -185,9 +182,8 @@ pub(crate) unsafe fn destack_process_setns(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
     context: &RuntimeCallContext,
-    flags: ProcessUnshareFlags,
+    _flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
-    let _ = flags;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.unshare",
     ))

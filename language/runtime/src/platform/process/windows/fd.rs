@@ -428,8 +428,8 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 
 /// Open one process descriptor for the target process id.
 ///
-/// Open one runtime process handle bound to a process id for wait and signal operations.
-/// This handle keeps a stable process object reference to prevent pid reuse races.
+/// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.
+/// Descriptor semantics follow pidfd on Linux and host-equivalent process-handle semantics on other targets.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -477,8 +477,8 @@ pub(crate) unsafe fn destack_process_process_fd_open(
 
 /// Send one signal through a process descriptor.
 ///
-/// Deliver one signal through a process-backed handle.
-/// Delivery semantics use a stable process object reference on Windows.
+/// Deliver one signal using a stable process descriptor rather than a numeric pid.
+/// Delivery semantics follow pidfd_send_signal on Linux and host-equivalent process-signal APIs on other targets.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -550,8 +550,8 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
 
 /// Wait for one process descriptor state transition.
 ///
-/// Wait for one child-state transition associated with the process handle.
-/// Wait semantics use a stable process object reference on Windows.
+/// Wait for one child-state transition associated with the process descriptor.
+/// Wait semantics follow pollable pidfd readiness on Linux and host process wait APIs on other targets.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -625,7 +625,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses signalfd(2) on Linux and runtime-backed signal queue descriptors elsewhere.
+/// Uses signalfd(2) on Linux and host-equivalent process-signal descriptor adapters elsewhere.
 ///
 /// # Errors
 /// Returns invalidArgument, processPermissionDenied, notSupported.
@@ -672,7 +672,7 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses read(2) over signalfd on Linux and runtime queue reads on other targets.
+/// Uses read(2) over signalfd on Linux and host-equivalent signal descriptor reads on other targets.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
@@ -706,7 +706,7 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses signalfd mask update semantics on Linux and runtime queue mask update elsewhere.
+/// Uses signalfd mask update semantics on Linux and host-equivalent signal descriptor mask updates elsewhere.
 ///
 /// # Errors
 /// Returns invalidArgument, processPermissionDenied, notSupported.
@@ -732,7 +732,7 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses nonblocking reads over signalfd on Linux and runtime queue polling elsewhere.
+/// Uses nonblocking reads over signalfd on Linux and host-equivalent signal descriptor polling elsewhere.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
