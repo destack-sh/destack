@@ -275,21 +275,19 @@ fn test_fs_utf16_output_path_requires_utf8_on_unix() {
         let link = context.path_bytes(&link_path);
         context.symlink(target, link, SymlinkType::File)?;
 
-        // readlink through utf16 input should fail when output bytes are not utf8
+        // utf16 readlink is not supported on unix hosts
         let link = context.path_utf16(&link_path);
-        let result = context.readlink(link);
-        assert!(
-            result.is_err(),
-            "readlink utf16 should fail for non-utf8 target bytes"
-        );
+        super::assert_platform_error_code(
+            context.readlink(link),
+            crate::platform::diagnostic::PlatformErrorCode::NotSupported,
+        )?;
 
-        // realpath through utf16 input should fail for the same reason
+        // utf16 realpath is not supported on unix hosts
         let link = context.path_utf16(&link_path);
-        let result = context.realpath(link);
-        assert!(
-            result.is_err(),
-            "realpath utf16 should fail for non-utf8 target bytes"
-        );
+        super::assert_platform_error_code(
+            context.realpath(link),
+            crate::platform::diagnostic::PlatformErrorCode::NotSupported,
+        )?;
 
         // cleanup
         let link = context.path_bytes(&link_path);

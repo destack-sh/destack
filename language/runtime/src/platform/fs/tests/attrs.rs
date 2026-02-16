@@ -1,5 +1,6 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{FsHarnessKind, temp_dir, with_harness_context};
+use super::{FsHarnessKind, assert_platform_error_codes, temp_dir, with_harness_context};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs as platform_fs;
 use crate::platform::fs::{AccessMode, FileMode, OpenFlags};
 
@@ -41,8 +42,10 @@ fn test_fs_access_and_chmod() {
                     context.status_err(status, "access write after chmod")?;
                 }
                 FsHarnessKind::Vm => {
-                    let result = context.access(file, AccessMode(0o222));
-                    assert!(result.is_err(), "access should fail after chmod");
+                    assert_platform_error_codes(
+                        context.access(file, AccessMode(0o222)),
+                        &[PlatformErrorCode::IoPermissionDenied, PlatformErrorCode::Io],
+                    )?;
                 }
             }
         }

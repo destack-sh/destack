@@ -1,5 +1,6 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{NetHarnessKind, native_slice, with_harness_context};
+use super::{NetHarnessKind, assert_platform_error_codes, native_slice, with_harness_context};
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{SocketShutdown, destack_net_write};
 
 #[cfg(unix)]
@@ -28,8 +29,16 @@ fn test_net_shutdown() {
                 context.status_err(status, "write after shutdown")?;
             }
             NetHarnessKind::Vm => {
-                let result = context.write(client, b"after-shutdown");
-                assert!(result.is_err(), "write after shutdown should error");
+                assert_platform_error_codes(
+                    context.write(client, b"after-shutdown"),
+                    &[
+                        PlatformErrorCode::NetShutdown,
+                        PlatformErrorCode::NetBrokenPipe,
+                        PlatformErrorCode::NetNotConnected,
+                        PlatformErrorCode::NetConnectionReset,
+                        PlatformErrorCode::Net,
+                    ],
+                )?;
             }
         }
 
@@ -75,8 +84,16 @@ fn test_net_shutdown_write_keeps_read_path() {
                 context.status_err(status, "write after write-shutdown")?;
             }
             NetHarnessKind::Vm => {
-                let result = context.write(client, b"write-should-fail");
-                assert!(result.is_err(), "write after write-shutdown should error");
+                assert_platform_error_codes(
+                    context.write(client, b"write-should-fail"),
+                    &[
+                        PlatformErrorCode::NetShutdown,
+                        PlatformErrorCode::NetBrokenPipe,
+                        PlatformErrorCode::NetNotConnected,
+                        PlatformErrorCode::NetConnectionReset,
+                        PlatformErrorCode::Net,
+                    ],
+                )?;
             }
         }
 

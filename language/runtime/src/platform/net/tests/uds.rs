@@ -1,13 +1,14 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 use std::path::PathBuf;
 
-use super::{allow_not_supported, with_harness_context};
+use super::{assert_platform_error_code, assert_platform_error_codes, with_harness_context};
+use crate::platform::diagnostic::PlatformErrorCode;
 
 #[cfg(unix)]
 #[test]
 fn test_net_uds_roundtrip() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // build a unique socket path
             let socket_path = uds_path("net_uds_roundtrip");
 
@@ -39,7 +40,13 @@ fn test_net_uds_roundtrip() {
             let _ = std::fs::remove_file(&socket_path);
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 
@@ -47,7 +54,7 @@ fn test_net_uds_roundtrip() {
 #[test]
 fn test_net_uds_sendmsg_recvmsg() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // build a unique socket path
             let socket_path = uds_path("net_uds_sendmsg");
 
@@ -85,7 +92,13 @@ fn test_net_uds_sendmsg_recvmsg() {
             let _ = std::fs::remove_file(&socket_path);
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 
@@ -93,7 +106,7 @@ fn test_net_uds_sendmsg_recvmsg() {
 #[test]
 fn test_net_uds_recvmsg_credentials() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // build a unique socket path
             let socket_path = uds_path("net_uds_recvmsg_credentials");
 
@@ -131,7 +144,13 @@ fn test_net_uds_recvmsg_credentials() {
             let _ = std::fs::remove_file(&socket_path);
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 
@@ -139,7 +158,7 @@ fn test_net_uds_recvmsg_credentials() {
 #[test]
 fn test_net_uds_sendmsg_invalid_flags() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // build a unique socket path
             let socket_path = uds_path("net_uds_sendmsg_invalid_flags");
 
@@ -153,11 +172,15 @@ fn test_net_uds_sendmsg_invalid_flags() {
             let server = context.uds_accept(listener)?;
 
             // reject out of range sendmsg flags
-            let result = context.send_msg_with_flags(client, b"hello", u32::MAX);
-            assert!(
-                result.is_err(),
-                "sendmsg with out of range flags should fail"
-            );
+            assert_platform_error_codes(
+                context.send_msg_with_flags(client, b"hello", u32::MAX),
+                &[
+                    PlatformErrorCode::InvalidArgumentValue,
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                ],
+            )?;
 
             // close sockets and listener
             context.close(server)?;
@@ -168,7 +191,13 @@ fn test_net_uds_sendmsg_invalid_flags() {
             let _ = std::fs::remove_file(&socket_path);
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 
@@ -176,7 +205,7 @@ fn test_net_uds_sendmsg_invalid_flags() {
 #[test]
 fn test_net_uds_roundtrip_utf16_path() {
     with_harness_context(|mut context| {
-        allow_not_supported((|| {
+        let result = (|| {
             // build a unique socket path
             let socket_path = uds_path("net_uds_roundtrip_utf16");
 
@@ -208,7 +237,13 @@ fn test_net_uds_roundtrip_utf16_path() {
             let _ = std::fs::remove_file(&socket_path);
 
             Ok(())
-        })())
+        })();
+        match result {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)
+            }
+        }
     });
 }
 

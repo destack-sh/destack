@@ -1,5 +1,7 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{NetHarnessKind, native_slice_mut, with_harness_context};
+#[cfg(windows)]
+use super::assert_platform_error_code;
+use super::{NetHarnessKind, assert_platform_error_codes, native_slice_mut, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{KeepAliveConfig, destack_net_read};
 
@@ -23,8 +25,10 @@ fn test_net_socket_options() {
         }
         #[cfg(windows)]
         {
-            let result = context.set_reuse_port(socket, true);
-            assert!(result.is_err(), "set reuse port should fail on windows");
+            assert_platform_error_code(
+                context.set_reuse_port(socket, true),
+                PlatformErrorCode::NotSupported,
+            )?;
         }
 
         match context.kind() {
@@ -37,8 +41,10 @@ fn test_net_socket_options() {
             }
             NetHarnessKind::Vm => {
                 let mut buffer = vec![0u8; 16];
-                let result = context.read(socket, &mut buffer);
-                assert!(result.is_err(), "read nonblocking should error");
+                assert_platform_error_codes(
+                    context.read(socket, &mut buffer),
+                    &[PlatformErrorCode::Net, PlatformErrorCode::IoWouldBlock],
+                )?;
             }
         }
 
@@ -51,8 +57,10 @@ fn test_net_socket_options() {
                 }
                 #[cfg(windows)]
                 {
-                    let result = context.set_reuse_port(socket, true);
-                    assert!(result.is_err(), "set reuse port should fail on windows");
+                    assert_platform_error_code(
+                        context.set_reuse_port(socket, true),
+                        PlatformErrorCode::NotSupported,
+                    )?;
                 }
             }
             NetHarnessKind::Vm => {
@@ -63,8 +71,10 @@ fn test_net_socket_options() {
                 }
                 #[cfg(windows)]
                 {
-                    let result = context.set_reuse_port(socket, true);
-                    assert!(result.is_err(), "set reuse port should fail on windows");
+                    assert_platform_error_code(
+                        context.set_reuse_port(socket, true),
+                        PlatformErrorCode::NotSupported,
+                    )?;
                 }
             }
         }
