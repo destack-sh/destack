@@ -19,8 +19,8 @@ use crate::resolve::cache::{
 };
 use crate::timing::tags;
 use crate::{
-    Compiler, ImportError, ResolveError, ResolveResult, ResolveWarning, SymbolDescriptor,
-    can_merge_declarations,
+    Compiler, ImportError, ImportResolveContext, ResolveError, ResolveResult, ResolveWarning,
+    SymbolDescriptor, can_merge_declarations, typescript_commonjs_default_interop_is_enabled,
 };
 
 /// A resolved export symbol with its originating export space.
@@ -1418,6 +1418,51 @@ impl Compiler {
         None
     }
 
+    /// Return whether one default import may fall back to namespace lookup.
+    fn default_import_uses_namespace_fallback(
+        &self,
+        module: &Module,
+        source: DependencySource,
+        kind: DependencyKind,
+        profile: ProfileId,
+        remote_target: ModuleTarget,
+    ) -> ResolveResult<bool> {
+        // only static import declarations can use this interop path
+        if source != DependencySource::ImportStatement {
+            return Ok(false);
+        }
+
+        // read one source interop context
+        let context = ImportResolveContext {
+            dependency_kind: kind,
+            source_language_type: Some(module.language_type),
+            edge_kind: self.import_edge_kind(module, source),
+        };
+
+        // read target runtime format
+        let target_module_format =
+            self.module_format_for_target(module.id, profile, remote_target)?;
+
+        // read source interop policy from dsconfig first, then tsconfig fallback
+        let is_typescript_commonjs_default_interop_enabled = self
+            .program
+            .with_dsconfig_options(module, |options| {
+                let compiler = &options.compiler;
+                compiler.es_module_interop || compiler.allow_synthetic_default_imports
+            })
+            .or_else(|| {
+                self.program.with_tsconfig_options(module, |options| {
+                    typescript_commonjs_default_interop_is_enabled(&options.compiler)
+                })
+            })
+            .unwrap_or(false);
+
+        Ok(context.allows_commonjs_default_namespace_import(
+            target_module_format,
+            is_typescript_commonjs_default_interop_enabled,
+        ))
+    }
+
     /// Resolve the namespace symbol for a target module.
     fn resolve_namespace_symbol(
         &self,
@@ -2273,7 +2318,7 @@ impl Compiler {
                         // resolve the default export from the target
                         let default_name = self.program.strings.intern("default");
                         let key = StaticKey::Name(default_name);
-                        let (symbol, resolved_kind) = {
+                        let resolved = {
                             let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_SYMBOL);
                             self.resolve_remote_item_symbol_result(
                                 module,
@@ -2290,7 +2335,34 @@ impl Compiler {
                                 key,
                                 Some(*target),
                                 cache.as_deref_mut(),
-                            )?
+                            )
+                        };
+
+                        // allow commonjs default import fallback via namespace
+                        let (symbol, resolved_kind) = match resolved {
+                            Ok(resolved) => resolved,
+                            Err(error @ ResolveError::MissingSymbol { .. }) => {
+                                if !self.default_import_uses_namespace_fallback(
+                                    module,
+                                    *source,
+                                    *kind,
+                                    profile,
+                                    remote_target,
+                                )? {
+                                    return Err(error);
+                                }
+
+                                let _timing =
+                                    self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_NAMESPACE);
+                                let symbol = self.resolve_namespace_symbol(
+                                    module.id,
+                                    item_id.into_global_any(module.id),
+                                    remote_target,
+                                    profile,
+                                )?;
+                                (symbol, *kind)
+                            }
+                            Err(error) => return Err(error),
                         };
                         (symbol, resolved_kind)
                     }
