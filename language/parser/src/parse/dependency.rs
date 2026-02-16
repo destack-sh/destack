@@ -1961,6 +1961,39 @@ export as namespace Foo"#,
     }
 
     #[test]
+    fn test_parse_triple_slash_directive_only_file_with_banner_comment() {
+        let mut test = TestParser::new_with_options(
+            r#"/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+***************************************************************************** */
+
+/// <reference lib="es2024" />
+/// <reference lib="esnext" />"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // keep both leading directives as type imports
+        assert_eq!(expressions.len(), 2);
+
+        assert_node!(parser.tree, expressions[0], Expression::Import { source, kind, target, items, arguments } => {
+            assert_eq!(*source, ImportSource::ReferenceLibDirective);
+            assert_eq!(*kind, DependencyKind::Type);
+            assert!(items.is_empty());
+            assert!(arguments.is_none());
+            assert_import_target_string(&parser, target, "es2024");
+        });
+
+        assert_node!(parser.tree, expressions[1], Expression::Import { source, kind, target, items, arguments } => {
+            assert_eq!(*source, ImportSource::ReferenceLibDirective);
+            assert_eq!(*kind, DependencyKind::Type);
+            assert!(items.is_empty());
+            assert!(arguments.is_none());
+            assert_import_target_string(&parser, target, "esnext");
+        });
+    }
+    #[test]
     fn test_parse_triple_slash_no_default_lib_is_ignored() {
         let mut test = TestParser::new_with_options(
             r#"/// <reference no-default-lib="true" />
