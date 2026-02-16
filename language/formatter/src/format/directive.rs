@@ -1,11 +1,8 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use destack_ast::{
-    Annotation, AnnotationPosition, Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan,
-    TokenType,
-};
-use destack_fir::format::{text, FormatResult};
+use destack_ast::{LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan, TokenType};
+use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::Span;
@@ -56,55 +53,13 @@ pub fn directive_for_node<T: Node + Clone>(
     node_id: LocalNodeId<T>,
 ) -> Option<FormatterDirective>
 where
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T>,
 {
     if !context.has_ignore_directive_markers() {
         return None;
     }
 
     let node_span = context.get_span(node_id);
-    let annotations = context.get_annotations(node_id).unwrap_or_default();
-
-    // use only prefix directives for ignore behavior
-    // postfix comments like `expr(); // oxfmt-ignore` remain regular comments
-    for annotation_id in annotations {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
-            continue;
-        };
-        let comment = context.tree.get::<Comment>(*node);
-        let content = context.strings.get(comment.string);
-        let comment_span = context.get_span(*node);
-        let raw_comment = context.get_span_str(comment_span);
-        let Some(token) =
-            parse_directive_token(content).or_else(|| parse_directive_token_from_raw(raw_comment))
-        else {
-            continue;
-        };
-
-        let kind = match token {
-            FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart => {
-                FormatterDirectiveKind::IgnoreFormat
-            }
-            FormatterDirectiveToken::IgnoreEnd | FormatterDirectiveToken::IgnoreFile => {
-                continue;
-            }
-        };
-
-        match position {
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix => {
-                if comment_span.end > node_span.start {
-                    continue;
-                }
-
-                return Some(FormatterDirective {
-                    kind,
-                    position: FormatterDirectivePosition::Prefix { comment_span },
-                });
-            }
-            _ => {}
-        }
-    }
 
     let comment_tokens = context.comment_tokens();
     let mut last_prefix_token: Option<TokenSpan> = None;
@@ -159,49 +114,13 @@ pub fn ignore_range_for_node<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> Option<Span>
 where
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T>,
 {
     if !context.has_ignore_directive_markers() {
         return None;
     }
 
-    let annotations = context.get_annotations(node_id).unwrap_or_default();
     let node_span = context.get_span(node_id);
-
-    for annotation_id in annotations {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
-            continue;
-        };
-        if !matches!(
-            position,
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-        ) {
-            continue;
-        }
-
-        let comment = context.tree.get::<Comment>(*node);
-        let content = context.strings.get(comment.string);
-        let start_span = context.get_span(*node);
-        if start_span.end > node_span.start {
-            continue;
-        }
-        let raw_comment = context.get_span_str(start_span);
-        let token =
-            parse_directive_token(content).or_else(|| parse_directive_token_from_raw(raw_comment));
-        if matches!(token, Some(FormatterDirectiveToken::Ignore)) {
-            let range_span = Span::new(start_span.file, start_span.start, node_span.end);
-            return Some(extend_span_with_trailing_tokens(context, range_span));
-        }
-        if matches!(token, Some(FormatterDirectiveToken::IgnoreStart)) {
-            let Some(end_span) = find_ignore_range_end(context, comment_tokens, start_span.end)
-            else {
-                continue;
-            };
-            let range_span = Span::new(start_span.file, start_span.start, end_span.start);
-            return Some(range_span);
-        }
-    }
 
     let mut last_prefix_token: Option<TokenSpan> = None;
     for token in comment_tokens {
@@ -254,7 +173,7 @@ pub fn collect_ignore_ranges_for_nodes<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> HashMap<u32, Span>
 where
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T>,
 {
     let mut ignore_ranges = HashMap::new();
     for node_id in node_ids.iter().copied() {
@@ -272,7 +191,7 @@ pub fn any_ignore_range_for_nodes<T: Node + Clone>(
     comment_tokens: &[TokenSpan],
 ) -> bool
 where
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+    NodeTree: NodeTreeImpl<T>,
 {
     node_ids
         .iter()

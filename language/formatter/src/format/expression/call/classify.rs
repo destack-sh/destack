@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::scan::previous_non_whitespace_token_before_annotation;
 use destack_ast::{Comment, CommentStyle, TemplateLiteral};
 
 /// Store shared argument simplicity checks for call and chain classifiers.
@@ -432,8 +433,8 @@ pub(crate) fn argument_has_leading_prefix_annotation_outside_span(
 
     context
         .with_annotations(argument_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                match context.tree.get::<Annotation>(*annotation_id) {
+            annotations.iter().any(
+                |annotation_id| match context.get_annotation(*annotation_id) {
                     Annotation::Blank { .. } => false,
                     Annotation::Doc { position, .. }
                     | Annotation::Comment { position, .. }
@@ -444,11 +445,11 @@ pub(crate) fn argument_has_leading_prefix_annotation_outside_span(
                         ) {
                             return false;
                         }
-                        let annotation_span = context.get_span::<Annotation>(*annotation_id);
+                        let annotation_span = context.get_annotation_span(*annotation_id);
                         annotation_span.start < argument_span.start
                     }
-                }
-            })
+                },
+            )
         })
         .unwrap_or(false)
 }
@@ -481,8 +482,7 @@ pub(crate) fn argument_has_source_separator_line_comment_annotation(
     context
         .with_annotations(argument_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { node, position } =
-                    context.tree.get::<Annotation>(*annotation_id)
+                let Annotation::Comment { node, position } = context.get_annotation(*annotation_id)
                 else {
                     return false;
                 };
@@ -497,13 +497,13 @@ pub(crate) fn argument_has_source_separator_line_comment_annotation(
                     return false;
                 }
 
-                let comment = context.tree.get::<Comment>(*node);
+                let comment = context.tree.get::<Comment>(node);
                 if comment.style != CommentStyle::Slash {
                     return false;
                 }
 
-                crate::scan::previous_non_whitespace_before_annotation(context, *annotation_id)
-                    == Some(',')
+                previous_non_whitespace_token_before_annotation(context, *annotation_id)
+                    .is_some_and(|token| token.token.ty == TokenType::Comma)
             })
         })
         .unwrap_or(false)

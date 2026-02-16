@@ -78,30 +78,14 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<LocalNodeId<Annotation>> {
         let ast_annotation = ast.tree.get(ast_annotation_id);
-
-        // skip blank annotations without reserving
-        if matches!(ast_annotation, ast::Annotation::Blank { .. }) {
-            return None;
-        }
-
         let annotation_id =
             tree.reserve_from_source(NodeType::Annotation, ast_annotation_id.id, scope, parent_id);
         let annotation = match ast_annotation {
-            ast::Annotation::Blank { .. } => unreachable!(),
             ast::Annotation::Doc { node, position } => {
                 let doc = ast.tree.get(*node);
                 let position = self.bind_annotation_position(*position);
                 let string = self.program.strings.intern_from(&ast.strings, doc.string);
                 Annotation::Doc { position, string }
-            }
-            ast::Annotation::Comment { node, position } => {
-                let comment = ast.tree.get(*node);
-                let position = self.bind_annotation_position(*position);
-                let string = self
-                    .program
-                    .strings
-                    .intern_from(&ast.strings, comment.string);
-                Annotation::Comment { position, string }
             }
             ast::Annotation::Decorator { node, position } => {
                 let decorator = ast.tree.get(*node);

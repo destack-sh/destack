@@ -22,6 +22,14 @@ pub(super) fn format_statement_body_block<'ast>(
     } else if block.expressions.len() == 1 {
         let expression_id = block.expressions[0];
         let has_expression_prefix_annotation = f.context().has_prefix_annotation(expression_id);
+        if std::env::var("DESTACK_DEBUG_TRIVIA").is_ok() {
+            eprintln!(
+                "statement-body: expression {} has_prefix={} expr={:?}",
+                expression_id.id,
+                has_expression_prefix_annotation,
+                f.context().tree.get(expression_id)
+            );
+        }
         if has_expression_prefix_annotation {
             write!(
                 f,
@@ -126,7 +134,7 @@ fn expression_has_block_prefix_annotation(
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(annotation_id),
+            context.get_annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::BlockPrefix,
                 ..
@@ -155,7 +163,7 @@ fn expression_has_line_prefix_annotation(
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(annotation_id),
+            context.get_annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::LinePrefix,
                 ..
@@ -184,7 +192,7 @@ fn expression_has_effective_prefix_annotation(
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.tree.get::<Annotation>(annotation_id).position(),
+            context.get_annotation(annotation_id).position(),
             AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
         )
     })
@@ -205,7 +213,7 @@ fn if_branch_head_requires_space(
     }
 
     if expression_has_line_prefix_annotation(context, then_expression_id) {
-        return true;
+        return false;
     }
 
     !then_is_empty_statement

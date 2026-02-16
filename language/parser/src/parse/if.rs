@@ -153,9 +153,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, BinaryOperator, Block, Comment, CommentStyle, Declaration,
-        Declarator, Expression, FunctionKind, IfCondition, LetKind, Mutability, Pattern,
-        PatternField, ScalarLiteral,
+        BinaryOperator, Block, Comment, CommentStyle, Declaration, Declarator, Expression,
+        FunctionKind, IfCondition, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -760,16 +759,15 @@ else
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
                     let then_annotations = parser.tree.get_annotations(expressions[0].id);
-                    assert_eq!(then_annotations.len(), 1);
-                    assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "if-head");
-                        });
-                    });
+                    assert!(then_annotations.is_empty());
                 });
             });
+        });
+
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "if-head");
         });
     }
 
@@ -793,14 +791,13 @@ else
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             let else_expression_id = else_expression.expect("expected else expression");
             let annotations = parser.tree.get_annotations(else_expression_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Slash);
-                    assert_string!(parser, *string, "else-boundary");
-                });
-            });
+            assert!(annotations.is_empty());
+        });
+
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "else-boundary");
         });
     }
 }

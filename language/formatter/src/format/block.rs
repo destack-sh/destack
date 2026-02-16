@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
+use crate::Annotation;
 use destack_ast::{
-    Annotation, AnnotationPosition, Block, Declaration, Expression, FunctionKind, LocalNodeId,
-    Node, NodeTree, NodeTreeImpl, NodeType, ScalarLiteral,
+    AnnotationPosition, Block, Declaration, Expression, FunctionKind, LocalNodeId, Node, NodeTree,
+    NodeTreeImpl, NodeType, ScalarLiteral,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -203,8 +204,7 @@ fn expression_prefix_start(
 
     let mut start = fallback;
     for annotation_id in annotation_ids {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
+        let Annotation::Comment { node, position } = context.get_annotation(annotation_id) else {
             continue;
         };
         if !matches!(
@@ -214,7 +214,7 @@ fn expression_prefix_start(
             continue;
         }
 
-        let comment_span = context.get_span(*node);
+        let comment_span = context.get_span(node);
         start = start.min(comment_span.start);
     }
 
@@ -657,11 +657,11 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Annotation, AnnotationPosition, Block, NodeParentIndex};
+    use destack_ast::{AnnotationPosition, Block, NodeParentIndex};
 
     use crate::{
-        DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
-        assert_format,
+        Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
+        TestFormatter, assert_format,
     };
 
     /// Semicolons should be automatically inserted for every value-ignored expression.
@@ -706,10 +706,10 @@ mod tests {
     y;
 
     if (x) {
-        y
+        y;
     } else {
         print("foo");
-        z(x)
+        z(x);
     }
 
     loop {
@@ -718,9 +718,9 @@ mod tests {
 
     let x = z();
     let x = if (let y = 1) {
-        z()
+        z();
     } else {
-        w()
+        w();
     };
 
     return 5;
@@ -789,12 +789,27 @@ mod tests {
             let_after_loop_index.expect("expected let statement after loop index");
         assert_eq!(let_after_loop_index, loop_statement_index + 1);
 
-        let loop_annotations = test.tree.get_annotations(loop_statement_id.id);
+        let context = DestackFormatContext::new(
+            DestackFormatOptions::default(),
+            DestackFormatArtifacts {
+                file: &test.file,
+                tree: &test.tree,
+                tokens: &test.tokens,
+                side_tokens: &test.side_tokens,
+                side_span: &test.side_span,
+                strings: &test.strings,
+                parents: NodeParentIndex::from_tree(&test.tree),
+            },
+        );
+
+        let loop_annotations = context
+            .get_annotations(loop_statement_id)
+            .unwrap_or_default();
         let loop_blank_block_prefix = loop_annotations
             .iter()
             .filter(|annotation_id| {
                 matches!(
-                    test.tree.get::<Annotation>(**annotation_id),
+                    context.get_annotation(**annotation_id),
                     Annotation::Blank {
                         position: AnnotationPosition::BlockPrefix,
                         ..
@@ -808,7 +823,7 @@ mod tests {
             .iter()
             .filter(|annotation_id| {
                 matches!(
-                    test.tree.get::<Annotation>(**annotation_id),
+                    context.get_annotation(**annotation_id),
                     Annotation::Blank {
                         position: AnnotationPosition::BlockPostfix
                             | AnnotationPosition::LinePostfix
@@ -820,12 +835,14 @@ mod tests {
             .count();
         assert_eq!(loop_blank_postfix, 0);
 
-        let let_annotations = test.tree.get_annotations(let_after_loop_id.id);
+        let let_annotations = context
+            .get_annotations(let_after_loop_id)
+            .unwrap_or_default();
         let let_blank_annotations = let_annotations
             .iter()
             .filter(|annotation_id| {
                 matches!(
-                    test.tree.get::<Annotation>(**annotation_id),
+                    context.get_annotation(**annotation_id),
                     Annotation::Blank { .. }
                 )
             })
@@ -836,7 +853,7 @@ mod tests {
             .iter()
             .filter(|annotation_id| {
                 matches!(
-                    test.tree.get::<Annotation>(**annotation_id),
+                    context.get_annotation(**annotation_id),
                     Annotation::Blank {
                         position: AnnotationPosition::BlockPrefix,
                         ..
@@ -850,7 +867,7 @@ mod tests {
             .iter()
             .filter(|annotation_id| {
                 matches!(
-                    test.tree.get::<Annotation>(**annotation_id),
+                    context.get_annotation(**annotation_id),
                     Annotation::Blank {
                         position: AnnotationPosition::LinePrefix,
                         ..
@@ -860,20 +877,6 @@ mod tests {
             .count();
         assert_eq!(let_blank_line_prefix, 0);
 
-        let context = {
-            DestackFormatContext::new(
-                DestackFormatOptions::default(),
-                DestackFormatArtifacts {
-                    file: &test.file,
-                    tree: &test.tree,
-                    tokens: &test.tokens,
-                    side_tokens: &test.side_tokens,
-                    side_span: &test.side_span,
-                    strings: &test.strings,
-                    parents: NodeParentIndex::from_tree(&test.tree),
-                },
-            )
-        };
         assert!(context.has_blank_prefix_annotation(let_after_loop_id));
     }
 
@@ -918,13 +921,26 @@ mod tests {
         let loop_statement_id = expressions[0];
         let let_statement_id = expressions[1];
 
-        let loop_blank_postfix = test
-            .tree
-            .get_annotations(loop_statement_id.id)
+        let context = DestackFormatContext::new(
+            DestackFormatOptions::default(),
+            DestackFormatArtifacts {
+                file: &test.file,
+                tree: &test.tree,
+                tokens: &test.tokens,
+                side_tokens: &test.side_tokens,
+                side_span: &test.side_span,
+                strings: &test.strings,
+                parents: NodeParentIndex::from_tree(&test.tree),
+            },
+        );
+
+        let loop_blank_postfix = context
+            .get_annotations(loop_statement_id)
+            .unwrap_or_default()
             .iter()
             .filter(|annotation_id| {
                 matches!(
-                    test.tree.get::<Annotation>(**annotation_id),
+                    context.get_annotation(**annotation_id),
                     Annotation::Blank {
                         position: AnnotationPosition::BlockPostfix
                             | AnnotationPosition::LinePostfix
@@ -936,13 +952,13 @@ mod tests {
             .count();
         assert_eq!(loop_blank_postfix, 0);
 
-        let let_blank_block_prefix = test
-            .tree
-            .get_annotations(let_statement_id.id)
+        let let_blank_block_prefix = context
+            .get_annotations(let_statement_id)
+            .unwrap_or_default()
             .iter()
             .filter(|annotation_id| {
                 matches!(
-                    test.tree.get::<Annotation>(**annotation_id),
+                    context.get_annotation(**annotation_id),
                     Annotation::Blank {
                         position: AnnotationPosition::BlockPrefix,
                         ..
@@ -1014,9 +1030,9 @@ mod tests {
     /// Block shouldn't break if the expression is used inline.
     #[test]
     fn test_format_block_inline() {
-        let source = "const x = if (y) { z } else { w }";
+        let source = "const x = if (y) {\n\tz;\n} else {\n\tw;\n}";
         assert_format!(
-            source,
+            "const x = if (y) { z } else { w }",
             source,
             |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_tab()
@@ -1027,7 +1043,7 @@ mod tests {
     fn test_format_block_statement_like() {
         assert_format!(
             "if (y) { z } else { w; }",
-            "if (y) {\n\tz\n} else {\n\tw;\n}",
+            "if (y) {\n\tz;\n} else {\n\tw;\n}",
             |p| p.eat_if(),
             DestackFormatOptions::default_tab()
         );

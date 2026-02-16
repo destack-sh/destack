@@ -57,9 +57,8 @@ impl Parser {
         statements: &mut Vec<LocalNodeId<Expression>>,
         expression_id: LocalNodeId<Expression>,
         is_statement: bool,
-        force_statement: bool,
     ) {
-        if is_statement || !force_statement {
+        if is_statement {
             statements.push(expression_id);
             return;
         }
@@ -439,7 +438,7 @@ impl Parser {
 
                 // previous tail expressions are no longer block tails once a new item starts
                 if let Some(pending_id) = pending_tail_expression.take() {
-                    parser.push_block_body_expression(&mut statements, pending_id, false, true);
+                    parser.push_block_body_expression(&mut statements, pending_id, false);
                 }
 
                 // parse and recover one statement item
@@ -472,13 +471,7 @@ impl Parser {
 
             // finalize the remaining tail expression
             if let Some(expression_id) = pending_tail_expression {
-                let force_statement = format == BlockFormat::Implicit;
-                parser.push_block_body_expression(
-                    &mut statements,
-                    expression_id,
-                    false,
-                    force_statement,
-                );
+                parser.push_block_body_expression(&mut statements, expression_id, false);
             }
 
             Ok(statements)
@@ -909,8 +902,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Comment, CommentStyle, Declaration, Expression, IfKind,
-        LetKind, ScalarLiteral, TokenType, TypeBinaryOperator, YieldCardinality,
+        Comment, CommentStyle, Declaration, Expression, IfKind, LetKind, ScalarLiteral, TokenType,
+        TypeBinaryOperator, YieldCardinality,
     };
     use destack_source::LanguageType;
 
@@ -1592,13 +1585,11 @@ mod tests {
         });
 
         let annotations = parser.tree.get_annotations(statement_id.id);
-        assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(*style, CommentStyle::Slash);
-                assert_string!(parser, *string, "throw-tail");
-            });
+        assert!(annotations.is_empty());
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "throw-tail");
         });
     }
 
@@ -1624,13 +1615,11 @@ mod tests {
         });
 
         let annotations = parser.tree.get_annotations(statement_id.id);
-        assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(*style, CommentStyle::Slash);
-                assert_string!(parser, *string, "throw-tail");
-            });
+        assert!(annotations.is_empty());
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "throw-tail");
         });
     }
 
@@ -1658,13 +1647,11 @@ mod tests {
         });
 
         let annotations = parser.tree.get_annotations(statement_id.id);
-        assert_eq!(annotations.len(), 1);
-        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(*style, CommentStyle::Slash);
-                assert_string!(parser, *string, "return-tail");
-            });
+        assert!(annotations.is_empty());
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "return-tail");
         });
     }
 
@@ -1700,13 +1687,11 @@ mod tests {
                     });
 
                     let annotations = parser.tree.get_annotations(statement_id.id);
-                    assert_eq!(annotations.len(), 1);
-                    assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "throw-tail");
-                        });
+                    assert!(annotations.is_empty());
+                    assert_eq!(parser.tree.comment_trivia().len(), 1);
+                    assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+                        assert_eq!(*style, CommentStyle::Slash);
+                        assert_string!(parser, *string, "throw-tail");
                     });
                 });
             });
@@ -1771,13 +1756,11 @@ mod tests {
         assert_eq!(expressions.len(), 2);
 
         let first_annotations = parser.tree.get_annotations(expressions[0].id);
-        assert_eq!(first_annotations.len(), 1);
-        assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(*style, CommentStyle::Slash);
-                assert_string!(parser, *string, "<- keep-marker");
-            });
+        assert!(first_annotations.is_empty());
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "<- keep-marker");
         });
     }
 }

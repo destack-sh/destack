@@ -10,7 +10,7 @@ pub(super) fn expression_has_line_postfix_boundary_comment(
         .with_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.tree.get::<Annotation>(*annotation_id),
+                    context.get_annotation(*annotation_id),
                     Annotation::Comment {
                         position: AnnotationPosition::LinePostfixBoundary,
                         ..

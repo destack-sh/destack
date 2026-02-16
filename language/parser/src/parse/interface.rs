@@ -143,10 +143,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, BinaryOperator, BindingKind, Comment, CommentStyle,
-        Declaration, DeclarationDescriptor, DeclarationKind, Expression, FunctionMode, IntType,
-        Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeKind, TypeLiteral,
-        VarianceModifier, WhereClause,
+        BinaryOperator, BindingKind, Comment, CommentStyle, Declaration, DeclarationDescriptor,
+        DeclarationKind, Expression, FunctionMode, IntType, Key, Member, Mutability, Name,
+        Parameter, ScalarLiteral, TypeKind, TypeLiteral, VarianceModifier, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -936,14 +935,12 @@ interface Add<T, R = Self> {
             assert_node!(parser.tree, *declaration_id, Declaration::Interface { .. } => {});
 
             let annotations = parser.tree.get_annotations(declaration_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Slash);
-                    assert_string!(parser, *string, "interface-head");
-                });
-            });
+            assert!(annotations.is_empty());
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "interface-head");
         });
     }
 }

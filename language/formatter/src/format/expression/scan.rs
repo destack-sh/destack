@@ -78,14 +78,14 @@ pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
     context
         .with_annotations(expression_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let annotation = context.get_annotation(*annotation_id);
                 if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
                     || !matches!(annotation, Annotation::Comment { .. })
                 {
                     return false;
                 }
 
-                let annotation_span = context.get_span::<Annotation>(*annotation_id);
+                let annotation_span = context.get_annotation_span(*annotation_id);
                 let annotation_source = context.get_span_str(annotation_span);
                 let trimmed = annotation_source.trim_start();
 
@@ -134,7 +134,7 @@ pub(super) fn expression_has_prefix_comment_annotation(
         .with_annotations(expression_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.tree.get::<Annotation>(*annotation_id),
+                    context.get_annotation(*annotation_id),
                     Annotation::Comment {
                         position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
                         ..
@@ -153,8 +153,7 @@ pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
     context
         .with_annotations(expression_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { position, node } =
-                    context.tree.get::<Annotation>(*annotation_id)
+                let Annotation::Comment { position, node } = context.get_annotation(*annotation_id)
                 else {
                     return false;
                 };
@@ -166,13 +165,13 @@ pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
                     return false;
                 }
 
-                let comment = context.tree.get::<Comment>(*node);
+                let comment = context.tree.get::<Comment>(node);
                 let comment_source = context.strings.get(comment.string);
                 if is_ignore_directive_comment(comment_source) {
                     return true;
                 }
 
-                let comment_span = context.get_span::<Comment>(*node);
+                let comment_span = context.get_span::<Comment>(node);
                 let raw_comment = context.get_span_str(comment_span);
                 is_ignore_directive_comment(raw_comment)
             })

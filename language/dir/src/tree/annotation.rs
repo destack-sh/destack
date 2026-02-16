@@ -15,16 +15,11 @@ pub enum AnnotationPosition {
 
 /// An annotation attached to a DIR node.
 ///
-/// Annotations include documentation, comments, and decorators (metadata/transformations).
+/// Annotations include documentation and decorators (metadata/transformations).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Annotation {
     /// Doc annotation (like `///` or `/**`).
     Doc {
-        position: AnnotationPosition,
-        string: StringId,
-    },
-    /// Comment annotation (like `//` or `/*`).
-    Comment {
         position: AnnotationPosition,
         string: StringId,
     },
@@ -62,7 +57,6 @@ impl Annotation {
     pub fn position(&self) -> AnnotationPosition {
         match self {
             Annotation::Doc { position, .. } => *position,
-            Annotation::Comment { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
     }

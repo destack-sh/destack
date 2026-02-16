@@ -29,11 +29,6 @@ impl ModuleLowerer<'_> {
                 let string = self.strings.intern_from(&self.ast.strings, *string);
                 Annotation::Doc { position, string }
             }
-            dir::Annotation::Comment { position, string } => {
-                let position = self.lower_annotation_position(*position);
-                let string = self.strings.intern_from(&self.ast.strings, *string);
-                Annotation::Comment { position, string }
-            }
             dir::Annotation::Decorator {
                 position: _,
                 expression: _,

@@ -3,9 +3,9 @@ use crate::argument::list_like;
 use crate::expression::expression_has_static_type_arguments;
 use crate::property::format_block_of_members;
 use crate::r#where::format_where_clause_with_break;
-use crate::{DestackFormatter, empty_block_with_infix_annotations};
+use crate::{Annotation, DestackFormatter, empty_block_with_infix_annotations};
 use destack_ast::{
-    Annotation, AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
+    AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
     DeclarationKind, EnumField, EnumKind, Expression, Generics, Heritage, Keyword, LocalNodeId,
     Member, NodeType, TypeKind, WhereClause,
 };
@@ -25,7 +25,7 @@ fn super_type_clause_has_line_postfix_boundary_annotation(
 
         annotation_ids.iter().any(|annotation_id| {
             matches!(
-                f.context().tree.get::<Annotation>(*annotation_id),
+                f.context().get_annotation(*annotation_id),
                 Annotation::Comment {
                     position: AnnotationPosition::LinePostfixBoundary,
                     ..

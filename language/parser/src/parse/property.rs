@@ -1215,11 +1215,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AbstractionModifier, Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator,
-        BindingAnchor, BindingKind, Block, Comment, CommentStyle, Declaration, DeclarationKind,
-        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IfCondition, IfKind, IntType,
-        Key, LocalNodeId, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
-        TypePredicateSubject, Visibility,
+        AbstractionModifier, Argument, Asynchrony, BinaryOperator, BindingAnchor, BindingKind,
+        Block, Comment, CommentStyle, Declaration, DeclarationKind, Expression,
+        FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter,
+        Property, ScalarLiteral, TypeLiteral, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1500,16 +1499,14 @@ port2 = {
                 assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
                     assert_eq!(expressions.len(), 1);
                     let body_statement_annotations = parser.tree.get_annotations(expressions[0].id);
-                    assert_eq!(body_statement_annotations.len(), 1);
-                    assert_node!(parser.tree, body_statement_annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_node!(parser.tree, *node, Comment { style, string } => {
-                            assert_eq!(*style, CommentStyle::Slash);
-                            assert_string!(parser, *string, "method-body");
-                        });
-                    });
+                    assert!(body_statement_annotations.is_empty());
                 });
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 1);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { style, string } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "method-body");
         });
     }
 
@@ -1991,25 +1988,20 @@ foo(): string;"#,
                 assert_eq!(members.len(), 2);
 
                 let first_annotations = parser.tree.get_annotations(members[0].id);
-                assert_eq!(first_annotations.len(), 1);
-                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "first-tail");
-                    });
-                });
+                assert!(first_annotations.is_empty());
 
                 let second_annotations = parser.tree.get_annotations(members[1].id);
-                assert_eq!(second_annotations.len(), 1);
-                assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                    assert_node!(parser.tree, *node, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "second-tail");
-                    });
-                });
+                assert!(second_annotations.is_empty());
             });
+        });
+        assert_eq!(parser.tree.comment_trivia().len(), 2);
+        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "first-tail");
+        });
+        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+            assert_eq!(*style, CommentStyle::Slash);
+            assert_string!(parser, *string, "second-tail");
         });
     }
 }

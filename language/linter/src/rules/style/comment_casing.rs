@@ -38,114 +38,112 @@ impl LintRule for CommentCasing {
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleAstContext<'a>) {
         let meta = self.meta();
 
+        // non doc comments should start with lowercase
+        for trivia in ctx.tree.comment_trivia().iter().copied() {
+            let comment = ctx.tree.get(trivia.comment);
+            let comment_text = ctx.strings.get(comment.string);
+            let comment_text = comment_text.as_ref().trim();
+
+            // skip comments that are exempt from lowercase casing
+            if comment_text.is_empty()
+                || is_directive_comment(comment_text)
+                || is_separator_comment(comment_text)
+                || is_separator_heading_block(
+                    comment_text,
+                    ctx.options.comment_separator_heading_min_lines,
+                )
+                || parse_keyword_comment_with_options(
+                    comment_text,
+                    &ctx.options.comment_keywords,
+                    &ctx.options.comment_keyword_tags,
+                )
+                .is_some()
+            {
+                continue;
+            }
+
+            // report uppercase comment starts
+            if let Some(first_character) = first_alphabetic_character(comment_text)
+                && first_character.is_uppercase()
+            {
+                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                if !severity.is_enabled() {
+                    continue;
+                }
+
+                let mut diagnostic = LintDiagnostic::new(
+                    COMMENT_CASING.id,
+                    COMMENT_CASING.code,
+                    COMMENT_CASING.category,
+                    severity,
+                    "inline comment should start with lowercase",
+                    ctx.module.file_id,
+                    trivia.span,
+                )
+                .with_label("use lowercase for inline comments");
+
+                // compute fixes only when requested by the runner
+                if ctx.compute_fixes
+                    && let Some(fix) =
+                        comment_casing_fix(ctx, trivia.span, CasingFixKind::LowercaseInline)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
+                }
+
+                ctx.report(diagnostic);
+            }
+        }
+
+        // doc comments should start with uppercase
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
+            let ast::Annotation::Doc { node, .. } = annotation else {
+                continue;
+            };
 
-            match annotation {
-                // non doc comments should start with lowercase
-                ast::Annotation::Comment { node, .. } => {
-                    let comment = ctx.tree.get(*node);
-                    let comment_text = ctx.strings.get(comment.string);
-                    let comment_text = comment_text.as_ref().trim();
+            let doc = ctx.tree.get(*node);
+            let doc_text = ctx.strings.get(doc.string);
 
-                    // skip comments that are exempt from lowercase casing
-                    if comment_text.is_empty()
-                        || is_directive_comment(comment_text)
-                        || is_separator_comment(comment_text)
-                        || is_separator_heading_block(
-                            comment_text,
-                            ctx.options.comment_separator_heading_min_lines,
-                        )
-                        || parse_keyword_comment_with_options(
-                            comment_text,
-                            &ctx.options.comment_keywords,
-                            &ctx.options.comment_keyword_tags,
-                        )
-                        .is_some()
-                    {
-                        continue;
-                    }
+            // find the first prose line
+            let first_line = doc_text
+                .as_ref()
+                .lines()
+                .find(|line| !is_non_prose_doc_line(line))
+                .map(|line| line.trim());
+            let Some(first_line) = first_line else {
+                continue;
+            };
 
-                    // report uppercase comment starts
-                    if let Some(first_character) = first_alphabetic_character(comment_text)
-                        && first_character.is_uppercase()
-                    {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        let mut diagnostic = LintDiagnostic::new(
-                            COMMENT_CASING.id,
-                            COMMENT_CASING.code,
-                            COMMENT_CASING.category,
-                            severity,
-                            "inline comment should start with lowercase",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("use lowercase for inline comments");
-
-                        // compute fixes only when requested by the runner
-                        if ctx.compute_fixes
-                            && let Some(fix) =
-                                comment_casing_fix(ctx, node_id, CasingFixKind::LowercaseInline)
-                        {
-                            diagnostic = diagnostic.with_fix(fix);
-                        }
-
-                        ctx.report(diagnostic);
-                    }
+            // report lowercase doc comment starts
+            if let Some(first_character) = first_alphabetic_character(first_line)
+                && first_character.is_lowercase()
+            {
+                let severity = ctx.get_effective_severity(meta, node_id);
+                if !severity.is_enabled() {
+                    continue;
                 }
 
-                // doc comments should start with uppercase
-                ast::Annotation::Doc { node, .. } => {
-                    let doc = ctx.tree.get(*node);
-                    let doc_text = ctx.strings.get(doc.string);
+                let annotation_span = ctx.tree.get_span(node_id);
+                let mut diagnostic = LintDiagnostic::new(
+                    COMMENT_CASING.id,
+                    COMMENT_CASING.code,
+                    COMMENT_CASING.category,
+                    severity,
+                    "doc comment should start with uppercase",
+                    ctx.module.file_id,
+                    annotation_span,
+                )
+                .with_label("use uppercase for doc comments");
 
-                    // find the first prose line
-                    let first_line = doc_text
-                        .as_ref()
-                        .lines()
-                        .find(|line| !is_non_prose_doc_line(line))
-                        .map(|line| line.trim());
-                    let Some(first_line) = first_line else {
-                        continue;
-                    };
-
-                    // report lowercase doc comment starts
-                    if let Some(first_character) = first_alphabetic_character(first_line)
-                        && first_character.is_lowercase()
-                    {
-                        let severity = ctx.get_effective_severity(meta, node_id);
-                        if !severity.is_enabled() {
-                            continue;
-                        }
-
-                        let mut diagnostic = LintDiagnostic::new(
-                            COMMENT_CASING.id,
-                            COMMENT_CASING.code,
-                            COMMENT_CASING.category,
-                            severity,
-                            "doc comment should start with uppercase",
-                            ctx.module.file_id,
-                            ctx.tree.get_span(node_id),
-                        )
-                        .with_label("use uppercase for doc comments");
-
-                        // compute fixes only when requested by the runner
-                        if ctx.compute_fixes
-                            && let Some(fix) =
-                                comment_casing_fix(ctx, node_id, CasingFixKind::UppercaseDoc)
-                        {
-                            diagnostic = diagnostic.with_fix(fix);
-                        }
-
-                        ctx.report(diagnostic);
-                    }
+                // compute fixes only when requested by the runner
+                if ctx.compute_fixes
+                    && let Some(fix) =
+                        comment_casing_fix(ctx, annotation_span, CasingFixKind::UppercaseDoc)
+                {
+                    diagnostic = diagnostic.with_fix(fix);
                 }
 
-                _ => {}
+                ctx.report(diagnostic);
             }
         }
     }
@@ -183,10 +181,9 @@ enum CasingFixKind {
 /// Build a safe fix for one comment casing violation.
 fn comment_casing_fix(
     ctx: &LintModuleAstContext<'_>,
-    annotation_id: ast::LocalNodeId<ast::Annotation>,
+    annotation_span: Span,
     fix_kind: CasingFixKind,
 ) -> Option<LintFix> {
-    let annotation_span = ctx.tree.get_span(annotation_id);
     let annotation_text = ctx.get_span_text(annotation_span);
 
     // locate the first alphabetic character to rewrite

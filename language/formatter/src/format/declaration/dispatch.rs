@@ -1,6 +1,6 @@
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Annotation, AnnotationPosition, Declaration, DependencyMode, Expression, FunctionKind, Keyword,
+    AnnotationPosition, Declaration, DependencyMode, Expression, FunctionKind, Keyword,
     LocalNodeId, NodeType, Visibility,
 };
 use destack_fir::format::FormatResult;
@@ -253,13 +253,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 signature,
                 body,
             } => {
-                format_function_declaration(
-                    f,
-                    node_id,
-                    descriptor,
-                    signature,
-                    body,
-                )?;
+                format_function_declaration(f, node_id, descriptor, signature, body)?;
             }
         }
 
@@ -268,7 +262,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         if should_skip_blank_postfix_annotations {
             if let Some(annotation_ids) = f.context().get_annotations(node_id) {
                 for annotation_id in annotation_ids {
-                    let annotation = f.context().tree.get::<Annotation>(annotation_id);
+                    let annotation = f.context().get_annotation(annotation_id);
                     if matches!(annotation, Annotation::Blank { .. }) {
                         continue;
                     }

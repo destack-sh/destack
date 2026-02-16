@@ -17,16 +17,15 @@ fn collect_type_unary_infix_comment_sources(
 
     let mut comments = Vec::new();
     for annotation_id in annotation_ids {
-        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
-        else {
+        let Annotation::Comment { node, position } = context.get_annotation(annotation_id) else {
             continue;
         };
-        if *position != AnnotationPosition::BlockInfix {
+        if position != AnnotationPosition::BlockInfix {
             continue;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(*node);
-        let annotation_span = context.get_span::<Annotation>(annotation_id);
+        let comment = context.tree.get::<destack_ast::Comment>(node);
+        let annotation_span = context.get_annotation_span(annotation_id);
         let source = context.get_span_str(annotation_span).trim().to_string();
         if source.is_empty() {
             continue;

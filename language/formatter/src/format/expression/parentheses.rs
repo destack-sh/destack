@@ -205,13 +205,36 @@ fn parenthesized_has_leading_inner_pattern(
     span_has_comment(context, leading_span)
 }
 
-/// Return whether source for a member expression includes optional chaining syntax.
-pub(super) fn member_expression_source_has_optional_chain(
+/// Return whether one expression chain contains optional chaining semantics.
+fn expression_chain_has_optional_maybe(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+
+    loop {
+        match context.tree.get(current_id) {
+            Expression::Maybe { .. } => return true,
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Must { left, .. }
+            | Expression::Instantiation { left, .. } => current_id = *left,
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                current_id = *expression;
+            }
+            _ => return false,
+        }
+    }
+}
+
+/// Return whether one member expression contains optional chaining semantics.
+pub(super) fn member_expression_has_optional_chain(
     context: &DestackFormatContext<'_>,
     member_id: LocalNodeId<Expression>,
 ) -> bool {
-    let member_span = context.get_span(member_id);
-    context.get_span_str(member_span).contains("?.")
+    expression_chain_has_optional_maybe(context, member_id)
 }
 
 /// Decide whether a parenthesized expression can be unwrapped in member object position.
@@ -306,7 +329,7 @@ pub(super) fn should_unwrap_parenthesized_new_member_callee(
     match context.tree.get(inner_expression_id) {
         Expression::Path { .. } => true,
         Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            if member_expression_source_has_optional_chain(context, inner_expression_id) {
+            if member_expression_has_optional_chain(context, inner_expression_id) {
                 return false;
             }
 
@@ -728,7 +751,7 @@ fn expression_has_only_prefix_comment_or_doc_annotations(
             !annotations.is_empty()
                 && annotations.iter().all(|annotation_id| {
                     matches!(
-                        context.tree.get::<Annotation>(*annotation_id),
+                        context.get_annotation(*annotation_id),
                         Annotation::Comment {
                             position: AnnotationPosition::LinePrefix
                                 | AnnotationPosition::BlockPrefix,

@@ -1413,6 +1413,9 @@ impl Parser {
 
     /// Attach trivia after parsing when needed.
     pub fn attach_trivia(&mut self) {
+        // materialize the stream so trivia presence flags are complete
+        self.token_stream.lex_to_end();
+
         if !self.token_stream.has_comment_trivia_tokens()
             && !self.token_stream.has_blank_trivia_tokens()
         {

@@ -1218,6 +1218,7 @@ dependencies = [
  "num_cpus",
  "pprof",
  "rayon",
+ "rustc-hash 2.1.1",
  "smallvec",
  "tracing",
 ]

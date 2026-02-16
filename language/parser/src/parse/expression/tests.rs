@@ -1,11 +1,11 @@
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator,
-    BindingKind, Block, Comment, CommentStyle, Declaration, DeclarationDescriptor, Declarator,
-    DependencyItem, DependencyKind, DependencyMode, EnumField, EnumKind, Expression, FunctionKind,
-    IfCondition, IfKind, ImportAliasTarget, ImportSource, ImportTarget, IntType, Key, Member,
-    Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral,
-    TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, Comment,
+    CommentStyle, Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
+    DependencyMode, EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind,
+    ImportAliasTarget, ImportSource, ImportTarget, IntType, Key, Member, Mutability, Name,
+    Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral,
+    TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 use destack_source::{DiagnosticSeverity, LanguageType};
 
@@ -124,29 +124,21 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
                 assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                     assert_string!(parser, *name, "first");
                     assert_expression_path!(parser, parser.tree.get(*left), "source");
-
-                    let source_annotations = parser.tree.get_annotations(left.id);
-                    assert_eq!(source_annotations.len(), 1);
-                    assert_node!(parser.tree, source_annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePostfix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_eq!(*style, CommentStyle::Star);
-                            assert_string!(parser, *string, "hop-a");
-                        });
-                    });
                 });
             });
-
             let first_call_annotations = parser.tree.get_annotations(first_call_id.id);
-            assert_eq!(first_call_annotations.len(), 1);
-            assert_node!(parser.tree, first_call_annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePostfix);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Star);
-                    assert_string!(parser, *string, "hop-b");
-                });
-            });
+            assert!(first_call_annotations.is_empty());
         });
+    });
+
+    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+        assert_eq!(*style, CommentStyle::Star);
+        assert_string!(parser, *string, " hop-a");
+    });
+    assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+        assert_eq!(*style, CommentStyle::Star);
+        assert_string!(parser, *string, " hop-b");
     });
 }
 
@@ -1563,27 +1555,21 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
         };
 
         let condition_annotations = parser.tree.get_annotations(condition_id.id);
-        assert_eq!(condition_annotations.len(), 1);
-        assert_node!(parser.tree, condition_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(*style, CommentStyle::Slash);
-                assert_string!(parser, *string, "then-seam");
-            });
-        });
-
+        assert!(condition_annotations.is_empty());
         let then_annotations = parser.tree.get_annotations(then_expression.id);
-        assert_eq!(then_annotations.len(), 1);
-        assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(*style, CommentStyle::Slash);
-                assert_string!(parser, *string, "else-seam");
-            });
-        });
-
+        assert!(then_annotations.is_empty());
         let else_annotations = parser.tree.get_annotations(else_expression_id.id);
         assert!(else_annotations.is_empty());
+    });
+
+    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
+        assert_eq!(*style, CommentStyle::Slash);
+        assert_string!(parser, *string, "then-seam");
+    });
+    assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
+        assert_eq!(*style, CommentStyle::Slash);
+        assert_string!(parser, *string, "else-seam");
     });
 }
 

@@ -24,6 +24,7 @@ destack_unicode = { workspace = true }
 
 # general
 memchr = { workspace = true }
+rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 tracing = { workspace = true }
 

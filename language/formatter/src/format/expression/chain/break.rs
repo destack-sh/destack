@@ -419,7 +419,7 @@ pub(crate) fn chain_node_has_breaking_annotation(
     context
         .with_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let annotation = context.get_annotation(*annotation_id);
                 let position = annotation.position();
 
                 matches!(
@@ -443,7 +443,7 @@ pub(crate) fn chain_node_has_non_inline_annotation(
     context
         .with_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let annotation = context.tree.get::<Annotation>(*annotation_id);
+                let annotation = context.get_annotation(*annotation_id);
                 let position = annotation.position();
 
                 match annotation {
@@ -485,7 +485,7 @@ pub(crate) fn chain_line_starts_with_block_prefix_annotation(
         .with_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.tree.get::<Annotation>(*annotation_id).position(),
+                    context.get_annotation(*annotation_id).position(),
                     AnnotationPosition::BlockPrefix
                 )
             })
@@ -646,7 +646,7 @@ pub(crate) fn should_split_chain_root_path_segments(
         .with_annotations(root_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.tree.get::<Annotation>(*annotation_id),
+                    context.get_annotation(*annotation_id),
                     Annotation::Comment {
                         position: AnnotationPosition::LinePostfixBoundary,
                         ..
