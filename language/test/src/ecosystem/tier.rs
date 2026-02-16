@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, ResolveTask};
+use destack_compiler::{
+    AnalyzeTask, Compiler, CompilerOptions, OptimizeTask, ResolveTask, StatsSnapshot,
+};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileRegistry, FileSystem,
@@ -125,8 +127,10 @@ fn run_compiler_phase(
     default_tsc_tool: EcosystemTscTool,
     collect_read_stats: bool,
 ) -> PhaseTierResult {
+    // initialize optional read stats
     let mut stats = collect_read_stats.then_some(PhaseReadStats::default());
 
+    // discover entrypoints for this phase
     let entrypoints = match select_phase_entrypoints_with_roots(
         package_dir,
         files,
@@ -142,10 +146,10 @@ fn run_compiler_phase(
         }
     };
 
+    // construct one compiler session for the package
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
     let session = Arc::new(Session::new(package_dir.to_path_buf()).with_fs(file_system));
     let program = session.add_root(package_dir.to_path_buf());
-
     let compiler = Compiler::new(
         session,
         program.clone(),
@@ -155,6 +159,7 @@ fn run_compiler_phase(
         },
     );
 
+    // resolve entrypoint modules before task enqueue
     let mut module_ids = BTreeSet::new();
     for path in &entrypoints {
         let module_id = match compiler.resolve_path_to_module(path) {
@@ -172,6 +177,7 @@ fn run_compiler_phase(
         module_ids.insert(module_id);
     }
 
+    // fail loudly when no module could be resolved
     if module_ids.is_empty() {
         return PhaseTierResult {
             result: TestResult::Failed {
@@ -181,34 +187,39 @@ fn run_compiler_phase(
         };
     }
 
+    // enqueue the selected phase for each resolved module
     for module_id in module_ids.iter().copied() {
         enqueue_phase_task(&compiler, &program, module_id, phase);
     }
 
+    // run the compiler and snapshot timings
     compiler.compile();
+    let compiler_stats = compiler
+        .stats
+        .snapshot_with_program(program.modules.len(), Some(&program));
     drop(compiler);
 
-    // compiler stats: reflect the complete loaded module graph
+    // collect loaded graph stats when requested
     if collect_read_stats {
         stats = Some(collect_compiler_phase_stats(&program));
     }
 
+    // collect error diagnostics for this phase
     let diagnostics = program.diagnostics.collect();
     let errors = diagnostics
         .iter()
         .into_iter()
         .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
         .collect::<Vec<_>>();
-
     let has_destack_errors = !errors.is_empty();
 
-    // collect configured expectations for this phase
+    // collect expected diagnostics configured in the manifest
     let expected_phase_diagnostics = manifest
         .diagnostics_for_phase(phase)
         .cloned()
         .collect::<Vec<_>>();
 
-    // run tsc only for configured languages, phases, and modes
+    // optionally run tsc for contextual comparison
     let tsc_result = maybe_run_typescript_tsc(
         package_dir,
         manifest,
@@ -227,7 +238,7 @@ fn run_compiler_phase(
         };
     }
 
-    // fail when expected diagnostics are missing from an otherwise clean run
+    // fail when expected diagnostics are missing in a clean run
     if !has_destack_errors {
         let mut message = format_expected_diagnostic_mismatch(
             phase,
@@ -237,6 +248,7 @@ fn run_compiler_phase(
             &[],
         );
 
+        append_compiler_stats_context_maybe(&mut message, &compiler_stats);
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
         return PhaseTierResult {
@@ -245,7 +257,7 @@ fn run_compiler_phase(
         };
     }
 
-    // match observed diagnostics against expectations when configured
+    // match observed diagnostics against manifest expectations
     if !expected_phase_diagnostics.is_empty() {
         let observed_phase_diagnostics =
             collect_observed_phase_diagnostics(&program.files, package_dir, &errors);
@@ -254,6 +266,7 @@ fn run_compiler_phase(
             &observed_phase_diagnostics,
         );
 
+        // pass when observed diagnostics exactly match expectations
         if outcome.missing_expected.is_empty() && outcome.unexpected_observed.is_empty() {
             return PhaseTierResult {
                 result: TestResult::Passed,
@@ -261,6 +274,7 @@ fn run_compiler_phase(
             };
         }
 
+        // build mismatch output with full diagnostic context
         let mut message = format_expected_diagnostic_mismatch(
             phase,
             entrypoints.len(),
@@ -274,6 +288,7 @@ fn run_compiler_phase(
         message.push_str("\n\n");
         message.push_str(diagnostic_output.trim_end());
 
+        append_compiler_stats_context_maybe(&mut message, &compiler_stats);
         append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
         return PhaseTierResult {
@@ -284,7 +299,6 @@ fn run_compiler_phase(
 
     // report full diagnostics when no expectation list is configured
     let diagnostic_output = format_phase_error_diagnostics(&program, &errors, entrypoints.len());
-
     let mut message = format!(
         "phase '{}' failed with {} errors across {} entrypoints and {} discovered files:\n\n{}",
         phase.name(),
@@ -294,6 +308,7 @@ fn run_compiler_phase(
         diagnostic_output.trim_end()
     );
 
+    append_compiler_stats_context_maybe(&mut message, &compiler_stats);
     append_tsc_context_maybe(&mut message, tsc_result.as_ref());
 
     PhaseTierResult {
@@ -301,7 +316,6 @@ fn run_compiler_phase(
         stats,
     }
 }
-
 /// Collect loaded module counts and source lines from the compiled program.
 fn collect_compiler_phase_stats(program: &Arc<Program>) -> PhaseReadStats {
     let mut modules = 0usize;
@@ -480,6 +494,60 @@ fn format_phase_error_diagnostics(
     )
 }
 
+/// Append optional compiler stats context to one failure message.
+fn append_compiler_stats_context_maybe(message: &mut String, stats: &StatsSnapshot) {
+    let stats_message = compiler_stats_to_failure_context(stats);
+    if stats_message.is_empty() {
+        return;
+    }
+
+    message.push_str("\n\n");
+    message.push_str(&stats_message);
+}
+
+/// Build one compiler stats summary for ecosystem failure triage.
+fn compiler_stats_to_failure_context(stats: &StatsSnapshot) -> String {
+    const TOP_TASKS: usize = 10;
+    const TOP_TIMINGS: usize = 15;
+
+    let mut lines = Vec::new();
+    lines.push("compiler stats:".to_string());
+    lines.push(format!("  elapsed: {}", format_duration_ms(stats.elapsed)));
+
+    // report the hottest task names first
+    if !stats.task_names.is_empty() {
+        lines.push(format!("  top task timings ({TOP_TASKS}):"));
+        for task in stats.task_names.iter().take(TOP_TASKS) {
+            lines.push(format!(
+                "   - {}: {} ({})",
+                task.name,
+                format_duration_ms(task.duration),
+                task.task_count,
+            ));
+        }
+    }
+
+    // report timing tags when detailed timings are enabled
+    if !stats.timings.is_empty() {
+        lines.push(format!("  top timing tags ({TOP_TIMINGS}):"));
+        for timing in stats.timings.iter().take(TOP_TIMINGS) {
+            lines.push(format!(
+                "   - {}: {} ({})",
+                timing.name,
+                format_duration_ms(timing.duration),
+                timing.sample_count,
+            ));
+        }
+    }
+
+    lines.join("\n")
+}
+
+/// Format one duration as milliseconds.
+fn format_duration_ms(duration: std::time::Duration) -> String {
+    format!("{:.3}ms", duration.as_secs_f64() * 1000.0)
+}
+
 /// Append optional tsc context to one failure message.
 fn append_tsc_context_maybe(
     message: &mut String,
@@ -538,31 +606,29 @@ fn maybe_run_typescript_tsc(
     default_tsc_tool: EcosystemTscTool,
     entrypoints: &[PathBuf],
 ) -> Option<Result<TypeScriptTscRun, String>> {
-    // skip packages and languages that do not opt into tsc execution
+    // skip packages that do not enable tsc for this language
     if !manifest.tsc.enabled_for_language(manifest.package.language) {
         return None;
     }
 
-    // skip phases outside the tsc phase allowlist
+    // skip phases outside the manifest tsc allowlist
     if !manifest.tsc.includes_phase(phase) {
         return None;
     }
 
+    // resolve effective mode and skip when disabled
     let tsc_mode = tsc_mode_for_manifest(manifest, default_tsc_mode);
-
-    // skip by mode when no tsc execution is requested
     if tsc_mode == EcosystemTscMode::Off {
         return None;
     }
 
-    // run only on Destack failures when on-failure mode is selected
+    // run only on Destack failures for on-failure mode
     if tsc_mode == EcosystemTscMode::OnFailure && !has_destack_errors {
         return None;
     }
 
+    // resolve effective tool and one runnable binary
     let tsc_tool = tsc_tool_for_manifest(manifest, default_tsc_tool);
-
-    // resolve one available binary for the configured tool policy
     let Some(binary) = resolve_typescript_tsc_binary(tsc_tool) else {
         let error = match tsc_tool {
             EcosystemTscTool::Auto => {
@@ -575,12 +641,12 @@ fn maybe_run_typescript_tsc(
                 "TypeScript TSC binary not found: expected tsc in PATH".to_string()
             }
         };
+
         return Some(Err(error));
     };
 
-    // build tsc arguments from selected entrypoints
+    // build args from selected entrypoints and run tsc
     let args = build_typescript_tsc_args(package_dir, entrypoints, binary);
-
     let output = Command::new(binary)
         .args(args.iter().map(String::as_str))
         .current_dir(package_dir)
@@ -593,6 +659,7 @@ fn maybe_run_typescript_tsc(
             )
         });
 
+    // normalize output into one stable run result
     match output {
         Ok(output) => {
             let mut merged = String::new();
@@ -609,7 +676,6 @@ fn maybe_run_typescript_tsc(
         Err(error) => Some(Err(error)),
     }
 }
-
 /// Resolve one tsc binary according to the configured tool mode.
 fn resolve_typescript_tsc_binary(tool: EcosystemTscTool) -> Option<&'static str> {
     match tool {
@@ -918,13 +984,12 @@ fn select_phase_entrypoints_with_roots(
     roots: &[String],
     entrypoints: &[String],
 ) -> Result<Vec<PathBuf>, String> {
+    // start from discovered files and keep runtime oriented candidates
     let mut candidates = files.to_vec();
-
-    // filter declaration files for semantic and lowering phases
     candidates.retain(|path| !is_declaration_file(path.as_path()));
     candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
 
-    // use explicit ecosystem entrypoints when configured
+    // honor explicit discovery entrypoints when configured
     if !entrypoints.is_empty() {
         let mut configured_candidates = candidates.clone();
         include_entry_target_candidates(&mut configured_candidates, package_dir, entrypoints);
@@ -943,7 +1008,7 @@ fn select_phase_entrypoints_with_roots(
         ));
     }
 
-    // load manifest sources once for deterministic selection
+    // resolve manifest sources once for deterministic selection
     let manifest_sources = load_manifest_entry_sources(package_dir, &candidates, roots)?;
     if manifest_sources.is_empty() {
         return Err(format!(
@@ -953,20 +1018,19 @@ fn select_phase_entrypoints_with_roots(
         ));
     }
 
-    // resolve entrypoints from package manifest targets first
+    // first pass: select from currently discovered candidates
     let manifest_entrypoints =
         select_manifest_entrypoints_from_sources(package_dir, &candidates, &manifest_sources);
     if !manifest_entrypoints.is_empty() {
         return Ok(manifest_entrypoints);
     }
 
-    // supplement candidates with explicit manifest entry target files when filters excluded them
+    // second pass: include explicit manifest targets filtered out by discovery
     let mut expanded_candidates = candidates.clone();
     include_manifest_target_candidates(&mut expanded_candidates, &manifest_sources);
     expanded_candidates.sort_by_key(|path| entrypoint_sort_key(package_dir, path.as_path()));
     expanded_candidates.dedup();
 
-    // retry manifest entrypoint selection against expanded candidates
     let mut declaration_only_manifest_entrypoints = Vec::new();
     let manifest_entrypoints = select_manifest_entrypoints_from_sources(
         package_dir,
@@ -974,7 +1038,7 @@ fn select_phase_entrypoints_with_roots(
         &manifest_sources,
     );
     if !manifest_entrypoints.is_empty() {
-        // return manifest targets when any runtime source was resolved
+        // return manifest entrypoints when at least one runtime source resolved
         if manifest_entrypoints
             .iter()
             .any(|path| !is_declaration_file(path.as_path()))
@@ -982,11 +1046,11 @@ fn select_phase_entrypoints_with_roots(
             return Ok(manifest_entrypoints);
         }
 
-        // otherwise keep declaration targets as a last resort
+        // otherwise keep declaration targets as a final fallback
         declaration_only_manifest_entrypoints = manifest_entrypoints;
     }
 
-    // fall back to tsconfig source roots when manifest targets only point to build outputs
+    // third pass: use tsconfig source roots when manifests target build outputs
     let tsconfig_entrypoints = select_tsconfig_entrypoints_from_manifest_sources(
         package_dir,
         &candidates,
@@ -996,7 +1060,7 @@ fn select_phase_entrypoints_with_roots(
         return Ok(tsconfig_entrypoints);
     }
 
-    // use declaration only manifest entrypoints when source resolution did not resolve
+    // use declaration targets when no runtime source entrypoint was found
     if !declaration_only_manifest_entrypoints.is_empty() {
         return Ok(declaration_only_manifest_entrypoints);
     }
@@ -1007,7 +1071,6 @@ fn select_phase_entrypoints_with_roots(
         candidates.len(),
     ))
 }
-
 /// Include entry target files when candidate filters excluded them.
 fn include_entry_target_candidates(
     candidates: &mut Vec<PathBuf>,
@@ -1509,15 +1572,17 @@ fn load_manifest_entry_sources(
     candidates: &[PathBuf],
     roots: &[String],
 ) -> Result<Vec<ManifestEntrySource>, String> {
+    // load root package manifest first
     let root_manifest_path = package_dir.join("package.json");
     let Some(root_package_json) = load_package_json(root_manifest_path.as_path())? else {
         return Ok(Vec::new());
     };
 
+    // initialize source collection with duplicate manifest guards
     let mut sources = Vec::new();
     let mut seen_manifest_paths = HashSet::new();
 
-    // include root and workspace manifests when roots are not explicitly configured
+    // include root and workspace manifests when roots are not configured
     if roots.is_empty() {
         let root_entry_targets = root_package_json.entry_targets();
         seen_manifest_paths.insert(normalize_path_key(root_manifest_path.as_path()));
@@ -1543,7 +1608,6 @@ fn load_manifest_entry_sources(
                 };
 
                 let workspace_entry_targets = workspace_package_json.entry_targets();
-
                 let Some(workspace_package_dir) = workspace_manifest_path.parent() else {
                     continue;
                 };
@@ -1559,7 +1623,7 @@ fn load_manifest_entry_sources(
         }
     }
 
-    // include package manifests from explicit roots or candidate owned roots
+    // include manifests from explicit roots or candidate source ownership
     let candidate_manifest_paths = if roots.is_empty() {
         collect_candidate_manifest_paths(package_dir, candidates)
     } else {
@@ -1591,11 +1655,11 @@ fn load_manifest_entry_sources(
         });
     }
 
+    // return deterministic ordering by package directory
     sources.sort_by_key(|source| normalize_path_key(source.package_dir.as_path()));
 
     Ok(sources)
 }
-
 /// Load one package json file when present.
 fn load_package_json(path: &Path) -> Result<Option<PackageJson>, String> {
     if !path.is_file() {
