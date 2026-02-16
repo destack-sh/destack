@@ -256,6 +256,24 @@ impl TsConfig {
             compiler_options.preserve_value_imports = Some(preserve_value_imports);
         }
 
+        // compilerOptions.esModuleInterop
+        if compiler_options.es_module_interop.is_none()
+            && let Some(es_module_interop) = tsconfig.content.compiler_options.es_module_interop
+        {
+            compiler_options.es_module_interop = Some(es_module_interop);
+        }
+
+        // compilerOptions.allowSyntheticDefaultImports
+        if compiler_options.allow_synthetic_default_imports.is_none()
+            && let Some(allow_synthetic_default_imports) = tsconfig
+                .content
+                .compiler_options
+                .allow_synthetic_default_imports
+        {
+            compiler_options.allow_synthetic_default_imports =
+                Some(allow_synthetic_default_imports);
+        }
+
         // compilerOptions.importsNotUsedAsValues
         if compiler_options.imports_not_used_as_values.is_none()
             && let Some(imports_not_used_as_values) =
@@ -921,6 +939,10 @@ pub struct TsCompilerOptions {
     pub verbatim_module_syntax: bool,
     /// Preserve value imports (deprecated).
     pub preserve_value_imports: bool,
+    /// Emit babel style interop helpers for CommonJS default and namespace imports.
+    pub es_module_interop: bool,
+    /// Allow default imports from modules without explicit default exports.
+    pub allow_synthetic_default_imports: bool,
     /// How to handle type-only imports.
     pub imports_not_used_as_values: ImportsNotUsedAsValues,
     /// Rewrite relative import extensions.
@@ -1044,6 +1066,8 @@ impl Default for TsCompilerOptions {
 
             verbatim_module_syntax: false,
             preserve_value_imports: false,
+            es_module_interop: false,
+            allow_synthetic_default_imports: false,
             imports_not_used_as_values: ImportsNotUsedAsValues::default(),
             rewrite_relative_import_extensions: false,
 
@@ -1157,6 +1181,10 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
 
             verbatim_module_syntax: json.verbatim_module_syntax.unwrap_or(false),
             preserve_value_imports: json.preserve_value_imports.unwrap_or(false),
+            es_module_interop: json.es_module_interop.unwrap_or(false),
+            allow_synthetic_default_imports: json
+                .allow_synthetic_default_imports
+                .unwrap_or(json.es_module_interop.unwrap_or(false)),
             imports_not_used_as_values: json
                 .imports_not_used_as_values
                 .as_deref()
@@ -1492,6 +1520,14 @@ pub struct TsCompilerOptionsJson {
     /// <https://www.typescriptlang.org/tsconfig/#preserveValueImports>
     pub preserve_value_imports: Option<bool>,
 
+    /// Emit babel style interop helpers for CommonJS default and namespace imports.
+    /// <https://www.typescriptlang.org/tsconfig/#esModuleInterop>
+    pub es_module_interop: Option<bool>,
+
+    /// Allow default imports from modules without explicit default exports.
+    /// <https://www.typescriptlang.org/tsconfig/#allowSyntheticDefaultImports>
+    pub allow_synthetic_default_imports: Option<bool>,
+
     /// Imports not used as values (e.g. `"error"`)
     /// <https://www.typescriptlang.org/tsconfig/#importsNotUsedAsValues>
     pub imports_not_used_as_values: Option<String>,
@@ -1693,6 +1729,33 @@ mod tests {
         // explicit options override module resolution defaults
         assert!(options.resolve_package_json_exports);
         assert!(options.resolve_package_json_imports);
+    }
+
+    #[test]
+    fn test_ts_compiler_options_es_module_interop_enables_synthetic_defaults() {
+        let json = TsCompilerOptionsJson {
+            es_module_interop: Some(true),
+            ..TsCompilerOptionsJson::default()
+        };
+        let options = TsCompilerOptions::from(&json);
+
+        // es module interop should imply synthetic default imports
+        assert!(options.es_module_interop);
+        assert!(options.allow_synthetic_default_imports);
+    }
+
+    #[test]
+    fn test_ts_compiler_options_synthetic_default_imports_explicit_override() {
+        let json = TsCompilerOptionsJson {
+            es_module_interop: Some(true),
+            allow_synthetic_default_imports: Some(false),
+            ..TsCompilerOptionsJson::default()
+        };
+        let options = TsCompilerOptions::from(&json);
+
+        // explicit synthetic defaults option should override implied default
+        assert!(options.es_module_interop);
+        assert!(!options.allow_synthetic_default_imports);
     }
 
     #[test]
