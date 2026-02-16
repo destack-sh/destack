@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::device::DeviceControlOperationVm;
-use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{fs, resource};
+use crate::platform::device::{DeviceControlOperationVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Run a device control request.
 ///
@@ -63,7 +65,10 @@ pub(crate) fn destack_device_close(
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.close",
+    ))
+    .boxed())
 }
 
 /// Open a device endpoint.
@@ -91,7 +96,10 @@ pub(crate) fn destack_device_open(
     mode: u32,
 ) -> RuntimeResult<resource::DeviceHandle> {
     let _ = (path, flags, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.open",
+    ))
+    .boxed())
 }
 
 /// Read bytes from a device endpoint.
@@ -118,7 +126,10 @@ pub(crate) fn destack_device_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.read",
+    ))
+    .boxed())
 }
 
 /// Write bytes to a device endpoint.
@@ -145,5 +156,9 @@ pub(crate) fn destack_device_write(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.write",
+    ))
+    .boxed())
 }
+

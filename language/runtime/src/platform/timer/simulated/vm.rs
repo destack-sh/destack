@@ -2,13 +2,12 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::timer::{
-    TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpecVm, TimerOptionsVm,
-};
-use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{resource};
+use crate::platform::timer::{TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpecVm, TimerOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Cancel a scheduled timer.
 ///
@@ -33,7 +32,10 @@ pub(crate) fn destack_timer_cancel(
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.cancel")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.cancel",
+    ))
+    .boxed())
 }
 
 /// Return whether a timer is currently active.
@@ -88,7 +90,10 @@ pub(crate) fn destack_timer_pause(
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.pause")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.pause",
+    ))
+    .boxed())
 }
 
 /// Return remaining timer delay in nanoseconds.
@@ -144,7 +149,10 @@ pub(crate) fn destack_timer_reset(
     delayns: u64,
 ) -> RuntimeResult<()> {
     let _ = (handle, delayns);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.reset")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.reset",
+    ))
+    .boxed())
 }
 
 /// Resume a paused timer.
@@ -170,7 +178,10 @@ pub(crate) fn destack_timer_resume(
     handle: resource::TimerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.control.resume")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.control.resume",
+    ))
+    .boxed())
 }
 
 /// Update one timer interval period.
@@ -226,7 +237,10 @@ pub(crate) fn destack_timer_timer_fd_close(
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.close",
+    ))
+    .boxed())
 }
 
 /// Read the active timerfd schedule.
@@ -252,7 +266,10 @@ pub(crate) fn destack_timer_timer_fd_get(
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<TimerFdSpecVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.get")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.get",
+    ))
+    .boxed())
 }
 
 /// Open a timerfd style descriptor.
@@ -279,7 +296,10 @@ pub(crate) fn destack_timer_timer_fd_open(
     flags: TimerFdFlags,
 ) -> RuntimeResult<resource::TimerFdHandle> {
     let _ = (clock, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.open",
+    ))
+    .boxed())
 }
 
 /// Read the number of expirations from one timerfd descriptor.
@@ -305,7 +325,10 @@ pub(crate) fn destack_timer_timer_fd_read(
     handle: resource::TimerFdHandle,
 ) -> RuntimeResult<u64> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.read",
+    ))
+    .boxed())
 }
 
 /// Update one timerfd schedule.
@@ -333,7 +356,10 @@ pub(crate) fn destack_timer_timer_fd_set(
     flags: TimerFdSetFlags,
 ) -> RuntimeResult<()> {
     let _ = (handle, spec, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.fd.set")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.fd.set",
+    ))
+    .boxed())
 }
 
 /// Schedule a timer for an absolute wall-clock deadline.
@@ -360,7 +386,10 @@ pub(crate) fn destack_timer_at(
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {
     let _ = (deadlinens, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.schedule.at")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.at",
+    ))
+    .boxed())
 }
 
 /// Schedule a repeating timer.
@@ -417,5 +446,9 @@ pub(crate) fn destack_timer_once(
     options: TimerOptionsVm,
 ) -> RuntimeResult<resource::TimerHandle> {
     let _ = (delayns, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.timer.schedule.once")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.timer.schedule.once",
+    ))
+    .boxed())
 }
+

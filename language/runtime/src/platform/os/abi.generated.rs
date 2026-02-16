@@ -4,11 +4,14 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, fs, fs as platform_fs, os as platform_os};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::{fs};
+use crate::platform::fs as platform_fs;
+use crate::platform::os as platform_os;
 
 /// ABI enum for PowerState.
 #[repr(u8)]
@@ -51,23 +54,17 @@ pub type HostIdentityVm = HostIdentityAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for HostIdentityAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("HostIdentityAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("HostIdentityAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for HostIdentityAbi<NativeAbi> {}
 impl Clone for HostIdentityAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for HostIdentityAbi<VmAbi> {}
 impl Clone for HostIdentityAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for LoadAverage.
@@ -102,23 +99,17 @@ pub type MountEntryVm = MountEntryAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for MountEntryAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("MountEntryAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("MountEntryAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for MountEntryAbi<NativeAbi> {}
 impl Clone for MountEntryAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for MountEntryAbi<VmAbi> {}
 impl Clone for MountEntryAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for SystemInfo.
@@ -162,3 +153,4 @@ pub struct MountEntryReplayRecord {
     /// The flags field.
     pub flags: u64,
 }
+

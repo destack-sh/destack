@@ -4,11 +4,14 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, gpu as platform_gpu, resource, resource as platform_resource};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::{resource};
+use crate::platform::gpu as platform_gpu;
+use crate::platform::resource as platform_resource;
 
 /// ABI enum for GpuAdapterType.
 #[repr(u8)]
@@ -140,23 +143,17 @@ pub type GpuAdapterInfoVm = GpuAdapterInfoAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for GpuAdapterInfoAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("GpuAdapterInfoAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("GpuAdapterInfoAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for GpuAdapterInfoAbi<NativeAbi> {}
 impl Clone for GpuAdapterInfoAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for GpuAdapterInfoAbi<VmAbi> {}
 impl Clone for GpuAdapterInfoAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for GpuAdapterRequest.
@@ -239,23 +236,17 @@ pub type GpuComputePipelineOptionsVm = GpuComputePipelineOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for GpuComputePipelineOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("GpuComputePipelineOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("GpuComputePipelineOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for GpuComputePipelineOptionsAbi<NativeAbi> {}
 impl Clone for GpuComputePipelineOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for GpuComputePipelineOptionsAbi<VmAbi> {}
 impl Clone for GpuComputePipelineOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for GpuDeviceInfo.
@@ -388,23 +379,17 @@ pub type GpuRenderPipelineOptionsVm = GpuRenderPipelineOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for GpuRenderPipelineOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("GpuRenderPipelineOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("GpuRenderPipelineOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for GpuRenderPipelineOptionsAbi<NativeAbi> {}
 impl Clone for GpuRenderPipelineOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for GpuRenderPipelineOptionsAbi<VmAbi> {}
 impl Clone for GpuRenderPipelineOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for GpuSamplerOptions.
@@ -441,23 +426,17 @@ pub type GpuShaderOptionsVm = GpuShaderOptionsAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for GpuShaderOptionsAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("GpuShaderOptionsAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("GpuShaderOptionsAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for GpuShaderOptionsAbi<NativeAbi> {}
 impl Clone for GpuShaderOptionsAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for GpuShaderOptionsAbi<VmAbi> {}
 impl Clone for GpuShaderOptionsAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for GpuSubmitOptions.
@@ -599,3 +578,4 @@ pub struct GpuShaderOptionsReplayRecord {
     /// The entry field.
     pub entry: String,
 }
+

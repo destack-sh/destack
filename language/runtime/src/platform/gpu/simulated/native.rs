@@ -4,18 +4,18 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::{
+    NativeSlice,
+    NativeArray,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::gpu::{
-    GpuAdapterInfo, GpuAdapterRequest, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferOptions,
-    GpuCommandEncoderOptions, GpuComputePipelineOptions, GpuDeviceInfo, GpuDeviceOptions,
-    GpuExtent3D, GpuMappedMemory, GpuPresentOptions, GpuRenderPassOptions,
-    GpuRenderPipelineOptions, GpuSamplerOptions, GpuShaderOptions, GpuSubmitOptions,
-    GpuSurfaceOptions, GpuTextureCopy, GpuTextureOptions,
-};
-use crate::platform::resource;
+use crate::platform::{resource};
+use crate::platform::gpu::{GpuAdapterInfo, GpuAdapterRequest, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferOptions, GpuCommandEncoderOptions, GpuComputePipelineOptions, GpuDeviceInfo, GpuDeviceOptions, GpuExtent3D, GpuMappedMemory, GpuPresentOptions, GpuRenderPassOptions, GpuRenderPipelineOptions, GpuSamplerOptions, GpuShaderOptions, GpuSubmitOptions, GpuSurfaceOptions, GpuTextureCopy, GpuTextureOptions};
+
 
 /// Close one GPU adapter.
 ///
@@ -34,14 +34,14 @@ use crate::platform::resource;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_adapter_close(
-    context: &RuntimeCallContext,
-    handle: resource::GpuAdapterHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_adapter_close(context: &RuntimeCallContext, handle: resource::GpuAdapterHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.close",
+    ))
+    .boxed())
 }
 
 /// Read metadata for one opened adapter.
@@ -61,15 +61,14 @@ pub(crate) unsafe fn destack_gpu_adapter_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_adapter_info(
-    context: &RuntimeCallContext,
-    out: *mut GpuAdapterInfo,
-    handle: resource::GpuAdapterHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_adapter_info(context: &RuntimeCallContext, out: *mut GpuAdapterInfo, handle: resource::GpuAdapterHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.info",
+    ))
+    .boxed())
 }
 
 /// List available GPU adapters.
@@ -89,15 +88,14 @@ pub(crate) unsafe fn destack_gpu_adapter_info(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_adapter_list(
-    context: &RuntimeCallContext,
-    out: *mut NativeArray<GpuAdapterInfo>,
-    request: GpuAdapterRequest,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_adapter_list(context: &RuntimeCallContext, out: *mut NativeArray<GpuAdapterInfo>, request: GpuAdapterRequest) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, request);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.list",
+    ))
+    .boxed())
 }
 
 /// Open one GPU adapter.
@@ -117,15 +115,14 @@ pub(crate) unsafe fn destack_gpu_adapter_list(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_adapter_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuAdapterHandle,
-    id: NativeStringRef,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_adapter_open(context: &RuntimeCallContext, out: *mut resource::GpuAdapterHandle, id: NativeStringRef) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, id);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.open",
+    ))
+    .boxed())
 }
 
 /// Bind one compute pipeline.
@@ -145,11 +142,7 @@ pub(crate) unsafe fn destack_gpu_adapter_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_bind_compute_pipeline(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    pipeline: resource::GpuPipelineHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_bind_compute_pipeline(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, pipeline: resource::GpuPipelineHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, pipeline);
 
@@ -176,11 +169,7 @@ pub(crate) unsafe fn destack_gpu_command_bind_compute_pipeline(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_bind_render_pipeline(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    pipeline: resource::GpuPipelineHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_bind_render_pipeline(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, pipeline: resource::GpuPipelineHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, pipeline);
 
@@ -207,10 +196,7 @@ pub(crate) unsafe fn destack_gpu_command_bind_render_pipeline(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_compute_pass_begin(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_compute_pass_begin(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -237,10 +223,7 @@ pub(crate) unsafe fn destack_gpu_command_compute_pass_begin(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_compute_pass_end(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_compute_pass_end(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -267,15 +250,7 @@ pub(crate) unsafe fn destack_gpu_command_compute_pass_end(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_copy_buffer(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    src: resource::GpuBufferHandle,
-    srcoffset: u64,
-    dst: resource::GpuBufferHandle,
-    dstoffset: u64,
-    argument_bytes: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_copy_buffer(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, src: resource::GpuBufferHandle, srcoffset: u64, dst: resource::GpuBufferHandle, dstoffset: u64, argument_bytes: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, src, srcoffset, dst, dstoffset, argument_bytes);
 
@@ -302,13 +277,7 @@ pub(crate) unsafe fn destack_gpu_command_copy_buffer(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_copy_buffer_to_texture(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    source: GpuBufferCopy,
-    destination: GpuTextureCopy,
-    size: GpuExtent3D,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_copy_buffer_to_texture(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, source: GpuBufferCopy, destination: GpuTextureCopy, size: GpuExtent3D) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, source, destination, size);
 
@@ -335,13 +304,7 @@ pub(crate) unsafe fn destack_gpu_command_copy_buffer_to_texture(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_copy_texture_to_buffer(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    source: GpuTextureCopy,
-    destination: GpuBufferCopy,
-    size: GpuExtent3D,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_copy_texture_to_buffer(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, source: GpuTextureCopy, destination: GpuBufferCopy, size: GpuExtent3D) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, source, destination, size);
 
@@ -368,13 +331,7 @@ pub(crate) unsafe fn destack_gpu_command_copy_texture_to_buffer(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_copy_texture_to_texture(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    source: GpuTextureCopy,
-    destination: GpuTextureCopy,
-    size: GpuExtent3D,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_copy_texture_to_texture(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, source: GpuTextureCopy, destination: GpuTextureCopy, size: GpuExtent3D) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, source, destination, size);
 
@@ -401,17 +358,14 @@ pub(crate) unsafe fn destack_gpu_command_copy_texture_to_texture(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_dispatch(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    groupx: u32,
-    groupy: u32,
-    groupz: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_dispatch(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, groupx: u32, groupy: u32, groupz: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, groupx, groupy, groupz);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.command.dispatch")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.dispatch",
+    ))
+    .boxed())
 }
 
 /// Draw one non-indexed primitive range.
@@ -431,24 +385,14 @@ pub(crate) unsafe fn destack_gpu_command_dispatch(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_draw(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    vertexcount: u32,
-    instancecount: u32,
-    firstvertex: u32,
-    firstinstance: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_draw(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, vertexcount: u32, instancecount: u32, firstvertex: u32, firstinstance: u32) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (
-        handle,
-        vertexcount,
-        instancecount,
-        firstvertex,
-        firstinstance,
-    );
+    let _ = (handle, vertexcount, instancecount, firstvertex, firstinstance);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.command.draw")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.draw",
+    ))
+    .boxed())
 }
 
 /// Draw one indexed primitive range.
@@ -468,24 +412,9 @@ pub(crate) unsafe fn destack_gpu_command_draw(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_draw_indexed(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    indexcount: u32,
-    instancecount: u32,
-    firstindex: u32,
-    basevertex: i32,
-    firstinstance: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_draw_indexed(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, indexcount: u32, instancecount: u32, firstindex: u32, basevertex: i32, firstinstance: u32) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (
-        handle,
-        indexcount,
-        instancecount,
-        firstindex,
-        basevertex,
-        firstinstance,
-    );
+    let _ = (handle, indexcount, instancecount, firstindex, basevertex, firstinstance);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.drawIndexed",
@@ -510,10 +439,7 @@ pub(crate) unsafe fn destack_gpu_command_draw_indexed(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_encoder_close(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_encoder_close(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -540,10 +466,7 @@ pub(crate) unsafe fn destack_gpu_command_encoder_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_encoder_finish(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_encoder_finish(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -570,12 +493,7 @@ pub(crate) unsafe fn destack_gpu_command_encoder_finish(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_encoder_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuCommandListHandle,
-    device: resource::GpuDeviceHandle,
-    options: GpuCommandEncoderOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_encoder_open(context: &RuntimeCallContext, out: *mut resource::GpuCommandListHandle, device: resource::GpuDeviceHandle, options: GpuCommandEncoderOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, options);
 
@@ -602,12 +520,7 @@ pub(crate) unsafe fn destack_gpu_command_encoder_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_queue_submit(
-    context: &RuntimeCallContext,
-    queue: resource::GpuQueueHandle,
-    commandlists: NativeSlice<resource::GpuCommandListHandle>,
-    options: GpuSubmitOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_queue_submit(context: &RuntimeCallContext, queue: resource::GpuQueueHandle, commandlists: NativeSlice<resource::GpuCommandListHandle>, options: GpuSubmitOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (queue, commandlists, options);
 
@@ -634,11 +547,7 @@ pub(crate) unsafe fn destack_gpu_queue_submit(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_queue_wait_idle(
-    context: &RuntimeCallContext,
-    queue: resource::GpuQueueHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_queue_wait_idle(context: &RuntimeCallContext, queue: resource::GpuQueueHandle, timeoutns: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (queue, timeoutns);
 
@@ -665,15 +574,7 @@ pub(crate) unsafe fn destack_gpu_queue_wait_idle(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_queue_write_buffer(
-    context: &RuntimeCallContext,
-    queue: resource::GpuQueueHandle,
-    buffer: resource::GpuBufferHandle,
-    bufferoffset: u64,
-    data: NativeSlice<u8>,
-    dataoffset: u64,
-    size: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_queue_write_buffer(context: &RuntimeCallContext, queue: resource::GpuQueueHandle, buffer: resource::GpuBufferHandle, bufferoffset: u64, data: NativeSlice<u8>, dataoffset: u64, size: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (queue, buffer, bufferoffset, data, dataoffset, size);
 
@@ -700,14 +601,7 @@ pub(crate) unsafe fn destack_gpu_queue_write_buffer(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_queue_write_texture(
-    context: &RuntimeCallContext,
-    queue: resource::GpuQueueHandle,
-    destination: GpuTextureCopy,
-    data: NativeSlice<u8>,
-    layout: GpuBufferCopyLayout,
-    size: GpuExtent3D,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_queue_write_texture(context: &RuntimeCallContext, queue: resource::GpuQueueHandle, destination: GpuTextureCopy, data: NativeSlice<u8>, layout: GpuBufferCopyLayout, size: GpuExtent3D) -> RuntimeResult<()> {
     let _ = context;
     let _ = (queue, destination, data, layout, size);
 
@@ -734,11 +628,7 @@ pub(crate) unsafe fn destack_gpu_queue_write_texture(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_render_pass_begin(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-    options: GpuRenderPassOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_render_pass_begin(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle, options: GpuRenderPassOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, options);
 
@@ -765,10 +655,7 @@ pub(crate) unsafe fn destack_gpu_command_render_pass_begin(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_command_render_pass_end(
-    context: &RuntimeCallContext,
-    handle: resource::GpuCommandListHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_command_render_pass_end(context: &RuntimeCallContext, handle: resource::GpuCommandListHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -795,14 +682,14 @@ pub(crate) unsafe fn destack_gpu_command_render_pass_end(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_device_close(
-    context: &RuntimeCallContext,
-    handle: resource::GpuDeviceHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_device_close(context: &RuntimeCallContext, handle: resource::GpuDeviceHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.close",
+    ))
+    .boxed())
 }
 
 /// Read metadata for one logical device.
@@ -822,15 +709,14 @@ pub(crate) unsafe fn destack_gpu_device_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_device_info(
-    context: &RuntimeCallContext,
-    out: *mut GpuDeviceInfo,
-    device: resource::GpuDeviceHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_device_info(context: &RuntimeCallContext, out: *mut GpuDeviceInfo, device: resource::GpuDeviceHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.info",
+    ))
+    .boxed())
 }
 
 /// Open one logical GPU device.
@@ -850,16 +736,14 @@ pub(crate) unsafe fn destack_gpu_device_info(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_device_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuDeviceHandle,
-    adapter: resource::GpuAdapterHandle,
-    options: GpuDeviceOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_device_open(context: &RuntimeCallContext, out: *mut resource::GpuDeviceHandle, adapter: resource::GpuAdapterHandle, options: GpuDeviceOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, adapter, options);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.open",
+    ))
+    .boxed())
 }
 
 /// Poll one logical device for completion progress.
@@ -879,17 +763,14 @@ pub(crate) unsafe fn destack_gpu_device_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_device_poll(
-    context: &RuntimeCallContext,
-    out: *mut u32,
-    device: resource::GpuDeviceHandle,
-    wait: bool,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_device_poll(context: &RuntimeCallContext, out: *mut u32, device: resource::GpuDeviceHandle, wait: bool, timeoutns: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, wait, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.poll")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.poll",
+    ))
+    .boxed())
 }
 
 /// Resolve the default queue for one logical device.
@@ -909,15 +790,14 @@ pub(crate) unsafe fn destack_gpu_device_poll(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_device_queue(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuQueueHandle,
-    device: resource::GpuDeviceHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_device_queue(context: &RuntimeCallContext, out: *mut resource::GpuQueueHandle, device: resource::GpuDeviceHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.queue")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.queue",
+    ))
+    .boxed())
 }
 
 /// Create one compute pipeline.
@@ -937,12 +817,7 @@ pub(crate) unsafe fn destack_gpu_device_queue(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_compute_pipeline_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuPipelineHandle,
-    device: resource::GpuDeviceHandle,
-    options: GpuComputePipelineOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_compute_pipeline_create(context: &RuntimeCallContext, out: *mut resource::GpuPipelineHandle, device: resource::GpuDeviceHandle, options: GpuComputePipelineOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, options);
 
@@ -969,14 +844,14 @@ pub(crate) unsafe fn destack_gpu_compute_pipeline_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_pipeline_destroy(
-    context: &RuntimeCallContext,
-    handle: resource::GpuPipelineHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_pipeline_destroy(context: &RuntimeCallContext, handle: resource::GpuPipelineHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.pipeline.destroy")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.pipeline.destroy",
+    ))
+    .boxed())
 }
 
 /// Create one render pipeline.
@@ -996,12 +871,7 @@ pub(crate) unsafe fn destack_gpu_pipeline_destroy(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_render_pipeline_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuPipelineHandle,
-    device: resource::GpuDeviceHandle,
-    options: GpuRenderPipelineOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_render_pipeline_create(context: &RuntimeCallContext, out: *mut resource::GpuPipelineHandle, device: resource::GpuDeviceHandle, options: GpuRenderPipelineOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, options);
 
@@ -1028,13 +898,7 @@ pub(crate) unsafe fn destack_gpu_render_pipeline_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_shader_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuShaderHandle,
-    device: resource::GpuDeviceHandle,
-    options: GpuShaderOptions,
-    argument_bytes: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_shader_create(context: &RuntimeCallContext, out: *mut resource::GpuShaderHandle, device: resource::GpuDeviceHandle, options: GpuShaderOptions, argument_bytes: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, options, argument_bytes);
 
@@ -1061,10 +925,7 @@ pub(crate) unsafe fn destack_gpu_shader_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_shader_destroy(
-    context: &RuntimeCallContext,
-    handle: resource::GpuShaderHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_shader_destroy(context: &RuntimeCallContext, handle: resource::GpuShaderHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -1091,12 +952,7 @@ pub(crate) unsafe fn destack_gpu_shader_destroy(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_gpu_queue_present(
-    context: &RuntimeCallContext,
-    queue: resource::GpuQueueHandle,
-    window: resource::WindowHandle,
-    options: GpuPresentOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_queue_present(context: &RuntimeCallContext, queue: resource::GpuQueueHandle, window: resource::WindowHandle, options: GpuPresentOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (queue, window, options);
 
@@ -1123,12 +979,7 @@ pub(crate) unsafe fn destack_gpu_queue_present(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_gpu_surface_configure(
-    context: &RuntimeCallContext,
-    device: resource::GpuDeviceHandle,
-    window: resource::WindowHandle,
-    options: GpuSurfaceOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_surface_configure(context: &RuntimeCallContext, device: resource::GpuDeviceHandle, window: resource::WindowHandle, options: GpuSurfaceOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (device, window, options);
 
@@ -1155,12 +1006,7 @@ pub(crate) unsafe fn destack_gpu_surface_configure(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_buffer_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuBufferHandle,
-    device: resource::GpuDeviceHandle,
-    options: GpuBufferOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_buffer_create(context: &RuntimeCallContext, out: *mut resource::GpuBufferHandle, device: resource::GpuDeviceHandle, options: GpuBufferOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, options);
 
@@ -1187,10 +1033,7 @@ pub(crate) unsafe fn destack_gpu_buffer_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_buffer_destroy(
-    context: &RuntimeCallContext,
-    handle: resource::GpuBufferHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_buffer_destroy(context: &RuntimeCallContext, handle: resource::GpuBufferHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -1217,13 +1060,7 @@ pub(crate) unsafe fn destack_gpu_buffer_destroy(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_buffer_read(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<u8>,
-    handle: resource::GpuBufferHandle,
-    offset: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_buffer_read(context: &RuntimeCallContext, out: *mut NativeSlice<u8>, handle: resource::GpuBufferHandle, offset: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, offset, length);
 
@@ -1250,12 +1087,7 @@ pub(crate) unsafe fn destack_gpu_buffer_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_buffer_write(
-    context: &RuntimeCallContext,
-    handle: resource::GpuBufferHandle,
-    offset: u64,
-    argument_bytes: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_buffer_write(context: &RuntimeCallContext, handle: resource::GpuBufferHandle, offset: u64, argument_bytes: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, offset, argument_bytes);
 
@@ -1282,13 +1114,7 @@ pub(crate) unsafe fn destack_gpu_buffer_write(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_memory_map(
-    context: &RuntimeCallContext,
-    out: *mut GpuMappedMemory,
-    handle: resource::GpuMemoryHandle,
-    offset: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_memory_map(context: &RuntimeCallContext, out: *mut GpuMappedMemory, handle: resource::GpuMemoryHandle, offset: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, offset, length);
 
@@ -1315,10 +1141,7 @@ pub(crate) unsafe fn destack_gpu_memory_map(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_memory_unmap(
-    context: &RuntimeCallContext,
-    handle: resource::GpuMemoryHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_memory_unmap(context: &RuntimeCallContext, handle: resource::GpuMemoryHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -1345,12 +1168,7 @@ pub(crate) unsafe fn destack_gpu_memory_unmap(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_sampler_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuSamplerHandle,
-    device: resource::GpuDeviceHandle,
-    options: GpuSamplerOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_sampler_create(context: &RuntimeCallContext, out: *mut resource::GpuSamplerHandle, device: resource::GpuDeviceHandle, options: GpuSamplerOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, options);
 
@@ -1377,10 +1195,7 @@ pub(crate) unsafe fn destack_gpu_sampler_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_sampler_destroy(
-    context: &RuntimeCallContext,
-    handle: resource::GpuSamplerHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_sampler_destroy(context: &RuntimeCallContext, handle: resource::GpuSamplerHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -1407,12 +1222,7 @@ pub(crate) unsafe fn destack_gpu_sampler_destroy(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_texture_create(
-    context: &RuntimeCallContext,
-    out: *mut resource::GpuTextureHandle,
-    device: resource::GpuDeviceHandle,
-    options: GpuTextureOptions,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_texture_create(context: &RuntimeCallContext, out: *mut resource::GpuTextureHandle, device: resource::GpuDeviceHandle, options: GpuTextureOptions) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, options);
 
@@ -1439,10 +1249,7 @@ pub(crate) unsafe fn destack_gpu_texture_create(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_gpu_texture_destroy(
-    context: &RuntimeCallContext,
-    handle: resource::GpuTextureHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_gpu_texture_destroy(context: &RuntimeCallContext, handle: resource::GpuTextureHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -1451,3 +1258,4 @@ pub(crate) unsafe fn destack_gpu_texture_destroy(
     ))
     .boxed())
 }
+

@@ -2,10 +2,10 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::runtime::RuntimeCallContext;
-use destack_vm as vm;
 
 /// Write an error line to stderr.
 ///
@@ -59,7 +59,10 @@ pub(crate) fn destack_console_info(
     argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = argument_value;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.console.console.info",
+    ))
+    .boxed())
 }
 
 /// Write a line to stdout.
@@ -85,7 +88,10 @@ pub(crate) fn destack_console_log(
     argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = argument_value;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.log")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.console.console.log",
+    ))
+    .boxed())
 }
 
 /// Write a warning line to stderr.
@@ -111,5 +117,9 @@ pub(crate) fn destack_console_warn(
     argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = argument_value;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.console.console.warn")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.console.console.warn",
+    ))
+    .boxed())
 }
+

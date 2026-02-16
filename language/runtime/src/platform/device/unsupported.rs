@@ -5,13 +5,18 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::device::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeSlice, PlatformError};
+use crate::platform::{
+    PlatformError,
+    NativeSlice,
+    NativeArray,
+};
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
 
-use crate::platform::device::DeviceControlOperation;
 use crate::platform::{fs, resource};
+use crate::platform::device::{DeviceControlOperation};
+
 
 /// Run a device control request.
 ///
@@ -30,14 +35,7 @@ use crate::platform::{fs, resource};
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_control(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::DeviceHandle,
-    operation: DeviceControlOperation,
-    input: NativeSlice<u8>,
-    output: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_device_control(context: &RuntimeCallContext, out: *mut u64, handle: resource::DeviceHandle, operation: DeviceControlOperation, input: NativeSlice<u8>, output: NativeSlice<u8>) -> RuntimeResult<()> {
     context.check_policy(DEVICE_CONTROL_CONTROL)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -67,14 +65,14 @@ pub(crate) unsafe fn destack_device_control(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_close(
-    context: &RuntimeCallContext,
-    handle: resource::DeviceHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_device_close(context: &RuntimeCallContext, handle: resource::DeviceHandle) -> RuntimeResult<()> {
     context.check_policy(DEVICE_IO_CLOSE)?;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.close",
+    ))
+    .boxed())
 }
 
 /// Open a device endpoint.
@@ -94,20 +92,17 @@ pub(crate) unsafe fn destack_device_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::DeviceHandle,
-    path: fs::OsPath,
-    flags: u32,
-    mode: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_device_open(context: &RuntimeCallContext, out: *mut resource::DeviceHandle, path: fs::OsPath, flags: u32, mode: u32) -> RuntimeResult<()> {
     context.check_policy(DEVICE_IO_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, path, flags, mode);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.open",
+    ))
+    .boxed())
 }
 
 /// Read bytes from a device endpoint.
@@ -127,19 +122,17 @@ pub(crate) unsafe fn destack_device_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::DeviceHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_device_read(context: &RuntimeCallContext, out: *mut u64, handle: resource::DeviceHandle, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     context.check_policy(DEVICE_IO_READ)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, buffer);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.read",
+    ))
+    .boxed())
 }
 
 /// Write bytes to a device endpoint.
@@ -159,17 +152,16 @@ pub(crate) unsafe fn destack_device_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_device_write(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::DeviceHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_device_write(context: &RuntimeCallContext, out: *mut u64, handle: resource::DeviceHandle, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     context.check_policy(DEVICE_IO_WRITE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let _ = (out, handle, buffer);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.device.io.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.device.io.write",
+    ))
+    .boxed())
 }
+

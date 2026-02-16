@@ -582,11 +582,11 @@ fn generate_bindings(
                 write_stub_file(&runtime_mod_path, &stub, refresh_stubs);
 
                 let runtime_native_path = runtime_domain_runtime_native_path(domain);
-                let stub = render_runtime_native_stub(domain);
+                let stub = render_runtime_native_stub(domain, bindings);
                 write_stub_file(&runtime_native_path, &stub, refresh_stubs);
 
                 let runtime_vm_path = runtime_domain_runtime_vm_path(domain);
-                let stub = render_runtime_vm_stub(domain);
+                let stub = render_runtime_vm_stub(domain, bindings);
                 write_stub_file(&runtime_vm_path, &stub, refresh_stubs);
             }
         }

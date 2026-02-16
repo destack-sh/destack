@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 
 /// Runnable item returned by the scheduler.
 #[derive(Debug)]
-pub enum ScheduledItem {
+pub enum Runnable {
     /// A macrotask selected for execution.
     Task(Task),
     /// A microtask selected for execution.
@@ -55,24 +55,24 @@ impl Scheduler {
     }
 
     /// Pop the next runnable item from the scheduler.
-    pub fn next_runnable(&mut self, now_nanos: u64) -> RuntimeResult<Option<ScheduledItem>> {
+    pub fn next_runnable(&mut self, now_nanos: u64) -> RuntimeResult<Option<Runnable>> {
         // always drain microtasks first
         if let Some(microtask) = self.event_loop.microtasks.pop_front() {
-            return Ok(Some(ScheduledItem::Microtask(microtask)));
+            return Ok(Some(Runnable::Microtask(microtask)));
         }
 
         // move ready timers into the dispatch queue
         self.event_loop.enqueue_ready_timers(now_nanos)?;
         if let Some(timer) = self.event_loop.ready_timers.pop_front() {
-            return Ok(Some(ScheduledItem::Timer(timer)));
+            return Ok(Some(Runnable::Timer(timer)));
         }
 
         // dispatch external events before regular tasks
         if let Some(event) = self.event_loop.events.pop_front() {
-            return Ok(Some(ScheduledItem::Event(event)));
+            return Ok(Some(Runnable::Event(event)));
         }
 
-        Ok(self.event_loop.tasks.pop_front().map(ScheduledItem::Task))
+        Ok(self.event_loop.tasks.pop_front().map(Runnable::Task))
     }
 
     /// Allocate the next task identifier.
@@ -140,9 +140,9 @@ impl Scheduler {
 mod tests {
     use destack_vm as vm;
 
-    use super::{ScheduledItem, Scheduler};
+    use super::{Runnable, Scheduler};
     use crate::scheduler::{
-        Microtask, MicrotaskId, NativeContinuation, Runnable, Task, TaskId, TaskState,
+        Microtask, MicrotaskId, NativeContinuation, PlatformRunnable, Task, TaskId, TaskState,
     };
 
     /// Ensures microtasks run before macrotasks in the scheduler.
@@ -153,14 +153,14 @@ mod tests {
 
         let task = Task {
             id: TaskId::new(1),
-            runnable: Runnable::Native(NativeContinuation::new(11)),
+            runnable: PlatformRunnable::Native(NativeContinuation::new(11)),
             resume_value: vm::Value::VOID,
             state: TaskState::Ready,
             priority: 0,
         };
         let microtask = Microtask {
             id: MicrotaskId::new(1),
-            runnable: Runnable::Native(NativeContinuation::new(22)),
+            runnable: PlatformRunnable::Native(NativeContinuation::new(22)),
             resume_value: vm::Value::VOID,
             state: TaskState::Ready,
         };
@@ -170,10 +170,10 @@ mod tests {
 
         // microtasks should be dequeued first
         let first = scheduler.next_runnable(0).expect("scheduler should run");
-        assert!(matches!(first, Some(ScheduledItem::Microtask(_))));
+        assert!(matches!(first, Some(Runnable::Microtask(_))));
 
         // remaining item should be the task
         let second = scheduler.next_runnable(0).expect("scheduler should run");
-        assert!(matches!(second, Some(ScheduledItem::Task(_))));
+        assert!(matches!(second, Some(Runnable::Task(_))));
     }
 }

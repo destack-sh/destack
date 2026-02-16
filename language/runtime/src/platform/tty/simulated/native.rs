@@ -4,12 +4,16 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeSlice, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::{
+    NativeSlice,
+};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::resource;
+use crate::platform::{resource};
 use crate::platform::tty::{PtyPair, TtyMode, TtySize};
+
 
 /// Read bytes from a terminal.
 ///
@@ -28,16 +32,14 @@ use crate::platform::tty::{PtyPair, TtyMode, TtySize};
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_read(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::TtyHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_read(context: &RuntimeCallContext, out: *mut u64, handle: resource::TtyHandle, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, buffer);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.io.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.io.read",
+    ))
+    .boxed())
 }
 
 /// Write bytes to a terminal.
@@ -57,16 +59,14 @@ pub(crate) unsafe fn destack_tty_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_write(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::TtyHandle,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_write(context: &RuntimeCallContext, out: *mut u64, handle: resource::TtyHandle, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, buffer);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.io.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.io.write",
+    ))
+    .boxed())
 }
 
 /// Read terminal mode flags.
@@ -86,15 +86,14 @@ pub(crate) unsafe fn destack_tty_write(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_get_mode(
-    context: &RuntimeCallContext,
-    out: *mut TtyMode,
-    handle: resource::TtyHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_get_mode(context: &RuntimeCallContext, out: *mut TtyMode, handle: resource::TtyHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.getMode")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.mode.getMode",
+    ))
+    .boxed())
 }
 
 /// Apply terminal mode flags.
@@ -114,15 +113,14 @@ pub(crate) unsafe fn destack_tty_get_mode(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_set_mode(
-    context: &RuntimeCallContext,
-    handle: resource::TtyHandle,
-    mode: TtyMode,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_set_mode(context: &RuntimeCallContext, handle: resource::TtyHandle, mode: TtyMode) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, mode);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.setMode")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.mode.setMode",
+    ))
+    .boxed())
 }
 
 /// Close one pseudo-terminal controller.
@@ -142,14 +140,14 @@ pub(crate) unsafe fn destack_tty_set_mode(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_pty_close(
-    context: &RuntimeCallContext,
-    handle: resource::PtyHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_pty_close(context: &RuntimeCallContext, handle: resource::PtyHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.pty.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.pty.close",
+    ))
+    .boxed())
 }
 
 /// Open one pseudo-terminal pair.
@@ -169,17 +167,14 @@ pub(crate) unsafe fn destack_tty_pty_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_pty_open(
-    context: &RuntimeCallContext,
-    out: *mut PtyPair,
-    rows: u32,
-    columns: u32,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_pty_open(context: &RuntimeCallContext, out: *mut PtyPair, rows: u32, columns: u32, flags: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, rows, columns, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.pty.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.pty.open",
+    ))
+    .boxed())
 }
 
 /// Read terminal size.
@@ -199,15 +194,14 @@ pub(crate) unsafe fn destack_tty_pty_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_get_size(
-    context: &RuntimeCallContext,
-    out: *mut TtySize,
-    handle: resource::TtyHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_get_size(context: &RuntimeCallContext, out: *mut TtySize, handle: resource::TtyHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.getSize")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.size.getSize",
+    ))
+    .boxed())
 }
 
 /// Apply terminal size.
@@ -227,13 +221,13 @@ pub(crate) unsafe fn destack_tty_get_size(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_tty_set_size(
-    context: &RuntimeCallContext,
-    handle: resource::TtyHandle,
-    size: TtySize,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_tty_set_size(context: &RuntimeCallContext, handle: resource::TtyHandle, size: TtySize) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, size);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.setSize")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.size.setSize",
+    ))
+    .boxed())
 }
+

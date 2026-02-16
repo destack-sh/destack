@@ -2,11 +2,11 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::resource::{ResourceId, ResourceKindVm, ResourceOwnership};
 use crate::runtime::RuntimeCallContext;
-use destack_vm as vm;
 
 /// Close a resource by identifier.
 ///
@@ -124,3 +124,4 @@ pub(crate) fn destack_resource_transfer(
     ))
     .boxed())
 }
+

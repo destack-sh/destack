@@ -1,7 +1,7 @@
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::runnable::Runnable;
+use super::runnable::PlatformRunnable;
 use super::task::TaskState;
 
 /// Opaque microtask identifier used by the scheduler.
@@ -26,7 +26,7 @@ pub struct Microtask {
     /// Microtask identifier used for ordering and logging.
     pub id: MicrotaskId,
     /// Runnable continuation for this microtask.
-    pub runnable: Runnable,
+    pub runnable: PlatformRunnable,
     /// Resume payload passed back into the executor.
     pub resume_value: vm::Value,
     /// Current scheduling state.

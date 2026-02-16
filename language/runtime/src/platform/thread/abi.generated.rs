@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::thread as platform_thread;
 use serde::{Deserialize, Serialize};
+use crate::platform::thread as platform_thread;
 
 /// ABI struct for ThreadOptions.
 #[repr(C)]
@@ -18,3 +18,4 @@ pub struct ThreadOptions {
 }
 
 pub type ThreadOptionsVm = ThreadOptions;
+

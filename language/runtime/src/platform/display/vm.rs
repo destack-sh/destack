@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::display::{DisplayInfoVm, DisplayModeVm, WindowEventVm, WindowOptionsVm};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::display::{DisplayInfoVm, DisplayModeVm, WindowEventVm, WindowOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one display endpoint.
 ///
@@ -328,3 +330,4 @@ pub(crate) fn destack_display_window_vsync_wait(
     ))
     .boxed())
 }
+

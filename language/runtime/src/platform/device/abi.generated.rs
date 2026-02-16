@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::device as platform_device;
 use serde::{Deserialize, Serialize};
+use crate::platform::device as platform_device;
 
 /// ABI struct for DeviceControlOperation.
 #[repr(C)]
@@ -18,3 +18,4 @@ pub struct DeviceControlOperation {
 }
 
 pub type DeviceControlOperationVm = DeviceControlOperation;
+

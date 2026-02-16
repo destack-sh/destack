@@ -2,13 +2,12 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::random::{
-    RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomInfoVm, SecureRandomSource,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::random::{RandomStream, RandomStreamDomain, RandomStreamStateVm, SecureRandomInfoVm, SecureRandomSource};
+use crate::runtime::RuntimeCallContext;
 
 /// Fill a slice with cryptographically secure random bytes.
 ///
@@ -383,3 +382,4 @@ pub(crate) fn destack_random_stream(
     ))
     .boxed())
 }
+

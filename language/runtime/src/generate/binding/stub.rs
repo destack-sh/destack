@@ -517,16 +517,181 @@ pub(crate) fn render_runtime_mod_stub() -> String {
     output
 }
 
-/// Render a runtime native re-export stub for a runtime domain.
-pub(crate) fn render_runtime_native_stub(domain: &str) -> String {
-    format!(
-        "{GENERATED_STUB_MARKER}#[allow(unused_imports)]\npub(crate) use crate::platform::{domain}::native::*;\n"
-    )
+/// Collect runtime-scope bindings from one domain catalog.
+fn collect_runtime_bindings(bindings: &BindingCatalogEntry) -> BindingCatalogEntry {
+    let mut runtime_bindings = BindingCatalogEntry::new();
+
+    for (extern_name, entry) in bindings {
+        if entry.scope == BindingScope::Runtime {
+            runtime_bindings.insert(extern_name.clone(), entry.clone());
+        }
+    }
+
+    runtime_bindings
 }
 
-/// Render a runtime VM re-export stub for a runtime domain.
-pub(crate) fn render_runtime_vm_stub(domain: &str) -> String {
-    format!(
-        "{GENERATED_STUB_MARKER}#[allow(unused_imports)]\npub(crate) use crate::platform::{domain}::vm::*;\n"
-    )
+/// Render a runtime native forwarding stub for a runtime domain.
+pub(crate) fn render_runtime_native_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    let runtime_bindings = collect_runtime_bindings(bindings);
+    let consts = build_binding_consts(domain, &runtime_bindings);
+    let usage = collect_native_usage(&runtime_bindings);
+    let named_types = collect_native_named_types(domain, &runtime_bindings);
+    let type_domains = collect_type_domains(domain, &runtime_bindings);
+    let native_alias = format!("{domain}_native");
+
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("use crate::diagnostic::RuntimeResult;\n");
+    output.push_str("use crate::platform::{\n");
+    if usage.uses_platform_slice {
+        output.push_str("    NativeSlice,\n");
+    }
+    if usage.uses_platform_array {
+        output.push_str("    NativeArray,\n");
+    }
+    if usage.uses_platform_string_ref {
+        output.push_str("    NativeStringRef,\n");
+    }
+    if usage.uses_platform_string_slice {
+        output.push_str("    NativeStringSlice,\n");
+    }
+    output.push_str("};\n");
+    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+    if !type_domains.is_empty() {
+        let imports = type_domains
+            .iter()
+            .map(|domain| domain.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
+    }
+    if !named_types.is_empty() {
+        let names = named_types.iter().cloned().collect::<Vec<_>>().join(", ");
+        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
+    }
+    output.push_str(&format!(
+        "use crate::platform::{domain}::native as {native_alias};\n\n"
+    ));
+
+    for binding in &consts {
+        let entry = binding.entry;
+        if entry.scope != BindingScope::Runtime {
+            continue;
+        }
+        if !entry.return_is_result {
+            panic!(
+                "platform binding {} must return Result",
+                binding.extern_name
+            );
+        }
+
+        let function_name = binding.implementation_fn_name.clone();
+        let mut params = Vec::new();
+        let mut call_args = vec!["context".to_string()];
+
+        if entry.return_binding != BindingType::Void {
+            let out_type = native_type_for_binding(domain, &entry.return_binding);
+            params.push(format!("out: *mut {out_type}"));
+            call_args.push("out".to_string());
+        }
+
+        for (index, param) in entry.parameters.iter().enumerate() {
+            let name = sanitize_param_name(&param.name, index);
+            let ty = native_type_for_binding(domain, &param.binding_type);
+            params.push(format!("{name}: {ty}"));
+            call_args.push(name);
+        }
+
+        write_stub_docs(&mut output, entry, binding.extern_name, false);
+        output.push_str(&format!(
+            "pub(crate) unsafe fn {function_name}(context: &RuntimeCallContext{}) -> RuntimeResult<()> {{\n",
+            if params.is_empty() {
+                String::new()
+            } else {
+                format!(", {}", params.join(", "))
+            }
+        ));
+        output.push_str(&format!(
+            "    unsafe {{ {native_alias}::{function_name}({}) }}\n",
+            call_args.join(", ")
+        ));
+        output.push_str("}\n\n");
+    }
+
+    output
+}
+
+/// Render a runtime VM forwarding stub for a runtime domain.
+pub(crate) fn render_runtime_vm_stub(domain: &str, bindings: &BindingCatalogEntry) -> String {
+    let runtime_bindings = collect_runtime_bindings(bindings);
+    let consts = build_binding_consts(domain, &runtime_bindings);
+    let vm_types = collect_vm_named_types(domain, &runtime_bindings);
+    let type_domains = collect_type_domains(domain, &runtime_bindings);
+    let vm_usage = collect_vm_stub_usage(&runtime_bindings);
+    let vm_alias = format!("{domain}_vm");
+
+    let mut output = String::new();
+    output.push_str(GENERATED_STUB_MARKER);
+    output.push_str("use destack_vm as vm;\n\n");
+    output.push_str("use crate::diagnostic::RuntimeResult;\n");
+    let mut vm_imports = Vec::new();
+    if vm_usage.uses_vm_slice {
+        vm_imports.push("VmSlice");
+    }
+    if vm_usage.uses_vm_array {
+        vm_imports.push("VmArray");
+    }
+    if !vm_imports.is_empty() {
+        output.push_str(&format!(
+            "use crate::platform::{{{}}};\n",
+            vm_imports.join(", ")
+        ));
+    }
+    if !type_domains.is_empty() {
+        let imports = type_domains
+            .iter()
+            .map(|domain| domain.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("use crate::platform::{{{imports}}};\n"));
+    }
+    if !vm_types.is_empty() {
+        let names = vm_types.iter().cloned().collect::<Vec<_>>().join(", ");
+        output.push_str(&format!("use crate::platform::{domain}::{{{names}}};\n"));
+    }
+    output.push_str(&format!(
+        "use crate::platform::{domain}::vm as {vm_alias};\n"
+    ));
+    output.push_str("use crate::runtime::RuntimeCallContext;\n\n");
+
+    for binding in &consts {
+        let entry = binding.entry;
+        if entry.scope != BindingScope::Runtime {
+            continue;
+        }
+
+        let method_name = binding.implementation_fn_name.clone();
+        let return_type = render_return_type(domain, entry);
+        let params = render_params(domain, entry);
+        let mut call_args = vec!["runtime".to_string(), "context".to_string()];
+        for (index, param) in entry.parameters.iter().enumerate() {
+            call_args.push(sanitize_param_name(&param.name, index));
+        }
+
+        write_stub_docs(&mut output, entry, binding.extern_name, false);
+        output.push_str(&format!("pub(crate) fn {method_name}(\n"));
+        output.push_str("    runtime: &RuntimeCallContext,\n");
+        output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
+        for param in &params {
+            output.push_str(&format!("    {param},\n"));
+        }
+        output.push_str(&format!(") -> RuntimeResult<{return_type}> {{\n"));
+        output.push_str(&format!(
+            "    {vm_alias}::{method_name}({})\n",
+            call_args.join(", ")
+        ));
+        output.push_str("}\n\n");
+    }
+
+    output
 }

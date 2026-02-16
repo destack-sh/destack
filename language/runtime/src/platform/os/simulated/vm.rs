@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::{HostIdentityVm, LoadAverageVm, MountEntryVm, PowerState, SystemInfoVm};
-use crate::platform::{PlatformError, VmArray, fs};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmArray};
+use crate::platform::{fs};
+use crate::platform::os::{HostIdentityVm, LoadAverageVm, MountEntryVm, PowerState, SystemInfoVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Read host identity.
 ///
@@ -29,7 +31,10 @@ pub(crate) fn destack_os_host_identity(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.host.identity")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.host.identity",
+    ))
+    .boxed())
 }
 
 /// Read host boot time.
@@ -80,7 +85,10 @@ pub(crate) fn destack_os_load_average(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LoadAverageVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.info.loadAverage")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.info.loadAverage",
+    ))
+    .boxed())
 }
 
 /// Read host system information.
@@ -104,7 +112,10 @@ pub(crate) fn destack_os_system_info(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SystemInfoVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.info.systemInfo")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.info.systemInfo",
+    ))
+    .boxed())
 }
 
 /// Read host uptime.
@@ -128,7 +139,10 @@ pub(crate) fn destack_os_uptime_ns(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.info.uptimeNs")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.info.uptimeNs",
+    ))
+    .boxed())
 }
 
 /// Mount one filesystem target.
@@ -158,7 +172,10 @@ pub(crate) fn destack_os_add(
     data: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = (source, target, filesystem, flags, data);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.add")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.mount.add",
+    ))
+    .boxed())
 }
 
 /// Enumerate mount table entries.
@@ -182,7 +199,10 @@ pub(crate) fn destack_os_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<MountEntryVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.mount.list",
+    ))
+    .boxed())
 }
 
 /// Unmount one filesystem target.
@@ -209,7 +229,10 @@ pub(crate) fn destack_os_remove(
     flags: u32,
 ) -> RuntimeResult<()> {
     let _ = (target, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.remove")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.mount.remove",
+    ))
+    .boxed())
 }
 
 /// Read current host power state.
@@ -233,7 +256,10 @@ pub(crate) fn destack_os_power_state(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<PowerState> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.power.state")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.power.state",
+    ))
+    .boxed())
 }
 
 /// Request host suspend.
@@ -257,5 +283,9 @@ pub(crate) fn destack_os_suspend(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.os.power.suspend")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.os.power.suspend",
+    ))
+    .boxed())
 }
+

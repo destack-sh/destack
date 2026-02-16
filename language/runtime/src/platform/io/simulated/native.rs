@@ -4,16 +4,17 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, NativeSlice, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::{
+    NativeSlice,
+    NativeArray,
+};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::io::{
-    CompletionEvent, CompletionOperation, DescriptorControlCommand, DescriptorControlFlags,
-    DescriptorRequest, DescriptorResult, EventToken, PollBackend, PollEvent, PollInterest,
-    UringFeatures, UringParameters,
-};
-use crate::platform::resource;
+use crate::platform::{resource};
+use crate::platform::io::{CompletionEvent, CompletionOperation, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest, DescriptorResult, EventToken, PollBackend, PollEvent, PollInterest, UringFeatures, UringParameters};
+
 
 /// Cancel queued operations for one target.
 ///
@@ -32,16 +33,14 @@ use crate::platform::resource;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_completion_cancel(
-    context: &RuntimeCallContext,
-    out: *mut u32,
-    handle: resource::CompletionHandle,
-    target: resource::ResourceId,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_completion_cancel(context: &RuntimeCallContext, out: *mut u32, handle: resource::CompletionHandle, target: resource::ResourceId) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, target);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.cancel")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.cancel",
+    ))
+    .boxed())
 }
 
 /// Close a completion queue.
@@ -61,14 +60,14 @@ pub(crate) unsafe fn destack_io_completion_cancel(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_completion_close(
-    context: &RuntimeCallContext,
-    handle: resource::CompletionHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_completion_close(context: &RuntimeCallContext, handle: resource::CompletionHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.close",
+    ))
+    .boxed())
 }
 
 /// Enter the completion backend with submit and wait hints.
@@ -88,18 +87,14 @@ pub(crate) unsafe fn destack_io_completion_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_completion_enter(
-    context: &RuntimeCallContext,
-    out: *mut u32,
-    handle: resource::CompletionHandle,
-    mincomplete: u32,
-    timeoutns: u64,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_completion_enter(context: &RuntimeCallContext, out: *mut u32, handle: resource::CompletionHandle, mincomplete: u32, timeoutns: u64, flags: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, mincomplete, timeoutns, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.enter")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.enter",
+    ))
+    .boxed())
 }
 
 /// Open a completion queue.
@@ -119,15 +114,14 @@ pub(crate) unsafe fn destack_io_completion_enter(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_completion_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::CompletionHandle,
-    entries: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_completion_open(context: &RuntimeCallContext, out: *mut resource::CompletionHandle, entries: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, entries);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.open",
+    ))
+    .boxed())
 }
 
 /// Submit one completion operation.
@@ -147,15 +141,14 @@ pub(crate) unsafe fn destack_io_completion_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_completion_submit(
-    context: &RuntimeCallContext,
-    handle: resource::CompletionHandle,
-    operation: CompletionOperation,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_completion_submit(context: &RuntimeCallContext, handle: resource::CompletionHandle, operation: CompletionOperation) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, operation);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.submit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.submit",
+    ))
+    .boxed())
 }
 
 /// Submit a batch of completion operations.
@@ -175,22 +168,9 @@ pub(crate) unsafe fn destack_io_completion_submit(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_completion_submit_batch(
-    context: &RuntimeCallContext,
-    out: *mut u32,
-    handle: resource::CompletionHandle,
-    operationwords: NativeSlice<u64>,
-    operationcount: u32,
-    operationwordstride: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_completion_submit_batch(context: &RuntimeCallContext, out: *mut u32, handle: resource::CompletionHandle, operationwords: NativeSlice<u64>, operationcount: u32, operationwordstride: u32) -> RuntimeResult<()> {
     let _ = context;
-    let _ = (
-        out,
-        handle,
-        operationwords,
-        operationcount,
-        operationwordstride,
-    );
+    let _ = (out, handle, operationwords, operationcount, operationwordstride);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.io.completion.submitBatch",
@@ -215,17 +195,14 @@ pub(crate) unsafe fn destack_io_completion_submit_batch(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_completion_wait(
-    context: &RuntimeCallContext,
-    out: *mut NativeArray<CompletionEvent>,
-    handle: resource::CompletionHandle,
-    timeoutns: u64,
-    maxevents: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_completion_wait(context: &RuntimeCallContext, out: *mut NativeArray<CompletionEvent>, handle: resource::CompletionHandle, timeoutns: u64, maxevents: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, timeoutns, maxevents);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.wait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.completion.wait",
+    ))
+    .boxed())
 }
 
 /// Execute one fcntl-style descriptor command.
@@ -245,18 +222,14 @@ pub(crate) unsafe fn destack_io_completion_wait(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_control_fcntl(
-    context: &RuntimeCallContext,
-    out: *mut i64,
-    handle: resource::ResourceId,
-    command: DescriptorControlCommand,
-    argument: u64,
-    flags: DescriptorControlFlags,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_control_fcntl(context: &RuntimeCallContext, out: *mut i64, handle: resource::ResourceId, command: DescriptorControlCommand, argument: u64, flags: DescriptorControlFlags) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, command, argument, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.fcntl")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.control.fcntl",
+    ))
+    .boxed())
 }
 
 /// Execute one ioctl-style descriptor request.
@@ -276,16 +249,14 @@ pub(crate) unsafe fn destack_io_control_fcntl(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_control_ioctl(
-    context: &RuntimeCallContext,
-    out: *mut DescriptorResult,
-    handle: resource::ResourceId,
-    request: DescriptorRequest,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_control_ioctl(context: &RuntimeCallContext, out: *mut DescriptorResult, handle: resource::ResourceId, request: DescriptorRequest) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, request);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.ioctl")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.control.ioctl",
+    ))
+    .boxed())
 }
 
 /// Attach an event token to a poll target key.
@@ -305,16 +276,14 @@ pub(crate) unsafe fn destack_io_control_ioctl(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_event_attach(
-    context: &RuntimeCallContext,
-    token: EventToken,
-    target: resource::ResourceId,
-    key: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_event_attach(context: &RuntimeCallContext, token: EventToken, target: resource::ResourceId, key: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (token, target, key);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.attach")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.attach",
+    ))
+    .boxed())
 }
 
 /// Close a user-event token.
@@ -334,14 +303,14 @@ pub(crate) unsafe fn destack_io_event_attach(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_event_close(
-    context: &RuntimeCallContext,
-    token: EventToken,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_event_close(context: &RuntimeCallContext, token: EventToken) -> RuntimeResult<()> {
     let _ = context;
     let _ = token;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.close",
+    ))
+    .boxed())
 }
 
 /// Create a user-event token.
@@ -361,15 +330,14 @@ pub(crate) unsafe fn destack_io_event_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_event_open(
-    context: &RuntimeCallContext,
-    out: *mut EventToken,
-    initial: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_event_open(context: &RuntimeCallContext, out: *mut EventToken, initial: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, initial);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.open",
+    ))
+    .boxed())
 }
 
 /// Signal a user-event token.
@@ -389,15 +357,14 @@ pub(crate) unsafe fn destack_io_event_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_event_signal(
-    context: &RuntimeCallContext,
-    token: EventToken,
-    argument_value: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_event_signal(context: &RuntimeCallContext, token: EventToken, argument_value: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (token, argument_value);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.signal")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.event.signal",
+    ))
+    .boxed())
 }
 
 /// Close a poll instance.
@@ -417,14 +384,14 @@ pub(crate) unsafe fn destack_io_event_signal(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_poll_close(
-    context: &RuntimeCallContext,
-    handle: resource::PollHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_poll_close(context: &RuntimeCallContext, handle: resource::PollHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.close",
+    ))
+    .boxed())
 }
 
 /// Remove one target from a poll instance.
@@ -444,15 +411,14 @@ pub(crate) unsafe fn destack_io_poll_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_poll_deregister(
-    context: &RuntimeCallContext,
-    handle: resource::PollHandle,
-    target: resource::ResourceId,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_poll_deregister(context: &RuntimeCallContext, handle: resource::PollHandle, target: resource::ResourceId) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, target);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.deregister")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.deregister",
+    ))
+    .boxed())
 }
 
 /// Open a poll instance.
@@ -472,15 +438,14 @@ pub(crate) unsafe fn destack_io_poll_deregister(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_poll_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::PollHandle,
-    backend: PollBackend,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_poll_open(context: &RuntimeCallContext, out: *mut resource::PollHandle, backend: PollBackend) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, backend);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.open",
+    ))
+    .boxed())
 }
 
 /// Register one target with a poll instance.
@@ -500,17 +465,14 @@ pub(crate) unsafe fn destack_io_poll_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_poll_register(
-    context: &RuntimeCallContext,
-    handle: resource::PollHandle,
-    target: resource::ResourceId,
-    key: u64,
-    interest: PollInterest,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_poll_register(context: &RuntimeCallContext, handle: resource::PollHandle, target: resource::ResourceId, key: u64, interest: PollInterest) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, target, key, interest);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.register")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.register",
+    ))
+    .boxed())
 }
 
 /// Update one target in a poll instance.
@@ -530,17 +492,14 @@ pub(crate) unsafe fn destack_io_poll_register(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_poll_update(
-    context: &RuntimeCallContext,
-    handle: resource::PollHandle,
-    target: resource::ResourceId,
-    key: u64,
-    interest: PollInterest,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_poll_update(context: &RuntimeCallContext, handle: resource::PollHandle, target: resource::ResourceId, key: u64, interest: PollInterest) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, target, key, interest);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.update")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.update",
+    ))
+    .boxed())
 }
 
 /// Wait for poll events.
@@ -560,17 +519,14 @@ pub(crate) unsafe fn destack_io_poll_update(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_poll_wait(
-    context: &RuntimeCallContext,
-    out: *mut NativeArray<PollEvent>,
-    handle: resource::PollHandle,
-    timeoutns: u64,
-    maxevents: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_poll_wait(context: &RuntimeCallContext, out: *mut NativeArray<PollEvent>, handle: resource::PollHandle, timeoutns: u64, maxevents: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, timeoutns, maxevents);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.wait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.poll.wait",
+    ))
+    .boxed())
 }
 
 /// Close one io_uring ring.
@@ -590,14 +546,14 @@ pub(crate) unsafe fn destack_io_poll_wait(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_uring_close(
-    context: &RuntimeCallContext,
-    handle: resource::UringHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_uring_close(context: &RuntimeCallContext, handle: resource::UringHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.close",
+    ))
+    .boxed())
 }
 
 /// Query io_uring feature support.
@@ -617,15 +573,14 @@ pub(crate) unsafe fn destack_io_uring_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_uring_features(
-    context: &RuntimeCallContext,
-    out: *mut UringFeatures,
-    handle: resource::UringHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_uring_features(context: &RuntimeCallContext, out: *mut UringFeatures, handle: resource::UringHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.features")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.features",
+    ))
+    .boxed())
 }
 
 /// Open one io_uring ring.
@@ -645,15 +600,14 @@ pub(crate) unsafe fn destack_io_uring_features(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_uring_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::UringHandle,
-    parameters: UringParameters,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_uring_open(context: &RuntimeCallContext, out: *mut resource::UringHandle, parameters: UringParameters) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, parameters);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.io.uring.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.io.uring.open",
+    ))
+    .boxed())
 }
 
 /// Register fixed buffers with a ring.
@@ -673,12 +627,7 @@ pub(crate) unsafe fn destack_io_uring_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_uring_register_buffers(
-    context: &RuntimeCallContext,
-    handle: resource::UringHandle,
-    addresses: NativeSlice<u64>,
-    lengths: NativeSlice<u32>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_uring_register_buffers(context: &RuntimeCallContext, handle: resource::UringHandle, addresses: NativeSlice<u64>, lengths: NativeSlice<u32>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, addresses, lengths);
 
@@ -705,11 +654,7 @@ pub(crate) unsafe fn destack_io_uring_register_buffers(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_uring_register_files(
-    context: &RuntimeCallContext,
-    handle: resource::UringHandle,
-    files: NativeSlice<resource::ResourceId>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_uring_register_files(context: &RuntimeCallContext, handle: resource::UringHandle, files: NativeSlice<resource::ResourceId>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (handle, files);
 
@@ -736,10 +681,7 @@ pub(crate) unsafe fn destack_io_uring_register_files(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_uring_unregister_buffers(
-    context: &RuntimeCallContext,
-    handle: resource::UringHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_uring_unregister_buffers(context: &RuntimeCallContext, handle: resource::UringHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -766,10 +708,7 @@ pub(crate) unsafe fn destack_io_uring_unregister_buffers(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_io_uring_unregister_files(
-    context: &RuntimeCallContext,
-    handle: resource::UringHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_io_uring_unregister_files(context: &RuntimeCallContext, handle: resource::UringHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
@@ -778,3 +717,4 @@ pub(crate) unsafe fn destack_io_uring_unregister_files(
     ))
     .boxed())
 }
+

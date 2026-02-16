@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::input::{InputDeviceInfoVm, InputEventVm};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::input::{InputDeviceInfoVm, InputEventVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one input device.
 ///
@@ -31,7 +33,10 @@ pub(crate) fn destack_input_close(
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.device.close",
+    ))
+    .boxed())
 }
 
 /// List available input devices.
@@ -55,7 +60,10 @@ pub(crate) fn destack_input_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<InputDeviceInfoVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.device.list",
+    ))
+    .boxed())
 }
 
 /// Open one input device.
@@ -81,7 +89,10 @@ pub(crate) fn destack_input_open(
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::InputDeviceHandle> {
     let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.device.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.device.open",
+    ))
+    .boxed())
 }
 
 /// Read one input event.
@@ -107,7 +118,10 @@ pub(crate) fn destack_input_read(
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputEventVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.event.read",
+    ))
+    .boxed())
 }
 
 /// Enable or disable exclusive device grab.
@@ -134,7 +148,10 @@ pub(crate) fn destack_input_set_grab(
     enable: bool,
 ) -> RuntimeResult<()> {
     let _ = (handle, enable);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.setGrab")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.event.setGrab",
+    ))
+    .boxed())
 }
 
 /// Poll one input event without blocking.
@@ -160,5 +177,9 @@ pub(crate) fn destack_input_try_read(
     handle: resource::InputDeviceHandle,
 ) -> RuntimeResult<InputEventVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.tryRead")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.event.tryRead",
+    ))
+    .boxed())
 }
+

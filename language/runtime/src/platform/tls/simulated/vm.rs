@@ -2,14 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::tls::{
-    TlsContextOptionsVm, TlsHandshakeStatus, TlsHostnameVerificationMode, TlsSessionResumptionMode,
-    TlsSessionResumptionState,
-};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::tls::{TlsContextOptionsVm, TlsHandshakeStatus, TlsHostnameVerificationMode, TlsSessionResumptionMode, TlsSessionResumptionState};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one tls context object.
 ///
@@ -34,7 +33,10 @@ pub(crate) fn destack_tls_context_close(
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tls.context.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tls.context.close",
+    ))
+    .boxed())
 }
 
 /// Open one tls context object.
@@ -60,7 +62,10 @@ pub(crate) fn destack_tls_context_open(
     options: TlsContextOptionsVm,
 ) -> RuntimeResult<resource::TlsContextHandle> {
     let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tls.context.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tls.context.open",
+    ))
+    .boxed())
 }
 
 /// Set allowed tls cipher suites for one context.
@@ -327,7 +332,10 @@ pub(crate) fn destack_tls_session_close(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tls.session.close",
+    ))
+    .boxed())
 }
 
 /// Export keying material bytes for one tls session.
@@ -445,7 +453,10 @@ pub(crate) fn destack_tls_session_open(
     servername: vm::StringHandle,
 ) -> RuntimeResult<resource::TlsSessionHandle> {
     let _ = (argument_context, socket, servername);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tls.session.open",
+    ))
+    .boxed())
 }
 
 /// Return the peer certificate chain bytes in pem encoding.
@@ -501,7 +512,10 @@ pub(crate) fn destack_tls_session_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tls.session.read",
+    ))
+    .boxed())
 }
 
 /// Return whether one session resumed from cached state or ticket.
@@ -556,7 +570,10 @@ pub(crate) fn destack_tls_session_shutdown(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.shutdown")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tls.session.shutdown",
+    ))
+    .boxed())
 }
 
 /// Write plaintext application bytes to one tls session.
@@ -583,5 +600,9 @@ pub(crate) fn destack_tls_session_write(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tls.session.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tls.session.write",
+    ))
+    .boxed())
 }
+

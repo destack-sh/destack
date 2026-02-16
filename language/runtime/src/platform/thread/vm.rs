@@ -2,11 +2,12 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::thread::ThreadOptionsVm;
-use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{resource};
+use crate::platform::thread::{ThreadOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Create one thread-local key.
 ///
@@ -893,3 +894,4 @@ pub(crate) fn destack_thread_semaphore_wait(
     ))
     .boxed())
 }
+

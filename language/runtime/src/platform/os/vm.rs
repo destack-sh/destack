@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::{HostIdentityVm, LoadAverageVm, MountEntryVm, PowerState, SystemInfoVm};
-use crate::platform::{PlatformError, VmArray, fs};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmArray};
+use crate::platform::{fs};
+use crate::platform::os::{HostIdentityVm, LoadAverageVm, MountEntryVm, PowerState, SystemInfoVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Read host identity.
 ///
@@ -286,3 +288,4 @@ pub(crate) fn destack_os_suspend(
     ))
     .boxed())
 }
+

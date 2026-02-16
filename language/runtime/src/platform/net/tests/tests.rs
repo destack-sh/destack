@@ -6,9 +6,9 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
 use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(unix)]
-use crate::platform::fs::PathBytesAbi;
-use crate::platform::fs::{OsPath, OsPathVm, PathEncoding, PathUtf16Abi, core as core_fs};
+use crate::platform::fs::{
+    OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, core as core_fs,
+};
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, VmValueCodec,

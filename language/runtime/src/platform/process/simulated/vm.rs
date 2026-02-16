@@ -2,17 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSetVm, ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags,
-    ProcessGroupIdsVm, ProcessId, ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind,
-    ProcessSchedulerConfigVm, ProcessSpawnOptionsVm, ProcessStdioVm, ProcessUnshareFlags,
-    ProcessUserIdsVm, ProcessWaitFlags, ProcessWaitStatusVm, Signal, SignalEventVm, SignalFdFlags,
-    SignalMaskHow, SyscallFilterFlags, UserId,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{fs, resource};
+use crate::platform::process::{ExecAtFlags, GroupId, ProcessCpuSetVm, ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags, ProcessGroupIdsVm, ProcessId, ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind, ProcessSchedulerConfigVm, ProcessSpawnOptionsVm, ProcessStdioVm, ProcessUnshareFlags, ProcessUserIdsVm, ProcessWaitFlags, ProcessWaitStatusVm, Signal, SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId};
+use crate::runtime::RuntimeCallContext;
 
 /// Return the process argument vector.
 ///
@@ -35,7 +31,10 @@ pub(crate) fn destack_process_args(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.args.args")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.args.args",
+    ))
+    .boxed())
 }
 
 /// Change the current working directory.
@@ -61,7 +60,10 @@ pub(crate) fn destack_process_chdir(
     path: fs::OsPathVm,
 ) -> RuntimeResult<()> {
     let _ = path;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.chdir")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.cwd.chdir",
+    ))
+    .boxed())
 }
 
 /// Return the current working directory.
@@ -85,7 +87,10 @@ pub(crate) fn destack_process_cwd(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<fs::OsPathVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.cwd")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.cwd.cwd",
+    ))
+    .boxed())
 }
 
 /// Delete an environment variable by UTF-8 name.
@@ -111,7 +116,10 @@ pub(crate) fn destack_process_env_delete(
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = name;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.delete")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.env.delete",
+    ))
+    .boxed())
 }
 
 /// Delete an environment variable by raw byte name.
@@ -166,7 +174,10 @@ pub(crate) fn destack_process_env_get(
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::StringHandle> {
     let _ = name;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.get")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.env.get",
+    ))
+    .boxed())
 }
 
 /// Read an environment variable by raw byte name.
@@ -192,7 +203,10 @@ pub(crate) fn destack_process_env_get_bytes(
     name: VmSlice<u8>,
 ) -> RuntimeResult<VmArray<u8>> {
     let _ = name;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.getBytes")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.env.getBytes",
+    ))
+    .boxed())
 }
 
 /// Set an environment variable by UTF-8 name and value.
@@ -219,7 +233,10 @@ pub(crate) fn destack_process_env_set(
     argument_value: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let _ = (name, argument_value);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.set")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.env.set",
+    ))
+    .boxed())
 }
 
 /// Set an environment variable by raw byte name and value.
@@ -246,7 +263,10 @@ pub(crate) fn destack_process_env_set_bytes(
     argument_value: VmSlice<u8>,
 ) -> RuntimeResult<()> {
     let _ = (name, argument_value);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.setBytes")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.env.setBytes",
+    ))
+    .boxed())
 }
 
 /// Replace the current process image with a command path.
@@ -274,7 +294,10 @@ pub(crate) fn destack_process_exec(
     environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (command, arguments, environment);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.exec")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.exec.exec",
+    ))
+    .boxed())
 }
 
 /// Replace the current process image using a directory-relative path.
@@ -304,7 +327,10 @@ pub(crate) fn destack_process_execat(
     flags: ExecAtFlags,
 ) -> RuntimeResult<()> {
     let _ = (directory, path, arguments, environment, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.execat")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.exec.execat",
+    ))
+    .boxed())
 }
 
 /// Replace the current process image using an executable file handle.
@@ -332,7 +358,10 @@ pub(crate) fn destack_process_fexec(
     environment: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<()> {
     let _ = (executable, arguments, environment);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exec.fexec")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.exec.fexec",
+    ))
+    .boxed())
 }
 
 /// Exit the current process with the given code.
@@ -358,7 +387,10 @@ pub(crate) fn destack_process_exit(
     code: u32,
 ) -> RuntimeResult<()> {
     let _ = code;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.exit.exit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.exit.exit",
+    ))
+    .boxed())
 }
 
 /// Close one process descriptor.
@@ -546,7 +578,7 @@ pub(crate) fn destack_process_signal_fd_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses signalfd(2) on Linux and runtime-backed signal queue descriptors elsewhere.
+/// Uses signalfd(2) on Linux and host-equivalent process-signal descriptor adapters elsewhere.
 ///
 /// # Errors
 /// Returns invalidArgument, processPermissionDenied, notSupported.
@@ -576,7 +608,7 @@ pub(crate) fn destack_process_signal_fd_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses read(2) over signalfd on Linux and runtime queue reads on other targets.
+/// Uses read(2) over signalfd on Linux and host-equivalent signal descriptor reads on other targets.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
@@ -605,7 +637,7 @@ pub(crate) fn destack_process_signal_fd_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses signalfd mask update semantics on Linux and runtime queue mask update elsewhere.
+/// Uses signalfd mask update semantics on Linux and host-equivalent signal descriptor mask updates elsewhere.
 ///
 /// # Errors
 /// Returns invalidArgument, processPermissionDenied, notSupported.
@@ -635,7 +667,7 @@ pub(crate) fn destack_process_signal_fd_set_mask(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses nonblocking reads over signalfd on Linux and runtime queue polling elsewhere.
+/// Uses nonblocking reads over signalfd on Linux and host-equivalent signal descriptor polling elsewhere.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
@@ -829,7 +861,10 @@ pub(crate) fn destack_process_egid(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<GroupId> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.egid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.egid",
+    ))
+    .boxed())
 }
 
 /// Return the effective user identifier.
@@ -853,7 +888,10 @@ pub(crate) fn destack_process_euid(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<UserId> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.euid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.euid",
+    ))
+    .boxed())
 }
 
 /// Return the current group identifier.
@@ -877,7 +915,10 @@ pub(crate) fn destack_process_gid(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<GroupId> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.gid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.gid",
+    ))
+    .boxed())
 }
 
 /// Return real, effective, and saved-set group identifiers.
@@ -901,7 +942,10 @@ pub(crate) fn destack_process_group_ids(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessGroupIdsVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.groupIds")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.groupIds",
+    ))
+    .boxed())
 }
 
 /// Return supplementary group identifiers.
@@ -925,7 +969,10 @@ pub(crate) fn destack_process_groups(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<GroupId>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.groups")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.groups",
+    ))
+    .boxed())
 }
 
 /// Return the current process identifier.
@@ -949,7 +996,10 @@ pub(crate) fn destack_process_pid(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.pid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.pid",
+    ))
+    .boxed())
 }
 
 /// Return the parent process identifier.
@@ -973,7 +1023,10 @@ pub(crate) fn destack_process_ppid(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessId> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.ppid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.ppid",
+    ))
+    .boxed())
 }
 
 /// Set the effective group identifier only.
@@ -999,7 +1052,10 @@ pub(crate) fn destack_process_set_egid(
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let _ = groupid;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setEgid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.setEgid",
+    ))
+    .boxed())
 }
 
 /// Set the effective user identifier only.
@@ -1025,7 +1081,10 @@ pub(crate) fn destack_process_set_euid(
     userid: UserId,
 ) -> RuntimeResult<()> {
     let _ = userid;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setEuid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.setEuid",
+    ))
+    .boxed())
 }
 
 /// Set the effective group identifier.
@@ -1051,7 +1110,10 @@ pub(crate) fn destack_process_set_gid(
     groupid: GroupId,
 ) -> RuntimeResult<()> {
     let _ = groupid;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setGid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.setGid",
+    ))
+    .boxed())
 }
 
 /// Set real, effective, and saved-set group identifiers together.
@@ -1135,7 +1197,10 @@ pub(crate) fn destack_process_set_uid(
     userid: UserId,
 ) -> RuntimeResult<()> {
     let _ = userid;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setUid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.setUid",
+    ))
+    .boxed())
 }
 
 /// Set real, effective, and saved-set user identifiers together.
@@ -1188,7 +1253,10 @@ pub(crate) fn destack_process_uid(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<UserId> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.uid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.uid",
+    ))
+    .boxed())
 }
 
 /// Return real, effective, and saved-set user identifiers.
@@ -1212,7 +1280,10 @@ pub(crate) fn destack_process_user_ids(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<ProcessUserIdsVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.userIds")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.ids.userIds",
+    ))
+    .boxed())
 }
 
 /// Change the root directory for path resolution.
@@ -1764,7 +1835,10 @@ pub(crate) fn destack_process_kill(
     signal: Signal,
 ) -> RuntimeResult<()> {
     let _ = (pid, signal);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.signals.kill")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.signals.kill",
+    ))
+    .boxed())
 }
 
 /// Read the current thread signal mask.
@@ -1774,7 +1848,7 @@ pub(crate) fn destack_process_kill(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses sigprocmask or pthread_sigmask on Unix and runtime policy emulation on Windows.
+/// Uses sigprocmask or pthread_sigmask on Unix and host-equivalent APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -1801,7 +1875,7 @@ pub(crate) fn destack_process_signal_mask_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses sigprocmask or pthread_sigmask on Unix and runtime policy emulation on Windows.
+/// Uses sigprocmask or pthread_sigmask on Unix and host-equivalent APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -1830,8 +1904,8 @@ pub(crate) fn destack_process_signal_mask_update(
 /// Delivery ordering and batching follow runtime and host signal queue semantics.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host signal waiting primitives and runtime queues.
+/// Runtime-integrated on Unix and Windows targets.
+/// Uses runtime subscription delivery with host signal waiting primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -1859,8 +1933,8 @@ pub(crate) fn destack_process_signal_receive(
 /// Subscription mode and coalescing behavior follow runtime and host integration rules.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host signal registration primitives and runtime subscription state.
+/// Runtime-integrated on Unix and Windows targets.
+/// Uses runtime subscription state with host signal integration.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -1888,8 +1962,8 @@ pub(crate) fn destack_process_signal_subscribe(
 /// Empty queue behavior is reported through host-specific not-ready errors.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host and runtime signal queue polling.
+/// Runtime-integrated on Unix and Windows targets.
+/// Uses runtime subscription polling with nonblocking host signal probes.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
@@ -1918,7 +1992,7 @@ pub(crate) fn destack_process_signal_try_receive(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses nonblocking signal wait primitives and runtime queue polling.
+/// Uses nonblocking signal wait primitives and host-equivalent polling APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
@@ -1946,8 +2020,8 @@ pub(crate) fn destack_process_signal_try_wait(
 /// Pending events may still be readable depending on host queueing behavior.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses runtime unregistration with host signal integration.
+/// Runtime-integrated on Unix and Windows targets.
+/// Uses runtime subscription teardown with host signal integration.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -1976,7 +2050,7 @@ pub(crate) fn destack_process_signal_unsubscribe(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses sigwait-style primitives on Unix and runtime signal wait integration on Windows.
+/// Uses sigwait-style primitives on Unix and host-equivalent wait APIs where available.
 ///
 /// # Errors
 /// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
@@ -2024,7 +2098,10 @@ pub(crate) fn destack_process_spawn(
     options: ProcessSpawnOptionsVm,
 ) -> RuntimeResult<resource::ProcessHandle> {
     let _ = (command, arguments, environment, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.spawn.spawn")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.spawn.spawn",
+    ))
+    .boxed())
 }
 
 /// Spawn a child process with explicit stdio and descriptor actions.
@@ -2084,7 +2161,10 @@ pub(crate) fn destack_process_umask(
     mask: u32,
 ) -> RuntimeResult<u32> {
     let _ = mask;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask.umask")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.umask.umask",
+    ))
+    .boxed())
 }
 
 /// Wait for a process identifier.
@@ -2111,7 +2191,10 @@ pub(crate) fn destack_process_wait_pid(
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
     let _ = (pid, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.wait.pid")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.wait.pid",
+    ))
+    .boxed())
 }
 
 /// Poll a child process handle without blocking.
@@ -2137,7 +2220,10 @@ pub(crate) fn destack_process_try_wait(
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.wait.tryWait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.wait.tryWait",
+    ))
+    .boxed())
 }
 
 /// Wait for a child process handle.
@@ -2164,5 +2250,9 @@ pub(crate) fn destack_process_wait(
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
     let _ = (handle, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.process.wait.wait")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.wait.wait",
+    ))
+    .boxed())
 }
+

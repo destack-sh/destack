@@ -6,7 +6,7 @@ use crate::replay::{
     ReplayEvent, SchedulerEvent, SchedulerEventKind, SchedulerQueue, SchedulerSubject,
 };
 use crate::runtime::{ExecutionContext, enter_execution_context};
-use crate::scheduler::{Microtask, Runnable, ScheduledItem, Task, TaskId, TaskState};
+use crate::scheduler::{Microtask, PlatformRunnable, Runnable, Task, TaskId, TaskState};
 
 use super::Runtime;
 
@@ -33,7 +33,7 @@ impl Runtime {
             } => {
                 // enqueue the yielded continuation
                 let task_id = self.scheduler.next_task_id();
-                self.enqueue_task(task_id, Runnable::Vm(continuation), value)?;
+                self.enqueue_task(task_id, PlatformRunnable::Vm(continuation), value)?;
 
                 self.run_until(engine, task_id)
             }
@@ -90,7 +90,7 @@ impl Runtime {
         // run the next scheduled item if available
         if let Some(item) = self.scheduler.next_runnable(now)? {
             match item {
-                ScheduledItem::Task(task) => {
+                Runnable::Task(task) => {
                     // record the dequeue event
                     self.record_scheduler_event(
                         SchedulerSubject::Task(task.id),
@@ -102,14 +102,14 @@ impl Runtime {
                         return Ok(Some(output));
                     }
                 }
-                ScheduledItem::Microtask(microtask) => {
+                Runnable::Microtask(microtask) => {
                     // run the microtask to completion
                     self.execute_microtask(engine, microtask)?;
                 }
-                ScheduledItem::Timer(_timer) => {
+                Runnable::Timer(_timer) => {
                     // NOTE #Incomplete: wire timer callbacks into tasks
                 }
-                ScheduledItem::Event(_event) => {
+                Runnable::Event(_event) => {
                     // NOTE #Incomplete: wire external events into tasks
                 }
             }
@@ -121,7 +121,7 @@ impl Runtime {
     fn enqueue_task(
         &mut self,
         task_id: TaskId,
-        runnable: Runnable,
+        runnable: PlatformRunnable,
         resume_value: vm::Value,
     ) -> RuntimeResult<()> {
         // record the enqueue event for replay
@@ -179,7 +179,7 @@ impl Runtime {
                     SchedulerQueue::Macrotask,
                     SchedulerEventKind::Yield,
                 )?;
-                self.enqueue_task(task.id, Runnable::Vm(continuation), value)?;
+                self.enqueue_task(task.id, PlatformRunnable::Vm(continuation), value)?;
             }
         }
 
@@ -242,13 +242,13 @@ impl Runtime {
     >(
         &mut self,
         engine: &mut E,
-        runnable: Runnable,
+        runnable: PlatformRunnable,
         resume_value: vm::Value,
     ) -> RuntimeResult<EngineOutcome<vm::ExecutionOutput, vm::Continuation, vm::Value>> {
         // select the runnable implementation
         match runnable {
-            Runnable::Vm(continuation) => engine.resume(continuation, resume_value),
-            Runnable::Native(_) => Err(RuntimeError::Internal {
+            PlatformRunnable::Vm(continuation) => engine.resume(continuation, resume_value),
+            PlatformRunnable::Native(_) => Err(RuntimeError::Internal {
                 message: "native runnable execution is not wired yet".to_string(),
             }
             .boxed()),

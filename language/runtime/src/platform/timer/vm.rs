@@ -2,14 +2,12 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::timer::{
-    TimerClock, TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpecVm, TimerFlags,
-    TimerOptionsVm,
-};
-use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{resource};
+use crate::platform::timer::{TimerClock, TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpecVm, TimerFlags, TimerOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Cancel a scheduled timer.
 ///
@@ -453,3 +451,4 @@ pub(crate) fn destack_timer_once(
     ))
     .boxed())
 }
+

@@ -4,14 +4,17 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::{
+    NativeSlice,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::audio::{
-    AudioDeviceDirection, AudioDeviceInfo, AudioStreamConfig, AudioStreamState,
-};
-use crate::platform::resource;
+use crate::platform::{resource};
+use crate::platform::audio::{AudioDeviceDirection, AudioDeviceInfo, AudioStreamConfig, AudioStreamState};
+
 
 /// Close one audio device endpoint.
 ///
@@ -30,14 +33,14 @@ use crate::platform::resource;
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_device_close(
-    context: &RuntimeCallContext,
-    handle: resource::AudioDeviceHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_device_close(context: &RuntimeCallContext, handle: resource::AudioDeviceHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.close",
+    ))
+    .boxed())
 }
 
 /// List available audio devices.
@@ -57,14 +60,14 @@ pub(crate) unsafe fn destack_audio_device_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_device_list(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<AudioDeviceInfo>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_device_list(context: &RuntimeCallContext, out: *mut NativeSlice<AudioDeviceInfo>) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.list",
+    ))
+    .boxed())
 }
 
 /// Open one audio device endpoint.
@@ -84,16 +87,14 @@ pub(crate) unsafe fn destack_audio_device_list(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_device_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::AudioDeviceHandle,
-    id: NativeStringRef,
-    direction: AudioDeviceDirection,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_device_open(context: &RuntimeCallContext, out: *mut resource::AudioDeviceHandle, id: NativeStringRef, direction: AudioDeviceDirection) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, id, direction);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.device.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.open",
+    ))
+    .boxed())
 }
 
 /// Close one audio stream.
@@ -113,14 +114,14 @@ pub(crate) unsafe fn destack_audio_device_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_close(
-    context: &RuntimeCallContext,
-    handle: resource::AudioStreamHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_stream_close(context: &RuntimeCallContext, handle: resource::AudioStreamHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.close",
+    ))
+    .boxed())
 }
 
 /// Open one audio stream on a device.
@@ -140,16 +141,14 @@ pub(crate) unsafe fn destack_audio_stream_close(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_open(
-    context: &RuntimeCallContext,
-    out: *mut resource::AudioStreamHandle,
-    device: resource::AudioDeviceHandle,
-    config: AudioStreamConfig,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_stream_open(context: &RuntimeCallContext, out: *mut resource::AudioStreamHandle, device: resource::AudioDeviceHandle, config: AudioStreamConfig) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, device, config);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.open",
+    ))
+    .boxed())
 }
 
 /// Read one packet of captured audio frames.
@@ -169,16 +168,14 @@ pub(crate) unsafe fn destack_audio_stream_open(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_read(
-    context: &RuntimeCallContext,
-    out: *mut NativeSlice<u8>,
-    handle: resource::AudioStreamHandle,
-    maxbytes: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_stream_read(context: &RuntimeCallContext, out: *mut NativeSlice<u8>, handle: resource::AudioStreamHandle, maxbytes: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, maxbytes);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.read",
+    ))
+    .boxed())
 }
 
 /// Start one audio stream.
@@ -198,14 +195,14 @@ pub(crate) unsafe fn destack_audio_stream_read(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_start(
-    context: &RuntimeCallContext,
-    handle: resource::AudioStreamHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_stream_start(context: &RuntimeCallContext, handle: resource::AudioStreamHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.start")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.start",
+    ))
+    .boxed())
 }
 
 /// Read one stream state snapshot.
@@ -225,15 +222,14 @@ pub(crate) unsafe fn destack_audio_stream_start(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_state(
-    context: &RuntimeCallContext,
-    out: *mut AudioStreamState,
-    handle: resource::AudioStreamHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_stream_state(context: &RuntimeCallContext, out: *mut AudioStreamState, handle: resource::AudioStreamHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.state")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.state",
+    ))
+    .boxed())
 }
 
 /// Stop one audio stream.
@@ -253,14 +249,14 @@ pub(crate) unsafe fn destack_audio_stream_state(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_stop(
-    context: &RuntimeCallContext,
-    handle: resource::AudioStreamHandle,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_stream_stop(context: &RuntimeCallContext, handle: resource::AudioStreamHandle) -> RuntimeResult<()> {
     let _ = context;
     let _ = handle;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.stop")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.stop",
+    ))
+    .boxed())
 }
 
 /// Write one packet of audio frames.
@@ -280,14 +276,13 @@ pub(crate) unsafe fn destack_audio_stream_stop(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_write(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    handle: resource::AudioStreamHandle,
-    data: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_audio_stream_write(context: &RuntimeCallContext, out: *mut u64, handle: resource::AudioStreamHandle, data: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, handle, data);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.write",
+    ))
+    .boxed())
 }
+

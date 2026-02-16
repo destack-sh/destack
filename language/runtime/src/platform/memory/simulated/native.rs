@@ -5,10 +5,13 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::{
+};
 
 use crate::runtime::RuntimeCallContext;
 
 use crate::platform::memory::{MemoryRange, ProtectedMemoryRange};
+
 
 /// Apply memory access advice.
 ///
@@ -27,16 +30,14 @@ use crate::platform::memory::{MemoryRange, ProtectedMemoryRange};
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_advise(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-    advice: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_advise(context: &RuntimeCallContext, address: u64, length: u64, advice: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length, advice);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.advise.advise")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.advise.advise",
+    ))
+    .boxed())
 }
 
 /// Discard memory contents.
@@ -56,11 +57,7 @@ pub(crate) unsafe fn destack_memory_advise(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_discard(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_discard(context: &RuntimeCallContext, address: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length);
 
@@ -87,12 +84,7 @@ pub(crate) unsafe fn destack_memory_discard(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_huge_page(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_huge_page(context: &RuntimeCallContext, address: u64, length: u64, enabled: bool) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length, enabled);
 
@@ -119,15 +111,14 @@ pub(crate) unsafe fn destack_memory_huge_page(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_lock(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_lock(context: &RuntimeCallContext, address: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.lock.lock")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.lock.lock",
+    ))
+    .boxed())
 }
 
 /// Unlock one memory range.
@@ -147,15 +138,14 @@ pub(crate) unsafe fn destack_memory_lock(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_unlock(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_unlock(context: &RuntimeCallContext, address: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.lock.unlock")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.lock.unlock",
+    ))
+    .boxed())
 }
 
 /// Commit one reserved range.
@@ -175,16 +165,14 @@ pub(crate) unsafe fn destack_memory_unlock(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_commit(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_commit(context: &RuntimeCallContext, address: u64, length: u64, flags: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.commit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.commit",
+    ))
+    .boxed())
 }
 
 /// Decommit one range.
@@ -204,15 +192,14 @@ pub(crate) unsafe fn destack_memory_commit(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_decommit(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_decommit(context: &RuntimeCallContext, address: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.decommit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.decommit",
+    ))
+    .boxed())
 }
 
 /// Bind one range to a NUMA policy.
@@ -232,17 +219,14 @@ pub(crate) unsafe fn destack_memory_decommit(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_numa_bind(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-    policy: u32,
-    nodemask: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_numa_bind(context: &RuntimeCallContext, address: u64, length: u64, policy: u32, nodemask: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length, policy, nodemask);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.numaBind")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.numaBind",
+    ))
+    .boxed())
 }
 
 /// Release one reserved range.
@@ -262,15 +246,14 @@ pub(crate) unsafe fn destack_memory_numa_bind(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_release(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_release(context: &RuntimeCallContext, address: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.release")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.release",
+    ))
+    .boxed())
 }
 
 /// Reserve one virtual memory range.
@@ -290,16 +273,14 @@ pub(crate) unsafe fn destack_memory_release(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_reserve(
-    context: &RuntimeCallContext,
-    out: *mut MemoryRange,
-    length: u64,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_reserve(context: &RuntimeCallContext, out: *mut MemoryRange, length: u64, flags: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, length, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.reserve")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.reserve",
+    ))
+    .boxed())
 }
 
 /// Change execute permission for one range.
@@ -319,12 +300,7 @@ pub(crate) unsafe fn destack_memory_reserve(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_protect_execute(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_protect_execute(context: &RuntimeCallContext, address: u64, length: u64, enabled: bool) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length, enabled);
 
@@ -351,11 +327,7 @@ pub(crate) unsafe fn destack_memory_protect_execute(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_flush_instruction_cache(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_flush_instruction_cache(context: &RuntimeCallContext, address: u64, length: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length);
 
@@ -382,12 +354,7 @@ pub(crate) unsafe fn destack_memory_flush_instruction_cache(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_protect(
-    context: &RuntimeCallContext,
-    address: u64,
-    length: u64,
-    protection: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_protect(context: &RuntimeCallContext, address: u64, length: u64, protection: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (address, length, protection);
 
@@ -414,18 +381,14 @@ pub(crate) unsafe fn destack_memory_protect(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_memory_remap(
-    context: &RuntimeCallContext,
-    out: *mut ProtectedMemoryRange,
-    address: u64,
-    oldlength: u64,
-    newlength: u64,
-    flags: u32,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_remap(context: &RuntimeCallContext, out: *mut ProtectedMemoryRange, address: u64, oldlength: u64, newlength: u64, flags: u32) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, address, oldlength, newlength, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.protect.remap")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.protect.remap",
+    ))
+    .boxed())
 }
 
 /// Set runtime W^X policy.
@@ -445,10 +408,7 @@ pub(crate) unsafe fn destack_memory_remap(
 ///
 /// # Replay
 /// Deterministic.
-pub(crate) unsafe fn destack_memory_set_write_xor_execute(
-    context: &RuntimeCallContext,
-    enabled: bool,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_memory_set_write_xor_execute(context: &RuntimeCallContext, enabled: bool) -> RuntimeResult<()> {
     let _ = context;
     let _ = enabled;
 
@@ -457,3 +417,4 @@ pub(crate) unsafe fn destack_memory_set_write_xor_execute(
     ))
     .boxed())
 }
+

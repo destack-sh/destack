@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::input::{InputDeviceInfoVm, InputDeviceKind, InputEventKind, InputEventVm};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::input::{InputDeviceInfoVm, InputDeviceKind, InputEventKind, InputEventVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one input device.
 ///
@@ -180,3 +182,4 @@ pub(crate) fn destack_input_try_read(
     ))
     .boxed())
 }
+

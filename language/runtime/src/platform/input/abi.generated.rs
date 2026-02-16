@@ -4,13 +4,14 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{
-    VmValueCodec, input as platform_input, resource, resource as platform_resource,
-};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use crate::platform::{resource};
+use crate::platform::input as platform_input;
+use crate::platform::resource as platform_resource;
 
 /// ABI enum for InputDeviceKind.
 #[repr(u8)]
@@ -96,23 +97,17 @@ pub type InputDeviceInfoVm = InputDeviceInfoAbi<VmAbi>;
 
 impl<A: BindingAbi> std::fmt::Debug for InputDeviceInfoAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InputDeviceInfoAbi")
-            .finish_non_exhaustive()
+        formatter.debug_struct("InputDeviceInfoAbi").finish_non_exhaustive()
     }
 }
 
 impl Copy for InputDeviceInfoAbi<NativeAbi> {}
 impl Clone for InputDeviceInfoAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl Copy for InputDeviceInfoAbi<VmAbi> {}
 impl Clone for InputDeviceInfoAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 /// ABI struct for InputEvent.
@@ -155,3 +150,4 @@ pub struct InputDeviceInfoReplayRecord {
     /// The connected field.
     pub connected: bool,
 }
+

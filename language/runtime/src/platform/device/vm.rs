@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::device::DeviceControlOperationVm;
-use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{fs, resource};
+use crate::platform::device::{DeviceControlOperationVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Run a device control request.
 ///
@@ -159,3 +161,4 @@ pub(crate) fn destack_device_write(
     ))
     .boxed())
 }
+

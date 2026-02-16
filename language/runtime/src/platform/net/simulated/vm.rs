@@ -2,20 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::net::{
-    AcceptFlags, KeepAliveConfigVm, LingerVm, NetInterfaceVm, PacketCaptureOptionsVm,
-    PacketCaptureRecordVm, PacketCaptureStatsVm, PacketFanoutOptionsVm, PacketRingOptionsVm,
-    PacketTimestampMode, ResolveQueryVm, ReverseLookupFlags, ReverseLookupNameVm, RouteEntryVm,
-    SocketAddressVm, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName,
-    SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFromVm, SocketRecvMessageVm,
-    SocketSendBatchEntryVm, SocketSendMessageVm, SocketSendToVm, SocketShutdown,
-    SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceiveVm, UdpSourceMembershipV4Vm,
-    UdpSourceMembershipV6Vm, UdsAddressVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{fs, resource};
+use crate::platform::net::{AcceptFlags, KeepAliveConfigVm, LingerVm, NetInterfaceVm, PacketCaptureOptionsVm, PacketCaptureRecordVm, PacketCaptureStatsVm, PacketFanoutOptionsVm, PacketRingOptionsVm, PacketTimestampMode, ResolveQueryVm, ReverseLookupFlags, ReverseLookupNameVm, RouteEntryVm, SocketAddressVm, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName, SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFromVm, SocketRecvMessageVm, SocketSendBatchEntryVm, SocketSendMessageVm, SocketSendToVm, SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceiveVm, UdpSourceMembershipV4Vm, UdpSourceMembershipV6Vm, UdsAddressVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Accept a new connection from a listener.
 ///
@@ -41,7 +34,10 @@ pub(crate) fn destack_net_accept(
     flags: AcceptFlags,
 ) -> RuntimeResult<resource::SocketHandle> {
     let _ = (listener, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.accept")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.accept",
+    ))
+    .boxed())
 }
 
 /// Read the local socket address as raw bytes.
@@ -126,7 +122,10 @@ pub(crate) fn destack_net_bind(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, address);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.bind")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.bind",
+    ))
+    .boxed())
 }
 
 /// Close a socket handle.
@@ -152,7 +151,10 @@ pub(crate) fn destack_net_close(
     handle: resource::SocketHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.close",
+    ))
+    .boxed())
 }
 
 /// Close a listener handle.
@@ -178,7 +180,10 @@ pub(crate) fn destack_net_close_listener(
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.closeListener")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.closeListener",
+    ))
+    .boxed())
 }
 
 /// Connect to a remote socket address.
@@ -205,7 +210,10 @@ pub(crate) fn destack_net_connect(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, address);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.connect")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.connect",
+    ))
+    .boxed())
 }
 
 /// List network interfaces with addresses and flags.
@@ -258,7 +266,10 @@ pub(crate) fn destack_net_interface_index(
     name: vm::StringHandle,
 ) -> RuntimeResult<u32> {
     let _ = name;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.interfaceIndex")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.interfaceIndex",
+    ))
+    .boxed())
 }
 
 /// Resolve an interface index to a name.
@@ -284,7 +295,10 @@ pub(crate) fn destack_net_interface_name(
     index: u32,
 ) -> RuntimeResult<vm::StringHandle> {
     let _ = index;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.interfaceName")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.interfaceName",
+    ))
+    .boxed())
 }
 
 /// Start listening on a raw socket address.
@@ -311,7 +325,10 @@ pub(crate) fn destack_net_listen(
     backlog: u32,
 ) -> RuntimeResult<resource::ListenerHandle> {
     let _ = (address, backlog);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.listen")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.listen",
+    ))
+    .boxed())
 }
 
 /// Read broadcast mode.
@@ -601,7 +618,10 @@ pub(crate) fn destack_net_get_tos(
     handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.getTos")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.options.getTos",
+    ))
+    .boxed())
 }
 
 /// Read the IP time-to-live.
@@ -627,7 +647,10 @@ pub(crate) fn destack_net_get_ttl(
     handle: resource::SocketHandle,
 ) -> RuntimeResult<u32> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.getTtl")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.options.getTtl",
+    ))
+    .boxed())
 }
 
 /// Read the write timeout in milliseconds.
@@ -955,7 +978,10 @@ pub(crate) fn destack_net_set_tos(
     tos: u32,
 ) -> RuntimeResult<()> {
     let _ = (handle, tos);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.setTos")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.options.setTos",
+    ))
+    .boxed())
 }
 
 /// Set the IP time-to-live.
@@ -982,7 +1008,10 @@ pub(crate) fn destack_net_set_ttl(
     ttl: u32,
 ) -> RuntimeResult<()> {
     let _ = (handle, ttl);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.options.setTtl")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.options.setTtl",
+    ))
+    .boxed())
 }
 
 /// Set the write timeout in milliseconds.
@@ -1125,7 +1154,10 @@ pub(crate) fn destack_net_packet_open(
     options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<resource::SocketHandle> {
     let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetOpen")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.raw.packetOpen",
+    ))
+    .boxed())
 }
 
 /// Receive one packet from a packet endpoint.
@@ -1182,7 +1214,10 @@ pub(crate) fn destack_net_packet_send(
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, argument_payload);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetSend")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.raw.packetSend",
+    ))
+    .boxed())
 }
 
 /// Set packet fanout on a packet endpoint.
@@ -1358,7 +1393,10 @@ pub(crate) fn destack_net_packet_stats(
     handle: resource::SocketHandle,
 ) -> RuntimeResult<PacketCaptureStatsVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.packetStats")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.raw.packetStats",
+    ))
+    .boxed())
 }
 
 /// Enable or disable IP header inclusion on a raw socket.
@@ -1415,7 +1453,10 @@ pub(crate) fn destack_net_raw_socket(
     protocol: i32,
 ) -> RuntimeResult<resource::SocketHandle> {
     let _ = (family, protocol);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.raw.socket")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.raw.socket",
+    ))
+    .boxed())
 }
 
 /// Read from a socket into the provided slice.
@@ -1442,7 +1483,10 @@ pub(crate) fn destack_net_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.read",
+    ))
+    .boxed())
 }
 
 /// Read into multiple buffers.
@@ -1469,7 +1513,10 @@ pub(crate) fn destack_net_readv(
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.readv")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.readv",
+    ))
+    .boxed())
 }
 
 /// Receive a packet from a remote socket address.
@@ -1497,7 +1544,10 @@ pub(crate) fn destack_net_recv_from(
     recvflags: SocketMessageFlags,
 ) -> RuntimeResult<SocketRecvFromVm> {
     let _ = (handle, buffer, recvflags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.recvFrom")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.recvFrom",
+    ))
+    .boxed())
 }
 
 /// Receive multiple datagrams.
@@ -1527,7 +1577,10 @@ pub(crate) fn destack_net_recv_mmsg(
     maxcontrolbytes: u32,
 ) -> RuntimeResult<VmArray<SocketRecvMessageVm>> {
     let _ = (handle, requests, maxfds, wantcredentials, maxcontrolbytes);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.recvMmsg")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.recvMmsg",
+    ))
+    .boxed())
 }
 
 /// Receive a message with ancillary data.
@@ -1557,15 +1610,11 @@ pub(crate) fn destack_net_recv_msg(
     wantcredentials: bool,
     maxcontrolbytes: u32,
 ) -> RuntimeResult<SocketRecvMessageVm> {
-    let _ = (
-        handle,
-        buffer,
-        recvflags,
-        maxfds,
-        wantcredentials,
-        maxcontrolbytes,
-    );
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.recvMsg")).boxed())
+    let _ = (handle, buffer, recvflags, maxfds, wantcredentials, maxcontrolbytes);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.recvMsg",
+    ))
+    .boxed())
 }
 
 /// Resolve a host and service query into raw socket addresses.
@@ -1591,7 +1640,10 @@ pub(crate) fn destack_net_resolve(
     query: ResolveQueryVm,
 ) -> RuntimeResult<VmArray<SocketAddressVm>> {
     let _ = query;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve.resolve")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.resolve.resolve",
+    ))
+    .boxed())
 }
 
 /// Reverse lookup a raw socket address into host and service names.
@@ -1765,7 +1817,10 @@ pub(crate) fn destack_net_route_add(
     route: RouteEntryVm,
 ) -> RuntimeResult<()> {
     let _ = route;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeAdd")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.routeAdd",
+    ))
+    .boxed())
 }
 
 /// Remove a route table entry.
@@ -1791,7 +1846,10 @@ pub(crate) fn destack_net_route_delete(
     route: RouteEntryVm,
 ) -> RuntimeResult<()> {
     let _ = route;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeDelete")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.routeDelete",
+    ))
+    .boxed())
 }
 
 /// List route table entries.
@@ -1817,7 +1875,10 @@ pub(crate) fn destack_net_route_list(
     family: SocketFamily,
 ) -> RuntimeResult<VmArray<RouteEntryVm>> {
     let _ = family;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.routeList")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.routeList",
+    ))
+    .boxed())
 }
 
 /// Send multiple datagrams.
@@ -1844,7 +1905,10 @@ pub(crate) fn destack_net_send_mmsg(
     messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, messages);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.sendMmsg")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.sendMmsg",
+    ))
+    .boxed())
 }
 
 /// Send a message with ancillary data.
@@ -1872,7 +1936,10 @@ pub(crate) fn destack_net_send_msg(
     message: SocketSendMessageVm,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer, message);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.sendMsg")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.sendMsg",
+    ))
+    .boxed())
 }
 
 /// Send a packet to a remote socket address.
@@ -1900,7 +1967,10 @@ pub(crate) fn destack_net_send_to(
     message: SocketSendToVm,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer, message);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.sendTo")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.sendTo",
+    ))
+    .boxed())
 }
 
 /// Enable or disable nonblocking mode on a socket.
@@ -1927,7 +1997,10 @@ pub(crate) fn destack_net_set_nonblocking(
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (handle, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.setNonblocking")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.setNonblocking",
+    ))
+    .boxed())
 }
 
 /// Shut down a socket for reads, writes, or both.
@@ -1954,7 +2027,10 @@ pub(crate) fn destack_net_shutdown(
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
     let _ = (handle, how);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.shutdown")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.shutdown",
+    ))
+    .boxed())
 }
 
 /// Create a socket from a native family, type, and protocol.
@@ -1982,7 +2058,10 @@ pub(crate) fn destack_net_socket(
     protocol: SocketProtocol,
 ) -> RuntimeResult<resource::SocketHandle> {
     let _ = (family, sockettype, protocol);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.socket")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.socket",
+    ))
+    .boxed())
 }
 
 /// Create a connected socket pair.
@@ -2010,7 +2089,10 @@ pub(crate) fn destack_net_socket_pair(
     protocol: SocketProtocol,
 ) -> RuntimeResult<SocketPairVm> {
     let _ = (family, sockettype, protocol);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.socketPair")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.socketPair",
+    ))
+    .boxed())
 }
 
 /// Read full TCP keepalive parameters.
@@ -2036,7 +2118,10 @@ pub(crate) fn destack_net_get_keep_alive(
     handle: resource::SocketHandle,
 ) -> RuntimeResult<KeepAliveConfigVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.getKeepAlive")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.tcp.getKeepAlive",
+    ))
+    .boxed())
 }
 
 /// Read TCP_NODELAY.
@@ -2062,7 +2147,10 @@ pub(crate) fn destack_net_get_no_delay(
     handle: resource::SocketHandle,
 ) -> RuntimeResult<bool> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.getNoDelay")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.tcp.getNoDelay",
+    ))
+    .boxed())
 }
 
 /// Write full TCP keepalive parameters.
@@ -2089,7 +2177,10 @@ pub(crate) fn destack_net_set_keep_alive(
     config: KeepAliveConfigVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, config);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.setKeepAlive")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.tcp.setKeepAlive",
+    ))
+    .boxed())
 }
 
 /// Enable or disable TCP_NODELAY.
@@ -2116,7 +2207,10 @@ pub(crate) fn destack_net_set_no_delay(
     enabled: bool,
 ) -> RuntimeResult<()> {
     let _ = (handle, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.tcp.setNoDelay")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.tcp.setNoDelay",
+    ))
+    .boxed())
 }
 
 /// Bind a UDP socket to a raw local address.
@@ -2143,7 +2237,10 @@ pub(crate) fn destack_net_udp_bind(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, address);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udp.bind")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udp.bind",
+    ))
+    .boxed())
 }
 
 /// Connect a UDP socket to a raw remote address.
@@ -2170,7 +2267,10 @@ pub(crate) fn destack_net_udp_connect(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, address);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udp.connect")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udp.connect",
+    ))
+    .boxed())
 }
 
 /// Read the default IPv4 multicast interface for one socket.
@@ -2558,7 +2658,10 @@ pub(crate) fn destack_net_udp_recv_from(
     recvflags: UdpMessageFlags,
 ) -> RuntimeResult<UdpReceiveVm> {
     let _ = (handle, buffer, recvflags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udp.recvFrom")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udp.recvFrom",
+    ))
+    .boxed())
 }
 
 /// Send a datagram to a raw remote address.
@@ -2587,7 +2690,10 @@ pub(crate) fn destack_net_udp_send_to(
     sendflags: UdpMessageFlags,
 ) -> RuntimeResult<u64> {
     let _ = (handle, address, buffer, sendflags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udp.sendTo")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udp.sendTo",
+    ))
+    .boxed())
 }
 
 /// Select the default IPv4 multicast interface for one socket.
@@ -2733,7 +2839,10 @@ pub(crate) fn destack_net_udp_socket(
     family: SocketFamily,
 ) -> RuntimeResult<resource::SocketHandle> {
     let _ = family;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udp.socket")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udp.socket",
+    ))
+    .boxed())
 }
 
 /// Accept a connection from a UDS listener.
@@ -2759,7 +2868,10 @@ pub(crate) fn destack_net_uds_accept(
     listener: resource::ListenerHandle,
 ) -> RuntimeResult<resource::SocketHandle> {
     let _ = listener;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsAccept")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udsAccept",
+    ))
+    .boxed())
 }
 
 /// Close a UDS listener handle.
@@ -2785,7 +2897,10 @@ pub(crate) fn destack_net_uds_close_listener(
     handle: resource::ListenerHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsCloseListener")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udsCloseListener",
+    ))
+    .boxed())
 }
 
 /// Connect to a UDS endpoint.
@@ -2811,7 +2926,10 @@ pub(crate) fn destack_net_uds_connect(
     address: UdsAddressVm,
 ) -> RuntimeResult<resource::SocketHandle> {
     let _ = address;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udsConnect",
+    ))
+    .boxed())
 }
 
 /// Listen on a UDS address.
@@ -2838,7 +2956,10 @@ pub(crate) fn destack_net_uds_listen(
     backlog: u32,
 ) -> RuntimeResult<resource::ListenerHandle> {
     let _ = (address, backlog);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsListen")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udsListen",
+    ))
+    .boxed())
 }
 
 /// Create a connected UDS socket pair.
@@ -2864,7 +2985,10 @@ pub(crate) fn destack_net_uds_socket_pair(
     sockettype: SocketType,
 ) -> RuntimeResult<SocketPairVm> {
     let _ = sockettype;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsSocketPair")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.udsSocketPair",
+    ))
+    .boxed())
 }
 
 /// Write to a socket from the provided slice.
@@ -2891,7 +3015,10 @@ pub(crate) fn destack_net_write(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.write",
+    ))
+    .boxed())
 }
 
 /// Write from multiple buffers.
@@ -2918,5 +3045,9 @@ pub(crate) fn destack_net_writev(
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.writev")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.writev",
+    ))
+    .boxed())
 }
+

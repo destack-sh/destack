@@ -13,7 +13,7 @@ pub struct EventLoop {
     // NOTE #Incomplete: enforce queue priorities, budgets, and deterministic ordering
     /// Pending macrotasks.
     pub tasks: VecDeque<Task>,
-    /// Pending microtasks drained between tasks.
+    /// Pending microtasks (drained between tasks).
     pub microtasks: VecDeque<Microtask>,
     /// Pending external events.
     pub events: VecDeque<PlatformEvent>,

@@ -4,13 +4,17 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::{
+    NativeSlice,
+    NativeArray,
+    NativeStringRef,
+};
 
 use crate::runtime::RuntimeCallContext;
 
-use crate::platform::random::{
-    RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomInfo,
-};
+use crate::platform::random::{RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomInfo};
+
 
 /// Fill a slice with cryptographically secure random bytes.
 ///
@@ -29,14 +33,14 @@ use crate::platform::random::{
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_secure_bytes(
-    context: &RuntimeCallContext,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_secure_bytes(context: &RuntimeCallContext, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = buffer;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.secure.bytes")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.secure.bytes",
+    ))
+    .boxed())
 }
 
 /// Fill a slice with secure random bytes without blocking.
@@ -56,10 +60,7 @@ pub(crate) unsafe fn destack_random_secure_bytes(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_secure_bytes_try(
-    context: &RuntimeCallContext,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_secure_bytes_try(context: &RuntimeCallContext, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = buffer;
 
@@ -86,14 +87,14 @@ pub(crate) unsafe fn destack_random_secure_bytes_try(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_secure_info(
-    context: &RuntimeCallContext,
-    out: *mut SecureRandomInfo,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_secure_info(context: &RuntimeCallContext, out: *mut SecureRandomInfo) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.secure.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.secure.info",
+    ))
+    .boxed())
 }
 
 /// Export deterministic stream state.
@@ -113,15 +114,14 @@ pub(crate) unsafe fn destack_random_secure_info(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_stream_export(
-    context: &RuntimeCallContext,
-    out: *mut RandomStreamState,
-    stream: RandomStream,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_stream_export(context: &RuntimeCallContext, out: *mut RandomStreamState, stream: RandomStream) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, stream);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.export")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.export",
+    ))
+    .boxed())
 }
 
 /// Fill a slice with deterministic random bytes from the default stream.
@@ -141,10 +141,7 @@ pub(crate) unsafe fn destack_random_stream_export(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_fill_bytes(
-    context: &RuntimeCallContext,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_fill_bytes(context: &RuntimeCallContext, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = buffer;
 
@@ -171,11 +168,7 @@ pub(crate) unsafe fn destack_random_fill_bytes(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_fill_bytes_from(
-    context: &RuntimeCallContext,
-    stream: RandomStream,
-    buffer: NativeSlice<u8>,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_fill_bytes_from(context: &RuntimeCallContext, stream: RandomStream, buffer: NativeSlice<u8>) -> RuntimeResult<()> {
     let _ = context;
     let _ = (stream, buffer);
 
@@ -202,15 +195,14 @@ pub(crate) unsafe fn destack_random_fill_bytes_from(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_stream_import(
-    context: &RuntimeCallContext,
-    stream: RandomStream,
-    state: RandomStreamState,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_stream_import(context: &RuntimeCallContext, stream: RandomStream, state: RandomStreamState) -> RuntimeResult<()> {
     let _ = context;
     let _ = (stream, state);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.import")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.import",
+    ))
+    .boxed())
 }
 
 /// Allocate a deterministic random stream in one domain.
@@ -230,15 +222,14 @@ pub(crate) unsafe fn destack_random_stream_import(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_stream_in(
-    context: &RuntimeCallContext,
-    out: *mut RandomStream,
-    domain: RandomStreamDomain,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_stream_in(context: &RuntimeCallContext, out: *mut RandomStream, domain: RandomStreamDomain) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, domain);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.in")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.in",
+    ))
+    .boxed())
 }
 
 /// Advance a deterministic stream by one jump count.
@@ -258,15 +249,14 @@ pub(crate) unsafe fn destack_random_stream_in(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_stream_jump(
-    context: &RuntimeCallContext,
-    stream: RandomStream,
-    jump: u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_stream_jump(context: &RuntimeCallContext, stream: RandomStream, jump: u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = (stream, jump);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.jump")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.jump",
+    ))
+    .boxed())
 }
 
 /// Return a deterministic random uint64 from the default stream.
@@ -286,10 +276,7 @@ pub(crate) unsafe fn destack_random_stream_jump(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_next_u64(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_next_u64(context: &RuntimeCallContext, out: *mut u64) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
@@ -316,11 +303,7 @@ pub(crate) unsafe fn destack_random_next_u64(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_next_u64_from(
-    context: &RuntimeCallContext,
-    out: *mut u64,
-    stream: RandomStream,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_next_u64_from(context: &RuntimeCallContext, out: *mut u64, stream: RandomStream) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, stream);
 
@@ -347,15 +330,14 @@ pub(crate) unsafe fn destack_random_next_u64_from(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_stream_split(
-    context: &RuntimeCallContext,
-    out: *mut RandomStream,
-    parent: RandomStream,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_stream_split(context: &RuntimeCallContext, out: *mut RandomStream, parent: RandomStream) -> RuntimeResult<()> {
     let _ = context;
     let _ = (out, parent);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.split")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.split",
+    ))
+    .boxed())
 }
 
 /// Allocate a deterministic random stream identifier.
@@ -375,12 +357,13 @@ pub(crate) unsafe fn destack_random_stream_split(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_random_stream(
-    context: &RuntimeCallContext,
-    out: *mut RandomStream,
-) -> RuntimeResult<()> {
+pub(crate) unsafe fn destack_random_stream(context: &RuntimeCallContext, out: *mut RandomStream) -> RuntimeResult<()> {
     let _ = context;
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.random.stream.stream")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.random.stream.stream",
+    ))
+    .boxed())
 }
+

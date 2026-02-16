@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::ffi::FfiPointer;
-use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{fs, resource};
+use crate::platform::ffi::{FfiPointer};
+use crate::runtime::RuntimeCallContext;
 
 /// Call one foreign symbol using raw ABI argument and result buffers.
 ///
@@ -216,3 +218,4 @@ pub(crate) fn destack_ffi_symbol_lookup(
     ))
     .boxed())
 }
+

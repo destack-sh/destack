@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::memory as platform_memory;
 use serde::{Deserialize, Serialize};
+use crate::platform::memory as platform_memory;
 
 /// ABI struct for MemoryRange.
 #[repr(C)]
@@ -30,3 +30,4 @@ pub struct ProtectedMemoryRange {
 }
 
 pub type ProtectedMemoryRangeVm = ProtectedMemoryRange;
+

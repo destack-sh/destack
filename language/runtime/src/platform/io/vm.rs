@@ -2,15 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::io::{
-    CompletionEventVm, CompletionOperationKind, CompletionOperationVm, DescriptorControlCommand,
-    DescriptorControlFlags, DescriptorRequestVm, DescriptorResultVm, EventToken, PollBackend,
-    PollEventVm, PollInterest, UringFeaturesVm, UringParametersVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{resource};
+use crate::platform::io::{CompletionEventVm, CompletionOperationKind, CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequestVm, DescriptorResultVm, EventToken, PollBackend, PollEventVm, PollInterest, UringFeaturesVm, UringParametersVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Cancel queued operations for one target.
 ///
@@ -794,3 +792,4 @@ pub(crate) fn destack_io_uring_unregister_files(
     ))
     .boxed())
 }
+

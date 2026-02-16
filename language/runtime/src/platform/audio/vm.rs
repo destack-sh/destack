@@ -2,14 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::audio::{
-    AudioDeviceDirection, AudioDeviceInfoVm, AudioSampleFormat, AudioStreamConfigVm,
-    AudioStreamStateVm,
-};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::audio::{AudioDeviceDirection, AudioDeviceInfoVm, AudioSampleFormat, AudioStreamConfigVm, AudioStreamStateVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one audio device endpoint.
 ///
@@ -302,3 +301,4 @@ pub(crate) fn destack_audio_stream_write(
     ))
     .boxed())
 }
+

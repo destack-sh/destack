@@ -19,7 +19,7 @@ impl NativeContinuation {
 /// Runnable continuation owned by the scheduler.
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: revisit large runtime::Runnable enum
-pub enum Runnable {
+pub enum PlatformRunnable {
     /// VM continuation that resumes MIR execution.
     Vm(vm::Continuation),
     /// Native continuation that resumes compiled execution.

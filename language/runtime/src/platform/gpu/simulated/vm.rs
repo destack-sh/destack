@@ -2,17 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::gpu::{
-    GpuAdapterInfoVm, GpuAdapterRequestVm, GpuBufferCopyLayoutVm, GpuBufferCopyVm,
-    GpuBufferOptionsVm, GpuCommandEncoderOptionsVm, GpuComputePipelineOptionsVm, GpuDeviceInfoVm,
-    GpuDeviceOptionsVm, GpuExtent3DVm, GpuMappedMemoryVm, GpuPresentOptionsVm,
-    GpuRenderPassOptionsVm, GpuRenderPipelineOptionsVm, GpuSamplerOptionsVm, GpuShaderOptionsVm,
-    GpuSubmitOptionsVm, GpuSurfaceOptionsVm, GpuTextureCopyVm, GpuTextureOptionsVm,
-};
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice, VmArray};
+use crate::platform::{resource};
+use crate::platform::gpu::{GpuAdapterInfoVm, GpuAdapterRequestVm, GpuBufferCopyLayoutVm, GpuBufferCopyVm, GpuBufferOptionsVm, GpuCommandEncoderOptionsVm, GpuComputePipelineOptionsVm, GpuDeviceInfoVm, GpuDeviceOptionsVm, GpuExtent3DVm, GpuMappedMemoryVm, GpuPresentOptionsVm, GpuRenderPassOptionsVm, GpuRenderPipelineOptionsVm, GpuSamplerOptionsVm, GpuShaderOptionsVm, GpuSubmitOptionsVm, GpuSurfaceOptionsVm, GpuTextureCopyVm, GpuTextureOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Close one GPU adapter.
 ///
@@ -37,7 +33,10 @@ pub(crate) fn destack_gpu_adapter_close(
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.close",
+    ))
+    .boxed())
 }
 
 /// Read metadata for one opened adapter.
@@ -63,7 +62,10 @@ pub(crate) fn destack_gpu_adapter_info(
     handle: resource::GpuAdapterHandle,
 ) -> RuntimeResult<GpuAdapterInfoVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.info",
+    ))
+    .boxed())
 }
 
 /// List available GPU adapters.
@@ -89,7 +91,10 @@ pub(crate) fn destack_gpu_adapter_list(
     request: GpuAdapterRequestVm,
 ) -> RuntimeResult<VmArray<GpuAdapterInfoVm>> {
     let _ = request;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.list")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.list",
+    ))
+    .boxed())
 }
 
 /// Open one GPU adapter.
@@ -115,7 +120,10 @@ pub(crate) fn destack_gpu_adapter_open(
     id: vm::StringHandle,
 ) -> RuntimeResult<resource::GpuAdapterHandle> {
     let _ = id;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.adapter.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.adapter.open",
+    ))
+    .boxed())
 }
 
 /// Bind one compute pipeline.
@@ -392,7 +400,10 @@ pub(crate) fn destack_gpu_command_dispatch(
     groupz: u32,
 ) -> RuntimeResult<()> {
     let _ = (handle, groupx, groupy, groupz);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.command.dispatch")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.dispatch",
+    ))
+    .boxed())
 }
 
 /// Draw one non-indexed primitive range.
@@ -421,14 +432,11 @@ pub(crate) fn destack_gpu_command_draw(
     firstvertex: u32,
     firstinstance: u32,
 ) -> RuntimeResult<()> {
-    let _ = (
-        handle,
-        vertexcount,
-        instancecount,
-        firstvertex,
-        firstinstance,
-    );
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.command.draw")).boxed())
+    let _ = (handle, vertexcount, instancecount, firstvertex, firstinstance);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.command.draw",
+    ))
+    .boxed())
 }
 
 /// Draw one indexed primitive range.
@@ -458,14 +466,7 @@ pub(crate) fn destack_gpu_command_draw_indexed(
     basevertex: i32,
     firstinstance: u32,
 ) -> RuntimeResult<()> {
-    let _ = (
-        handle,
-        indexcount,
-        instancecount,
-        firstindex,
-        basevertex,
-        firstinstance,
-    );
+    let _ = (handle, indexcount, instancecount, firstindex, basevertex, firstinstance);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.gpu.command.drawIndexed",
     ))
@@ -770,7 +771,10 @@ pub(crate) fn destack_gpu_device_close(
     handle: resource::GpuDeviceHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.close",
+    ))
+    .boxed())
 }
 
 /// Read metadata for one logical device.
@@ -796,7 +800,10 @@ pub(crate) fn destack_gpu_device_info(
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<GpuDeviceInfoVm> {
     let _ = device;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.info",
+    ))
+    .boxed())
 }
 
 /// Open one logical GPU device.
@@ -823,7 +830,10 @@ pub(crate) fn destack_gpu_device_open(
     options: GpuDeviceOptionsVm,
 ) -> RuntimeResult<resource::GpuDeviceHandle> {
     let _ = (adapter, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.open",
+    ))
+    .boxed())
 }
 
 /// Poll one logical device for completion progress.
@@ -851,7 +861,10 @@ pub(crate) fn destack_gpu_device_poll(
     timeoutns: u64,
 ) -> RuntimeResult<u32> {
     let _ = (device, wait, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.poll")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.poll",
+    ))
+    .boxed())
 }
 
 /// Resolve the default queue for one logical device.
@@ -877,7 +890,10 @@ pub(crate) fn destack_gpu_device_queue(
     device: resource::GpuDeviceHandle,
 ) -> RuntimeResult<resource::GpuQueueHandle> {
     let _ = device;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.device.queue")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.device.queue",
+    ))
+    .boxed())
 }
 
 /// Create one compute pipeline.
@@ -933,7 +949,10 @@ pub(crate) fn destack_gpu_pipeline_destroy(
     handle: resource::GpuPipelineHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.gpu.pipeline.destroy")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.gpu.pipeline.destroy",
+    ))
+    .boxed())
 }
 
 /// Create one render pipeline.
@@ -1386,3 +1405,4 @@ pub(crate) fn destack_gpu_texture_destroy(
     ))
     .boxed())
 }
+

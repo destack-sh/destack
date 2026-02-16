@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::tty::{PtyPairVm, TtyModeVm, TtySizeVm};
-use crate::platform::{PlatformError, VmSlice, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{VmSlice};
+use crate::platform::{resource};
+use crate::platform::tty::{PtyPairVm, TtyModeVm, TtySizeVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Read bytes from a terminal.
 ///
@@ -32,7 +34,10 @@ pub(crate) fn destack_tty_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.io.read")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.io.read",
+    ))
+    .boxed())
 }
 
 /// Write bytes to a terminal.
@@ -59,7 +64,10 @@ pub(crate) fn destack_tty_write(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.io.write")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.io.write",
+    ))
+    .boxed())
 }
 
 /// Read terminal mode flags.
@@ -85,7 +93,10 @@ pub(crate) fn destack_tty_get_mode(
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtyModeVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.getMode")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.mode.getMode",
+    ))
+    .boxed())
 }
 
 /// Apply terminal mode flags.
@@ -112,7 +123,10 @@ pub(crate) fn destack_tty_set_mode(
     mode: TtyModeVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.setMode")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.mode.setMode",
+    ))
+    .boxed())
 }
 
 /// Close one pseudo-terminal controller.
@@ -138,7 +152,10 @@ pub(crate) fn destack_tty_pty_close(
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.pty.close")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.pty.close",
+    ))
+    .boxed())
 }
 
 /// Open one pseudo-terminal pair.
@@ -166,7 +183,10 @@ pub(crate) fn destack_tty_pty_open(
     flags: u32,
 ) -> RuntimeResult<PtyPairVm> {
     let _ = (rows, columns, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.pty.open")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.pty.open",
+    ))
+    .boxed())
 }
 
 /// Read terminal size.
@@ -192,7 +212,10 @@ pub(crate) fn destack_tty_get_size(
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtySizeVm> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.getSize")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.size.getSize",
+    ))
+    .boxed())
 }
 
 /// Apply terminal size.
@@ -219,5 +242,9 @@ pub(crate) fn destack_tty_set_size(
     size: TtySizeVm,
 ) -> RuntimeResult<()> {
     let _ = (handle, size);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.setSize")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.size.setSize",
+    ))
+    .boxed())
 }
+

@@ -2,11 +2,11 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::memory::{MemoryRangeVm, ProtectedMemoryRangeVm};
 use crate::runtime::RuntimeCallContext;
-use destack_vm as vm;
 
 /// Apply memory access advice.
 ///
@@ -33,7 +33,10 @@ pub(crate) fn destack_memory_advise(
     advice: u32,
 ) -> RuntimeResult<()> {
     let _ = (address, length, advice);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.advise.advise")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.advise.advise",
+    ))
+    .boxed())
 }
 
 /// Discard memory contents.
@@ -121,7 +124,10 @@ pub(crate) fn destack_memory_lock(
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.lock.lock")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.lock.lock",
+    ))
+    .boxed())
 }
 
 /// Unlock one memory range.
@@ -148,7 +154,10 @@ pub(crate) fn destack_memory_unlock(
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.lock.unlock")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.lock.unlock",
+    ))
+    .boxed())
 }
 
 /// Commit one reserved range.
@@ -176,7 +185,10 @@ pub(crate) fn destack_memory_commit(
     flags: u32,
 ) -> RuntimeResult<()> {
     let _ = (address, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.commit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.commit",
+    ))
+    .boxed())
 }
 
 /// Decommit one range.
@@ -203,7 +215,10 @@ pub(crate) fn destack_memory_decommit(
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.decommit")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.decommit",
+    ))
+    .boxed())
 }
 
 /// Bind one range to a NUMA policy.
@@ -232,7 +247,10 @@ pub(crate) fn destack_memory_numa_bind(
     nodemask: u64,
 ) -> RuntimeResult<()> {
     let _ = (address, length, policy, nodemask);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.numaBind")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.numaBind",
+    ))
+    .boxed())
 }
 
 /// Release one reserved range.
@@ -259,7 +277,10 @@ pub(crate) fn destack_memory_release(
     length: u64,
 ) -> RuntimeResult<()> {
     let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.release")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.release",
+    ))
+    .boxed())
 }
 
 /// Reserve one virtual memory range.
@@ -286,7 +307,10 @@ pub(crate) fn destack_memory_reserve(
     flags: u32,
 ) -> RuntimeResult<MemoryRangeVm> {
     let _ = (length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.map.reserve")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.map.reserve",
+    ))
+    .boxed())
 }
 
 /// Change execute permission for one range.
@@ -407,7 +431,10 @@ pub(crate) fn destack_memory_remap(
     flags: u32,
 ) -> RuntimeResult<ProtectedMemoryRangeVm> {
     let _ = (address, oldlength, newlength, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.memory.protect.remap")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.memory.protect.remap",
+    ))
+    .boxed())
 }
 
 /// Set runtime W^X policy.
@@ -438,3 +465,4 @@ pub(crate) fn destack_memory_set_write_xor_execute(
     ))
     .boxed())
 }
+

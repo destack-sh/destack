@@ -2,11 +2,12 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::thread::ThreadOptionsVm;
-use crate::platform::{PlatformError, resource};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::{resource};
+use crate::platform::thread::{ThreadOptionsVm};
+use crate::runtime::RuntimeCallContext;
 
 /// Create one thread-local key.
 ///
@@ -29,7 +30,10 @@ pub(crate) fn destack_thread_local_create(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<resource::ThreadLocalKey> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.create")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.thread.local.create",
+    ))
+    .boxed())
 }
 
 /// Delete one thread-local key.
@@ -55,7 +59,10 @@ pub(crate) fn destack_thread_local_delete(
     key: resource::ThreadLocalKey,
 ) -> RuntimeResult<()> {
     let _ = key;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.delete")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.thread.local.delete",
+    ))
+    .boxed())
 }
 
 /// Read one thread-local value.
@@ -81,7 +88,10 @@ pub(crate) fn destack_thread_local_get(
     key: resource::ThreadLocalKey,
 ) -> RuntimeResult<u64> {
     let _ = key;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.get")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.thread.local.get",
+    ))
+    .boxed())
 }
 
 /// Store one thread-local value.
@@ -108,7 +118,10 @@ pub(crate) fn destack_thread_local_set(
     argument_value: u64,
 ) -> RuntimeResult<()> {
     let _ = (key, argument_value);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.set")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.thread.local.set",
+    ))
+    .boxed())
 }
 
 /// Read thread affinity mask.
@@ -252,7 +265,10 @@ pub(crate) fn destack_thread_detach(
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.detach")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.thread.spawn.detach",
+    ))
+    .boxed())
 }
 
 /// Join one host thread.
@@ -278,7 +294,10 @@ pub(crate) fn destack_thread_join(
     handle: resource::ThreadHandle,
 ) -> RuntimeResult<u32> {
     let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.join")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.thread.spawn.join",
+    ))
+    .boxed())
 }
 
 /// Spawn one host thread.
@@ -306,7 +325,10 @@ pub(crate) fn destack_thread_spawn(
     options: ThreadOptionsVm,
 ) -> RuntimeResult<resource::ThreadHandle> {
     let _ = (entry, argument, options);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.spawn")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.thread.spawn.spawn",
+    ))
+    .boxed())
 }
 
 /// Wait on one memory address value.
@@ -872,3 +894,4 @@ pub(crate) fn destack_thread_semaphore_wait(
     ))
     .boxed())
 }
+
