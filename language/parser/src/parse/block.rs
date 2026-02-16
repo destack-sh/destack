@@ -472,8 +472,7 @@ impl Parser {
 
             // finalize the remaining tail expression
             if let Some(expression_id) = pending_tail_expression {
-                let force_statement =
-                    format == BlockFormat::Implicit || parser.options.in_statement_position;
+                let force_statement = format == BlockFormat::Implicit;
                 parser.push_block_body_expression(
                     &mut statements,
                     expression_id,

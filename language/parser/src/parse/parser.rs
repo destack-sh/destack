@@ -1334,8 +1334,7 @@ impl Parser {
     }
 
     /// Parse everything as an implicit namespace without attaching trivia.
-    #[cfg(test)]
-    pub(crate) fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
+    pub fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
         // parse leading triple-slash reference path directives
         let (mut expressions, consumed_to_end) =
             self.parse_leading_triple_slash_reference_imports();
