@@ -420,14 +420,18 @@ class Counter extends {}
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, members, .. } => {
                 let extends_types = heritage.extends_types.as_ref().expect("expected extends");
                 assert_eq!(extends_types.len(), 1);
+                assert_eq!(members.len(), 1);
 
-                let annotations = parser.tree.get_annotations(extends_types[0].id);
-                assert_eq!(annotations.len(), 1);
-                assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                let extends_annotations = parser.tree.get_annotations(extends_types[0].id);
+                assert!(extends_annotations.is_empty());
+
+                let member_annotations = parser.tree.get_annotations(members[0].id);
+                assert_eq!(member_annotations.len(), 1);
+                assert_node!(parser.tree, member_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
                         assert_eq!(*style, CommentStyle::Slash);
                         assert_string!(parser, *string, "extends-tail");
@@ -459,28 +463,31 @@ Second // impl-second
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, members, .. } => {
                 let implements_types = heritage
                     .implements_types
                     .as_ref()
                     .expect("expected implements types");
                 assert_eq!(implements_types.len(), 2);
+                assert_eq!(members.len(), 1);
 
                 let first_annotations = parser.tree.get_annotations(implements_types[0].id);
-                assert!(first_annotations.is_empty());
-
-                let second_annotations = parser.tree.get_annotations(implements_types[1].id);
-                assert_eq!(second_annotations.len(), 2);
-
-                assert_node!(parser.tree, second_annotations[0], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_eq!(first_annotations.len(), 1);
+                assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
                         assert_eq!(*style, CommentStyle::Slash);
                         assert_string!(parser, *string, "impl-first");
                     });
                 });
-                assert_node!(parser.tree, second_annotations[1], Annotation::Comment { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+
+                let second_annotations = parser.tree.get_annotations(implements_types[1].id);
+                assert!(second_annotations.is_empty());
+
+                let member_annotations = parser.tree.get_annotations(members[0].id);
+                assert_eq!(member_annotations.len(), 1);
+                assert_node!(parser.tree, member_annotations[0], Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
                     assert_node!(parser.tree, *node, Comment { string, style } => {
                         assert_eq!(*style, CommentStyle::Slash);
                         assert_string!(parser, *string, "impl-second");
@@ -511,12 +518,19 @@ Second // impl-second
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class { .. } => {});
+            let first_static_parameter_id = assert_node!(parser.tree, *declaration_id, Declaration::Class { generics, .. } => {
+                let static_parameters = generics
+                    .static_parameters
+                    .as_ref()
+                    .expect("expected class static parameters");
+                assert_eq!(static_parameters.len(), 1);
+                static_parameters[0]
+            });
 
-            let annotations = parser.tree.get_annotations(declaration_id.id);
+            let annotations = parser.tree.get_annotations(first_static_parameter_id.id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_eq!(*style, CommentStyle::Slash);
                     assert_string!(parser, *string, "box-head");

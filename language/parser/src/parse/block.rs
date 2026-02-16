@@ -472,8 +472,8 @@ impl Parser {
 
             // finalize the remaining tail expression
             if let Some(expression_id) = pending_tail_expression {
-                let force_statement = format == BlockFormat::Implicit
-                    || (!parser.language.is_destack() && parser.options.in_statement_position);
+                let force_statement =
+                    format == BlockFormat::Implicit || parser.options.in_statement_position;
                 parser.push_block_body_expression(
                     &mut statements,
                     expression_id,
@@ -1432,6 +1432,54 @@ mod tests {
         });
     }
 
+    /// Parse Destack if-body block expressions as statement wrappers.
+    #[test]
+    fn test_parse_destack_if_block_wraps_tail_expression_as_statement() {
+        let mut test = TestParser::new("if (x) { foo() }");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // if (x) { foo() }
+        assert_eq!(expressions.len(), 1);
+        let if_expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, if_expression_id, Expression::If { then_expression, .. } => {
+            assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                let block = parser.tree.get(*block_id);
+                assert_eq!(block.expressions.len(), 1);
+                assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                    assert_node!(parser.tree, *statement_id, Expression::Call { left, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "foo");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse Destack function body expressions as statement wrappers.
+    #[test]
+    fn test_parse_destack_function_body_wraps_tail_expression_as_statement() {
+        let mut test = TestParser::new("function run() { foo() }");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // function run() { foo() }
+        assert_eq!(expressions.len(), 1);
+        let function_expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function { body: Some(body_id), .. } => {
+                assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Call { left, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse a function declaration followed by a call on the same line in JavaScript.
     #[test]
     fn test_parse_function_declaration_followed_by_call_without_newline_javascript() {
@@ -1696,7 +1744,8 @@ mod tests {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.expressions.len(), 1);
 
-                    assert_node!(parser.tree, block.expressions[0], Expression::Return { value: Some(value) } => {
+                    let return_id = parser.unwrap_statement_expression(block.expressions[0]);
+                    assert_node!(parser.tree, return_id, Expression::Return { value: Some(value) } => {
                         assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
                             assert_node!(parser.tree, *expression, Expression::TreeExpression { .. });
                         });
@@ -1725,7 +1774,7 @@ mod tests {
         let first_annotations = parser.tree.get_annotations(expressions[0].id);
         assert_eq!(first_annotations.len(), 1);
         assert_node!(parser.tree, first_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(*style, CommentStyle::Slash);
                 assert_string!(parser, *string, "<- keep-marker");

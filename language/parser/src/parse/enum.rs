@@ -678,11 +678,11 @@ B
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            let annotations = parser.tree.get_annotations(declaration_id.id);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(_declaration_id) => {
+            let annotations = parser.tree.get_annotations(expression_id.id);
             assert_eq!(annotations.len(), 1);
             assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_eq!(*position, AnnotationPosition::LinePrefix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_eq!(*style, CommentStyle::Star);
                     assert_string!(parser, *string, "enum-body");

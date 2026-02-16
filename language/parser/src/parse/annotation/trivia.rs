@@ -1,8 +1,8 @@
 use crate::{ParseError, Parser};
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Argument, Blank, Comment, CommentStyle,
-    Declaration, Doc, DocStyle, Expression, IfCondition, IfKind, LocalNodeId, NodeType, TokenSpan,
-    TokenType,
+    Declaration, Doc, DocStyle, Expression, FunctionMode, IfCondition, IfKind, LocalNodeId,
+    NodeType, TokenSpan, TokenType,
 };
 use destack_source::{MultiSpan, NodeSearchMode, Span};
 
@@ -1775,6 +1775,54 @@ impl Parser {
         Some((AnnotationPosition::BlockInfix, parameter_scope.idx))
     }
 
+    /// Resolve seams between `new` and `(` in constructor type signatures.
+    fn resolve_function_new_paren_seam_target(
+        &self,
+        start_token: TokenSpan,
+        previous_non_trivia_token: Option<(usize, TokenSpan)>,
+        next_non_trivia_token: Option<(usize, TokenSpan)>,
+        statement_wrappers: &[Option<u32>],
+        ignore_span: &MultiSpan,
+    ) -> Option<(AnnotationPosition, u32)> {
+        // require the exact `new` <trivia> `(` seam
+        let (Some((_, previous_token)), Some((_, next_token))) =
+            (previous_non_trivia_token, next_non_trivia_token)
+        else {
+            return None;
+        };
+        if !self.token_is_identifier_keyword(previous_token, "new")
+            || next_token.token.ty != TokenType::OpenParenthesis
+        {
+            return None;
+        }
+
+        // resolve the enclosing constructor-type function declaration owner
+        let declaration_scope = self.find_node_enclosing_at(
+            &start_token.span,
+            NodeSearchMode::SmallestOutermost,
+            |candidate| {
+                if self.tree.get_node_type(candidate.idx) != NodeType::Declaration {
+                    return false;
+                }
+                if ignore_span.contains(&candidate.span) {
+                    return false;
+                }
+
+                let declaration_id = LocalNodeId::<Declaration>::new(candidate.idx);
+                matches!(
+                    self.tree.get(declaration_id),
+                    Declaration::Function { signature, .. }
+                        if signature.mode == Some(FunctionMode::New)
+                )
+            },
+        )?;
+
+        Some((
+            AnnotationPosition::LinePrefix,
+            self.promote_statement_owner(start_token, declaration_scope.idx, statement_wrappers),
+        ))
+    }
+
     /// Resolve `as const` token-gap seams.
     fn resolve_as_const_token_gap_target(
         &self,
@@ -2304,6 +2352,124 @@ impl Parser {
         ))
     }
 
+    /// Resolve assignment seams where trivia appears between `=` and the right-hand side.
+    fn resolve_assignment_rhs_seam_target(
+        &self,
+        start_token: TokenSpan,
+        previous_non_trivia_token: Option<(usize, TokenSpan)>,
+        line_indices: &[u32],
+        group_start_index: usize,
+        statement_wrappers: &[Option<u32>],
+        ignore_span: &MultiSpan,
+    ) -> Option<(AnnotationPosition, u32)> {
+        let (previous_index, previous_token) = previous_non_trivia_token?;
+        if previous_token.token.ty != TokenType::Assign {
+            return None;
+        }
+
+        let assignment_scope = self.find_node_enclosing_at(
+            &previous_token.span,
+            NodeSearchMode::SmallestOutermost,
+            |candidate| {
+                if self.tree.get_node_type(candidate.idx) != NodeType::Expression {
+                    return false;
+                }
+                if ignore_span.contains(&candidate.span) {
+                    return false;
+                }
+
+                let expression_id = LocalNodeId::<Expression>::new(candidate.idx);
+                matches!(self.tree.get(expression_id), Expression::Assign { .. })
+            },
+        )?;
+
+        let is_inline_line_comment = self.is_line_comment_token(start_token)
+            && line_indices[previous_index] == line_indices[group_start_index];
+        let position = if is_inline_line_comment {
+            AnnotationPosition::LinePostfixBoundary
+        } else {
+            AnnotationPosition::BlockInfix
+        };
+
+        Some((
+            position,
+            self.promote_statement_owner(start_token, assignment_scope.idx, statement_wrappers),
+        ))
+    }
+
+    /// Resolve declaration and block body seams before `{` to body-local owners.
+    fn resolve_open_brace_body_seam_target(
+        &self,
+        start_token: TokenSpan,
+        next_non_trivia_token: Option<(usize, TokenSpan)>,
+        statement_wrappers: &[Option<u32>],
+        ignore_span: &MultiSpan,
+    ) -> Option<(AnnotationPosition, u32)> {
+        // this seam policy is only for line comments before body open braces
+        if !self.is_line_comment_token(start_token) {
+            return None;
+        }
+
+        let (_, next_non_trivia_token) = next_non_trivia_token?;
+        if next_non_trivia_token.token.ty != TokenType::OpenBrace {
+            return None;
+        }
+
+        // prefer first body statement for expression block owners
+        if let Some(block_expression_scope) = self.find_node_starting_at(
+            &next_non_trivia_token.span,
+            NodeSearchMode::BiggestOutermost,
+        ) {
+            if self.tree.get_node_type(block_expression_scope.idx) == NodeType::Expression {
+                let block_expression_id =
+                    LocalNodeId::<Expression>::new(block_expression_scope.idx);
+                if let Expression::Block(block_id) = self.tree.get(block_expression_id) {
+                    let block = self.tree.get(*block_id);
+                    if let Some(first_expression_id) = block.expressions.first() {
+                        return Some((
+                            AnnotationPosition::BlockPrefix,
+                            self.promote_statement_owner(
+                                start_token,
+                                first_expression_id.id,
+                                statement_wrappers,
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+
+        // class body seams: use first member when present, otherwise class-body infix
+        if let Some(class_scope) = self.find_node_enclosing_at(
+            &next_non_trivia_token.span,
+            NodeSearchMode::SmallestOutermost,
+            |candidate| {
+                if self.tree.get_node_type(candidate.idx) != NodeType::Declaration {
+                    return false;
+                }
+                if ignore_span.contains(&candidate.span) {
+                    return false;
+                }
+
+                let declaration_id = LocalNodeId::<Declaration>::new(candidate.idx);
+                matches!(self.tree.get(declaration_id), Declaration::Class { .. })
+            },
+        ) {
+            let declaration_id = LocalNodeId::<Declaration>::new(class_scope.idx);
+            let Declaration::Class { members, .. } = self.tree.get(declaration_id) else {
+                unreachable!("class declaration scope predicate must only match classes");
+            };
+
+            if let Some(first_member_id) = members.first() {
+                return Some((AnnotationPosition::BlockPrefix, first_member_id.id));
+            }
+
+            return Some((AnnotationPosition::BlockInfix, declaration_id.id));
+        }
+
+        None
+    }
+
     /// Resolve one-sided forward seams by scanning forward to the first valid owner token.
     fn resolve_one_sided_forward_target(
         &self,
@@ -2658,8 +2824,19 @@ impl Parser {
             return Some(target);
         }
 
+        // resolve constructor-type `new (...)` seams before generic separator logic
+        if let Some(target) = self.resolve_function_new_paren_seam_target(
+            start_token,
+            previous_non_trivia_token,
+            next_non_trivia_token,
+            statement_wrappers,
+            ignore_span,
+        ) {
+            return Some(target);
+        }
+
         // leading type arm separators after `=` belong to the full binary type owner
-        if let (Some((_, previous_token)), Some((next_index, next_token))) =
+        if let (Some((previous_index, previous_token)), Some((next_index, next_token))) =
             (previous_non_trivia_token, next_non_trivia_token)
             && previous_token.token.ty == TokenType::Assign
             && let Some(owner_id) = self.resolve_leading_type_separator_target(
@@ -2671,7 +2848,12 @@ impl Parser {
                 enclosing_span,
             )
         {
-            return Some((AnnotationPosition::BlockPrefix, owner_id));
+            let position = if line_indices[previous_index] == line_indices[group_start_index] {
+                AnnotationPosition::LinePrefix
+            } else {
+                AnnotationPosition::BlockPrefix
+            };
+            return Some((position, owner_id));
         }
 
         // resolve as-const token-gap exception seams
@@ -2751,6 +2933,16 @@ impl Parser {
 
         // resolve one-line same-line prefix and postfix seams
         if !is_block_prefix_only && is_one_line && start_token.token.ty != TokenType::Newline {
+            // resolve declaration and block body seams before generic line seam ownership
+            if let Some(target) = self.resolve_open_brace_body_seam_target(
+                start_token,
+                next_non_trivia_token,
+                statement_wrappers,
+                ignore_span,
+            ) {
+                return Some(target);
+            }
+
             // resolve same-line prefix and postfix ownership in one pass
             if let Some(target) = self.resolve_line_prefix_postfix_target(
                 start_token,
@@ -2776,6 +2968,18 @@ impl Parser {
             start_token,
             previous_non_trivia_token,
             next_non_trivia_token,
+            statement_wrappers,
+            ignore_span,
+        ) {
+            return Some(target);
+        }
+
+        // resolve assignment rhs seams before one-sided scans
+        if let Some(target) = self.resolve_assignment_rhs_seam_target(
+            start_token,
+            previous_non_trivia_token,
+            line_indices,
+            group_start_index,
             statement_wrappers,
             ignore_span,
         ) {
