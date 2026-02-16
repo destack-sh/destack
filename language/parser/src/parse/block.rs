@@ -653,19 +653,25 @@ impl Parser {
             // Destack style: break :label [value]
             self.bump(); // eat colon
             let (label, label_span) = self.eat_identifier_with_span()?;
-            let value_id = if self.has_more_tokens() && !self.is_statement_stop() {
+            let value_id = if self.language.is_destack()
+                && self.has_more_tokens()
+                && !self.is_statement_stop()
+            {
                 let value_id = self.eat_expression_not_in_position()?;
                 Some(value_id)
             } else {
                 None
             };
             (Some(label), Some(label_span), value_id)
-        } else if self.peek_is(TokenType::Identifier) && self.next_token_ends_label_statement() {
-            // JS style: break label (identifier followed by statement stop)
+        }
+        // JS style: break label (identifier followed by statement stop)
+        else if self.peek_is(TokenType::Identifier) && self.next_token_ends_label_statement() {
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span), None)
-        } else if self.has_more_tokens() && !self.is_statement_stop() {
-            // Destack extension: break value (no label)
+        }
+        // Destack extension: break value (no label)
+        else if self.language.is_destack() && self.has_more_tokens() && !self.is_statement_stop()
+        {
             let value_id = self.eat_expression_not_in_position()?;
             (None, None, Some(value_id))
         } else {
@@ -1477,6 +1483,37 @@ mod tests {
         assert_node!(parser.tree, block.expressions[0], Expression::Call { .. });
     }
 
+    /// Parse a function declaration followed by a call on the same line in JavaScript.
+    #[test]
+    fn test_parse_function_declaration_followed_by_call_without_newline_javascript() {
+        let mut test = TestParser::new_with_options(
+            "function main(){return 1}main().catch((function(error){console.error(error);process.exit(1)}));",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // function main(){...} main().catch(...)
+        assert_eq!(expressions.len(), 2);
+
+        // first expression: function declaration
+        let declaration_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, declaration_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function { .. });
+        });
+
+        // second expression: call expression on `main().catch`
+        let call_id = parser.unwrap_statement_expression(expressions[1]);
+        assert_node!(parser.tree, call_id, Expression::Call { left, .. } => {
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "catch");
+                assert_node!(parser.tree, *left, Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "main");
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_javascript_block_sequence_statement_with_newlines_after_commas() {
         let mut test = TestParser::new_with_options(
@@ -1671,6 +1708,47 @@ mod tests {
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(*style, CommentStyle::Slash);
                             assert_string!(parser, *string, "throw-tail");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_typescript_xml() {
+        let mut test = TestParser::new_with_options(
+            "function render(isEnabled) {
+  return (
+    <div>
+      {isEnabled ? (
+        <div>)</div>
+      ) : null}
+    </div>
+  )
+}",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let function_expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function { body: Some(body), .. } => {
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+
+                    assert_node!(parser.tree, block.expressions[0], Expression::Return { value: Some(value) } => {
+                        assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                            assert_node!(parser.tree, *expression, Expression::TreeExpression { .. });
                         });
                     });
                 });

@@ -4303,6 +4303,44 @@ mod tests {
         });
     }
 
+    /// Keep type literal fields named `where` after function types in TypeScript.
+    #[test]
+    fn test_parse_type_literal_where_field_after_function_type_typescript() {
+        let input = r#"type T = {
+  setSelectedFields: (fields: FieldOption[]) => void
+  where?: Where
+}"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.options).unwrap();
+
+        // type T = { setSelectedFields: (fields: FieldOption[]) => void; where?: Where }
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+
+                    // setSelectedFields: (fields: FieldOption[]) => void
+                    assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                        assert_string!(parser, *name, "setSelectedFields");
+                        assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                            });
+                        });
+                    });
+
+                    // where?: Where
+                    assert_node!(parser.tree, properties[1], Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                        assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                        assert_string!(parser, *name, "where");
+                        assert_expression_path!(parser, parser.tree.get(*value), "Where");
+                    });
+                });
+            });
+        });
+    }
+
     /// Generic arrow functions in static arguments.
     #[test]
     fn test_parse_type_generic_arrow_in_static_arguments() {

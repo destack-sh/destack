@@ -3,7 +3,7 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Asynchrony, Declaration, DeclarationDescriptor, DependencyMode, EnumKind, Expression, Keyword,
-    LocalNodeId, TokenType, TypeKind,
+    LocalNodeId, OperatorPrecedence, TokenType, TypeKind,
 };
 
 use super::common::{DECLARATION_START_TOKENS, is_type_relation_keyword};
@@ -398,8 +398,32 @@ impl Parser {
         }
     }
 
+    /// Return true when a keyword token should fall back to an identifier for type predicates.
+    fn keyword_falls_back_to_type_predicate_identifier(
+        &mut self,
+        keyword: Keyword,
+        next_token_type: TokenType,
+        next_token_index: usize,
+    ) -> bool {
+        // this fallback only applies inside type expressions
+        if !self.options.in_type {
+            return false;
+        }
+
+        // `this is T` is a dedicated type predicate subject form
+        if keyword == Keyword::This {
+            return false;
+        }
+
+        // predicates require `identifier is Type`
+        if next_token_type != TokenType::Identifier {
+            return false;
+        }
+
+        self.keyword_for_index(next_token_index) == Some(Keyword::Is)
+    }
+
     /// Eat a keyword-led expression when possible.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn eat_keyword_expression(
         &mut self,
         start: &ParserMark,
@@ -411,6 +435,15 @@ impl Parser {
         next_raw_token_type: TokenType,
         is_declaration_start: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        // parse contextual keyword subjects like `override is X` as identifiers
+        if self.keyword_falls_back_to_type_predicate_identifier(
+            keyword,
+            next_token_type,
+            next_token_index,
+        ) {
+            return Ok(None);
+        }
+
         match keyword {
             // namespace declaration
             Keyword::Namespace
@@ -537,11 +570,22 @@ impl Parser {
                     return Ok(None);
                 }
 
+                // avoid async generic parses in stronger infix contexts
+                let has_generic_head = self.peek_next_is(TokenType::LessThan)
+                    || self.peek_next_is(TokenType::ShiftLeft);
+                let has_stronger_infix_context =
+                    self.options.left_precedence.is_some_and(|left_precedence| {
+                        left_precedence > OperatorPrecedence::Assignment as u16
+                    });
+                if has_generic_head && has_stronger_infix_context {
+                    return Ok(None);
+                }
+
                 // avoid async generic parses when tree literal disambiguation is active
-                if self.language.is_typescript()
+                if self.language.supports_jsx()
+                    && self.options.disallow_ambiguous_tree_literal
                     && self.options.left_precedence.is_some()
-                    && (self.peek_next_is(TokenType::LessThan)
-                        || self.peek_next_is(TokenType::ShiftLeft))
+                    && has_generic_head
                 {
                     return Ok(None);
                 }

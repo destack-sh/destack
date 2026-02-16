@@ -1725,6 +1725,67 @@ fn test_parse_optional_chain_after_comment_newlines() {
     });
 }
 
+/// Parse optional chaining when the member target starts on the next line after ?..
+#[test]
+fn test_parse_optional_chain_member_after_question_dot_newline() {
+    let input = "items?.\nmap(noop)";
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert!(parser.errors.is_empty());
+
+    // assert: optional chain member and call structure
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "noop");
+        });
+
+        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "map");
+            assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position: PostfixPosition::Direct } => {
+                assert_expression_path!(parser, parser.tree.get(*maybe_left), "items");
+            });
+        });
+    });
+}
+
+/// Parse chained optional members with newline-delimited segments.
+#[test]
+fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
+    let input = "permissions?.\nconcat(first).\nconcat(second)";
+    let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert!(parser.errors.is_empty());
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "second");
+        });
+
+        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "concat");
+            assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
+                assert_eq!(dynamic_arguments.len(), 1);
+                assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "first");
+                });
+
+                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                    assert_string!(parser, *name, "concat");
+                    assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position: PostfixPosition::Direct } => {
+                        assert_expression_path!(parser, parser.tree.get(*maybe_left), "permissions");
+                    });
+                });
+            });
+        });
+    });
+}
+
 #[test]
 fn test_parse_instantiation_expression_with_index() {
     let mut test = TestParser::new_with_options("f[\"g\"]<number>", LanguageType::TypeScript);
@@ -2348,6 +2409,50 @@ fn test_parse_lambda_function_value() {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
                 assert_expression_path!(parser, parser.tree.get(*left), "a");
                 assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
+        });
+    });
+}
+
+/// Parse function expression callbacks with a newline before the body block.
+#[test]
+fn test_parse_call_with_function_expression_newline_before_body_javascript() {
+    let mut test = TestParser::new_with_options(
+        r"defer(function nextTick_callback()
+{
+  callback(err, result);
+});",
+        LanguageType::JavaScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // defer(function nextTick_callback() { ... });
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "defer");
+        assert_eq!(dynamic_arguments.len(), 1);
+
+        // callback function argument
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, signature, body } => {
+                    assert_eq!(signature.kind, FunctionKind::Function);
+                    assert_string!(parser, descriptor.name.unwrap().string(), "nextTick_callback");
+                    assert_eq!(signature.dynamic_parameters.len(), 0);
+
+                    // callback(err, result)
+                    let body_id = body.expect("expected function body");
+                    assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
+                        let block = parser.tree.get(*block_id);
+                        assert_eq!(block.expressions.len(), 1);
+                        assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                            assert_node!(parser.tree, *statement_id, Expression::Call { left, dynamic_arguments, .. } => {
+                                assert_expression_path!(parser, parser.tree.get(*left), "callback");
+                                assert_eq!(dynamic_arguments.len(), 2);
+                            });
+                        });
+                    });
+                });
             });
         });
     });
@@ -3456,6 +3561,27 @@ fn test_parse_tagged_template_with_regex_interpolation() {
                 });
             }
             other => panic!("expected interpolated template, got {other:?}"),
+        }
+    });
+}
+
+/// Parse tagged templates with legacy octal escapes.
+#[test]
+fn test_parse_tagged_template_with_legacy_octal_escape() {
+    let mut test = TestParser::new_with_options(r"String.raw`\1`", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // tagged template shape
+    assert_node!(parser.tree, expr_id, Expression::TaggedTemplateExpression { tag, value } => {
+        assert_expression_path!(parser, parser.tree.get(*tag), "String.raw");
+
+        // cooked template segment
+        match value {
+            TemplateLiteral::String { string } => {
+                assert_string!(parser, *string, r"\1");
+            }
+            other => panic!("expected string template literal, got {other:?}"),
         }
     });
 }
@@ -4751,6 +4877,51 @@ fn test_parse_async_arrow_with_newline_before_return_type() {
     });
 }
 
+/// Parse async generic arrows with extends and default type parameters in assignments.
+#[test]
+fn test_parse_async_generic_arrow_assignment_with_extends_default_typescript() {
+    // source: pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
+    let mut test = TestParser::new_with_options(
+        "pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
+    assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+        assert_expression_path!(parser, parser.tree.get(*left), "pollContext.getCredentials");
+
+        assert_node!(parser.tree, *right, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                assert_eq!(signature.asynchrony, Asynchrony::Async);
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert!(signature.dynamic_parameters.is_empty());
+
+                let generics = signature.generics.as_ref().expect("expected generics");
+                let static_parameters = generics
+                    .static_parameters
+                    .as_ref()
+                    .expect("expected static parameters");
+                assert_eq!(static_parameters.len(), 1);
+
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty, default, .. } => {
+                    assert_string!(parser, *name, "T");
+                    assert_node!(parser.tree, ty.expect("expected extends constraint"), Expression::TypeLiteral(TypeLiteral::Object));
+                    assert_expression_path!(parser, parser.tree.get(default.expect("expected default type")), "ICredentialDataDecryptedObject");
+                });
+
+                let body = body.expect("expected body");
+                assert_node!(parser.tree, body, Expression::TypeBinary { operator, right, .. } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    assert_expression_path!(parser, parser.tree.get(*right), "T");
+                });
+            });
+        });
+    });
+}
+
 /// Parse async comparisons and generic calls without async function false positives.
 #[test]
 fn test_parse_async_generic_false_positive_in_typescript() {
@@ -5415,6 +5586,33 @@ fn test_parse_arrow_return_type_predicate_with_parenthesized_intersection_target
                 assert_node!(parser.tree, target.expect("expected predicate target"), Expression::Parenthesized { expression } => {
                     assert_node!(parser.tree, *expression, Expression::Binary { operator, .. } => {
                         assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse arrow predicate return types whose subject is a contextual keyword name.
+#[test]
+fn test_parse_arrow_return_type_predicate_with_keyword_subject_override() {
+    let mut test = TestParser::new_with_options(
+        "const isSystemOverride = (override: ConfigOverrideRule): override is SystemConfigOverrideRule => { return '__systemRef' in override && typeof override.__systemRef === 'string'; }",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // const isSystemOverride = (...) : override is SystemConfigOverrideRule => { ... }
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], destack_ast::Declarator { value, .. } => {
+            assert_node!(parser.tree, value.expect("expected initializer"), Expression::Declaration(function_id) => {
+                assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                    assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::TypePredicate { asserts, subject, target } => {
+                        assert!(!*asserts);
+                        assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("override")));
+                        assert_expression_path!(parser, parser.tree.get(target.expect("expected type target")), "SystemConfigOverrideRule");
                     });
                 });
             });
@@ -6122,6 +6320,54 @@ fn test_parse_arrow_body_with_multiline_class_heritage_static_arguments() {
                     assert_node!(parser.tree, extends_types[0], Expression::Instantiation { left, static_arguments } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "React.Component");
                         assert_eq!(static_arguments.len(), 2);
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse TSX typed arrow parameters whose type is a generic function type.
+#[test]
+fn test_parse_tsx_typed_arrow_parameter_with_generic_function_type_annotation() {
+    let mut test = TestParser::new_with_options(
+        "(signal: AbortSignal, addInspectorRequest: <Data>(result: FetcherResult<Data>) => void): AutoAbortedAPMClient => signal",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    // outer lambda shape
+    assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
+        assert_node!(parser.tree, *function_id, Declaration::Function { signature, body: Some(body), .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 2);
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "AutoAbortedAPMClient");
+            assert_expression_path!(parser, parser.tree.get(*body), "signal");
+
+            // first parameter: signal: AbortSignal
+            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "signal");
+                assert_expression_path!(parser, parser.tree.get(*ty), "AbortSignal");
+            });
+
+            // second parameter: addInspectorRequest: <Data>(result: FetcherResult<Data>) => void
+            assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, ty: Some(ty), .. } => {
+                assert_string!(parser, *name, "addInspectorRequest");
+                assert_node!(parser.tree, *ty, Expression::Declaration(nested_function_id) => {
+                    assert_node!(parser.tree, *nested_function_id, Declaration::Function { signature, .. } => {
+                        let nested_static_parameters = signature
+                            .generics
+                            .as_ref()
+                            .and_then(|generics| generics.static_parameters.as_ref())
+                            .expect("expected nested static parameters");
+                        assert_eq!(nested_static_parameters.len(), 1);
+
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(_), .. } => {
+                            assert_string!(parser, *name, "result");
+                        });
+
+                        assert_node!(parser.tree, signature.return_type.expect("expected nested return type"), Expression::TypeLiteral(TypeLiteral::Void));
                     });
                 });
             });

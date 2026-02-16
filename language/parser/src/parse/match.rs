@@ -309,9 +309,6 @@ impl Parser {
                 if self.is_any_stop() {
                     self.eat_any_stop_with_newlines()?;
                 }
-                if matches!(self.tree.get(expression_id), Expression::Break { .. }) {
-                    break;
-                }
             }
             // single expression case
             let match_case_id = if expressions.len() == 1 {
@@ -756,6 +753,60 @@ switch (tag) {
                     _ => panic!("expected pattern selector"),
                 };
                 assert_node!(parser.tree, *body, Expression::Return { .. });
+            });
+        });
+    }
+
+    /// Parse switch case statements that continue after one break statement.
+    #[test]
+    fn test_parse_switch_case_with_multiple_break_statements() {
+        let mut test = TestParser::new(
+            r###"
+switch (value) {
+  case 1:
+    break;
+    break;
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let switch_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+            assert_eq!(cases.len(), 1);
+            assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
+                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 2);
+                    assert_node!(parser.tree, expressions[0], Expression::Break { .. });
+                    assert_node!(parser.tree, expressions[1], Expression::Break { .. });
+                });
+            });
+        });
+    }
+
+    /// Parse minified switch cases where `continue` is followed by `}` and another `if`.
+    #[test]
+    fn test_parse_switch_case_minified_if_continue_then_if_javascript() {
+        let mut test = TestParser::new_with_options(
+            "switch(op[0]){default:if(!(t=_.trys,t=t.length>0&&t[t.length-1])&&(op[0]===6||op[0]===2)){_=0;continue}if(op[0]===3&&(!t||op[1]>t[0]&&op[1]<t[3])){_.label=op[1];break}}",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let switch_id = parser.eat_match().unwrap();
+
+        // switch(op[0]) { default: if (...) { _ = 0; continue } if (...) { _.label = op[1]; break } }
+        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+            assert_eq!(cases.len(), 1);
+
+            // default case body keeps both if statements
+            assert_node!(parser.tree, cases[0], MatchCase::Block { selector, body } => {
+                assert!(matches!(selector, MatchSelector::Default));
+                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 2);
+                    assert_node!(parser.tree, expressions[0], Expression::If { .. });
+                    assert_node!(parser.tree, expressions[1], Expression::If { .. });
+                });
             });
         });
     }

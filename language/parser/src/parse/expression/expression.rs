@@ -1059,11 +1059,22 @@ impl Parser {
                     else if token_type == TokenType::OpenParenthesis {
                         let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
 
+                        // tree literal starts like `(<div>...)` do not need delimiter-shape lookahead
+                        let has_parenthesized_tree_literal = self.language.supports_jsx()
+                            && !self.options.in_type
+                            && !self.options.in_arrow_return_type
+                            && {
+                                let next_index =
+                                    self.next_non_newline_index_from(self.pos_index() + 1);
+                                self.with_pos(next_index, |parser| parser.can_start_tree_literal())
+                            };
+
                         // fast path: in JS/TS value contexts, branch on the token after ')'
                         let can_use_follow_fast_path = !self.language.is_destack()
                             && !self.options.in_type
                             && !self.options.in_arrow_return_type
-                            && !self.has_active_split();
+                            && !self.has_active_split()
+                            && !has_parenthesized_tree_literal;
                         if can_use_follow_fast_path
                             && let Some(follow_token_type) =
                                 self.parenthesized_follow_raw_token_type()
@@ -1092,6 +1103,9 @@ impl Parser {
                                 let group_shape = self.try_lookahead_parenthesized_group_shape()?;
                                 self.eat_parenthesized_primary_from_shape(&start, group_shape)?
                             }
+                        } else if has_parenthesized_tree_literal {
+                            let group_shape = ParenthesizedGroupShape::default();
+                            self.eat_parenthesized_primary_from_shape(&start, group_shape)?
                         } else {
                             let group_shape = self.try_lookahead_parenthesized_group_shape()?;
                             self.eat_parenthesized_primary_from_shape(&start, group_shape)?
