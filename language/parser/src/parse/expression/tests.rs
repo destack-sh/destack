@@ -296,7 +296,7 @@ fn test_reject_hex_integer_member_separator_in_javascript() {
 
     // parser should not reinterpret `..` as a decimal separator for non-decimal integers
     assert!(!parser.errors.is_empty(), "expected parser errors");
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), ".");
+    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "0x1.");
 }
 
 /// Parse ts double-dot member calls after numeric literals.
@@ -762,7 +762,8 @@ fn test_parse_if_extends_type_reference() {
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
             assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                 assert_eq!(expressions.len(), 1);
-                assert_expression_path!(parser, parser.tree.get(expressions[0]), "body");
+                let body_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                assert_expression_path!(parser, parser.tree.get(body_statement_id), "body");
             });
         });
     });
@@ -795,7 +796,8 @@ fn test_parse_if_instanceof_type_reference() {
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
             assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                 assert_eq!(expressions.len(), 1);
-                assert_expression_path!(parser, parser.tree.get(expressions[0]), "value");
+                let value_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                assert_expression_path!(parser, parser.tree.get(value_statement_id), "value");
             });
         });
     });
@@ -1542,7 +1544,7 @@ fn test_parse_if_ternary_multiline_with_comments() {
     });
 }
 
-/// Keep ternary seam comments on then and else branch owners.
+/// Keep ternary seam comments on left boundary owners.
 #[test]
 fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
     let mut test = TestParser::new_with_options(
@@ -1553,28 +1555,35 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
     let expression_id = parser.eat_expression(parser.options).unwrap();
     parser.attach_trivia();
 
-    assert_node!(parser.tree, expression_id, Expression::If { then_expression, else_expression, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected ternary else branch");
+        let condition_id = match condition {
+            IfCondition::Expression { condition } => *condition,
+            IfCondition::Let { .. } => panic!("unexpected ternary let condition"),
+        };
 
-        let then_annotations = parser.tree.get_annotations(then_expression.id);
-        assert_eq!(then_annotations.len(), 1);
-        assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePrefix);
+        let condition_annotations = parser.tree.get_annotations(condition_id.id);
+        assert_eq!(condition_annotations.len(), 1);
+        assert_node!(parser.tree, condition_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(*style, CommentStyle::Slash);
                 assert_string!(parser, *string, "then-seam");
             });
         });
 
-        let else_annotations = parser.tree.get_annotations(else_expression_id.id);
-        assert_eq!(else_annotations.len(), 1);
-        assert_node!(parser.tree, else_annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePrefix);
+        let then_annotations = parser.tree.get_annotations(then_expression.id);
+        assert_eq!(then_annotations.len(), 1);
+        assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(*style, CommentStyle::Slash);
                 assert_string!(parser, *string, "else-seam");
             });
         });
+
+        let else_annotations = parser.tree.get_annotations(else_expression_id.id);
+        assert!(else_annotations.is_empty());
     });
 }
 

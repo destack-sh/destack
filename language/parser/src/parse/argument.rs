@@ -192,7 +192,7 @@ impl Parser {
                         self.error(&ParseError::unexpected(span));
                     }
                 } else {
-                    if validate_modifier_order && (seen_static || seen_override || seen_readonly) {
+                    if validate_modifier_order && (seen_static || seen_override) {
                         self.error(&ParseError::unexpected(span));
                     }
                     modifiers.visibility = Some(visibility);

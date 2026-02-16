@@ -232,14 +232,16 @@ mod tests {
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
+                    let then_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                    assert_expression_path!(parser, parser.tree.get(then_statement_id), "a");
                 });
             });
             // { b }
             assert_node!(parser.tree, else_expression.unwrap(), Expression::Block(block_id) => {
                 assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 1);
-                    assert_expression_path!(parser, parser.tree.get(expressions[0]), "b");
+                    let else_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                    assert_expression_path!(parser, parser.tree.get(else_statement_id), "b");
                 });
             });
         });
@@ -298,7 +300,8 @@ if cond {
                 assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 1);
                     // if (cond) { a } else { b }
-                    assert_node!(parser.tree, expressions[0], Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
+                    let inner_if_id = parser.unwrap_statement_expression(expressions[0]);
+                    assert_node!(parser.tree, inner_if_id, Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
                         // cond
                         let inner_condition_id = match inner_condition {
                             IfCondition::Expression { condition } => *condition,
@@ -309,14 +312,16 @@ if cond {
                         assert_node!(parser.tree, *inner_then, Expression::Block(inner_block_id) => {
                             assert_node!(parser.tree, *inner_block_id, Block { format: _, expressions } => {
                                 assert_eq!(expressions.len(), 1);
-                                assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
+                                let inner_then_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                                assert_expression_path!(parser, parser.tree.get(inner_then_statement_id), "a");
                             });
                         });
                         // { b }
                         assert_node!(parser.tree, inner_else.unwrap(), Expression::Block(inner_block_id) => {
                             assert_node!(parser.tree, *inner_block_id, Block { format: _, expressions } => {
                                 assert_eq!(expressions.len(), 1);
-                                assert_expression_path!(parser, parser.tree.get(expressions[0]), "b");
+                                let inner_else_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                                assert_expression_path!(parser, parser.tree.get(inner_else_statement_id), "b");
                             });
                         });
                     });
@@ -747,12 +752,22 @@ else
             };
 
             let annotations = parser.tree.get_annotations(condition_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                assert_node!(parser.tree, *node, Comment { string, style } => {
-                    assert_eq!(*style, CommentStyle::Slash);
-                    assert_string!(parser, *string, "if-head");
+            assert!(annotations.is_empty());
+        });
+
+        assert_node!(parser.tree, expression_id, Expression::If { then_expression, .. } => {
+            assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    let then_annotations = parser.tree.get_annotations(expressions[0].id);
+                    assert_eq!(then_annotations.len(), 1);
+                    assert_node!(parser.tree, then_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "if-head");
+                        });
+                    });
                 });
             });
         });

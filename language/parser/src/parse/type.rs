@@ -4277,7 +4277,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_type_union_line_comment_on_right_arm_owner() {
+    fn test_parse_type_union_line_comment_on_left_arm_owner() {
         let mut test = TestParser::new_with_options(
             "type Value = First | // union-line\nSecond | Third",
             LanguageType::TypeScript,
@@ -4293,14 +4293,15 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                     assert_expression_path!(parser, parser.tree.get(*right), "Third");
-                    assert_node!(parser.tree, *left, Expression::Binary { operator, right, .. } => {
+                    assert_node!(parser.tree, *left, Expression::Binary { operator, left, right } => {
                         assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                        assert_expression_path!(parser, parser.tree.get(*left), "First");
                         assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
-                        let annotations = parser.tree.get_annotations(right.id);
+                        let annotations = parser.tree.get_annotations(left.id);
                         assert_eq!(annotations.len(), 1);
                         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                             assert_node!(parser.tree, *node, Comment { string, style } => {
                                 assert_eq!(*style, CommentStyle::Slash);
                                 assert_string!(parser, *string, "union-line");
@@ -4313,7 +4314,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_type_intersection_line_comment_on_right_arm_owner() {
+    fn test_parse_type_intersection_line_comment_on_left_arm_owner() {
         let mut test = TestParser::new_with_options(
             "type Value = First & // intersection-line\nSecond",
             LanguageType::TypeScript,
@@ -4326,14 +4327,15 @@ mod tests {
         let expression_id = parser.unwrap_statement_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Binary { operator, right, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseAnd);
+                    assert_expression_path!(parser, parser.tree.get(*left), "First");
                     assert_expression_path!(parser, parser.tree.get(*right), "Second");
 
-                    let annotations = parser.tree.get_annotations(right.id);
+                    let annotations = parser.tree.get_annotations(left.id);
                     assert_eq!(annotations.len(), 1);
                     assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(*style, CommentStyle::Slash);
                             assert_string!(parser, *string, "intersection-line");
@@ -4487,7 +4489,7 @@ mod tests {
                     let value_annotations = parser.tree.get_annotations(value.id);
                     assert_eq!(value_annotations.len(), 1);
                     assert_node!(parser.tree, value_annotations[0], Annotation::Doc { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
                         assert_node!(parser.tree, *node, Doc { string, style } => {
                             assert_eq!(*style, DocStyle::Star);
                             assert_string!(parser, *string, "union-doc\n");

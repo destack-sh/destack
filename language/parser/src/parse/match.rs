@@ -310,10 +310,6 @@ impl Parser {
                 if self.is_any_stop() {
                     self.eat_any_stop_with_newlines()?;
                 }
-                let break_expression_id = self.unwrap_statement_expression(expression_id);
-                if matches!(self.tree.get(break_expression_id), Expression::Break { .. }) {
-                    break;
-                }
             }
             // single expression case
             let match_case_id = if expressions.len() == 1 {

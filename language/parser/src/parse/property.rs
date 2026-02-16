@@ -1476,19 +1476,23 @@ port2 = {
         parser.attach_trivia();
         assert_node!(parser.tree, member, Member::Method { signature, body: Some(body), .. } => {
             let return_type = signature.return_type.expect("expected return type");
-
             let return_type_annotations = parser.tree.get_annotations(return_type.id);
-            assert_eq!(return_type_annotations.len(), 1);
-            assert_node!(parser.tree, return_type_annotations[0], Annotation::Comment { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-                assert_node!(parser.tree, *node, Comment { style, string } => {
-                    assert_eq!(*style, CommentStyle::Slash);
-                    assert_string!(parser, *string, "method-body");
+            assert!(return_type_annotations.is_empty());
+
+            assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                    assert_eq!(expressions.len(), 1);
+                    let body_statement_annotations = parser.tree.get_annotations(expressions[0].id);
+                    assert_eq!(body_statement_annotations.len(), 1);
+                    assert_node!(parser.tree, body_statement_annotations[0], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Comment { style, string } => {
+                            assert_eq!(*style, CommentStyle::Slash);
+                            assert_string!(parser, *string, "method-body");
+                        });
+                    });
                 });
             });
-
-            let body_annotations = parser.tree.get_annotations(body.id);
-            assert!(body_annotations.is_empty());
         });
     }
 
@@ -1741,7 +1745,7 @@ foo(): string;"#,
     }
 
     #[test]
-    fn test_reject_constructor_parameter_property_invalid_modifier_order() {
+    fn test_parse_constructor_parameter_property_readonly_public_modifier_order() {
         let mut test = TestParser::new_with_options(
             r"class D extends B {
   constructor(readonly public foo: string) {}
@@ -1752,8 +1756,9 @@ foo(): string;"#,
         let _ = parser.parse();
 
         assert!(
-            !parser.errors.is_empty(),
-            "expected parser errors for invalid modifier order"
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
         );
     }
 
