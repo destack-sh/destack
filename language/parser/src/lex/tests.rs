@@ -1278,6 +1278,17 @@ fn test_lex_tagged_template_strings() {
 }
 
 #[test]
+fn test_lex_tagged_template_with_legacy_octal_escape() {
+    assert_tokenize_eq_roundtrip!(
+        r"String.raw`\1`",
+        Token::new(TokenType::Identifier, 6, None),
+        Token::new(TokenType::Dot, 1, None),
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::TemplateString, 4, None),
+    );
+}
+
+#[test]
 fn test_lex_template_strings_with_interpolation_mixed() {
     assert_tokenize_eq_roundtrip!(
         "`a ${b} c ${d} e`",
