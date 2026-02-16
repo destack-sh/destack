@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::process::bindings_generated as bindings;
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
@@ -19,6 +19,7 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
 /// Read one control-group resource limit.
 ///
 /// Read one controller limit value from one control-group path.
@@ -42,17 +43,16 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
     path: NativeStringRef,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let path = unsafe { path.as_str()? };
-    let value = core_process::process_cgroup_get_limit(path, resource.0)?;
-    unsafe {
-        *out = value;
-    }
+    let _ = unsafe { path.as_str()? };
+    let _ = resource;
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.group.cgroupGetLimit",
+    ))
+    .boxed())
 }
 
 /// Join one control group.
@@ -76,9 +76,12 @@ pub(crate) unsafe fn destack_process_cgroup_join(
     context: &RuntimeCallContext,
     path: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_CGROUP_JOIN)?;
-    let path = unsafe { path.as_str()? };
-    core_process::process_cgroup_join(path)
+    let _ = unsafe { path.as_str()? };
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.group.cgroupJoin",
+    ))
+    .boxed())
 }
 
 /// Write one control-group resource limit.
@@ -104,9 +107,13 @@ pub(crate) unsafe fn destack_process_cgroup_set_limit(
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
-    let path = unsafe { path.as_str()? };
-    core_process::process_cgroup_set_limit(path, resource.0, limit)
+    let _ = unsafe { path.as_str()? };
+    let _ = (resource, limit);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.group.cgroupSetLimit",
+    ))
+    .boxed())
 }
 
 /// Assign processes to one Windows job object.
@@ -131,10 +138,13 @@ pub(crate) unsafe fn destack_process_job_assign(
     name: NativeStringRef,
     pids: NativeSlice<ProcessId>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_JOB_ASSIGN)?;
-    let name = unsafe { name.as_str()? };
-    let pids = unsafe { pids.as_slice()? };
-    core_process::process_job_assign(name, pids)
+    let _ = unsafe { name.as_str()? };
+    let _ = unsafe { pids.as_slice()? };
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.group.jobAssign",
+    ))
+    .boxed())
 }
 
 /// Set one Windows job object resource limit.
@@ -160,7 +170,11 @@ pub(crate) unsafe fn destack_process_job_set_limit(
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_GROUP_JOB_SET_LIMIT)?;
-    let name = unsafe { name.as_str()? };
-    core_process::process_job_set_limit(name, resource.0, limit)
+    let _ = unsafe { name.as_str()? };
+    let _ = (resource, limit);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.group.jobSetLimit",
+    ))
+    .boxed())
 }

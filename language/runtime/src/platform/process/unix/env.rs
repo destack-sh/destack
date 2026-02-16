@@ -19,6 +19,8 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+use std::ffi::CStr;
+
 /// Delete an environment variable by UTF-8 name.
 ///
 /// Remove one key from the process environment block.
@@ -37,12 +39,20 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ENV_DELETE)?;
     let name = unsafe { name.as_str()? };
-    core_process::process_env_delete(name)
+
+    let name =
+        core_process::cstring_from_str(name, "name", "environment variable contains nul byte")?;
+
+    let rc = unsafe { libc::unsetenv(name.as_ptr()) };
+    if rc != 0 {
+        return Err(RuntimeError::from(PlatformError::io("failed to delete environment")).boxed());
+    }
+
+    Ok(())
 }
 
 /// Delete an environment variable by raw byte name.
@@ -63,12 +73,20 @@ pub(crate) unsafe fn destack_process_env_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ENV_DELETE_BYTES)?;
     let name = unsafe { name.as_slice()? };
-    core_process::process_env_delete_bytes(name)
+
+    let name =
+        core_process::cstring_from_bytes(name, "name", "environment variable contains nul byte")?;
+
+    let rc = unsafe { libc::unsetenv(name.as_ptr()) };
+    if rc != 0 {
+        return Err(RuntimeError::from(PlatformError::io("failed to delete environment")).boxed());
+    }
+
+    Ok(())
 }
 
 /// Read an environment variable by UTF-8 name.
@@ -93,13 +111,24 @@ pub(crate) unsafe fn destack_process_env_get(
     out: *mut NativeStringRef,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ENV_GET)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let name_value = unsafe { name.as_str()? };
-    let value = core_process::process_env_get(name_value)?
-        .ok_or_else(|| core_process::missing_env_error(name_value.to_string()))?;
+
+    let name = core_process::cstring_from_str(
+        name_value,
+        "name",
+        "environment variable contains nul byte",
+    )?;
+    let value = unsafe { libc::getenv(name.as_ptr()) };
+    let value = if value.is_null() {
+        None
+    } else {
+        let value = unsafe { CStr::from_ptr(value) };
+        Some(String::from_utf8_lossy(value.to_bytes()).to_string())
+    };
+    let value = value.ok_or_else(|| core_process::missing_env_error(name_value.to_string()))?;
 
     unsafe {
         *out = context.store_string(&value);
@@ -130,12 +159,24 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
     out: *mut NativeArray<u8>,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ENV_GET_BYTES)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let name_bytes = unsafe { name.as_slice()? };
-    let value = core_process::process_env_get_bytes(name_bytes)?.ok_or_else(|| {
+
+    let name = core_process::cstring_from_bytes(
+        name_bytes,
+        "name",
+        "environment variable contains nul byte",
+    )?;
+    let value = unsafe { libc::getenv(name.as_ptr()) };
+    let value = if value.is_null() {
+        None
+    } else {
+        let value = unsafe { CStr::from_ptr(value) };
+        Some(value.to_bytes().to_vec())
+    };
+    let value = value.ok_or_else(|| {
         core_process::missing_env_error(String::from_utf8_lossy(name_bytes).to_string())
     })?;
 
@@ -164,14 +205,24 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeStringRef,
     argument_value: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ENV_SET)?;
     let name = unsafe { name.as_str()? };
     let value = unsafe { argument_value.as_str()? };
-    core_process::process_env_set(name, value)
+
+    let name =
+        core_process::cstring_from_str(name, "name", "environment variable contains nul byte")?;
+    let value =
+        core_process::cstring_from_str(value, "value", "environment variable contains nul byte")?;
+
+    let rc = unsafe { libc::setenv(name.as_ptr(), value.as_ptr(), 1) };
+    if rc != 0 {
+        return Err(RuntimeError::from(PlatformError::io("failed to set environment")).boxed());
+    }
+
+    Ok(())
 }
 
 /// Set an environment variable by raw byte name and value.
@@ -192,12 +243,21 @@ pub(crate) unsafe fn destack_process_env_set(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_set_bytes(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeSlice<u8>,
     argument_value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_ENV_SET_BYTES)?;
     let name = unsafe { name.as_slice()? };
     let value = unsafe { argument_value.as_slice()? };
-    core_process::process_env_set_bytes(name, value)
+    let name =
+        core_process::cstring_from_bytes(name, "name", "environment variable contains nul byte")?;
+    let value =
+        core_process::cstring_from_bytes(value, "value", "environment variable contains nul byte")?;
+
+    let rc = unsafe { libc::setenv(name.as_ptr(), value.as_ptr(), 1) };
+    if rc != 0 {
+        return Err(RuntimeError::from(PlatformError::io("failed to set environment")).boxed());
+    }
+
+    Ok(())
 }

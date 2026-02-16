@@ -8606,6 +8606,7 @@ pub unsafe extern "C" fn destack_process_cwd_chdir(path: fs::OsPath) -> RuntimeS
     native_call(|context| {
         let _ = &path;
 
+        context.check_policy(PROCESS_CWD_CHDIR)?;
         let world = context.check_and_resolve_world(PROCESS_CWD_CHDIR)?;
         destack_process_cwd_chdir_replay(context, world, path)
     })
@@ -8619,6 +8620,7 @@ pub unsafe extern "C" fn destack_process_cwd_cwd(out: *mut fs::OsPath) -> Runtim
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_CWD_CWD)?;
         let world = context.check_and_resolve_world(PROCESS_CWD_CWD)?;
         destack_process_cwd_cwd_replay(context, world, out)
     })
@@ -8711,6 +8713,7 @@ pub unsafe extern "C" fn destack_process_exec_exec(
     native_call(|context| {
         let _ = (&command, &arguments, &environment);
 
+        context.check_policy(PROCESS_EXEC_EXEC)?;
         let world = context.check_and_resolve_world(PROCESS_EXEC_EXEC)?;
         destack_process_exec_exec_replay(context, world, command, arguments, environment)
     })
@@ -8727,6 +8730,7 @@ pub unsafe extern "C" fn destack_process_exec_execat(
     native_call(|context| {
         let _ = (&directory, &path, &arguments, &environment, &flags);
 
+        context.check_policy(PROCESS_EXEC_EXECAT)?;
         let world = context.check_and_resolve_world(PROCESS_EXEC_EXECAT)?;
         destack_process_exec_execat_replay(
             context,
@@ -8749,6 +8753,7 @@ pub unsafe extern "C" fn destack_process_exec_fexec(
     native_call(|context| {
         let _ = (&executable, &arguments, &environment);
 
+        context.check_policy(PROCESS_EXEC_FEXEC)?;
         let world = context.check_and_resolve_world(PROCESS_EXEC_FEXEC)?;
         destack_process_exec_fexec_replay(context, world, executable, arguments, environment)
     })
@@ -8759,6 +8764,7 @@ pub unsafe extern "C" fn destack_process_exit_exit(code: u32) -> RuntimeStatus {
     native_call(|context| {
         let _ = &code;
 
+        context.check_policy(PROCESS_EXIT_EXIT)?;
         let world = context.check_and_resolve_world(PROCESS_EXIT_EXIT)?;
         destack_process_exit_exit_replay(context, world, code)
     })
@@ -8771,6 +8777,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_close(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(PROCESS_FD_PROCESS_FD_CLOSE)?;
         let world = context.check_and_resolve_world(PROCESS_FD_PROCESS_FD_CLOSE)?;
         destack_process_fd_process_fd_close_replay(context, world, handle)
     })
@@ -8788,6 +8795,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_open(
         }
         let _ = (&out, &pid, &flags);
 
+        context.check_policy(PROCESS_FD_PROCESS_FD_OPEN)?;
         let world = context.check_and_resolve_world(PROCESS_FD_PROCESS_FD_OPEN)?;
         destack_process_fd_process_fd_open_replay(context, world, out, pid, flags)
     })
@@ -8802,6 +8810,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_send_signal(
     native_call(|context| {
         let _ = (&handle, &signal, &flags);
 
+        context.check_policy(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
         let world = context.check_and_resolve_world(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
         destack_process_fd_process_fd_send_signal_replay(context, world, handle, signal, flags)
     })
@@ -8818,6 +8827,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_try_wait(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
         let world = context.check_and_resolve_world(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
         destack_process_fd_process_fd_try_wait_replay(context, world, out, handle)
     })
@@ -8835,6 +8845,7 @@ pub unsafe extern "C" fn destack_process_fd_process_fd_wait(
         }
         let _ = (&out, &handle, &timeoutns);
 
+        context.check_policy(PROCESS_FD_PROCESS_FD_WAIT)?;
         let world = context.check_and_resolve_world(PROCESS_FD_PROCESS_FD_WAIT)?;
         destack_process_fd_process_fd_wait_replay(context, world, out, handle, timeoutns)
     })
@@ -8847,6 +8858,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_close(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(PROCESS_FD_SIGNAL_FD_CLOSE)?;
         let world = context.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_CLOSE)?;
         destack_process_fd_signal_fd_close_replay(context, world, handle)
     })
@@ -8864,6 +8876,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_open(
         }
         let _ = (&out, &signals, &flags);
 
+        context.check_policy(PROCESS_FD_SIGNAL_FD_OPEN)?;
         let world = context.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_OPEN)?;
         destack_process_fd_signal_fd_open_replay(context, world, out, signals, flags)
     })
@@ -8880,6 +8893,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_read(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(PROCESS_FD_SIGNAL_FD_READ)?;
         let world = context.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_READ)?;
         destack_process_fd_signal_fd_read_replay(context, world, out, handle)
     })
@@ -8893,6 +8907,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_set_mask(
     native_call(|context| {
         let _ = (&handle, &signals);
 
+        context.check_policy(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
         let world = context.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
         destack_process_fd_signal_fd_set_mask_replay(context, world, handle, signals)
     })
@@ -8909,6 +8924,7 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_try_read(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
         let world = context.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
         destack_process_fd_signal_fd_try_read_replay(context, world, out, handle)
     })
@@ -8927,6 +8943,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_get_limit(
         let _ = (&out, &path, &resource);
 
         {
+            context.check_policy(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
             let world = context.check_and_resolve_world(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -8948,6 +8965,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_join(path: NativeStringRef
         let _ = &path;
 
         {
+            context.check_policy(PROCESS_GROUP_CGROUP_JOIN)?;
             let world = context.check_and_resolve_world(PROCESS_GROUP_CGROUP_JOIN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -8971,6 +8989,7 @@ pub unsafe extern "C" fn destack_process_group_cgroup_set_limit(
         let _ = (&path, &resource, &limit);
 
         {
+            context.check_policy(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
             let world = context.check_and_resolve_world(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -8997,6 +9016,7 @@ pub unsafe extern "C" fn destack_process_group_job_assign(
         let _ = (&name, &pids);
 
         {
+            context.check_policy(PROCESS_GROUP_JOB_ASSIGN)?;
             let world = context.check_and_resolve_world(PROCESS_GROUP_JOB_ASSIGN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -9020,6 +9040,7 @@ pub unsafe extern "C" fn destack_process_group_job_set_limit(
         let _ = (&name, &resource, &limit);
 
         {
+            context.check_policy(PROCESS_GROUP_JOB_SET_LIMIT)?;
             let world = context.check_and_resolve_world(PROCESS_GROUP_JOB_SET_LIMIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -9043,6 +9064,7 @@ pub unsafe extern "C" fn destack_process_ids_egid(out: *mut GroupId) -> RuntimeS
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_EGID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_EGID)?;
         destack_process_ids_egid_replay(context, world, out)
     })
@@ -9056,6 +9078,7 @@ pub unsafe extern "C" fn destack_process_ids_euid(out: *mut UserId) -> RuntimeSt
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_EUID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_EUID)?;
         destack_process_ids_euid_replay(context, world, out)
     })
@@ -9069,6 +9092,7 @@ pub unsafe extern "C" fn destack_process_ids_gid(out: *mut GroupId) -> RuntimeSt
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_GID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_GID)?;
         destack_process_ids_gid_replay(context, world, out)
     })
@@ -9082,6 +9106,7 @@ pub unsafe extern "C" fn destack_process_ids_group_ids(out: *mut ProcessGroupIds
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_GROUP_IDS)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_GROUP_IDS)?;
         destack_process_ids_group_ids_replay(context, world, out)
     })
@@ -9097,6 +9122,7 @@ pub unsafe extern "C" fn destack_process_ids_groups(
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_GROUPS)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_GROUPS)?;
         destack_process_ids_groups_replay(context, world, out)
     })
@@ -9110,6 +9136,7 @@ pub unsafe extern "C" fn destack_process_ids_pid(out: *mut ProcessId) -> Runtime
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_PID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_PID)?;
         destack_process_ids_pid_replay(context, world, out)
     })
@@ -9123,6 +9150,7 @@ pub unsafe extern "C" fn destack_process_ids_ppid(out: *mut ProcessId) -> Runtim
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_PPID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_PPID)?;
         destack_process_ids_ppid_replay(context, world, out)
     })
@@ -9133,6 +9161,7 @@ pub unsafe extern "C" fn destack_process_ids_set_egid(groupid: GroupId) -> Runti
     native_call(|context| {
         let _ = &groupid;
 
+        context.check_policy(PROCESS_IDS_SET_EGID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_SET_EGID)?;
         destack_process_ids_set_egid_replay(context, world, groupid)
     })
@@ -9143,6 +9172,7 @@ pub unsafe extern "C" fn destack_process_ids_set_euid(userid: UserId) -> Runtime
     native_call(|context| {
         let _ = &userid;
 
+        context.check_policy(PROCESS_IDS_SET_EUID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_SET_EUID)?;
         destack_process_ids_set_euid_replay(context, world, userid)
     })
@@ -9153,6 +9183,7 @@ pub unsafe extern "C" fn destack_process_ids_set_gid(groupid: GroupId) -> Runtim
     native_call(|context| {
         let _ = &groupid;
 
+        context.check_policy(PROCESS_IDS_SET_GID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_SET_GID)?;
         destack_process_ids_set_gid_replay(context, world, groupid)
     })
@@ -9163,6 +9194,7 @@ pub unsafe extern "C" fn destack_process_ids_set_group_ids(ids: ProcessGroupIds)
     native_call(|context| {
         let _ = &ids;
 
+        context.check_policy(PROCESS_IDS_SET_GROUP_IDS)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_SET_GROUP_IDS)?;
         destack_process_ids_set_group_ids_replay(context, world, ids)
     })
@@ -9175,6 +9207,7 @@ pub unsafe extern "C" fn destack_process_ids_set_groups(
     native_call(|context| {
         let _ = &groups;
 
+        context.check_policy(PROCESS_IDS_SET_GROUPS)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_SET_GROUPS)?;
         destack_process_ids_set_groups_replay(context, world, groups)
     })
@@ -9185,6 +9218,7 @@ pub unsafe extern "C" fn destack_process_ids_set_uid(userid: UserId) -> RuntimeS
     native_call(|context| {
         let _ = &userid;
 
+        context.check_policy(PROCESS_IDS_SET_UID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_SET_UID)?;
         destack_process_ids_set_uid_replay(context, world, userid)
     })
@@ -9195,6 +9229,7 @@ pub unsafe extern "C" fn destack_process_ids_set_user_ids(ids: ProcessUserIds) -
     native_call(|context| {
         let _ = &ids;
 
+        context.check_policy(PROCESS_IDS_SET_USER_IDS)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_SET_USER_IDS)?;
         destack_process_ids_set_user_ids_replay(context, world, ids)
     })
@@ -9208,6 +9243,7 @@ pub unsafe extern "C" fn destack_process_ids_uid(out: *mut UserId) -> RuntimeSta
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_UID)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_UID)?;
         destack_process_ids_uid_replay(context, world, out)
     })
@@ -9221,6 +9257,7 @@ pub unsafe extern "C" fn destack_process_ids_user_ids(out: *mut ProcessUserIds) 
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_IDS_USER_IDS)?;
         let world = context.check_and_resolve_world(PROCESS_IDS_USER_IDS)?;
         destack_process_ids_user_ids_replay(context, world, out)
     })
@@ -9232,6 +9269,7 @@ pub unsafe extern "C" fn destack_process_isolation_chroot(path: fs::OsPath) -> R
         let _ = &path;
 
         {
+            context.check_policy(PROCESS_ISOLATION_CHROOT)?;
             let world = context.check_and_resolve_world(PROCESS_ISOLATION_CHROOT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -9254,6 +9292,7 @@ pub unsafe extern "C" fn destack_process_isolation_install_syscall_filter(
         let _ = (&program, &flags);
 
         {
+            context.check_policy(PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER)?;
             let world =
                 context.check_and_resolve_world(PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER)?;
             match world {
@@ -9278,6 +9317,7 @@ pub unsafe extern "C" fn destack_process_isolation_set_host_name(
         let _ = &name;
 
         {
+            context.check_policy(PROCESS_ISOLATION_SET_HOST_NAME)?;
             let world = context.check_and_resolve_world(PROCESS_ISOLATION_SET_HOST_NAME)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -9299,6 +9339,7 @@ pub unsafe extern "C" fn destack_process_isolation_set_network_namespace(
         let _ = &path;
 
         {
+            context.check_policy(PROCESS_ISOLATION_SET_NETWORK_NAMESPACE)?;
             let world = context.check_and_resolve_world(PROCESS_ISOLATION_SET_NETWORK_NAMESPACE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -9321,6 +9362,7 @@ pub unsafe extern "C" fn destack_process_isolation_setns(
         let _ = (&pid, &namespace);
 
         {
+            context.check_policy(PROCESS_ISOLATION_SETNS)?;
             let world = context.check_and_resolve_world(PROCESS_ISOLATION_SETNS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -9342,6 +9384,7 @@ pub unsafe extern "C" fn destack_process_isolation_unshare(
         let _ = &flags;
 
         {
+            context.check_policy(PROCESS_ISOLATION_UNSHARE)?;
             let world = context.check_and_resolve_world(PROCESS_ISOLATION_UNSHARE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -9366,6 +9409,7 @@ pub unsafe extern "C" fn destack_process_limits_get_limit(
         }
         let _ = (&out, &resource);
 
+        context.check_policy(PROCESS_LIMITS_GET_LIMIT)?;
         let world = context.check_and_resolve_world(PROCESS_LIMITS_GET_LIMIT)?;
         destack_process_limits_get_limit_replay(context, world, out, resource)
     })
@@ -9379,6 +9423,7 @@ pub unsafe extern "C" fn destack_process_limits_set_limit(
     native_call(|context| {
         let _ = (&resource, &limit);
 
+        context.check_policy(PROCESS_LIMITS_SET_LIMIT)?;
         let world = context.check_and_resolve_world(PROCESS_LIMITS_SET_LIMIT)?;
         destack_process_limits_set_limit_replay(context, world, resource, limit)
     })
@@ -9395,6 +9440,7 @@ pub unsafe extern "C" fn destack_process_sched_get_affinity(
         }
         let _ = (&out, &pid);
 
+        context.check_policy(PROCESS_SCHED_GET_AFFINITY)?;
         let world = context.check_and_resolve_world(PROCESS_SCHED_GET_AFFINITY)?;
         destack_process_sched_get_affinity_replay(context, world, out, pid)
     })
@@ -9411,6 +9457,7 @@ pub unsafe extern "C" fn destack_process_sched_get_priority(
         }
         let _ = (&out, &pid);
 
+        context.check_policy(PROCESS_SCHED_GET_PRIORITY)?;
         let world = context.check_and_resolve_world(PROCESS_SCHED_GET_PRIORITY)?;
         destack_process_sched_get_priority_replay(context, world, out, pid)
     })
@@ -9427,6 +9474,7 @@ pub unsafe extern "C" fn destack_process_sched_get_scheduler(
         }
         let _ = (&out, &pid);
 
+        context.check_policy(PROCESS_SCHED_GET_SCHEDULER)?;
         let world = context.check_and_resolve_world(PROCESS_SCHED_GET_SCHEDULER)?;
         destack_process_sched_get_scheduler_replay(context, world, out, pid)
     })
@@ -9440,6 +9488,7 @@ pub unsafe extern "C" fn destack_process_sched_set_affinity(
     native_call(|context| {
         let _ = (&pid, &cpus);
 
+        context.check_policy(PROCESS_SCHED_SET_AFFINITY)?;
         let world = context.check_and_resolve_world(PROCESS_SCHED_SET_AFFINITY)?;
         destack_process_sched_set_affinity_replay(context, world, pid, cpus)
     })
@@ -9453,6 +9502,7 @@ pub unsafe extern "C" fn destack_process_sched_set_priority(
     native_call(|context| {
         let _ = (&pid, &priority);
 
+        context.check_policy(PROCESS_SCHED_SET_PRIORITY)?;
         let world = context.check_and_resolve_world(PROCESS_SCHED_SET_PRIORITY)?;
         destack_process_sched_set_priority_replay(context, world, pid, priority)
     })
@@ -9466,6 +9516,7 @@ pub unsafe extern "C" fn destack_process_sched_set_scheduler(
     native_call(|context| {
         let _ = (&pid, &config);
 
+        context.check_policy(PROCESS_SCHED_SET_SCHEDULER)?;
         let world = context.check_and_resolve_world(PROCESS_SCHED_SET_SCHEDULER)?;
         destack_process_sched_set_scheduler_replay(context, world, pid, config)
     })
@@ -9474,6 +9525,7 @@ pub unsafe extern "C" fn destack_process_sched_set_scheduler(
 #[unsafe(export_name = "destack.process.sched.yieldNow")]
 pub unsafe extern "C" fn destack_process_sched_yield_now() -> RuntimeStatus {
     native_call(|context| {
+        context.check_policy(PROCESS_SCHED_YIELD_NOW)?;
         let world = context.check_and_resolve_world(PROCESS_SCHED_YIELD_NOW)?;
         destack_process_sched_yield_now_replay(context, world)
     })
@@ -9490,6 +9542,7 @@ pub unsafe extern "C" fn destack_process_session_getpgid(
         }
         let _ = (&out, &pid);
 
+        context.check_policy(PROCESS_SESSION_GETPGID)?;
         let world = context.check_and_resolve_world(PROCESS_SESSION_GETPGID)?;
         destack_process_session_getpgid_replay(context, world, out, pid)
     })
@@ -9503,6 +9556,7 @@ pub unsafe extern "C" fn destack_process_session_setpgid(
     native_call(|context| {
         let _ = (&pid, &pgid);
 
+        context.check_policy(PROCESS_SESSION_SETPGID)?;
         let world = context.check_and_resolve_world(PROCESS_SESSION_SETPGID)?;
         destack_process_session_setpgid_replay(context, world, pid, pgid)
     })
@@ -9516,6 +9570,7 @@ pub unsafe extern "C" fn destack_process_session_setsid(out: *mut ProcessId) -> 
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_SESSION_SETSID)?;
         let world = context.check_and_resolve_world(PROCESS_SESSION_SETSID)?;
         destack_process_session_setsid_replay(context, world, out)
     })
@@ -9529,6 +9584,7 @@ pub unsafe extern "C" fn destack_process_signals_kill(
     native_call(|context| {
         let _ = (&pid, &signal);
 
+        context.check_policy(PROCESS_SIGNALS_KILL)?;
         let world = context.check_and_resolve_world(PROCESS_SIGNALS_KILL)?;
         destack_process_signals_kill_replay(context, world, pid, signal)
     })
@@ -9544,6 +9600,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_mask_read(
         }
         let _ = &out;
 
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
         let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
         destack_process_signals_signal_mask_read_replay(context, world, out)
     })
@@ -9557,6 +9614,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_mask_update(
     native_call(|context| {
         let _ = (&how, &signals);
 
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
         let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
         destack_process_signals_signal_mask_update_replay(context, world, how, signals)
     })
@@ -9621,6 +9679,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_try_wait(
         }
         let _ = (&out, &signals);
 
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
         let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
         destack_process_signals_signal_try_wait_replay(context, world, out, signals)
     })
@@ -9649,6 +9708,7 @@ pub unsafe extern "C" fn destack_process_signals_signal_wait(
         }
         let _ = (&out, &signals);
 
+        context.check_policy(PROCESS_SIGNALS_SIGNAL_WAIT)?;
         let world = context.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_WAIT)?;
         destack_process_signals_signal_wait_replay(context, world, out, signals)
     })
@@ -9668,6 +9728,7 @@ pub unsafe extern "C" fn destack_process_spawn_spawn(
         }
         let _ = (&out, &command, &arguments, &environment, &options);
 
+        context.check_policy(PROCESS_SPAWN_SPAWN)?;
         let world = context.check_and_resolve_world(PROCESS_SPAWN_SPAWN)?;
         destack_process_spawn_spawn_replay(
             context,
@@ -9705,6 +9766,7 @@ pub unsafe extern "C" fn destack_process_spawn_with_actions(
             &actions,
         );
 
+        context.check_policy(PROCESS_SPAWN_WITH_ACTIONS)?;
         let world = context.check_and_resolve_world(PROCESS_SPAWN_WITH_ACTIONS)?;
         destack_process_spawn_with_actions_replay(
             context,
@@ -9728,6 +9790,7 @@ pub unsafe extern "C" fn destack_process_umask_umask(out: *mut u32, mask: u32) -
         }
         let _ = (&out, &mask);
 
+        context.check_policy(PROCESS_UMASK_UMASK)?;
         let world = context.check_and_resolve_world(PROCESS_UMASK_UMASK)?;
         destack_process_umask_umask_replay(context, world, out, mask)
     })
@@ -9745,6 +9808,7 @@ pub unsafe extern "C" fn destack_process_wait_pid(
         }
         let _ = (&out, &pid, &flags);
 
+        context.check_policy(PROCESS_WAIT_PID)?;
         let world = context.check_and_resolve_world(PROCESS_WAIT_PID)?;
         destack_process_wait_pid_replay(context, world, out, pid, flags)
     })
@@ -9761,6 +9825,7 @@ pub unsafe extern "C" fn destack_process_wait_try_wait(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(PROCESS_WAIT_TRY_WAIT)?;
         let world = context.check_and_resolve_world(PROCESS_WAIT_TRY_WAIT)?;
         destack_process_wait_try_wait_replay(context, world, out, handle)
     })
@@ -9778,6 +9843,7 @@ pub unsafe extern "C" fn destack_process_wait_wait(
         }
         let _ = (&out, &handle, &flags);
 
+        context.check_policy(PROCESS_WAIT_WAIT)?;
         let world = context.check_and_resolve_world(PROCESS_WAIT_WAIT)?;
         destack_process_wait_wait_replay(context, world, out, handle, flags)
     })
@@ -13852,6 +13918,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (path,) = decode_destack_process_cwd_chdir_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_CWD_CHDIR)?;
                     let world = runtime.check_and_resolve_world(PROCESS_CWD_CHDIR)?;
                     destack_process_cwd_chdir_vm_replay(runtime, context, world, path)
                 })
@@ -13863,6 +13930,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(registry, isolate, PROCESS_CWD_CWD, move |context, _args| {
             with_runtime_call_context(|runtime| {
                 // execute binding
+                runtime.check_policy(PROCESS_CWD_CWD)?;
                 let world = runtime.check_and_resolve_world(PROCESS_CWD_CWD)?;
                 destack_process_cwd_cwd_vm_replay(runtime, context, world)
             })
@@ -13980,6 +14048,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_exec_exec_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_EXEC_EXEC)?;
                     let world = runtime.check_and_resolve_world(PROCESS_EXEC_EXEC)?;
                     destack_process_exec_exec_vm_replay(
                         runtime,
@@ -14006,6 +14075,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_exec_execat_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_EXEC_EXECAT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_EXEC_EXECAT)?;
                     destack_process_exec_execat_vm_replay(
                         runtime,
@@ -14034,6 +14104,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_exec_fexec_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_EXEC_FEXEC)?;
                     let world = runtime.check_and_resolve_world(PROCESS_EXEC_FEXEC)?;
                     destack_process_exec_fexec_vm_replay(
                         runtime,
@@ -14059,6 +14130,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (code,) = decode_destack_process_exit_exit_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_EXIT_EXIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_EXIT_EXIT)?;
                     destack_process_exit_exit_vm_replay(runtime, context, world, code)
                 })
@@ -14077,6 +14149,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (handle,) = decode_destack_process_fd_process_fd_close_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_CLOSE)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_PROCESS_FD_CLOSE)?;
                     destack_process_fd_process_fd_close_vm_replay(runtime, context, world, handle)
                 })
@@ -14096,6 +14169,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_fd_process_fd_open_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_OPEN)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_PROCESS_FD_OPEN)?;
                     destack_process_fd_process_fd_open_vm_replay(
                         runtime, context, world, pid, flags,
@@ -14117,6 +14191,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_fd_process_fd_send_signal_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
                     let world =
                         runtime.check_and_resolve_world(PROCESS_FD_PROCESS_FD_SEND_SIGNAL)?;
                     destack_process_fd_process_fd_send_signal_vm_replay(
@@ -14139,6 +14214,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_fd_process_fd_try_wait_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_PROCESS_FD_TRY_WAIT)?;
                     destack_process_fd_process_fd_try_wait_vm_replay(
                         runtime, context, world, handle,
@@ -14160,6 +14236,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_fd_process_fd_wait_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_PROCESS_FD_WAIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_PROCESS_FD_WAIT)?;
                     destack_process_fd_process_fd_wait_vm_replay(
                         runtime, context, world, handle, timeoutns,
@@ -14180,6 +14257,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (handle,) = decode_destack_process_fd_signal_fd_close_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_CLOSE)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_CLOSE)?;
                     destack_process_fd_signal_fd_close_vm_replay(runtime, context, world, handle)
                 })
@@ -14199,6 +14277,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_fd_signal_fd_open_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_OPEN)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_OPEN)?;
                     destack_process_fd_signal_fd_open_vm_replay(
                         runtime, context, world, signals, flags,
@@ -14219,6 +14298,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (handle,) = decode_destack_process_fd_signal_fd_read_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_READ)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_READ)?;
                     destack_process_fd_signal_fd_read_vm_replay(runtime, context, world, handle)
                 })
@@ -14238,6 +14318,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_fd_signal_fd_set_mask_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_SET_MASK)?;
                     destack_process_fd_signal_fd_set_mask_vm_replay(
                         runtime, context, world, handle, signals,
@@ -14259,6 +14340,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_fd_signal_fd_try_read_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
                     destack_process_fd_signal_fd_try_read_vm_replay(runtime, context, world, handle)
                 })
@@ -14279,6 +14361,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
                         let world =
                             runtime.check_and_resolve_world(PROCESS_GROUP_CGROUP_GET_LIMIT)?;
                         match world {
@@ -14310,6 +14393,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_GROUP_CGROUP_JOIN)?;
                         let world = runtime.check_and_resolve_world(PROCESS_GROUP_CGROUP_JOIN)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -14341,6 +14425,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
                         let world =
                             runtime.check_and_resolve_world(PROCESS_GROUP_CGROUP_SET_LIMIT)?;
                         match world {
@@ -14372,6 +14457,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_GROUP_JOB_ASSIGN)?;
                         let world = runtime.check_and_resolve_world(PROCESS_GROUP_JOB_ASSIGN)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_process_job_assign(
@@ -14403,6 +14489,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_GROUP_JOB_SET_LIMIT)?;
                         let world = runtime.check_and_resolve_world(PROCESS_GROUP_JOB_SET_LIMIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_process_job_set_limit(
@@ -14429,6 +14516,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_EGID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_EGID)?;
                     destack_process_ids_egid_vm_replay(runtime, context, world)
                 })
@@ -14444,6 +14532,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_EUID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_EUID)?;
                     destack_process_ids_euid_vm_replay(runtime, context, world)
                 })
@@ -14455,6 +14544,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(registry, isolate, PROCESS_IDS_GID, move |context, _args| {
             with_runtime_call_context(|runtime| {
                 // execute binding
+                runtime.check_policy(PROCESS_IDS_GID)?;
                 let world = runtime.check_and_resolve_world(PROCESS_IDS_GID)?;
                 destack_process_ids_gid_vm_replay(runtime, context, world)
             })
@@ -14469,6 +14559,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_GROUP_IDS)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_GROUP_IDS)?;
                     destack_process_ids_group_ids_vm_replay(runtime, context, world)
                 })
@@ -14484,6 +14575,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_GROUPS)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_GROUPS)?;
                     destack_process_ids_groups_vm_replay(runtime, context, world)
                 })
@@ -14495,6 +14587,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(registry, isolate, PROCESS_IDS_PID, move |context, _args| {
             with_runtime_call_context(|runtime| {
                 // execute binding
+                runtime.check_policy(PROCESS_IDS_PID)?;
                 let world = runtime.check_and_resolve_world(PROCESS_IDS_PID)?;
                 destack_process_ids_pid_vm_replay(runtime, context, world)
             })
@@ -14509,6 +14602,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_PPID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_PPID)?;
                     destack_process_ids_ppid_vm_replay(runtime, context, world)
                 })
@@ -14527,6 +14621,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (groupid,) = decode_destack_process_ids_set_egid_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_SET_EGID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_SET_EGID)?;
                     destack_process_ids_set_egid_vm_replay(runtime, context, world, groupid)
                 })
@@ -14545,6 +14640,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (userid,) = decode_destack_process_ids_set_euid_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_SET_EUID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_SET_EUID)?;
                     destack_process_ids_set_euid_vm_replay(runtime, context, world, userid)
                 })
@@ -14563,6 +14659,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (groupid,) = decode_destack_process_ids_set_gid_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_SET_GID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_SET_GID)?;
                     destack_process_ids_set_gid_vm_replay(runtime, context, world, groupid)
                 })
@@ -14581,6 +14678,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (ids,) = decode_destack_process_ids_set_group_ids_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_SET_GROUP_IDS)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_SET_GROUP_IDS)?;
                     destack_process_ids_set_group_ids_vm_replay(runtime, context, world, ids)
                 })
@@ -14599,6 +14697,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (groups,) = decode_destack_process_ids_set_groups_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_SET_GROUPS)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_SET_GROUPS)?;
                     destack_process_ids_set_groups_vm_replay(runtime, context, world, groups)
                 })
@@ -14617,6 +14716,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (userid,) = decode_destack_process_ids_set_uid_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_SET_UID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_SET_UID)?;
                     destack_process_ids_set_uid_vm_replay(runtime, context, world, userid)
                 })
@@ -14635,6 +14735,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (ids,) = decode_destack_process_ids_set_user_ids_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_SET_USER_IDS)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_SET_USER_IDS)?;
                     destack_process_ids_set_user_ids_vm_replay(runtime, context, world, ids)
                 })
@@ -14646,6 +14747,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(registry, isolate, PROCESS_IDS_UID, move |context, _args| {
             with_runtime_call_context(|runtime| {
                 // execute binding
+                runtime.check_policy(PROCESS_IDS_UID)?;
                 let world = runtime.check_and_resolve_world(PROCESS_IDS_UID)?;
                 destack_process_ids_uid_vm_replay(runtime, context, world)
             })
@@ -14660,6 +14762,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_IDS_USER_IDS)?;
                     let world = runtime.check_and_resolve_world(PROCESS_IDS_USER_IDS)?;
                     destack_process_ids_user_ids_vm_replay(runtime, context, world)
                 })
@@ -14679,6 +14782,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_ISOLATION_CHROOT)?;
                         let world = runtime.check_and_resolve_world(PROCESS_ISOLATION_CHROOT)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -14712,6 +14816,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER)?;
                         let world = runtime
                             .check_and_resolve_world(PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER)?;
                         match world {
@@ -14746,6 +14851,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_ISOLATION_SET_HOST_NAME)?;
                         let world =
                             runtime.check_and_resolve_world(PROCESS_ISOLATION_SET_HOST_NAME)?;
                         match world {
@@ -14778,6 +14884,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_ISOLATION_SET_NETWORK_NAMESPACE)?;
                         let world = runtime
                             .check_and_resolve_world(PROCESS_ISOLATION_SET_NETWORK_NAMESPACE)?;
                         match world {
@@ -14812,6 +14919,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_ISOLATION_SETNS)?;
                         let world = runtime.check_and_resolve_world(PROCESS_ISOLATION_SETNS)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -14842,6 +14950,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(PROCESS_ISOLATION_UNSHARE)?;
                         let world = runtime.check_and_resolve_world(PROCESS_ISOLATION_UNSHARE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -14871,6 +14980,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (resource,) = decode_destack_process_limits_get_limit_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_LIMITS_GET_LIMIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_LIMITS_GET_LIMIT)?;
                     destack_process_limits_get_limit_vm_replay(runtime, context, world, resource)
                 })
@@ -14890,6 +15000,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_limits_set_limit_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_LIMITS_SET_LIMIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_LIMITS_SET_LIMIT)?;
                     destack_process_limits_set_limit_vm_replay(
                         runtime, context, world, resource, limit,
@@ -14910,6 +15021,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (pid,) = decode_destack_process_sched_get_affinity_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SCHED_GET_AFFINITY)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SCHED_GET_AFFINITY)?;
                     destack_process_sched_get_affinity_vm_replay(runtime, context, world, pid)
                 })
@@ -14928,6 +15040,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (pid,) = decode_destack_process_sched_get_priority_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SCHED_GET_PRIORITY)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SCHED_GET_PRIORITY)?;
                     destack_process_sched_get_priority_vm_replay(runtime, context, world, pid)
                 })
@@ -14946,6 +15059,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (pid,) = decode_destack_process_sched_get_scheduler_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SCHED_GET_SCHEDULER)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SCHED_GET_SCHEDULER)?;
                     destack_process_sched_get_scheduler_vm_replay(runtime, context, world, pid)
                 })
@@ -14965,6 +15079,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_sched_set_affinity_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SCHED_SET_AFFINITY)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SCHED_SET_AFFINITY)?;
                     destack_process_sched_set_affinity_vm_replay(runtime, context, world, pid, cpus)
                 })
@@ -14984,6 +15099,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_sched_set_priority_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SCHED_SET_PRIORITY)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SCHED_SET_PRIORITY)?;
                     destack_process_sched_set_priority_vm_replay(
                         runtime, context, world, pid, priority,
@@ -15005,6 +15121,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_sched_set_scheduler_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SCHED_SET_SCHEDULER)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SCHED_SET_SCHEDULER)?;
                     destack_process_sched_set_scheduler_vm_replay(
                         runtime, context, world, pid, config,
@@ -15022,6 +15139,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_SCHED_YIELD_NOW)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SCHED_YIELD_NOW)?;
                     destack_process_sched_yield_now_vm_replay(runtime, context, world)
                 })
@@ -15040,6 +15158,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (pid,) = decode_destack_process_session_getpgid_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SESSION_GETPGID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SESSION_GETPGID)?;
                     destack_process_session_getpgid_vm_replay(runtime, context, world, pid)
                 })
@@ -15058,6 +15177,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (pid, pgid) = decode_destack_process_session_setpgid_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SESSION_SETPGID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SESSION_SETPGID)?;
                     destack_process_session_setpgid_vm_replay(runtime, context, world, pid, pgid)
                 })
@@ -15073,6 +15193,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_SESSION_SETSID)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SESSION_SETSID)?;
                     destack_process_session_setsid_vm_replay(runtime, context, world)
                 })
@@ -15091,6 +15212,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (pid, signal) = decode_destack_process_signals_kill_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SIGNALS_KILL)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SIGNALS_KILL)?;
                     destack_process_signals_kill_vm_replay(runtime, context, world, pid, signal)
                 })
@@ -15106,6 +15228,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
                     let world =
                         runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_MASK_READ)?;
                     destack_process_signals_signal_mask_read_vm_replay(runtime, context, world)
@@ -15126,6 +15249,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_signals_signal_mask_update_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
                     let world =
                         runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_MASK_UPDATE)?;
                     destack_process_signals_signal_mask_update_vm_replay(
@@ -15205,6 +15329,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_signals_signal_try_wait_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_TRY_WAIT)?;
                     destack_process_signals_signal_try_wait_vm_replay(
                         runtime, context, world, signals,
@@ -15245,6 +15370,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_signals_signal_wait_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SIGNALS_SIGNAL_WAIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SIGNALS_SIGNAL_WAIT)?;
                     destack_process_signals_signal_wait_vm_replay(runtime, context, world, signals)
                 })
@@ -15264,6 +15390,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_spawn_spawn_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SPAWN_SPAWN)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SPAWN_SPAWN)?;
                     destack_process_spawn_spawn_vm_replay(
                         runtime,
@@ -15291,6 +15418,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_process_spawn_with_actions_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_SPAWN_WITH_ACTIONS)?;
                     let world = runtime.check_and_resolve_world(PROCESS_SPAWN_WITH_ACTIONS)?;
                     destack_process_spawn_with_actions_vm_replay(
                         runtime,
@@ -15319,6 +15447,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (mask,) = decode_destack_process_umask_umask_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_UMASK_UMASK)?;
                     let world = runtime.check_and_resolve_world(PROCESS_UMASK_UMASK)?;
                     destack_process_umask_umask_vm_replay(runtime, context, world, mask)
                 })
@@ -15333,6 +15462,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                 let (pid, flags) = decode_destack_process_wait_pid_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(PROCESS_WAIT_PID)?;
                 let world = runtime.check_and_resolve_world(PROCESS_WAIT_PID)?;
                 destack_process_wait_pid_vm_replay(runtime, context, world, pid, flags)
             })
@@ -15350,6 +15480,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (handle,) = decode_destack_process_wait_try_wait_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_WAIT_TRY_WAIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_WAIT_TRY_WAIT)?;
                     destack_process_wait_try_wait_vm_replay(runtime, context, world, handle)
                 })
@@ -15368,6 +15499,7 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (handle, flags) = decode_destack_process_wait_wait_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(PROCESS_WAIT_WAIT)?;
                     let world = runtime.check_and_resolve_world(PROCESS_WAIT_WAIT)?;
                     destack_process_wait_wait_vm_replay(runtime, context, world, handle, flags)
                 })

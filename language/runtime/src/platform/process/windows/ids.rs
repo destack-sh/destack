@@ -19,6 +19,7 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
 /// Return the effective group identifier.
 ///
 /// Read the effective primary group for the calling process.
@@ -40,11 +41,10 @@ pub(crate) unsafe fn destack_process_egid(
     context: &RuntimeCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_EGID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = GroupId(core_process::process_egid()?);
+    let value = GroupId(not_supported("destack.process.egid")?);
     unsafe {
         *out = value;
     }
@@ -73,11 +73,10 @@ pub(crate) unsafe fn destack_process_euid(
     context: &RuntimeCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_EUID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = UserId(core_process::process_euid()?);
+    let value = UserId(not_supported("destack.process.euid")?);
     unsafe {
         *out = value;
     }
@@ -106,11 +105,10 @@ pub(crate) unsafe fn destack_process_gid(
     context: &RuntimeCallContext,
     out: *mut GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_GID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = GroupId(core_process::process_gid()?);
+    let value = GroupId(not_supported("destack.process.gid")?);
     unsafe {
         *out = value;
     }
@@ -139,11 +137,10 @@ pub(crate) unsafe fn destack_process_group_ids(
     context: &RuntimeCallContext,
     out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_GROUP_IDS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_group_ids()?;
+    let value = not_supported("destack.process.groupIds")?;
     unsafe {
         *out = value;
     }
@@ -172,11 +169,10 @@ pub(crate) unsafe fn destack_process_groups(
     context: &RuntimeCallContext,
     out: *mut NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_GROUPS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let groups = core_process::process_groups()?;
+    let groups = not_supported("destack.process.groups")?;
     unsafe {
         *out = context.store_slice(groups);
     }
@@ -205,11 +201,10 @@ pub(crate) unsafe fn destack_process_pid(
     context: &RuntimeCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_PID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = ProcessId(core_process::process_pid()?);
+    let value = ProcessId(unsafe { windows_sys::Win32::System::Threading::GetCurrentProcessId() });
     unsafe {
         *out = value;
     }
@@ -238,11 +233,10 @@ pub(crate) unsafe fn destack_process_ppid(
     context: &RuntimeCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_PPID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = ProcessId(core_process::process_ppid()?);
+    let value = ProcessId(not_supported("destack.process.ppid")?);
     unsafe {
         *out = value;
     }
@@ -271,8 +265,8 @@ pub(crate) unsafe fn destack_process_set_egid(
     context: &RuntimeCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_EGID)?;
-    core_process::process_set_egid(groupid.0)
+    let _ = (context, groupid);
+    not_supported("destack.process.ids.setEgid")
 }
 
 /// Set the effective user identifier only.
@@ -296,8 +290,8 @@ pub(crate) unsafe fn destack_process_set_euid(
     context: &RuntimeCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_EUID)?;
-    core_process::process_set_euid(userid.0)
+    let _ = (context, userid);
+    not_supported("destack.process.ids.setEuid")
 }
 
 /// Set the effective group identifier.
@@ -321,8 +315,8 @@ pub(crate) unsafe fn destack_process_set_gid(
     context: &RuntimeCallContext,
     groupid: GroupId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_GID)?;
-    core_process::process_set_gid(groupid.0)
+    let _ = (context, groupid);
+    not_supported("destack.process.ids.setGid")
 }
 
 /// Set real, effective, and saved-set group identifiers together.
@@ -346,8 +340,8 @@ pub(crate) unsafe fn destack_process_set_group_ids(
     context: &RuntimeCallContext,
     ids: ProcessGroupIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_GROUP_IDS)?;
-    core_process::process_set_group_ids(ids)
+    let _ = (context, ids);
+    not_supported("destack.process.ids.setGroupIds")
 }
 
 /// Set supplementary group identifiers.
@@ -371,9 +365,8 @@ pub(crate) unsafe fn destack_process_set_groups(
     context: &RuntimeCallContext,
     groups: NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_GROUPS)?;
-    let groups = unsafe { groups.as_slice()? };
-    core_process::process_set_groups(groups)
+    let _ = (context, groups);
+    not_supported("destack.process.ids.setGroups")
 }
 
 /// Set the effective user identifier.
@@ -397,8 +390,8 @@ pub(crate) unsafe fn destack_process_set_uid(
     context: &RuntimeCallContext,
     userid: UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_UID)?;
-    core_process::process_set_uid(userid.0)
+    let _ = (context, userid);
+    not_supported("destack.process.ids.setUid")
 }
 
 /// Set real, effective, and saved-set user identifiers together.
@@ -422,8 +415,8 @@ pub(crate) unsafe fn destack_process_set_user_ids(
     context: &RuntimeCallContext,
     ids: ProcessUserIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_SET_USER_IDS)?;
-    core_process::process_set_user_ids(ids)
+    let _ = (context, ids);
+    not_supported("destack.process.ids.setUserIds")
 }
 
 /// Return the current user identifier.
@@ -447,11 +440,10 @@ pub(crate) unsafe fn destack_process_uid(
     context: &RuntimeCallContext,
     out: *mut UserId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_UID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = UserId(core_process::process_uid()?);
+    let value = UserId(not_supported("destack.process.uid")?);
     unsafe {
         *out = value;
     }
@@ -480,14 +472,18 @@ pub(crate) unsafe fn destack_process_user_ids(
     context: &RuntimeCallContext,
     out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_IDS_USER_IDS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_user_ids()?;
+    let value = not_supported("destack.process.userIds")?;
     unsafe {
         *out = value;
     }
 
     Ok(())
+}
+
+/// Return a standardized not-supported error for identity operations.
+fn not_supported<T>(operation: &'static str) -> RuntimeResult<T> {
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }

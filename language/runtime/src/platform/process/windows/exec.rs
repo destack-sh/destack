@@ -13,7 +13,7 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::Path;
 use std::process::Command;
 
-use crate::platform::fs::core as core_fs;
+use crate::platform::fs::{core as core_fs, native as fs_native};
 use crate::platform::process::{
     ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
     ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
@@ -24,7 +24,6 @@ use crate::platform::process::{
 };
 use crate::platform::{fs, resource};
 use windows_sys::Win32::Foundation::HANDLE;
-use windows_sys::Win32::Storage::FileSystem::GetFinalPathNameByHandleW;
 
 /// Decode a native string slice into owned UTF-8 strings.
 unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<String>> {
@@ -73,7 +72,7 @@ fn normalize_handle_path(path: String) -> String {
 fn path_from_handle(
     context: &RuntimeCallContext,
     handle_id: resource::ResourceId,
-    kind: crate::platform::resource::ResourceKind,
+    kind: resource::ResourceKind,
     label: &str,
 ) -> RuntimeResult<String> {
     let handle = core_fs::require_resource(context, handle_id, kind, label, |entry| {
@@ -89,25 +88,11 @@ fn path_from_handle(
             })
     })?;
 
-    let mut buffer = vec![0u16; 512];
-    loop {
-        let length = unsafe {
-            GetFinalPathNameByHandleW(handle, buffer.as_mut_ptr(), buffer.len() as u32, 0)
-        };
-        if length == 0 {
-            return Err(RuntimeError::from(PlatformError::io(
-                "failed to resolve final path from handle",
-            ))
-            .boxed());
-        }
-        if (length as usize) < buffer.len() {
-            buffer.truncate(length as usize);
-            let path = std::ffi::OsString::from_wide(&buffer);
-            let path = path.to_string_lossy().to_string();
-            return Ok(normalize_handle_path(path));
-        }
-        buffer.resize(length as usize + 1, 0);
-    }
+    let wide = fs_native::final_path_from_handle(handle)?;
+    let path = std::ffi::OsString::from_wide(&wide);
+    let path = path.to_string_lossy().to_string();
+
+    Ok(normalize_handle_path(path))
 }
 
 /// Replace the process image by spawning one command and exiting with its status.
@@ -159,7 +144,6 @@ pub(crate) unsafe fn destack_process_exec(
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_EXEC_EXEC)?;
     let command = core_fs::os_path_to_utf8_string(command, "command")?;
     let arguments = unsafe { decode_native_strings(arguments)? };
     let environment = unsafe { decode_native_strings(environment)? };
@@ -191,7 +175,6 @@ pub(crate) unsafe fn destack_process_execat(
     environment: NativeStringSlice,
     flags: ExecAtFlags,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_EXEC_EXECAT)?;
     if flags.0 != 0 {
         return Err(RuntimeError::from(PlatformError::not_supported(
             "destack.process.exec.execat.flags",
@@ -202,7 +185,7 @@ pub(crate) unsafe fn destack_process_execat(
     let directory_path = path_from_handle(
         context,
         directory.0,
-        crate::platform::resource::ResourceKind::Directory,
+        resource::ResourceKind::Directory,
         "directory",
     )?;
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
@@ -241,11 +224,10 @@ pub(crate) unsafe fn destack_process_fexec(
     arguments: NativeStringSlice,
     environment: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_EXEC_FEXEC)?;
     let command = path_from_handle(
         context,
         executable.0,
-        crate::platform::resource::ResourceKind::File,
+        resource::ResourceKind::File,
         "executable",
     )?;
     let arguments = unsafe { decode_native_strings(arguments)? };

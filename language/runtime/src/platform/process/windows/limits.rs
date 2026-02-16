@@ -41,16 +41,14 @@ pub(crate) unsafe fn destack_process_get_limit(
     out: *mut ProcessLimit,
     resource: ProcessLimitResource,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_LIMITS_GET_LIMIT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_get_limit(resource.0)?;
-    unsafe {
-        *out = value;
-    }
-
-    Ok(())
+    let _ = (context, resource);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.limits.getLimit",
+    ))
+    .boxed())
 }
 
 /// Set a process resource limit.
@@ -75,6 +73,9 @@ pub(crate) unsafe fn destack_process_set_limit(
     resource: ProcessLimitResource,
     limit: ProcessLimit,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_LIMITS_SET_LIMIT)?;
-    core_process::process_set_limit(resource.0, limit)
+    let _ = (context, resource, limit);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.limits.setLimit",
+    ))
+    .boxed())
 }

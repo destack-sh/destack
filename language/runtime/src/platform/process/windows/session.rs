@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::process::{bindings_generated as bindings, core as core_process};
+use crate::platform::process::bindings_generated as bindings;
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
 };
@@ -19,7 +19,8 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
-/// Read a process group id.
+
+/// Read one process group id.
 ///
 /// Read the process-group identifier currently assigned to the target process.
 /// Visibility and lookup behavior follow host process table rules.
@@ -41,19 +42,18 @@ pub(crate) unsafe fn destack_process_getpgid(
     out: *mut ProcessId,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SESSION_GETPGID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = ProcessId(core_process::process_getpgid(pid.0)?);
-    unsafe {
-        *out = value;
-    }
+    let _ = pid;
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.session.getpgid",
+    ))
+    .boxed())
 }
 
-/// Set a process group id for a process.
+/// Set one process group id for a process.
 ///
 /// Move the target process into the requested process group identifier.
 /// Cross-session moves and permission checks follow host kernel job-control rules.
@@ -75,11 +75,15 @@ pub(crate) unsafe fn destack_process_setpgid(
     pid: ProcessId,
     pgid: ProcessId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SESSION_SETPGID)?;
-    core_process::process_setpgid(pid.0, pgid.0)
+    let _ = (pid, pgid);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.session.setpgid",
+    ))
+    .boxed())
 }
 
-/// Create a new session and return the new session leader id.
+/// Create one new session and return the new session leader id.
 ///
 /// Create a new session boundary and make the caller its session leader.
 /// Session and controlling-terminal semantics follow host job-control rules.
@@ -100,14 +104,12 @@ pub(crate) unsafe fn destack_process_setsid(
     context: &RuntimeCallContext,
     out: *mut ProcessId,
 ) -> RuntimeResult<()> {
-    context.check_policy(PROCESS_SESSION_SETSID)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let value = core_process::process_setsid()?;
-    unsafe {
-        *out = value;
-    }
 
-    Ok(())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.session.setsid",
+    ))
+    .boxed())
 }
