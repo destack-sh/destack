@@ -68,17 +68,11 @@ export interface Filesystem {
   // yields chunks of size highWaterMark (until the last one), or 64KB if
   // highWaterMark isn't specified.
   // https://nodejs.org/api/stream.html#readablesymbolasynciterator
-  createReadStream(
-    path: string,
-    options: { highWaterMark?: number },
-  ): ReadStream;
+  createReadStream(path: string, options: { highWaterMark?: number }): ReadStream;
   access(path: string): void;
 
   writeUtf8File(path: string, contents: string, mode?: Mode): void;
-  mkdir(
-    dirPath: string,
-    options?: { allowExisting?: boolean; recursive?: boolean },
-  ): void;
+  mkdir(dirPath: string, options?: { allowExisting?: boolean; recursive?: boolean }): void;
   rmdir(path: string): void;
   unlink(path: string): void;
   swapTmpFile(fromPath: TempPath, toPath: string): void;
@@ -91,18 +85,12 @@ export type TempPath = string & { __tempPath: "tempPath" };
 
 export interface TempDir {
   writeUtf8File(contents: string): TempPath;
-  writeFileStream(
-    path: TempPath,
-    stream: Readable,
-    onData?: (chunk: any) => void,
-  ): Promise<void>;
+  writeFileStream(path: TempPath, stream: Readable, onData?: (chunk: any) => void): Promise<void>;
   registerTempPath(st: Stats | null): TempPath;
   path: TempPath;
 }
 
-export async function withTmpDir(
-  callback: (tmpDir: TempDir) => Promise<void>,
-): Promise<void> {
+export async function withTmpDir(callback: (tmpDir: TempDir) => Promise<void>): Promise<void> {
   // Create temporary directories inside `tmpDirRoot` of the form `convex-<random>`.
   const tmpPath = stdFs.mkdtempSync(path.join(tmpDirRoot, "convex"));
   const tmpDir = {
@@ -156,10 +144,7 @@ export class NodeFs implements Filesystem {
   readUtf8File(path: string) {
     return stdFs.readFileSync(path, { encoding: "utf-8" });
   }
-  createReadStream(
-    path: string,
-    options: { highWaterMark?: number },
-  ): ReadStream {
+  createReadStream(path: string, options: { highWaterMark?: number }): ReadStream {
     return stdFs.createReadStream(path, options);
   }
   // To avoid issues with filesystem events triggering for our own streamed file
@@ -198,10 +183,7 @@ export class NodeFs implements Filesystem {
       stdFs.closeSync(fd);
     }
   }
-  mkdir(
-    dirPath: string,
-    options?: { allowExisting?: boolean; recursive?: boolean },
-  ): void {
+  mkdir(dirPath: string, options?: { allowExisting?: boolean; recursive?: boolean }): void {
     try {
       stdFs.mkdirSync(dirPath, { recursive: options?.recursive });
     } catch (e: any) {
@@ -331,10 +313,7 @@ export class RecordingFs implements Filesystem {
       throw err;
     }
   }
-  createReadStream(
-    path: string,
-    options: { highWaterMark?: number },
-  ): ReadStream {
+  createReadStream(path: string, options: { highWaterMark?: number }): ReadStream {
     try {
       const st = nodeFs.stat(path);
       this.registerPath(path, st);
@@ -367,10 +346,7 @@ export class RecordingFs implements Filesystem {
     this.updateOnWrite(absPath);
   }
 
-  mkdir(
-    dirPath: string,
-    options?: { allowExisting?: boolean; recursive?: boolean },
-  ): void {
+  mkdir(dirPath: string, options?: { allowExisting?: boolean; recursive?: boolean }): void {
     const absPath = path.resolve(dirPath);
     try {
       stdFs.mkdirSync(absPath, { recursive: options?.recursive });
@@ -475,10 +451,7 @@ export class Observations {
   directories: Map<string, Set<string>>;
   files: Map<string, Stats | null>;
 
-  constructor(
-    directories: Map<string, Set<string>>,
-    files: Map<string, Stats | null>,
-  ) {
+  constructor(directories: Map<string, Set<string>>, files: Map<string, Stats | null>) {
     this.directories = directories;
     this.files = files;
   }
@@ -494,9 +467,7 @@ export class Observations {
     return out;
   }
 
-  overlaps({
-    absPath,
-  }: WatchEvent): { overlaps: false } | { overlaps: true; reason: string } {
+  overlaps({ absPath }: WatchEvent): { overlaps: false } | { overlaps: true; reason: string } {
     let currentSt: null | Stats;
     try {
       currentSt = nodeFs.stat(absPath);

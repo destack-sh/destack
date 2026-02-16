@@ -44,13 +44,13 @@ const { injectable, inject } = createInjections();
 
 @injectable
 class C {
-  @inject('store') store;
+  @inject("store") store;
 }
 
 let container = new Container();
 let store = new Store();
 
-container.register('store', store);
+container.register("store", store);
 
 let c = container.create(C);
 

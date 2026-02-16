@@ -463,7 +463,14 @@ export namespace JSC {
       /**
        * Scope type.
        */
-      type: "global" | "with" | "closure" | "catch" | "functionName" | "globalLexicalEnvironment" | "nestedLexical";
+      type:
+        | "global"
+        | "with"
+        | "closure"
+        | "catch"
+        | "functionName"
+        | "globalLexicalEnvironment"
+        | "nestedLexical";
       /**
        * Name associated with the scope.
        */
@@ -1514,7 +1521,15 @@ export namespace JSC {
       /**
        * Object type.
        */
-      type: "object" | "function" | "undefined" | "string" | "number" | "boolean" | "symbol" | "bigint";
+      type:
+        | "object"
+        | "function"
+        | "undefined"
+        | "string"
+        | "number"
+        | "boolean"
+        | "symbol"
+        | "bigint";
       /**
        * Object subtype hint. Specified for <code>object</code> <code>function</code> (for class) type values only.
        */
@@ -1570,7 +1585,15 @@ export namespace JSC {
       /**
        * Object type.
        */
-      type: "object" | "function" | "undefined" | "string" | "number" | "boolean" | "symbol" | "bigint";
+      type:
+        | "object"
+        | "function"
+        | "undefined"
+        | "string"
+        | "number"
+        | "boolean"
+        | "symbol"
+        | "bigint";
       /**
        * Object subtype hint. Specified for <code>object</code> type values only.
        */
@@ -1623,7 +1646,16 @@ export namespace JSC {
       /**
        * Object type.
        */
-      type: "object" | "function" | "undefined" | "string" | "number" | "boolean" | "symbol" | "bigint" | "accessor";
+      type:
+        | "object"
+        | "function"
+        | "undefined"
+        | "string"
+        | "number"
+        | "boolean"
+        | "symbol"
+        | "bigint"
+        | "accessor";
       /**
        * Object subtype hint. Specified for <code>object</code> type values only.
        */
