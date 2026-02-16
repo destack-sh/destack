@@ -72,6 +72,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
 
     // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
+        .with_handle(handle as _)
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),
@@ -134,6 +135,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
 
     // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
+        .with_handle(handle as _)
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),
@@ -202,6 +204,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
 
     // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
+        .with_handle(handle as _)
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),
@@ -270,6 +273,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
 
     // register the resource handle
     let entry = ResourceEntry::new(ResourceKind::File)
+        .with_handle(handle as _)
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),

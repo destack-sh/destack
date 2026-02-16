@@ -1917,6 +1917,7 @@ pub unsafe extern "C" fn destack_timer_fd_close(handle: resource::TimerFdHandle)
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(TIMER_FD_CLOSE)?;
         let world = context.check_and_resolve_world(TIMER_FD_CLOSE)?;
         destack_timer_fd_close_replay(context, world, handle)
     })
@@ -1933,6 +1934,7 @@ pub unsafe extern "C" fn destack_timer_fd_get(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(TIMER_FD_GET)?;
         let world = context.check_and_resolve_world(TIMER_FD_GET)?;
         destack_timer_fd_get_replay(context, world, out, handle)
     })
@@ -1950,6 +1952,7 @@ pub unsafe extern "C" fn destack_timer_fd_open(
         }
         let _ = (&out, &clock, &flags);
 
+        context.check_policy(TIMER_FD_OPEN)?;
         let world = context.check_and_resolve_world(TIMER_FD_OPEN)?;
         destack_timer_fd_open_replay(context, world, out, clock, flags)
     })
@@ -1966,6 +1969,7 @@ pub unsafe extern "C" fn destack_timer_fd_read(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(TIMER_FD_READ)?;
         let world = context.check_and_resolve_world(TIMER_FD_READ)?;
         destack_timer_fd_read_replay(context, world, out, handle)
     })
@@ -1980,6 +1984,7 @@ pub unsafe extern "C" fn destack_timer_fd_set(
     native_call(|context| {
         let _ = (&handle, &spec, &flags);
 
+        context.check_policy(TIMER_FD_SET)?;
         let world = context.check_and_resolve_world(TIMER_FD_SET)?;
         destack_timer_fd_set_replay(context, world, handle, spec, flags)
     })
@@ -2961,6 +2966,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle,) = decode_destack_timer_fd_close_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIMER_FD_CLOSE)?;
                 let world = runtime.check_and_resolve_world(TIMER_FD_CLOSE)?;
                 destack_timer_fd_close_vm_replay(runtime, context, world, handle)
             })
@@ -2974,6 +2980,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle,) = decode_destack_timer_fd_get_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIMER_FD_GET)?;
                 let world = runtime.check_and_resolve_world(TIMER_FD_GET)?;
                 destack_timer_fd_get_vm_replay(runtime, context, world, handle)
             })
@@ -2987,6 +2994,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (clock, flags) = decode_destack_timer_fd_open_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIMER_FD_OPEN)?;
                 let world = runtime.check_and_resolve_world(TIMER_FD_OPEN)?;
                 destack_timer_fd_open_vm_replay(runtime, context, world, clock, flags)
             })
@@ -3000,6 +3008,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle,) = decode_destack_timer_fd_read_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIMER_FD_READ)?;
                 let world = runtime.check_and_resolve_world(TIMER_FD_READ)?;
                 destack_timer_fd_read_vm_replay(runtime, context, world, handle)
             })
@@ -3013,6 +3022,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle, spec, flags) = decode_destack_timer_fd_set_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(TIMER_FD_SET)?;
                 let world = runtime.check_and_resolve_world(TIMER_FD_SET)?;
                 destack_timer_fd_set_vm_replay(runtime, context, world, handle, spec, flags)
             })

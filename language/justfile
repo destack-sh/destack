@@ -141,6 +141,19 @@ test-windows-runtime:
     fi; \
     WINEDEBUG="${WINEDEBUG:--all}" wine "$EXE"
 
+# run privileged runtime platform tests for process, fs, and net
+test-runtime-privileged:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(id -u)" != "0" ]; then
+        echo "test-runtime-privileged requires elevated privileges (run as root/admin)"
+        exit 1
+    fi
+    DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::process::tests:: -- --nocapture
+    DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::fs::tests:: -- --nocapture
+    DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::net::tests:: -- --nocapture
+
+
 # check runtime for cross targets using Zig as the C toolchain
 check-runtime-targets:
     CARGO_INCREMENTAL=0 \

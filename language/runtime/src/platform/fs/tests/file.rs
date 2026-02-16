@@ -2,6 +2,7 @@
 use super::{temp_dir, with_harness_context};
 use crate::platform::fs::{FileMode, FileOffset, OpenFlags, SeekWhence};
 
+/// Truncate a file and persist the change with fsync.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_truncate_and_fsync() {
@@ -42,6 +43,7 @@ fn test_fs_truncate_and_fsync() {
     });
 }
 
+/// Write and read file data through vectored io calls.
 #[cfg(unix)]
 #[test]
 fn test_fs_readv_writev() {
@@ -87,6 +89,7 @@ fn test_fs_readv_writev() {
     });
 }
 
+/// Write and read file data through positional vectored io calls.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_preadv_pwritev() {

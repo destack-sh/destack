@@ -798,6 +798,7 @@ pub unsafe extern "C" fn destack_security_enforce_sandbox_install_filter(
         let _ = (&handle, &filter);
 
         {
+            context.check_policy(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
             let world = context.check_and_resolve_world(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1103,6 +1104,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
                         let world = runtime
                             .check_and_resolve_world(SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER)?;
                         match world {

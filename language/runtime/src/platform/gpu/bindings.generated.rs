@@ -6448,6 +6448,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_close(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_ADAPTER_CLOSE)?;
         let world = context.check_and_resolve_world(GPU_ADAPTER_CLOSE)?;
         destack_gpu_adapter_close_replay(context, world, handle)
     })
@@ -6464,6 +6465,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_info(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(GPU_ADAPTER_INFO)?;
         let world = context.check_and_resolve_world(GPU_ADAPTER_INFO)?;
         destack_gpu_adapter_info_replay(context, world, out, handle)
     })
@@ -6480,6 +6482,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_list(
         }
         let _ = (&out, &request);
 
+        context.check_policy(GPU_ADAPTER_LIST)?;
         let world = context.check_and_resolve_world(GPU_ADAPTER_LIST)?;
         destack_gpu_adapter_list_replay(context, world, out, request)
     })
@@ -6496,6 +6499,7 @@ pub unsafe extern "C" fn destack_gpu_adapter_open(
         }
         let _ = (&out, &id);
 
+        context.check_policy(GPU_ADAPTER_OPEN)?;
         let world = context.check_and_resolve_world(GPU_ADAPTER_OPEN)?;
         destack_gpu_adapter_open_replay(context, world, out, id)
     })
@@ -6509,6 +6513,7 @@ pub unsafe extern "C" fn destack_gpu_command_bind_compute_pipeline(
     native_call(|context| {
         let _ = (&handle, &pipeline);
 
+        context.check_policy(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
         destack_gpu_command_bind_compute_pipeline_replay(context, world, handle, pipeline)
     })
@@ -6522,6 +6527,7 @@ pub unsafe extern "C" fn destack_gpu_command_bind_render_pipeline(
     native_call(|context| {
         let _ = (&handle, &pipeline);
 
+        context.check_policy(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
         destack_gpu_command_bind_render_pipeline_replay(context, world, handle, pipeline)
     })
@@ -6534,6 +6540,7 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_begin(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
         destack_gpu_command_compute_pass_begin_replay(context, world, handle)
     })
@@ -6546,6 +6553,7 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_end(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_COMMAND_COMPUTE_PASS_END)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
         destack_gpu_command_compute_pass_end_replay(context, world, handle)
     })
@@ -6563,6 +6571,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_buffer(
     native_call(|context| {
         let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &argument_bytes);
 
+        context.check_policy(GPU_COMMAND_COPY_BUFFER)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
         destack_gpu_command_copy_buffer_replay(
             context,
@@ -6587,6 +6596,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_buffer_to_texture(
     native_call(|context| {
         let _ = (&handle, &source, &destination, &size);
 
+        context.check_policy(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
         destack_gpu_command_copy_buffer_to_texture_replay(
             context,
@@ -6609,6 +6619,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_buffer(
     native_call(|context| {
         let _ = (&handle, &source, &destination, &size);
 
+        context.check_policy(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
         destack_gpu_command_copy_texture_to_buffer_replay(
             context,
@@ -6631,6 +6642,7 @@ pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_texture(
     native_call(|context| {
         let _ = (&handle, &source, &destination, &size);
 
+        context.check_policy(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
         destack_gpu_command_copy_texture_to_texture_replay(
             context,
@@ -6653,6 +6665,7 @@ pub unsafe extern "C" fn destack_gpu_command_dispatch(
     native_call(|context| {
         let _ = (&handle, &groupx, &groupy, &groupz);
 
+        context.check_policy(GPU_COMMAND_DISPATCH)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_DISPATCH)?;
         destack_gpu_command_dispatch_replay(context, world, handle, groupx, groupy, groupz)
     })
@@ -6675,6 +6688,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw(
             &firstinstance,
         );
 
+        context.check_policy(GPU_COMMAND_DRAW)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_DRAW)?;
         destack_gpu_command_draw_replay(
             context,
@@ -6707,6 +6721,7 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indexed(
             &firstinstance,
         );
 
+        context.check_policy(GPU_COMMAND_DRAW_INDEXED)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
         destack_gpu_command_draw_indexed_replay(
             context,
@@ -6728,6 +6743,7 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_close(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_COMMAND_ENCODER_CLOSE)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
         destack_gpu_command_encoder_close_replay(context, world, handle)
     })
@@ -6740,6 +6756,7 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_finish(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_COMMAND_ENCODER_FINISH)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
         destack_gpu_command_encoder_finish_replay(context, world, handle)
     })
@@ -6757,6 +6774,7 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_open(
         }
         let _ = (&out, &device, &options);
 
+        context.check_policy(GPU_COMMAND_ENCODER_OPEN)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
         destack_gpu_command_encoder_open_replay(context, world, out, device, options)
     })
@@ -6771,6 +6789,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_submit(
     native_call(|context| {
         let _ = (&queue, &commandlists, &options);
 
+        context.check_policy(GPU_COMMAND_QUEUE_SUBMIT)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
         destack_gpu_command_queue_submit_replay(context, world, queue, commandlists, options)
     })
@@ -6784,6 +6803,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_wait_idle(
     native_call(|context| {
         let _ = (&queue, &timeoutns);
 
+        context.check_policy(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
         destack_gpu_command_queue_wait_idle_replay(context, world, queue, timeoutns)
     })
@@ -6801,6 +6821,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_write_buffer(
     native_call(|context| {
         let _ = (&queue, &buffer, &bufferoffset, &data, &dataoffset, &size);
 
+        context.check_policy(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
         destack_gpu_command_queue_write_buffer_replay(
             context,
@@ -6826,6 +6847,7 @@ pub unsafe extern "C" fn destack_gpu_command_queue_write_texture(
     native_call(|context| {
         let _ = (&queue, &destination, &data, &layout, &size);
 
+        context.check_policy(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
         destack_gpu_command_queue_write_texture_replay(
             context,
@@ -6847,6 +6869,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_begin(
     native_call(|context| {
         let _ = (&handle, &options);
 
+        context.check_policy(GPU_COMMAND_RENDER_PASS_BEGIN)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
         destack_gpu_command_render_pass_begin_replay(context, world, handle, options)
     })
@@ -6859,6 +6882,7 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_end(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_COMMAND_RENDER_PASS_END)?;
         let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
         destack_gpu_command_render_pass_end_replay(context, world, handle)
     })
@@ -6871,6 +6895,7 @@ pub unsafe extern "C" fn destack_gpu_device_close(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_DEVICE_CLOSE)?;
         let world = context.check_and_resolve_world(GPU_DEVICE_CLOSE)?;
         destack_gpu_device_close_replay(context, world, handle)
     })
@@ -6887,6 +6912,7 @@ pub unsafe extern "C" fn destack_gpu_device_info(
         }
         let _ = (&out, &device);
 
+        context.check_policy(GPU_DEVICE_INFO)?;
         let world = context.check_and_resolve_world(GPU_DEVICE_INFO)?;
         destack_gpu_device_info_replay(context, world, out, device)
     })
@@ -6904,6 +6930,7 @@ pub unsafe extern "C" fn destack_gpu_device_open(
         }
         let _ = (&out, &adapter, &options);
 
+        context.check_policy(GPU_DEVICE_OPEN)?;
         let world = context.check_and_resolve_world(GPU_DEVICE_OPEN)?;
         destack_gpu_device_open_replay(context, world, out, adapter, options)
     })
@@ -6922,6 +6949,7 @@ pub unsafe extern "C" fn destack_gpu_device_poll(
         }
         let _ = (&out, &device, &wait, &timeoutns);
 
+        context.check_policy(GPU_DEVICE_POLL)?;
         let world = context.check_and_resolve_world(GPU_DEVICE_POLL)?;
         destack_gpu_device_poll_replay(context, world, out, device, wait, timeoutns)
     })
@@ -6938,6 +6966,7 @@ pub unsafe extern "C" fn destack_gpu_device_queue(
         }
         let _ = (&out, &device);
 
+        context.check_policy(GPU_DEVICE_QUEUE)?;
         let world = context.check_and_resolve_world(GPU_DEVICE_QUEUE)?;
         destack_gpu_device_queue_replay(context, world, out, device)
     })
@@ -6955,6 +6984,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_compute_create(
         }
         let _ = (&out, &device, &options);
 
+        context.check_policy(GPU_PIPELINE_COMPUTE_CREATE)?;
         let world = context.check_and_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
         destack_gpu_pipeline_compute_create_replay(context, world, out, device, options)
     })
@@ -6967,6 +6997,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_destroy(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_PIPELINE_DESTROY)?;
         let world = context.check_and_resolve_world(GPU_PIPELINE_DESTROY)?;
         destack_gpu_pipeline_destroy_replay(context, world, handle)
     })
@@ -6984,6 +7015,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_render_create(
         }
         let _ = (&out, &device, &options);
 
+        context.check_policy(GPU_PIPELINE_RENDER_CREATE)?;
         let world = context.check_and_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
         destack_gpu_pipeline_render_create_replay(context, world, out, device, options)
     })
@@ -7002,6 +7034,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_create(
         }
         let _ = (&out, &device, &options, &argument_bytes);
 
+        context.check_policy(GPU_PIPELINE_SHADER_CREATE)?;
         let world = context.check_and_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
         destack_gpu_pipeline_shader_create_replay(
             context,
@@ -7021,6 +7054,7 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_destroy(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_PIPELINE_SHADER_DESTROY)?;
         let world = context.check_and_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
         destack_gpu_pipeline_shader_destroy_replay(context, world, handle)
     })
@@ -7036,6 +7070,7 @@ pub unsafe extern "C" fn destack_gpu_present_queue_present(
         let _ = (&queue, &window, &options);
 
         {
+            context.check_policy(GPU_PRESENT_QUEUE_PRESENT)?;
             let world = context.check_and_resolve_world(GPU_PRESENT_QUEUE_PRESENT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -7061,6 +7096,7 @@ pub unsafe extern "C" fn destack_gpu_present_surface_configure(
         let _ = (&device, &window, &options);
 
         {
+            context.check_policy(GPU_PRESENT_SURFACE_CONFIGURE)?;
             let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_CONFIGURE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -7088,6 +7124,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_create(
         }
         let _ = (&out, &device, &options);
 
+        context.check_policy(GPU_RESOURCE_BUFFER_CREATE)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
         destack_gpu_resource_buffer_create_replay(context, world, out, device, options)
     })
@@ -7100,6 +7137,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_destroy(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_RESOURCE_BUFFER_DESTROY)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
         destack_gpu_resource_buffer_destroy_replay(context, world, handle)
     })
@@ -7118,6 +7156,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_read(
         }
         let _ = (&out, &handle, &offset, &length);
 
+        context.check_policy(GPU_RESOURCE_BUFFER_READ)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
         destack_gpu_resource_buffer_read_replay(context, world, out, handle, offset, length)
     })
@@ -7132,6 +7171,7 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_write(
     native_call(|context| {
         let _ = (&handle, &offset, &argument_bytes);
 
+        context.check_policy(GPU_RESOURCE_BUFFER_WRITE)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
         destack_gpu_resource_buffer_write_replay(context, world, handle, offset, argument_bytes)
     })
@@ -7150,6 +7190,7 @@ pub unsafe extern "C" fn destack_gpu_resource_memory_map(
         }
         let _ = (&out, &handle, &offset, &length);
 
+        context.check_policy(GPU_RESOURCE_MEMORY_MAP)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_MEMORY_MAP)?;
         destack_gpu_resource_memory_map_replay(context, world, out, handle, offset, length)
     })
@@ -7162,6 +7203,7 @@ pub unsafe extern "C" fn destack_gpu_resource_memory_unmap(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_RESOURCE_MEMORY_UNMAP)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_MEMORY_UNMAP)?;
         destack_gpu_resource_memory_unmap_replay(context, world, handle)
     })
@@ -7179,6 +7221,7 @@ pub unsafe extern "C" fn destack_gpu_resource_sampler_create(
         }
         let _ = (&out, &device, &options);
 
+        context.check_policy(GPU_RESOURCE_SAMPLER_CREATE)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
         destack_gpu_resource_sampler_create_replay(context, world, out, device, options)
     })
@@ -7191,6 +7234,7 @@ pub unsafe extern "C" fn destack_gpu_resource_sampler_destroy(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_RESOURCE_SAMPLER_DESTROY)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
         destack_gpu_resource_sampler_destroy_replay(context, world, handle)
     })
@@ -7208,6 +7252,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_create(
         }
         let _ = (&out, &device, &options);
 
+        context.check_policy(GPU_RESOURCE_TEXTURE_CREATE)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
         destack_gpu_resource_texture_create_replay(context, world, out, device, options)
     })
@@ -7220,6 +7265,7 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_destroy(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(GPU_RESOURCE_TEXTURE_DESTROY)?;
         let world = context.check_and_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
         destack_gpu_resource_texture_destroy_replay(context, world, handle)
     })
@@ -10233,6 +10279,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_adapter_close_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_ADAPTER_CLOSE)?;
                     let world = runtime.check_and_resolve_world(GPU_ADAPTER_CLOSE)?;
                     destack_gpu_adapter_close_vm_replay(runtime, context, world, handle)
                 })
@@ -10247,6 +10294,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle,) = decode_destack_gpu_adapter_info_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_ADAPTER_INFO)?;
                 let world = runtime.check_and_resolve_world(GPU_ADAPTER_INFO)?;
                 destack_gpu_adapter_info_vm_replay(runtime, context, world, handle)
             })
@@ -10260,6 +10308,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (request,) = decode_destack_gpu_adapter_list_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_ADAPTER_LIST)?;
                 let world = runtime.check_and_resolve_world(GPU_ADAPTER_LIST)?;
                 destack_gpu_adapter_list_vm_replay(runtime, context, world, request)
             })
@@ -10273,6 +10322,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (id,) = decode_destack_gpu_adapter_open_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_ADAPTER_OPEN)?;
                 let world = runtime.check_and_resolve_world(GPU_ADAPTER_OPEN)?;
                 destack_gpu_adapter_open_vm_replay(runtime, context, world, id)
             })
@@ -10291,6 +10341,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_bind_compute_pipeline_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
                     let world =
                         runtime.check_and_resolve_world(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
                     destack_gpu_command_bind_compute_pipeline_vm_replay(
@@ -10313,6 +10364,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_bind_render_pipeline_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
                     let world =
                         runtime.check_and_resolve_world(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
                     destack_gpu_command_bind_render_pipeline_vm_replay(
@@ -10335,6 +10387,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_compute_pass_begin_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
                     destack_gpu_command_compute_pass_begin_vm_replay(
                         runtime, context, world, handle,
@@ -10356,6 +10409,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_compute_pass_end_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_COMPUTE_PASS_END)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
                     destack_gpu_command_compute_pass_end_vm_replay(runtime, context, world, handle)
                 })
@@ -10375,6 +10429,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_buffer_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_COPY_BUFFER)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
                     destack_gpu_command_copy_buffer_vm_replay(
                         runtime,
@@ -10404,6 +10459,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_buffer_to_texture_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
                     let world =
                         runtime.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
                     destack_gpu_command_copy_buffer_to_texture_vm_replay(
@@ -10432,6 +10488,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_texture_to_buffer_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
                     let world =
                         runtime.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
                     destack_gpu_command_copy_texture_to_buffer_vm_replay(
@@ -10460,6 +10517,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_texture_to_texture_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
                     let world =
                         runtime.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
                     destack_gpu_command_copy_texture_to_texture_vm_replay(
@@ -10488,6 +10546,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_dispatch_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_DISPATCH)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_DISPATCH)?;
                     destack_gpu_command_dispatch_vm_replay(
                         runtime, context, world, handle, groupx, groupy, groupz,
@@ -10505,6 +10564,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_gpu_command_draw_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_COMMAND_DRAW)?;
                 let world = runtime.check_and_resolve_world(GPU_COMMAND_DRAW)?;
                 destack_gpu_command_draw_vm_replay(
                     runtime,
@@ -10532,6 +10592,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_draw_indexed_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_DRAW_INDEXED)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
                     destack_gpu_command_draw_indexed_vm_replay(
                         runtime,
@@ -10560,6 +10621,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_command_encoder_close_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_ENCODER_CLOSE)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
                     destack_gpu_command_encoder_close_vm_replay(runtime, context, world, handle)
                 })
@@ -10578,6 +10640,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_command_encoder_finish_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_ENCODER_FINISH)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
                     destack_gpu_command_encoder_finish_vm_replay(runtime, context, world, handle)
                 })
@@ -10597,6 +10660,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_encoder_open_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_ENCODER_OPEN)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
                     destack_gpu_command_encoder_open_vm_replay(
                         runtime, context, world, device, options,
@@ -10618,6 +10682,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_submit_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_QUEUE_SUBMIT)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
                     destack_gpu_command_queue_submit_vm_replay(
                         runtime,
@@ -10644,6 +10709,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_wait_idle_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
                     destack_gpu_command_queue_wait_idle_vm_replay(
                         runtime, context, world, queue, timeoutns,
@@ -10665,6 +10731,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_write_buffer_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
                     destack_gpu_command_queue_write_buffer_vm_replay(
                         runtime,
@@ -10694,6 +10761,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_write_texture_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
                     destack_gpu_command_queue_write_texture_vm_replay(
                         runtime,
@@ -10722,6 +10790,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_pass_begin_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_RENDER_PASS_BEGIN)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
                     destack_gpu_command_render_pass_begin_vm_replay(
                         runtime, context, world, handle, options,
@@ -10742,6 +10811,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_command_render_pass_end_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_COMMAND_RENDER_PASS_END)?;
                     let world = runtime.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
                     destack_gpu_command_render_pass_end_vm_replay(runtime, context, world, handle)
                 })
@@ -10756,6 +10826,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle,) = decode_destack_gpu_device_close_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_DEVICE_CLOSE)?;
                 let world = runtime.check_and_resolve_world(GPU_DEVICE_CLOSE)?;
                 destack_gpu_device_close_vm_replay(runtime, context, world, handle)
             })
@@ -10769,6 +10840,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (device,) = decode_destack_gpu_device_info_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_DEVICE_INFO)?;
                 let world = runtime.check_and_resolve_world(GPU_DEVICE_INFO)?;
                 destack_gpu_device_info_vm_replay(runtime, context, world, device)
             })
@@ -10782,6 +10854,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (adapter, options) = decode_destack_gpu_device_open_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_DEVICE_OPEN)?;
                 let world = runtime.check_and_resolve_world(GPU_DEVICE_OPEN)?;
                 destack_gpu_device_open_vm_replay(runtime, context, world, adapter, options)
             })
@@ -10795,6 +10868,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (device, wait, timeoutns) = decode_destack_gpu_device_poll_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_DEVICE_POLL)?;
                 let world = runtime.check_and_resolve_world(GPU_DEVICE_POLL)?;
                 destack_gpu_device_poll_vm_replay(runtime, context, world, device, wait, timeoutns)
             })
@@ -10808,6 +10882,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (device,) = decode_destack_gpu_device_queue_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(GPU_DEVICE_QUEUE)?;
                 let world = runtime.check_and_resolve_world(GPU_DEVICE_QUEUE)?;
                 destack_gpu_device_queue_vm_replay(runtime, context, world, device)
             })
@@ -10826,6 +10901,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_compute_create_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_PIPELINE_COMPUTE_CREATE)?;
                     let world = runtime.check_and_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
                     destack_gpu_pipeline_compute_create_vm_replay(
                         runtime, context, world, device, options,
@@ -10846,6 +10922,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_pipeline_destroy_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_PIPELINE_DESTROY)?;
                     let world = runtime.check_and_resolve_world(GPU_PIPELINE_DESTROY)?;
                     destack_gpu_pipeline_destroy_vm_replay(runtime, context, world, handle)
                 })
@@ -10865,6 +10942,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_render_create_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_PIPELINE_RENDER_CREATE)?;
                     let world = runtime.check_and_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
                     destack_gpu_pipeline_render_create_vm_replay(
                         runtime, context, world, device, options,
@@ -10886,6 +10964,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_shader_create_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_PIPELINE_SHADER_CREATE)?;
                     let world = runtime.check_and_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
                     destack_gpu_pipeline_shader_create_vm_replay(
                         runtime,
@@ -10911,6 +10990,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_pipeline_shader_destroy_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_PIPELINE_SHADER_DESTROY)?;
                     let world = runtime.check_and_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
                     destack_gpu_pipeline_shader_destroy_vm_replay(runtime, context, world, handle)
                 })
@@ -10931,6 +11011,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(GPU_PRESENT_QUEUE_PRESENT)?;
                         let world = runtime.check_and_resolve_world(GPU_PRESENT_QUEUE_PRESENT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_queue_present(
@@ -10962,6 +11043,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(GPU_PRESENT_SURFACE_CONFIGURE)?;
                         let world =
                             runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_CONFIGURE)?;
                         match world {
@@ -10993,6 +11075,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_buffer_create_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_BUFFER_CREATE)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
                     destack_gpu_resource_buffer_create_vm_replay(
                         runtime, context, world, device, options,
@@ -11013,6 +11096,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_resource_buffer_destroy_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_BUFFER_DESTROY)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
                     destack_gpu_resource_buffer_destroy_vm_replay(runtime, context, world, handle)
                 })
@@ -11032,6 +11116,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_buffer_read_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_BUFFER_READ)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
                     destack_gpu_resource_buffer_read_vm_replay(
                         runtime, context, world, handle, offset, length,
@@ -11053,6 +11138,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_buffer_write_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_BUFFER_WRITE)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
                     destack_gpu_resource_buffer_write_vm_replay(
                         runtime,
@@ -11079,6 +11165,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_memory_map_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_MEMORY_MAP)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_MEMORY_MAP)?;
                     destack_gpu_resource_memory_map_vm_replay(
                         runtime, context, world, handle, offset, length,
@@ -11099,6 +11186,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_resource_memory_unmap_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_MEMORY_UNMAP)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_MEMORY_UNMAP)?;
                     destack_gpu_resource_memory_unmap_vm_replay(runtime, context, world, handle)
                 })
@@ -11118,6 +11206,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_sampler_create_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_SAMPLER_CREATE)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
                     destack_gpu_resource_sampler_create_vm_replay(
                         runtime, context, world, device, options,
@@ -11139,6 +11228,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_sampler_destroy_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_SAMPLER_DESTROY)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
                     destack_gpu_resource_sampler_destroy_vm_replay(runtime, context, world, handle)
                 })
@@ -11158,6 +11248,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_texture_create_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_TEXTURE_CREATE)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
                     destack_gpu_resource_texture_create_vm_replay(
                         runtime, context, world, device, options,
@@ -11179,6 +11270,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_texture_destroy_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(GPU_RESOURCE_TEXTURE_DESTROY)?;
                     let world = runtime.check_and_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
                     destack_gpu_resource_texture_destroy_vm_replay(runtime, context, world, handle)
                 })

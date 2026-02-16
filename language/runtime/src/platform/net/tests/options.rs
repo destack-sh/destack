@@ -5,6 +5,7 @@ use super::{NetHarnessKind, assert_platform_error_codes, native_slice_mut, with_
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{KeepAliveConfig, destack_net_read};
 
+/// Configure basic socket options and verify nonblocking read behavior.
 #[cfg(unix)]
 #[test]
 fn test_net_socket_options() {
@@ -31,23 +32,36 @@ fn test_net_socket_options() {
             )?;
         }
 
+        // nonblocking read should fail predictably without inbound data
         match context.kind() {
             NetHarnessKind::Native => {
                 let mut buffer = vec![0u8; 16];
                 let slice = native_slice_mut(&mut buffer);
                 let mut out = 0u64;
                 let status = unsafe { destack_net_read(&mut out, socket, slice) };
-                context.status_err(status, "read nonblocking")?;
+                assert_platform_error_codes(
+                    context.status_result(status, "read nonblocking"),
+                    &[
+                        PlatformErrorCode::IoWouldBlock,
+                        PlatformErrorCode::Io,
+                        PlatformErrorCode::Net,
+                    ],
+                )?;
             }
             NetHarnessKind::Vm => {
                 let mut buffer = vec![0u8; 16];
                 assert_platform_error_codes(
                     context.read(socket, &mut buffer),
-                    &[PlatformErrorCode::Net, PlatformErrorCode::IoWouldBlock],
+                    &[
+                        PlatformErrorCode::IoWouldBlock,
+                        PlatformErrorCode::Io,
+                        PlatformErrorCode::Net,
+                    ],
                 )?;
             }
         }
 
+        // repeated option writes should remain idempotent
         match context.kind() {
             NetHarnessKind::Native => {
                 context.set_reuse_addr(socket, true)?;
@@ -87,6 +101,7 @@ fn test_net_socket_options() {
     });
 }
 
+/// Configure extended stream and datagram socket options.
 #[cfg(unix)]
 #[test]
 fn test_net_socket_options_extended() {
@@ -109,6 +124,7 @@ fn test_net_socket_options_extended() {
         context.set_read_timeout(client, 50)?;
         context.set_write_timeout(client, 50)?;
         context.set_ttl(client, 64)?;
+        context.set_no_delay(client, true)?;
 
         // extended keepalive fields
         let keepalive_result = context.set_keep_alive_config(
@@ -121,14 +137,13 @@ fn test_net_socket_options_extended() {
             },
         );
         if let Err(error) = keepalive_result {
-            let code = error.platform_error().map(|error| error.code);
-            assert!(
-                matches!(
-                    code,
-                    Some(PlatformErrorCode::NotSupported) | Some(PlatformErrorCode::Io)
-                ),
-                "unexpected setKeepAlive error code: {code:?}",
-            );
+            assert_platform_error_codes::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                ],
+            )?;
         }
 
         // udp options
@@ -141,17 +156,18 @@ fn test_net_socket_options_extended() {
         // multicast membership may not be supported by host setup
         let join_result = context.join_multicast(udp, "224.0.0.251", "127.0.0.1");
         if let Err(error) = join_result {
-            let code = error.platform_error().map(|error| error.code);
-            assert!(
-                matches!(
-                    code,
-                    Some(PlatformErrorCode::NotSupported)
-                        | Some(PlatformErrorCode::NetAddressNotAvailable)
-                        | Some(PlatformErrorCode::Net)
-                        | Some(PlatformErrorCode::Io)
-                ),
-                "unexpected joinMulticast error code: {code:?}",
-            );
+            assert_platform_error_codes::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::NetAddressNotAvailable,
+                    PlatformErrorCode::NetNetworkUnreachable,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                    PlatformErrorCode::NetNoBufferSpace,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                ],
+            )?;
         } else {
             context.leave_multicast(udp, "224.0.0.251", "127.0.0.1")?;
         }

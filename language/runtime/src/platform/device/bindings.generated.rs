@@ -770,6 +770,7 @@ pub unsafe extern "C" fn destack_device_control_control(
         }
         let _ = (&out, &handle, &operation, &input, &output);
 
+        context.check_policy(DEVICE_CONTROL_CONTROL)?;
         let world = context.check_and_resolve_world(DEVICE_CONTROL_CONTROL)?;
         destack_device_control_control_replay(context, world, out, handle, operation, input, output)
     })
@@ -780,6 +781,7 @@ pub unsafe extern "C" fn destack_device_io_close(handle: resource::DeviceHandle)
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(DEVICE_IO_CLOSE)?;
         let world = context.check_and_resolve_world(DEVICE_IO_CLOSE)?;
         destack_device_io_close_replay(context, world, handle)
     })
@@ -798,6 +800,7 @@ pub unsafe extern "C" fn destack_device_io_open(
         }
         let _ = (&out, &path, &flags, &mode);
 
+        context.check_policy(DEVICE_IO_OPEN)?;
         let world = context.check_and_resolve_world(DEVICE_IO_OPEN)?;
         destack_device_io_open_replay(context, world, out, path, flags, mode)
     })
@@ -815,6 +818,7 @@ pub unsafe extern "C" fn destack_device_io_read(
         }
         let _ = (&out, &handle, &buffer);
 
+        context.check_policy(DEVICE_IO_READ)?;
         let world = context.check_and_resolve_world(DEVICE_IO_READ)?;
         destack_device_io_read_replay(context, world, out, handle, buffer)
     })
@@ -832,6 +836,7 @@ pub unsafe extern "C" fn destack_device_io_write(
         }
         let _ = (&out, &handle, &buffer);
 
+        context.check_policy(DEVICE_IO_WRITE)?;
         let world = context.check_and_resolve_world(DEVICE_IO_WRITE)?;
         destack_device_io_write_replay(context, world, out, handle, buffer)
     })
@@ -1143,6 +1148,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_control_control_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DEVICE_CONTROL_CONTROL)?;
                     let world = runtime.check_and_resolve_world(DEVICE_CONTROL_CONTROL)?;
                     destack_device_control_control_vm_replay(
                         runtime, context, world, handle, operation, input, output,
@@ -1159,6 +1165,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (handle,) = decode_destack_device_io_close_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(DEVICE_IO_CLOSE)?;
                 let world = runtime.check_and_resolve_world(DEVICE_IO_CLOSE)?;
                 destack_device_io_close_vm_replay(runtime, context, world, handle)
             })
@@ -1172,6 +1179,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (path, flags, mode) = decode_destack_device_io_open_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(DEVICE_IO_OPEN)?;
                 let world = runtime.check_and_resolve_world(DEVICE_IO_OPEN)?;
                 destack_device_io_open_vm_replay(runtime, context, world, path, flags, mode)
             })
@@ -1185,6 +1193,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (handle, buffer) = decode_destack_device_io_read_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(DEVICE_IO_READ)?;
                 let world = runtime.check_and_resolve_world(DEVICE_IO_READ)?;
                 destack_device_io_read_vm_replay(runtime, context, world, handle, buffer)
             })
@@ -1198,6 +1207,7 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (handle, buffer) = decode_destack_device_io_write_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(DEVICE_IO_WRITE)?;
                 let world = runtime.check_and_resolve_world(DEVICE_IO_WRITE)?;
                 destack_device_io_write_vm_replay(runtime, context, world, handle, buffer)
             })

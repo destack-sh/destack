@@ -29,7 +29,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_call(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     symbol: resource::SymbolHandle,
     abi: u32,
@@ -37,7 +37,6 @@ pub(crate) unsafe fn destack_ffi_call(
     arguments: NativeSlice<u8>,
     resultsize: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(FFI_CALL_CALL)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -64,10 +63,9 @@ pub(crate) unsafe fn destack_ffi_call(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_close(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::LibraryHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(FFI_LIBRARY_CLOSE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.ffi.library.close")).boxed())
@@ -91,12 +89,11 @@ pub(crate) unsafe fn destack_ffi_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::LibraryHandle,
     path: fs::OsPath,
     flags: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(FFI_LIBRARY_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -123,11 +120,10 @@ pub(crate) unsafe fn destack_ffi_open(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_ffi_address(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     pointer: FfiPointer,
 ) -> RuntimeResult<()> {
-    context.check_policy(FFI_POINTER_ADDRESS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -154,11 +150,10 @@ pub(crate) unsafe fn destack_ffi_address(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_ffi_from_address(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut FfiPointer,
     address: u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(FFI_POINTER_FROM_ADDRESS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -188,11 +183,10 @@ pub(crate) unsafe fn destack_ffi_from_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_symbol_address(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     symbol: resource::SymbolHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(FFI_SYMBOL_ADDRESS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -219,12 +213,11 @@ pub(crate) unsafe fn destack_ffi_symbol_address(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_ffi_symbol_lookup(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::SymbolHandle,
     library: resource::LibraryHandle,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(FFI_SYMBOL_LOOKUP)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }

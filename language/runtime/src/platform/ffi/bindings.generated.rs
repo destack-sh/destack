@@ -525,6 +525,7 @@ pub unsafe extern "C" fn destack_ffi_library_close(
         let _ = &handle;
 
         {
+            context.check_policy(FFI_LIBRARY_CLOSE)?;
             let world = context.check_and_resolve_world(FFI_LIBRARY_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -551,6 +552,7 @@ pub unsafe extern "C" fn destack_ffi_library_open(
         let _ = (&out, &path, &flags);
 
         {
+            context.check_policy(FFI_LIBRARY_OPEN)?;
             let world = context.check_and_resolve_world(FFI_LIBRARY_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -631,6 +633,7 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
         let _ = (&out, &library, &name);
 
         {
+            context.check_policy(FFI_SYMBOL_LOOKUP)?;
             let world = context.check_and_resolve_world(FFI_SYMBOL_LOOKUP)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -679,6 +682,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(FFI_LIBRARY_CLOSE)?;
                         let world = runtime.check_and_resolve_world(FFI_LIBRARY_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
@@ -703,6 +707,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
+                    runtime.check_policy(FFI_LIBRARY_OPEN)?;
                     let world = runtime.check_and_resolve_world(FFI_LIBRARY_OPEN)?;
                     match world {
                         RuntimeWorld::Host => {
@@ -793,6 +798,7 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(FFI_SYMBOL_LOOKUP)?;
                         let world = runtime.check_and_resolve_world(FFI_SYMBOL_LOOKUP)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_ffi_symbol_lookup(

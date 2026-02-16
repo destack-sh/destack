@@ -4,6 +4,7 @@ use crate::platform::fs as platform_fs;
 use crate::platform::fs::FileMode;
 use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceId};
 
+/// Reject reads and closes that use invalid file handles.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_invalid_file_handle() {
@@ -24,6 +25,7 @@ fn test_fs_invalid_file_handle() {
                 context.status_err(status, "close invalid handle")?;
             }
             FsHarnessKind::Vm => {
+                // vm bindings should return specific invalid-argument errors for bad handles
                 assert_platform_error_code(
                     context.read(FileHandle(ResourceId(9999)), &mut buffer),
                     PlatformErrorCode::InvalidArgumentValue,
@@ -39,6 +41,7 @@ fn test_fs_invalid_file_handle() {
     });
 }
 
+/// Reject directory operations that use closed or invalid directory handles.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_invalid_directory_handle() {
@@ -67,6 +70,7 @@ fn test_fs_invalid_directory_handle() {
                 context.status_err(status, "closedir invalid handle")?;
             }
             FsHarnessKind::Vm => {
+                // vm bindings should return specific invalid-argument errors for bad handles
                 assert_platform_error_code(
                     context.closedir(handle),
                     PlatformErrorCode::InvalidArgumentValue,

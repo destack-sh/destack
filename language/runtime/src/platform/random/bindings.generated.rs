@@ -1197,6 +1197,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes(buffer: NativeSlice<u8>) ->
         context.replay().run_random_bytes(
             context.random_stream_id(),
             || {
+                context.check_policy(RANDOM_SECURE_BYTES)?;
                 let world = context.check_and_resolve_world(RANDOM_SECURE_BYTES)?;
                 match world {
                     RuntimeWorld::Host => unsafe {
@@ -1232,6 +1233,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>
     native_call(|context| {
         let _ = &buffer;
 
+        context.check_policy(RANDOM_SECURE_BYTES_TRY)?;
         let world = context.check_and_resolve_world(RANDOM_SECURE_BYTES_TRY)?;
         destack_random_secure_bytes_try_replay(context, world, buffer)
     })
@@ -1245,6 +1247,7 @@ pub unsafe extern "C" fn destack_random_secure_info(out: *mut SecureRandomInfo) 
         }
         let _ = &out;
 
+        context.check_policy(RANDOM_SECURE_INFO)?;
         let world = context.check_and_resolve_world(RANDOM_SECURE_INFO)?;
         destack_random_secure_info_replay(context, world, out)
     })
@@ -1892,6 +1895,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         runtime.random_stream_id(),
                         || unsafe {
                             {
+                                runtime.check_policy(RANDOM_SECURE_BYTES)?;
                                 let world = runtime.check_and_resolve_world(RANDOM_SECURE_BYTES)?;
                                 match world {
                                     RuntimeWorld::Host => platform_vm::destack_random_secure_bytes(
@@ -1929,6 +1933,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (buffer,) = decode_destack_random_secure_bytes_try_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(RANDOM_SECURE_BYTES_TRY)?;
                     let world = runtime.check_and_resolve_world(RANDOM_SECURE_BYTES_TRY)?;
                     destack_random_secure_bytes_try_vm_replay(runtime, context, world, buffer)
                 })
@@ -1944,6 +1949,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(RANDOM_SECURE_INFO)?;
                     let world = runtime.check_and_resolve_world(RANDOM_SECURE_INFO)?;
                     destack_random_secure_info_vm_replay(runtime, context, world)
                 })

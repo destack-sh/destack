@@ -954,6 +954,7 @@ pub unsafe extern "C" fn destack_input_device_close(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(INPUT_DEVICE_CLOSE)?;
         let world = context.check_and_resolve_world(INPUT_DEVICE_CLOSE)?;
         destack_input_device_close_replay(context, world, handle)
     })
@@ -969,6 +970,7 @@ pub unsafe extern "C" fn destack_input_device_list(
         }
         let _ = &out;
 
+        context.check_policy(INPUT_DEVICE_LIST)?;
         let world = context.check_and_resolve_world(INPUT_DEVICE_LIST)?;
         destack_input_device_list_replay(context, world, out)
     })
@@ -985,6 +987,7 @@ pub unsafe extern "C" fn destack_input_device_open(
         }
         let _ = (&out, &id);
 
+        context.check_policy(INPUT_DEVICE_OPEN)?;
         let world = context.check_and_resolve_world(INPUT_DEVICE_OPEN)?;
         destack_input_device_open_replay(context, world, out, id)
     })
@@ -1001,6 +1004,7 @@ pub unsafe extern "C" fn destack_input_event_read(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(INPUT_EVENT_READ)?;
         let world = context.check_and_resolve_world(INPUT_EVENT_READ)?;
         destack_input_event_read_replay(context, world, out, handle)
     })
@@ -1014,6 +1018,7 @@ pub unsafe extern "C" fn destack_input_event_set_grab(
     native_call(|context| {
         let _ = (&handle, &enable);
 
+        context.check_policy(INPUT_EVENT_SET_GRAB)?;
         let world = context.check_and_resolve_world(INPUT_EVENT_SET_GRAB)?;
         destack_input_event_set_grab_replay(context, world, handle, enable)
     })
@@ -1030,6 +1035,7 @@ pub unsafe extern "C" fn destack_input_event_try_read(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(INPUT_EVENT_TRY_READ)?;
         let world = context.check_and_resolve_world(INPUT_EVENT_TRY_READ)?;
         destack_input_event_try_read_replay(context, world, out, handle)
     })
@@ -1591,6 +1597,7 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_device_close_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(INPUT_DEVICE_CLOSE)?;
                     let world = runtime.check_and_resolve_world(INPUT_DEVICE_CLOSE)?;
                     destack_input_device_close_vm_replay(runtime, context, world, handle)
                 })
@@ -1606,6 +1613,7 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(INPUT_DEVICE_LIST)?;
                     let world = runtime.check_and_resolve_world(INPUT_DEVICE_LIST)?;
                     destack_input_device_list_vm_replay(runtime, context, world)
                 })
@@ -1624,6 +1632,7 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (id,) = decode_destack_input_device_open_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(INPUT_DEVICE_OPEN)?;
                     let world = runtime.check_and_resolve_world(INPUT_DEVICE_OPEN)?;
                     destack_input_device_open_vm_replay(runtime, context, world, id)
                 })
@@ -1638,6 +1647,7 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle,) = decode_destack_input_event_read_args(context, args)?;
 
                 // execute binding
+                runtime.check_policy(INPUT_EVENT_READ)?;
                 let world = runtime.check_and_resolve_world(INPUT_EVENT_READ)?;
                 destack_input_event_read_vm_replay(runtime, context, world, handle)
             })
@@ -1655,6 +1665,7 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, enable) = decode_destack_input_event_set_grab_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(INPUT_EVENT_SET_GRAB)?;
                     let world = runtime.check_and_resolve_world(INPUT_EVENT_SET_GRAB)?;
                     destack_input_event_set_grab_vm_replay(runtime, context, world, handle, enable)
                 })
@@ -1673,6 +1684,7 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_event_try_read_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(INPUT_EVENT_TRY_READ)?;
                     let world = runtime.check_and_resolve_world(INPUT_EVENT_TRY_READ)?;
                     destack_input_event_try_read_vm_replay(runtime, context, world, handle)
                 })

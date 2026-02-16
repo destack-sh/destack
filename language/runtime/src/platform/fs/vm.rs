@@ -47,7 +47,7 @@ pub fn destack_fs_access(
     mode: AccessMode,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_access(runtime, path, mode) }
+    unsafe { host_fs::destack_fs_access(runtime, path, mode) }
 }
 
 /// Check file access permissions relative to a directory handle.
@@ -76,7 +76,7 @@ pub fn destack_fs_accessat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_accessat(runtime, dir, path, mode, flags) }
+    unsafe { host_fs::destack_fs_accessat(runtime, dir, path, mode, flags) }
 }
 
 /// Change file permissions.
@@ -103,7 +103,7 @@ pub fn destack_fs_chmod(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_chmod(runtime, path, mode) }
+    unsafe { host_fs::destack_fs_chmod(runtime, path, mode) }
 }
 
 /// Change file permissions relative to a directory handle.
@@ -132,7 +132,7 @@ pub fn destack_fs_fchmodat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_fchmodat(runtime, dir, path, mode, flags) }
+    unsafe { host_fs::destack_fs_fchmodat(runtime, dir, path, mode, flags) }
 }
 
 /// Change file owner and group.
@@ -160,7 +160,7 @@ pub fn destack_fs_chown(
     gid: u32,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_chown(runtime, path, uid, gid) }
+    unsafe { host_fs::destack_fs_chown(runtime, path, uid, gid) }
 }
 
 /// Change file owner and group relative to a directory handle.
@@ -190,7 +190,7 @@ pub fn destack_fs_fchownat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_fchownat(runtime, dir, path, uid, gid, flags) }
+    unsafe { host_fs::destack_fs_fchownat(runtime, dir, path, uid, gid, flags) }
 }
 
 /// Update access and modification times.
@@ -218,7 +218,7 @@ pub fn destack_fs_utimes(
     mtime_ns: u64,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_utimes(runtime, path, atime_ns, mtime_ns) }
+    unsafe { host_fs::destack_fs_utimes(runtime, path, atime_ns, mtime_ns) }
 }
 
 /// Update access and modification times without following symlinks.
@@ -246,7 +246,7 @@ pub fn destack_fs_lutimes(
     mtime_ns: u64,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_lutimes(runtime, path, atime_ns, mtime_ns) }
+    unsafe { host_fs::destack_fs_lutimes(runtime, path, atime_ns, mtime_ns) }
 }
 
 /// Update access and modification times relative to a directory handle.
@@ -276,7 +276,7 @@ pub fn destack_fs_utimensat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_utimensat(runtime, dir, path, atime_ns, mtime_ns, flags) }
+    unsafe { host_fs::destack_fs_utimensat(runtime, dir, path, atime_ns, mtime_ns, flags) }
 }
 
 /// Create a directory.
@@ -303,7 +303,7 @@ pub fn destack_fs_mkdir(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_mkdir(runtime, path, mode) }
+    unsafe { host_fs::destack_fs_mkdir(runtime, path, mode) }
 }
 
 /// Create a directory relative to a directory handle.
@@ -331,7 +331,7 @@ pub fn destack_fs_mkdirat(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_mkdirat(runtime, dir, path, mode) }
+    unsafe { host_fs::destack_fs_mkdirat(runtime, dir, path, mode) }
 }
 
 /// Remove a directory.
@@ -357,7 +357,7 @@ pub fn destack_fs_rmdir(
     path: OsPathVm,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_rmdir(runtime, path) }
+    unsafe { host_fs::destack_fs_rmdir(runtime, path) }
 }
 
 /// Open a directory and return a handle.
@@ -383,7 +383,7 @@ pub fn destack_fs_opendir(
     path: OsPathVm,
 ) -> RuntimeResult<DirectoryHandle> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_opendir(runtime, out, path) })
+    call_out(|out| unsafe { host_fs::destack_fs_opendir(runtime, out, path) })
 }
 
 /// Create a temporary directory.
@@ -409,7 +409,7 @@ pub fn destack_fs_mkdtemp(
     template: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     let template = path_ref_from_vm(runtime, context, template)?;
-    let path = call_out(|out| unsafe { core_fs::destack_fs_mkdtemp(runtime, out, template) })?;
+    let path = call_out(|out| unsafe { host_fs::destack_fs_mkdtemp(runtime, out, template) })?;
     path_ref_to_vm(context, path)
 }
 
@@ -438,7 +438,7 @@ pub fn destack_fs_open(
     mode: FileMode,
 ) -> RuntimeResult<FileHandle> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_open(runtime, out, path, flags, mode) })
+    call_out(|out| unsafe { host_fs::destack_fs_open(runtime, out, path, flags, mode) })
 }
 
 /// Open a file relative to a directory handle.
@@ -467,7 +467,7 @@ pub fn destack_fs_openat(
     mode: FileMode,
 ) -> RuntimeResult<FileHandle> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_openat(runtime, out, dir, path, flags, mode) })
+    call_out(|out| unsafe { host_fs::destack_fs_openat(runtime, out, dir, path, flags, mode) })
 }
 
 /// Open a file relative to a directory handle with openat2 semantics.
@@ -500,7 +500,7 @@ pub fn destack_fs_openat2(
         mode: how.mode,
         resolve: how.resolve,
     };
-    call_out(|out| unsafe { core_fs::destack_fs_openat2(runtime, out, dir, path, how) })
+    call_out(|out| unsafe { host_fs::destack_fs_openat2(runtime, out, dir, path, how) })
 }
 
 /// Close an open file handle.
@@ -601,7 +601,7 @@ pub fn destack_fs_readdir_next(
     context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<DirentNextVm> {
-    let entry = call_out(|out| unsafe { core_fs::destack_fs_readdir_next(runtime, out, handle) })?;
+    let entry = call_out(|out| unsafe { host_fs::destack_fs_readdir_next(runtime, out, handle) })?;
     dirent_next_to_vm(context, entry)
 }
 
@@ -627,7 +627,7 @@ pub fn destack_fs_rewinddir(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    unsafe { core_fs::destack_fs_rewinddir(runtime, handle) }
+    unsafe { host_fs::destack_fs_rewinddir(runtime, handle) }
 }
 
 /// Resolve the directory descriptor for an open directory handle.
@@ -652,7 +652,7 @@ pub fn destack_fs_dirfd(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: DirectoryHandle,
 ) -> RuntimeResult<FileHandle> {
-    call_out(|out| unsafe { core_fs::destack_fs_dirfd(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_dirfd(runtime, out, handle) })
 }
 
 /// Read from a file into the provided slice.
@@ -1204,7 +1204,7 @@ pub fn destack_fs_get_fd_flags(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<FdFlags> {
-    call_out(|out| unsafe { core_fs::destack_fs_get_fd_flags(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_get_fd_flags(runtime, out, handle) })
 }
 
 /// Read file status flags.
@@ -1229,7 +1229,7 @@ pub fn destack_fs_get_status_flags(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<StatusFlags> {
-    call_out(|out| unsafe { core_fs::destack_fs_get_status_flags(runtime, out, handle) })
+    call_out(|out| unsafe { host_fs::destack_fs_get_status_flags(runtime, out, handle) })
 }
 
 /// Write file descriptor flags.
@@ -1255,7 +1255,7 @@ pub fn destack_fs_set_fd_flags(
     handle: FileHandle,
     flags: FdFlags,
 ) -> RuntimeResult<()> {
-    unsafe { core_fs::destack_fs_set_fd_flags(runtime, handle, flags) }
+    unsafe { host_fs::destack_fs_set_fd_flags(runtime, handle, flags) }
 }
 
 /// Write file status flags.
@@ -1281,7 +1281,7 @@ pub fn destack_fs_set_status_flags(
     handle: FileHandle,
     flags: StatusFlags,
 ) -> RuntimeResult<()> {
-    unsafe { core_fs::destack_fs_set_status_flags(runtime, handle, flags) }
+    unsafe { host_fs::destack_fs_set_status_flags(runtime, handle, flags) }
 }
 
 /// Truncate a file.
@@ -1308,7 +1308,7 @@ pub fn destack_fs_truncate(
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_truncate(runtime, path, size) }
+    unsafe { host_fs::destack_fs_truncate(runtime, path, size) }
 }
 
 /// Rename or move a file.
@@ -1336,7 +1336,7 @@ pub fn destack_fs_rename(
 ) -> RuntimeResult<()> {
     let from = path_ref_from_vm(runtime, context, from)?;
     let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { core_fs::destack_fs_rename(runtime, from, to) }
+    unsafe { host_fs::destack_fs_rename(runtime, from, to) }
 }
 
 /// Rename or move a file relative to directory handles.
@@ -1366,7 +1366,7 @@ pub fn destack_fs_renameat(
 ) -> RuntimeResult<()> {
     let from = path_ref_from_vm(runtime, context, from)?;
     let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { core_fs::destack_fs_renameat(runtime, from_dir, from, to_dir, to) }
+    unsafe { host_fs::destack_fs_renameat(runtime, from_dir, from, to_dir, to) }
 }
 
 /// Rename or move a file relative to directory handles with renameat2 semantics.
@@ -1397,7 +1397,7 @@ pub fn destack_fs_renameat2(
 ) -> RuntimeResult<()> {
     let from = path_ref_from_vm(runtime, context, from)?;
     let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { core_fs::destack_fs_renameat2(runtime, from_dir, from, to_dir, to, flags) }
+    unsafe { host_fs::destack_fs_renameat2(runtime, from_dir, from, to_dir, to, flags) }
 }
 
 /// Unlink a file.
@@ -1423,7 +1423,7 @@ pub fn destack_fs_unlink(
     path: OsPathVm,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_unlink(runtime, path) }
+    unsafe { host_fs::destack_fs_unlink(runtime, path) }
 }
 
 /// Unlink a file relative to a directory handle.
@@ -1451,7 +1451,7 @@ pub fn destack_fs_unlinkat(
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_unlinkat(runtime, dir, path, flags) }
+    unsafe { host_fs::destack_fs_unlinkat(runtime, dir, path, flags) }
 }
 
 /// Create a hard link.
@@ -1479,7 +1479,7 @@ pub fn destack_fs_link(
 ) -> RuntimeResult<()> {
     let existing_path = path_ref_from_vm(runtime, context, existing_path)?;
     let new_path = path_ref_from_vm(runtime, context, new_path)?;
-    unsafe { core_fs::destack_fs_link(runtime, existing_path, new_path) }
+    unsafe { host_fs::destack_fs_link(runtime, existing_path, new_path) }
 }
 
 /// Create a hard link relative to directory handles.
@@ -1511,7 +1511,7 @@ pub fn destack_fs_linkat(
     let existing_path = path_ref_from_vm(runtime, context, existing_path)?;
     let new_path = path_ref_from_vm(runtime, context, new_path)?;
     unsafe {
-        core_fs::destack_fs_linkat(
+        host_fs::destack_fs_linkat(
             runtime,
             existing_dir,
             existing_path,
@@ -1548,7 +1548,7 @@ pub fn destack_fs_symlink(
 ) -> RuntimeResult<()> {
     let target = path_ref_from_vm(runtime, context, target)?;
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_symlink(runtime, target, path, kind) }
+    unsafe { host_fs::destack_fs_symlink(runtime, target, path, kind) }
 }
 
 /// Create a symbolic link relative to a directory handle.
@@ -1578,7 +1578,7 @@ pub fn destack_fs_symlinkat(
 ) -> RuntimeResult<()> {
     let target = path_ref_from_vm(runtime, context, target)?;
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_symlinkat(runtime, target, dir, path, kind) }
+    unsafe { host_fs::destack_fs_symlinkat(runtime, target, dir, path, kind) }
 }
 
 /// Read a symbolic link.
@@ -1604,7 +1604,7 @@ pub fn destack_fs_readlink(
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    let target = call_out(|out| unsafe { core_fs::destack_fs_readlink(runtime, out, path) })?;
+    let target = call_out(|out| unsafe { host_fs::destack_fs_readlink(runtime, out, path) })?;
     path_ref_to_vm(context, target)
 }
 
@@ -1633,7 +1633,7 @@ pub fn destack_fs_readlinkat(
 ) -> RuntimeResult<OsPathVm> {
     let path = path_ref_from_vm(runtime, context, path)?;
     let target =
-        call_out(|out| unsafe { core_fs::destack_fs_readlinkat(runtime, out, dir, path) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_readlinkat(runtime, out, dir, path) })?;
     path_ref_to_vm(context, target)
 }
 
@@ -1660,7 +1660,7 @@ pub fn destack_fs_realpath(
     path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    let resolved = call_out(|out| unsafe { core_fs::destack_fs_realpath(runtime, out, path) })?;
+    let resolved = call_out(|out| unsafe { host_fs::destack_fs_realpath(runtime, out, path) })?;
     path_ref_to_vm(context, resolved)
 }
 
@@ -1690,7 +1690,7 @@ pub fn destack_fs_copyfile(
 ) -> RuntimeResult<()> {
     let from = path_ref_from_vm(runtime, context, from)?;
     let to = path_ref_from_vm(runtime, context, to)?;
-    unsafe { core_fs::destack_fs_copyfile(runtime, from, to, flags) }
+    unsafe { host_fs::destack_fs_copyfile(runtime, from, to, flags) }
 }
 
 /// Create a FIFO special file.
@@ -1717,7 +1717,7 @@ pub fn destack_fs_mkfifo(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_mkfifo(runtime, path, mode) }
+    unsafe { host_fs::destack_fs_mkfifo(runtime, path, mode) }
 }
 
 /// Create a FIFO special file relative to a directory handle.
@@ -1745,7 +1745,7 @@ pub fn destack_fs_mkfifoat(
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_mkfifoat(runtime, dir, path, mode) }
+    unsafe { host_fs::destack_fs_mkfifoat(runtime, dir, path, mode) }
 }
 
 /// Create a filesystem node.
@@ -1773,7 +1773,7 @@ pub fn destack_fs_mknod(
     device: NodeDevice,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_mknod(runtime, path, mode, device) }
+    unsafe { host_fs::destack_fs_mknod(runtime, path, mode, device) }
 }
 
 /// Create a filesystem node relative to a directory handle.
@@ -1802,7 +1802,7 @@ pub fn destack_fs_mknodat(
     device: NodeDevice,
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    unsafe { core_fs::destack_fs_mknodat(runtime, dir, path, mode, device) }
+    unsafe { host_fs::destack_fs_mknodat(runtime, dir, path, mode, device) }
 }
 
 /// Stat a file.
@@ -1828,7 +1828,7 @@ pub fn destack_fs_stat(
     path: OsPathVm,
 ) -> RuntimeResult<Stat> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_stat(runtime, out, path) })
+    call_out(|out| unsafe { host_fs::destack_fs_stat(runtime, out, path) })
 }
 
 /// Stat a file relative to a directory handle.
@@ -1856,7 +1856,7 @@ pub fn destack_fs_statat(
     flags: AtFlags,
 ) -> RuntimeResult<Stat> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_statat(runtime, out, dir, path, flags) })
+    call_out(|out| unsafe { host_fs::destack_fs_statat(runtime, out, dir, path, flags) })
 }
 
 /// Stat a file without following symlinks.
@@ -1882,7 +1882,7 @@ pub fn destack_fs_lstat(
     path: OsPathVm,
 ) -> RuntimeResult<Stat> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_lstat(runtime, out, path) })
+    call_out(|out| unsafe { host_fs::destack_fs_lstat(runtime, out, path) })
 }
 
 /// Stat a filesystem.
@@ -1908,7 +1908,7 @@ pub fn destack_fs_statfs(
     path: OsPathVm,
 ) -> RuntimeResult<StatFs> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_statfs(runtime, out, path) })
+    call_out(|out| unsafe { host_fs::destack_fs_statfs(runtime, out, path) })
 }
 
 /// Stat a path with statx semantics.
@@ -1937,7 +1937,7 @@ pub fn destack_fs_statx(
     mask: StatxMask,
 ) -> RuntimeResult<Statx> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    call_out(|out| unsafe { core_fs::destack_fs_statx(runtime, out, dir, path, flags, mask) })
+    call_out(|out| unsafe { host_fs::destack_fs_statx(runtime, out, dir, path, flags, mask) })
 }
 
 /// Synchronize a filesystem by file handle.
@@ -1961,7 +1961,7 @@ pub fn destack_fs_syncfs(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    unsafe { core_fs::destack_fs_syncfs(runtime, handle) }
+    unsafe { host_fs::destack_fs_syncfs(runtime, handle) }
 }
 
 /// Start watching a path and return a watch handle.
@@ -2440,7 +2440,7 @@ pub fn destack_fs_getxattr(
 ) -> RuntimeResult<VmArray<u8>> {
     let path = path_ref_from_vm(runtime, context, path)?;
     let name = string_ref_from_vm(runtime, context, name)?;
-    let values = call_out(|out| unsafe { core_fs::destack_fs_getxattr(runtime, out, path, name) })?;
+    let values = call_out(|out| unsafe { host_fs::destack_fs_getxattr(runtime, out, path, name) })?;
     array_u8_to_vm(context, values)
 }
 
@@ -2499,7 +2499,7 @@ pub fn destack_fs_lgetxattr(
     let path = path_ref_from_vm(runtime, context, path)?;
     let name = string_ref_from_vm(runtime, context, name)?;
     let values =
-        call_out(|out| unsafe { core_fs::destack_fs_lgetxattr(runtime, out, path, name) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_lgetxattr(runtime, out, path, name) })?;
     array_u8_to_vm(context, values)
 }
 
@@ -2557,7 +2557,7 @@ pub fn destack_fs_fgetxattr(
 ) -> RuntimeResult<VmArray<u8>> {
     let name = string_ref_from_vm(runtime, context, name)?;
     let values =
-        call_out(|out| unsafe { core_fs::destack_fs_fgetxattr(runtime, out, handle, name) })?;
+        call_out(|out| unsafe { host_fs::destack_fs_fgetxattr(runtime, out, handle, name) })?;
     array_u8_to_vm(context, values)
 }
 
@@ -2618,7 +2618,7 @@ pub fn destack_fs_setxattr(
     let path = path_ref_from_vm(runtime, context, path)?;
     let name = string_ref_from_vm(runtime, context, name)?;
     let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { core_fs::destack_fs_setxattr(runtime, path, name, value, flags) }
+    unsafe { host_fs::destack_fs_setxattr(runtime, path, name, value, flags) }
 }
 
 /// Set an extended attribute by path with a raw name payload.
@@ -2680,7 +2680,7 @@ pub fn destack_fs_lsetxattr(
     let path = path_ref_from_vm(runtime, context, path)?;
     let name = string_ref_from_vm(runtime, context, name)?;
     let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { core_fs::destack_fs_lsetxattr(runtime, path, name, value, flags) }
+    unsafe { host_fs::destack_fs_lsetxattr(runtime, path, name, value, flags) }
 }
 
 /// Set an extended attribute without following symlinks, using a raw name payload.
@@ -2741,7 +2741,7 @@ pub fn destack_fs_fsetxattr(
 ) -> RuntimeResult<()> {
     let name = string_ref_from_vm(runtime, context, name)?;
     let value = buffer_from_vm(runtime, context, value)?;
-    unsafe { core_fs::destack_fs_fsetxattr(runtime, handle, name, value, flags) }
+    unsafe { host_fs::destack_fs_fsetxattr(runtime, handle, name, value, flags) }
 }
 
 /// Set an extended attribute by handle with a raw name payload.
@@ -2798,7 +2798,7 @@ pub fn destack_fs_listxattr(
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    let names = call_out(|out| unsafe { core_fs::destack_fs_listxattr(runtime, out, path) })?;
+    let names = call_out(|out| unsafe { host_fs::destack_fs_listxattr(runtime, out, path) })?;
     string_array_to_vm(context, names)
 }
 
@@ -2853,7 +2853,7 @@ pub fn destack_fs_llistxattr(
     path: OsPathVm,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
     let path = path_ref_from_vm(runtime, context, path)?;
-    let names = call_out(|out| unsafe { core_fs::destack_fs_llistxattr(runtime, out, path) })?;
+    let names = call_out(|out| unsafe { host_fs::destack_fs_llistxattr(runtime, out, path) })?;
     string_array_to_vm(context, names)
 }
 
@@ -2907,7 +2907,7 @@ pub fn destack_fs_flistxattr(
     context: &mut vm::ExternalCallContext<'_>,
     handle: FileHandle,
 ) -> RuntimeResult<VmArray<vm::StringHandle>> {
-    let names = call_out(|out| unsafe { core_fs::destack_fs_flistxattr(runtime, out, handle) })?;
+    let names = call_out(|out| unsafe { host_fs::destack_fs_flistxattr(runtime, out, handle) })?;
     string_array_to_vm(context, names)
 }
 
@@ -2964,7 +2964,7 @@ pub fn destack_fs_removexattr(
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
     let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { core_fs::destack_fs_removexattr(runtime, path, name) }
+    unsafe { host_fs::destack_fs_removexattr(runtime, path, name) }
 }
 
 /// Remove an extended attribute by path with a raw name payload.
@@ -3021,7 +3021,7 @@ pub fn destack_fs_lremovexattr(
 ) -> RuntimeResult<()> {
     let path = path_ref_from_vm(runtime, context, path)?;
     let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { core_fs::destack_fs_lremovexattr(runtime, path, name) }
+    unsafe { host_fs::destack_fs_lremovexattr(runtime, path, name) }
 }
 
 /// Remove an extended attribute without following symlinks, using a raw name payload.
@@ -3077,7 +3077,7 @@ pub fn destack_fs_fremovexattr(
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
     let name = string_ref_from_vm(runtime, context, name)?;
-    unsafe { core_fs::destack_fs_fremovexattr(runtime, handle, name) }
+    unsafe { host_fs::destack_fs_fremovexattr(runtime, handle, name) }
 }
 
 /// Remove an extended attribute by handle with a raw name payload.

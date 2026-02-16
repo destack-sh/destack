@@ -15,7 +15,7 @@ use crate::platform::net::{
     SocketRecvMessageVm, SocketSendBatchEntryVm, SocketSendMessage, SocketSendMessageVm,
     SocketSendToVm, SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags,
     UdpReceive, UdpReceiveVm, UdpSourceMembershipV4Vm, UdpSourceMembershipV6Vm, UdsAddressVm,
-    core as core_net,
+    host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
@@ -44,7 +44,7 @@ pub fn destack_net_accept(
     listener: ListenerHandle,
     flags: AcceptFlags,
 ) -> RuntimeResult<SocketHandle> {
-    call_out(|out| unsafe { core_net::destack_net_accept(runtime, out, listener, flags) })
+    call_out(|out| unsafe { host_net::destack_net_accept(runtime, out, listener, flags) })
 }
 
 /// Close a socket handle.
@@ -69,7 +69,7 @@ pub fn destack_net_close(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_close(runtime, handle) }
+    unsafe { host_net::destack_net_close(runtime, handle) }
 }
 
 /// Connect to a remote socket address.
@@ -96,7 +96,7 @@ pub fn destack_net_connect(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let address = socket_address_raw_from_vm(runtime, context, address)?;
-    unsafe { core_net::destack_net_connect_raw(runtime, handle, address) }
+    unsafe { host_net::destack_net_connect_raw(runtime, handle, address) }
 }
 
 /// Connect to a remote host and return a socket handle.
@@ -133,7 +133,7 @@ pub fn destack_net_listen(
     backlog: u32,
 ) -> RuntimeResult<ListenerHandle> {
     let address = socket_address_raw_from_vm(runtime, context, address)?;
-    call_out(|out| unsafe { core_net::destack_net_listen_raw(runtime, out, address, backlog) })
+    call_out(|out| unsafe { host_net::destack_net_listen_raw(runtime, out, address, backlog) })
 }
 
 /// Start listening on a host and port.
@@ -175,7 +175,7 @@ pub fn destack_net_read(
 
     // perform the read
     let bytes_read =
-        call_out(|out| unsafe { core_net::destack_net_read(runtime, out, handle, native_buffer) })?;
+        call_out(|out| unsafe { host_net::destack_net_read(runtime, out, handle, native_buffer) })?;
 
     // write results back into the VM buffer
     write_read_buffer(context, buffer, native_buffer)?;
@@ -210,7 +210,7 @@ pub fn destack_net_write(
     let native_buffer = buffer_from_vm(runtime, context, buffer)?;
 
     // dispatch to the core binding
-    call_out(|out| unsafe { core_net::destack_net_write(runtime, out, handle, native_buffer) })
+    call_out(|out| unsafe { host_net::destack_net_write(runtime, out, handle, native_buffer) })
 }
 
 /// Receive a message with ancillary data.
@@ -324,7 +324,7 @@ pub fn destack_net_send_msg(
 
     // dispatch to the core binding
     call_out(|out| unsafe {
-        core_net::destack_net_send_msg(runtime, out, handle, native_buffer, message)
+        host_net::destack_net_send_msg(runtime, out, handle, native_buffer, message)
     })
 }
 
@@ -354,7 +354,7 @@ pub fn destack_net_recv_from(
 ) -> RuntimeResult<SocketRecvFromVm> {
     let native = allocate_read_buffer(runtime, buffer);
     let receive = call_out(|out| unsafe {
-        core_net::destack_net_recv_from(runtime, out, handle, native, recv_flags)
+        host_net::destack_net_recv_from(runtime, out, handle, native, recv_flags)
     })?;
     write_read_buffer(context, buffer, native)?;
     socket_recv_from_to_vm(context, receive)
@@ -387,7 +387,7 @@ pub fn destack_net_send_to(
     let native_buffer = buffer_from_vm(runtime, context, buffer)?;
     let native_message = socket_send_to_from_vm(runtime, context, message)?;
     call_out(|out| unsafe {
-        core_net::destack_net_send_to(runtime, out, handle, native_buffer, native_message)
+        host_net::destack_net_send_to(runtime, out, handle, native_buffer, native_message)
     })
 }
 
@@ -440,7 +440,7 @@ pub fn destack_net_shutdown(
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_shutdown(runtime, handle, how) }
+    unsafe { host_net::destack_net_shutdown(runtime, handle, how) }
 }
 
 /// Enable or disable nonblocking mode on a socket.
@@ -466,7 +466,7 @@ pub fn destack_net_set_nonblocking(
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_nonblocking(runtime, handle, enabled) }
+    unsafe { host_net::destack_net_set_nonblocking(runtime, handle, enabled) }
 }
 
 /// Read the local socket address as raw bytes.
@@ -493,7 +493,7 @@ pub fn destack_net_local_address(
 ) -> RuntimeResult<SocketAddressVm> {
     // read the address via the core binding
     let address =
-        call_out(|out| unsafe { core_net::destack_net_local_address_raw(runtime, out, handle) })?;
+        call_out(|out| unsafe { host_net::destack_net_local_address_raw(runtime, out, handle) })?;
     socket_address_raw_to_vm(context, address)
 }
 
@@ -530,7 +530,7 @@ pub fn destack_net_peer_address(
 ) -> RuntimeResult<SocketAddressVm> {
     // read the address via the core binding
     let address =
-        call_out(|out| unsafe { core_net::destack_net_peer_address_raw(runtime, out, handle) })?;
+        call_out(|out| unsafe { host_net::destack_net_peer_address_raw(runtime, out, handle) })?;
     socket_address_raw_to_vm(context, address)
 }
 
@@ -566,7 +566,7 @@ pub fn destack_net_set_no_delay(
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_no_delay(runtime, handle, enabled) }
+    unsafe { host_net::destack_net_set_no_delay(runtime, handle, enabled) }
 }
 
 /// Write full TCP keepalive parameters.
@@ -593,7 +593,7 @@ pub fn destack_net_set_keep_alive(
     config: KeepAliveConfig,
 ) -> RuntimeResult<()> {
     unsafe {
-        core_net::destack_net_set_keep_alive(
+        host_net::destack_net_set_keep_alive(
             runtime,
             handle,
             config.enabled,
@@ -627,7 +627,7 @@ pub fn destack_net_set_reuse_addr(
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_reuse_addr(runtime, handle, enabled) }
+    unsafe { host_net::destack_net_set_reuse_addr(runtime, handle, enabled) }
 }
 
 /// Enable or disable SO_REUSEPORT.
@@ -653,7 +653,7 @@ pub fn destack_net_set_reuse_port(
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_reuse_port(runtime, handle, enabled) }
+    unsafe { host_net::destack_net_set_reuse_port(runtime, handle, enabled) }
 }
 
 /// Close a listener handle.
@@ -678,7 +678,7 @@ pub fn destack_net_close_listener(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_close_listener(runtime, handle) }
+    unsafe { host_net::destack_net_close_listener(runtime, handle) }
 }
 
 /// Create a socket from a native family, type, and protocol.
@@ -706,7 +706,7 @@ pub fn destack_net_socket(
     protocol: SocketProtocol,
 ) -> RuntimeResult<SocketHandle> {
     call_out(|out| unsafe {
-        core_net::destack_net_socket(runtime, out, family, socket_type, protocol)
+        host_net::destack_net_socket(runtime, out, family, socket_type, protocol)
     })
 }
 
@@ -735,7 +735,7 @@ pub fn destack_net_socket_pair(
     protocol: SocketProtocol,
 ) -> RuntimeResult<SocketPairVm> {
     call_out(|out| unsafe {
-        core_net::destack_net_socket_pair(runtime, out, family, socket_type, protocol)
+        host_net::destack_net_socket_pair(runtime, out, family, socket_type, protocol)
     })
 }
 
@@ -763,7 +763,7 @@ pub fn destack_net_bind(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let address = socket_address_raw_from_vm(runtime, context, address)?;
-    unsafe { core_net::destack_net_bind(runtime, handle, address) }
+    unsafe { host_net::destack_net_bind(runtime, handle, address) }
 }
 
 /// Read into multiple buffers.
@@ -791,7 +791,7 @@ pub fn destack_net_readv(
 ) -> RuntimeResult<u64> {
     let (native_buffers, vm_buffers) = allocate_read_buffers(runtime, context, buffers)?;
     let count = call_out(|out| unsafe {
-        core_net::destack_net_readv(runtime, out, handle, native_buffers)
+        host_net::destack_net_readv(runtime, out, handle, native_buffers)
     })?;
     write_read_buffers(context, vm_buffers, native_buffers)?;
     Ok(count)
@@ -821,7 +821,7 @@ pub fn destack_net_writev(
     buffers: VmSlice<VmSlice<u8>>,
 ) -> RuntimeResult<u64> {
     let native_buffers = buffers_from_vm(runtime, context, buffers)?;
-    call_out(|out| unsafe { core_net::destack_net_writev(runtime, out, handle, native_buffers) })
+    call_out(|out| unsafe { host_net::destack_net_writev(runtime, out, handle, native_buffers) })
 }
 
 /// Resolve a host and service query into raw socket addresses.
@@ -852,7 +852,7 @@ pub fn destack_net_resolve(
 
     // resolve via raw resolver and map to VM addresses
     let addresses = call_out(|out| unsafe {
-        core_net::destack_net_resolve_raw(runtime, out, host, port, query.family, query.flags)
+        host_net::destack_net_resolve_raw(runtime, out, host, port, query.family, query.flags)
     })?;
     socket_address_raw_array_to_vm(context, addresses)
 }
@@ -871,7 +871,7 @@ pub fn destack_net_resolve_text(
 
     // resolve via raw resolver and map to VM addresses
     let addresses = call_out(|out| unsafe {
-        core_net::destack_net_resolve_raw(runtime, out, host, port, family, flags)
+        host_net::destack_net_resolve_raw(runtime, out, host, port, family, flags)
     })?;
     socket_address_raw_array_to_vm(context, addresses)
 }
@@ -909,7 +909,7 @@ pub fn destack_net_reverse_lookup(
     // decode address and execute reverse lookup
     let address = socket_address_raw_from_vm(runtime, context, address)?;
     let hosts =
-        call_out(|out| unsafe { core_net::destack_net_reverse_lookup_raw(runtime, out, address) })?;
+        call_out(|out| unsafe { host_net::destack_net_reverse_lookup_raw(runtime, out, address) })?;
     let hosts = unsafe { hosts.as_slice()? };
 
     // map hostnames into lookup records
@@ -947,7 +947,7 @@ pub fn destack_net_reverse_lookup_text(
     // decode address and execute reverse lookup
     let address = socket_address_raw_from_vm(runtime, context, address)?;
     let hosts =
-        call_out(|out| unsafe { core_net::destack_net_reverse_lookup_raw(runtime, out, address) })?;
+        call_out(|out| unsafe { host_net::destack_net_reverse_lookup_raw(runtime, out, address) })?;
     string_array_to_vm(context, hosts)
 }
 
@@ -973,7 +973,7 @@ pub fn destack_net_udp_socket(
     _context: &mut vm::ExternalCallContext<'_>,
     family: crate::platform::net::SocketFamily,
 ) -> RuntimeResult<SocketHandle> {
-    call_out(|out| unsafe { core_net::destack_net_udp_socket(runtime, out, family) })
+    call_out(|out| unsafe { host_net::destack_net_udp_socket(runtime, out, family) })
 }
 
 /// Bind a UDP socket to a raw local address.
@@ -1000,7 +1000,7 @@ pub fn destack_net_udp_bind(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let address = socket_address_raw_from_vm(runtime, context, address)?;
-    unsafe { core_net::destack_net_udp_bind_raw(runtime, handle, address) }
+    unsafe { host_net::destack_net_udp_bind_raw(runtime, handle, address) }
 }
 
 /// Bind a UDP socket to a host and port.
@@ -1038,7 +1038,7 @@ pub fn destack_net_udp_connect(
     address: SocketAddressVm,
 ) -> RuntimeResult<()> {
     let address = socket_address_raw_from_vm(runtime, context, address)?;
-    unsafe { core_net::destack_net_udp_connect_raw(runtime, handle, address) }
+    unsafe { host_net::destack_net_udp_connect_raw(runtime, handle, address) }
 }
 
 /// Connect a UDP socket to a host and port.
@@ -1078,7 +1078,7 @@ pub fn destack_net_udp_recv_from(
 ) -> RuntimeResult<UdpReceiveVm> {
     let native = allocate_read_buffer(runtime, buffer);
     let receive = call_out(|out| unsafe {
-        core_net::destack_net_udp_recv_from_raw(runtime, out, handle, native, recv_flags)
+        host_net::destack_net_udp_recv_from_raw(runtime, out, handle, native, recv_flags)
     })?;
     write_read_buffer(context, buffer, native)?;
     udp_receive_raw_to_vm(context, receive)
@@ -1122,7 +1122,7 @@ pub fn destack_net_udp_send_to(
     let address = socket_address_raw_from_vm(runtime, context, address)?;
     let native = buffer_from_vm(runtime, context, buffer)?;
     call_out(|out| unsafe {
-        core_net::destack_net_udp_send_to_raw(runtime, out, handle, address, native, send_flags)
+        host_net::destack_net_udp_send_to_raw(runtime, out, handle, address, native, send_flags)
     })
 }
 
@@ -1160,7 +1160,7 @@ pub fn destack_net_uds_accept(
     _context: &mut vm::ExternalCallContext<'_>,
     listener: ListenerHandle,
 ) -> RuntimeResult<SocketHandle> {
-    call_out(|out| unsafe { core_net::destack_net_uds_accept(runtime, out, listener) })
+    call_out(|out| unsafe { host_net::destack_net_uds_accept(runtime, out, listener) })
 }
 
 /// Close a UDS listener handle.
@@ -1185,7 +1185,7 @@ pub fn destack_net_uds_close_listener(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_uds_close_listener(runtime, handle) }
+    unsafe { host_net::destack_net_uds_close_listener(runtime, handle) }
 }
 
 /// Connect to a UDS endpoint.
@@ -1267,7 +1267,7 @@ pub fn destack_net_uds_socket_pair(
     _context: &mut vm::ExternalCallContext<'_>,
     socket_type: SocketType,
 ) -> RuntimeResult<SocketPair> {
-    call_out(|out| unsafe { core_net::destack_net_uds_socket_pair(runtime, out, socket_type) })
+    call_out(|out| unsafe { host_net::destack_net_uds_socket_pair(runtime, out, socket_type) })
 }
 
 /// Set socket linger settings.
@@ -1293,7 +1293,7 @@ pub fn destack_net_set_linger(
     handle: SocketHandle,
     linger: Linger,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_linger(runtime, handle, linger) }
+    unsafe { host_net::destack_net_set_linger(runtime, handle, linger) }
 }
 
 /// Set the receive buffer size.
@@ -1319,7 +1319,7 @@ pub fn destack_net_set_recv_buffer(
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_recv_buffer(runtime, handle, size) }
+    unsafe { host_net::destack_net_set_recv_buffer(runtime, handle, size) }
 }
 
 /// Set the send buffer size.
@@ -1345,7 +1345,7 @@ pub fn destack_net_set_send_buffer(
     handle: SocketHandle,
     size: u32,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_send_buffer(runtime, handle, size) }
+    unsafe { host_net::destack_net_set_send_buffer(runtime, handle, size) }
 }
 
 /// Enable or disable broadcast.
@@ -1371,7 +1371,7 @@ pub fn destack_net_set_broadcast(
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_broadcast(runtime, handle, enabled) }
+    unsafe { host_net::destack_net_set_broadcast(runtime, handle, enabled) }
 }
 
 /// Join an IPv4 multicast group.
@@ -1405,7 +1405,7 @@ pub fn destack_net_join_multicast_v4(
     let interface_address = host_from_vm(runtime, context, interface_address)?;
 
     // dispatch to the core binding
-    unsafe { core_net::destack_net_join_multicast_v4(runtime, handle, group, interface_address) }
+    unsafe { host_net::destack_net_join_multicast_v4(runtime, handle, group, interface_address) }
 }
 
 /// Join an IPv6 multicast group.
@@ -1436,7 +1436,7 @@ pub fn destack_net_join_multicast_v6(
     let group = host_from_vm(runtime, context, group)?;
 
     // dispatch to the core binding
-    unsafe { core_net::destack_net_join_multicast_v6(runtime, handle, group, interface_index) }
+    unsafe { host_net::destack_net_join_multicast_v6(runtime, handle, group, interface_index) }
 }
 
 /// Leave an IPv4 multicast group.
@@ -1470,7 +1470,7 @@ pub fn destack_net_leave_multicast_v4(
     let interface_address = host_from_vm(runtime, context, interface_address)?;
 
     // dispatch to the core binding
-    unsafe { core_net::destack_net_leave_multicast_v4(runtime, handle, group, interface_address) }
+    unsafe { host_net::destack_net_leave_multicast_v4(runtime, handle, group, interface_address) }
 }
 
 /// Leave an IPv6 multicast group.
@@ -1501,7 +1501,7 @@ pub fn destack_net_leave_multicast_v6(
     let group = host_from_vm(runtime, context, group)?;
 
     // dispatch to the core binding
-    unsafe { core_net::destack_net_leave_multicast_v6(runtime, handle, group, interface_index) }
+    unsafe { host_net::destack_net_leave_multicast_v6(runtime, handle, group, interface_index) }
 }
 
 /// Enable or disable multicast loopback.
@@ -1528,7 +1528,7 @@ pub fn destack_net_set_multicast_loop(
     enabled: bool,
 ) -> RuntimeResult<()> {
     // dispatch to the core binding
-    unsafe { core_net::destack_net_set_multicast_loop(runtime, handle, enabled) }
+    unsafe { host_net::destack_net_set_multicast_loop(runtime, handle, enabled) }
 }
 
 /// Set multicast TTL.
@@ -1555,7 +1555,7 @@ pub fn destack_net_set_multicast_ttl(
     ttl: u32,
 ) -> RuntimeResult<()> {
     // dispatch to the core binding
-    unsafe { core_net::destack_net_set_multicast_ttl(runtime, handle, ttl) }
+    unsafe { host_net::destack_net_set_multicast_ttl(runtime, handle, ttl) }
 }
 
 /// Set the IP time-to-live.
@@ -1581,7 +1581,7 @@ pub fn destack_net_set_ttl(
     handle: SocketHandle,
     ttl: u32,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_ttl(runtime, handle, ttl) }
+    unsafe { host_net::destack_net_set_ttl(runtime, handle, ttl) }
 }
 
 /// Set the IP type-of-service field.
@@ -1607,7 +1607,7 @@ pub fn destack_net_set_tos(
     handle: SocketHandle,
     tos: u32,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_tos(runtime, handle, tos) }
+    unsafe { host_net::destack_net_set_tos(runtime, handle, tos) }
 }
 
 /// Set the read timeout in milliseconds.
@@ -1633,7 +1633,7 @@ pub fn destack_net_set_read_timeout(
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_read_timeout(runtime, handle, timeout_ms) }
+    unsafe { host_net::destack_net_set_read_timeout(runtime, handle, timeout_ms) }
 }
 
 /// Set the write timeout in milliseconds.
@@ -1659,7 +1659,7 @@ pub fn destack_net_set_write_timeout(
     handle: SocketHandle,
     timeout_ms: u32,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_write_timeout(runtime, handle, timeout_ms) }
+    unsafe { host_net::destack_net_set_write_timeout(runtime, handle, timeout_ms) }
 }
 
 /// Restrict an IPv6 socket to IPv6 traffic only.
@@ -1685,7 +1685,7 @@ pub fn destack_net_set_only_v6(
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    unsafe { core_net::destack_net_set_only_v6(runtime, handle, enabled) }
+    unsafe { host_net::destack_net_set_only_v6(runtime, handle, enabled) }
 }
 
 /// Read full TCP keepalive parameters.
@@ -1710,7 +1710,7 @@ pub fn destack_net_get_keep_alive(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<KeepAliveConfig> {
-    call_out(|out| unsafe { core_net::destack_net_get_keep_alive(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_keep_alive(runtime, out, handle) })
 }
 
 /// Read TCP_NODELAY.
@@ -1735,7 +1735,7 @@ pub fn destack_net_get_no_delay(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
-    call_out(|out| unsafe { core_net::destack_net_get_no_delay(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_no_delay(runtime, out, handle) })
 }
 
 /// Read SO_REUSEADDR.
@@ -1760,7 +1760,7 @@ pub fn destack_net_get_reuse_addr(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
-    call_out(|out| unsafe { core_net::destack_net_get_reuse_addr(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_reuse_addr(runtime, out, handle) })
 }
 
 /// Read SO_REUSEPORT.
@@ -1785,7 +1785,7 @@ pub fn destack_net_get_reuse_port(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
-    call_out(|out| unsafe { core_net::destack_net_get_reuse_port(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_reuse_port(runtime, out, handle) })
 }
 
 /// Read socket linger settings.
@@ -1810,7 +1810,7 @@ pub fn destack_net_get_linger(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<Linger> {
-    call_out(|out| unsafe { core_net::destack_net_get_linger(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_linger(runtime, out, handle) })
 }
 
 /// Read the receive buffer size.
@@ -1835,7 +1835,7 @@ pub fn destack_net_get_recv_buffer(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    call_out(|out| unsafe { core_net::destack_net_get_recv_buffer(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_recv_buffer(runtime, out, handle) })
 }
 
 /// Read the send buffer size.
@@ -1860,7 +1860,7 @@ pub fn destack_net_get_send_buffer(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    call_out(|out| unsafe { core_net::destack_net_get_send_buffer(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_send_buffer(runtime, out, handle) })
 }
 
 /// Read broadcast mode.
@@ -1885,7 +1885,7 @@ pub fn destack_net_get_broadcast(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
-    call_out(|out| unsafe { core_net::destack_net_get_broadcast(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_broadcast(runtime, out, handle) })
 }
 
 /// Read the IP time-to-live.
@@ -1910,7 +1910,7 @@ pub fn destack_net_get_ttl(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    call_out(|out| unsafe { core_net::destack_net_get_ttl(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_ttl(runtime, out, handle) })
 }
 
 /// Read the IP type-of-service field.
@@ -1935,7 +1935,7 @@ pub fn destack_net_get_tos(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    call_out(|out| unsafe { core_net::destack_net_get_tos(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_tos(runtime, out, handle) })
 }
 
 /// Read the read timeout in milliseconds.
@@ -1960,7 +1960,7 @@ pub fn destack_net_get_read_timeout(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    call_out(|out| unsafe { core_net::destack_net_get_read_timeout(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_read_timeout(runtime, out, handle) })
 }
 
 /// Read the write timeout in milliseconds.
@@ -1985,7 +1985,7 @@ pub fn destack_net_get_write_timeout(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    call_out(|out| unsafe { core_net::destack_net_get_write_timeout(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_write_timeout(runtime, out, handle) })
 }
 
 /// Read IPv6-only mode.
@@ -2010,7 +2010,7 @@ pub fn destack_net_get_only_v6(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<bool> {
-    call_out(|out| unsafe { core_net::destack_net_get_only_v6(runtime, out, handle) })
+    call_out(|out| unsafe { host_net::destack_net_get_only_v6(runtime, out, handle) })
 }
 
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {

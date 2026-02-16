@@ -2,6 +2,7 @@
 use super::with_harness_context;
 use crate::platform::net::SocketFamily;
 
+/// Exchange bytes over a tcp connection and verify address metadata.
 #[cfg(unix)]
 #[test]
 fn test_net_roundtrip() {
@@ -36,7 +37,7 @@ fn test_net_roundtrip() {
         buffer.truncate(received_back as usize);
         assert_eq!(buffer, b"pong");
 
-        // validate local/peer addresses
+        // local and peer addresses should match the active connection endpoints
         let (local_host, local_port, local_family) = context.local_address(client)?;
         let (peer_host, peer_port, peer_family) = context.peer_address(client)?;
 
@@ -56,6 +57,7 @@ fn test_net_roundtrip() {
     });
 }
 
+/// Exchange bytes over a localhost tcp connection.
 #[cfg(unix)]
 #[test]
 fn test_net_roundtrip_localhost() {
@@ -80,7 +82,7 @@ fn test_net_roundtrip_localhost() {
         buffer.truncate(received as usize);
         assert_eq!(buffer, b"ping");
 
-        // validate local and peer addresses
+        // local and peer addresses should resolve through localhost
         let (local_host, local_port, _) = context.local_address(client)?;
         let (peer_host, peer_port, _) = context.peer_address(client)?;
         assert!(!local_host.is_empty());
@@ -97,6 +99,7 @@ fn test_net_roundtrip_localhost() {
     });
 }
 
+/// Exchange bytes over tcp using vectored read and write operations.
 #[cfg(unix)]
 #[test]
 fn test_net_readv_writev_roundtrip() {

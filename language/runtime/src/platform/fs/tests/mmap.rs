@@ -4,6 +4,7 @@ use crate::platform::fs::{
     FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, OpenFlags,
 };
 
+/// Map anonymous memory and exercise mapping control operations.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_mmap_anonymous() {
@@ -15,6 +16,7 @@ fn test_fs_mmap_anonymous() {
 
         let mapping = context.mmap_anonymous(FileSize(4096), prot, flags)?;
 
+        // when supported, the anonymous mapping should roundtrip written bytes
         if let Some(mapping) = mapping {
             context.write_mapping(&mapping, b"anon")?;
             let bytes = context.read_mapping(&mapping, 4)?;
@@ -35,6 +37,7 @@ fn test_fs_mmap_anonymous() {
     });
 }
 
+/// Map file-backed memory and persist modified mapping contents.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_mmap_file() {
@@ -56,6 +59,7 @@ fn test_fs_mmap_file() {
         let flags = MmapFlags(0x2);
         let mapping = context.mmap_file(handle, FileOffset(0), FileSize(4), prot, flags)?;
 
+        // when supported, mapped bytes should be readable and writable
         if let Some(mapping) = mapping {
             let bytes = context.read_mapping(&mapping, 4)?;
             assert_eq!(bytes, b"mmap");

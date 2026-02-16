@@ -9,4 +9,6 @@ pub use bindings_generated::*;
 pub mod core;
 pub mod native;
 pub(crate) mod runtime;
+#[cfg(test)]
+mod tests;
 pub mod vm;

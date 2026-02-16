@@ -35,10 +35,9 @@ use crate::platform::resource;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_delete(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_CERTIFICATE_DELETE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported(
@@ -65,12 +64,11 @@ pub(crate) unsafe fn destack_crypto_certificate_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_export(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_CERTIFICATE_EXPORT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -100,13 +98,12 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_import(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::CryptoCertificateHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
     certificate: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_CERTIFICATE_IMPORT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -136,11 +133,10 @@ pub(crate) unsafe fn destack_crypto_certificate_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_metadata(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut CryptoCertificateMetadata,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_CERTIFICATE_METADATA)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -170,11 +166,10 @@ pub(crate) unsafe fn destack_crypto_certificate_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_verify(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut CryptoCertificateVerifyResult,
     request: CryptoCertificateVerifyRequest,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_CERTIFICATE_VERIFY)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -204,13 +199,12 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_decrypt(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoEncryptionScheme,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_DECRYPT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -237,10 +231,9 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_delete(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_DELETE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.delete")).boxed())
@@ -264,13 +257,12 @@ pub(crate) unsafe fn destack_crypto_key_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_encrypt(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoEncryptionScheme,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_ENCRYPT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -297,12 +289,11 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_public(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_EXPORT_PUBLIC)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -332,12 +323,11 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     spec: CryptoKeySpec,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_GENERATE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -364,7 +354,7 @@ pub(crate) unsafe fn destack_crypto_key_generate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_import(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoKeyFormat,
@@ -372,7 +362,6 @@ pub(crate) unsafe fn destack_crypto_key_import(
     usagemask: CryptoKeyUsageMask,
     label: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_IMPORT)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -399,11 +388,10 @@ pub(crate) unsafe fn destack_crypto_key_import(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_metadata(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut CryptoKeyMetadata,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_METADATA)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -430,13 +418,12 @@ pub(crate) unsafe fn destack_crypto_key_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_sign(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoSignatureScheme,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_SIGN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -463,14 +450,13 @@ pub(crate) unsafe fn destack_crypto_key_sign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_verify(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut bool,
     handle: resource::CryptoKeyHandle,
     scheme: CryptoSignatureScheme,
     argument_payload: NativeSlice<u8>,
     signature: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_KEY_VERIFY)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -497,10 +483,9 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_close(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_STORE_CLOSE)?;
     let _ = handle;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.close")).boxed())
@@ -524,12 +509,11 @@ pub(crate) unsafe fn destack_crypto_store_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_certificates(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<resource::CryptoCertificateHandle>,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_STORE_LIST_CERTIFICATES)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -559,12 +543,11 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_keys(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<resource::CryptoKeyHandle>,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_STORE_LIST_KEYS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -594,11 +577,10 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_open(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut resource::CryptoStoreHandle,
     options: CryptoStoreOptions,
 ) -> RuntimeResult<()> {
-    context.check_policy(CRYPTO_STORE_OPEN)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }

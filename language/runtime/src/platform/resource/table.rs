@@ -43,6 +43,9 @@ pub struct ResourceEntry {
     pub kind: ResourceKind,
     /// Optional label for diagnostics.
     pub label: Option<String>,
+    /// Optional raw handle payload.
+    #[cfg(windows)]
+    pub raw_handle: Option<RawHandle>,
     /// Opaque payload for resource-specific state.
     pub payload: Option<Box<dyn Any + Send + Sync>>,
     /// Snapshot policy for this resource.
@@ -58,6 +61,16 @@ impl fmt::Debug for ResourceEntry {
         f.debug_struct("ResourceEntry")
             .field("kind", &self.kind)
             .field("label", &self.label)
+            .field("has_raw_handle", &{
+                #[cfg(windows)]
+                {
+                    self.raw_handle.is_some()
+                }
+                #[cfg(not(windows))]
+                {
+                    false
+                }
+            })
             .field("has_payload", &self.payload.is_some())
             .field("snapshot_policy", &self.snapshot_policy)
             .field("has_snapshot_adapter", &self.snapshot_adapter.is_some())
@@ -85,6 +98,8 @@ impl ResourceEntry {
         Self {
             kind,
             label: None,
+            #[cfg(windows)]
+            raw_handle: None,
             payload: None,
             snapshot_policy: ResourceSnapshotPolicy::Uncheckpointable,
             snapshot_adapter: None,
@@ -129,7 +144,7 @@ impl ResourceEntry {
     /// Attach a raw handle payload.
     #[cfg(windows)]
     pub fn with_handle(mut self, handle: RawHandle) -> Self {
-        self.payload = Some(Box::new(HandlePayload(handle)));
+        self.raw_handle = Some(handle);
         self
     }
 
@@ -170,10 +185,12 @@ impl ResourceEntry {
     /// Read a raw handle payload when present.
     #[cfg(windows)]
     pub fn handle(&self) -> Option<RawHandle> {
-        self.payload
-            .as_ref()
-            .and_then(|payload| payload.downcast_ref::<HandlePayload>())
-            .map(|payload| payload.0)
+        self.raw_handle.or_else(|| {
+            self.payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<HandlePayload>())
+                .map(|payload| payload.0)
+        })
     }
 
     /// Read a raw socket payload when present.

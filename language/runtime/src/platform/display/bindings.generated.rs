@@ -1459,6 +1459,7 @@ pub unsafe extern "C" fn destack_display_monitor_close(
     native_call(|context| {
         let _ = &handle;
 
+        context.check_policy(DISPLAY_MONITOR_CLOSE)?;
         let world = context.check_and_resolve_world(DISPLAY_MONITOR_CLOSE)?;
         destack_display_monitor_close_replay(context, world, handle)
     })
@@ -1474,6 +1475,7 @@ pub unsafe extern "C" fn destack_display_monitor_list(
         }
         let _ = &out;
 
+        context.check_policy(DISPLAY_MONITOR_LIST)?;
         let world = context.check_and_resolve_world(DISPLAY_MONITOR_LIST)?;
         destack_display_monitor_list_replay(context, world, out)
     })
@@ -1490,6 +1492,7 @@ pub unsafe extern "C" fn destack_display_monitor_modes(
         }
         let _ = (&out, &handle);
 
+        context.check_policy(DISPLAY_MONITOR_MODES)?;
         let world = context.check_and_resolve_world(DISPLAY_MONITOR_MODES)?;
         destack_display_monitor_modes_replay(context, world, out, handle)
     })
@@ -1506,6 +1509,7 @@ pub unsafe extern "C" fn destack_display_monitor_open(
         }
         let _ = (&out, &id);
 
+        context.check_policy(DISPLAY_MONITOR_OPEN)?;
         let world = context.check_and_resolve_world(DISPLAY_MONITOR_OPEN)?;
         destack_display_monitor_open_replay(context, world, out, id)
     })
@@ -1520,6 +1524,7 @@ pub unsafe extern "C" fn destack_display_monitor_set_mode(
         let _ = (&handle, &mode);
 
         {
+            context.check_policy(DISPLAY_MONITOR_SET_MODE)?;
             let world = context.check_and_resolve_world(DISPLAY_MONITOR_SET_MODE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
@@ -1540,6 +1545,7 @@ pub unsafe extern "C" fn destack_display_window_close(
     native_call(|context| {
         let _ = &window;
 
+        context.check_policy(DISPLAY_WINDOW_CLOSE)?;
         let world = context.check_and_resolve_world(DISPLAY_WINDOW_CLOSE)?;
         destack_display_window_close_replay(context, world, window)
     })
@@ -1556,6 +1562,7 @@ pub unsafe extern "C" fn destack_display_window_event(
         }
         let _ = (&out, &window);
 
+        context.check_policy(DISPLAY_WINDOW_EVENT)?;
         let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT)?;
         destack_display_window_event_replay(context, world, out, window)
     })
@@ -1573,6 +1580,7 @@ pub unsafe extern "C" fn destack_display_window_open(
         }
         let _ = (&out, &display, &options);
 
+        context.check_policy(DISPLAY_WINDOW_OPEN)?;
         let world = context.check_and_resolve_world(DISPLAY_WINDOW_OPEN)?;
         destack_display_window_open_replay(context, world, out, display, options)
     })
@@ -1586,6 +1594,7 @@ pub unsafe extern "C" fn destack_display_window_set_title(
     native_call(|context| {
         let _ = (&window, &title);
 
+        context.check_policy(DISPLAY_WINDOW_SET_TITLE)?;
         let world = context.check_and_resolve_world(DISPLAY_WINDOW_SET_TITLE)?;
         destack_display_window_set_title_replay(context, world, window, title)
     })
@@ -1602,6 +1611,7 @@ pub unsafe extern "C" fn destack_display_window_try_event(
         }
         let _ = (&out, &window);
 
+        context.check_policy(DISPLAY_WINDOW_TRY_EVENT)?;
         let world = context.check_and_resolve_world(DISPLAY_WINDOW_TRY_EVENT)?;
         destack_display_window_try_event_replay(context, world, out, window)
     })
@@ -1615,6 +1625,7 @@ pub unsafe extern "C" fn destack_display_window_vsync_wait(
     native_call(|context| {
         let _ = (&window, &timeoutns);
 
+        context.check_policy(DISPLAY_WINDOW_VSYNC_WAIT)?;
         let world = context.check_and_resolve_world(DISPLAY_WINDOW_VSYNC_WAIT)?;
         destack_display_window_vsync_wait_replay(context, world, window, timeoutns)
     })
@@ -2432,6 +2443,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (handle,) = decode_destack_display_monitor_close_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_MONITOR_CLOSE)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_MONITOR_CLOSE)?;
                     destack_display_monitor_close_vm_replay(runtime, context, world, handle)
                 })
@@ -2447,6 +2459,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
             move |context, _args| {
                 with_runtime_call_context(|runtime| {
                     // execute binding
+                    runtime.check_policy(DISPLAY_MONITOR_LIST)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_MONITOR_LIST)?;
                     destack_display_monitor_list_vm_replay(runtime, context, world)
                 })
@@ -2465,6 +2478,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (handle,) = decode_destack_display_monitor_modes_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_MONITOR_MODES)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_MONITOR_MODES)?;
                     destack_display_monitor_modes_vm_replay(runtime, context, world, handle)
                 })
@@ -2483,6 +2497,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (id,) = decode_destack_display_monitor_open_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_MONITOR_OPEN)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_MONITOR_OPEN)?;
                     destack_display_monitor_open_vm_replay(runtime, context, world, id)
                 })
@@ -2503,6 +2518,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
 
                     // execute binding
                     let result = {
+                        runtime.check_policy(DISPLAY_MONITOR_SET_MODE)?;
                         let world = runtime.check_and_resolve_world(DISPLAY_MONITOR_SET_MODE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_display_set_mode(
@@ -2532,6 +2548,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (window,) = decode_destack_display_window_close_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_WINDOW_CLOSE)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_CLOSE)?;
                     destack_display_window_close_vm_replay(runtime, context, world, window)
                 })
@@ -2550,6 +2567,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (window,) = decode_destack_display_window_event_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_WINDOW_EVENT)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT)?;
                     destack_display_window_event_vm_replay(runtime, context, world, window)
                 })
@@ -2569,6 +2587,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_display_window_open_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_WINDOW_OPEN)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_OPEN)?;
                     destack_display_window_open_vm_replay(runtime, context, world, display, options)
                 })
@@ -2588,6 +2607,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_display_window_set_title_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_WINDOW_SET_TITLE)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_SET_TITLE)?;
                     destack_display_window_set_title_vm_replay(
                         runtime, context, world, window, title,
@@ -2608,6 +2628,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (window,) = decode_destack_display_window_try_event_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_WINDOW_TRY_EVENT)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_TRY_EVENT)?;
                     destack_display_window_try_event_vm_replay(runtime, context, world, window)
                 })
@@ -2627,6 +2648,7 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_display_window_vsync_wait_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(DISPLAY_WINDOW_VSYNC_WAIT)?;
                     let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_VSYNC_WAIT)?;
                     destack_display_window_vsync_wait_vm_replay(
                         runtime, context, world, window, timeoutns,

@@ -28,11 +28,10 @@ use crate::platform::time::{ClockId, ClockInfo, ClockSource, SleepClock};
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_clock_info(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ClockInfo,
     clock: ClockId,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_CLOCK_INFO)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -59,10 +58,9 @@ pub(crate) unsafe fn destack_time_clock_info(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_mono_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_CLOCK_MONO_NS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -89,11 +87,10 @@ pub(crate) unsafe fn destack_time_mono_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_now_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
     clock: ClockId,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_CLOCK_NOW_NS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -120,10 +117,9 @@ pub(crate) unsafe fn destack_time_now_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_process_cpu_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_CLOCK_PROCESS_CPU_NS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -153,10 +149,9 @@ pub(crate) unsafe fn destack_time_process_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_thread_cpu_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_CLOCK_THREAD_CPU_NS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -186,10 +181,9 @@ pub(crate) unsafe fn destack_time_thread_cpu_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_wall_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_CLOCK_WALL_NS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -216,10 +210,9 @@ pub(crate) unsafe fn destack_time_wall_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     duration: u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_SLEEP_NS)?;
     let _ = duration;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.ns")).boxed())
@@ -243,11 +236,10 @@ pub(crate) unsafe fn destack_time_sleep_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_on_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     duration: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_SLEEP_ON_NS)?;
     let _ = (duration, clock);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.onNs")).boxed())
@@ -271,10 +263,9 @@ pub(crate) unsafe fn destack_time_sleep_on_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_until_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     deadline: u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_SLEEP_UNTIL_NS)?;
     let _ = deadline;
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.untilNs")).boxed())
@@ -298,11 +289,10 @@ pub(crate) unsafe fn destack_time_sleep_until_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_time_sleep_until_on_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     deadline: u64,
     clock: SleepClock,
 ) -> RuntimeResult<()> {
-    context.check_policy(TIME_SLEEP_UNTIL_ON_NS)?;
     let _ = (deadline, clock);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.time.sleep.untilOnNs")).boxed())

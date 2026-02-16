@@ -4,6 +4,12 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs as platform_fs;
 use crate::platform::fs::{AccessMode, FileMode, OpenFlags};
 
+fn is_privileged_test_mode() -> bool {
+    let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
+    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
+}
+
+/// Check write access behavior before and after chmod mode changes.
 #[cfg(unix)]
 #[test]
 fn test_fs_access_and_chmod() {
@@ -30,6 +36,12 @@ fn test_fs_access_and_chmod() {
         context.chmod(file.clone(), FileMode(0o444))?;
 
         if should_check_access_failure {
+            if is_privileged_test_mode() {
+                panic!(
+                    "DESTACK_TEST_PRIVILEGED=1 requires privileged coverage, but access write check is running in unprivileged mode",
+                );
+            }
+
             let file = context.path_bytes(&file_path);
             match context.kind() {
                 FsHarnessKind::Native => {
@@ -39,7 +51,10 @@ fn test_fs_access_and_chmod() {
                     let status = unsafe {
                         platform_fs::destack_fs_attrs_access(native_path, AccessMode(0o222))
                     };
-                    context.status_err(status, "access write after chmod")?;
+                    assert_platform_error_codes(
+                        context.status_result(status, "access write after chmod"),
+                        &[PlatformErrorCode::IoPermissionDenied, PlatformErrorCode::Io],
+                    )?;
                 }
                 FsHarnessKind::Vm => {
                     assert_platform_error_codes(
@@ -60,6 +75,7 @@ fn test_fs_access_and_chmod() {
     });
 }
 
+/// Apply ownership, timestamp, and mode updates to one file handle.
 #[cfg(unix)]
 #[test]
 fn test_fs_chown_and_times() {
@@ -86,6 +102,10 @@ fn test_fs_chown_and_times() {
             let gid = unsafe { libc::getgid() };
             context.chown(file.clone(), uid, gid)?;
             context.fchown(handle, uid, gid)?;
+        } else if is_privileged_test_mode() {
+            panic!(
+                "DESTACK_TEST_PRIVILEGED=1 requires chown coverage, but test process lacks privileges",
+            );
         }
 
         context.utimes(file.clone(), 1_000_000, 2_000_000)?;

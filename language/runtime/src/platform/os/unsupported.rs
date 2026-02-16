@@ -29,10 +29,9 @@ use crate::platform::os::{HostIdentity, LoadAverage, MountEntry, PowerState, Sys
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_host_identity(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut HostIdentity,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_HOST_IDENTITY)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -59,10 +58,9 @@ pub(crate) unsafe fn destack_os_host_identity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_boot_time_unix_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_INFO_BOOT_TIME_UNIX_NS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -92,10 +90,9 @@ pub(crate) unsafe fn destack_os_boot_time_unix_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_load_average(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut LoadAverage,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_INFO_LOAD_AVERAGE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -122,10 +119,9 @@ pub(crate) unsafe fn destack_os_load_average(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_system_info(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut SystemInfo,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_INFO_SYSTEM_INFO)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -152,10 +148,9 @@ pub(crate) unsafe fn destack_os_system_info(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_uptime_ns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut u64,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_INFO_UPTIME_NS)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -182,14 +177,13 @@ pub(crate) unsafe fn destack_os_uptime_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_add(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     source: fs::OsPath,
     target: fs::OsPath,
     filesystem: NativeStringRef,
     flags: u64,
     data: NativeStringRef,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_MOUNT_ADD)?;
     let _ = (source, target, filesystem, flags, data);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.add")).boxed())
@@ -213,10 +207,9 @@ pub(crate) unsafe fn destack_os_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_list(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut NativeArray<MountEntry>,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_MOUNT_LIST)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -243,11 +236,10 @@ pub(crate) unsafe fn destack_os_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_remove(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     target: fs::OsPath,
     flags: u32,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_MOUNT_REMOVE)?;
     let _ = (target, flags);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.remove")).boxed())
@@ -271,10 +263,9 @@ pub(crate) unsafe fn destack_os_remove(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_os_power_state(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut PowerState,
 ) -> RuntimeResult<()> {
-    context.check_policy(OS_POWER_STATE)?;
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
@@ -300,8 +291,6 @@ pub(crate) unsafe fn destack_os_power_state(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_os_suspend(context: &RuntimeCallContext) -> RuntimeResult<()> {
-    context.check_policy(OS_POWER_SUSPEND)?;
-
+pub(crate) unsafe fn destack_os_suspend(_context: &RuntimeCallContext) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.power.suspend")).boxed())
 }

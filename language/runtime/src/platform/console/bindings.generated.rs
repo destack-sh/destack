@@ -470,6 +470,7 @@ pub unsafe extern "C" fn destack_console_console_error(
     native_call(|context| {
         let _ = &argument_value;
 
+        context.check_policy(CONSOLE_CONSOLE_ERROR)?;
         let world = context.check_and_resolve_world(CONSOLE_CONSOLE_ERROR)?;
         destack_console_console_error_replay(context, world, argument_value)
     })
@@ -482,6 +483,7 @@ pub unsafe extern "C" fn destack_console_console_info(
     native_call(|context| {
         let _ = &argument_value;
 
+        context.check_policy(CONSOLE_CONSOLE_INFO)?;
         let world = context.check_and_resolve_world(CONSOLE_CONSOLE_INFO)?;
         destack_console_console_info_replay(context, world, argument_value)
     })
@@ -494,6 +496,7 @@ pub unsafe extern "C" fn destack_console_console_log(
     native_call(|context| {
         let _ = &argument_value;
 
+        context.check_policy(CONSOLE_CONSOLE_LOG)?;
         let world = context.check_and_resolve_world(CONSOLE_CONSOLE_LOG)?;
         destack_console_console_log_replay(context, world, argument_value)
     })
@@ -506,6 +509,7 @@ pub unsafe extern "C" fn destack_console_console_warn(
     native_call(|context| {
         let _ = &argument_value;
 
+        context.check_policy(CONSOLE_CONSOLE_WARN)?;
         let world = context.check_and_resolve_world(CONSOLE_CONSOLE_WARN)?;
         destack_console_console_warn_replay(context, world, argument_value)
     })
@@ -742,6 +746,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_console_console_error_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(CONSOLE_CONSOLE_ERROR)?;
                     let world = runtime.check_and_resolve_world(CONSOLE_CONSOLE_ERROR)?;
                     destack_console_console_error_vm_replay(runtime, context, world, argument_value)
                 })
@@ -761,6 +766,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_console_console_info_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(CONSOLE_CONSOLE_INFO)?;
                     let world = runtime.check_and_resolve_world(CONSOLE_CONSOLE_INFO)?;
                     destack_console_console_info_vm_replay(runtime, context, world, argument_value)
                 })
@@ -779,6 +785,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     let (argument_value,) = decode_destack_console_console_log_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(CONSOLE_CONSOLE_LOG)?;
                     let world = runtime.check_and_resolve_world(CONSOLE_CONSOLE_LOG)?;
                     destack_console_console_log_vm_replay(runtime, context, world, argument_value)
                 })
@@ -798,6 +805,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                         decode_destack_console_console_warn_args(context, args)?;
 
                     // execute binding
+                    runtime.check_policy(CONSOLE_CONSOLE_WARN)?;
                     let world = runtime.check_and_resolve_world(CONSOLE_CONSOLE_WARN)?;
                     destack_console_console_warn_vm_replay(runtime, context, world, argument_value)
                 })

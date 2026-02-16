@@ -1,6 +1,7 @@
 use super::{FsDirent, temp_dir, with_harness_context};
 use crate::platform::fs::{DirentKind, FileMode};
 
+/// Create a directory tree and enumerate entries from an open directory handle.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_mkdir_opendir_readdir_closedir() {
@@ -30,6 +31,7 @@ fn test_fs_mkdir_opendir_readdir_closedir() {
             })
             .collect::<Vec<_>>();
 
+        // only the created child directory should appear after dot filtering
         assert!(
             entries
                 .iter()
@@ -50,6 +52,7 @@ fn test_fs_mkdir_opendir_readdir_closedir() {
     });
 }
 
+/// Create a child directory with mkdirat relative to a parent handle.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_mkdirat_bytes() {
@@ -81,6 +84,7 @@ fn test_fs_mkdirat_bytes() {
     });
 }
 
+/// Create a unique temporary directory from a mkdtemp template.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_fs_mkdtemp() {

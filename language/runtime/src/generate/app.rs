@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -19,9 +20,11 @@ use crate::binding::{
     runtime_domain_mod_path, runtime_domain_native_path, runtime_domain_runtime_mod_path,
     runtime_domain_runtime_native_path, runtime_domain_runtime_vm_path,
     runtime_domain_simulated_mod_path, runtime_domain_simulated_native_path,
-    runtime_domain_simulated_vm_path, runtime_domain_unix_mod_path,
-    runtime_domain_unsupported_path, runtime_domain_vm_path, runtime_domain_windows_mod_path,
-    runtime_platform_generated_path, write_domain_bindings,
+    runtime_domain_simulated_vm_path, runtime_domain_test_harness_generated_path,
+    runtime_domain_tests_basic_path, runtime_domain_tests_dir_path, runtime_domain_tests_mod_path,
+    runtime_domain_tests_path, runtime_domain_unix_mod_path, runtime_domain_unsupported_path,
+    runtime_domain_vm_path, runtime_domain_windows_mod_path, runtime_platform_generated_path,
+    write_domain_bindings,
 };
 use crate::catalog::collect_platform_bindings;
 use crate::model::BindingScope;
@@ -521,6 +524,12 @@ fn generate_bindings(
 
     let empty_types = DomainAbiTypes::default();
 
+    for domain in &binding_domains {
+        ensure_domain_mod_has_tests(domain);
+        ensure_domain_test_scaffold(domain);
+        split_domain_test_harness(domain);
+    }
+
     for domain in &abi_domains {
         if let Some(bindings) = catalog.get(domain) {
             let has_world_dispatch = bindings
@@ -602,4 +611,421 @@ fn generate_bindings(
         let platform_path = runtime_platform_generated_path();
         write_domain_bindings(&platform_path, &platform_generated);
     }
+}
+
+/// Ensure one domain module declares its test module.
+fn ensure_domain_mod_has_tests(domain: &str) {
+    let mod_path = runtime_domain_mod_path(domain);
+    if !mod_path.exists() {
+        return;
+    }
+
+    let Ok(source) = fs::read_to_string(&mod_path) else {
+        return;
+    };
+    if source.contains("mod tests;") {
+        return;
+    }
+
+    let declaration = "#[cfg(test)]\nmod tests;\n";
+    let rewritten = if let Some(position) = source.find("pub mod vm;") {
+        let (before, after) = source.split_at(position);
+        let mut output = String::new();
+        output.push_str(before);
+        if !before.ends_with('\n') {
+            output.push('\n');
+        }
+        output.push_str(declaration);
+        output.push_str(after);
+        output
+    } else {
+        let mut output = source;
+        if !output.ends_with('\n') {
+            output.push('\n');
+        }
+        output.push_str(declaration);
+        output
+    };
+
+    write_domain_bindings(&mod_path, &rewritten);
+}
+
+/// Ensure one domain has a canonical test scaffold.
+fn ensure_domain_test_scaffold(domain: &str) {
+    let tests_dir = runtime_domain_tests_dir_path(domain);
+    if !tests_dir.exists() {
+        fs::create_dir_all(&tests_dir).expect("failed to create tests directory");
+    }
+
+    let tests_mod_path = runtime_domain_tests_mod_path(domain);
+    let tests_mod = render_domain_tests_mod_stub();
+    write_missing_stub_file(&tests_mod_path, &tests_mod);
+
+    let tests_path = runtime_domain_tests_path(domain);
+    let tests = render_domain_tests_stub(domain);
+    write_missing_stub_file(&tests_path, &tests);
+
+    let harness_path = runtime_domain_test_harness_generated_path(domain);
+    let harness = render_domain_test_harness_generated_stub();
+    write_missing_stub_file(&harness_path, &harness);
+
+    let basic_path = runtime_domain_tests_basic_path(domain);
+    let basic = render_domain_tests_basic_stub(domain);
+    write_missing_stub_file(&basic_path, &basic);
+}
+
+/// Render a tests module scaffold.
+fn render_domain_tests_mod_stub() -> String {
+    let mut output = String::new();
+    output.push_str("#[cfg(any(unix, windows))]\n");
+    output.push_str("mod basic;\n");
+    output.push_str("#[cfg(any(unix, windows))]\n");
+    output.push_str("mod tests;\n\n");
+    output.push_str("#[cfg(any(unix, windows))]\n");
+    output.push_str("pub(super) use tests::*;\n");
+    output
+}
+
+/// Render a handwritten tests harness scaffold.
+fn render_domain_tests_stub(domain: &str) -> String {
+    let domain_pascal = to_pascal_case(domain);
+    let context_name = format!("{domain_pascal}HarnessContext");
+    let native_name = format!("Native{domain_pascal}Harness");
+    let vm_name = format!("Vm{domain_pascal}Harness");
+    let handle_name = format!("{domain_pascal}HarnessHandle");
+    let harness_label = format!("{domain} harness call should succeed");
+
+    let mut output = String::new();
+    output.push_str("#![cfg_attr(windows, allow(dead_code, unused_imports))]\n\n");
+    output.push_str("use destack_vm as vm;\n\n");
+    output.push_str("use crate::diagnostic::RuntimeResult;\n");
+    output.push_str("use crate::runtime::RuntimeCallContext;\n");
+    output.push_str("use crate::tests::runtime::TestRuntime;\n\n");
+    output.push_str("#[path = \"harness.generated.rs\"]\n");
+    output.push_str("mod harness;\n\n");
+    output.push_str("/// Test harness context used by tests.\n");
+    output.push_str(&format!("pub(crate) struct {context_name}<'call> {{\n"));
+    output.push_str("    /// Runtime call context active for this operation.\n");
+    output.push_str("    pub(crate) call_context: &'call RuntimeCallContext,\n");
+    output.push_str("    /// VM context when running VM bindings.\n");
+    output.push_str("    pub(crate) vm_context: Option<*mut ()>,\n");
+    output.push_str("}\n\n");
+    output.push_str(&format!("/// Native {domain} harness.\n"));
+    output.push_str(&format!("pub(crate) struct {native_name} {{\n"));
+    output.push_str("    /// Runtime that powers the harness.\n");
+    output.push_str("    runtime: TestRuntime,\n");
+    output.push_str("}\n\n");
+    output.push_str(&format!("impl {native_name} {{\n"));
+    output.push_str(&format!("    /// Create a new native {domain} harness.\n"));
+    output.push_str("    pub(crate) fn new() -> Self {\n");
+    output.push_str("        Self {\n");
+    output.push_str("            runtime: TestRuntime::deterministic_random(),\n");
+    output.push_str("        }\n");
+    output.push_str("    }\n");
+    output.push_str("}\n\n");
+    output.push_str(&format!("/// VM {domain} harness.\n"));
+    output.push_str(&format!("pub(crate) struct {vm_name} {{\n"));
+    output.push_str("    /// Runtime that powers the harness.\n");
+    output.push_str("    runtime: TestRuntime,\n");
+    output.push_str("}\n\n");
+    output.push_str(&format!("impl {vm_name} {{\n"));
+    output.push_str(&format!("    /// Create a new VM {domain} harness.\n"));
+    output.push_str("    pub(crate) fn new() -> Self {\n");
+    output.push_str("        Self {\n");
+    output.push_str("            runtime: TestRuntime::deterministic_random(),\n");
+    output.push_str("        }\n");
+    output.push_str("    }\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Harness handle that dispatches to native or VM implementations.\n");
+    output.push_str(&format!("pub(crate) enum {handle_name} {{\n"));
+    output.push_str(&format!("    /// Native {domain} harness.\n"));
+    output.push_str(&format!("    Native({native_name}),\n"));
+    output.push_str(&format!("    /// VM {domain} harness.\n"));
+    output.push_str(&format!("    Vm({vm_name}),\n"));
+    output.push_str("}\n\n");
+    output.push_str(&format!("impl {handle_name} {{\n"));
+    output.push_str("    /// Run a native or VM call context around one callback.\n");
+    output.push_str("    pub(crate) fn with_context<F, R>(&self, callback: F) -> R\n");
+    output.push_str("    where\n");
+    output.push_str(&format!(
+        "        F: for<'call> FnOnce({context_name}<'call>) -> R,\n"
+    ));
+    output.push_str("    {\n");
+    output.push_str("        match self {\n");
+    output.push_str(&format!(
+        "            {handle_name}::Native(harness) => {{\n"
+    ));
+    output.push_str("                harness.runtime.with_native_call_context(|call_context| {\n");
+    output.push_str(&format!("                    callback({context_name} {{\n"));
+    output.push_str("                        call_context,\n");
+    output.push_str("                        vm_context: None,\n");
+    output.push_str("                    })\n");
+    output.push_str("                })\n");
+    output.push_str("            }\n");
+    output.push_str(&format!("            {handle_name}::Vm(harness) => {{\n"));
+    output.push_str("                harness\n");
+    output.push_str("                    .runtime\n");
+    output.push_str("                    .with_vm_call_context(|call_context, vm_context| {\n");
+    output.push_str(
+        "                        let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();\n",
+    );
+    output.push_str(&format!(
+        "                        callback({context_name} {{\n"
+    ));
+    output.push_str("                            call_context,\n");
+    output.push_str("                            vm_context: Some(vm_context),\n");
+    output.push_str("                        })\n");
+    output.push_str("                    })\n");
+    output.push_str("            }\n");
+    output.push_str("        }\n");
+    output.push_str("    }\n\n");
+    output.push_str("    /// Run one callback that returns a runtime result.\n");
+    output.push_str("    pub(crate) fn run<F>(&self, callback: F)\n");
+    output.push_str("    where\n");
+    output.push_str(&format!(
+        "        F: for<'call> FnOnce({context_name}<'call>) -> RuntimeResult<()>,\n"
+    ));
+    output.push_str("    {\n");
+    output.push_str("        self.with_context(callback)\n");
+    output.push_str(&format!("            .expect(\"{harness_label}\");\n"));
+    output.push_str("    }\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Run one callback against both harnesses.\n");
+    output.push_str("pub(crate) fn with_harnesses<F>(mut callback: F)\n");
+    output.push_str("where\n");
+    output.push_str(&format!("    F: FnMut(&{handle_name}),\n"));
+    output.push_str("{\n");
+    output.push_str(&format!(
+        "    let native = {handle_name}::Native({native_name}::new());\n"
+    ));
+    output.push_str("    callback(&native);\n");
+    output.push_str(&format!(
+        "    let vm = {handle_name}::Vm({vm_name}::new());\n"
+    ));
+    output.push_str("    callback(&vm);\n");
+    output.push_str("}\n\n");
+    output.push_str("/// Run one callback against both harness contexts.\n");
+    output.push_str("pub(crate) fn with_harness_context<F>(mut callback: F)\n");
+    output.push_str("where\n");
+    output.push_str(&format!(
+        "    F: for<'call> FnMut({context_name}<'call>) -> RuntimeResult<()>,\n"
+    ));
+    output.push_str("{\n");
+    output.push_str("    with_harnesses(|harness| {\n");
+    output.push_str("        harness.run(&mut callback);\n");
+    output.push_str("    });\n");
+    output.push_str("}\n");
+    output
+}
+
+/// Render a generated harness adapter stub.
+fn render_domain_test_harness_generated_stub() -> String {
+    let mut output = String::new();
+    output.push_str("// generated by generate-bindings: test harness, do not edit\n\n");
+    output.push_str("#[allow(unused_imports)]\n");
+    output.push_str("use super::*;\n");
+    output
+}
+
+/// Render a basic scaffold test for one domain.
+fn render_domain_tests_basic_stub(domain: &str) -> String {
+    let mut output = String::new();
+    output.push_str("use super::with_harness_context;\n\n");
+    output.push_str("#[cfg(any(unix, windows))]\n");
+    output.push_str("#[test]\n");
+    output.push_str(&format!("fn test_{domain}_basic_scaffold() {{\n"));
+    output.push_str("    with_harness_context(|context| {\n");
+    output.push_str("        let _ = context.call_context;\n");
+    output.push_str("        let _ = context.vm_context;\n");
+    output.push_str("        Ok(())\n");
+    output.push_str("    });\n");
+    output.push_str("}\n");
+    output
+}
+
+/// Split legacy monolithic test harness files into handwritten and generated parts.
+fn split_domain_test_harness(domain: &str) {
+    let tests_path = runtime_domain_tests_path(domain);
+    if !tests_path.exists() {
+        return;
+    }
+
+    let harness_path = runtime_domain_test_harness_generated_path(domain);
+    let Ok(source) = fs::read_to_string(&tests_path) else {
+        return;
+    };
+
+    // no-op when the harness is already split
+    if source.contains("#[path = \"harness.generated.rs\"]") {
+        return;
+    }
+
+    // find the harness impl block by convention
+    let context_name = format!("{}HarnessContext", to_pascal_case(domain));
+    let start_pattern = format!("impl<'call> {context_name}<'call> {{");
+    let Some(start_line) = source
+        .lines()
+        .position(|line| line.trim_start().starts_with(&start_pattern))
+    else {
+        return;
+    };
+
+    let Some(end_line) =
+        source
+            .lines()
+            .enumerate()
+            .skip(start_line + 1)
+            .find_map(|(index, line)| {
+                let line = line.trim_start();
+                if line.starts_with("/// Native ")
+                    && line.contains(" harness backed by native bindings.")
+                {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
+    else {
+        return;
+    };
+
+    let mut lines = source
+        .lines()
+        .map(ToString::to_string)
+        .collect::<Vec<String>>();
+    let harness_lines = lines[start_line..end_line].to_vec();
+    let harness_lines = ensure_harness_method_docs(harness_lines);
+
+    if harness_lines.is_empty() {
+        return;
+    }
+
+    // render generated harness file
+    let mut generated = String::new();
+    generated.push_str("// generated by generate-bindings: test harness, do not edit\n\n");
+    generated.push_str("use super::*;\n\n");
+    generated.push_str(&harness_lines.join("\n"));
+    generated.push('\n');
+    write_domain_bindings(&harness_path, &generated);
+
+    // remove generated harness impl from handwritten source
+    lines.drain(start_line..end_line);
+
+    // insert generated harness module include after top-level use declarations
+    let insertion_index = find_harness_module_insert_index(&lines);
+    lines.insert(insertion_index, String::new());
+    lines.insert(
+        insertion_index,
+        "#[path = \"harness.generated.rs\"]".to_string(),
+    );
+    lines.insert(insertion_index + 1, "mod harness;".to_string());
+
+    let mut rewritten = lines.join("\n");
+    rewritten.push('\n');
+    write_domain_bindings(&tests_path, &rewritten);
+}
+
+/// Return the insertion index for the generated harness module include.
+fn find_harness_module_insert_index(lines: &[String]) -> usize {
+    let mut index = 0;
+
+    while index < lines.len() {
+        let trimmed = lines[index].trim();
+
+        if trimmed.is_empty() || trimmed.starts_with("#!") {
+            index += 1;
+            continue;
+        }
+
+        if trimmed.starts_with("use ") {
+            while index < lines.len() {
+                let line = lines[index].trim_end();
+                index += 1;
+                if line.ends_with(';') {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        if trimmed.starts_with("#[cfg") {
+            let mut lookahead = index + 1;
+            while lookahead < lines.len() && lines[lookahead].trim().is_empty() {
+                lookahead += 1;
+            }
+            if lookahead < lines.len() && lines[lookahead].trim_start().starts_with("use ") {
+                index += 1;
+                continue;
+            }
+
+            break;
+        }
+
+        break;
+    }
+
+    index
+}
+
+/// Convert one snake-case domain name into a PascalCase identifier segment.
+fn to_pascal_case(domain: &str) -> String {
+    let mut out = String::new();
+
+    for part in domain.split('_') {
+        let mut chars = part.chars();
+        let Some(first) = chars.next() else {
+            continue;
+        };
+        out.push(first.to_ascii_uppercase());
+        out.extend(chars);
+    }
+
+    out
+}
+
+/// Ensure every generated harness method has a documentation comment.
+fn ensure_harness_method_docs(lines: Vec<String>) -> Vec<String> {
+    let mut output = Vec::<String>::with_capacity(lines.len());
+
+    for line in lines {
+        let method_name = harness_method_name_from_line(&line);
+        let mut has_doc = false;
+        for previous in output.iter().rev() {
+            let previous = previous.trim_start();
+            if previous.is_empty() || previous.starts_with("#[") {
+                continue;
+            }
+
+            if previous.starts_with("///") {
+                has_doc = true;
+            }
+            break;
+        }
+
+        if let Some(method_name) = method_name {
+            if !has_doc {
+                output.push(format!(
+                    "    /// Call `{method_name}` through the active test harness."
+                ));
+            }
+        }
+
+        output.push(line);
+    }
+
+    output
+}
+
+/// Extract one method name from a harness method signature line.
+fn harness_method_name_from_line(line: &str) -> Option<String> {
+    let line = line.trim_start();
+    let function = line.strip_prefix("pub(crate) fn ")?;
+    let name_end = function
+        .find(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+        .unwrap_or(function.len());
+    if name_end == 0 {
+        return None;
+    }
+
+    Some(function[..name_end].to_string())
 }
