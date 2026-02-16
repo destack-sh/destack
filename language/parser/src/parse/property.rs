@@ -67,8 +67,12 @@ impl Parser {
         if self.peek_is(TokenType::Spread) {
             let start = self.mark_span();
             self.bump(); // eat spread
-            let value =
-                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
+            let value = self.eat_expression(
+                self.options
+                    .not_in_position()
+                    .not_in_left_precedence()
+                    .not_in_sequence_expression(),
+            )?;
             let property = Property::Spread {
                 modifiers: None,
                 value,
@@ -466,9 +470,13 @@ impl Parser {
                     self.options
                         .nested()
                         .not_in_position()
+                        .not_in_left_precedence()
                         .not_in_sequence_expression()
                 } else {
-                    self.options.not_in_position().not_in_sequence_expression()
+                    self.options
+                        .not_in_position()
+                        .not_in_left_precedence()
+                        .not_in_sequence_expression()
                 };
                 let default = self.eat_expression(default_options)?;
                 Some(default)
@@ -605,8 +613,12 @@ impl Parser {
         if self.peek_is(TokenType::Spread) {
             let start = self.mark_span();
             self.bump(); // eat spread
-            let value =
-                self.eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
+            let value = self.eat_expression(
+                self.options
+                    .not_in_position()
+                    .not_in_left_precedence()
+                    .not_in_sequence_expression(),
+            )?;
             let member = Member::Embed {
                 modifiers: None,
                 value,
@@ -1086,8 +1098,12 @@ impl Parser {
             let default = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                let default = self
-                    .eat_expression(self.options.not_in_position().not_in_sequence_expression())?;
+                let default = self.eat_expression(
+                    self.options
+                        .not_in_position()
+                        .not_in_left_precedence()
+                        .not_in_sequence_expression(),
+                )?;
                 Some(default)
             } else {
                 None
@@ -1201,8 +1217,9 @@ mod tests {
     use destack_ast::{
         AbstractionModifier, Annotation, AnnotationPosition, Argument, Asynchrony, BinaryOperator,
         BindingAnchor, BindingKind, Block, Comment, CommentStyle, Declaration, DeclarationKind,
-        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name,
-        Parameter, Property, ScalarLiteral, TypeLiteral, TypePredicateSubject, Visibility,
+        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IfCondition, IfKind, IntType,
+        Key, LocalNodeId, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral,
+        TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1745,7 +1762,7 @@ foo(): string;"#,
     }
 
     #[test]
-    fn test_parse_constructor_parameter_property_readonly_public_modifier_order() {
+    fn test_parse_constructor_parameter_property_readonly_public_modifier_order_reports_error() {
         let mut test = TestParser::new_with_options(
             r"class D extends B {
   constructor(readonly public foo: string) {}
@@ -1755,11 +1772,7 @@ foo(): string;"#,
         let mut parser = test.prepare();
         parser.parse();
 
-        assert!(
-            !parser.errors.is_empty(),
-            "expected parser error for readonly/public modifier order, got: {:?}",
-            parser.errors
-        );
+        assert_eq!(parser.errors.len(), 1);
     }
 
     #[test]
