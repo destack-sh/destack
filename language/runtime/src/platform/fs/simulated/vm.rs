@@ -1986,7 +1986,7 @@ pub(crate) fn destack_fs_mknodat(
 pub(crate) fn destack_fs_readlink(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.readlink")).boxed())
 }
@@ -2038,7 +2038,7 @@ pub(crate) fn destack_fs_readlinkat(
 pub(crate) fn destack_fs_realpath(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<OsPathVm> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.realpath")).boxed())
 }
@@ -2206,7 +2206,7 @@ pub(crate) fn destack_fs_symlinkat(
 pub(crate) fn destack_fs_unlink(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    path: OsPathVm,
+    _path: OsPathVm,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlink")).boxed())
 }

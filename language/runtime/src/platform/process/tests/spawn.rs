@@ -1,6 +1,8 @@
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 
+#[cfg(windows)]
+use super::with_native_harness_context;
 use super::{
     ProcessFdActionSpec, ProcessSpawnOptionsSpec, ProcessStdioSpec, shell_exit_command,
     shell_sleep_then_exit_command, spawn_shell, with_harness_context,
@@ -9,23 +11,33 @@ use super::{
 use super::{assert_platform_error_code, assert_platform_error_codes, is_would_block};
 #[cfg(unix)]
 use super::{fork_child_sleep_then_exit, unique_temp_file_path};
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeError;
-#[cfg(unix)]
+#[cfg(windows)]
+use crate::diagnostic::RuntimeResult;
+#[cfg(any(unix, windows))]
 use crate::platform::PlatformError;
 #[cfg(unix)]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::fs;
+#[cfg(windows)]
+use crate::platform::fs::core as core_fs;
 #[cfg(unix)]
 use crate::platform::process::ProcessFdActionKind;
 #[cfg(unix)]
 use crate::platform::process::ProcessId;
+#[cfg(windows)]
+use crate::platform::process::{
+    ProcessFdAction, ProcessSpawnOptions, ProcessStdio, native as process_native,
+};
 use crate::platform::process::{
     ProcessFdFlags, ProcessStdioKind, ProcessWaitFlags, ProcessWaitKind,
 };
 #[cfg(unix)]
 use crate::platform::process::{ProcessFdSignalFlags, Signal};
+#[cfg(windows)]
+use crate::platform::resource::{self, ResourceId};
 #[cfg(unix)]
 use crate::platform::resource::{ProcessFdHandle, ResourceId};
 
@@ -35,6 +47,92 @@ fn current_working_directory() -> String {
         .expect("cwd should succeed")
         .to_string_lossy()
         .to_string()
+}
+
+/// Build one I/O runtime error from the current OS error state.
+#[cfg(windows)]
+fn windows_io_error(message: &str) -> Box<RuntimeError> {
+    let error = std::io::Error::last_os_error();
+    RuntimeError::from(PlatformError::io(format!("{message}: {error}"))).boxed()
+}
+
+/// Own one Windows CRT pipe descriptor pair for process spawn tests.
+#[cfg(windows)]
+struct WindowsPipeDescriptors {
+    /// Read descriptor owned by the parent.
+    read_fd: i32,
+    /// Write descriptor used for child stdio wiring.
+    write_fd: i32,
+}
+
+#[cfg(windows)]
+impl WindowsPipeDescriptors {
+    /// Create one anonymous pipe descriptor pair.
+    fn open() -> RuntimeResult<Self> {
+        let mut descriptors = [0_i32; 2];
+        let rc = unsafe { libc::pipe(descriptors.as_mut_ptr(), 4096, libc::O_BINARY) };
+        if rc != 0 {
+            return Err(windows_io_error("failed to open test pipe"));
+        }
+
+        Ok(Self {
+            read_fd: descriptors[0],
+            write_fd: descriptors[1],
+        })
+    }
+
+    /// Read all bytes from the read descriptor until EOF.
+    fn read_all(&self) -> RuntimeResult<Vec<u8>> {
+        let mut output = Vec::<u8>::new();
+
+        loop {
+            let mut chunk = [0_u8; 256];
+            let read = unsafe {
+                libc::read(
+                    self.read_fd,
+                    chunk.as_mut_ptr() as *mut libc::c_void,
+                    chunk.len() as u32,
+                )
+            };
+            if read < 0 {
+                return Err(windows_io_error("failed to read test pipe"));
+            }
+            if read == 0 {
+                break;
+            }
+
+            output.extend_from_slice(&chunk[..read as usize]);
+        }
+
+        Ok(output)
+    }
+
+    /// Close the write descriptor before reading EOF from the read side.
+    fn close_write(&mut self) {
+        if self.write_fd >= 0 {
+            unsafe {
+                libc::close(self.write_fd);
+            }
+            self.write_fd = -1;
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for WindowsPipeDescriptors {
+    fn drop(&mut self) {
+        if self.write_fd >= 0 {
+            unsafe {
+                libc::close(self.write_fd);
+            }
+        }
+
+        if self.read_fd >= 0 {
+            unsafe {
+                libc::close(self.read_fd);
+            }
+        }
+    }
 }
 
 /// Spawn a child process, wait for exit, and reject stale handle reuse.
@@ -155,6 +253,98 @@ fn test_process_spawn_with_actions_wait_roundtrip() {
 
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 23);
+
+        Ok(())
+    });
+}
+
+/// Route spawned child stdout through a provided pipe handle.
+#[cfg(windows)]
+#[test]
+fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
+    let cwd = current_working_directory();
+
+    with_native_harness_context(|mut context| {
+        let mut pipe = WindowsPipeDescriptors::open()?;
+
+        let call_context = context.call_context();
+        let write_handle_raw = unsafe { libc::get_osfhandle(pipe.write_fd) };
+        if write_handle_raw == -1 {
+            return Err(windows_io_error(
+                "failed to resolve write descriptor handle",
+            ));
+        }
+
+        let write_handle = write_handle_raw as *mut libc::c_void;
+        let pipe_entry = resource::ResourceEntry::new(resource::ResourceKind::Pipe)
+            .with_label("process.test.pipe.stdout")
+            .with_handle(write_handle);
+        let pipe_resource_id = call_context.runtime().resources.insert(pipe_entry);
+        let pipe_handle = resource::PipeHandle(pipe_resource_id);
+
+        let command = core_fs::os_path_from_utf8_string(call_context, "cmd".to_string());
+        let arguments = call_context.store_string_slice(vec![
+            call_context.store_string("/C"),
+            call_context.store_string("echo PIPE_STDIO_OK"),
+        ]);
+        let environment = call_context.store_string_slice(Vec::new());
+        let options = ProcessSpawnOptions {
+            cwd: core_fs::os_path_from_utf8_string(call_context, cwd.clone()),
+            detached: false,
+            reset_signals: false,
+            new_process_group: false,
+        };
+
+        let stdio_values = vec![
+            ProcessStdio {
+                kind: ProcessStdioKind::Inherit,
+                file: resource::FileHandle(ResourceId(0)),
+                pipe: resource::PipeHandle(ResourceId(0)),
+                descriptor: 0,
+            },
+            ProcessStdio {
+                kind: ProcessStdioKind::Pipe,
+                file: resource::FileHandle(ResourceId(0)),
+                pipe: pipe_handle,
+                descriptor: 0,
+            },
+            ProcessStdio {
+                kind: ProcessStdioKind::Inherit,
+                file: resource::FileHandle(ResourceId(0)),
+                pipe: resource::PipeHandle(ResourceId(0)),
+                descriptor: 0,
+            },
+        ];
+        let stdio = call_context.store_slice(stdio_values);
+        let actions = call_context.store_slice(Vec::<ProcessFdAction>::new());
+
+        let mut child = resource::ProcessHandle(ResourceId(0));
+        unsafe {
+            process_native::destack_process_spawn_with_actions(
+                call_context,
+                &mut child,
+                command,
+                arguments,
+                environment,
+                options,
+                stdio,
+                actions,
+            )?;
+        }
+
+        // close the parent write descriptor to allow EOF on the read side
+        let _ = call_context.runtime().resources.remove(pipe_resource_id);
+        pipe.close_write();
+
+        // wait for the child process to complete successfully
+        let status = context.wait(child, ProcessWaitFlags(0))?;
+        assert_eq!(status.kind, ProcessWaitKind::Exited);
+        assert_eq!(status.exit_code, 0);
+
+        // pipe output should contain the spawned command payload
+        let output = pipe.read_all()?;
+        let output = String::from_utf8_lossy(&output);
+        assert!(output.contains("PIPE_STDIO_OK"));
 
         Ok(())
     });

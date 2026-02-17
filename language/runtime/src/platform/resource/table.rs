@@ -19,6 +19,8 @@ pub enum ResourceKind {
     File,
     /// Directory handle resources.
     Directory,
+    /// Pipe endpoint resources.
+    Pipe,
     /// Socket handle resources.
     Socket,
     /// Listener handle resources.

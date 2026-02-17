@@ -10,7 +10,7 @@ use windows_sys::Win32::Storage::FileSystem::WriteFile;
 use windows_sys::Win32::System::Console::WriteConsoleW;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::{PlatformError, PlatformErrorCode};
 
 /// Return the last Win32 error code.
 pub(crate) fn last_error_code() -> i32 {
@@ -40,6 +40,24 @@ pub(crate) fn io_error_with_code(syscall: &str, code: i32) -> Box<RuntimeError> 
         None,
         None,
         Some(code),
+        Some(syscall.to_string()),
+        None,
+        message,
+    ))
+    .boxed()
+}
+
+/// Build an I/O runtime error from an explicit Win32 code and mapped platform code.
+pub(crate) fn io_error_with_platform_code(
+    syscall: &str,
+    win32_code: i32,
+    platform_code: PlatformErrorCode,
+) -> Box<RuntimeError> {
+    let message = error_message(syscall, win32_code);
+    RuntimeError::from(PlatformError::io_with(
+        Some(platform_code),
+        None,
+        Some(win32_code),
         Some(syscall.to_string()),
         None,
         message,

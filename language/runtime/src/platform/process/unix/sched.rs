@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_process_get_priority(
 pub(crate) unsafe fn destack_process_get_scheduler(
     _context: &RuntimeCallContext,
     out: *mut ProcessSchedulerConfig,
-    pid: ProcessId,
+    _pid: ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());

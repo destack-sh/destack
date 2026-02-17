@@ -38,10 +38,10 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_chroot(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
-    let path = core_fs::os_path_to_utf8_string(path, "path")?;
+    let _path = core_fs::os_path_to_utf8_string(path, "path")?;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.chroot",
     ))
@@ -66,7 +66,7 @@ pub(crate) unsafe fn destack_process_chroot(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_install_syscall_filter(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     program: NativeArray<u8>,
     flags: SyscallFilterFlags,
 ) -> RuntimeResult<()> {
@@ -96,10 +96,10 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_host_name(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let name = unsafe { name.as_str()? };
+    let _name = unsafe { name.as_str()? };
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.setHostName",
     ))
@@ -124,10 +124,10 @@ pub(crate) unsafe fn destack_process_set_host_name(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_network_namespace(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
-    let path = core_fs::os_path_to_utf8_string(path, "path")?;
+    let _path = core_fs::os_path_to_utf8_string(path, "path")?;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.setNetworkNamespace",
     ))
@@ -152,7 +152,7 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_setns(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     pid: ProcessId,
     namespace: ProcessNamespaceKind,
 ) -> RuntimeResult<()> {
@@ -181,7 +181,7 @@ pub(crate) unsafe fn destack_process_setns(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     _flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(

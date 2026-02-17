@@ -681,6 +681,14 @@ pub(crate) struct ProcessHarnessContext<'call> {
     vm_context: Option<*mut ()>,
 }
 
+impl<'call> ProcessHarnessContext<'call> {
+    /// Return the runtime call context for native harness operations.
+    #[cfg(windows)]
+    pub(crate) fn call_context(&self) -> &'call RuntimeCallContext {
+        self.call_context
+    }
+}
+
 /// Native process harness backed by native bindings.
 pub(crate) struct NativeProcessHarness {
     /// Runtime that powers the harness.

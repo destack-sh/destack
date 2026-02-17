@@ -2252,7 +2252,7 @@ pub(crate) unsafe fn destack_fs_symlinkat(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink(
     _context: &RuntimeCallContext,
-    path: OsPath,
+    _path: OsPath,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.fs.path.unlink")).boxed())
 }
