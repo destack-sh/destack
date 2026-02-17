@@ -129,7 +129,7 @@ check-windows-runtime:
 
 # build and run runtime tests for windows target through wine
 test-windows-runtime:
-    CARGO_INCREMENTAL=0 cargo test -p destack_runtime --target x86_64-pc-windows-gnu --no-run
+    CARGO_INCREMENTAL=0 CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc cargo test -p destack_runtime --target x86_64-pc-windows-gnu --no-run
     # locate newest windows test binary from cargo output layout
     EXE=$(ls -t ../target/x86_64-pc-windows-gnu/debug/deps/destack_runtime-*.exe 2>/dev/null | head -n1); \
     if [ -z "$EXE" ]; then \

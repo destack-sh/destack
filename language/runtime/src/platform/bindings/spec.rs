@@ -106,92 +106,92 @@ const fn effect_mask_for_class(effect_class: EffectClass) -> BindingEffectMask {
 fn current_host_platform_name() -> &'static str {
     #[cfg(target_os = "windows")]
     {
-        return "windows";
+        "windows"
     }
 
     #[cfg(target_os = "android")]
     {
-        return "android";
+        "android"
     }
 
     #[cfg(target_os = "linux")]
     {
-        return "linux";
+        "linux"
     }
 
     #[cfg(target_os = "macos")]
     {
-        return "macos";
+        "macos"
     }
 
     #[cfg(target_os = "freebsd")]
     {
-        return "freebsd";
+        "freebsd"
     }
 
     #[cfg(target_os = "openbsd")]
     {
-        return "openbsd";
+        "openbsd"
     }
 
     #[cfg(target_os = "netbsd")]
     {
-        return "netbsd";
+        "netbsd"
     }
 
     #[cfg(target_os = "dragonfly")]
     {
-        return "dragonfly";
+        "dragonfly"
     }
 
     #[cfg(target_os = "solaris")]
     {
-        return "solaris";
+        "solaris"
     }
 
     #[cfg(target_os = "illumos")]
     {
-        return "illumos";
+        "illumos"
     }
 
     #[cfg(target_os = "haiku")]
     {
-        return "haiku";
+        "haiku"
     }
 
     #[cfg(target_os = "fuchsia")]
     {
-        return "fuchsia";
+        "fuchsia"
     }
 
     #[cfg(target_os = "redox")]
     {
-        return "redox";
+        "redox"
     }
 
     #[cfg(target_os = "hermit")]
     {
-        return "hermit";
+        "hermit"
     }
 
     #[cfg(target_os = "ios")]
     {
-        return "ios";
+        "ios"
     }
 
     #[cfg(target_os = "wasi")]
     {
-        return "wasi";
+        "wasi"
     }
 
     #[cfg(target_os = "emscripten")]
     {
-        return "emscripten";
+        "emscripten"
     }
 
     #[cfg(target_os = "none")]
     {
-        return "baremetal";
+        "baremetal"
     }
 
     #[cfg(not(any(
@@ -610,7 +610,7 @@ impl BindingDescriptor {
             return true;
         }
 
-        self.host_platforms.iter().any(|name| *name == platform)
+        self.host_platforms.contains(&platform)
     }
 
     /// Return whether this binding supports the current host platform.

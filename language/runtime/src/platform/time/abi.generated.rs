@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
-use crate::platform::{VmValueCodec, time as platform_time};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, time as platform_time};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +30,22 @@ pub enum ClockId {
 impl VmValueCodec for ClockId {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ClockId>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Wall,
+            2u8 => Self::Monotonic,
+            3u8 => Self::ProcessCpu,
+            4u8 => Self::ThreadCpu,
+            5u8 => Self::Boot,
+            6u8 => Self::MonotonicRaw,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ClockId value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -55,7 +70,20 @@ pub enum ClockSource {
 impl VmValueCodec for ClockSource {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ClockSource>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Realtime,
+            2u8 => Self::Monotonic,
+            3u8 => Self::PerformanceCounter,
+            4u8 => Self::Virtual,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ClockSource value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -76,7 +104,18 @@ pub enum SleepClock {
 impl VmValueCodec for SleepClock {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SleepClock>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Wall,
+            2u8 => Self::Monotonic,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SleepClock value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

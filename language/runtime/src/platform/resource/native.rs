@@ -1,11 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, resource};
+use crate::platform::{PlatformError, PlatformErrorCode, resource};
 use crate::runtime::RuntimeCallContext;
-
-/// Return one not supported error for a resource binding.
-fn missing_binding(binding_name: &'static str) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(binding_name)).boxed())
-}
 
 /// Validate one required output pointer.
 unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult<()> {
@@ -15,6 +10,19 @@ unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult
     }
 
     Ok(())
+}
+
+/// Build one io not found error for missing resources.
+fn resource_not_found(op: &'static str, id: resource::ResourceId) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
+        None,
+        None,
+        Some(op.to_string()),
+        None,
+        format!("resource {} not found", id.0),
+    ))
+    .boxed()
 }
 
 /// Close a resource by identifier.
@@ -35,13 +43,16 @@ unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_resource_close(
-    _context: &RuntimeCallContext,
+    context: &RuntimeCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = id;
+    // remove the entry and run finalization
+    let removed = context.runtime().resources.remove_and_finalize(id);
+    if !removed {
+        return Err(resource_not_found("destack.resource.id.close", id));
+    }
 
-    missing_binding("destack.resource.close")
+    Ok(())
 }
 
 /// Describe a resource kind.
@@ -62,15 +73,26 @@ pub(crate) unsafe fn destack_resource_close(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_kind(
-    _context: &RuntimeCallContext,
+    context: &RuntimeCallContext,
     out: *mut resource::ResourceKind,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
+    // validate pointer before writing
     unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, id);
 
-    missing_binding("destack.resource.kind")
+    // load the kind for the requested resource
+    let kind = context
+        .runtime()
+        .resources
+        .with_entry(id, |entry| entry.kind)
+        .ok_or_else(|| resource_not_found("destack.resource.id.kind", id))?;
+
+    // write the resolved kind to the output pointer
+    unsafe {
+        out.write(kind);
+    }
+
+    Ok(())
 }
 
 /// Remove a resource from the table.
@@ -91,13 +113,16 @@ pub(crate) unsafe fn destack_resource_kind(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_remove(
-    _context: &RuntimeCallContext,
+    context: &RuntimeCallContext,
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = id;
+    // remove the entry and run finalization
+    let removed = context.runtime().resources.remove_and_finalize(id);
+    if !removed {
+        return Err(resource_not_found("destack.resource.id.remove", id));
+    }
 
-    missing_binding("destack.resource.remove")
+    Ok(())
 }
 
 /// Transfer resource ownership.
@@ -118,12 +143,18 @@ pub(crate) unsafe fn destack_resource_remove(
 /// # Replay
 /// Deterministic.
 pub(crate) unsafe fn destack_resource_transfer(
-    _context: &RuntimeCallContext,
+    context: &RuntimeCallContext,
     id: resource::ResourceId,
     ownership: resource::ResourceOwnership,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = (id, ownership);
+    // validate that the source resource exists
+    let exists = context.runtime().resources.contains(id);
+    if !exists {
+        return Err(resource_not_found("destack.resource.id.transfer", id));
+    }
 
-    missing_binding("destack.resource.transfer")
+    // keep ownership value consumed for future policy hooks
+    let _ = ownership;
+
+    Ok(())
 }

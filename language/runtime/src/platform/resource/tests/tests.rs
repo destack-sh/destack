@@ -3,10 +3,11 @@
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
 
-#[path = "harness.generated.rs"]
+#[path = "harness.rs"]
 mod harness;
 
 /// Test harness context used by tests.
@@ -113,4 +114,21 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Assert one result failed with one exact platform error code.
+pub(crate) fn assert_platform_error_code<T>(
+    result: RuntimeResult<T>,
+    expected: PlatformErrorCode,
+) -> RuntimeResult<()> {
+    let error = match result {
+        Ok(_) => panic!("operation should fail"),
+        Err(error) => error,
+    };
+    let platform = error
+        .platform_error()
+        .expect("error should contain one platform error");
+    assert_eq!(platform.code, expected);
+
+    Ok(())
 }

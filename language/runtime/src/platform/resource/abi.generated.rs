@@ -4,9 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, resource as platform_resource};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmValueCodec, resource as platform_resource,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -1154,7 +1156,18 @@ pub enum ResourceOwnership {
 impl VmValueCodec for ResourceOwnership {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ResourceOwnership>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Borrowed,
+            2u8 => Self::Owned,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ResourceOwnership value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

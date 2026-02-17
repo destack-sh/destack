@@ -4,10 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
-    VmValueCodec, crypto as platform_crypto, resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmValueCodec, crypto as platform_crypto, resource,
+    resource as platform_resource,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -85,7 +86,18 @@ pub enum CryptoCertificateFormat {
 impl VmValueCodec for CryptoCertificateFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, CryptoCertificateFormat>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Pem,
+            2u8 => Self::Der,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoCertificateFormat value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -110,7 +122,20 @@ pub enum CryptoCertificatePurpose {
 impl VmValueCodec for CryptoCertificatePurpose {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, CryptoCertificatePurpose>(raw) })
+        let decoded = match raw {
+            1u8 => Self::ServerAuth,
+            2u8 => Self::ClientAuth,
+            3u8 => Self::CodeSigning,
+            4u8 => Self::EmailProtection,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoCertificatePurpose value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -139,7 +164,22 @@ pub enum CryptoKeyAlgorithm {
 impl VmValueCodec for CryptoKeyAlgorithm {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, CryptoKeyAlgorithm>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Rsa,
+            2u8 => Self::Ec,
+            3u8 => Self::Ed25519,
+            4u8 => Self::X25519,
+            5u8 => Self::Aes,
+            6u8 => Self::Hmac,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoKeyAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -168,7 +208,22 @@ pub enum CryptoKeyFormat {
 impl VmValueCodec for CryptoKeyFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, CryptoKeyFormat>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Pkcs8Pem,
+            2u8 => Self::Pkcs8Der,
+            3u8 => Self::SpkiPem,
+            4u8 => Self::SpkiDer,
+            5u8 => Self::Jwk,
+            6u8 => Self::Raw,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoKeyFormat value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -193,7 +248,20 @@ pub enum CryptoStoreKind {
 impl VmValueCodec for CryptoStoreKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, CryptoStoreKind>(raw) })
+        let decoded = match raw {
+            0u8 => Self::System,
+            1u8 => Self::User,
+            2u8 => Self::Machine,
+            3u8 => Self::Provider,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoStoreKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

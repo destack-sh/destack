@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
-use crate::platform::{VmValueCodec, timer as platform_timer};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, timer as platform_timer};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -82,7 +82,18 @@ pub enum TimerClock {
 impl VmValueCodec for TimerClock {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TimerClock>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Wall,
+            2u8 => Self::Monotonic,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TimerClock value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -105,7 +116,19 @@ pub enum TimerFdClock {
 impl VmValueCodec for TimerFdClock {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TimerFdClock>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Realtime,
+            2u8 => Self::Monotonic,
+            3u8 => Self::Boottime,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TimerFdClock value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

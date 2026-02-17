@@ -4,9 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, io as platform_io, resource, resource as platform_resource};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmValueCodec, io as platform_io, resource,
+    resource as platform_resource,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -115,7 +118,24 @@ pub enum CompletionOperationKind {
 impl VmValueCodec for CompletionOperationKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, CompletionOperationKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Read,
+            2u8 => Self::Write,
+            3u8 => Self::Accept,
+            4u8 => Self::Connect,
+            5u8 => Self::Timeout,
+            6u8 => Self::Fsync,
+            7u8 => Self::Send,
+            8u8 => Self::Receive,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CompletionOperationKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -142,7 +162,21 @@ pub enum PollBackend {
 impl VmValueCodec for PollBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PollBackend>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Auto,
+            1u8 => Self::Epoll,
+            2u8 => Self::Kqueue,
+            3u8 => Self::Poll,
+            4u8 => Self::Iocp,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PollBackend value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

@@ -998,6 +998,117 @@ impl<'call> ProcessHarnessContext<'call> {
         }
     }
 
+    /// Open one standard error stream handle.
+    ///
+    /// Open one handle for the current process standard error stream.
+    /// The returned handle can be used with file-handle write, sync, and close operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.stdio`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_process_stdio_stderr(&mut self) -> RuntimeResult<resource::FileHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = process_vm::destack_process_stdio_stderr(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::FileHandle>::uninit();
+                unsafe {
+                    process_native::destack_process_stdio_stderr(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Open one standard input stream handle.
+    ///
+    /// Open one handle for the current process standard input stream.
+    /// The returned handle can be used with file-handle read and close operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.stdio`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_process_stdio_stdin(&mut self) -> RuntimeResult<resource::FileHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = process_vm::destack_process_stdio_stdin(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::FileHandle>::uninit();
+                unsafe {
+                    process_native::destack_process_stdio_stdin(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Open one standard output stream handle.
+    ///
+    /// Open one handle for the current process standard output stream.
+    /// The returned handle can be used with file-handle write, sync, and close operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.stdio`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_process_stdio_stdout(&mut self) -> RuntimeResult<resource::FileHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = process_vm::destack_process_stdio_stdout(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::FileHandle>::uninit();
+                unsafe {
+                    process_native::destack_process_stdio_stdout(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
     /// Read one control-group resource limit.
     ///
     /// Read one controller limit value from one control-group path.

@@ -1442,39 +1442,37 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
             Text::Text { text, text_width } => {
                 if let Some(width) = text_width.width() {
                     self.state.line_width += width.value();
+                } else if text.is_ascii() {
+                    let ascii_fit = self.fits_multiline_ascii_text(text, args);
+                    if !matches!(ascii_fit, Fits::Maybe) {
+                        return ascii_fit;
+                    }
                 } else {
-                    if text.is_ascii() {
-                        let ascii_fit = self.fits_multiline_ascii_text(text, args);
-                        if !matches!(ascii_fit, Fits::Maybe) {
-                            return ascii_fit;
-                        }
-                    } else {
-                        for c in text.chars() {
-                            let char_width = match c {
-                                '\t' => self.options().indent_width,
-                                '\n' => {
-                                    if self.must_be_flat {
-                                        return Fits::No;
+                    for c in text.chars() {
+                        let char_width = match c {
+                            '\t' => self.options().indent_width,
+                            '\n' => {
+                                if self.must_be_flat {
+                                    return Fits::No;
+                                }
+                                match args.measure_mode() {
+                                    MeasureMode::FirstLine => {
+                                        return if self.exceeds_width(args) {
+                                            Fits::No
+                                        } else {
+                                            Fits::Yes
+                                        };
                                     }
-                                    match args.measure_mode() {
-                                        MeasureMode::FirstLine => {
-                                            return if self.exceeds_width(args) {
-                                                Fits::No
-                                            } else {
-                                                Fits::Yes
-                                            };
-                                        }
-                                        MeasureMode::AllLines
-                                        | MeasureMode::AllLinesAllowTextOverflow => {
-                                            self.state.line_width = 0;
-                                            continue;
-                                        }
+                                    MeasureMode::AllLines
+                                    | MeasureMode::AllLinesAllowTextOverflow => {
+                                        self.state.line_width = 0;
+                                        continue;
                                     }
                                 }
-                                c => c.width(),
-                            };
-                            self.state.line_width += char_width as u32;
-                        }
+                            }
+                            c => c.width(),
+                        };
+                        self.state.line_width += char_width as u32;
                     }
                 }
             }

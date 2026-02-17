@@ -45,6 +45,133 @@ impl ResourceFinalizer for ProcessHandleFinalizer {
     }
 }
 
+/// Finalizer that closes one duplicated Windows stdio handle.
+#[derive(Debug)]
+struct StdioHandleFinalizer {
+    /// Raw stdio handle to close.
+    handle: windows_sys::Win32::Foundation::HANDLE,
+}
+
+impl StdioHandleFinalizer {
+    /// Create a stdio handle finalizer from one raw handle.
+    fn new(handle: windows_sys::Win32::Foundation::HANDLE) -> Self {
+        Self { handle }
+    }
+}
+
+impl ResourceFinalizer for StdioHandleFinalizer {
+    /// Close the duplicated stdio handle when the resource is finalized.
+    fn finalize(self: Box<Self>, _resource_id: ResourceId) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.handle);
+        }
+    }
+}
+
+/// Duplicate one stdio handle into the current process handle table.
+fn duplicate_stdio_handle(
+    source: windows_sys::Win32::Foundation::HANDLE,
+    syscall: &str,
+) -> RuntimeResult<windows_sys::Win32::Foundation::HANDLE> {
+    use windows_sys::Win32::Foundation::{DUPLICATE_SAME_ACCESS, DuplicateHandle};
+    use windows_sys::Win32::System::Threading::GetCurrentProcess;
+
+    let process = unsafe { GetCurrentProcess() };
+    let mut duplicated = 0;
+    let rc = unsafe {
+        DuplicateHandle(
+            process,
+            source,
+            process,
+            &mut duplicated,
+            0,
+            0,
+            DUPLICATE_SAME_ACCESS,
+        )
+    };
+    if rc == 0 || duplicated == 0 {
+        let error = core_platform::last_error_code() as u32;
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::Io),
+            None,
+            Some(error as i32),
+            Some(syscall.to_string()),
+            None,
+            format!("{syscall} failed while duplicating stdio handle"),
+        ))
+        .boxed());
+    }
+
+    Ok(duplicated)
+}
+
+/// Resolve and duplicate one standard stream handle.
+fn open_stdio_handle(
+    std_handle: u32,
+    handle_name: &str,
+) -> RuntimeResult<windows_sys::Win32::Foundation::HANDLE> {
+    use windows_sys::Win32::Foundation::{ERROR_INVALID_HANDLE, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Console::GetStdHandle;
+
+    let handle = unsafe { GetStdHandle(std_handle) };
+    if handle == 0 {
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoNotFound),
+            None,
+            None,
+            Some("GetStdHandle".to_string()),
+            None,
+            format!("{handle_name} is not configured for this process"),
+        ))
+        .boxed());
+    }
+    if handle == INVALID_HANDLE_VALUE {
+        let error = core_platform::last_error_code() as u32;
+        let code = if error == ERROR_INVALID_HANDLE {
+            PlatformErrorCode::IoNotFound
+        } else {
+            PlatformErrorCode::Io
+        };
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(code),
+            None,
+            Some(error as i32),
+            Some("GetStdHandle".to_string()),
+            None,
+            format!("failed to resolve {handle_name}"),
+        ))
+        .boxed());
+    }
+
+    duplicate_stdio_handle(handle, "DuplicateHandle")
+}
+
+/// Register one duplicated stdio handle as a file handle resource.
+fn register_stdio_handle(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+    std_handle: u32,
+    handle_name: &str,
+    label: &str,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let duplicated = open_stdio_handle(std_handle, handle_name)?;
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::File)
+        .with_label(label)
+        .with_handle(duplicated as _)
+        .with_finalizer(StdioHandleFinalizer::new(duplicated));
+    let resource_id = context.runtime().resources.insert(entry);
+
+    unsafe {
+        *out = resource::FileHandle(resource_id);
+    }
+
+    Ok(())
+}
+
 /// Open one process handle for process-fd operations.
 fn open_process_fd_handle(pid: ProcessId) -> RuntimeResult<windows_sys::Win32::Foundation::HANDLE> {
     use windows_sys::Win32::Foundation::ERROR_INVALID_PARAMETER;
@@ -86,6 +213,96 @@ fn open_process_fd_handle(pid: ProcessId) -> RuntimeResult<windows_sys::Win32::F
     }
 
     Ok(process_handle)
+}
+
+/// Open one standard input stream handle.
+///
+/// Open one handle for the current process standard input stream.
+/// The returned handle can be used with file-handle read and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stdin(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    register_stdio_handle(
+        context,
+        out,
+        windows_sys::Win32::System::Console::STD_INPUT_HANDLE,
+        "stdin",
+        "process.stdio.stdin",
+    )
+}
+
+/// Open one standard output stream handle.
+///
+/// Open one handle for the current process standard output stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stdout(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    register_stdio_handle(
+        context,
+        out,
+        windows_sys::Win32::System::Console::STD_OUTPUT_HANDLE,
+        "stdout",
+        "process.stdio.stdout",
+    )
+}
+
+/// Open one standard error stream handle.
+///
+/// Open one handle for the current process standard error stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stderr(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    register_stdio_handle(
+        context,
+        out,
+        windows_sys::Win32::System::Console::STD_ERROR_HANDLE,
+        "stderr",
+        "process.stdio.stderr",
+    )
 }
 
 /// Resolve a process-fd handle into process id and raw process handle payload.

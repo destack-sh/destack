@@ -2,12 +2,8 @@ use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
 
-use windows_sys::Win32::Foundation::{
-    ERROR_INVALID_HANDLE, ERROR_NOT_SUPPORTED, GetLastError, HANDLE,
-};
+use windows_sys::Win32::Foundation::GetLastError;
 use windows_sys::Win32::Networking::WinSock::WSAGetLastError;
-use windows_sys::Win32::Storage::FileSystem::WriteFile;
-use windows_sys::Win32::System::Console::WriteConsoleW;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, PlatformErrorCode};
@@ -201,46 +197,4 @@ pub(crate) fn pathbuf_from_utf16(label: &str, units: &[u16]) -> RuntimeResult<Pa
     }
 
     Ok(PathBuf::from(OsString::from_wide(units)))
-}
-
-/// Attempt to write UTF-16 data to a console handle.
-pub(crate) fn write_console_wide(handle: HANDLE, wide: &[u16]) -> RuntimeResult<bool> {
-    let mut written: u32 = 0;
-    let rc = unsafe {
-        WriteConsoleW(
-            handle,
-            wide.as_ptr() as *const _,
-            wide.len() as u32,
-            &mut written,
-            std::ptr::null_mut(),
-        )
-    };
-    if rc != 0 {
-        return Ok(true);
-    }
-
-    let code = last_error_code() as u32;
-    if code == ERROR_INVALID_HANDLE || code == ERROR_NOT_SUPPORTED {
-        return Ok(false);
-    }
-
-    Err(io_error_with_code("WriteConsoleW", code as i32))
-}
-
-/// Write bytes to a file handle.
-pub(crate) fn write_file_bytes(handle: HANDLE, bytes: &[u8]) -> RuntimeResult<()> {
-    let mut written: u32 = 0;
-    let rc = unsafe {
-        WriteFile(
-            handle,
-            bytes.as_ptr() as *const _,
-            bytes.len() as u32,
-            &mut written,
-            std::ptr::null_mut(),
-        )
-    };
-    if rc == 0 {
-        return Err(io_error("WriteFile"));
-    }
-    Ok(())
 }

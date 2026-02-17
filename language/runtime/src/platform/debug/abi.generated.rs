@@ -4,9 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, debug as platform_debug};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, debug as platform_debug};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,19 @@ pub enum ProfileKind {
 impl VmValueCodec for ProfileKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ProfileKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Cpu,
+            2u8 => Self::Heap,
+            3u8 => Self::Event,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ProfileKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -50,7 +62,20 @@ pub enum TraceLevel {
 impl VmValueCodec for TraceLevel {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TraceLevel>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Error,
+            2u8 => Self::Warn,
+            3u8 => Self::Info,
+            4u8 => Self::Debug,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TraceLevel value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::platform::fs::native as fs_native;
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -17,6 +18,31 @@ impl<'call> ProcessHarnessContext<'call> {
     fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
         self.vm_context
             .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
+    }
+
+    /// Write one byte slice through one file handle using native fs bindings.
+    pub(crate) fn fs_write_bytes(
+        &self,
+        handle: resource::FileHandle,
+        bytes: &[u8],
+    ) -> RuntimeResult<u64> {
+        let buffer = self.call_context.store_slice(bytes.to_vec());
+        let mut written = 0_u64;
+        unsafe {
+            fs_native::destack_fs_write(
+                self.call_context,
+                &mut written as *mut u64,
+                handle,
+                buffer,
+            )?;
+        }
+
+        Ok(written)
+    }
+
+    /// Close one file handle through native fs bindings.
+    pub(crate) fn fs_close_handle(&self, handle: resource::FileHandle) -> RuntimeResult<()> {
+        unsafe { fs_native::destack_fs_close(self.call_context, handle) }
     }
 
     /// Build one backend-specific string value.

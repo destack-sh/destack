@@ -4,11 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
-    VmValueCodec, fs, fs as platform_fs, process as platform_process, resource,
-    resource as platform_resource,
+    PlatformError as AbiPlatformError, VmValueCodec, fs, fs as platform_fs,
+    process as platform_process, resource, resource as platform_resource,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -268,7 +268,19 @@ pub enum ProcessFdActionKind {
 impl VmValueCodec for ProcessFdActionKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ProcessFdActionKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Close,
+            2u8 => Self::Dup2,
+            3u8 => Self::Open,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ProcessFdActionKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -301,7 +313,24 @@ pub enum ProcessNamespaceKind {
 impl VmValueCodec for ProcessNamespaceKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ProcessNamespaceKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Mount,
+            2u8 => Self::User,
+            3u8 => Self::Pid,
+            4u8 => Self::Network,
+            5u8 => Self::Ipc,
+            6u8 => Self::Uts,
+            7u8 => Self::Cgroup,
+            8u8 => Self::Time,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ProcessNamespaceKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -330,7 +359,22 @@ pub enum ProcessSchedulerPolicy {
 impl VmValueCodec for ProcessSchedulerPolicy {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ProcessSchedulerPolicy>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Other,
+            2u8 => Self::Fifo,
+            3u8 => Self::RoundRobin,
+            4u8 => Self::Batch,
+            5u8 => Self::Idle,
+            6u8 => Self::Deadline,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ProcessSchedulerPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -357,7 +401,21 @@ pub enum ProcessStdioKind {
 impl VmValueCodec for ProcessStdioKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ProcessStdioKind>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Inherit,
+            1u8 => Self::Null,
+            2u8 => Self::Pipe,
+            3u8 => Self::File,
+            4u8 => Self::Descriptor,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ProcessStdioKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -384,7 +442,21 @@ pub enum ProcessWaitKind {
 impl VmValueCodec for ProcessWaitKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, ProcessWaitKind>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Running,
+            1u8 => Self::Exited,
+            2u8 => Self::Signaled,
+            3u8 => Self::Stopped,
+            4u8 => Self::Continued,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ProcessWaitKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -407,7 +479,19 @@ pub enum SignalMaskHow {
 impl VmValueCodec for SignalMaskHow {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SignalMaskHow>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Set,
+            1u8 => Self::Block,
+            2u8 => Self::Unblock,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SignalMaskHow value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

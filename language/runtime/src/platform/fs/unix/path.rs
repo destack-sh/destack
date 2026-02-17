@@ -112,7 +112,6 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
 }
 
 #[allow(dead_code)]
-
 /// Read a symbolic link.
 ///
 /// Read the link payload stored at the target path and return it as an `OsPath`.
@@ -190,7 +189,6 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 }
 
 #[allow(dead_code)]
-
 /// Resolve a path to its canonical form.
 ///
 /// Resolve the input path to a canonical absolute form using host path-resolution rules.
@@ -803,7 +801,6 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
 }
 
 #[allow(dead_code)]
-
 /// Read a symbolic link relative to a directory handle.
 ///
 /// Read the link payload stored at a directory-relative target path.

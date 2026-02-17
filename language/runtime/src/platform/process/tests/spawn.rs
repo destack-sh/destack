@@ -13,6 +13,8 @@ use super::{assert_platform_error_code, assert_platform_error_codes, is_would_bl
 use super::{fork_child_sleep_then_exit, unique_temp_file_path};
 #[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeError;
+#[cfg(windows)]
+use crate::diagnostic::RuntimeResult;
 #[cfg(any(unix, windows))]
 use crate::platform::PlatformError;
 #[cfg(unix)]

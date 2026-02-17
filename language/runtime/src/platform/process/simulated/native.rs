@@ -36,8 +36,10 @@ use crate::platform::{fs, resource};
 /// External, recordable.
 pub(crate) unsafe fn destack_process_args(
     _context: &RuntimeCallContext,
-    _out: *mut NativeStringSlice,
+    out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.args.args")).boxed())
 }
 
@@ -60,8 +62,10 @@ pub(crate) unsafe fn destack_process_args(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
     _context: &RuntimeCallContext,
-    _path: fs::OsPath,
+    path: fs::OsPath,
 ) -> RuntimeResult<()> {
+    let _ = path;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.chdir")).boxed())
 }
 
@@ -84,8 +88,10 @@ pub(crate) unsafe fn destack_process_chdir(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_cwd(
     _context: &RuntimeCallContext,
-    _out: *mut fs::OsPath,
+    out: *mut fs::OsPath,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.cwd.cwd")).boxed())
 }
 
@@ -108,8 +114,10 @@ pub(crate) unsafe fn destack_process_cwd(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete(
     _context: &RuntimeCallContext,
-    _name: NativeStringRef,
+    name: NativeStringRef,
 ) -> RuntimeResult<()> {
+    let _ = name;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.env.delete")).boxed())
 }
 
@@ -132,8 +140,10 @@ pub(crate) unsafe fn destack_process_env_delete(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete_bytes(
     _context: &RuntimeCallContext,
-    _name: NativeSlice<u8>,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
+    let _ = name;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.env.deleteBytes",
     ))
@@ -353,8 +363,10 @@ pub(crate) unsafe fn destack_process_fexec(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_exit(
     _context: &RuntimeCallContext,
-    _code: u32,
+    code: u32,
 ) -> RuntimeResult<()> {
+    let _ = code;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.exit.exit")).boxed())
 }
 
@@ -377,8 +389,10 @@ pub(crate) unsafe fn destack_process_exit(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_close(
     _context: &RuntimeCallContext,
-    _handle: resource::ProcessFdHandle,
+    handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<()> {
+    let _ = handle;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.fd.processFdClose",
     ))
@@ -527,8 +541,10 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_close(
     _context: &RuntimeCallContext,
-    _handle: resource::SignalFdHandle,
+    handle: resource::SignalFdHandle,
 ) -> RuntimeResult<()> {
+    let _ = handle;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.fd.signalFdClose",
     ))
@@ -656,6 +672,93 @@ pub(crate) unsafe fn destack_process_signal_fd_try_read(
     .boxed())
 }
 
+/// Open one standard error stream handle.
+///
+/// Open one handle for the current process standard error stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stderr(
+    _context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.stdioStderr",
+    ))
+    .boxed())
+}
+
+/// Open one standard input stream handle.
+///
+/// Open one handle for the current process standard input stream.
+/// The returned handle can be used with file-handle read and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stdin(
+    _context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.stdioStdin",
+    ))
+    .boxed())
+}
+
+/// Open one standard output stream handle.
+///
+/// Open one handle for the current process standard output stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stdout(
+    _context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.process.fd.stdioStdout",
+    ))
+    .boxed())
+}
+
 /// Read one control-group resource limit.
 ///
 /// Read one controller limit value from one control-group path.
@@ -706,8 +809,10 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_join(
     _context: &RuntimeCallContext,
-    _path: NativeStringRef,
+    path: NativeStringRef,
 ) -> RuntimeResult<()> {
+    let _ = path;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.group.cgroupJoin",
     ))
@@ -825,8 +930,10 @@ pub(crate) unsafe fn destack_process_job_set_limit(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_egid(
     _context: &RuntimeCallContext,
-    _out: *mut GroupId,
+    out: *mut GroupId,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.egid")).boxed())
 }
 
@@ -849,8 +956,10 @@ pub(crate) unsafe fn destack_process_egid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_euid(
     _context: &RuntimeCallContext,
-    _out: *mut UserId,
+    out: *mut UserId,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.euid")).boxed())
 }
 
@@ -873,8 +982,10 @@ pub(crate) unsafe fn destack_process_euid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_gid(
     _context: &RuntimeCallContext,
-    _out: *mut GroupId,
+    out: *mut GroupId,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.gid")).boxed())
 }
 
@@ -897,8 +1008,10 @@ pub(crate) unsafe fn destack_process_gid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_group_ids(
     _context: &RuntimeCallContext,
-    _out: *mut ProcessGroupIds,
+    out: *mut ProcessGroupIds,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.groupIds")).boxed())
 }
 
@@ -921,8 +1034,10 @@ pub(crate) unsafe fn destack_process_group_ids(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_groups(
     _context: &RuntimeCallContext,
-    _out: *mut NativeSlice<GroupId>,
+    out: *mut NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.groups")).boxed())
 }
 
@@ -945,8 +1060,10 @@ pub(crate) unsafe fn destack_process_groups(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_pid(
     _context: &RuntimeCallContext,
-    _out: *mut ProcessId,
+    out: *mut ProcessId,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.pid")).boxed())
 }
 
@@ -969,8 +1086,10 @@ pub(crate) unsafe fn destack_process_pid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_ppid(
     _context: &RuntimeCallContext,
-    _out: *mut ProcessId,
+    out: *mut ProcessId,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.ppid")).boxed())
 }
 
@@ -993,8 +1112,10 @@ pub(crate) unsafe fn destack_process_ppid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_egid(
     _context: &RuntimeCallContext,
-    _groupid: GroupId,
+    groupid: GroupId,
 ) -> RuntimeResult<()> {
+    let _ = groupid;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setEgid")).boxed())
 }
 
@@ -1017,8 +1138,10 @@ pub(crate) unsafe fn destack_process_set_egid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_euid(
     _context: &RuntimeCallContext,
-    _userid: UserId,
+    userid: UserId,
 ) -> RuntimeResult<()> {
+    let _ = userid;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setEuid")).boxed())
 }
 
@@ -1041,8 +1164,10 @@ pub(crate) unsafe fn destack_process_set_euid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_gid(
     _context: &RuntimeCallContext,
-    _groupid: GroupId,
+    groupid: GroupId,
 ) -> RuntimeResult<()> {
+    let _ = groupid;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setGid")).boxed())
 }
 
@@ -1065,8 +1190,10 @@ pub(crate) unsafe fn destack_process_set_gid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_group_ids(
     _context: &RuntimeCallContext,
-    _ids: ProcessGroupIds,
+    ids: ProcessGroupIds,
 ) -> RuntimeResult<()> {
+    let _ = ids;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.setGroupIds",
     ))
@@ -1092,8 +1219,10 @@ pub(crate) unsafe fn destack_process_set_group_ids(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_groups(
     _context: &RuntimeCallContext,
-    _groups: NativeSlice<GroupId>,
+    groups: NativeSlice<GroupId>,
 ) -> RuntimeResult<()> {
+    let _ = groups;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.setGroups",
     ))
@@ -1119,8 +1248,10 @@ pub(crate) unsafe fn destack_process_set_groups(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_uid(
     _context: &RuntimeCallContext,
-    _userid: UserId,
+    userid: UserId,
 ) -> RuntimeResult<()> {
+    let _ = userid;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.setUid")).boxed())
 }
 
@@ -1143,8 +1274,10 @@ pub(crate) unsafe fn destack_process_set_uid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_user_ids(
     _context: &RuntimeCallContext,
-    _ids: ProcessUserIds,
+    ids: ProcessUserIds,
 ) -> RuntimeResult<()> {
+    let _ = ids;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.setUserIds",
     ))
@@ -1170,8 +1303,10 @@ pub(crate) unsafe fn destack_process_set_user_ids(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_uid(
     _context: &RuntimeCallContext,
-    _out: *mut UserId,
+    out: *mut UserId,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.uid")).boxed())
 }
 
@@ -1194,8 +1329,10 @@ pub(crate) unsafe fn destack_process_uid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_user_ids(
     _context: &RuntimeCallContext,
-    _out: *mut ProcessUserIds,
+    out: *mut ProcessUserIds,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported("destack.process.ids.userIds")).boxed())
 }
 
@@ -1218,8 +1355,10 @@ pub(crate) unsafe fn destack_process_user_ids(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_chroot(
     _context: &RuntimeCallContext,
-    _path: fs::OsPath,
+    path: fs::OsPath,
 ) -> RuntimeResult<()> {
+    let _ = path;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.chroot",
     ))
@@ -1275,8 +1414,10 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_host_name(
     _context: &RuntimeCallContext,
-    _name: NativeStringRef,
+    name: NativeStringRef,
 ) -> RuntimeResult<()> {
+    let _ = name;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.setHostName",
     ))
@@ -1302,8 +1443,10 @@ pub(crate) unsafe fn destack_process_set_host_name(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_network_namespace(
     _context: &RuntimeCallContext,
-    _path: fs::OsPath,
+    path: fs::OsPath,
 ) -> RuntimeResult<()> {
+    let _ = path;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.setNetworkNamespace",
     ))
@@ -1359,8 +1502,10 @@ pub(crate) unsafe fn destack_process_setns(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
     _context: &RuntimeCallContext,
-    _flags: ProcessUnshareFlags,
+    flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
+    let _ = flags;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.isolation.unshare",
     ))
@@ -1710,8 +1855,10 @@ pub(crate) unsafe fn destack_process_setpgid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_setsid(
     _context: &RuntimeCallContext,
-    _out: *mut ProcessId,
+    out: *mut ProcessId,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.session.setsid",
     ))
@@ -1764,8 +1911,10 @@ pub(crate) unsafe fn destack_process_kill(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_mask_read(
     _context: &RuntimeCallContext,
-    _out: *mut NativeArray<Signal>,
+    out: *mut NativeArray<Signal>,
 ) -> RuntimeResult<()> {
+    let _ = out;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.signals.signalMaskRead",
     ))
@@ -1941,8 +2090,10 @@ pub(crate) unsafe fn destack_process_signal_try_wait(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_signal_unsubscribe(
     _context: &RuntimeCallContext,
-    _handle: resource::SignalHandle,
+    handle: resource::SignalHandle,
 ) -> RuntimeResult<()> {
+    let _ = handle;
+
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.signals.signalUnsubscribe",
     ))

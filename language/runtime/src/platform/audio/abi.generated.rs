@@ -4,9 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, audio as platform_audio};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, audio as platform_audio};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,19 @@ pub enum AudioDeviceDirection {
 impl VmValueCodec for AudioDeviceDirection {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, AudioDeviceDirection>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Playback,
+            2u8 => Self::Capture,
+            3u8 => Self::Duplex,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown AudioDeviceDirection value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -54,7 +66,22 @@ pub enum AudioSampleFormat {
 impl VmValueCodec for AudioSampleFormat {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, AudioSampleFormat>(raw) })
+        let decoded = match raw {
+            1u8 => Self::U8,
+            2u8 => Self::S16,
+            3u8 => Self::S24,
+            4u8 => Self::S32,
+            5u8 => Self::F32,
+            6u8 => Self::F64,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown AudioSampleFormat value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

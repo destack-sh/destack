@@ -34,6 +34,56 @@ fn test_process_harness_runs_native_and_vm() {
     assert!(seen_vm);
 }
 
+/// Open and close standard stream handles through process fd bindings.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_process_stdio_handles_open_and_close() {
+    with_harness_context(|mut context| {
+        let stdin = context.destack_process_stdio_stdin()?;
+        let stdout = context.destack_process_stdio_stdout()?;
+        let stderr = context.destack_process_stdio_stderr()?;
+
+        assert_ne!(stdin.0, stdout.0);
+        assert_ne!(stdin.0, stderr.0);
+        assert_ne!(stdout.0, stderr.0);
+
+        context.fs_close_handle(stdin)?;
+        context.fs_close_handle(stdout)?;
+        context.fs_close_handle(stderr)?;
+
+        assert_platform_error_code(
+            context.fs_close_handle(stdout),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        Ok(())
+    });
+}
+
+/// Write bytes through stdout and stderr handles from process fd bindings.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_process_stdio_write_roundtrip() {
+    with_harness_context(|mut context| {
+        let stdout = context.destack_process_stdio_stdout()?;
+        let stderr = context.destack_process_stdio_stderr()?;
+
+        let stdout_payload = b"[destack-process-stdout]\n";
+        let stderr_payload = b"[destack-process-stderr]\n";
+
+        let stdout_written = context.fs_write_bytes(stdout, stdout_payload)?;
+        let stderr_written = context.fs_write_bytes(stderr, stderr_payload)?;
+
+        assert_eq!(stdout_written, stdout_payload.len() as u64);
+        assert_eq!(stderr_written, stderr_payload.len() as u64);
+
+        context.fs_close_handle(stdout)?;
+        context.fs_close_handle(stderr)?;
+
+        Ok(())
+    });
+}
+
 /// Set, read, and delete one utf8 environment variable.
 #[cfg(any(unix, windows))]
 #[test]
