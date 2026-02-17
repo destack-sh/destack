@@ -1,30 +1,36 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
+#[path = "harness.rs"]
+mod harness;
+
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::net::{SocketPair, SocketType, native as net_native, vm as net_vm};
+use crate::platform::tls::{TlsContextOptions, TlsContextOptionsVm, TlsRole, TlsVersion};
+use crate::platform::{
+    NativeSlice, NativeStringRef, NativeStringSlice, ResourceId, VmSlice, resource,
+};
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
 
-#[path = "harness.generated.rs"]
-mod harness;
-
-/// Test harness context used by tests.
+/// TLS harness context used by tests.
 pub(crate) struct TlsHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    pub(crate) call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call RuntimeCallContext,
     /// VM context when running VM bindings.
-    pub(crate) vm_context: Option<*mut ()>,
+    pub(super) vm_context: Option<*mut ()>,
 }
 
-/// Native tls harness.
+/// Native TLS harness.
 pub(crate) struct NativeTlsHarness {
     /// Runtime that powers the harness.
     runtime: TestRuntime,
 }
 
 impl NativeTlsHarness {
-    /// Create a new native tls harness.
+    /// Create a new native TLS harness.
     pub(crate) fn new() -> Self {
         Self {
             runtime: TestRuntime::deterministic_random(),
@@ -32,14 +38,14 @@ impl NativeTlsHarness {
     }
 }
 
-/// VM tls harness.
+/// VM TLS harness.
 pub(crate) struct VmTlsHarness {
     /// Runtime that powers the harness.
     runtime: TestRuntime,
 }
 
 impl VmTlsHarness {
-    /// Create a new VM tls harness.
+    /// Create a new VM TLS harness.
     pub(crate) fn new() -> Self {
         Self {
             runtime: TestRuntime::deterministic_random(),
@@ -49,9 +55,9 @@ impl VmTlsHarness {
 
 /// Harness handle that dispatches to native or VM implementations.
 pub(crate) enum TlsHarnessHandle {
-    /// Native tls harness.
+    /// Native TLS harness.
     Native(NativeTlsHarness),
-    /// VM tls harness.
+    /// VM TLS harness.
     Vm(VmTlsHarness),
 }
 
@@ -113,4 +119,34 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Assert one runtime result failed with `invalidArgumentValue`.
+pub(crate) fn assert_invalid_argument_value<T>(result: RuntimeResult<T>) -> RuntimeResult<()> {
+    let error = match result {
+        Ok(_) => panic!("operation should fail with invalidArgumentValue"),
+        Err(error) => error,
+    };
+
+    let platform = error
+        .platform_error()
+        .expect("error should contain one platform error");
+    assert_eq!(platform.code, PlatformErrorCode::InvalidArgumentValue);
+
+    Ok(())
+}
+
+/// Return one placeholder TLS context handle for invalid-argument tests.
+pub(crate) fn placeholder_context_handle() -> resource::TlsContextHandle {
+    resource::TlsContextHandle(ResourceId(1))
+}
+
+/// Return one placeholder TLS session handle for invalid-argument tests.
+pub(crate) fn placeholder_session_handle() -> resource::TlsSessionHandle {
+    resource::TlsSessionHandle(ResourceId(1))
+}
+
+/// Return one placeholder socket handle for invalid-argument tests.
+pub(crate) fn placeholder_socket_handle() -> resource::SocketHandle {
+    resource::SocketHandle(ResourceId(1))
 }

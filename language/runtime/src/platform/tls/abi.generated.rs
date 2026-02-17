@@ -4,9 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, tls as platform_tls};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, tls as platform_tls};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,19 @@ pub enum TlsHandshakeStatus {
 impl VmValueCodec for TlsHandshakeStatus {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TlsHandshakeStatus>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Complete,
+            1u8 => Self::WantRead,
+            2u8 => Self::WantWrite,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TlsHandshakeStatus value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -48,7 +60,19 @@ pub enum TlsHostnameVerificationMode {
 impl VmValueCodec for TlsHostnameVerificationMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TlsHostnameVerificationMode>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Strict,
+            1u8 => Self::AllowMismatch,
+            2u8 => Self::Disabled,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TlsHostnameVerificationMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -69,7 +93,18 @@ pub enum TlsRole {
 impl VmValueCodec for TlsRole {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TlsRole>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Client,
+            1u8 => Self::Server,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TlsRole value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -94,7 +129,20 @@ pub enum TlsSessionResumptionMode {
 impl VmValueCodec for TlsSessionResumptionMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TlsSessionResumptionMode>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Disabled,
+            1u8 => Self::Stateful,
+            2u8 => Self::Stateless,
+            3u8 => Self::StatefulAndStateless,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TlsSessionResumptionMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -115,7 +163,18 @@ pub enum TlsSessionResumptionState {
 impl VmValueCodec for TlsSessionResumptionState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, TlsSessionResumptionState>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Fresh,
+            1u8 => Self::Resumed,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TlsSessionResumptionState value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -136,7 +195,18 @@ pub enum TlsVersion {
 impl VmValueCodec for TlsVersion {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u16 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u16, TlsVersion>(raw) })
+        let decoded = match raw {
+            771u16 => Self::Tls12,
+            772u16 => Self::Tls13,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TlsVersion value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -156,7 +226,7 @@ pub struct TlsContextOptionsAbi<A: BindingAbi> {
     /// The verify_peer field.
     pub verify_peer: bool,
     /// The alpn_protocols field.
-    pub alpn_protocols: A::StringSlice,
+    pub alpn_protocols: A::Slice<A::Slice<u8>>,
 }
 
 pub type TlsContextOptions = TlsContextOptionsAbi<NativeAbi>;
@@ -195,5 +265,5 @@ pub struct TlsContextOptionsReplayRecord {
     /// The verify_peer field.
     pub verify_peer: bool,
     /// The alpn_protocols field.
-    pub alpn_protocols: Vec<String>,
+    pub alpn_protocols: Vec<Vec<u8>>,
 }

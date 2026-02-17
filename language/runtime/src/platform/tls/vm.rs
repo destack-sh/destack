@@ -1,13 +1,125 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
+use destack_vm as vm;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::tls::{
-    TlsContextOptionsVm, TlsHandshakeStatus, TlsHostnameVerificationMode, TlsRole,
-    TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion,
+    TlsContextOptions, TlsContextOptionsVm, TlsHandshakeStatus, TlsHostnameVerificationMode,
+    TlsSessionResumptionMode, TlsSessionResumptionState, host as host_tls,
 };
-use crate::platform::{PlatformError, VmSlice, resource};
+use crate::platform::{NativeSlice, NativeStringRef, NativeStringSlice, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
-use destack_vm as vm;
+
+fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
+    // allocate one output slot and invoke one host call
+    let mut value = std::mem::MaybeUninit::<T>::uninit();
+    call(value.as_mut_ptr())?;
+
+    Ok(unsafe { value.assume_init() })
+}
+
+fn string_ref_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::StringHandle,
+) -> RuntimeResult<NativeStringRef> {
+    // resolve one VM string handle
+    let value = context
+        .string_ref(value)
+        .map_err(|error| RuntimeError::from(error).boxed())?;
+
+    // store one call-scoped native string reference
+    Ok(runtime.store_string(value.as_str()))
+}
+
+fn string_slice_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    values: VmSlice<vm::StringHandle>,
+) -> RuntimeResult<NativeStringSlice> {
+    // decode one VM string handle slice
+    let values = values.read_values(context)?;
+    let mut native_values = Vec::with_capacity(values.len());
+    for value in values {
+        native_values.push(string_ref_from_vm(runtime, context, value)?);
+    }
+
+    // store one native string slice for host calls
+    Ok(runtime.store_string_slice(native_values))
+}
+
+fn bytes_slices_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    values: VmSlice<VmSlice<u8>>,
+) -> RuntimeResult<NativeSlice<NativeSlice<u8>>> {
+    // decode one VM nested byte-slice payload
+    let values = values.raw_values(context)?;
+    let mut native_values = Vec::with_capacity(values.len());
+    for value in values {
+        let value = VmSlice::<u8>::from_value(context, value, "alpn_protocols", "Slice<uint8>")?;
+        let value = value.read_bytes(context)?;
+        native_values.push(runtime.store_slice(value));
+    }
+
+    // store one native nested byte-slice payload
+    Ok(runtime.store_slice(native_values))
+}
+
+fn bytes_slice_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    values: VmSlice<u8>,
+) -> RuntimeResult<NativeSlice<u8>> {
+    // copy one VM byte slice into native call storage
+    let values = values.read_bytes(context)?;
+
+    Ok(runtime.store_slice(values))
+}
+
+fn bytes_slice_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: NativeSlice<u8>,
+) -> RuntimeResult<VmSlice<u8>> {
+    // read one native byte slice
+    let values = unsafe { values.as_slice()? };
+
+    // encode one VM byte slice
+    VmSlice::from_values(context, values)
+}
+
+fn allocate_read_buffer(runtime: &RuntimeCallContext, buffer: VmSlice<u8>) -> NativeSlice<u8> {
+    // allocate one native read buffer with matching length
+    let length = buffer.len as usize;
+
+    runtime.store_slice(vec![0u8; length])
+}
+
+fn write_read_buffer(
+    context: &mut vm::ExternalCallContext<'_>,
+    buffer: VmSlice<u8>,
+    native: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // copy one native read buffer back into VM memory
+    let bytes = unsafe { native.as_slice()? };
+
+    buffer.write_bytes(context, bytes)
+}
+
+fn context_options_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    options: TlsContextOptionsVm,
+) -> RuntimeResult<TlsContextOptions> {
+    // decode one ALPN protocol list
+    let alpn_protocols = bytes_slices_from_vm(runtime, context, options.alpn_protocols)?;
+
+    Ok(TlsContextOptions {
+        role: options.role,
+        min_version: options.min_version,
+        max_version: options.max_version,
+        verify_peer: options.verify_peer,
+        alpn_protocols,
+    })
+}
 
 /// Close one tls context object.
 ///
@@ -27,15 +139,11 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_context_close(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.close is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tls::destack_tls_context_close(runtime, handle) }
 }
 
 /// Open one tls context object.
@@ -45,7 +153,7 @@ pub(crate) fn destack_tls_context_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls providers such as SecureTransport, Schannel, OpenSSL, or rustls-backed runtime providers.
+/// Uses host tls provider context APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -56,15 +164,14 @@ pub(crate) fn destack_tls_context_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_context_open(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     options: TlsContextOptionsVm,
 ) -> RuntimeResult<resource::TlsContextHandle> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.open is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one VM options payload
+    let options = context_options_from_vm(runtime, context, options)?;
+
+    call_out(|out| unsafe { host_tls::destack_tls_context_open(runtime, out, options) })
 }
 
 /// Set allowed tls cipher suites for one context.
@@ -85,16 +192,15 @@ pub(crate) fn destack_tls_context_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_cipher_suites(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     suites: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, suites);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setCipherSuites is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one VM string slice
+    let suites = string_slice_from_vm(runtime, context, suites)?;
+
+    unsafe { host_tls::destack_tls_context_set_cipher_suites(runtime, handle, suites) }
 }
 
 /// Set allowed tls key exchange groups for one context.
@@ -115,16 +221,15 @@ pub(crate) fn destack_tls_context_set_cipher_suites(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_groups(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     groups: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, groups);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setGroups is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one VM string slice
+    let groups = string_slice_from_vm(runtime, context, groups)?;
+
+    unsafe { host_tls::destack_tls_context_set_groups(runtime, handle, groups) }
 }
 
 /// Set hostname verification mode for one context.
@@ -145,16 +250,12 @@ pub(crate) fn destack_tls_context_set_groups(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_hostname_verification_mode(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setHostnameVerificationMode is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tls::destack_tls_context_set_hostname_verification_mode(runtime, handle, mode) }
 }
 
 /// Set one local certificate chain and private key on a tls context.
@@ -175,17 +276,26 @@ pub(crate) fn destack_tls_context_set_hostname_verification_mode(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_identity_pem(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     certificatechainpem: VmSlice<u8>,
     privatekeypem: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, certificatechainpem, privatekeypem);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setIdentityPem is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one certificate chain payload
+    let certificatechainpem = bytes_slice_from_vm(runtime, context, certificatechainpem)?;
+
+    // decode one private key payload
+    let privatekeypem = bytes_slice_from_vm(runtime, context, privatekeypem)?;
+
+    unsafe {
+        host_tls::destack_tls_context_set_identity_pem(
+            runtime,
+            handle,
+            certificatechainpem,
+            privatekeypem,
+        )
+    }
 }
 
 /// Set keylog emission for one context.
@@ -195,7 +305,7 @@ pub(crate) fn destack_tls_context_set_identity_pem(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_CTX_set_keylog_callback style APIs in OpenSSL or BoringSSL and equivalent hooks in rustls-backed providers.
+/// Uses host tls provider keylog callback APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -206,16 +316,12 @@ pub(crate) fn destack_tls_context_set_identity_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_keylog_enabled(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (handle, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setKeylogEnabled is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tls::destack_tls_context_set_keylog_enabled(runtime, handle, enabled) }
 }
 
 /// Set session resumption policy for one context.
@@ -236,16 +342,12 @@ pub(crate) fn destack_tls_context_set_keylog_enabled(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_session_resumption(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setSessionResumption is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tls::destack_tls_context_set_session_resumption(runtime, handle, mode) }
 }
 
 /// Set allowed tls signature algorithms for one context.
@@ -266,16 +368,15 @@ pub(crate) fn destack_tls_context_set_session_resumption(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_signature_algorithms(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     algorithms: VmSlice<vm::StringHandle>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, algorithms);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setSignatureAlgorithms is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one VM string slice
+    let algorithms = string_slice_from_vm(runtime, context, algorithms)?;
+
+    unsafe { host_tls::destack_tls_context_set_signature_algorithms(runtime, handle, algorithms) }
 }
 
 /// Set trust anchors on a tls context from one PEM bundle.
@@ -296,16 +397,15 @@ pub(crate) fn destack_tls_context_set_signature_algorithms(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_context_set_trust_anchors_pem(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsContextHandle,
     trustanchorspem: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, trustanchorspem);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.context.setTrustAnchorsPem is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one PEM trust-anchor payload
+    let trustanchorspem = bytes_slice_from_vm(runtime, context, trustanchorspem)?;
+
+    unsafe { host_tls::destack_tls_context_set_trust_anchors_pem(runtime, handle, trustanchorspem) }
 }
 
 /// Close one tls session object.
@@ -326,15 +426,11 @@ pub(crate) fn destack_tls_context_set_trust_anchors_pem(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_close(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.close is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tls::destack_tls_session_close(runtime, handle) }
 }
 
 /// Export keying material bytes for one tls session.
@@ -344,7 +440,7 @@ pub(crate) fn destack_tls_session_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_export_keying_material style APIs in OpenSSL or BoringSSL and equivalent exporter APIs in rustls-backed providers.
+/// Uses host tls provider exporter APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -355,18 +451,32 @@ pub(crate) fn destack_tls_session_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_export_keying_material(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
     label: vm::StringHandle,
     argument_context: VmSlice<u8>,
     outputlength: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let _ = (handle, label, argument_context, outputlength);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.exportKeyingMaterial is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one label string
+    let label = string_ref_from_vm(runtime, context, label)?;
+
+    // decode one exporter context payload
+    let argument_context = bytes_slice_from_vm(runtime, context, argument_context)?;
+
+    // execute one host exporter call
+    let bytes = call_out(|out| unsafe {
+        host_tls::destack_tls_session_export_keying_material(
+            runtime,
+            out,
+            handle,
+            label,
+            argument_context,
+            outputlength,
+        )
+    })?;
+
+    bytes_slice_to_vm(context, bytes)
 }
 
 /// Advance one tls handshake state machine.
@@ -379,7 +489,7 @@ pub(crate) fn destack_tls_session_export_keying_material(
 /// Uses host tls handshake step APIs.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `tls.handshake`.
@@ -387,21 +497,17 @@ pub(crate) fn destack_tls_session_export_keying_material(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_handshake(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<TlsHandshakeStatus> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.handshake is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_tls::destack_tls_session_handshake(runtime, out, handle) })
 }
 
-/// Return the negotiated alpn protocol string.
+/// Return negotiated alpn protocol bytes.
 ///
 /// Read one negotiated application protocol value selected during handshake.
-/// Empty string indicates no protocol was negotiated by the peer and provider.
+/// Empty bytes indicate no protocol was negotiated by the peer and provider.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -416,15 +522,16 @@ pub(crate) fn destack_tls_session_handshake(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_negotiated_alpn(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
-) -> RuntimeResult<vm::StringHandle> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.negotiatedAlpn is not available in the VM yet",
-    ))
-    .boxed())
+) -> RuntimeResult<VmSlice<u8>> {
+    // read one native ALPN byte slice
+    let value = call_out(|out| unsafe {
+        host_tls::destack_tls_session_negotiated_alpn(runtime, out, handle)
+    })?;
+
+    bytes_slice_to_vm(context, value)
 }
 
 /// Open one tls session over one connected socket.
@@ -445,17 +552,18 @@ pub(crate) fn destack_tls_session_negotiated_alpn(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_open(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     argument_context: resource::TlsContextHandle,
     socket: resource::SocketHandle,
     servername: vm::StringHandle,
 ) -> RuntimeResult<resource::TlsSessionHandle> {
-    let _ = (argument_context, socket, servername);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.open is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one server name
+    let servername = string_ref_from_vm(runtime, context, servername)?;
+
+    call_out(|out| unsafe {
+        host_tls::destack_tls_session_open(runtime, out, argument_context, socket, servername)
+    })
 }
 
 /// Return the peer certificate chain bytes in pem encoding.
@@ -476,15 +584,16 @@ pub(crate) fn destack_tls_session_open(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_peer_certificates_pem(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<VmSlice<u8>> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.peerCertificatesPem is not available in the VM yet",
-    ))
-    .boxed())
+    // read one native PEM certificate chain payload
+    let value = call_out(|out| unsafe {
+        host_tls::destack_tls_session_peer_certificates_pem(runtime, out, handle)
+    })?;
+
+    bytes_slice_to_vm(context, value)
 }
 
 /// Read decrypted application bytes from one tls session.
@@ -505,16 +614,23 @@ pub(crate) fn destack_tls_session_peer_certificates_pem(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_read(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.read is not available in the VM yet",
-    ))
-    .boxed())
+    // allocate one native read buffer
+    let native_buffer = allocate_read_buffer(runtime, buffer);
+
+    // execute one host read call
+    let bytes_read = call_out(|out| unsafe {
+        host_tls::destack_tls_session_read(runtime, out, handle, native_buffer)
+    })?;
+
+    // copy bytes back into VM memory
+    write_read_buffer(context, buffer, native_buffer)?;
+
+    Ok(bytes_read)
 }
 
 /// Return whether one session resumed from cached state or ticket.
@@ -524,7 +640,7 @@ pub(crate) fn destack_tls_session_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_session_reused style APIs in OpenSSL or BoringSSL and equivalent session state APIs in Schannel, SecureTransport, or rustls-backed providers.
+/// Uses host tls provider session-state query APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -535,15 +651,11 @@ pub(crate) fn destack_tls_session_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_resumption_state(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<TlsSessionResumptionState> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.resumptionState is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_tls::destack_tls_session_resumption_state(runtime, out, handle) })
 }
 
 /// Shutdown one tls session.
@@ -564,15 +676,11 @@ pub(crate) fn destack_tls_session_resumption_state(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tls_session_shutdown(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.shutdown is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tls::destack_tls_session_shutdown(runtime, handle) }
 }
 
 /// Write plaintext application bytes to one tls session.
@@ -593,14 +701,13 @@ pub(crate) fn destack_tls_session_shutdown(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_tls_session_write(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TlsSessionHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tls.session.write is not available in the VM yet",
-    ))
-    .boxed())
+    // decode one VM write buffer
+    let buffer = bytes_slice_from_vm(runtime, context, buffer)?;
+
+    call_out(|out| unsafe { host_tls::destack_tls_session_write(runtime, out, handle, buffer) })
 }
