@@ -227,7 +227,7 @@ fn decode_destack_tls_context_open_args(
             }
         };
         let options_verify_peer = decode_bool(slots[3], "options_verify_peer", "verifyPeer")?;
-        let options_alpn_protocols = decode_slice::<vm::StringHandle>(
+        let options_alpn_protocols = decode_slice::<VmSlice<u8>>(
             context,
             slots[4],
             "options_alpn_protocols",
@@ -588,10 +588,10 @@ fn decode_destack_tls_session_negotiated_alpn_args(
 /// Encode the result for destack.tls.session.negotiatedAlpn.
 #[inline]
 fn encode_destack_tls_session_negotiated_alpn_result(
-    _context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.value())
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.tls.session.open.
@@ -776,7 +776,7 @@ struct TlsSessionHandshakeReplay {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TlsSessionNegotiatedAlpnReplay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<Vec<u8>, PlatformError>,
 }
 
 /// Replay payload for destack.tls.session.open.
@@ -987,7 +987,7 @@ pub const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::external
 /// Binding descriptor for destack.tls.session.negotiatedAlpn.
 pub const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.tls.session.negotiatedAlpn",
-    "export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<string, PlatformError>",
+    "export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["tls.session"],
@@ -1436,7 +1436,7 @@ fn destack_tls_session_handshake_replay(
 fn destack_tls_session_negotiated_alpn_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
-    out: *mut NativeStringRef,
+    out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = &handle;
@@ -1460,7 +1460,13 @@ fn destack_tls_session_negotiated_alpn_replay(
                     }
                     *out
                 };
-                let result_recorded = unsafe { result_value.as_str()? }.to_string();
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
                 let payload = TlsSessionNegotiatedAlpnReplay {
                     result: Ok(result_recorded),
                 };
@@ -1481,7 +1487,12 @@ fn destack_tls_session_negotiated_alpn_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -2009,7 +2020,7 @@ pub unsafe extern "C" fn destack_tls_session_handshake(
 
 #[unsafe(export_name = "destack.tls.session.negotiatedAlpn")]
 pub unsafe extern "C" fn destack_tls_session_negotiated_alpn(
-    out: *mut NativeStringRef,
+    out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -2410,13 +2421,8 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
             |context, result| {
                 let _ = &context;
                 if let Ok(value) = result {
-                    let result_value: vm::StringHandle = value.clone();
-                    let result_recorded = {
-                        let result_recorded_ref = context
-                            .string_ref(result_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_ref.as_str().to_string()
-                    };
+                    let result_value: VmSlice<u8> = value.clone();
+                    let result_recorded = result_value.read_bytes(context)?;
                     let payload = TlsSessionNegotiatedAlpnReplay {
                         result: Ok(result_recorded),
                     };
@@ -2438,8 +2444,7 @@ fn destack_tls_session_negotiated_alpn_vm_replay(
                 // replay result
                 match payload.result {
                     Ok(value) => {
-                        let vm_result_value = context.intern_string(value.as_str());
-                        let vm_result = vm::StringHandle::new(vm_result_value);
+                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
                         Ok(vm_result)
                     }
                     Err(error) => Err(RuntimeError::from(error).boxed()),

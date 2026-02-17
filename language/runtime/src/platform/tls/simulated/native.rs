@@ -46,7 +46,7 @@ pub(crate) unsafe fn destack_tls_context_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host tls providers such as SecureTransport, Schannel, OpenSSL, or rustls-backed runtime providers.
+/// Uses host tls provider context APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -199,7 +199,7 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_CTX_set_keylog_callback style APIs in OpenSSL or BoringSSL and equivalent hooks in rustls-backed providers.
+/// Uses host tls provider keylog callback APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -350,7 +350,7 @@ pub(crate) unsafe fn destack_tls_session_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_export_keying_material style APIs in OpenSSL or BoringSSL and equivalent exporter APIs in rustls-backed providers.
+/// Uses host tls provider exporter APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -387,7 +387,7 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 /// Uses host tls handshake step APIs.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `tls.handshake`.
@@ -408,10 +408,10 @@ pub(crate) unsafe fn destack_tls_session_handshake(
     .boxed())
 }
 
-/// Return the negotiated alpn protocol string.
+/// Return negotiated alpn protocol bytes.
 ///
 /// Read one negotiated application protocol value selected during handshake.
-/// Empty string indicates no protocol was negotiated by the peer and provider.
+/// Empty bytes indicate no protocol was negotiated by the peer and provider.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -427,7 +427,7 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 /// External, recordable.
 pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
     context: &RuntimeCallContext,
-    out: *mut NativeStringRef,
+    out: *mut NativeSlice<u8>,
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     let _ = context;
@@ -536,7 +536,7 @@ pub(crate) unsafe fn destack_tls_session_read(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SSL_session_reused style APIs in OpenSSL or BoringSSL and equivalent session state APIs in Schannel, SecureTransport, or rustls-backed providers.
+/// Uses host tls provider session-state query APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.

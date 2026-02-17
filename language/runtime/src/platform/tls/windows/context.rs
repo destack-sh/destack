@@ -1,0 +1,378 @@
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::tls::{
+    TlsContextOptions, TlsHostnameVerificationMode, TlsSessionResumptionMode, core as core_tls,
+};
+use crate::platform::{NativeSlice, NativeStringSlice, PlatformError, resource};
+use crate::runtime::RuntimeCallContext;
+
+/// Close one tls context object.
+///
+/// Release one backend-backed tls context and associated host resources.
+/// Existing sessions created from this context remain backend-defined.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses provider-specific context teardown semantics.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `tls.context`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tls_context_close(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+) -> RuntimeResult<()> {
+    core_tls::remove_context_resource(context, handle)
+}
+
+/// Open one tls context object.
+///
+/// Create one backend-backed tls context with explicit role and version bounds.
+/// Cipher suite policy and backend defaults follow host tls backend semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host tls provider context APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tls_context_open(
+    context: &RuntimeCallContext,
+    out: *mut resource::TlsContextHandle,
+    options: TlsContextOptions,
+) -> RuntimeResult<()> {
+    // validate the output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // build and store one context resource
+    let policy = core_tls::TlsContextResource::from_options(options)?;
+    let handle = core_tls::insert_context_resource(context, policy);
+
+    // write the resulting handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
+}
+
+/// Set allowed tls cipher suites for one context.
+///
+/// Apply one ordered list of cipher-suite names to one context policy.
+/// Name parsing and provider-specific filtering follow backend rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses SSL_CTX_set_ciphersuites style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.policy`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    suites: NativeStringSlice,
+) -> RuntimeResult<()> {
+    // decode and validate suite names
+    let suites = core_tls::decode_native_string_slice(suites)?;
+    if suites.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "suites",
+            "suites must be non-empty",
+        ))
+        .boxed());
+    }
+
+    // store the suite policy
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.cipher_suites = Some(suites);
+    policy.reset_runtime_state();
+
+    Ok(())
+}
+
+/// Set allowed tls key exchange groups for one context.
+///
+/// Apply one ordered list of key exchange groups to one context policy.
+/// Group parsing and provider-specific filtering follow backend rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses SSL_CTX_set1_groups_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.policy`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_groups(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    groups: NativeStringSlice,
+) -> RuntimeResult<()> {
+    // decode and validate group names
+    let groups = core_tls::decode_native_string_slice(groups)?;
+    if groups.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "groups",
+            "groups must be non-empty",
+        ))
+        .boxed());
+    }
+
+    // store the group policy
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.groups = Some(groups);
+    policy.reset_runtime_state();
+
+    Ok(())
+}
+
+/// Set hostname verification mode for one context.
+///
+/// Configure hostname verification behavior for sessions created by this context.
+/// Verification defaults match strict hostname checks unless explicitly overridden.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses X509_VERIFY_PARAM_set_hostflags style APIs in OpenSSL or BoringSSL and equivalent provider verification controls in Schannel or SecureTransport.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.hostname.verify`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    mode: TlsHostnameVerificationMode,
+) -> RuntimeResult<()> {
+    // store the hostname verification mode
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.hostname_mode = mode;
+    policy.reset_runtime_state();
+
+    Ok(())
+}
+
+/// Set one local certificate chain and private key on a tls context.
+///
+/// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
+/// Key parsing and supported key formats follow host provider behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses provider identity import APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.identity.use`, `tls.identity.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_identity_pem(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    certificatechainpem: NativeSlice<u8>,
+    privatekeypem: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // decode the PEM payloads
+    let certificate_chain = core_tls::decode_native_bytes(certificatechainpem)?;
+    let private_key = core_tls::decode_native_bytes(privatekeypem)?;
+    if certificate_chain.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "certificateChainPem",
+            "certificateChainPem must be non-empty",
+        ))
+        .boxed());
+    }
+    if private_key.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "privateKeyPem",
+            "privateKeyPem must be non-empty",
+        ))
+        .boxed());
+    }
+
+    // store identity material
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.identity_chain_pem = Some(certificate_chain);
+    policy.identity_key_pem = Some(private_key);
+    policy.reset_runtime_state();
+
+    Ok(())
+}
+
+/// Set keylog emission for one context.
+///
+/// Enable or disable NSS keylog line emission for sessions from this context.
+/// Output destination routing is controlled by runtime telemetry or debug sinks.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host tls provider keylog callback APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.keylog`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_keylog_enabled(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    // store key logging policy
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.keylog_enabled = enabled;
+    policy.reset_runtime_state();
+
+    Ok(())
+}
+
+/// Set session resumption policy for one context.
+///
+/// Configure whether sessions use stateful cache, stateless tickets, or both.
+/// Cache size, lifetime, and ticket semantics follow backend policy.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses SSL_CTX_set_session_cache_mode and SSL_CTX_set_options style APIs in OpenSSL or BoringSSL and equivalent provider controls in Schannel or SecureTransport.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.resumption`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_session_resumption(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    mode: TlsSessionResumptionMode,
+) -> RuntimeResult<()> {
+    // store resumption policy
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.resumption_mode = mode;
+    policy.reset_runtime_state();
+
+    Ok(())
+}
+
+/// Set allowed tls signature algorithms for one context.
+///
+/// Apply one ordered list of signature algorithms to one context policy.
+/// Algorithm parsing and provider-specific filtering follow backend rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses SSL_CTX_set1_sigalgs_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.context`, `tls.policy`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    algorithms: NativeStringSlice,
+) -> RuntimeResult<()> {
+    // decode and validate algorithm names
+    let algorithms = core_tls::decode_native_string_slice(algorithms)?;
+    if algorithms.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "algorithms",
+            "algorithms must be non-empty",
+        ))
+        .boxed());
+    }
+    let algorithms = core_tls::parse_signature_algorithms(&algorithms)?;
+
+    // store signature algorithm policy
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.signature_algorithms = Some(algorithms);
+    policy.reset_runtime_state();
+
+    Ok(())
+}
+
+/// Set trust anchors on a tls context from one PEM bundle.
+///
+/// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
+/// Bundle parse rules and chain-building behavior follow host provider semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses provider trust-store APIs or runtime trust bundle loading.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tls.trust.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
+    context: &RuntimeCallContext,
+    handle: resource::TlsContextHandle,
+    trustanchorspem: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // decode and validate trust anchors
+    let trust_anchors = core_tls::decode_native_bytes(trustanchorspem)?;
+    if trust_anchors.is_empty() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "trustAnchorsPem",
+            "trustAnchorsPem must be non-empty",
+        ))
+        .boxed());
+    }
+
+    // store trust anchors
+    let policy = core_tls::resolve_context_resource(context, handle)?;
+    let mut policy = policy.lock();
+    policy.trust_anchors_pem = Some(trust_anchors);
+    policy.reset_runtime_state();
+
+    Ok(())
+}

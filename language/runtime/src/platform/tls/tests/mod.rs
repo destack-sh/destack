@@ -1,6 +1,10 @@
 #[cfg(any(unix, windows))]
 mod basic;
 #[cfg(any(unix, windows))]
+mod context;
+#[cfg(any(unix, windows))]
+mod session;
+#[cfg(any(unix, windows))]
 mod tests;
 
 #[cfg(any(unix, windows))]
