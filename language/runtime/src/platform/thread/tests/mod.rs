@@ -1,5 +1,11 @@
 #[cfg(any(unix, windows))]
-mod basic;
+mod local;
+#[cfg(any(unix, windows))]
+mod priority;
+#[cfg(any(unix, windows))]
+mod spawn;
+#[cfg(any(unix, windows))]
+mod sync;
 #[cfg(any(unix, windows))]
 mod tests;
 

@@ -1,15 +1,45 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
+
+use std::cell::UnsafeCell;
+use std::mem::MaybeUninit;
+use std::ptr;
+use std::time::Duration;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::thread::{bindings_generated as bindings, core as core_thread};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::platform::resource::{
+    BarrierHandle, CondVarHandle, MutexHandle, RwLockHandle, ThreadSemaphoreHandle,
+};
+use crate::platform::thread::{core as core_thread, resource as resource_thread};
+use crate::platform::{PlatformError, core as core_platform};
+use windows_sys::Win32::Foundation::{
+    ERROR_TIMEOUT, ERROR_TOO_MANY_POSTS, GetLastError, WAIT_OBJECT_0, WAIT_TIMEOUT,
+};
+use windows_sys::Win32::System::Threading::{
+    AcquireSRWLockExclusive, AcquireSRWLockShared, CreateSemaphoreW, EnterCriticalSection,
+    EnterSynchronizationBarrier, INFINITE, InitializeConditionVariable, InitializeCriticalSection,
+    InitializeSRWLock, InitializeSynchronizationBarrier, LeaveCriticalSection,
+    ReleaseSRWLockExclusive, ReleaseSRWLockShared, ReleaseSemaphore, SleepConditionVariableCS,
+    TryAcquireSRWLockExclusive, TryAcquireSRWLockShared, TryEnterCriticalSection,
+    WaitForSingleObject, WaitOnAddress, WakeAllConditionVariable, WakeByAddressAll,
+    WakeByAddressSingle, WakeConditionVariable,
+};
 
 use crate::runtime::RuntimeCallContext;
-use bindings::*;
 
-use crate::platform::resource;
-use crate::platform::thread::ThreadOptions;
+/// Convert one optional timeout duration into a Win32 millisecond timeout.
+fn timeout_to_wait_milliseconds(timeout: Option<Duration>) -> RuntimeResult<u32> {
+    let Some(timeout) = timeout else {
+        return Ok(INFINITE);
+    };
+
+    let milliseconds = timeout.as_millis();
+    if milliseconds > u32::MAX as u128 {
+        return Ok(u32::MAX - 1);
+    }
+
+    Ok(milliseconds as u32)
+}
 /// Wait on one memory address value.
 ///
 /// Wait while the target memory word matches the expected value.
@@ -28,17 +58,62 @@ use crate::platform::thread::ThreadOptions;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wait(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     address: u64,
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, expected, timeoutns);
+    // validate the waited address
+    if address == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "address",
+            "address must not be zero",
+        ))
+        .boxed());
+    }
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWait",
-    ))
-    .boxed())
+    // validate word alignment for wait-on-address
+    if address % (std::mem::size_of::<u32>() as u64) != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "address",
+            "address must be aligned to 4 bytes",
+        ))
+        .boxed());
+    }
+
+    // wait on the host address until wake, mismatch, or timeout
+    let timeout = core_thread::timeout_from_ns(timeoutns);
+    let timeout_milliseconds = timeout_to_wait_milliseconds(timeout)?;
+    let address_ptr = address as *const u32;
+    let rc = unsafe {
+        WaitOnAddress(
+            address_ptr as *const std::ffi::c_void,
+            &expected as *const u32 as *const std::ffi::c_void,
+            std::mem::size_of::<u32>(),
+            timeout_milliseconds,
+        )
+    };
+    if rc != 0 {
+        return Ok(());
+    }
+
+    // map wait completion semantics to binding results
+    let code = unsafe { GetLastError() } as i32;
+    if code as u32 == ERROR_TIMEOUT {
+        if timeoutns == 0 {
+            return Err(core_thread::io_would_block_error(
+                "addressWait",
+                "failed to wait on address: no wake observed",
+            ));
+        }
+
+        return Err(core_thread::io_timed_out_error(
+            "addressWait",
+            "failed to wait on address: timed out waiting for wake",
+        ));
+    }
+
+    Err(core_platform::io_error_with_code("WaitOnAddress", code))
 }
 
 /// Wake all waiters on a memory address.
@@ -59,13 +134,33 @@ pub(crate) unsafe fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_all(
-    context: &RuntimeCallContext,
-    _address: u64,
+    _context: &RuntimeCallContext,
+    address: u64,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWakeAll",
-    ))
-    .boxed())
+    // validate the waited address
+    if address == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "address",
+            "address must not be zero",
+        ))
+        .boxed());
+    }
+
+    // validate word alignment for wait-on-address
+    if address % (std::mem::size_of::<u32>() as u64) != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "address",
+            "address must be aligned to 4 bytes",
+        ))
+        .boxed());
+    }
+
+    // wake all blocked waiters
+    unsafe {
+        WakeByAddressAll(address as *const std::ffi::c_void);
+    }
+
+    Ok(())
 }
 
 /// Wake one waiter on a memory address.
@@ -86,13 +181,33 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_address_wake_one(
-    context: &RuntimeCallContext,
-    _address: u64,
+    _context: &RuntimeCallContext,
+    address: u64,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWakeOne",
-    ))
-    .boxed())
+    // validate the waited address
+    if address == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "address",
+            "address must not be zero",
+        ))
+        .boxed());
+    }
+
+    // validate word alignment for wait-on-address
+    if address % (std::mem::size_of::<u32>() as u64) != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "address",
+            "address must be aligned to 4 bytes",
+        ))
+        .boxed());
+    }
+
+    // wake one blocked waiter
+    unsafe {
+        WakeByAddressSingle(address as *const std::ffi::c_void);
+    }
+
+    Ok(())
 }
 
 /// Create one thread barrier.
@@ -114,19 +229,55 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_barrier_create(
     context: &RuntimeCallContext,
-    out: *mut resource::BarrierHandle,
+    out: *mut BarrierHandle,
     participants: u32,
     flags: u32,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, participants, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.barrierCreate",
-    ))
-    .boxed())
+    // validate supported barrier flags
+    if flags != 0 {
+        return Err(core_thread::unsupported_flags_error("flags", flags));
+    }
+
+    // validate participant count
+    if participants == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "participants",
+            "participants must be greater than zero",
+        ))
+        .boxed());
+    }
+
+    // initialize one synchronization barrier
+    let mut barrier =
+        MaybeUninit::<windows_sys::Win32::System::Threading::SYNCHRONIZATION_BARRIER>::zeroed();
+    let rc =
+        unsafe { InitializeSynchronizationBarrier(barrier.as_mut_ptr(), participants as i32, -1) };
+    if rc == 0 {
+        return Err(core_platform::io_error("InitializeSynchronizationBarrier"));
+    }
+
+    // store one barrier resource
+    let resource_id = core_thread::insert_thread_resource(
+        context,
+        "thread.barrier",
+        resource_thread::BarrierResource {
+            barrier: UnsafeCell::new(unsafe { barrier.assume_init() }),
+            participants,
+        },
+    );
+    let handle = BarrierHandle(resource_id);
+
+    // write the output handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Wait for barrier rendezvous.
@@ -149,18 +300,48 @@ pub(crate) unsafe fn destack_thread_barrier_create(
 pub(crate) unsafe fn destack_thread_barrier_wait(
     context: &RuntimeCallContext,
     out: *mut bool,
-    handle: resource::BarrierHandle,
+    handle: BarrierHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle, timeoutns);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.barrierWait",
-    ))
-    .boxed())
+    // resolve the barrier resource
+    let barrier = core_thread::resolve_thread_resource::<resource_thread::BarrierResource>(
+        context,
+        handle.0,
+        "handle",
+        "barrier handle",
+    )?;
+
+    // reject unsupported finite barrier waits
+    if timeoutns != core_thread::WAIT_FOREVER {
+        if timeoutns == 0 && barrier.participants > 1 {
+            return Err(core_thread::io_would_block_error(
+                "barrierWait",
+                "failed to wait barrier: timeout is zero and participants are still pending",
+            ));
+        }
+
+        if !(timeoutns == 0 && barrier.participants == 1) {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.thread.sync.barrierWait",
+            ))
+            .boxed());
+        }
+    }
+
+    // wait for one barrier rendezvous
+    let leader = unsafe { EnterSynchronizationBarrier(barrier.barrier.get(), 0) != 0 };
+
+    // write the output leader marker
+    unsafe {
+        *out = leader;
+    }
+
+    Ok(())
 }
 
 /// Create one condition variable.
@@ -182,18 +363,42 @@ pub(crate) unsafe fn destack_thread_barrier_wait(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_create(
     context: &RuntimeCallContext,
-    out: *mut resource::CondVarHandle,
+    out: *mut CondVarHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarCreate",
-    ))
-    .boxed())
+    // validate supported condition-variable flags
+    if flags != 0 {
+        return Err(core_thread::unsupported_flags_error("flags", flags));
+    }
+
+    // initialize one condition variable
+    let mut condvar =
+        MaybeUninit::<windows_sys::Win32::System::Threading::CONDITION_VARIABLE>::zeroed();
+    unsafe {
+        InitializeConditionVariable(condvar.as_mut_ptr());
+    }
+
+    // store one condition-variable resource
+    let resource_id = core_thread::insert_thread_resource(
+        context,
+        "thread.condvar",
+        resource_thread::CondVarResource {
+            condvar: UnsafeCell::new(unsafe { condvar.assume_init() }),
+        },
+    );
+    let handle = CondVarHandle(resource_id);
+
+    // write the output handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Notify all condition-variable waiters.
@@ -215,12 +420,22 @@ pub(crate) unsafe fn destack_thread_cond_var_create(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_all(
     context: &RuntimeCallContext,
-    _condvar: resource::CondVarHandle,
+    condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarNotifyAll",
-    ))
-    .boxed())
+    // resolve the condition-variable resource
+    let condvar = core_thread::resolve_thread_resource::<resource_thread::CondVarResource>(
+        context,
+        condvar.0,
+        "condvar",
+        "condition variable handle",
+    )?;
+
+    // notify all blocked waiters
+    unsafe {
+        WakeAllConditionVariable(condvar.condvar.get());
+    }
+
+    Ok(())
 }
 
 /// Notify one condition-variable waiter.
@@ -242,12 +457,22 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_all(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_notify_one(
     context: &RuntimeCallContext,
-    _condvar: resource::CondVarHandle,
+    condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarNotifyOne",
-    ))
-    .boxed())
+    // resolve the condition-variable resource
+    let condvar = core_thread::resolve_thread_resource::<resource_thread::CondVarResource>(
+        context,
+        condvar.0,
+        "condvar",
+        "condition variable handle",
+    )?;
+
+    // notify one blocked waiter
+    unsafe {
+        WakeConditionVariable(condvar.condvar.get());
+    }
+
+    Ok(())
 }
 
 /// Wait on one condition variable.
@@ -269,16 +494,58 @@ pub(crate) unsafe fn destack_thread_cond_var_notify_one(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_cond_var_wait(
     context: &RuntimeCallContext,
-    condvar: resource::CondVarHandle,
-    mutex: resource::MutexHandle,
+    condvar: CondVarHandle,
+    mutex: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (condvar, mutex, timeoutns);
+    // resolve synchronization resources
+    let condvar = core_thread::resolve_thread_resource::<resource_thread::CondVarResource>(
+        context,
+        condvar.0,
+        "condvar",
+        "condition variable handle",
+    )?;
+    let mutex = core_thread::resolve_thread_resource::<resource_thread::MutexResource>(
+        context,
+        mutex.0,
+        "mutex",
+        "mutex handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarWait",
+    // release the mutex and wait for one wake sequence
+    let timeout = core_thread::timeout_from_ns(timeoutns);
+    let timeout_milliseconds = timeout_to_wait_milliseconds(timeout)?;
+    let rc = unsafe {
+        SleepConditionVariableCS(
+            condvar.condvar.get(),
+            mutex.critical_section.get(),
+            timeout_milliseconds,
+        )
+    };
+    if rc != 0 {
+        return Ok(());
+    }
+
+    // map wait completion semantics to binding results
+    let code = unsafe { GetLastError() } as i32;
+    if code as u32 == ERROR_TIMEOUT {
+        if timeoutns == 0 {
+            return Err(core_thread::io_would_block_error(
+                "condVarWait",
+                "failed to wait condition variable: no wake observed",
+            ));
+        }
+
+        return Err(core_thread::io_timed_out_error(
+            "condVarWait",
+            "failed to wait condition variable: timed out waiting for wake",
+        ));
+    }
+
+    Err(core_platform::io_error_with_code(
+        "SleepConditionVariableCS",
+        code,
     ))
-    .boxed())
 }
 
 /// Create one mutex.
@@ -300,18 +567,42 @@ pub(crate) unsafe fn destack_thread_cond_var_wait(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_create(
     context: &RuntimeCallContext,
-    out: *mut resource::MutexHandle,
+    out: *mut MutexHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexCreate",
-    ))
-    .boxed())
+    // validate supported mutex flags
+    if flags != 0 {
+        return Err(core_thread::unsupported_flags_error("flags", flags));
+    }
+
+    // initialize one critical section
+    let mut critical_section =
+        MaybeUninit::<windows_sys::Win32::System::Threading::CRITICAL_SECTION>::uninit();
+    unsafe {
+        InitializeCriticalSection(critical_section.as_mut_ptr());
+    }
+
+    // store one mutex resource
+    let resource_id = core_thread::insert_thread_resource(
+        context,
+        "thread.mutex",
+        resource_thread::MutexResource {
+            critical_section: UnsafeCell::new(unsafe { critical_section.assume_init() }),
+        },
+    );
+    let handle = MutexHandle(resource_id);
+
+    // write the output handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Lock one mutex.
@@ -333,15 +624,42 @@ pub(crate) unsafe fn destack_thread_mutex_create(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_lock(
     context: &RuntimeCallContext,
-    handle: resource::MutexHandle,
+    handle: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
+    // resolve the mutex resource
+    let mutex = core_thread::resolve_thread_resource::<resource_thread::MutexResource>(
+        context,
+        handle.0,
+        "handle",
+        "mutex handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexLock",
-    ))
-    .boxed())
+    let timeout = core_thread::timeout_from_ns(timeoutns);
+    if timeoutns == 0 {
+        let rc = unsafe { TryEnterCriticalSection(mutex.critical_section.get()) };
+        if rc != 0 {
+            return Ok(());
+        }
+
+        return Err(core_thread::io_would_block_error(
+            "mutexLock",
+            "failed to lock mutex: mutex is currently held by another owner",
+        ));
+    }
+
+    if timeout.is_some() {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.thread.sync.mutexLock",
+        ))
+        .boxed());
+    }
+
+    unsafe {
+        EnterCriticalSection(mutex.critical_section.get());
+    }
+
+    Ok(())
 }
 
 /// Unlock one mutex.
@@ -363,12 +681,22 @@ pub(crate) unsafe fn destack_thread_mutex_lock(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_mutex_unlock(
     context: &RuntimeCallContext,
-    _handle: resource::MutexHandle,
+    handle: MutexHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexUnlock",
-    ))
-    .boxed())
+    // resolve the mutex resource
+    let mutex = core_thread::resolve_thread_resource::<resource_thread::MutexResource>(
+        context,
+        handle.0,
+        "handle",
+        "mutex handle",
+    )?;
+
+    // release one critical section lock depth
+    unsafe {
+        LeaveCriticalSection(mutex.critical_section.get());
+    }
+
+    Ok(())
 }
 
 /// Create one read-write lock.
@@ -390,18 +718,42 @@ pub(crate) unsafe fn destack_thread_mutex_unlock(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_create(
     context: &RuntimeCallContext,
-    out: *mut resource::RwLockHandle,
+    out: *mut RwLockHandle,
     flags: u32,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockCreate",
-    ))
-    .boxed())
+    // validate supported read-write lock flags
+    if flags != 0 {
+        return Err(core_thread::unsupported_flags_error("flags", flags));
+    }
+
+    // initialize one srw lock
+    let mut rwlock = MaybeUninit::<windows_sys::Win32::System::Threading::SRWLOCK>::zeroed();
+    unsafe {
+        InitializeSRWLock(rwlock.as_mut_ptr());
+    }
+
+    // store one read-write lock resource
+    let resource_id = core_thread::insert_thread_resource(
+        context,
+        "thread.rwlock",
+        resource_thread::RwLockResource {
+            rwlock: UnsafeCell::new(unsafe { rwlock.assume_init() }),
+            ownership: parking_lot::Mutex::new(resource_thread::WindowsRwLockOwnership::default()),
+        },
+    );
+    let handle = RwLockHandle(resource_id);
+
+    // write the output handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Lock one read-write lock for read access.
@@ -423,15 +775,57 @@ pub(crate) unsafe fn destack_thread_rwlock_create(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_read_lock(
     context: &RuntimeCallContext,
-    handle: resource::RwLockHandle,
+    handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
+    // resolve the read-write lock resource
+    let rwlock = core_thread::resolve_thread_resource::<resource_thread::RwLockResource>(
+        context,
+        handle.0,
+        "handle",
+        "rwlock handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockReadLock",
-    ))
-    .boxed())
+    // reject lock modes that would deadlock this thread
+    let owner = core_thread::current_thread_owner_id();
+    {
+        let ownership = rwlock.ownership.lock();
+        if ownership.writer == Some(owner) {
+            return Err(core_thread::thread_deadlock_error(
+                "failed to lock rwlock for read: current thread already owns the write lock",
+            ));
+        }
+    }
+
+    // acquire one shared lock slot
+    let timeout = core_thread::timeout_from_ns(timeoutns);
+    if timeoutns == 0 {
+        let rc = unsafe { TryAcquireSRWLockShared(rwlock.rwlock.get()) };
+        if rc == 0 {
+            return Err(core_thread::io_would_block_error(
+                "rwlockReadLock",
+                "failed to lock rwlock for read: lock is currently unavailable",
+            ));
+        }
+    } else if timeout.is_some() {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.thread.sync.rwlockReadLock",
+        ))
+        .boxed());
+    } else {
+        unsafe {
+            AcquireSRWLockShared(rwlock.rwlock.get());
+        }
+    }
+
+    // record one shared ownership slot for this thread
+    {
+        let mut ownership = rwlock.ownership.lock();
+        let readers = ownership.readers.entry(owner).or_insert(0);
+        *readers = readers.saturating_add(1);
+    }
+
+    Ok(())
 }
 
 /// Unlock one read-write lock.
@@ -453,12 +847,51 @@ pub(crate) unsafe fn destack_thread_rwlock_read_lock(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_unlock(
     context: &RuntimeCallContext,
-    _handle: resource::RwLockHandle,
+    handle: RwLockHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockUnlock",
-    ))
-    .boxed())
+    // resolve the read-write lock resource
+    let rwlock = core_thread::resolve_thread_resource::<resource_thread::RwLockResource>(
+        context,
+        handle.0,
+        "handle",
+        "rwlock handle",
+    )?;
+
+    // resolve the lock ownership for this thread
+    let owner = core_thread::current_thread_owner_id();
+    let mut is_writer = false;
+    {
+        let mut ownership = rwlock.ownership.lock();
+        if ownership.writer == Some(owner) {
+            ownership.writer = None;
+            is_writer = true;
+        } else {
+            let Some(read_count) = ownership.readers.get_mut(&owner) else {
+                return Err(core_thread::io_permission_denied_error(
+                    "rwlockUnlock",
+                    "failed to unlock rwlock: current thread does not hold this lock",
+                ));
+            };
+
+            *read_count = read_count.saturating_sub(1);
+            if *read_count == 0 {
+                ownership.readers.remove(&owner);
+            }
+        }
+    }
+
+    // release one write or read slot
+    if is_writer {
+        unsafe {
+            ReleaseSRWLockExclusive(rwlock.rwlock.get());
+        }
+    } else {
+        unsafe {
+            ReleaseSRWLockShared(rwlock.rwlock.get());
+        }
+    }
+
+    Ok(())
 }
 
 /// Lock one read-write lock for write access.
@@ -480,15 +913,62 @@ pub(crate) unsafe fn destack_thread_rwlock_unlock(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_rwlock_write_lock(
     context: &RuntimeCallContext,
-    handle: resource::RwLockHandle,
+    handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
+    // resolve the read-write lock resource
+    let rwlock = core_thread::resolve_thread_resource::<resource_thread::RwLockResource>(
+        context,
+        handle.0,
+        "handle",
+        "rwlock handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockWriteLock",
-    ))
-    .boxed())
+    // reject lock modes that would deadlock this thread
+    let owner = core_thread::current_thread_owner_id();
+    {
+        let ownership = rwlock.ownership.lock();
+        if ownership.writer == Some(owner) {
+            return Err(core_thread::thread_deadlock_error(
+                "failed to lock rwlock for write: current thread already owns the write lock",
+            ));
+        }
+
+        if ownership.readers.contains_key(&owner) {
+            return Err(core_thread::thread_deadlock_error(
+                "failed to lock rwlock for write: current thread already owns one read lock",
+            ));
+        }
+    }
+
+    // acquire one exclusive lock slot
+    let timeout = core_thread::timeout_from_ns(timeoutns);
+    if timeoutns == 0 {
+        let rc = unsafe { TryAcquireSRWLockExclusive(rwlock.rwlock.get()) };
+        if rc == 0 {
+            return Err(core_thread::io_would_block_error(
+                "rwlockWriteLock",
+                "failed to lock rwlock for write: lock is currently unavailable",
+            ));
+        }
+    } else if timeout.is_some() {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.thread.sync.rwlockWriteLock",
+        ))
+        .boxed());
+    } else {
+        unsafe {
+            AcquireSRWLockExclusive(rwlock.rwlock.get());
+        }
+    }
+
+    // record one exclusive ownership slot
+    {
+        let mut ownership = rwlock.ownership.lock();
+        ownership.writer = Some(owner);
+    }
+
+    Ok(())
 }
 
 /// Create one thread-scoped semaphore.
@@ -510,20 +990,64 @@ pub(crate) unsafe fn destack_thread_rwlock_write_lock(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_create(
     context: &RuntimeCallContext,
-    out: *mut resource::ThreadSemaphoreHandle,
+    out: *mut ThreadSemaphoreHandle,
     initial: u32,
     maximum: u32,
     flags: u32,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, initial, maximum, flags);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphoreCreate",
-    ))
-    .boxed())
+    // validate supported semaphore flags
+    if flags != 0 {
+        return Err(core_thread::unsupported_flags_error("flags", flags));
+    }
+
+    // validate semaphore bounds
+    if maximum == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "maximum",
+            "maximum must be greater than zero",
+        ))
+        .boxed());
+    }
+    if initial > maximum {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "initial",
+            "initial must be less than or equal to maximum",
+        ))
+        .boxed());
+    }
+
+    // initialize one host semaphore handle
+    let semaphore = unsafe {
+        CreateSemaphoreW(
+            ptr::null::<windows_sys::Win32::Security::SECURITY_ATTRIBUTES>(),
+            initial as i32,
+            maximum as i32,
+            ptr::null(),
+        )
+    };
+    if semaphore == 0 {
+        return Err(core_platform::io_error("CreateSemaphoreW"));
+    }
+
+    // store one semaphore resource
+    let resource_id = core_thread::insert_thread_resource(
+        context,
+        "thread.semaphore",
+        resource_thread::SemaphoreResource { semaphore },
+    );
+    let handle = ThreadSemaphoreHandle(resource_id);
+
+    // write the output handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Post one semaphore count for thread synchronization.
@@ -545,15 +1069,47 @@ pub(crate) unsafe fn destack_thread_semaphore_create(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_post(
     context: &RuntimeCallContext,
-    handle: resource::ThreadSemaphoreHandle,
+    handle: ThreadSemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
-    let _ = (handle, count);
+    // resolve the semaphore resource
+    let semaphore = core_thread::resolve_thread_resource::<resource_thread::SemaphoreResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread semaphore handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphorePost",
+    // release one or more permits
+    if count == 0 {
+        return Ok(());
+    }
+
+    let release_count = i32::try_from(count).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "count",
+            "count exceeds host semaphore release range",
+        ))
+        .boxed()
+    })?;
+
+    let rc = unsafe { ReleaseSemaphore(semaphore.semaphore, release_count, ptr::null_mut()) };
+    if rc != 0 {
+        return Ok(());
+    }
+
+    let code = unsafe { GetLastError() };
+    if code == ERROR_TOO_MANY_POSTS {
+        return Err(core_thread::io_would_block_error(
+            "semaphorePost",
+            "failed to post semaphore: count would exceed maximum",
+        ));
+    }
+
+    Err(core_platform::io_error_with_code(
+        "ReleaseSemaphore",
+        code as i32,
     ))
-    .boxed())
 }
 
 /// Wait one semaphore count for thread synchronization.
@@ -575,13 +1131,41 @@ pub(crate) unsafe fn destack_thread_semaphore_post(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_semaphore_wait(
     context: &RuntimeCallContext,
-    handle: resource::ThreadSemaphoreHandle,
+    handle: ThreadSemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
+    // resolve the semaphore resource
+    let semaphore = core_thread::resolve_thread_resource::<resource_thread::SemaphoreResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread semaphore handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphoreWait",
+    // wait for one permit with timeout semantics
+    let timeout = core_thread::timeout_from_ns(timeoutns);
+    let timeout_milliseconds = timeout_to_wait_milliseconds(timeout)?;
+    let status = unsafe { WaitForSingleObject(semaphore.semaphore, timeout_milliseconds) };
+    if status == WAIT_OBJECT_0 {
+        return Ok(());
+    }
+
+    if status == WAIT_TIMEOUT {
+        if timeoutns == 0 {
+            return Err(core_thread::io_would_block_error(
+                "semaphoreWait",
+                "failed to wait semaphore: no permits are currently available",
+            ));
+        }
+
+        return Err(core_thread::io_timed_out_error(
+            "semaphoreWait",
+            "failed to wait semaphore: timed out waiting for one permit",
+        ));
+    }
+
+    Err(core_platform::io_error_with_code(
+        "WaitForSingleObject",
+        status as i32,
     ))
-    .boxed())
 }

@@ -1,10 +1,33 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::thread::ThreadOptionsVm;
-use crate::platform::{PlatformError, resource};
+use crate::platform::NativeStringRef;
+use crate::platform::resource::{
+    BarrierHandle, CondVarHandle, MutexHandle, RwLockHandle, ThreadHandle, ThreadLocalKey,
+    ThreadSemaphoreHandle,
+};
+use crate::platform::thread::{ThreadOptionsVm, host as host_thread};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+
+/// Call one native binding with one output pointer and return the produced value.
+fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
+    let mut out = std::mem::MaybeUninit::<T>::uninit();
+    call(out.as_mut_ptr())?;
+    Ok(unsafe { out.assume_init() })
+}
+
+/// Convert one VM string handle into one call-context native string reference.
+fn string_ref_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::StringHandle,
+) -> RuntimeResult<NativeStringRef> {
+    let value = context
+        .string_ref(value)
+        .map_err(|error| RuntimeError::from(error).boxed())?;
+
+    Ok(runtime.store_string(value.as_str()))
+}
 
 /// Create one thread-local key.
 ///
@@ -24,13 +47,10 @@ use destack_vm as vm;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_create(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-) -> RuntimeResult<resource::ThreadLocalKey> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.local.create is not available in the VM yet",
-    ))
-    .boxed())
+) -> RuntimeResult<ThreadLocalKey> {
+    call_out(|out| unsafe { host_thread::destack_thread_local_create(runtime, out) })
 }
 
 /// Delete one thread-local key.
@@ -51,14 +71,11 @@ pub(crate) fn destack_thread_local_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_delete(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _key: resource::ThreadLocalKey,
+    key: ThreadLocalKey,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.local.delete is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_local_delete(runtime, key) }
 }
 
 /// Read one thread-local value.
@@ -79,14 +96,11 @@ pub(crate) fn destack_thread_local_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_get(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _key: resource::ThreadLocalKey,
+    key: ThreadLocalKey,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.local.get is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_thread::destack_thread_local_get(runtime, out, key) })
 }
 
 /// Store one thread-local value.
@@ -107,16 +121,12 @@ pub(crate) fn destack_thread_local_get(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_local_set(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    key: resource::ThreadLocalKey,
+    key: ThreadLocalKey,
     argument_value: u64,
 ) -> RuntimeResult<()> {
-    let _ = (key, argument_value);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.local.set is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_local_set(runtime, key, argument_value) }
 }
 
 /// Read thread affinity mask.
@@ -137,14 +147,11 @@ pub(crate) fn destack_thread_local_set(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_affinity(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getAffinity is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_thread::destack_thread_get_affinity(runtime, out, handle) })
 }
 
 /// Read thread priority.
@@ -165,14 +172,11 @@ pub(crate) fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_get_priority(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<i32> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getPriority is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_thread::destack_thread_get_priority(runtime, out, handle) })
 }
 
 /// Set thread affinity mask.
@@ -193,16 +197,12 @@ pub(crate) fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_affinity(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, mask);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setAffinity is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_set_affinity(runtime, handle, mask) }
 }
 
 /// Set thread priority.
@@ -223,16 +223,12 @@ pub(crate) fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_set_priority(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
-    let _ = (handle, priority);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setPriority is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_set_priority(runtime, handle, priority) }
 }
 
 /// Detach one host thread.
@@ -253,14 +249,11 @@ pub(crate) fn destack_thread_set_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_detach(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.spawn.detach is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_detach(runtime, handle) }
 }
 
 /// Join one host thread.
@@ -281,14 +274,11 @@ pub(crate) fn destack_thread_detach(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_join(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<u32> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.spawn.join is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_thread::destack_thread_join(runtime, out, handle) })
 }
 
 /// Spawn one host thread.
@@ -309,17 +299,16 @@ pub(crate) fn destack_thread_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_spawn(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     entry: vm::StringHandle,
     argument: u64,
     options: ThreadOptionsVm,
-) -> RuntimeResult<resource::ThreadHandle> {
-    let _ = (entry, argument, options);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.spawn.spawn is not available in the VM yet",
-    ))
-    .boxed())
+) -> RuntimeResult<ThreadHandle> {
+    let entry = string_ref_from_vm(runtime, context, entry)?;
+    call_out(|out| unsafe {
+        host_thread::destack_thread_spawn(runtime, out, entry, argument, options)
+    })
 }
 
 /// Wait on one memory address value.
@@ -340,17 +329,13 @@ pub(crate) fn destack_thread_spawn(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wait(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, expected, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWait is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_address_wait(runtime, address, expected, timeoutns) }
 }
 
 /// Wake all waiters on a memory address.
@@ -371,14 +356,11 @@ pub(crate) fn destack_thread_address_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_all(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _address: u64,
+    address: u64,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWakeAll is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_address_wake_all(runtime, address) }
 }
 
 /// Wake one waiter on a memory address.
@@ -399,14 +381,11 @@ pub(crate) fn destack_thread_address_wake_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_address_wake_one(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _address: u64,
+    address: u64,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.addressWakeOne is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_address_wake_one(runtime, address) }
 }
 
 /// Create one thread barrier.
@@ -427,16 +406,14 @@ pub(crate) fn destack_thread_address_wake_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_barrier_create(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     participants: u32,
     flags: u32,
-) -> RuntimeResult<resource::BarrierHandle> {
-    let _ = (participants, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.barrierCreate is not available in the VM yet",
-    ))
-    .boxed())
+) -> RuntimeResult<BarrierHandle> {
+    call_out(|out| unsafe {
+        host_thread::destack_thread_barrier_create(runtime, out, participants, flags)
+    })
 }
 
 /// Wait for barrier rendezvous.
@@ -457,16 +434,14 @@ pub(crate) fn destack_thread_barrier_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_barrier_wait(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::BarrierHandle,
+    handle: BarrierHandle,
     timeoutns: u64,
 ) -> RuntimeResult<bool> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.barrierWait is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe {
+        host_thread::destack_thread_barrier_wait(runtime, out, handle, timeoutns)
+    })
 }
 
 /// Create one condition variable.
@@ -487,14 +462,11 @@ pub(crate) fn destack_thread_barrier_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_create(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _flags: u32,
-) -> RuntimeResult<resource::CondVarHandle> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarCreate is not available in the VM yet",
-    ))
-    .boxed())
+    flags: u32,
+) -> RuntimeResult<CondVarHandle> {
+    call_out(|out| unsafe { host_thread::destack_thread_cond_var_create(runtime, out, flags) })
 }
 
 /// Notify all condition-variable waiters.
@@ -515,14 +487,11 @@ pub(crate) fn destack_thread_cond_var_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_notify_all(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _condvar: resource::CondVarHandle,
+    condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarNotifyAll is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_cond_var_notify_all(runtime, condvar) }
 }
 
 /// Notify one condition-variable waiter.
@@ -543,14 +512,11 @@ pub(crate) fn destack_thread_cond_var_notify_all(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_notify_one(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _condvar: resource::CondVarHandle,
+    condvar: CondVarHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarNotifyOne is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_cond_var_notify_one(runtime, condvar) }
 }
 
 /// Wait on one condition variable.
@@ -571,17 +537,13 @@ pub(crate) fn destack_thread_cond_var_notify_one(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_cond_var_wait(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    condvar: resource::CondVarHandle,
-    mutex: resource::MutexHandle,
+    condvar: CondVarHandle,
+    mutex: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (condvar, mutex, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.condVarWait is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_cond_var_wait(runtime, condvar, mutex, timeoutns) }
 }
 
 /// Create one mutex.
@@ -602,14 +564,11 @@ pub(crate) fn destack_thread_cond_var_wait(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_create(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _flags: u32,
-) -> RuntimeResult<resource::MutexHandle> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexCreate is not available in the VM yet",
-    ))
-    .boxed())
+    flags: u32,
+) -> RuntimeResult<MutexHandle> {
+    call_out(|out| unsafe { host_thread::destack_thread_mutex_create(runtime, out, flags) })
 }
 
 /// Lock one mutex.
@@ -630,16 +589,12 @@ pub(crate) fn destack_thread_mutex_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_lock(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::MutexHandle,
+    handle: MutexHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexLock is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_mutex_lock(runtime, handle, timeoutns) }
 }
 
 /// Unlock one mutex.
@@ -660,14 +615,11 @@ pub(crate) fn destack_thread_mutex_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_mutex_unlock(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: resource::MutexHandle,
+    handle: MutexHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.mutexUnlock is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_mutex_unlock(runtime, handle) }
 }
 
 /// Create one read-write lock.
@@ -688,14 +640,11 @@ pub(crate) fn destack_thread_mutex_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_create(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _flags: u32,
-) -> RuntimeResult<resource::RwLockHandle> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockCreate is not available in the VM yet",
-    ))
-    .boxed())
+    flags: u32,
+) -> RuntimeResult<RwLockHandle> {
+    call_out(|out| unsafe { host_thread::destack_thread_rwlock_create(runtime, out, flags) })
 }
 
 /// Lock one read-write lock for read access.
@@ -716,16 +665,12 @@ pub(crate) fn destack_thread_rwlock_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_read_lock(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::RwLockHandle,
+    handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockReadLock is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_rwlock_read_lock(runtime, handle, timeoutns) }
 }
 
 /// Unlock one read-write lock.
@@ -746,14 +691,11 @@ pub(crate) fn destack_thread_rwlock_read_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_unlock(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: resource::RwLockHandle,
+    handle: RwLockHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockUnlock is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_rwlock_unlock(runtime, handle) }
 }
 
 /// Lock one read-write lock for write access.
@@ -774,16 +716,12 @@ pub(crate) fn destack_thread_rwlock_unlock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_rwlock_write_lock(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::RwLockHandle,
+    handle: RwLockHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.rwlockWriteLock is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_rwlock_write_lock(runtime, handle, timeoutns) }
 }
 
 /// Create one thread-scoped semaphore.
@@ -804,17 +742,15 @@ pub(crate) fn destack_thread_rwlock_write_lock(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_create(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     initial: u32,
     maximum: u32,
     flags: u32,
-) -> RuntimeResult<resource::ThreadSemaphoreHandle> {
-    let _ = (initial, maximum, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphoreCreate is not available in the VM yet",
-    ))
-    .boxed())
+) -> RuntimeResult<ThreadSemaphoreHandle> {
+    call_out(|out| unsafe {
+        host_thread::destack_thread_semaphore_create(runtime, out, initial, maximum, flags)
+    })
 }
 
 /// Post one semaphore count for thread synchronization.
@@ -835,16 +771,12 @@ pub(crate) fn destack_thread_semaphore_create(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_post(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadSemaphoreHandle,
+    handle: ThreadSemaphoreHandle,
     count: u32,
 ) -> RuntimeResult<()> {
-    let _ = (handle, count);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphorePost is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_semaphore_post(runtime, handle, count) }
 }
 
 /// Wait one semaphore count for thread synchronization.
@@ -865,14 +797,10 @@ pub(crate) fn destack_thread_semaphore_post(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_thread_semaphore_wait(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    handle: resource::ThreadSemaphoreHandle,
+    handle: ThreadSemaphoreHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, timeoutns);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.sync.semaphoreWait is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_thread::destack_thread_semaphore_wait(runtime, handle, timeoutns) }
 }
