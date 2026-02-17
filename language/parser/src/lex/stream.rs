@@ -615,8 +615,25 @@ impl TokenStream {
     /// Return the keyword for a semantic token index.
     #[inline]
     pub fn keyword_at(&mut self, index: usize) -> Option<Keyword> {
+        // hot fast path: full token stream is already materialized
+        if self.is_finished {
+            return self.keyword_at_cached(index);
+        }
+
         self.ensure_token(index);
+        self.keyword_at_cached(index)
+    }
+
+    /// Return the cached keyword for a semantic token index.
+    #[inline]
+    pub fn keyword_at_cached(&self, index: usize) -> Option<Keyword> {
         self.token_keywords.get(index).copied().unwrap_or(None)
+    }
+
+    /// Return true when lexing reached EOF.
+    #[inline]
+    pub fn is_lexed_to_end(&self) -> bool {
+        self.is_finished
     }
 
     /// Return true when a semantic token window has any non-whitespace side trivia in cached mode.

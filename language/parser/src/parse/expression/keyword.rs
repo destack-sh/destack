@@ -150,6 +150,16 @@ impl Parser {
         let next_token_index = next_cursor.index;
         let next_has_line_break = next_cursor.has_line_break_before;
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
+        let next_keyword = if next_token_type == TokenType::Identifier {
+            self.keyword_for_index(next_token_index)
+        } else {
+            None
+        };
+        let next_raw_keyword = if next_raw_token_type == TokenType::Identifier {
+            self.keyword_for_index(self.index_for_next())
+        } else {
+            None
+        };
 
         match keyword {
             Keyword::Function => {
@@ -189,7 +199,7 @@ impl Parser {
                 if is_declaration_start
                     && !next_has_line_break
                     && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(self.keyword_for_index(next_token_index)) =>
+                    && !is_type_relation_keyword(next_keyword) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -208,11 +218,6 @@ impl Parser {
                 if next_has_line_break {
                     return Ok(None);
                 }
-                let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(next_token_index)
-                } else {
-                    None
-                };
                 let next_index = next_token_index;
                 let after_next_index = self.next_non_newline_index_from(next_index + 1);
                 let after_next_token_type = self.token_type_at(after_next_index);
@@ -339,23 +344,21 @@ impl Parser {
             }
             Keyword::Let | Keyword::Var => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                Ok(Some(self.eat_let(start, descriptor)?))
+                Ok(Some(self.eat_let_from_keyword(start, descriptor, keyword)?))
             }
             Keyword::Const => {
-                let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(self.index_for_next())
-                } else {
-                    None
-                };
-
-                if next_keyword == Some(Keyword::Enum) {
+                if next_raw_keyword == Some(Keyword::Enum) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     self.eat_keyword(Keyword::Const)?;
                     let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
                     Ok(Some(self.insert_declaration_expression(start, enum_id)))
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                    Ok(Some(self.eat_let(start, descriptor)?))
+                    Ok(Some(self.eat_let_from_keyword(
+                        start,
+                        descriptor,
+                        Keyword::Const,
+                    )?))
                 }
             }
             Keyword::Using => {
@@ -386,7 +389,7 @@ impl Parser {
                 }
             }
             Keyword::Async if next_raw_token_type == TokenType::Identifier => {
-                if self.keyword_for_index(next_token_index) != Some(Keyword::Function) {
+                if next_keyword != Some(Keyword::Function) {
                     return Ok(None);
                 }
 
@@ -444,13 +447,19 @@ impl Parser {
             return Ok(None);
         }
 
+        let next_keyword = if next_token_type == TokenType::Identifier {
+            self.keyword_for_index(next_token_index)
+        } else {
+            None
+        };
+
         match keyword {
             // namespace declaration
             Keyword::Namespace
                 if is_declaration_start
                     && !next_has_line_break
                     && next_token_type == TokenType::Identifier
-                    && !is_type_relation_keyword(self.keyword_for_index(next_token_index)) =>
+                    && !is_type_relation_keyword(next_keyword) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -486,13 +495,6 @@ impl Parser {
             }
             // const enum or binding declaration
             Keyword::Const => {
-                // look ahead for const enum
-                let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(next_token_index)
-                } else {
-                    None
-                };
-
                 // parse const enum declaration
                 if next_keyword == Some(Keyword::Enum) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
@@ -502,18 +504,15 @@ impl Parser {
                 // otherwise parse binding declaration
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                    Ok(Some(self.eat_let(start, descriptor)?))
+                    Ok(Some(self.eat_let_from_keyword(
+                        start,
+                        descriptor,
+                        Keyword::Const,
+                    )?))
                 }
             }
             // newtype interface or alias declaration
             Keyword::Newtype => {
-                // look ahead for newtype interface
-                let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(next_token_index)
-                } else {
-                    None
-                };
-
                 // parse newtype interface declaration
                 if next_keyword == Some(Keyword::Interface) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
@@ -766,7 +765,7 @@ impl Parser {
             // let or var binding declaration
             Keyword::Let | Keyword::Var => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                Ok(Some(self.eat_let(start, descriptor)?))
+                Ok(Some(self.eat_let_from_keyword(start, descriptor, keyword)?))
             }
             // using declaration
             Keyword::Using => {
@@ -810,11 +809,6 @@ impl Parser {
                     return Ok(None);
                 }
 
-                let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(next_token_index)
-                } else {
-                    None
-                };
                 let next_index = next_token_index;
                 let after_next_index = self.next_non_newline_index_from(next_index + 1);
                 let after_next_token_type = self.token_type_at(after_next_index);

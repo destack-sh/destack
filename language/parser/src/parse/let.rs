@@ -8,6 +8,59 @@ use destack_ast::{
 use destack_source::NodeSpanType;
 
 impl Parser {
+    /// Return let kind and mutability for a declaration keyword.
+    #[inline]
+    fn let_kind_and_mutability_for_keyword(keyword: Keyword) -> Option<(LetKind, Mutability)> {
+        match keyword {
+            Keyword::Let => Some((LetKind::Let, Mutability::Mutable)),
+            Keyword::Var => Some((LetKind::Var, Mutability::Mutable)),
+            Keyword::Const | Keyword::Readonly => Some((LetKind::Const, Mutability::Immutable)),
+            _ => None,
+        }
+    }
+
+    /// Parse declarators for a consumed let-like keyword.
+    fn eat_let_after_keyword(
+        &mut self,
+        start: &ParserMark,
+        descriptor: DeclarationDescriptor,
+        kind: LetKind,
+        mutability: Mutability,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_newlines_maybe()?;
+
+        // parse declarators (comma-separated list)
+        let mut declarators = Vec::new();
+        loop {
+            let declarator_id = self.eat_declarator(false, false)?;
+            declarators.push(declarator_id);
+
+            // continue when a comma follows, even after line terminators
+            if self.eat_declarator_separator_maybe()? {
+                continue;
+            }
+
+            // declarations require statement boundaries after declarators
+            if !self.declarator_has_statement_boundary() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
+            break;
+        }
+
+        let let_id = self.tree.insert(
+            Expression::Let {
+                kind,
+                descriptor,
+                mutability,
+                declarators,
+            },
+            self.get_span_from(start),
+        );
+
+        Ok(let_id)
+    }
+
     /// Peek a mutability modifier.
     pub fn peek_mutability(&mut self) -> ParseResult<()> {
         if self.peek_mutability_is() {
@@ -33,24 +86,34 @@ impl Parser {
     /// Eat a let/var/const keyword and return the kind and mutability.
     pub fn eat_let_kind(&mut self) -> ParseResult<(LetKind, Mutability)> {
         let keyword = self.peek_any_keyword()?;
-        match keyword {
-            Keyword::Let => {
-                self.bump();
-                Ok((LetKind::Let, Mutability::Mutable))
-            }
-            Keyword::Var => {
-                self.bump();
-                Ok((LetKind::Var, Mutability::Mutable))
-            }
-            Keyword::Const | Keyword::Readonly => {
-                self.bump();
-                Ok((LetKind::Const, Mutability::Immutable))
-            }
-            _ => Err(ParseError::expected(
+        if let Some((kind, mutability)) = Self::let_kind_and_mutability_for_keyword(keyword) {
+            self.bump();
+            Ok((kind, mutability))
+        } else {
+            Err(ParseError::expected(
                 self.peek_token(TokenType::Identifier)?.span,
                 TokenType::Identifier,
-            )),
+            ))
         }
+    }
+
+    /// Eat a let-like binding when the caller already resolved the keyword.
+    pub(crate) fn eat_let_from_keyword(
+        &mut self,
+        start: &ParserMark,
+        descriptor: DeclarationDescriptor,
+        keyword: Keyword,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_LET);
+        let Some((kind, mutability)) = Self::let_kind_and_mutability_for_keyword(keyword) else {
+            return Err(ParseError::expected(
+                self.peek_token(TokenType::Identifier)?.span,
+                TokenType::Identifier,
+            ));
+        };
+
+        self.bump();
+        self.eat_let_after_keyword(start, descriptor, kind, mutability)
     }
 
     /// Eat a mutability modifier.
@@ -125,40 +188,8 @@ impl Parser {
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LET);
-        // kind and mutability
         let (kind, mutability) = self.eat_let_kind()?;
-        self.eat_newlines_maybe()?;
-
-        // parse declarators (comma-separated list)
-        let mut declarators = Vec::new();
-        loop {
-            let declarator_id = self.eat_declarator(false, false)?;
-            declarators.push(declarator_id);
-
-            // continue when a comma follows, even after line terminators
-            if self.eat_declarator_separator_maybe()? {
-                continue;
-            }
-
-            // declarations require statement boundaries after declarators
-            if !self.declarator_has_statement_boundary() {
-                return Err(ParseError::unexpected(self.peek()?.span));
-            }
-
-            break;
-        }
-
-        // let
-        let let_id = self.tree.insert(
-            Expression::Let {
-                kind,
-                descriptor,
-                mutability,
-                declarators,
-            },
-            self.get_span_from(start),
-        );
-        Ok(let_id)
+        self.eat_let_after_keyword(start, descriptor, kind, mutability)
     }
 
     /// Eat a using binding (incl. `using` keyword and optional `await`).
@@ -250,9 +281,13 @@ impl Parser {
                 let is_mutability_keyword =
                     matches!(keyword, Some(Keyword::Var | Keyword::Const | Keyword::Let))
                         || self.language.is_destack() && keyword == Some(Keyword::Readonly);
-                let is_underscore_identifier = self.identifier_equals_at(self.pos_index(), "_");
                 let allow_underscore_binding =
                     self.language.is_javascript() || self.language.is_typescript();
+                let is_underscore_identifier = if allow_underscore_binding {
+                    false
+                } else {
+                    self.identifier_equals_at(self.pos_index(), "_")
+                };
                 if !is_mutability_keyword
                     && !has_active_split
                     && (!is_underscore_identifier || allow_underscore_binding)
@@ -269,13 +304,34 @@ impl Parser {
                     self.tree.set_main_span(pattern_id, name_span);
                     pattern_id
                 } else {
-                    self.with_options(pattern_options, |parser| parser.eat_pattern())?
+                    if self.options == pattern_options {
+                        self.eat_pattern()?
+                    } else {
+                        let old_options = self.swap_options(pattern_options);
+                        let pattern_result = self.eat_pattern();
+                        self.restore_options(old_options);
+                        pattern_result?
+                    }
                 }
             } else {
-                self.with_options(pattern_options, |parser| parser.eat_pattern())?
+                if self.options == pattern_options {
+                    self.eat_pattern()?
+                } else {
+                    let old_options = self.swap_options(pattern_options);
+                    let pattern_result = self.eat_pattern();
+                    self.restore_options(old_options);
+                    pattern_result?
+                }
             }
         } else {
-            self.with_options(pattern_options, |parser| parser.eat_pattern())?
+            if self.options == pattern_options {
+                self.eat_pattern()?
+            } else {
+                let old_options = self.swap_options(pattern_options);
+                let pattern_result = self.eat_pattern();
+                self.restore_options(old_options);
+                pattern_result?
+            }
         };
 
         // declaration declarators must use binding patterns
