@@ -1345,6 +1345,10 @@ impl Parser {
     /// Look up a keyword at a token index.
     #[inline]
     pub(crate) fn keyword_for_index(&mut self, index: usize) -> Option<Keyword> {
+        if self.token_stream.is_lexed_to_end() && index < self.tokens().len() {
+            return self.token_stream.keyword_at_cached(index);
+        }
+
         self.token_stream.keyword_at(index)
     }
 

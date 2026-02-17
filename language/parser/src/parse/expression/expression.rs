@@ -19,9 +19,18 @@ impl Parser {
         &mut self,
         options: ParserOptions,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        self.with_options(options, |parser| {
-            parser.eat_expression_inner_with_stack_guard()
-        })
+        if self.options == options {
+            return self.eat_expression_inner_with_stack_guard();
+        }
+
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.with_options_calls += 1;
+        }
+
+        let old_options = self.swap_options(options);
+        let result = self.eat_expression_inner_with_stack_guard();
+        self.restore_options(old_options);
+        result
     }
 
     /// Eat an expression in the current parser options.
@@ -49,9 +58,13 @@ impl Parser {
 
         let mut options = self.options;
         options.set_in_statement_position(false);
-        self.with_options(options, |parser| {
-            parser.eat_expression_inner_with_stack_guard()
-        })
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.with_options_calls += 1;
+        }
+        let old_options = self.swap_options(options);
+        let result = self.eat_expression_inner_with_stack_guard();
+        self.restore_options(old_options);
+        result
     }
 
     /// Eat an expression with stack growth checks.
@@ -681,6 +694,7 @@ impl Parser {
                     } else {
                         self.keyword_for_index(pos_index)
                     };
+
                     let can_parse_declaration_descriptor = self.options.is_in_statement_position()
                         || self.options.is_in_type()
                         || self.options.is_in_variant()
@@ -756,8 +770,7 @@ impl Parser {
                         && (next_raw_token_type == TokenType::Arrow
                             || next_raw_token_type == TokenType::ArrowWide)
                     {
-                        let lambda_id =
-                            self.eat_function(&start, descriptor.clone(), false, false)?;
+                        let lambda_id = self.eat_function(&start, descriptor, false, false)?;
                         primary_expression_id = Some(self.tree.insert(
                             Expression::Declaration(lambda_id),
                             self.get_span_from(&start),
@@ -910,7 +923,7 @@ impl Parser {
                             && is_module_declaration_start
                         {
                             // parse contextual module declarations after other identifier paths
-                            let namespace_id = self.eat_namespace(&start, descriptor.clone())?;
+                            let namespace_id = self.eat_namespace(&start, descriptor)?;
                             primary_expression_id = Some(self.tree.insert(
                                 Expression::Declaration(namespace_id),
                                 self.get_span_from(&start),
@@ -925,7 +938,7 @@ impl Parser {
                                 self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
                             if let Some(keyword_expression_id) = self.eat_keyword_expression(
                                 &start,
-                                descriptor.clone(),
+                                descriptor,
                                 keyword,
                                 next_token_type,
                                 next_token_index,
@@ -1013,7 +1026,10 @@ impl Parser {
                             && {
                                 let next_index =
                                     self.next_non_newline_index_from(self.pos_index() + 1);
-                                self.with_pos(next_index, |parser| parser.can_start_tree_literal())
+                                self.token_type_at(next_index) == TokenType::LessThan
+                                    && self.with_pos(next_index, |parser| {
+                                        parser.can_start_tree_literal()
+                                    })
                             };
 
                         // fast path: in JS/TS value contexts, branch on the token after ')'

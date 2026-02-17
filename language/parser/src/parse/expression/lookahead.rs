@@ -231,6 +231,9 @@ impl Parser {
 
         // skip non semantic newlines before testing tree literal starts
         let next_index = self.next_non_newline_index_from(open_index + 1);
+        if self.token_type_at(next_index) != TokenType::LessThan {
+            return false;
+        }
 
         self.with_pos(next_index, |parser| parser.can_start_tree_literal())
     }
