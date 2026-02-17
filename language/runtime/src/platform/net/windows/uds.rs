@@ -5,6 +5,8 @@ use windows_sys::Win32::Networking::WinSock::{
     AF_UNIX, INVALID_SOCKET, SOCK_STREAM, SOCKADDR, SOCKADDR_UN, accept, bind, closesocket,
     connect, listen, socket,
 };
+use windows_sys::Win32::Storage::FileSystem::{DeleteFileW, GetTempPathW};
+use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -68,19 +70,45 @@ fn uds_sockaddr(path: OsPath) -> RuntimeResult<(SOCKADDR_UN, i32)> {
 /// Build one unique temporary path for UDS socket-pair emulation.
 fn temporary_uds_socket_pair_path() -> String {
     // build a deterministic short filename suffix
-    let pid = std::process::id();
+    let pid = unsafe { GetCurrentProcessId() };
     let suffix = NEXT_UDS_SOCKET_PAIR_ID.fetch_add(1, Ordering::Relaxed);
     let file_name = format!("destack-net-{pid}-{suffix}.sock");
 
     // prefer the system temp directory when it fits into sockaddr_un
-    let temp_path = std::env::temp_dir().join(&file_name);
-    let temp_text = temp_path.to_string_lossy().to_string();
-    if temp_text.as_bytes().len() < unsafe { mem::zeroed::<SOCKADDR_UN>() }.sun_path.len() {
-        return temp_text;
+    let temp_directory = windows_temp_directory();
+    if !temp_directory.is_empty() {
+        let separator = if temp_directory.ends_with('\\') || temp_directory.ends_with('/') {
+            ""
+        } else {
+            "\\"
+        };
+        let temp_text = format!("{temp_directory}{separator}{file_name}");
+        if temp_text.as_bytes().len() < unsafe { mem::zeroed::<SOCKADDR_UN>() }.sun_path.len() {
+            return temp_text;
+        }
     }
 
     // otherwise fall back to a short relative path
     file_name
+}
+
+/// Resolve the host temporary directory from Windows APIs.
+fn windows_temp_directory() -> String {
+    let mut buffer = vec![0_u16; 4096];
+    let written = unsafe { GetTempPathW(buffer.len() as u32, buffer.as_mut_ptr()) };
+    if written == 0 || written as usize >= buffer.len() {
+        return String::new();
+    }
+
+    String::from_utf16_lossy(&buffer[..written as usize])
+}
+
+/// Best-effort cleanup for one temporary socket path.
+fn delete_socket_path(path: &str) {
+    let mut path_wide: Vec<u16> = path.encode_utf16().collect();
+    path_wide.push(0);
+
+    let _ = unsafe { DeleteFileW(path_wide.as_ptr()) };
 }
 
 /// Connect to a UDS endpoint.
@@ -330,7 +358,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
         unsafe {
             closesocket(listener_socket);
         }
-        let _ = std::fs::remove_file(&socket_path);
+        delete_socket_path(&socket_path);
         return Err(last_net_error("listen"));
     }
 
@@ -340,7 +368,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
         unsafe {
             closesocket(listener_socket);
         }
-        let _ = std::fs::remove_file(&socket_path);
+        delete_socket_path(&socket_path);
         return Err(last_net_error("socket"));
     }
     let rc = unsafe {
@@ -355,7 +383,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
             closesocket(client_socket);
             closesocket(listener_socket);
         }
-        let _ = std::fs::remove_file(&socket_path);
+        delete_socket_path(&socket_path);
         return Err(last_net_error("connect"));
     }
 
@@ -367,7 +395,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
             closesocket(client_socket);
             closesocket(listener_socket);
         }
-        let _ = std::fs::remove_file(&socket_path);
+        delete_socket_path(&socket_path);
         return Err(last_net_error("accept"));
     }
 
@@ -375,7 +403,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     unsafe {
         closesocket(listener_socket);
     }
-    let _ = std::fs::remove_file(&socket_path);
+    delete_socket_path(&socket_path);
 
     // register the first socket
     let first_entry = ResourceEntry::new(ResourceKind::Socket)

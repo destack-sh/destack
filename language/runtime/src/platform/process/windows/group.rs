@@ -38,7 +38,7 @@ use crate::platform::{fs, resource};
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_get_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut ProcessLimit,
     path: NativeStringRef,
     _resource: ProcessLimitResource,
@@ -71,7 +71,7 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_join(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: NativeStringRef,
 ) -> RuntimeResult<()> {
     let _ = unsafe { path.as_str()? };
@@ -100,7 +100,7 @@ pub(crate) unsafe fn destack_process_cgroup_join(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_set_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     path: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,
@@ -132,7 +132,7 @@ pub(crate) unsafe fn destack_process_cgroup_set_limit(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_assign(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeStringRef,
     pids: NativeSlice<ProcessId>,
 ) -> RuntimeResult<()> {
@@ -163,7 +163,7 @@ pub(crate) unsafe fn destack_process_job_assign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_set_limit(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     name: NativeStringRef,
     resource: ProcessLimitResource,
     limit: ProcessLimit,

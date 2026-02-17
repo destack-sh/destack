@@ -70,7 +70,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_get_priority(
-    context: &RuntimeCallContext,
+    _context: &RuntimeCallContext,
     out: *mut i32,
     pid: ProcessId,
 ) -> RuntimeResult<()> {
@@ -302,7 +302,13 @@ pub(crate) unsafe fn destack_process_set_scheduler(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_process_yield_now(_context: &RuntimeCallContext) -> RuntimeResult<()> {
-    std::thread::yield_now();
+    use windows_sys::Win32::System::Threading::{Sleep, SwitchToThread};
+
+    let switched = unsafe { SwitchToThread() };
+    if switched == 0 {
+        unsafe { Sleep(0) };
+    }
+
     Ok(())
 }
 

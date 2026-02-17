@@ -228,6 +228,9 @@ pub(crate) fn with_path_ref<T>(
     on_bytes: impl FnOnce(PathBytes) -> RuntimeResult<T>,
     _on_utf16: impl FnOnce(PathUtf16) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
+    #[cfg(not(unix))]
+    let _ = label;
+
     match path.encoding {
         PathEncoding::Bytes => on_bytes(path.bytes),
         PathEncoding::Utf16 => {

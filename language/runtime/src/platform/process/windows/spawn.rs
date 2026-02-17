@@ -10,8 +10,21 @@ use crate::platform::{
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
-use std::os::windows::io::{FromRawHandle, IntoRawHandle, OwnedHandle};
-use std::process::Command;
+use windows_sys::Win32::Foundation::{
+    CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE, INVALID_HANDLE_VALUE,
+};
+use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
+use windows_sys::Win32::Storage::FileSystem::{
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_READ,
+    FILE_SHARE_WRITE, OPEN_EXISTING,
+};
+use windows_sys::Win32::System::Console::{
+    GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+};
+use windows_sys::Win32::System::Threading::{
+    CREATE_NEW_PROCESS_GROUP, CREATE_UNICODE_ENVIRONMENT, CreateProcessW, DETACHED_PROCESS,
+    GetCurrentProcess, PROCESS_INFORMATION, STARTF_USESTDHANDLES, STARTUPINFOW,
+};
 
 use crate::platform::fs::core as core_fs;
 use crate::platform::process::{
@@ -59,30 +72,11 @@ unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<S
     Ok(decoded)
 }
 
-/// Apply environment entries to a command from `KEY=VALUE` pairs.
-fn apply_environment_pairs(command: &mut Command, entries: &[String]) -> RuntimeResult<()> {
-    command.env_clear();
-
-    for entry in entries {
-        let Some((name, value)) = entry.split_once('=') else {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "environment",
-                format!("invalid environment entry: {entry}"),
-            ))
-            .boxed());
-        };
-
-        command.env(name, value);
-    }
-
-    Ok(())
-}
-
 /// Resolve a file handle into a Windows handle value.
 fn resolve_file_handle(
     context: &RuntimeCallContext,
     handle: resource::FileHandle,
-) -> RuntimeResult<windows_sys::Win32::Foundation::HANDLE> {
+) -> RuntimeResult<HANDLE> {
     core_fs::require_resource(
         context,
         handle.0,
@@ -100,17 +94,31 @@ fn resolve_file_handle(
     )
 }
 
-/// Duplicate a raw Windows handle into owned stdio.
-fn duplicate_handle_for_stdio(
-    handle: windows_sys::Win32::Foundation::HANDLE,
-    label: &str,
-) -> RuntimeResult<std::process::Stdio> {
-    use windows_sys::Win32::Foundation::{
-        DUPLICATE_SAME_ACCESS, DuplicateHandle, INVALID_HANDLE_VALUE,
-    };
-    use windows_sys::Win32::System::Threading::GetCurrentProcess;
+/// Resolve a pipe handle into a Windows handle value.
+fn resolve_pipe_handle(
+    context: &RuntimeCallContext,
+    handle: resource::PipeHandle,
+) -> RuntimeResult<HANDLE> {
+    core_fs::require_resource(
+        context,
+        handle.0,
+        resource::ResourceKind::Pipe,
+        "pipe",
+        |entry| {
+            entry.handle().map(|handle| handle as _).ok_or_else(|| {
+                RuntimeError::from(PlatformError::generic(
+                    None,
+                    "pipe handle missing raw handle",
+                ))
+                .boxed()
+            })
+        },
+    )
+}
 
-    // validate handle inputs
+/// Duplicate a raw Windows handle into one inheritable child handle.
+fn duplicate_handle_for_child(handle: HANDLE, label: &str) -> RuntimeResult<HANDLE> {
+    // validate source handles
     if handle == 0 || handle == INVALID_HANDLE_VALUE {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             label,
@@ -119,7 +127,7 @@ fn duplicate_handle_for_stdio(
         .boxed());
     }
 
-    // duplicate the source handle into this process
+    // duplicate the source handle as inheritable for CreateProcessW
     let process = unsafe { GetCurrentProcess() };
     let mut duplicated = 0;
     let rc = unsafe {
@@ -129,7 +137,7 @@ fn duplicate_handle_for_stdio(
             process,
             &mut duplicated,
             0,
-            0,
+            1,
             DUPLICATE_SAME_ACCESS,
         )
     };
@@ -139,44 +147,196 @@ fn duplicate_handle_for_stdio(
         );
     }
 
-    // transfer ownership into stdio
-    let owned = unsafe { OwnedHandle::from_raw_handle(duplicated as _) };
-    Ok(std::process::Stdio::from(owned))
+    Ok(duplicated)
 }
 
-/// Apply process spawn options to a command.
-fn apply_spawn_options(command: &mut Command, options: ProcessSpawnOptions) -> RuntimeResult<()> {
-    use std::os::windows::process::CommandExt;
-    use windows_sys::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
+/// Build a null-separated UTF-16 environment block from `KEY=VALUE` pairs.
+fn build_environment_block(entries: &[String]) -> RuntimeResult<Vec<u16>> {
+    let mut block = Vec::<u16>::new();
+    for entry in entries {
+        let Some((_name, _value)) = entry.split_once('=') else {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "environment",
+                format!("invalid environment entry: {entry}"),
+            ))
+            .boxed());
+        };
 
-    let cwd = core_fs::os_path_to_utf8_string(options.cwd, "options.cwd")?;
-    if !cwd.is_empty() {
-        command.current_dir(cwd);
+        if entry.contains('\0') {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "environment",
+                "environment entry contains nul byte",
+            ))
+            .boxed());
+        }
+
+        block.extend(entry.encode_utf16());
+        block.push(0);
     }
 
-    let mut creation_flags = 0_u32;
-    if options.detached {
-        creation_flags |= DETACHED_PROCESS;
+    if block.is_empty() {
+        block.push(0);
     }
-    if options.new_process_group {
-        creation_flags |= CREATE_NEW_PROCESS_GROUP;
-    }
-    if creation_flags != 0 {
-        command.creation_flags(creation_flags);
-    }
+    block.push(0);
 
-    // windows does not expose a direct equivalent for posix signal-disposition reset
-    let _ = options.reset_signals;
-
-    Ok(())
+    Ok(block)
 }
 
-/// Apply explicit stdio wiring to a command.
-fn apply_spawn_stdio(
+/// Quote one command-line argument according to Windows command-line rules.
+fn quote_windows_argument(argument: &str) -> String {
+    if !argument.is_empty()
+        && !argument.contains(' ')
+        && !argument.contains('\t')
+        && !argument.contains('"')
+        && !argument.contains('\\')
+    {
+        return argument.to_string();
+    }
+
+    let mut quoted = String::with_capacity(argument.len() + 2);
+    quoted.push('"');
+
+    let mut backslash_count = 0_usize;
+    for ch in argument.chars() {
+        if ch == '\\' {
+            backslash_count += 1;
+            continue;
+        }
+
+        if ch == '"' {
+            quoted.extend(std::iter::repeat_n('\\', backslash_count * 2 + 1));
+            quoted.push('"');
+            backslash_count = 0;
+            continue;
+        }
+
+        if backslash_count > 0 {
+            quoted.extend(std::iter::repeat_n('\\', backslash_count));
+            backslash_count = 0;
+        }
+
+        quoted.push(ch);
+    }
+
+    if backslash_count > 0 {
+        quoted.extend(std::iter::repeat_n('\\', backslash_count * 2));
+    }
+
+    quoted.push('"');
+    quoted
+}
+
+/// Build one Windows command line from one command and one argv tail.
+fn build_command_line(command: &str, arguments: &[String]) -> String {
+    let mut values = Vec::with_capacity(arguments.len() + 1);
+    values.push(quote_windows_argument(command));
+    for argument in arguments {
+        values.push(quote_windows_argument(argument));
+    }
+
+    values.join(" ")
+}
+
+/// Convert one UTF-8 string into a nul-terminated UTF-16 path.
+fn wide_with_nul(value: &str) -> Vec<u16> {
+    let mut wide = value.encode_utf16().collect::<Vec<_>>();
+    wide.push(0);
+    wide
+}
+
+/// Open one inheritable null-device handle for stdio routing.
+fn open_null_stdio_handle(is_input: bool) -> RuntimeResult<HANDLE> {
+    let mut security_attributes = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: std::ptr::null_mut(),
+        bInheritHandle: 1,
+    };
+
+    let path = wide_with_nul("NUL");
+    let access = if is_input {
+        FILE_GENERIC_READ
+    } else {
+        FILE_GENERIC_WRITE
+    };
+    let handle = unsafe {
+        CreateFileW(
+            path.as_ptr(),
+            access,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            &mut security_attributes,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            0,
+        )
+    };
+    if handle == 0 || handle == INVALID_HANDLE_VALUE {
+        return Err(
+            RuntimeError::from(PlatformError::io("failed to open null stdio handle")).boxed(),
+        );
+    }
+
+    Ok(handle)
+}
+
+/// Close one owned stdio handle when it is valid.
+fn close_spawn_handle(handle: HANDLE) {
+    if handle != 0 && handle != INVALID_HANDLE_VALUE {
+        unsafe {
+            CloseHandle(handle);
+        }
+    }
+}
+
+/// Resolve one stdio slot into a concrete inheritable child handle.
+fn resolve_spawn_stdio_handle(
     context: &RuntimeCallContext,
-    command: &mut Command,
+    index: usize,
+    descriptor: ProcessStdio,
+) -> RuntimeResult<HANDLE> {
+    let is_input = index == 0;
+    match descriptor.kind {
+        ProcessStdioKind::Inherit => {
+            let standard = match index {
+                0 => STD_INPUT_HANDLE,
+                1 => STD_OUTPUT_HANDLE,
+                2 => STD_ERROR_HANDLE,
+                _ => unreachable!(),
+            };
+            let source = unsafe { GetStdHandle(standard) };
+            duplicate_handle_for_child(source, "stdio.inherit")
+        }
+        ProcessStdioKind::Null => open_null_stdio_handle(is_input),
+        ProcessStdioKind::Pipe => {
+            let pipe_handle = resolve_pipe_handle(context, descriptor.pipe)?;
+            duplicate_handle_for_child(pipe_handle, "stdio.pipe")
+        }
+        ProcessStdioKind::File => {
+            let file_handle = resolve_file_handle(context, descriptor.file)?;
+            duplicate_handle_for_child(file_handle, "stdio.file")
+        }
+        ProcessStdioKind::Descriptor => {
+            let raw = unsafe { libc::get_osfhandle(descriptor.descriptor) };
+            if raw == -1 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "stdio.descriptor",
+                    "invalid descriptor",
+                ))
+                .boxed());
+            }
+
+            duplicate_handle_for_child(raw as HANDLE, "stdio.descriptor")
+        }
+    }
+}
+
+/// Resolve explicit stdio descriptors into startup handles.
+fn resolve_spawn_stdio_handles(
+    context: &RuntimeCallContext,
     stdio: &[ProcessStdio],
-) -> RuntimeResult<()> {
+) -> RuntimeResult<Option<[HANDLE; 3]>> {
+    if stdio.is_empty() {
+        return Ok(None);
+    }
     if stdio.len() > 3 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "stdio",
@@ -185,49 +345,64 @@ fn apply_spawn_stdio(
         .boxed());
     }
 
-    for (index, descriptor) in stdio.iter().enumerate() {
-        let target = match descriptor.kind {
-            ProcessStdioKind::Inherit => std::process::Stdio::inherit(),
-            ProcessStdioKind::Null => std::process::Stdio::null(),
-            ProcessStdioKind::Pipe => std::process::Stdio::piped(),
-            ProcessStdioKind::File => {
-                let file_handle = resolve_file_handle(context, descriptor.file)?;
-                duplicate_handle_for_stdio(file_handle, "stdio.file")?
-            }
-            ProcessStdioKind::Descriptor => {
-                let raw = unsafe { libc::get_osfhandle(descriptor.descriptor) };
-                if raw == -1 {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "stdio.descriptor",
-                        "invalid descriptor",
-                    ))
-                    .boxed());
-                }
-                duplicate_handle_for_stdio(raw as _, "stdio.descriptor")?
-            }
-        };
+    let defaults = [
+        ProcessStdio {
+            kind: ProcessStdioKind::Inherit,
+            descriptor: 0,
+            file: resource::FileHandle(ResourceId(0)),
+            pipe: resource::PipeHandle(ResourceId(0)),
+        },
+        ProcessStdio {
+            kind: ProcessStdioKind::Inherit,
+            descriptor: 0,
+            file: resource::FileHandle(ResourceId(0)),
+            pipe: resource::PipeHandle(ResourceId(0)),
+        },
+        ProcessStdio {
+            kind: ProcessStdioKind::Inherit,
+            descriptor: 0,
+            file: resource::FileHandle(ResourceId(0)),
+            pipe: resource::PipeHandle(ResourceId(0)),
+        },
+    ];
 
-        match index {
-            0 => {
-                command.stdin(target);
-            }
-            1 => {
-                command.stdout(target);
-            }
-            2 => {
-                command.stderr(target);
-            }
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "stdio",
-                    "unsupported stdio entry index",
-                ))
-                .boxed());
-            }
-        }
+    let mut resolved = [0, 0, 0];
+    for index in 0..3 {
+        let descriptor = if index < stdio.len() {
+            stdio[index]
+        } else {
+            defaults[index]
+        };
+        resolved[index] = resolve_spawn_stdio_handle(context, index, descriptor)?;
     }
 
-    Ok(())
+    Ok(Some(resolved))
+}
+
+/// Build CreateProcess creation flags from process spawn options.
+fn spawn_creation_flags(options: ProcessSpawnOptions) -> u32 {
+    let mut flags = 0_u32;
+    if options.detached {
+        flags |= DETACHED_PROCESS;
+    }
+    if options.new_process_group {
+        flags |= CREATE_NEW_PROCESS_GROUP;
+    }
+
+    // windows does not expose a direct equivalent for posix signal-disposition reset
+    let _ = options.reset_signals;
+
+    flags
+}
+
+/// Resolve spawn current-directory option into a nullable UTF-16 buffer.
+fn spawn_current_directory(options: ProcessSpawnOptions) -> RuntimeResult<Option<Vec<u16>>> {
+    let cwd = core_fs::os_path_to_utf8_string(options.cwd, "options.cwd")?;
+    if cwd.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(wide_with_nul(&cwd)))
 }
 
 /// Spawn a child process and register its handle payload.
@@ -240,26 +415,95 @@ fn spawn_process(
     options: ProcessSpawnOptions,
     stdio: &[ProcessStdio],
 ) -> RuntimeResult<()> {
-    let mut child = Command::new(command);
-    child.args(&arguments);
-    apply_environment_pairs(&mut child, &environment)?;
-    apply_spawn_options(&mut child, options)?;
-    apply_spawn_stdio(context, &mut child, stdio)?;
+    let environment_block = build_environment_block(&environment)?;
+    let command_line = build_command_line(&command, &arguments);
+    let creation_flags = spawn_creation_flags(options) | CREATE_UNICODE_ENVIRONMENT;
+    let current_directory = spawn_current_directory(options)?;
+    let stdio_handles = resolve_spawn_stdio_handles(context, stdio)?;
 
-    let child = child.spawn().map_err(|error| {
-        RuntimeError::from(PlatformError::io(format!(
+    let mut command_line_wide = wide_with_nul(&command_line);
+    let current_directory_pointer = current_directory
+        .as_ref()
+        .map_or(std::ptr::null(), |cwd| cwd.as_ptr());
+
+    let mut startup_info = STARTUPINFOW {
+        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+        lpReserved: std::ptr::null_mut(),
+        lpDesktop: std::ptr::null_mut(),
+        lpTitle: std::ptr::null_mut(),
+        dwX: 0,
+        dwY: 0,
+        dwXSize: 0,
+        dwYSize: 0,
+        dwXCountChars: 0,
+        dwYCountChars: 0,
+        dwFillAttribute: 0,
+        dwFlags: 0,
+        wShowWindow: 0,
+        cbReserved2: 0,
+        lpReserved2: std::ptr::null_mut(),
+        hStdInput: 0,
+        hStdOutput: 0,
+        hStdError: 0,
+    };
+    let mut process_info = PROCESS_INFORMATION {
+        hProcess: 0,
+        hThread: 0,
+        dwProcessId: 0,
+        dwThreadId: 0,
+    };
+
+    let inherit_handles = if let Some(handles) = &stdio_handles {
+        startup_info.dwFlags = STARTF_USESTDHANDLES;
+        startup_info.hStdInput = handles[0];
+        startup_info.hStdOutput = handles[1];
+        startup_info.hStdError = handles[2];
+        1
+    } else {
+        0
+    };
+
+    let created = unsafe {
+        CreateProcessW(
+            std::ptr::null(),
+            command_line_wide.as_mut_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            inherit_handles,
+            creation_flags,
+            environment_block.as_ptr() as *mut libc::c_void,
+            current_directory_pointer,
+            &mut startup_info,
+            &mut process_info,
+        )
+    };
+
+    if let Some(handles) = &stdio_handles {
+        close_spawn_handle(handles[0]);
+        close_spawn_handle(handles[1]);
+        close_spawn_handle(handles[2]);
+    }
+
+    if created == 0 {
+        let error = std::io::Error::last_os_error();
+        return Err(RuntimeError::from(PlatformError::io(format!(
             "failed to spawn process: {error}",
         )))
-        .boxed()
-    })?;
-    let process_id = ProcessId(child.id());
-    let process_handle = child.into_raw_handle();
+        .boxed());
+    }
+
+    unsafe {
+        CloseHandle(process_info.hThread);
+    }
+
+    let process_id = ProcessId(process_info.dwProcessId);
+    let process_handle = process_info.hProcess as *mut libc::c_void;
 
     let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
         .with_label("process.spawn")
         .with_payload(core_process::SpawnedProcess { pid: process_id })
         .with_handle(process_handle)
-        .with_finalizer(ProcessHandleFinalizer::new(process_handle as _));
+        .with_finalizer(ProcessHandleFinalizer::new(process_handle as HANDLE));
     let resource_id = context.runtime().resources.insert(entry);
 
     unsafe {

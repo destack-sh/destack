@@ -1057,7 +1057,7 @@ pub(crate) fn destack_process_set_gid(
 pub(crate) fn destack_process_set_group_ids(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    ids: ProcessGroupIdsVm,
+    _ids: ProcessGroupIdsVm,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.setGroupIds",
@@ -1138,7 +1138,7 @@ pub(crate) fn destack_process_set_uid(
 pub(crate) fn destack_process_set_user_ids(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    ids: ProcessUserIdsVm,
+    _ids: ProcessUserIdsVm,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.setUserIds",
@@ -1898,7 +1898,7 @@ pub(crate) fn destack_process_signal_try_receive(
 pub(crate) fn destack_process_signal_try_wait(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    signals: VmSlice<Signal>,
+    _signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.signals.signalTryWait",
@@ -1954,7 +1954,7 @@ pub(crate) fn destack_process_signal_unsubscribe(
 pub(crate) fn destack_process_signal_wait(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    signals: VmSlice<Signal>,
+    _signals: VmSlice<Signal>,
 ) -> RuntimeResult<SignalEventVm> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.signals.signalWait",

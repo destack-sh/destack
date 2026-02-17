@@ -9,9 +9,7 @@ use crate::platform::{
 
 use crate::runtime::RuntimeCallContext;
 use bindings::*;
-use std::ffi::CString;
-use std::os::fd::{FromRawFd, OwnedFd};
-use std::process::Command;
+use std::ffi::{CStr, CString};
 
 use crate::platform::fs::core as core_fs;
 use crate::platform::process::{
@@ -64,23 +62,17 @@ unsafe fn decode_native_strings(slice: NativeStringSlice) -> RuntimeResult<Vec<S
     Ok(decoded)
 }
 
-/// Apply environment entries to a command from `KEY=VALUE` pairs.
-fn apply_environment_pairs(command: &mut Command, entries: &[String]) -> RuntimeResult<()> {
-    command.env_clear();
-
-    for entry in entries {
-        let Some((name, value)) = entry.split_once('=') else {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "environment",
-                format!("invalid environment entry: {entry}"),
-            ))
-            .boxed());
-        };
-
-        command.env(name, value);
-    }
-
-    Ok(())
+/// Resolved stdio slot payload used by the child process setup.
+#[derive(Debug, Clone, Copy)]
+enum ResolvedStdioDescriptor {
+    /// Keep the parent descriptor unchanged.
+    Inherit,
+    /// Bind the descriptor to `/dev/null`.
+    Null,
+    /// Bind the descriptor to one explicit fd.
+    Descriptor(i32),
+    /// Bind the descriptor to one one-shot pipe endpoint.
+    Pipe,
 }
 
 /// Resolve a file handle into a unix descriptor.
@@ -105,79 +97,22 @@ fn resolve_file_fd(
     )
 }
 
-/// Duplicate one descriptor into owned stdio for command spawning.
-fn duplicate_descriptor_for_stdio(
-    descriptor: i32,
-    label: &str,
-) -> RuntimeResult<std::process::Stdio> {
-    if descriptor < 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            label,
-            "descriptor must be non-negative",
-        ))
-        .boxed());
-    }
-
-    let duplicate = unsafe { libc::dup(descriptor) };
-    if duplicate < 0 {
-        let error = std::io::Error::last_os_error();
-        return Err(RuntimeError::from(PlatformError::io(format!(
-            "failed to duplicate descriptor: {error}"
-        )))
-        .boxed());
-    }
-
-    let owned = unsafe { OwnedFd::from_raw_fd(duplicate) };
-    Ok(std::process::Stdio::from(owned))
+/// Read one errno value from the current thread errno slot.
+fn last_errno() -> i32 {
+    std::io::Error::last_os_error()
+        .raw_os_error()
+        .unwrap_or(libc::EINVAL)
 }
 
-/// Apply process spawn options to a command.
-fn apply_spawn_options(command: &mut Command, options: ProcessSpawnOptions) -> RuntimeResult<()> {
+/// Resolve spawn current-directory option into a C string payload.
+fn resolve_spawn_cwd(options: ProcessSpawnOptions) -> RuntimeResult<Option<CString>> {
     let cwd = core_fs::os_path_to_utf8_string(options.cwd, "options.cwd")?;
-    if !cwd.is_empty() {
-        command.current_dir(cwd);
+    if cwd.is_empty() {
+        return Ok(None);
     }
 
-    if options.detached || options.new_process_group || options.reset_signals {
-        use std::os::unix::process::CommandExt;
-
-        // configure process group state in the child before exec
-        unsafe {
-            command.pre_exec(move || {
-                if options.reset_signals {
-                    for signal in 1..=64 {
-                        if signal == libc::SIGKILL || signal == libc::SIGSTOP {
-                            continue;
-                        }
-
-                        let result = libc::signal(signal as libc::c_int, libc::SIG_DFL);
-                        if result == libc::SIG_ERR {
-                            let error = std::io::Error::last_os_error();
-                            if error.raw_os_error() != Some(libc::EINVAL) {
-                                return Err(error);
-                            }
-                        }
-                    }
-                }
-
-                if options.detached {
-                    let rc = libc::setsid();
-                    if rc < 0 {
-                        return Err(std::io::Error::last_os_error());
-                    }
-                } else if options.new_process_group {
-                    let rc = libc::setpgid(0, 0);
-                    if rc != 0 {
-                        return Err(std::io::Error::last_os_error());
-                    }
-                }
-
-                Ok(())
-            });
-        }
-    }
-
-    Ok(())
+    let cwd = core_process::cstring_from_str(&cwd, "options.cwd", "cwd contains nul byte")?;
+    Ok(Some(cwd))
 }
 
 /// Decode and validate fd actions for pre-exec setup.
@@ -252,78 +187,11 @@ fn resolve_fd_actions(actions: &[ProcessFdAction]) -> RuntimeResult<Vec<Resolved
     Ok(resolved_actions)
 }
 
-/// Apply fd actions in the child pre-exec phase.
-fn apply_spawn_fd_actions(
-    command: &mut Command,
-    actions: Vec<ResolvedFdAction>,
-) -> RuntimeResult<()> {
-    if actions.is_empty() {
-        return Ok(());
-    }
-
-    use std::os::unix::process::CommandExt;
-
-    // apply file actions in-order in the child before exec
-    unsafe {
-        command.pre_exec(move || {
-            for action in &actions {
-                match action {
-                    ResolvedFdAction::Close { descriptor } => {
-                        let rc = libc::close(*descriptor);
-                        if rc < 0 {
-                            let error = std::io::Error::last_os_error();
-                            if error.raw_os_error() != Some(libc::EBADF) {
-                                return Err(error);
-                            }
-                        }
-                    }
-                    ResolvedFdAction::Dup2 { source, target } => {
-                        if source == target {
-                            continue;
-                        }
-
-                        let rc = libc::dup2(*source, *target);
-                        if rc < 0 {
-                            return Err(std::io::Error::last_os_error());
-                        }
-                    }
-                    ResolvedFdAction::Open {
-                        target,
-                        path,
-                        flags,
-                        mode,
-                    } => {
-                        let opened = libc::open(path.as_ptr(), *flags, *mode as libc::c_uint);
-                        if opened < 0 {
-                            return Err(std::io::Error::last_os_error());
-                        }
-
-                        if opened != *target {
-                            let rc = libc::dup2(opened, *target);
-                            if rc < 0 {
-                                let _ = libc::close(opened);
-                                return Err(std::io::Error::last_os_error());
-                            }
-
-                            let _ = libc::close(opened);
-                        }
-                    }
-                }
-            }
-
-            Ok(())
-        });
-    }
-
-    Ok(())
-}
-
-/// Apply explicit stdio wiring to a command.
-fn apply_spawn_stdio(
+/// Resolve explicit stdio descriptors into child setup payloads.
+fn resolve_spawn_stdio(
     context: &RuntimeCallContext,
-    command: &mut Command,
     stdio: &[ProcessStdio],
-) -> RuntimeResult<()> {
+) -> RuntimeResult<[ResolvedStdioDescriptor; 3]> {
     if stdio.len() > 3 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "stdio",
@@ -332,41 +200,394 @@ fn apply_spawn_stdio(
         .boxed());
     }
 
+    let mut resolved = [
+        ResolvedStdioDescriptor::Inherit,
+        ResolvedStdioDescriptor::Inherit,
+        ResolvedStdioDescriptor::Inherit,
+    ];
     for (index, descriptor) in stdio.iter().enumerate() {
-        let target = match descriptor.kind {
-            ProcessStdioKind::Inherit => std::process::Stdio::inherit(),
-            ProcessStdioKind::Null => std::process::Stdio::null(),
-            ProcessStdioKind::Pipe => std::process::Stdio::piped(),
+        let value = match descriptor.kind {
+            ProcessStdioKind::Inherit => ResolvedStdioDescriptor::Inherit,
+            ProcessStdioKind::Null => ResolvedStdioDescriptor::Null,
+            ProcessStdioKind::Pipe => ResolvedStdioDescriptor::Pipe,
             ProcessStdioKind::File => {
                 let file_descriptor = resolve_file_fd(context, descriptor.file)?;
-                duplicate_descriptor_for_stdio(file_descriptor, "stdio.file")?
+                if file_descriptor < 0 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "stdio.file",
+                        "descriptor must be non-negative",
+                    ))
+                    .boxed());
+                }
+
+                ResolvedStdioDescriptor::Descriptor(file_descriptor)
             }
             ProcessStdioKind::Descriptor => {
-                duplicate_descriptor_for_stdio(descriptor.descriptor, "stdio.descriptor")?
+                if descriptor.descriptor < 0 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "stdio.descriptor",
+                        "descriptor must be non-negative",
+                    ))
+                    .boxed());
+                }
+
+                ResolvedStdioDescriptor::Descriptor(descriptor.descriptor)
             }
         };
+        resolved[index] = value;
+    }
 
-        match index {
-            0 => {
-                command.stdin(target);
+    Ok(resolved)
+}
+
+/// Build argv payload vectors for one spawn request.
+fn build_spawn_arguments(
+    command: &str,
+    arguments: &[String],
+) -> RuntimeResult<(Vec<CString>, Vec<*const libc::c_char>)> {
+    let command = core_process::cstring_from_str(command, "command", "command contains nul byte")?;
+
+    let mut values = Vec::with_capacity(arguments.len() + 1);
+    values.push(command);
+    for argument in arguments {
+        let argument =
+            core_process::cstring_from_str(argument, "arguments", "argument contains nul byte")?;
+        values.push(argument);
+    }
+
+    let mut pointers = Vec::with_capacity(values.len() + 1);
+    for value in &values {
+        pointers.push(value.as_ptr());
+    }
+    pointers.push(std::ptr::null());
+
+    Ok((values, pointers))
+}
+
+/// Build envp payload vectors for one spawn request.
+fn build_spawn_environment(
+    environment: &[String],
+) -> RuntimeResult<(Vec<CString>, Vec<*const libc::c_char>, Option<String>)> {
+    let mut values = Vec::with_capacity(environment.len());
+    let mut path_value = None;
+
+    for entry in environment {
+        let Some((name, value)) = entry.split_once('=') else {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "environment",
+                format!("invalid environment entry: {entry}"),
+            ))
+            .boxed());
+        };
+
+        if name == "PATH" {
+            path_value = Some(value.to_string());
+        }
+
+        let entry = core_process::cstring_from_str(
+            entry,
+            "environment",
+            "environment entry contains nul byte",
+        )?;
+        values.push(entry);
+    }
+
+    let mut pointers = Vec::with_capacity(values.len() + 1);
+    for value in &values {
+        pointers.push(value.as_ptr());
+    }
+    pointers.push(std::ptr::null());
+
+    Ok((values, pointers, path_value))
+}
+
+/// Configure one descriptor binding in the child process.
+fn bind_child_descriptor(source: i32, target: i32) -> Result<(), i32> {
+    if source == target {
+        return Ok(());
+    }
+
+    let rc = unsafe { libc::dup2(source, target) };
+    if rc < 0 {
+        return Err(last_errno());
+    }
+
+    Ok(())
+}
+
+/// Apply process spawn options in the child just before exec.
+fn apply_spawn_options_child(options: ProcessSpawnOptions, cwd: Option<&CStr>) -> Result<(), i32> {
+    if let Some(cwd) = cwd {
+        let rc = unsafe { libc::chdir(cwd.as_ptr()) };
+        if rc != 0 {
+            return Err(last_errno());
+        }
+    }
+
+    if options.reset_signals {
+        for signal in 1..=64 {
+            if signal == libc::SIGKILL || signal == libc::SIGSTOP {
+                continue;
             }
-            1 => {
-                command.stdout(target);
+
+            let result = unsafe { libc::signal(signal as libc::c_int, libc::SIG_DFL) };
+            if result == libc::SIG_ERR {
+                let errno = last_errno();
+                if errno != libc::EINVAL {
+                    return Err(errno);
+                }
             }
-            2 => {
-                command.stderr(target);
+        }
+    }
+
+    if options.detached {
+        let rc = unsafe { libc::setsid() };
+        if rc < 0 {
+            return Err(last_errno());
+        }
+    } else if options.new_process_group {
+        let rc = unsafe { libc::setpgid(0, 0) };
+        if rc != 0 {
+            return Err(last_errno());
+        }
+    }
+
+    Ok(())
+}
+
+/// Apply explicit stdio wiring in the child just before exec.
+fn apply_spawn_stdio_child(stdio: &[ResolvedStdioDescriptor; 3]) -> Result<(), i32> {
+    for (index, descriptor) in stdio.iter().enumerate() {
+        let target = index as i32;
+        match descriptor {
+            ResolvedStdioDescriptor::Inherit => {}
+            ResolvedStdioDescriptor::Descriptor(source) => {
+                bind_child_descriptor(*source, target)?;
             }
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "stdio",
-                    "unsupported stdio entry index",
-                ))
-                .boxed());
+            ResolvedStdioDescriptor::Null => {
+                let mode = if index == 0 {
+                    libc::O_RDONLY
+                } else {
+                    libc::O_WRONLY
+                };
+                let null_fd = unsafe { libc::open(c"/dev/null".as_ptr(), mode) };
+                if null_fd < 0 {
+                    return Err(last_errno());
+                }
+
+                if let Err(errno) = bind_child_descriptor(null_fd, target) {
+                    let _ = unsafe { libc::close(null_fd) };
+                    return Err(errno);
+                }
+
+                let _ = unsafe { libc::close(null_fd) };
+            }
+            ResolvedStdioDescriptor::Pipe => {
+                let mut pipe_fds = [0_i32; 2];
+                let pipe_rc = unsafe { libc::pipe(pipe_fds.as_mut_ptr()) };
+                if pipe_rc != 0 {
+                    return Err(last_errno());
+                }
+
+                let child_fd = if index == 0 { pipe_fds[0] } else { pipe_fds[1] };
+                let sibling_fd = if index == 0 { pipe_fds[1] } else { pipe_fds[0] };
+
+                let _ = unsafe { libc::close(sibling_fd) };
+
+                if let Err(errno) = bind_child_descriptor(child_fd, target) {
+                    let _ = unsafe { libc::close(child_fd) };
+                    return Err(errno);
+                }
+
+                let _ = unsafe { libc::close(child_fd) };
             }
         }
     }
 
     Ok(())
+}
+
+/// Apply fd actions in the child just before exec.
+fn apply_spawn_fd_actions_child(actions: &[ResolvedFdAction]) -> Result<(), i32> {
+    for action in actions {
+        match action {
+            ResolvedFdAction::Close { descriptor } => {
+                let rc = unsafe { libc::close(*descriptor) };
+                if rc < 0 {
+                    let errno = last_errno();
+                    if errno != libc::EBADF {
+                        return Err(errno);
+                    }
+                }
+            }
+            ResolvedFdAction::Dup2 { source, target } => {
+                bind_child_descriptor(*source, *target)?;
+            }
+            ResolvedFdAction::Open {
+                target,
+                path,
+                flags,
+                mode,
+            } => {
+                let opened = unsafe { libc::open(path.as_ptr(), *flags, *mode as libc::c_uint) };
+                if opened < 0 {
+                    return Err(last_errno());
+                }
+
+                if let Err(errno) = bind_child_descriptor(opened, *target) {
+                    let _ = unsafe { libc::close(opened) };
+                    return Err(errno);
+                }
+
+                let _ = unsafe { libc::close(opened) };
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Set `FD_CLOEXEC` on one descriptor used by the spawn control pipe.
+fn mark_cloexec(fd: i32) -> Result<(), i32> {
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    if flags < 0 {
+        return Err(last_errno());
+    }
+
+    let rc = unsafe { libc::fcntl(fd, libc::F_SETFD, flags | libc::FD_CLOEXEC) };
+    if rc < 0 {
+        return Err(last_errno());
+    }
+
+    Ok(())
+}
+
+/// Create one close-on-exec pipe for parent-child exec error reporting.
+fn create_spawn_error_pipe() -> RuntimeResult<(i32, i32)> {
+    let mut pipe_fds = [0_i32; 2];
+    let pipe_rc = unsafe { libc::pipe(pipe_fds.as_mut_ptr()) };
+    if pipe_rc != 0 {
+        return Err(core_process::process_last_error(
+            "pipe",
+            "failed to create spawn error pipe",
+        ));
+    }
+
+    if let Err(errno) = mark_cloexec(pipe_fds[0]) {
+        let _ = unsafe { libc::close(pipe_fds[0]) };
+        let _ = unsafe { libc::close(pipe_fds[1]) };
+        return Err(core_process::process_errno_error(
+            errno,
+            "fcntl",
+            "failed to configure spawn error pipe read end",
+        ));
+    }
+    if let Err(errno) = mark_cloexec(pipe_fds[1]) {
+        let _ = unsafe { libc::close(pipe_fds[0]) };
+        let _ = unsafe { libc::close(pipe_fds[1]) };
+        return Err(core_process::process_errno_error(
+            errno,
+            "fcntl",
+            "failed to configure spawn error pipe write end",
+        ));
+    }
+
+    Ok((pipe_fds[0], pipe_fds[1]))
+}
+
+/// Read the child exec error report from one spawn control pipe.
+fn read_spawn_error(read_fd: i32) -> RuntimeResult<Option<i32>> {
+    let mut bytes = [0_u8; 4];
+    let mut offset = 0_usize;
+    loop {
+        let read_count = unsafe {
+            libc::read(
+                read_fd,
+                bytes[offset..].as_mut_ptr() as *mut libc::c_void,
+                bytes.len() - offset,
+            )
+        };
+        if read_count == 0 {
+            if offset == 0 {
+                return Ok(None);
+            }
+
+            return Err(RuntimeError::from(PlatformError::io(
+                "spawn error pipe returned partial payload",
+            ))
+            .boxed());
+        }
+
+        if read_count < 0 {
+            let errno = last_errno();
+            if errno == libc::EINTR {
+                continue;
+            }
+
+            return Err(core_process::process_errno_error(
+                errno,
+                "read",
+                "failed to read spawn error payload",
+            ));
+        }
+
+        offset += read_count as usize;
+        if offset >= bytes.len() {
+            return Ok(Some(i32::from_ne_bytes(bytes)));
+        }
+    }
+}
+
+/// Execute one command with PATH lookup and explicit envp payload.
+fn execute_spawn_command(
+    command: &str,
+    command_cstring: &CString,
+    argument_pointers: &[*const libc::c_char],
+    environment_pointers: &[*const libc::c_char],
+    path_value: Option<&str>,
+) -> i32 {
+    if command.contains('/') {
+        let _ = unsafe {
+            libc::execve(
+                command_cstring.as_ptr(),
+                argument_pointers.as_ptr(),
+                environment_pointers.as_ptr(),
+            )
+        };
+        return last_errno();
+    }
+
+    let mut last_exec_errno = libc::ENOENT;
+    let search_path = path_value.unwrap_or("/bin:/usr/bin");
+    for segment in search_path.split(':') {
+        let candidate = if segment.is_empty() {
+            command.to_string()
+        } else {
+            format!("{segment}/{command}")
+        };
+
+        let candidate = match CString::new(candidate) {
+            Ok(value) => value,
+            Err(_) => return libc::EINVAL,
+        };
+
+        let _ = unsafe {
+            libc::execve(
+                candidate.as_ptr(),
+                argument_pointers.as_ptr(),
+                environment_pointers.as_ptr(),
+            )
+        };
+
+        let errno = last_errno();
+        if errno == libc::ENOENT || errno == libc::ENOTDIR {
+            continue;
+        }
+
+        last_exec_errno = errno;
+    }
+
+    last_exec_errno
 }
 
 /// Spawn a child process and register its handle payload.
@@ -380,22 +601,81 @@ fn spawn_process(
     stdio: &[ProcessStdio],
     actions: &[ProcessFdAction],
 ) -> RuntimeResult<()> {
-    let mut child = Command::new(command);
-    child.args(&arguments);
-    apply_environment_pairs(&mut child, &environment)?;
-    apply_spawn_options(&mut child, options)?;
-    apply_spawn_stdio(context, &mut child, stdio)?;
-    let actions = resolve_fd_actions(actions)?;
-    apply_spawn_fd_actions(&mut child, actions)?;
+    let cwd = resolve_spawn_cwd(options)?;
+    let resolved_stdio = resolve_spawn_stdio(context, stdio)?;
+    let resolved_actions = resolve_fd_actions(actions)?;
+    let (argument_values, argument_pointers) = build_spawn_arguments(&command, &arguments)?;
+    let (environment_values, environment_pointers, path_value) =
+        build_spawn_environment(&environment)?;
+    let (read_fd, write_fd) = create_spawn_error_pipe()?;
 
-    let child = child.spawn().map_err(|error| {
-        RuntimeError::from(PlatformError::io(format!(
-            "failed to spawn process: {error}"
-        )))
-        .boxed()
-    })?;
-    let process_id = ProcessId(child.id());
-    std::mem::drop(child);
+    let child_pid = unsafe { libc::fork() };
+    if child_pid < 0 {
+        let _ = unsafe { libc::close(read_fd) };
+        let _ = unsafe { libc::close(write_fd) };
+        return Err(core_process::process_last_error(
+            "fork",
+            "failed to spawn process",
+        ));
+    }
+
+    if child_pid == 0 {
+        let _ = unsafe { libc::close(read_fd) };
+
+        let child_errno = apply_spawn_options_child(options, cwd.as_deref())
+            .and_then(|_| apply_spawn_stdio_child(&resolved_stdio))
+            .and_then(|_| apply_spawn_fd_actions_child(&resolved_actions))
+            .err()
+            .unwrap_or_else(|| {
+                execute_spawn_command(
+                    &command,
+                    &argument_values[0],
+                    &argument_pointers,
+                    &environment_pointers,
+                    path_value.as_deref(),
+                )
+            });
+
+        let mut errno_bytes = child_errno.to_ne_bytes();
+        let mut offset = 0_usize;
+        while offset < errno_bytes.len() {
+            let write_count = unsafe {
+                libc::write(
+                    write_fd,
+                    errno_bytes[offset..].as_mut_ptr() as *const libc::c_void,
+                    errno_bytes.len() - offset,
+                )
+            };
+            if write_count < 0 {
+                let errno = last_errno();
+                if errno == libc::EINTR {
+                    continue;
+                }
+
+                break;
+            }
+
+            offset += write_count as usize;
+        }
+
+        unsafe { libc::_exit(127) };
+    }
+
+    let _ = unsafe { libc::close(write_fd) };
+    let exec_errno = read_spawn_error(read_fd)?;
+    let _ = unsafe { libc::close(read_fd) };
+    if let Some(exec_errno) = exec_errno {
+        let mut ignored_status = 0_i32;
+        let _ = unsafe { libc::waitpid(child_pid, &mut ignored_status, 0) };
+        return Err(core_process::process_errno_error(
+            exec_errno,
+            "execve",
+            format!("failed to spawn process from command '{command}'"),
+        ));
+    }
+
+    let process_id = ProcessId(child_pid as u32);
+    let _keep_alive = (argument_values, environment_values);
 
     let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
         .with_label("process.spawn")
@@ -408,6 +688,7 @@ fn spawn_process(
 
     Ok(())
 }
+
 /// Spawn a child process with default stdio inheritance.
 ///
 /// Spawn one child process using the provided command, argv, envp, and spawn options.

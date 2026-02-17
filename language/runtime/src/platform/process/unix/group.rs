@@ -3,7 +3,7 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::process_error_code_from_errno;
-use crate::platform::process::bindings_generated as bindings;
+use crate::platform::process::{bindings_generated as bindings, core as core_process};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
 };
@@ -224,21 +224,81 @@ fn cgroup_control_path(path: &str, file_name: &str) -> String {
     format!("{path}/{file_name}")
 }
 
+/// Build a process-domain error for one cgroup control file operation.
+fn cgroup_control_error(errno: i32, syscall: &str, control_path: &str) -> Box<RuntimeError> {
+    let code = process_error_code_from_errno(errno).unwrap_or(PlatformErrorCode::Process);
+    RuntimeError::from(PlatformError::process_with(
+        Some(code),
+        Some(errno.to_string()),
+        None,
+        None,
+        Some(syscall.to_string()),
+        format!("cgroup control file operation failed for {control_path}"),
+    ))
+    .boxed()
+}
+
 /// Read one cgroup controller file as UTF-8 text.
 fn read_cgroup_control_file(path: &str, file_name: &str) -> RuntimeResult<String> {
     let control_path = cgroup_control_path(path, file_name);
-    std::fs::read_to_string(&control_path).map_err(|error| {
-        let code = error
+    let control_path_cstring = core_process::cstring_from_str(
+        &control_path,
+        "path",
+        "cgroup control path contains nul byte",
+    )?;
+
+    let file_descriptor = unsafe { libc::open(control_path_cstring.as_ptr(), libc::O_RDONLY) };
+    if file_descriptor < 0 {
+        let errno = std::io::Error::last_os_error()
             .raw_os_error()
-            .and_then(process_error_code_from_errno)
-            .unwrap_or(PlatformErrorCode::Process);
-        RuntimeError::from(PlatformError::process_with(
-            Some(code),
-            error.raw_os_error().map(|value| value.to_string()),
+            .unwrap_or(libc::EINVAL);
+        return Err(cgroup_control_error(errno, "open", &control_path));
+    }
+
+    let mut bytes = Vec::new();
+    let mut buffer = [0_u8; 4096];
+    loop {
+        let read_count = unsafe {
+            libc::read(
+                file_descriptor,
+                buffer.as_mut_ptr() as *mut libc::c_void,
+                buffer.len(),
+            )
+        };
+        if read_count == 0 {
+            break;
+        }
+        if read_count < 0 {
+            let errno = std::io::Error::last_os_error()
+                .raw_os_error()
+                .unwrap_or(libc::EINVAL);
+            if errno == libc::EINTR {
+                continue;
+            }
+
+            let _ = unsafe { libc::close(file_descriptor) };
+            return Err(cgroup_control_error(errno, "read", &control_path));
+        }
+
+        bytes.extend_from_slice(&buffer[..read_count as usize]);
+    }
+
+    let close_result = unsafe { libc::close(file_descriptor) };
+    if close_result != 0 {
+        let errno = std::io::Error::last_os_error()
+            .raw_os_error()
+            .unwrap_or(libc::EINVAL);
+        return Err(cgroup_control_error(errno, "close", &control_path));
+    }
+
+    String::from_utf8(bytes).map_err(|_| {
+        RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoInvalidData),
             None,
             None,
-            Some("read_to_string".to_string()),
-            format!("failed to read cgroup control file {control_path}: {error}"),
+            None,
+            Some("read".to_string()),
+            format!("cgroup control file is not valid utf8: {control_path}"),
         ))
         .boxed()
     })
@@ -247,21 +307,54 @@ fn read_cgroup_control_file(path: &str, file_name: &str) -> RuntimeResult<String
 /// Write one cgroup controller file as UTF-8 text.
 fn write_cgroup_control_file(path: &str, file_name: &str, value: &str) -> RuntimeResult<()> {
     let control_path = cgroup_control_path(path, file_name);
-    std::fs::write(&control_path, value).map_err(|error| {
-        let code = error
+    let control_path_cstring = core_process::cstring_from_str(
+        &control_path,
+        "path",
+        "cgroup control path contains nul byte",
+    )?;
+
+    let file_descriptor = unsafe { libc::open(control_path_cstring.as_ptr(), libc::O_WRONLY) };
+    if file_descriptor < 0 {
+        let errno = std::io::Error::last_os_error()
             .raw_os_error()
-            .and_then(process_error_code_from_errno)
-            .unwrap_or(PlatformErrorCode::Process);
-        RuntimeError::from(PlatformError::process_with(
-            Some(code),
-            error.raw_os_error().map(|value| value.to_string()),
-            None,
-            None,
-            Some("write".to_string()),
-            format!("failed to write cgroup control file {control_path}: {error}"),
-        ))
-        .boxed()
-    })
+            .unwrap_or(libc::EINVAL);
+        return Err(cgroup_control_error(errno, "open", &control_path));
+    }
+
+    let bytes = value.as_bytes();
+    let mut offset = 0_usize;
+    while offset < bytes.len() {
+        let write_count = unsafe {
+            libc::write(
+                file_descriptor,
+                bytes[offset..].as_ptr() as *const libc::c_void,
+                bytes.len() - offset,
+            )
+        };
+        if write_count < 0 {
+            let errno = std::io::Error::last_os_error()
+                .raw_os_error()
+                .unwrap_or(libc::EINVAL);
+            if errno == libc::EINTR {
+                continue;
+            }
+
+            let _ = unsafe { libc::close(file_descriptor) };
+            return Err(cgroup_control_error(errno, "write", &control_path));
+        }
+
+        offset = offset.saturating_add(write_count as usize);
+    }
+
+    let close_result = unsafe { libc::close(file_descriptor) };
+    if close_result != 0 {
+        let errno = std::io::Error::last_os_error()
+            .raw_os_error()
+            .unwrap_or(libc::EINVAL);
+        return Err(cgroup_control_error(errno, "close", &control_path));
+    }
+
+    Ok(())
 }
 
 /// Read one control-group resource limit.

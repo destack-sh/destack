@@ -855,7 +855,7 @@ pub fn destack_fs_preadv2(
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
-    flags: ReadWriteFlags,
+    _flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: honor read flags in vm mode
     destack_fs_preadv(runtime, context, handle, buffers, offset)
@@ -941,7 +941,7 @@ pub fn destack_fs_pwritev2(
     handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
-    flags: ReadWriteFlags,
+    _flags: ReadWriteFlags,
 ) -> RuntimeResult<u64> {
     // NOTE #Incomplete: honor write flags in vm mode
     destack_fs_pwritev(runtime, context, handle, buffers, offset)

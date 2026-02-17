@@ -1065,7 +1065,7 @@ pub(crate) unsafe fn destack_process_set_gid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_group_ids(
     _context: &RuntimeCallContext,
-    ids: ProcessGroupIds,
+    _ids: ProcessGroupIds,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.setGroupIds",
@@ -1143,7 +1143,7 @@ pub(crate) unsafe fn destack_process_set_uid(
 /// External, recordable.
 pub(crate) unsafe fn destack_process_set_user_ids(
     _context: &RuntimeCallContext,
-    ids: ProcessUserIds,
+    _ids: ProcessUserIds,
 ) -> RuntimeResult<()> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.process.ids.setUserIds",
