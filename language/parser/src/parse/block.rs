@@ -50,19 +50,14 @@ impl Parser {
             || (token_type == TokenType::CloseBrace && format != BlockFormat::Implicit)
     }
 
-    /// Push an expression into a statement list, wrapping when statement coercion is required.
+    /// Push a non-tail expression into a block body as a statement wrapper.
     #[inline]
-    fn push_block_body_expression(
+    fn push_block_body_non_tail_expression(
         &mut self,
         statements: &mut Vec<LocalNodeId<Expression>>,
         expression_id: LocalNodeId<Expression>,
-        is_statement: bool,
     ) {
-        if is_statement {
-            statements.push(expression_id);
-            return;
-        }
-
+        // non-tail expressions in block bodies are always statement items
         let statement_id =
             self.wrap_statement_expression(expression_id, self.tree.get_span(expression_id));
         statements.push(statement_id);
@@ -438,7 +433,7 @@ impl Parser {
 
                 // previous tail expressions are no longer block tails once a new item starts
                 if let Some(pending_id) = pending_tail_expression.take() {
-                    parser.push_block_body_expression(&mut statements, pending_id, false);
+                    parser.push_block_body_non_tail_expression(&mut statements, pending_id);
                 }
 
                 // parse and recover one statement item
@@ -471,7 +466,12 @@ impl Parser {
 
             // finalize the remaining tail expression
             if let Some(expression_id) = pending_tail_expression {
-                parser.push_block_body_expression(&mut statements, expression_id, false);
+                // explicit blocks in destack preserve value tails for implicit returns
+                if format == BlockFormat::Explicit && parser.language.is_destack() {
+                    statements.push(expression_id);
+                } else {
+                    parser.push_block_body_non_tail_expression(&mut statements, expression_id);
+                }
             }
 
             Ok(statements)
@@ -1424,9 +1424,9 @@ mod tests {
         });
     }
 
-    /// Parse Destack if-body block expressions as statement wrappers.
+    /// Parse Destack if-body block tails as value expressions.
     #[test]
-    fn test_parse_destack_if_block_wraps_tail_expression_as_statement() {
+    fn test_parse_destack_if_block_keeps_tail_expression_value() {
         let mut test = TestParser::new("if (x) { foo() }");
         let mut parser = test.prepare();
         let expressions = parser.parse();
@@ -1438,18 +1438,16 @@ mod tests {
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
                 assert_eq!(block.expressions.len(), 1);
-                assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                    assert_node!(parser.tree, *statement_id, Expression::Call { left, .. } => {
-                        assert_expression_path!(parser, parser.tree.get(*left), "foo");
-                    });
+                assert_node!(parser.tree, block.expressions[0], Expression::Call { left, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "foo");
                 });
             });
         });
     }
 
-    /// Parse Destack function body expressions as statement wrappers.
+    /// Parse Destack function body tails as value expressions.
     #[test]
-    fn test_parse_destack_function_body_wraps_tail_expression_as_statement() {
+    fn test_parse_destack_function_body_keeps_tail_expression_value() {
         let mut test = TestParser::new("function run() { foo() }");
         let mut parser = test.prepare();
         let expressions = parser.parse();
@@ -1462,10 +1460,8 @@ mod tests {
                 assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
                     assert_eq!(block.expressions.len(), 1);
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Call { left, .. } => {
-                            assert_expression_path!(parser, parser.tree.get(*left), "foo");
-                        });
+                    assert_node!(parser.tree, block.expressions[0], Expression::Call { left, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "foo");
                     });
                 });
             });

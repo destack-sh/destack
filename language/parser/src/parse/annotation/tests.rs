@@ -1,7 +1,7 @@
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, BlockFormat, Comment,
-    CommentDirective, CommentStyle, Declaration, Decorator, Doc, DocStyle, Expression,
-    LocalNodeId, TriviaRef,
+    CommentDirective, CommentStyle, Declaration, Decorator, Doc, DocStyle, Expression, LocalNodeId,
+    TriviaRef,
 };
 use destack_source::LanguageType;
 
@@ -22,7 +22,10 @@ fn comment_text(parser: &Parser, comment_id: LocalNodeId<Comment>) -> String {
 }
 
 fn doc_text(parser: &Parser, doc_id: LocalNodeId<Doc>) -> String {
-    parser.strings.get(parser.tree.get(doc_id).string).to_string()
+    parser
+        .strings
+        .get(parser.tree.get(doc_id).string)
+        .to_string()
 }
 
 #[test]
@@ -340,6 +343,26 @@ fn test_decorator_attaches_to_function_declaration() {
         assert_node!(parser.tree, *node, Decorator { expression } => {
             assert_expression_path!(parser, parser.tree.get(*expression), "memo");
         });
+    });
+}
+
+#[test]
+fn test_decorator_on_statement_moves_to_statement_wrapper() {
+    let (parser, expressions) = parse_source("@memo\nrun()", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Statement(expression_id) => {
+        let statement_annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(statement_annotations.len(), 1);
+        assert_node!(parser.tree, statement_annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { expression } => {
+                assert_expression_path!(parser, parser.tree.get(*expression), "memo");
+            });
+        });
+
+        let value_annotations = parser.tree.get_annotations(expression_id.id);
+        assert!(value_annotations.is_empty());
     });
 }
 
