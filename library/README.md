@@ -8,9 +8,6 @@ Integrated packages for building full-stack applications with Destack.
 | Package | Description | Link |
 |---------|-------------|------|
 | `entity` | Core entity system, events, and paths | [entity/README.md](entity/README.md) |
-| `telemetry` | Logging, metrics, and tracing | [telemetry/README.md](telemetry/README.md) |
-| `ui` | UI primitives, input handling, styling | [ui/README.md](ui/README.md) |
-| `web` | Web platform utilities | [web/README.md](web/README.md) |
 | `test` | Testing utilities | [test/README.md](test/README.md) |
 | `schema` | Shared schemas for cross-package contracts | [schema/README.md](schema/README.md) |
 | `napi` | N-API bindings exposing Rust toolchain to JS | [napi/README.md](napi/README.md) |
