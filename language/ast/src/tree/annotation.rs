@@ -1,9 +1,10 @@
+use std::borrow::Cow;
 use std::fmt::Debug;
 
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType, StringId, TokenType};
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AnnotationPosition {
@@ -116,14 +117,86 @@ pub enum CommentStyle {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Comment {
-    /// The clean comment string.
-    pub string: StringId,
+    /// The normalized comment payload when materialized.
+    ///
+    /// `None` means payload is derived lazily from source span.
+    pub string: Option<StringId>,
     /// The style of the comment.
     pub style: CommentStyle,
 }
 
 impl Node for Comment {
     const TYPE: NodeType = NodeType::Comment;
+}
+
+/// Normalize one comment payload from raw source text.
+pub fn normalize_comment_payload<'a>(raw: &'a str) -> Cow<'a, str> {
+    let token_type = if raw.starts_with("///") {
+        Some(TokenType::DocLineComment)
+    } else if raw.starts_with("//") {
+        Some(TokenType::LineComment)
+    } else if raw.starts_with("/**") {
+        Some(TokenType::DocBlockComment)
+    } else if raw.starts_with("/*") {
+        Some(TokenType::BlockComment)
+    } else {
+        None
+    };
+
+    let mut inner = match token_type {
+        Some(TokenType::LineComment) => raw.strip_prefix("//").unwrap_or(raw),
+        Some(TokenType::DocLineComment) => raw.strip_prefix("///").unwrap_or(raw),
+        Some(TokenType::BlockComment) => raw
+            .strip_prefix("/*")
+            .unwrap_or(raw)
+            .strip_suffix("*/")
+            .unwrap_or(raw),
+        Some(TokenType::DocBlockComment) => raw
+            .strip_prefix("/**")
+            .unwrap_or(raw)
+            .strip_suffix("*/")
+            .unwrap_or(raw),
+        _ => raw,
+    };
+
+    if matches!(
+        token_type,
+        Some(TokenType::LineComment | TokenType::DocLineComment)
+    ) && inner.starts_with(' ')
+    {
+        inner = &inner[1..];
+    }
+
+    if matches!(
+        token_type,
+        Some(TokenType::BlockComment | TokenType::DocBlockComment)
+    ) && inner.contains('\n')
+    {
+        let has_trailing_newline = inner.ends_with('\n');
+        let mut cleaned = inner
+            .lines()
+            .map(|line| {
+                let line = line.trim_end();
+                let line = line.trim_start();
+                let line = line.strip_prefix('*').unwrap_or(line);
+                line.strip_prefix(' ').unwrap_or(line)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if has_trailing_newline {
+            cleaned.push('\n');
+        }
+
+        return Cow::Owned(cleaned);
+    }
+
+    let trimmed = inner.trim_end();
+    if std::ptr::eq(trimmed.as_ptr(), inner.as_ptr()) && trimmed.len() == inner.len() {
+        Cow::Borrowed(inner)
+    } else {
+        Cow::Owned(trimmed.to_string())
+    }
 }
 
 /// A normalized directive extracted from a comment in the lexer.
@@ -217,6 +290,10 @@ pub struct CommentTrivia {
     pub boundary: TriviaBoundary,
     /// Normalized lexer directive kind.
     pub directive: CommentDirective,
+    /// Resolved target node id.
+    pub target_node: Option<u32>,
+    /// Resolved attachment position.
+    pub position: AnnotationPosition,
 }
 
 /// Blank trivia payload with placement metadata.
@@ -228,6 +305,10 @@ pub struct BlankTrivia {
     pub span: Span,
     /// Token-boundary metadata.
     pub boundary: TriviaBoundary,
+    /// Resolved target node id.
+    pub target_node: Option<u32>,
+    /// Resolved attachment position.
+    pub position: AnnotationPosition,
 }
 
 /// Stable source-order reference into split trivia buffers.

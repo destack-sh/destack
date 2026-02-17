@@ -207,6 +207,12 @@ impl TokenStream {
             .map(|index| index as usize)
     }
 
+    /// Return all side token owner semantic indexes.
+    #[inline]
+    pub fn side_owner_token_indexes(&self) -> &[u32] {
+        &self.side_owner_token_index
+    }
+
     /// Return the leading side trivia range for a semantic token index.
     #[inline]
     pub fn leading_side_range(&mut self, index: usize) -> (usize, usize) {

@@ -256,6 +256,11 @@ pub(super) fn should_unwrap_parenthesized_member_object(
         return false;
     }
 
+    // decorated class expressions require explicit grouping before member access
+    if expression_is_decorated_class_declaration(context, inner_expression_id) {
+        return false;
+    }
+
     if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
         // allow unwrapping only when inner annotations are prefix comments or docs
         if !expression_has_only_prefix_comment_or_doc_annotations(context, inner_expression_id) {

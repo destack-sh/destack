@@ -1377,6 +1377,37 @@ fn satisfies_seam_inline_left_source(
     Some(context.get_span_str(span).trim().to_string())
 }
 
+/// Return one satisfies seam line comment source from rhs ownership variants.
+fn satisfies_seam_comment_source(
+    context: &DestackFormatContext<'_>,
+    right_expression_id: LocalNodeId<Expression>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> Option<String> {
+    if let Some(annotation_ids) = context.get_annotations(right_expression_id) {
+        for annotation_id in annotation_ids {
+            let Annotation::Comment {
+                node,
+                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+            } = context.get_annotation(annotation_id)
+            else {
+                continue;
+            };
+
+            let comment = context.tree.get::<destack_ast::Comment>(node);
+            if comment.style != destack_ast::CommentStyle::Slash {
+                continue;
+            }
+
+            let seam_span = context.get_annotation_span(annotation_id);
+            return Some(context.get_span_str(seam_span).trim().to_string());
+        }
+    }
+
+    static_arguments.first().and_then(|argument_id| {
+        argument_satisfies_static_seam_comment_source(context, *argument_id)
+    })
+}
+
 /// Format a type-binary expression with chain-aware left-hand expansion.
 pub(super) fn format_type_binary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1437,7 +1468,7 @@ pub(super) fn format_type_binary_expression<'ast>(
         && static_arguments.len() > 1
         && path.segments.len() == 1
         && let Some(seam_comment) =
-            argument_satisfies_static_seam_comment_source(f.context(), static_arguments[0])
+            satisfies_seam_comment_source(f.context(), right, static_arguments)
     {
         if let Some(left_source) = satisfies_seam_inline_left_source(f.context(), formatted_left) {
             write!(f, [text(left_source.as_str())])?;

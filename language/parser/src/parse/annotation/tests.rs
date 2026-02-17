@@ -14,11 +14,27 @@ fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeI
     (parser, expressions)
 }
 
+fn parse_block_source(
+    source: &str,
+    language: LanguageType,
+) -> (Parser, LocalNodeId<destack_ast::Block>) {
+    let mut test = TestParser::new_with_options(source, language);
+    let mut parser = test.prepare();
+    let block_id = parser
+        .eat_block()
+        .expect("expected block expression in test source");
+    parser.attach_trivia();
+    (parser, block_id)
+}
+
 fn comment_text(parser: &Parser, comment_id: LocalNodeId<Comment>) -> String {
-    parser
-        .strings
-        .get(parser.tree.get(comment_id).string)
-        .to_string()
+    let comment = parser.tree.get(comment_id);
+    if let Some(string_id) = comment.string {
+        return parser.strings.get(string_id).to_string();
+    }
+
+    let source = parser.get_span_str(parser.tree.get_span(comment_id));
+    destack_ast::normalize_comment_payload(source).into_owned()
 }
 
 fn doc_text(parser: &Parser, doc_id: LocalNodeId<Doc>) -> String {
@@ -256,20 +272,245 @@ fn test_doc_comment_attaches_to_call_argument() {
         assert_eq!(dynamic_arguments.len(), 1);
         let argument_id = dynamic_arguments[0];
         let argument_annotations = parser.tree.get_annotations(argument_id.id);
-        assert!(argument_annotations.is_empty());
+        assert_eq!(argument_annotations.len(), 1);
+        assert_node!(parser.tree, argument_annotations[0], Annotation::Doc { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePrefix);
+            assert_node!(parser.tree, *node, Doc { string, style } => {
+                assert_eq!(*style, DocStyle::Star);
+                assert_string!(parser, *string, " argument-doc");
+            });
+        });
+
         assert_node!(parser.tree, argument_id, Argument::Positional { value, .. } => {
             let value_annotations = parser.tree.get_annotations(value.id);
-            assert_eq!(value_annotations.len(), 1);
-            assert_node!(parser.tree, value_annotations[0], Annotation::Doc { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePrefix);
-                assert_node!(parser.tree, *node, Doc { string, style } => {
-                    assert_eq!(*style, DocStyle::Star);
-                    assert_string!(parser, *string, " argument-doc");
-                });
-            });
+            assert!(value_annotations.is_empty());
             assert_expression_path!(parser, parser.tree.get(*value), "value");
         });
     });
+}
+
+#[test]
+fn test_comment_between_export_and_declaration_head_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "export // seam\nasync function f() {}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), "seam");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_comment_after_satisfies_keyword_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "value satisfies // seam\nRecord<A, B>",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), "seam");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_comment_before_as_keyword_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "const value = source /* seam */ as number",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), " seam");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_comment_after_as_keyword_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "const value = source as // seam\nnumber",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), "seam");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_multiline_block_comment_between_as_and_const_emits_unowned_seam_trivia() {
+    let (parser, expressions) =
+        parse_source("1 as /*\nblock-comment\n*/ const", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), "\nblock-comment\n");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_variable_trailing_marker_comment_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()",
+        LanguageType::TypeScript,
+    );
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert!(
+        !expressions.is_empty(),
+        "expected at least one parsed expression"
+    );
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), "<- keep-marker");
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+    assert_eq!(trivia.target_node, None);
+}
+
+#[test]
+fn test_comment_after_if_head_emits_unowned_seam_trivia() {
+    let (parser, expressions) =
+        parse_source("if (ready) // if-head\nrun()", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), "if-head");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_comment_between_ternary_then_and_colon_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "const result = cond ? left /* left-note */ : right",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), " left-note");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_comments_between_if_chain_branches_emit_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        r#"if (cond1) {
+    const X = 1;
+}
+// comment before cond2
+else if (cond2) {
+    const Y = 2;
+}
+// comment before else
+else {
+    const Z = 3;
+}"#,
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 2);
+
+    let first_trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(
+        comment_text(&parser, first_trivia.comment),
+        "comment before cond2"
+    );
+    assert_eq!(first_trivia.target_node, None);
+    assert_eq!(first_trivia.position, AnnotationPosition::BlockInfix);
+
+    let second_trivia = parser.tree.comment_trivia()[1];
+    assert_eq!(
+        comment_text(&parser, second_trivia.comment),
+        "comment before else"
+    );
+    assert_eq!(second_trivia.target_node, None);
+    assert_eq!(second_trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_multiline_trailing_block_comment_inside_block_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(
+        comment_text(&parser, trivia.comment),
+        "some comment\nover multiple lines yo"
+    );
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_seam_trivia() {
+    let (parser, _block_id) = parse_block_source(
+        "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_destack_emits_unowned_seam_trivia()
+{
+    let (parser, _block_id) = parse_block_source(
+        "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
+        LanguageType::Destack,
+    );
+
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_comment_inside_empty_lambda_block_attaches_to_block_infix() {
+    let (parser, expressions) = parse_source(
+        "call(/* comment */\n  () => {\n    //\n  }\n)",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    let trivia = parser.tree.comment_trivia()[1];
+    assert_eq!(comment_text(&parser, trivia.comment), "");
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
 }
 
 #[test]
@@ -335,13 +576,48 @@ fn test_decorator_attaches_to_function_declaration() {
     let (parser, expressions) = parse_source("@memo\nfunction f() {}", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        let annotations = parser.tree.get_annotations(declaration_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { expression } => {
+                assert_expression_path!(parser, parser.tree.get(*expression), "memo");
+            });
+        });
+    });
+}
 
-    let annotations = parser.tree.get_annotations(expressions[0].id);
-    assert_eq!(annotations.len(), 1);
-    assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
-        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-        assert_node!(parser.tree, *node, Decorator { expression } => {
-            assert_expression_path!(parser, parser.tree.get(*expression), "memo");
+#[test]
+fn test_decorator_attaches_to_struct_declaration_inside_block() {
+    let (parser, expressions) = parse_source(
+        "{\n    @memo\n    struct Entity {}\n}",
+        LanguageType::Destack,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    let block_expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, block_expression_id, Expression::Block(block_id) => {
+        assert_eq!(parser.tree.get(*block_id).expressions.len(), 1);
+
+        let declaration_expression_id =
+            parser.unwrap_statement_expression(parser.tree.get(*block_id).expressions[0]);
+        assert_node!(parser.tree, declaration_expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Struct { .. });
+
+            let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
+            assert_eq!(declaration_annotations.len(), 1);
+            assert_node!(parser.tree, declaration_annotations[0], Annotation::Decorator { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "memo");
+                });
+            });
+
+            let declaration_expression_annotations =
+                parser.tree.get_annotations(declaration_expression_id.id);
+            assert!(declaration_expression_annotations.is_empty());
         });
     });
 }
@@ -453,6 +729,62 @@ fn test_comments_and_blanks_are_not_semantic_annotations() {
     let second_annotations = parser.tree.get_annotations(expressions[1].id);
     assert!(first_annotations.is_empty());
     assert!(second_annotations.is_empty());
+}
+
+#[test]
+fn test_comment_inside_function_body_attaches_to_block_infix() {
+    let (parser, expressions) =
+        parse_source("function foo() { /* empty */ }", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), " empty");
+
+    assert_eq!(trivia.target_node, None);
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+}
+
+#[test]
+fn test_comment_between_parameter_name_and_type_emits_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "function f(x /* a */ : number) {}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+
+    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comment_text(&parser, trivia.comment), " a");
+    assert_eq!(trivia.position, AnnotationPosition::BlockInfix);
+    assert_eq!(trivia.target_node, None);
+}
+
+#[test]
+fn test_comments_around_decorator_chain_emit_unowned_seam_trivia() {
+    let (parser, expressions) = parse_source(
+        "{\n    // comment before entity\n    @entity\n    // comment after entity\n    // comment before foo\n    @foo(1, 2, 3)\n    // comment after foo\n    struct Entity {}\n}",
+        LanguageType::Destack,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 4);
+
+    let first = parser.tree.comment_trivia()[0];
+    let second = parser.tree.comment_trivia()[1];
+    let third = parser.tree.comment_trivia()[2];
+    let fourth = parser.tree.comment_trivia()[3];
+
+    assert_eq!(first.position, AnnotationPosition::BlockInfix);
+    assert_eq!(second.position, AnnotationPosition::BlockInfix);
+    assert_eq!(third.position, AnnotationPosition::BlockInfix);
+    assert_eq!(fourth.position, AnnotationPosition::BlockInfix);
+    assert_eq!(first.target_node, None);
+    assert_eq!(second.target_node, None);
+    assert_eq!(third.target_node, None);
+    assert_eq!(fourth.target_node, None);
 }
 
 #[test]

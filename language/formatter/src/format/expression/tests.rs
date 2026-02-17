@@ -388,7 +388,7 @@ fn test_format_array_expression_sparse_elisions() {
 fn test_format_new_expression_empty_argument_comment() {
     assert_format!(
         "new require(/* comment */)",
-        "new require\n/* comment */\n()",
+        "new require(/* comment */)",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
     );
@@ -543,7 +543,7 @@ fn test_format_member_call_chain_breaks_with_maybe_and_index() {
 fn test_format_path_member_call_chain_breaks() {
     assert_format!(
         "long.base.path.followed().by().many().calls()",
-        "long.base\n\t.path\n\t.followed()\n\t.by()\n\t.many()\n\t.calls()",
+        "long.base\n\t.path.followed()\n\t.by()\n\t.many()\n\t.calls()",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_tab_with_line_width(20)
     );
@@ -751,7 +751,7 @@ fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
 #[test]
 fn test_format_call_nested_arrow_boundary_comments() {
     let source = "call(\n  () /**/ => //\n    () /**/ => /**/\n      () /**/ => /**/ {\n        //\n      }\n)";
-    let expected = "call(() =>\n    //\n    /**/ () =>\n        /**/\n        /**/ () => /**/ {\n            //\n        })";
+    let expected = "call(\n    () =>\n        //\n        /**/ () =>\n            /**/\n            /**/ () => /**/ {\n                //\n            },\n)";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
@@ -1337,11 +1337,11 @@ fn test_format_assignment_chain_in_call_argument_is_idempotent() {
     assert_eq!(first_output, second_output);
 }
 
-/// Satisfies seam comments should stay attached for qualified rhs type paths.
+/// Satisfies seam comments should stay on the operator seam for qualified rhs type paths.
 #[test]
 fn test_format_satisfies_seam_comment_keeps_qualified_type_argument_comment() {
     let source = "value satisfies // seam\nns.Record<A, B>";
-    let expected = "value satisfies ns.Record<\n        // seam\n        A,\n        B\n    >";
+    let expected = "value satisfies // seam\n    ns.Record<A, B>";
     let (formatter, expression_id) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
             p.eat_expression(Default::default())
@@ -1352,7 +1352,7 @@ fn test_format_satisfies_seam_comment_keeps_qualified_type_argument_comment() {
     assert_eq!(formatted, expected);
 }
 
-/// Satisfies seam comments should keep the compact single-segment remap form.
+/// Satisfies seam comments should remap into compact single-segment rhs type arguments.
 #[test]
 fn test_format_satisfies_seam_comment_keeps_single_segment_compact_remap() {
     let source = "value satisfies // seam\nRecord<A, B>";

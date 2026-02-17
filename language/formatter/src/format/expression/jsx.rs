@@ -29,13 +29,13 @@ pub(super) struct TreeExpressionArgument {
     pub(super) argument_id: LocalNodeId<Argument>,
 }
 
-/// Format an inline stub comment.
-pub(super) fn format_inline_stub_comment<'ast>(
+/// Format inline stub comments attached to one expression node.
+fn format_inline_stub_expression_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let Some(annotations) = f.context().get_annotations(value_id) else {
-        return Ok(());
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    let Some(annotations) = f.context().get_annotations(expression_id) else {
+        return Ok(false);
     };
 
     let mut first = true;
@@ -52,7 +52,33 @@ pub(super) fn format_inline_stub_comment<'ast>(
         write!(f, [node])?;
     }
 
-    Ok(())
+    Ok(!first)
+}
+
+/// Format inline stub comments attached to one argument node.
+fn format_inline_stub_argument_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<bool> {
+    let Some(annotations) = f.context().get_annotations(argument_id) else {
+        return Ok(false);
+    };
+
+    let mut first = true;
+    for annotation_id in annotations {
+        let Annotation::Comment { node, .. } = f.context().get_annotation(annotation_id) else {
+            continue;
+        };
+
+        if !first {
+            write!(f, [space()])?;
+        }
+        first = false;
+
+        write!(f, [node])?;
+    }
+
+    Ok(!first)
 }
 
 impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
@@ -60,6 +86,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
         write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
 
         let argument = f.context().tree.get(self.argument_id);
+        let mut stub_argument_annotations_rendered_inline = false;
         match argument {
             Argument::Named { name, value, .. } => {
                 let value_expr = f.context().tree.get(*value);
@@ -103,7 +130,15 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                 if needs_braces {
                     if matches!(value_expr, Expression::Stub) {
                         write!(f, [token("{")])?;
-                        format_inline_stub_comment(f, *value)?;
+                        let mut wrote_stub_comment =
+                            format_inline_stub_expression_comments(f, *value)?;
+                        if !wrote_stub_comment {
+                            wrote_stub_comment =
+                                format_inline_stub_argument_comments(f, self.argument_id)?;
+                            if wrote_stub_comment {
+                                stub_argument_annotations_rendered_inline = true;
+                            }
+                        }
                         write!(f, [token("}")])?;
                     } else {
                         // keep jsx expression containers inline for common expression forms
@@ -131,11 +166,13 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
             }
         }
 
-        write!(
-            f,
-            [f.context()
-                .any_infix_or_postfix_annotations(self.argument_id)]
-        )?;
+        if !stub_argument_annotations_rendered_inline {
+            write!(
+                f,
+                [f.context()
+                    .any_infix_or_postfix_annotations(self.argument_id)]
+            )?;
+        }
 
         Ok(())
     }

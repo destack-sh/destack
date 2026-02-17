@@ -677,17 +677,16 @@ where
                         node: comment_id, ..
                     } = annotation
                     {
-                        let comment = f.context().tree.get::<Comment>(comment_id);
-                        f.context().strings.get(comment.string)
+                        f.context().get_comment_text(comment_id)
                     } else {
-                        ""
+                        "".into()
                     };
 
                     if annotation_starts_on_own_line(f.context(), annotation_id)
                         || annotation_has_leading_newline(f.context(), annotation_id)
                     {
                         is_ignore_directive_comment(annotation_source)
-                            || is_ignore_directive_comment(comment_source)
+                            || is_ignore_directive_comment(comment_source.as_ref())
                     } else {
                         false
                     }
@@ -762,14 +761,13 @@ where
                     node: comment_id, ..
                 } = annotation
                 {
-                    let comment = f.context().tree.get::<Comment>(comment_id);
-                    f.context().strings.get(comment.string)
+                    f.context().get_comment_text(comment_id)
                 } else {
-                    ""
+                    "".into()
                 };
                 let is_ignore_directive_comment =
                     is_any_ignore_directive_comment(annotation_source)
-                        || is_any_ignore_directive_comment(comment_source);
+                        || is_any_ignore_directive_comment(comment_source.as_ref());
                 if is_ignore_directive_comment && !annotation_source.trim().is_empty() {
                     write!(f, [hard_line_break(), text(annotation_source.trim())])?;
                     write!(f, [hard_line_break()])?;
@@ -1050,7 +1048,12 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         node_id: LocalNodeId<Comment>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let string = f.context().strings.get(self.string);
+        let string = if let Some(string_id) = self.string {
+            std::borrow::Cow::Borrowed(f.context().strings.get(string_id))
+        } else {
+            let source = f.context().get_span_str(f.context().get_span(node_id));
+            destack_ast::normalize_comment_payload(source)
+        };
         let is_multi_line = string.contains('\n');
         match self.style {
             CommentStyle::Star => {
@@ -1086,7 +1089,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
                         write!(f, [text(source.trim_end_matches('\n'))])?;
                     }
                 } else {
-                    let content = normalize_inline_block_comment_content(string);
+                    let content = normalize_inline_block_comment_content(string.as_ref());
                     if is_compact_hint_comment(content) {
                         write!(f, [token("/*"), text(content), token("*/")])?;
                     } else if is_all_asterisks_comment(content) {
@@ -1108,7 +1111,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
                 }
             }
             CommentStyle::Slash => {
-                format_line_comment_lines(f, "//", string)?;
+                format_line_comment_lines(f, "//", string.as_ref())?;
             }
         }
         Ok(())

@@ -2,10 +2,10 @@ use crate::Parser;
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, BlankTrivia, Comment,
     CommentDirective, CommentStyle, CommentTrivia, Doc, DocStyle, Expression, LocalNodeId,
-    NodeType, TokenSpan, TokenType, TriviaBoundary, TriviaNewlineFlags,
+    NodeType, StringId, TokenSpan, TokenType, TriviaBoundary, TriviaNewlineFlags,
+    normalize_comment_payload,
 };
-use destack_source::{NodeSearchMode, Span};
-use rustc_hash::FxHashMap;
+use destack_source::{EnclosingSpan, NodeSearchMode, Span};
 
 const NO_TOKEN_INDEX: u32 = u32::MAX;
 
@@ -16,11 +16,40 @@ struct TokenNeighborIndex {
     last_attachable: Option<usize>,
 }
 
+#[derive(Debug, Copy, Clone)]
+struct PendingDocumentationAttachment {
+    target_id: u32,
+    position: AnnotationPosition,
+    string: StringId,
+    style: DocStyle,
+    span: Span,
+}
+
+#[derive(Debug, Copy, Clone)]
+struct PendingCommentTriviaRecord {
+    span: Span,
+    boundary: TriviaBoundary,
+    directive: CommentDirective,
+    string: Option<StringId>,
+    style: CommentStyle,
+}
+
+#[derive(Debug, Copy, Clone)]
+struct PendingBlankTriviaRecord {
+    span: Span,
+    boundary: TriviaBoundary,
+    lines: u32,
+}
+
 impl Parser {
-    /// Emit comment and blank trivia, and attach documentation semantics.
+    /// Emit semantic documentation and seam trivia records.
     pub(crate) fn attach_trivia_annotations(&mut self) {
-        // materialize stream once so trivia flags and token indexes are stable
-        self.token_stream.lex_to_end();
+        {
+            // materialize stream once so trivia flags and token indexes are stable
+            let _lex_to_end_timing =
+                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_LEX_TO_END);
+            self.token_stream.lex_to_end();
+        }
 
         // quick skip when no trivia was observed during lexing
         if !self.token_stream.has_comment_trivia_tokens()
@@ -30,41 +59,60 @@ impl Parser {
         }
 
         // keep attach_trivia idempotent for repeated parser entrypoints
-        if self.has_attached_trivia_annotations() {
-            return;
+        {
+            let _attached_check_timing =
+                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACHED_CHECK);
+            if self.has_attached_trivia_annotations() {
+                return;
+            }
         }
 
-        // collect semantic and side token snapshots for one-sweep emission
-        let semantic_tokens = self.token_stream.tokens().to_vec();
-        let side_tokens = self.token_stream.side_tokens().to_vec();
-        if semantic_tokens.is_empty() && side_tokens.is_empty() {
-            return;
+        // collect snapshots for one sweep emission
+        let (semantic_tokens, side_tokens, side_owner_token_indexes) = {
+            let _collect_tokens_timing =
+                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_TOKENS);
+            let semantic_tokens = self.token_stream.tokens().to_vec();
+            let side_tokens = self.token_stream.side_tokens().to_vec();
+            let side_owner_token_indexes = self.token_stream.side_owner_token_indexes().to_vec();
+            if semantic_tokens.is_empty() && side_tokens.is_empty() {
+                return;
+            }
+
+            (semantic_tokens, side_tokens, side_owner_token_indexes)
+        };
+
+        // build lightweight seam indexes
+        let neighbor_index = {
+            let _collect_wrappers_timing =
+                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_WRAPPERS);
+            Self::build_token_neighbor_index(&semantic_tokens)
+        };
+
+        // emit side token comments and semantic docs
+        let inserted_docs = {
+            let _attach_side_timing =
+                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE);
+            self.emit_comment_and_documentation_trivia(
+                &semantic_tokens,
+                &side_tokens,
+                &side_owner_token_indexes,
+                &neighbor_index,
+            )
+        };
+
+        // emit blank runs
+        {
+            let _group_loop_timing = self
+                .timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_GROUP_LOOP);
+            self.emit_blank_trivia(&semantic_tokens, &neighbor_index);
         }
 
-        // collect side owner token indexes once so we can mutate the tree freely
-        let mut side_owner_token_indexes = Vec::with_capacity(side_tokens.len());
-        for side_index in 0..side_tokens.len() {
-            side_owner_token_indexes.push(self.token_stream.side_owner_token_index(side_index));
+        // keep semantic annotation order stable after doc inserts
+        if inserted_docs {
+            let _sort_timing =
+                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_SORT);
+            self.tree.sort_annotations();
         }
-
-        // precompute attachable token neighbors and start owners
-        let neighbor_index = Self::build_token_neighbor_index(&semantic_tokens);
-        let owner_start_by_token = self.build_owner_start_by_token(&semantic_tokens);
-
-        // emit comments and documentation records from side tokens
-        self.emit_comment_and_documentation_trivia(
-            &semantic_tokens,
-            &side_tokens,
-            &side_owner_token_indexes,
-            &neighbor_index,
-            &owner_start_by_token,
-        );
-
-        // emit blank records from semantic newline runs
-        self.emit_blank_trivia(&semantic_tokens, &neighbor_index);
-
-        // keep semantic annotation order stable after documentation inserts
-        self.tree.sort_annotations();
     }
 
     /// Return true when trivia output already exists.
@@ -78,30 +126,50 @@ impl Parser {
             .any(|annotation_id| matches!(self.tree.get(annotation_id), Annotation::Doc { .. }))
     }
 
-    /// Emit comment trivia records and documentation semantic attachments from side tokens.
+    /// Emit comment trivia records and semantic documentation attachments.
     fn emit_comment_and_documentation_trivia(
         &mut self,
         semantic_tokens: &[TokenSpan],
         side_tokens: &[TokenSpan],
-        side_owner_token_indexes: &[Option<usize>],
+        side_owner_token_indexes: &[u32],
         neighbor_index: &TokenNeighborIndex,
-        owner_start_by_token: &[Option<u32>],
-    ) {
+    ) -> bool {
+        let mut pending_documentation =
+            Vec::<PendingDocumentationAttachment>::with_capacity(side_tokens.len() / 16);
+        let mut pending_comment_trivia =
+            Vec::<PendingCommentTriviaRecord>::with_capacity(side_tokens.len());
+
         for (side_index, token) in side_tokens.iter().copied().enumerate() {
             // only comment-like side tokens participate in trivia output
             if !Self::is_comment_like_token(token.token.ty) {
                 continue;
             }
 
-            // normalize owner seams to attachable semantic tokens
-            let token_after = self.normalize_after_token_index(
-                side_owner_token_indexes.get(side_index).copied().flatten(),
-                semantic_tokens,
-                neighbor_index,
-            );
-            let token_before = token_after
-                .and_then(|index| neighbor_index.previous_attachable[index])
-                .or(neighbor_index.last_attachable);
+            // normalize token seams from lexer side-owner indexes
+            let side_owner = side_owner_token_indexes
+                .get(side_index)
+                .copied()
+                .unwrap_or(NO_TOKEN_INDEX);
+            let boundary_index = if side_owner == NO_TOKEN_INDEX {
+                semantic_tokens.len()
+            } else {
+                side_owner as usize
+            };
+            let token_after = if boundary_index < semantic_tokens.len() {
+                let boundary_token = semantic_tokens[boundary_index];
+                if Self::is_attachable_semantic_token(boundary_token.token.ty) {
+                    Some(boundary_index)
+                } else {
+                    neighbor_index.next_attachable[boundary_index]
+                }
+            } else {
+                None
+            };
+            let token_before = if boundary_index < semantic_tokens.len() {
+                neighbor_index.previous_attachable[boundary_index]
+            } else {
+                neighbor_index.last_attachable
+            };
 
             // compute newline flags from source seams around the comment span
             let seam_before = token_before
@@ -121,48 +189,43 @@ impl Parser {
                 is_leading_candidate: token_after.is_some(),
             };
 
-            // normalize payload text once for both semantic docs and comment trivia
-            let raw_text = self.get_span_str(token.span).to_string();
-            let cleaned_text = Self::clean_comment_string(token.token.ty, &raw_text);
-            let directive = Self::classify_comment_directive(&raw_text, &cleaned_text);
-            let string = self.strings.intern(cleaned_text);
+            // normalize payload text once for semantic docs and comment trivia
+            let raw_text = self.file.span_str(token.span);
+            let cleaned_text = normalize_comment_payload(raw_text);
+            let directive = Self::classify_comment_directive(raw_text, cleaned_text.as_ref());
+            let is_semantic_doc_token = Self::is_documentation_token(token.token.ty)
+                && Self::documentation_token_should_stay_semantic(token.token.ty, raw_text);
 
             // documentation tokens stay semantic and preserve doc marker style
-            if Self::is_documentation_token(token.token.ty)
-                && Self::documentation_token_should_stay_semantic(token.token.ty, &raw_text)
-            {
+            if is_semantic_doc_token {
                 let doc_style = if token.token.ty == TokenType::DocLineComment {
                     DocStyle::Slash
                 } else {
                     DocStyle::Star
                 };
-                let doc_id = self.tree.insert(
-                    Doc {
-                        string,
-                        style: doc_style,
-                    },
-                    token.span,
-                );
-
-                if let Some(target_id) = self.find_documentation_target(
-                    token,
-                    token_after,
-                    semantic_tokens,
-                    owner_start_by_token,
-                ) {
+                if let Some(target_id) =
+                    self.find_documentation_target(token, token_after, semantic_tokens)
+                {
+                    let string = self.strings.intern(cleaned_text.as_ref());
                     let position = if has_leading_newline {
                         AnnotationPosition::BlockPrefix
                     } else {
                         AnnotationPosition::LinePrefix
                     };
-                    self.tree.append_documentation(target_id, doc_id, position);
+                    pending_documentation.push(PendingDocumentationAttachment {
+                        target_id,
+                        position,
+                        string,
+                        style: doc_style,
+                        span: token.span,
+                    });
                     continue;
                 }
 
-                // fallback: keep unowned doc tokens as regular comments so text is never dropped
+                // fallback: keep unowned doc tokens as regular comments
             }
 
-            // non-doc comments stay in trivia storage
+            // non-semantic comments are seam facts only
             let style = if matches!(
                 token.token.ty,
                 TokenType::LineComment | TokenType::DocLineComment
@@ -171,15 +234,54 @@ impl Parser {
             } else {
                 CommentStyle::Star
             };
-            let comment_id = self.tree.insert(Comment { string, style }, token.span);
-
-            self.tree.push_comment_trivia(CommentTrivia {
-                comment: comment_id,
+            pending_comment_trivia.push(PendingCommentTriviaRecord {
                 span: token.span,
                 boundary,
                 directive,
+                string: if cfg!(debug_assertions) {
+                    Some(self.strings.intern_no_dedupe(cleaned_text.as_ref()))
+                } else {
+                    None
+                },
+                style,
             });
         }
+
+        let inserted_docs = !pending_documentation.is_empty();
+
+        // emit semantic documentation after lookup phase to keep source-map index stable
+        for pending in pending_documentation {
+            let doc_id = self.tree.insert(
+                Doc {
+                    string: pending.string,
+                    style: pending.style,
+                },
+                pending.span,
+            );
+            self.tree
+                .append_documentation(pending.target_id, doc_id, pending.position);
+        }
+
+        // emit comment trivia after lookup phase to keep source-map index stable
+        for pending in pending_comment_trivia {
+            let comment_id = self.tree.insert(
+                Comment {
+                    string: pending.string,
+                    style: pending.style,
+                },
+                pending.span,
+            );
+            self.tree.push_comment_trivia(CommentTrivia {
+                comment: comment_id,
+                span: pending.span,
+                boundary: pending.boundary,
+                directive: pending.directive,
+                target_node: None,
+                position: AnnotationPosition::BlockInfix,
+            });
+        }
+
+        inserted_docs
     }
 
     /// Emit blank trivia records from newline runs in semantic tokens.
@@ -188,6 +290,7 @@ impl Parser {
         semantic_tokens: &[TokenSpan],
         neighbor_index: &TokenNeighborIndex,
     ) {
+        let mut pending_blank_trivia = Vec::<PendingBlankTriviaRecord>::new();
         let mut index = 0usize;
         while index < semantic_tokens.len() {
             let token = semantic_tokens[index];
@@ -201,6 +304,10 @@ impl Parser {
             let mut run_end = index;
             while run_end + 1 < semantic_tokens.len()
                 && semantic_tokens[run_end + 1].token.ty == TokenType::Newline
+                && self.is_whitespace_only_gap(
+                    semantic_tokens[run_end].span.end,
+                    semantic_tokens[run_end + 1].span.start,
+                )
             {
                 run_end += 1;
             }
@@ -214,8 +321,6 @@ impl Parser {
                     semantic_tokens[run_start].span.start,
                     semantic_tokens[run_end].span.end,
                 );
-                let blank_id = self.tree.insert(Blank { lines: blank_lines }, span);
-
                 let token_before = neighbor_index.previous_attachable[run_start];
                 let token_after = neighbor_index.next_attachable[run_end];
                 let boundary = TriviaBoundary {
@@ -225,14 +330,31 @@ impl Parser {
                     is_leading_candidate: token_after.is_some(),
                 };
 
-                self.tree.push_blank_trivia(BlankTrivia {
-                    blank: blank_id,
+                pending_blank_trivia.push(PendingBlankTriviaRecord {
                     span,
                     boundary,
+                    lines: blank_lines,
                 });
             }
 
             index = run_end + 1;
+        }
+
+        // emit blank trivia after lookup phase to keep source-map index stable
+        for pending in pending_blank_trivia {
+            let blank_id = self.tree.insert(
+                Blank {
+                    lines: pending.lines,
+                },
+                pending.span,
+            );
+            self.tree.push_blank_trivia(BlankTrivia {
+                blank: blank_id,
+                span: pending.span,
+                boundary: pending.boundary,
+                target_node: None,
+                position: AnnotationPosition::BlockInfix,
+            });
         }
     }
 
@@ -266,73 +388,17 @@ impl Parser {
         }
     }
 
-    /// Build best start-owner ids for attachable semantic token indexes.
-    fn build_owner_start_by_token(&self, semantic_tokens: &[TokenSpan]) -> Vec<Option<u32>> {
-        let mut start_token_by_offset = FxHashMap::<u32, usize>::default();
-        start_token_by_offset.reserve(semantic_tokens.len());
-        for (index, token) in semantic_tokens.iter().copied().enumerate() {
-            if !Self::is_attachable_semantic_token(token.token.ty) {
-                continue;
-            }
-
-            start_token_by_offset.insert(token.span.start, index);
+    /// Return whether the source gap between two offsets contains only whitespace.
+    fn is_whitespace_only_gap(&self, start: u32, end: u32) -> bool {
+        if start >= end {
+            return true;
         }
 
-        let mut owner_start_by_token = vec![None; semantic_tokens.len()];
-        let mut owner_length_by_token = vec![u32::MAX; semantic_tokens.len()];
-
-        // choose smallest owner for one token start seam to avoid statement wrappers
-        let mut node_id = 0u32;
-        while node_id < self.tree.next_id() {
-            if self.is_annotation_node_id(node_id) {
-                node_id += 1;
-                continue;
-            }
-
-            let span = self.tree.get_span_by_id(node_id);
-            let Some(token_index) = start_token_by_offset.get(&span.start).copied() else {
-                node_id += 1;
-                continue;
-            };
-
-            let length = span.end.saturating_sub(span.start);
-            let best_length = owner_length_by_token[token_index];
-            let best_owner = owner_start_by_token[token_index];
-            let should_replace = length < best_length
-                || (length == best_length && best_owner.is_none_or(|best| node_id < best));
-            if should_replace {
-                owner_length_by_token[token_index] = length;
-                owner_start_by_token[token_index] = Some(node_id);
-            }
-
-            node_id += 1;
-        }
-
-        owner_start_by_token
-    }
-
-    /// Resolve the attachable token index after one side token owner seam.
-    fn normalize_after_token_index(
-        &self,
-        owner_token_index: Option<usize>,
-        semantic_tokens: &[TokenSpan],
-        neighbor_index: &TokenNeighborIndex,
-    ) -> Option<usize> {
-        let owner_token_index = owner_token_index?;
-        if owner_token_index >= semantic_tokens.len() {
-            return None;
-        }
-
-        let owner_token = semantic_tokens[owner_token_index];
-        if owner_token.token.ty == TokenType::End {
-            return None;
-        }
-
-        if Self::is_attachable_semantic_token(owner_token.token.ty) {
-            return Some(owner_token_index);
-        }
-
-        neighbor_index.next_attachable[owner_token_index]
+        let gap_span = Span::new(self.file_id, start, end);
+        let gap_source = self.get_span_str(gap_span);
+        gap_source
+            .chars()
+            .all(|character| character.is_whitespace())
     }
 
     /// Resolve the semantic documentation target for one doc token.
@@ -341,17 +407,13 @@ impl Parser {
         token: TokenSpan,
         token_after: Option<usize>,
         semantic_tokens: &[TokenSpan],
-        owner_start_by_token: &[Option<u32>],
     ) -> Option<u32> {
-        let token_after =
-            self.normalize_documentation_token_after(token_after, semantic_tokens);
+        let token_after = self.normalize_documentation_token_after(token_after, semantic_tokens);
 
-        // direct seam owner: use the owner that starts at the following token
+        // direct seam owner: use the smallest owner that starts at the following token
         if let Some(token_after) = token_after {
-            if let Some(owner_id) = owner_start_by_token
-                .get(token_after)
-                .and_then(|owner| *owner)
-            {
+            let owner_token = semantic_tokens[token_after];
+            if let Some(owner_id) = self.find_preferred_owner_starting_at(&owner_token.span) {
                 let owner_id =
                     self.normalize_documentation_target(owner_id, token_after, semantic_tokens);
                 return Some(owner_id);
@@ -468,6 +530,51 @@ impl Parser {
         first_expression_id
     }
 
+    /// Find the best non-annotation owner that starts at one token span.
+    fn find_preferred_owner_starting_at(&self, span: &Span) -> Option<u32> {
+        let mut best_owner: Option<EnclosingSpan> = None;
+        self.tree.source_map.visit_enclosing_spans(
+            span.start,
+            span.end.saturating_sub(1),
+            |candidate| {
+                if candidate.span.start != span.start || self.is_annotation_node_id(candidate.idx) {
+                    return;
+                }
+
+                let candidate_kind_rank =
+                    if self.tree.get_node_type(candidate.idx) == NodeType::Expression {
+                        1
+                    } else {
+                        0
+                    };
+
+                let should_replace = if let Some(current) = best_owner {
+                    let current_kind_rank =
+                        if self.tree.get_node_type(current.idx) == NodeType::Expression {
+                            1
+                        } else {
+                            0
+                        };
+
+                    candidate.length < current.length
+                        || (candidate.length == current.length
+                            && candidate_kind_rank < current_kind_rank)
+                        || (candidate.length == current.length
+                            && candidate_kind_rank == current_kind_rank
+                            && candidate.idx < current.idx)
+                } else {
+                    true
+                };
+
+                if should_replace {
+                    best_owner = Some(candidate);
+                }
+            },
+        );
+
+        best_owner.map(|owner| owner.idx)
+    }
+
     /// Resolve a prefix owner fallback from one token span.
     fn fallback_prefix_owner_for_token(&self, token: TokenSpan) -> Option<u32> {
         if token.token.ty == TokenType::End {
@@ -476,10 +583,9 @@ impl Parser {
 
         if let Some(owner) =
             self.find_node_starting_at(&token.span, NodeSearchMode::SmallestOutermost)
+            && !self.is_annotation_node_id(owner.idx)
         {
-            if !self.is_annotation_node_id(owner.idx) {
-                return Some(owner.idx);
-            }
+            return Some(owner.idx);
         }
 
         if let Some(owner) = self.find_node_enclosing_at(
@@ -494,6 +600,11 @@ impl Parser {
             !self.is_annotation_node_id(candidate.idx)
         })
         .map(|owner| owner.idx)
+    }
+
+    /// Return whether one node id belongs to one annotation node type.
+    fn is_annotation_node_id(&self, node_id: u32) -> bool {
+        ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(node_id))
     }
 
     /// Return true when one semantic token can own trivia seams.
@@ -522,12 +633,10 @@ impl Parser {
 
     /// Return whether docs should skip this separator to find a forward target.
     fn is_documentation_forward_separator(token_type: TokenType) -> bool {
-        matches!(token_type, TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
-    }
-
-    /// Return whether a node id belongs to one annotation node type.
-    fn is_annotation_node_id(&self, node_id: u32) -> bool {
-        ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(node_id))
+        matches!(
+            token_type,
+            TokenType::ElementwiseOr | TokenType::ElementwiseAnd
+        )
     }
 
     /// Return whether source text contains a line terminator in one byte range.
@@ -536,12 +645,7 @@ impl Parser {
             return false;
         }
 
-        let span = Span::new(self.file_id, start, end.min(self.file.len));
-        let source = self.get_span_str(span);
-        source
-            .as_bytes()
-            .iter()
-            .any(|byte| *byte == b'\n' || *byte == b'\r')
+        !self.file.is_same_line(start, end.min(self.file.len))
     }
 
     /// Return a compact encoded token index with sentinel for none.
@@ -549,61 +653,6 @@ impl Parser {
         token_index
             .map(|index| index as u32)
             .unwrap_or(NO_TOKEN_INDEX)
-    }
-
-    /// Normalize one comment payload string from raw token source.
-    fn clean_comment_string(token_type: TokenType, raw: &str) -> String {
-        let mut inner = match token_type {
-            TokenType::LineComment => raw.strip_prefix("//").unwrap_or(raw),
-            TokenType::DocLineComment => raw.strip_prefix("///").unwrap_or(raw),
-            TokenType::BlockComment => raw
-                .strip_prefix("/*")
-                .unwrap_or(raw)
-                .strip_suffix("*/")
-                .unwrap_or(raw),
-            TokenType::DocBlockComment => raw
-                .strip_prefix("/**")
-                .unwrap_or(raw)
-                .strip_suffix("*/")
-                .unwrap_or(raw),
-            _ => raw,
-        };
-
-        // strip one common leading space for slash comments
-        if matches!(
-            token_type,
-            TokenType::LineComment | TokenType::DocLineComment
-        ) && inner.starts_with(' ')
-        {
-            inner = &inner[1..];
-        }
-
-        // strip one common multiline star prefix for block comments
-        if matches!(
-            token_type,
-            TokenType::BlockComment | TokenType::DocBlockComment
-        ) && inner.contains('\n')
-        {
-            let has_trailing_newline = inner.ends_with('\n');
-            let mut cleaned = inner
-                .lines()
-                .map(|line| {
-                    let line = line.trim_end();
-                    let line = line.trim_start();
-                    let line = line.strip_prefix('*').unwrap_or(line);
-                    line.strip_prefix(' ').unwrap_or(line)
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            if has_trailing_newline {
-                cleaned.push('\n');
-            }
-
-            return cleaned;
-        }
-
-        inner.trim_end().to_string()
     }
 
     /// Classify one comment directive marker from raw and cleaned payload text.

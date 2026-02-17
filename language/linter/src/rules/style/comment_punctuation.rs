@@ -40,8 +40,7 @@ impl LintRule for CommentPunctuation {
 
         // inline comments should not end with periods
         for trivia in ctx.tree.comment_trivia().iter().copied() {
-            let comment = ctx.tree.get(trivia.comment);
-            let text = ctx.strings.get(comment.string);
+            let text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
             let text = text.as_ref().trim();
 
             // skip comments that have explicit exceptions

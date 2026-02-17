@@ -176,6 +176,26 @@ impl LocalStringPool {
         id
     }
 
+    /// Intern a string without deduplication.
+    ///
+    /// This appends new bytes even when identical content already exists.
+    /// It is useful in high-throughput paths where dedupe lookup cost dominates.
+    #[inline]
+    pub fn intern_no_dedupe<S: AsRef<str>>(&mut self, s: S) -> StringId {
+        let s = s.as_ref();
+        let offset = self.buffer.len() as u32;
+        let len = s.len() as u32;
+        self.buffer.push_str(s);
+        let id = StringId::from_zero_based_index(self.spans.len());
+        self.spans.push((offset, len));
+
+        // keep index coherent for future intern() lookups
+        let hash = Self::hash_str(s);
+        self.index.entry(hash).or_default().push(id);
+
+        id
+    }
+
     /// Intern a string from another pool.
     #[inline]
     pub fn intern_from(&mut self, other: &LocalStringPool, string_id: StringId) -> StringId {

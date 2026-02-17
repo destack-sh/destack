@@ -1,20 +1,17 @@
+use std::borrow::Cow;
 use std::cell::{Cell, OnceCell, Ref, RefCell};
 use std::rc::Rc;
 
 use destack_ast::{
-    ANNOTATION_NODE_TYPES, Annotation as AstAnnotation, AnnotationPosition, Argument,
-    AssignOperator, Blank, Block, Comment, CommentStyle, Declaration, Declarator, Decorator,
-    DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Member,
-    Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
-    Property, TokenSpan, TokenType, WhereClause,
+    Annotation as AstAnnotation, AnnotationPosition, Argument, Blank, Block, Comment, Declaration,
+    Declarator, Decorator, DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny,
+    MatchCase, Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
+    PatternField, Property, TokenSpan, TokenType, WhereClause, normalize_comment_payload,
 };
 use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter, GroupId};
 use destack_fir::print::PrintOptions;
-use destack_source::{
-    EnclosingSpan, File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSearchMode,
-    NodeSourceMap, Span,
-};
+use destack_source::{File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSourceMap, Span};
 use destack_workspace::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
     QuoteStyle, TrailingComma,
@@ -37,13 +34,7 @@ const NODE_SPAN_CHAR_LEN_UNKNOWN: u32 = u32::MAX;
 const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
 const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
 const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
-const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
-    TokenType::Newline,
-    TokenType::LineComment,
-    TokenType::DocLineComment,
-    TokenType::BlockComment,
-    TokenType::DocBlockComment,
-];
+const NO_TOKEN_INDEX: u32 = u32::MAX;
 
 /// Formatter-owned annotation payload for semantic annotations and placed trivia.
 #[derive(Debug, Clone, Copy)]
@@ -277,1896 +268,408 @@ impl CachedAnnotationData {
     }
 }
 
-/// Return whether one token is a side annotation token.
-#[inline]
-fn is_side_annotation_token(token_type: TokenType) -> bool {
-    matches!(
-        token_type,
-        TokenType::Newline
-            | TokenType::LineComment
-            | TokenType::DocLineComment
-            | TokenType::BlockComment
-            | TokenType::DocBlockComment
-    )
+/// Build formatter-owned annotation ids and entries from semantic attachments and trivia.
+#[derive(Debug)]
+struct FormatterTokenNeighborIndex {
+    previous_attachable: Vec<Option<usize>>,
+    next_attachable: Vec<Option<usize>>,
 }
 
-/// Return true when a node id belongs to one annotation node type.
-#[inline]
-fn is_annotation_node_id(tree: &NodeTree, node_id: u32) -> bool {
-    ANNOTATION_NODE_TYPES.contains(&tree.get_node_type(node_id))
+#[derive(Debug)]
+struct FormatterTriviaOwnerIndex {
+    owner_start_by_token: Vec<Option<u32>>,
+    owner_end_by_token: Vec<Option<u32>>,
+    nearest_owner_start_by_token: Vec<Option<u32>>,
+    nearest_owner_end_by_token: Vec<Option<u32>>,
 }
 
-/// Return true when candidate outranks current for the search mode.
-#[inline]
-fn is_better_enclosing_span(
-    search: NodeSearchMode,
-    candidate: &EnclosingSpan,
-    current: &EnclosingSpan,
-) -> bool {
-    let candidate_len = candidate.length;
-    let current_len = current.length;
-    let candidate_idx = candidate.idx;
-    let current_idx = current.idx;
+/// Return true when one semantic token can own trivia seams.
+fn is_attachable_semantic_token_for_trivia(token_type: TokenType) -> bool {
+    !matches!(token_type, TokenType::Newline | TokenType::End)
+}
 
-    match search {
-        NodeSearchMode::BiggestOutermost => {
-            candidate_len > current_len
-                || (candidate_len == current_len && candidate_idx > current_idx)
+/// Build previous and next attachable semantic token indexes.
+fn build_formatter_token_neighbor_index(
+    semantic_tokens: &[TokenSpan],
+) -> FormatterTokenNeighborIndex {
+    let mut previous_attachable = vec![None; semantic_tokens.len()];
+    let mut next_attachable = vec![None; semantic_tokens.len()];
+
+    // previous attachable token before each semantic token
+    let mut previous = None;
+    for (index, token) in semantic_tokens.iter().enumerate() {
+        previous_attachable[index] = previous;
+        if is_attachable_semantic_token_for_trivia(token.token.ty) {
+            previous = Some(index);
         }
-        NodeSearchMode::SmallestOutermost => {
-            candidate_len < current_len
-                || (candidate_len == current_len && candidate_idx > current_idx)
+    }
+
+    // next attachable token after each semantic token
+    let mut next = None;
+    for index in (0..semantic_tokens.len()).rev() {
+        next_attachable[index] = next;
+        if is_attachable_semantic_token_for_trivia(semantic_tokens[index].token.ty) {
+            next = Some(index);
         }
-        NodeSearchMode::SmallestInnermost => {
-            candidate_len < current_len
-                || (candidate_len == current_len && candidate_idx < current_idx)
-        }
+    }
+
+    FormatterTokenNeighborIndex {
+        previous_attachable,
+        next_attachable,
     }
 }
 
-/// Select the best enclosing span for one range and filter.
-fn select_enclosing_span_with_filter(
-    source_map: &NodeSourceMap,
-    start: u32,
-    end_inclusive: u32,
-    search: NodeSearchMode,
-    filter: impl Fn(&EnclosingSpan) -> bool,
-) -> Option<EnclosingSpan> {
-    let mut best = None;
-    source_map.visit_enclosing_spans(start, end_inclusive, |candidate| {
-        if !filter(&candidate) {
-            return;
-        }
-        match best {
-            Some(current) => {
-                if is_better_enclosing_span(search, &candidate, &current) {
-                    best = Some(candidate);
-                }
-            }
-            None => best = Some(candidate),
-        }
-    });
-    best
-}
-
-/// Get the node starting at a token.
-fn find_node_starting_at(
-    source_map: &NodeSourceMap,
-    span: &Span,
-    search: NodeSearchMode,
-) -> Option<EnclosingSpan> {
-    select_enclosing_span_with_filter(
-        source_map,
-        span.start,
-        span.end.saturating_sub(1),
-        search,
-        |candidate| candidate.span.start == span.start,
+/// Return whether one node kind is excluded from trivia owner indexing.
+fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
+    matches!(
+        tree.get_node_type(node_id),
+        NodeType::Annotation | NodeType::Doc | NodeType::Comment | NodeType::Blank
     )
 }
 
-/// Get the node ending at a token.
-fn find_node_ending_at(
-    source_map: &NodeSourceMap,
-    span: &Span,
-    search: NodeSearchMode,
-) -> Option<EnclosingSpan> {
-    select_enclosing_span_with_filter(
-        source_map,
-        span.start,
-        span.end.saturating_sub(1),
-        search,
-        |candidate| candidate.span.end == span.end,
-    )
+/// Update one owner slot when one candidate outranks the current owner.
+fn update_best_formatter_owner_slot(
+    owner_by_token: &mut [Option<u32>],
+    owner_length_by_token: &mut [u32],
+    owner_kind_rank_by_token: &mut [u8],
+    token_index: usize,
+    node_id: u32,
+    length: u32,
+    node_kind_rank: u8,
+) {
+    let best_length = owner_length_by_token[token_index];
+    let best_kind_rank = owner_kind_rank_by_token[token_index];
+    let best_owner = owner_by_token[token_index];
+    let should_replace = length < best_length
+        || (length == best_length && node_kind_rank < best_kind_rank)
+        || (length == best_length
+            && node_kind_rank == best_kind_rank
+            && best_owner.is_none_or(|best| node_id < best));
+    if should_replace {
+        owner_length_by_token[token_index] = length;
+        owner_kind_rank_by_token[token_index] = node_kind_rank;
+        owner_by_token[token_index] = Some(node_id);
+    }
 }
 
-/// Get the node enclosing a token.
-fn find_node_enclosing_at(
-    source_map: &NodeSourceMap,
-    span: &Span,
-    search: NodeSearchMode,
-    filter: impl Fn(&EnclosingSpan) -> bool,
-) -> Option<EnclosingSpan> {
-    select_enclosing_span_with_filter(
-        source_map,
-        span.start,
-        span.end.saturating_sub(1),
-        search,
-        filter,
-    )
-}
-
-/// Collect statement wrapper ids keyed by expression id.
-fn collect_statement_wrappers(tree: &NodeTree) -> Vec<Option<u32>> {
-    let total_nodes = tree.next_id() as usize;
-    let mut wrappers = vec![None; total_nodes];
-
-    let mut node_id = 0usize;
-    while node_id < total_nodes {
-        let global_id = node_id as u32;
-        if tree.get_node_type(global_id) == NodeType::Expression {
-            let expression = tree.get(LocalNodeId::<Expression>::new(global_id));
-            if let Expression::Statement(inner_id) = expression {
-                wrappers[inner_id.id as usize] = Some(global_id);
-            }
+/// Build best start and end owner ids for attachable semantic token indexes.
+fn build_formatter_owner_start_end_by_token(
+    tree: &NodeTree,
+    semantic_tokens: &[TokenSpan],
+) -> (Vec<Option<u32>>, Vec<Option<u32>>) {
+    let mut start_token_by_offset = FxHashMap::<u32, usize>::default();
+    start_token_by_offset.reserve(semantic_tokens.len());
+    let mut end_token_by_offset = FxHashMap::<u32, usize>::default();
+    end_token_by_offset.reserve(semantic_tokens.len());
+    for (index, token) in semantic_tokens.iter().copied().enumerate() {
+        if !is_attachable_semantic_token_for_trivia(token.token.ty) {
+            continue;
         }
+
+        start_token_by_offset.insert(token.span.start, index);
+        end_token_by_offset.insert(token.span.end, index);
+    }
+
+    let mut owner_start_by_token = vec![None; semantic_tokens.len()];
+    let mut owner_end_by_token = vec![None; semantic_tokens.len()];
+    let mut owner_start_length_by_token = vec![u32::MAX; semantic_tokens.len()];
+    let mut owner_end_length_by_token = vec![u32::MAX; semantic_tokens.len()];
+    let mut owner_start_kind_rank_by_token = vec![u8::MAX; semantic_tokens.len()];
+    let mut owner_end_kind_rank_by_token = vec![u8::MAX; semantic_tokens.len()];
+
+    // choose smallest owner for one token seam and share one node scan for start and end
+    let mut node_id = 0u32;
+    while node_id < tree.next_id() {
+        if is_trivia_excluded_owner_node_id(tree, node_id) {
+            node_id += 1;
+            continue;
+        }
+
+        let span = tree.get_span_by_id(node_id);
+        let length = span.end.saturating_sub(span.start);
+        let node_kind_rank = if tree.get_node_type(node_id) == NodeType::Expression {
+            1
+        } else {
+            0
+        };
+
+        if let Some(token_index) = start_token_by_offset.get(&span.start).copied() {
+            update_best_formatter_owner_slot(
+                &mut owner_start_by_token,
+                &mut owner_start_length_by_token,
+                &mut owner_start_kind_rank_by_token,
+                token_index,
+                node_id,
+                length,
+                node_kind_rank,
+            );
+        }
+
+        if let Some(token_index) = end_token_by_offset.get(&span.end).copied() {
+            update_best_formatter_owner_slot(
+                &mut owner_end_by_token,
+                &mut owner_end_length_by_token,
+                &mut owner_end_kind_rank_by_token,
+                token_index,
+                node_id,
+                length,
+                node_kind_rank,
+            );
+        }
+
         node_id += 1;
     }
 
-    wrappers
+    (owner_start_by_token, owner_end_by_token)
 }
 
-/// Promote expression targets to their statement wrapper when required.
-fn annotation_promote_statement(
-    tree: &NodeTree,
-    start_token: TokenSpan,
-    target_node_id: u32,
-    statement_wrappers: &[Option<u32>],
-) -> u32 {
-    if start_token.token.ty == TokenType::Newline
-        && tree.get_node_type(target_node_id) == NodeType::Expression
-        && let Some(statement_id) = statement_wrappers
-            .get(target_node_id as usize)
-            .and_then(|id| *id)
-    {
-        return statement_id;
-    }
+/// Build nearest start-owner ids for each semantic token index.
+fn build_formatter_nearest_owner_start_by_token(
+    semantic_tokens: &[TokenSpan],
+    owner_start_by_token: &[Option<u32>],
+    neighbor_index: &FormatterTokenNeighborIndex,
+) -> Vec<Option<u32>> {
+    let mut nearest_owner_start_by_token = vec![None; semantic_tokens.len()];
 
-    target_node_id
-}
-
-/// Return whether a block comment stays on a single line.
-fn annotation_is_single_line_block_comment(file: &File, start_token: TokenSpan) -> bool {
-    let raw = file.span_str(start_token.span);
-    for byte in raw.as_bytes() {
-        if *byte == b'\n' || *byte == b'\r' {
-            return false;
-        }
-    }
-    true
-}
-
-/// Find the previous targetable token within the enclosing span.
-fn annotation_prev_token(
-    token_idx: u32,
-    tokens: &[TokenSpan],
-    ignore_span: &MultiSpan,
-    enclosing_span: Option<Span>,
-) -> Option<(usize, TokenSpan)> {
-    if token_idx == 0 {
-        return None;
-    }
-
-    let mut prev_token_idx = token_idx as usize;
-    while prev_token_idx > 0 {
-        prev_token_idx -= 1;
-        let prev_token = tokens.get(prev_token_idx)?;
-        if ignore_span.contains(&prev_token.span) || prev_token.token.ty == TokenType::Whitespace {
+    for index in (0..semantic_tokens.len()).rev() {
+        let token = semantic_tokens[index];
+        if !is_attachable_semantic_token_for_trivia(token.token.ty) {
+            nearest_owner_start_by_token[index] = neighbor_index.next_attachable[index]
+                .and_then(|next_index| nearest_owner_start_by_token[next_index]);
             continue;
         }
 
-        if let Some(enclosing_span) = enclosing_span
-            && !enclosing_span.intersects(prev_token.span)
-        {
-            return None;
-        }
-
-        return Some((prev_token_idx, *prev_token));
-    }
-
-    None
-}
-
-/// Find the next targetable token within the enclosing span.
-fn annotation_next_token(
-    token_idx: u32,
-    group_len: usize,
-    tokens: &[TokenSpan],
-    ignore_span: &MultiSpan,
-    enclosing_span: Option<Span>,
-) -> Option<(usize, TokenSpan)> {
-    let mut next_token_idx = token_idx as usize + group_len;
-    loop {
-        let next_token = tokens.get(next_token_idx)?;
-        if ignore_span.contains(&next_token.span) || next_token.token.ty == TokenType::Whitespace {
-            next_token_idx += 1;
-            continue;
-        }
-
-        if let Some(enclosing_span) = enclosing_span
-            && !enclosing_span.intersects(next_token.span)
-        {
-            return None;
-        }
-
-        return Some((next_token_idx, *next_token));
-    }
-}
-
-/// Find the next non-annotation token from one token index.
-fn annotation_next_non_annotation_token(
-    token_idx: usize,
-    tokens: &[TokenSpan],
-    ignore_span: &MultiSpan,
-    enclosing_span: Option<Span>,
-) -> Option<(usize, TokenSpan)> {
-    let mut next_token_idx = token_idx;
-    loop {
-        let next_token = tokens.get(next_token_idx)?;
-        if ignore_span.contains(&next_token.span)
-            || next_token.token.ty == TokenType::Whitespace
-            || ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
-        {
-            next_token_idx += 1;
-            continue;
-        }
-
-        if let Some(enclosing_span) = enclosing_span
-            && !enclosing_span.intersects(next_token.span)
-        {
-            return None;
-        }
-
-        return Some((next_token_idx, *next_token));
-    }
-}
-
-/// Find the previous significant token, excluding whitespace, newlines, and annotation tokens.
-fn annotation_prev_significant_token(
-    token_idx: usize,
-    tokens: &[TokenSpan],
-    ignore_span: &MultiSpan,
-    enclosing_span: Option<Span>,
-) -> Option<TokenSpan> {
-    let mut cursor = token_idx;
-    while cursor > 0 {
-        cursor -= 1;
-        let token = tokens.get(cursor)?;
-        if ignore_span.contains(&token.span)
-            || token.token.ty == TokenType::Whitespace
-            || token.token.ty == TokenType::Newline
-            || ANNOTATION_TOKEN_TYPES.contains(&token.token.ty)
-        {
-            continue;
-        }
-
-        if let Some(enclosing_span) = enclosing_span
-            && !enclosing_span.intersects(token.span)
-        {
-            return None;
-        }
-
-        return Some(*token);
-    }
-
-    None
-}
-
-/// Resolve one argument node id to its value expression node id.
-fn annotation_argument_value_expression_id(tree: &NodeTree, node_id: u32) -> Option<u32> {
-    if tree.get_node_type(node_id) != NodeType::Argument {
-        return None;
-    }
-
-    let argument_id = LocalNodeId::<Argument>::new(node_id);
-    let value_id = match tree.get(argument_id) {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
-    };
-    Some(value_id.id)
-}
-
-/// Find one call/new owner for one argument-list open parenthesis token.
-fn find_call_like_owner_for_open_parenthesis(
-    tree: &NodeTree,
-    source_map: &NodeSourceMap,
-    open_parenthesis_token: TokenSpan,
-    ignore_span: &MultiSpan,
-) -> Option<u32> {
-    if open_parenthesis_token.token.ty != TokenType::OpenParenthesis {
-        return None;
-    }
-
-    let call_owner_id = find_node_enclosing_at(
-        source_map,
-        &open_parenthesis_token.span,
-        NodeSearchMode::SmallestOutermost,
-        |candidate| {
-            if is_annotation_node_id(tree, candidate.idx) || ignore_span.contains(&candidate.span) {
-                return false;
-            }
-
-            if tree.get_node_type(candidate.idx) != NodeType::Expression {
-                return false;
-            }
-
-            matches!(
-                tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
-                Expression::Call { .. } | Expression::New { .. }
-            )
-        },
-    )
-    .map(|span| span.idx)?;
-
-    // ensure this `(` belongs to the call/new argument list, not an inner parenthesized expression
-    let call_owner_expression_id = LocalNodeId::<Expression>::new(call_owner_id);
-    let call_left_id = match tree.get(call_owner_expression_id) {
-        Expression::Call { left, .. } | Expression::New { left, .. } => *left,
-        _ => return None,
-    };
-
-    let call_span = tree.get_span(call_owner_expression_id);
-    let call_left_span = tree.get_span(call_left_id);
-    let open_start = open_parenthesis_token.span.start;
-    if open_start < call_left_span.end || open_start >= call_span.end {
-        return None;
-    }
-
-    Some(call_owner_id)
-}
-
-/// Resolve one call-like argument seam target from comment neighbors.
-fn resolve_call_like_argument_seam_target(
-    tree: &NodeTree,
-    source_map: &NodeSourceMap,
-    prev_token: Option<TokenSpan>,
-    next_token: Option<TokenSpan>,
-    ignore_span: &MultiSpan,
-) -> Option<(AnnotationPosition, u32)> {
-    // comment between callee and argument list: `callee /* note */ (arg)`
-    if let Some(open_parenthesis_token) = next_token
-        && open_parenthesis_token.token.ty == TokenType::OpenParenthesis
-        && let Some(call_owner_id) = find_call_like_owner_for_open_parenthesis(
-            tree,
-            source_map,
-            open_parenthesis_token,
-            ignore_span,
-        )
-    {
-        let call_owner_expression_id = LocalNodeId::<Expression>::new(call_owner_id);
-        let dynamic_arguments = match tree.get(call_owner_expression_id) {
-            Expression::Call {
-                dynamic_arguments, ..
-            }
-            | Expression::New {
-                dynamic_arguments, ..
-            } => dynamic_arguments,
-            _ => return None,
-        };
-
-        if let Some(first_argument_id) = dynamic_arguments.first().copied() {
-            let target_id = annotation_argument_value_expression_id(tree, first_argument_id.id)
-                .unwrap_or(first_argument_id.id);
-            return Some((AnnotationPosition::LinePrefix, target_id));
-        }
-
-        return Some((AnnotationPosition::BlockInfix, call_owner_id));
-    }
-
-    // comment at argument list start: `callee( /* note */ arg )` or `callee( // note\n )`
-    if let Some(open_parenthesis_token) = prev_token
-        && open_parenthesis_token.token.ty == TokenType::OpenParenthesis
-        && let Some(call_owner_id) = find_call_like_owner_for_open_parenthesis(
-            tree,
-            source_map,
-            open_parenthesis_token,
-            ignore_span,
-        )
-    {
-        let call_owner_expression_id = LocalNodeId::<Expression>::new(call_owner_id);
-        let dynamic_arguments = match tree.get(call_owner_expression_id) {
-            Expression::Call {
-                dynamic_arguments, ..
-            }
-            | Expression::New {
-                dynamic_arguments, ..
-            } => dynamic_arguments,
-            _ => return None,
-        };
-
-        if let Some(first_argument_id) = dynamic_arguments.first().copied() {
-            let target_id = annotation_argument_value_expression_id(tree, first_argument_id.id)
-                .unwrap_or(first_argument_id.id);
-            return Some((AnnotationPosition::LinePrefix, target_id));
-        }
-
-        return Some((AnnotationPosition::BlockInfix, call_owner_id));
-    }
-
-    None
-}
-
-/// Return whether one token keeps separator comments as line-prefix on the following node.
-fn annotation_is_forward_prefix_separator(token: TokenSpan) -> bool {
-    token.token.ty == TokenType::Colon || AssignOperator::from_token(token.token.ty).is_some()
-}
-
-/// Return whether a token is one identifier keyword.
-#[inline]
-fn annotation_is_identifier_keyword(file: &File, token: TokenSpan, keyword: &str) -> bool {
-    token.token.ty == TokenType::Identifier && file.span_str(token.span) == keyword
-}
-
-/// Return whether this separator token is `as` or `satisfies`.
-#[inline]
-fn annotation_is_type_operator_separator(file: &File, token: TokenSpan) -> bool {
-    annotation_is_identifier_keyword(file, token, "as")
-        || annotation_is_identifier_keyword(file, token, "satisfies")
-}
-
-/// Return whether this separator seam targets `as const` or `as comptime`.
-#[inline]
-fn annotation_is_type_unary_as_keyword_target(file: &File, token: TokenSpan) -> bool {
-    annotation_is_identifier_keyword(file, token, "const")
-        || annotation_is_identifier_keyword(file, token, "comptime")
-}
-
-/// Return whether a token starts one declaration head keyword.
-#[inline]
-fn annotation_is_declaration_head_keyword(file: &File, token: TokenSpan) -> bool {
-    token.token.ty == TokenType::Identifier
-        && matches!(
-            file.span_str(token.span),
-            "class"
-                | "struct"
-                | "enum"
-                | "interface"
-                | "type"
-                | "newtype"
-                | "function"
-                | "namespace"
-                | "module"
-                | "global"
-                | "extension"
-                | "import"
-        )
-}
-
-/// Return whether a token is one declaration-head modifier keyword.
-#[inline]
-fn annotation_is_declaration_head_modifier(file: &File, token: TokenSpan) -> bool {
-    annotation_is_identifier_keyword(file, token, "declare")
-        || annotation_is_identifier_keyword(file, token, "abstract")
-        || annotation_is_identifier_keyword(file, token, "async")
-        || annotation_is_identifier_keyword(file, token, "default")
-}
-
-/// Return whether one token index starts one declaration head including optional modifiers.
-fn annotation_is_declaration_head_start(
-    file: &File,
-    tokens: &[TokenSpan],
-    start_idx: usize,
-    ignore_span: &MultiSpan,
-    enclosing_span: Option<Span>,
-) -> bool {
-    let mut cursor = start_idx;
-    loop {
-        let Some((token_idx, token)) =
-            annotation_next_non_annotation_token(cursor, tokens, ignore_span, enclosing_span)
-        else {
-            return false;
-        };
-
-        if annotation_is_declaration_head_keyword(file, token) {
-            return true;
-        }
-        if !annotation_is_declaration_head_modifier(file, token) {
-            return false;
-        }
-
-        cursor = token_idx + 1;
-    }
-}
-
-/// Find one type-operator expression owner for comments on `as`/`satisfies` seams.
-fn find_type_operator_owner_for_separator(
-    tree: &NodeTree,
-    source_map: &NodeSourceMap,
-    prev_token: TokenSpan,
-    forward_token: TokenSpan,
-    ignore_span: &MultiSpan,
-) -> Option<u32> {
-    find_node_enclosing_at(
-        source_map,
-        &prev_token.span,
-        NodeSearchMode::SmallestOutermost,
-        |candidate| {
-            if is_annotation_node_id(tree, candidate.idx) || ignore_span.contains(&candidate.span) {
-                return false;
-            }
-
-            if tree.get_node_type(candidate.idx) != NodeType::Expression {
-                return false;
-            }
-
-            if !candidate.span.intersects(prev_token.span)
-                || !candidate.span.intersects(forward_token.span)
-            {
-                return false;
-            }
-
-            matches!(
-                tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
-                Expression::TypeBinary {
-                    operator: destack_ast::TypeBinaryOperator::Cast
-                        | destack_ast::TypeBinaryOperator::Satisfies,
-                    ..
-                } | Expression::TypeUnary {
-                    operator: destack_ast::TypeUnaryOperator::AsConst
-                        | destack_ast::TypeUnaryOperator::AsComptime,
-                    ..
-                }
-            )
-        },
-    )
-    .map(|span| span.idx)
-}
-
-/// Resolve one `satisfies` right side to its first static argument target when list has multiple arguments.
-fn find_satisfies_right_static_argument_target(tree: &NodeTree, owner_id: u32) -> Option<u32> {
-    if tree.get_node_type(owner_id) != NodeType::Expression {
-        return None;
-    }
-
-    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
-    let Expression::TypeBinary {
-        operator: destack_ast::TypeBinaryOperator::Satisfies,
-        right,
-        ..
-    } = tree.get(owner_expression_id)
-    else {
-        return None;
-    };
-
-    let right_id = match tree.get(*right) {
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => *expression,
-        _ => *right,
-    };
-
-    let static_arguments = match tree.get(right_id) {
-        Expression::Path {
-            static_arguments, ..
-        }
-        | Expression::Member {
-            static_arguments, ..
-        }
-        | Expression::PrivateMember {
-            static_arguments, ..
-        }
-        | Expression::Call {
-            static_arguments, ..
-        }
-        | Expression::New {
-            static_arguments, ..
-        }
-        | Expression::TypeImport {
-            static_arguments, ..
-        } => static_arguments.as_ref(),
-        Expression::Instantiation {
-            static_arguments, ..
-        } => Some(static_arguments),
-        _ => None,
-    }?;
-
-    if static_arguments.len() <= 1 {
-        return None;
-    }
-
-    Some(static_arguments[0].id)
-}
-
-/// Return the last extends expression id for one declaration when present.
-fn declaration_last_extends_expression(tree: &NodeTree, declaration_id: u32) -> Option<u32> {
-    let declaration_id = LocalNodeId::<Declaration>::new(declaration_id);
-    let extends_types = match tree.get(declaration_id) {
-        Declaration::Struct { heritage, .. }
-        | Declaration::Class { heritage, .. }
-        | Declaration::Enum { heritage, .. }
-        | Declaration::Interface { heritage, .. }
-        | Declaration::Extension { heritage, .. } => heritage.extends_types.as_ref(),
-        _ => None,
-    }?;
-
-    extends_types.last().map(|expression_id| expression_id.id)
-}
-
-/// Return whether one declaration heritage references this expression id.
-fn declaration_heritage_contains_expression(
-    tree: &NodeTree,
-    declaration_id: u32,
-    expression_id: u32,
-) -> bool {
-    let declaration_id = LocalNodeId::<Declaration>::new(declaration_id);
-    let (extends_types, implements_types) = match tree.get(declaration_id) {
-        Declaration::Struct { heritage, .. }
-        | Declaration::Class { heritage, .. }
-        | Declaration::Enum { heritage, .. }
-        | Declaration::Interface { heritage, .. }
-        | Declaration::Extension { heritage, .. } => (
-            heritage.extends_types.as_deref().unwrap_or_default(),
-            heritage.implements_types.as_deref().unwrap_or_default(),
-        ),
-        _ => return false,
-    };
-
-    extends_types
-        .iter()
-        .chain(implements_types.iter())
-        .any(|expression| expression.id == expression_id)
-}
-
-/// Return the body attachment target for comments that sit right before declaration `{`.
-fn declaration_body_comment_target(
-    tree: &NodeTree,
-    declaration_id: u32,
-) -> Option<(AnnotationPosition, u32)> {
-    let declaration_id = LocalNodeId::<Declaration>::new(declaration_id);
-
-    match tree.get(declaration_id) {
-        Declaration::Struct { members, .. }
-        | Declaration::Class { members, .. }
-        | Declaration::Interface { members, .. }
-        | Declaration::Extension { members, .. } => members
-            .first()
-            .map(|member_id| (AnnotationPosition::BlockPrefix, member_id.id))
-            .or(Some((AnnotationPosition::BlockInfix, declaration_id.id))),
-        Declaration::Enum {
-            fields, members, ..
-        } => fields
-            .first()
-            .map(|field_id| (AnnotationPosition::BlockPrefix, field_id.id))
-            .or_else(|| {
-                members
-                    .first()
-                    .map(|member_id| (AnnotationPosition::BlockPrefix, member_id.id))
-            })
-            .or(Some((AnnotationPosition::BlockInfix, declaration_id.id))),
-        Declaration::Namespace { expressions, .. } | Declaration::Global { expressions, .. } => {
-            expressions
-                .first()
-                .map(|expression_id| (AnnotationPosition::BlockPrefix, expression_id.id))
-                .or(Some((AnnotationPosition::BlockInfix, declaration_id.id)))
-        }
-        _ => None,
-    }
-}
-
-/// Return whether this owner node is field-like and can absorb field-tail comments.
-fn annotation_owner_is_field_like(tree: &NodeTree, owner_id: u32) -> bool {
-    match tree.get_node_type(owner_id) {
-        NodeType::Member => matches!(
-            tree.get(LocalNodeId::<Member>::new(owner_id)),
-            Member::Field { .. } | Member::Type { .. } | Member::ComptimeConst { .. }
-        ),
-        NodeType::Property => matches!(
-            tree.get(LocalNodeId::<Property>::new(owner_id)),
-            Property::Field { .. }
-        ),
-        _ => false,
-    }
-}
-
-/// Return whether one `:` separator owns a mapped-type value seam.
-fn mapped_type_value_target_for_separator(
-    tree: &NodeTree,
-    source_map: &NodeSourceMap,
-    prev_token: TokenSpan,
-    forward_token: TokenSpan,
-    forward_target_id: u32,
-    ignore_span: &MultiSpan,
-) -> Option<u32> {
-    let mapped_owner_id = find_node_enclosing_at(
-        source_map,
-        &prev_token.span,
-        NodeSearchMode::SmallestOutermost,
-        |candidate| {
-            if is_annotation_node_id(tree, candidate.idx) || ignore_span.contains(&candidate.span) {
-                return false;
-            }
-
-            if tree.get_node_type(candidate.idx) != NodeType::Expression {
-                return false;
-            }
-
-            if !candidate.span.intersects(prev_token.span)
-                || !candidate.span.intersects(forward_token.span)
-            {
-                return false;
-            }
-
-            matches!(
-                tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
-                Expression::TypeMapped { .. }
-            )
-        },
-    )
-    .map(|span| span.idx)?;
-
-    let mapped_owner_id = LocalNodeId::<Expression>::new(mapped_owner_id);
-    let Expression::TypeMapped { value, .. } = tree.get(mapped_owner_id) else {
-        return None;
-    };
-
-    if forward_target_id == value.id {
-        return Some(value.id);
-    }
-
-    None
-}
-
-/// Return whether this `)` token closes a control head like `if (...)` or `while (...)`.
-fn annotation_is_control_head_close_parenthesis(
-    file: &File,
-    tokens: &[TokenSpan],
-    close_parenthesis_idx: usize,
-) -> bool {
-    let close_parenthesis = tokens.get(close_parenthesis_idx);
-    if close_parenthesis.is_none_or(|token| token.token.ty != TokenType::CloseParenthesis) {
-        return false;
-    }
-
-    let mut depth = 0u32;
-    let mut open_parenthesis_idx = None;
-    let mut cursor = close_parenthesis_idx;
-    while cursor > 0 {
-        cursor -= 1;
-        let token = tokens[cursor];
-        if token.token.ty == TokenType::CloseParenthesis {
-            depth += 1;
-            continue;
-        }
-        if token.token.ty == TokenType::OpenParenthesis {
-            if depth == 0 {
-                open_parenthesis_idx = Some(cursor);
-                break;
-            }
-            depth -= 1;
-        }
-    }
-
-    let Some(open_parenthesis_idx) = open_parenthesis_idx else {
-        return false;
-    };
-
-    let mut keyword_idx = open_parenthesis_idx;
-    while keyword_idx > 0 {
-        keyword_idx -= 1;
-        let token = tokens[keyword_idx];
-        if token.token.ty == TokenType::Whitespace || token.token.ty == TokenType::Newline {
-            continue;
-        }
-        if ANNOTATION_TOKEN_TYPES.contains(&token.token.ty) {
-            continue;
-        }
-
-        let keyword_text = file.span_str(token.span);
-        return matches!(
-            keyword_text,
-            "if" | "while" | "for" | "switch" | "catch" | "with"
-        );
-    }
-
-    false
-}
-
-/// Find the annotation target for one side annotation token group.
-#[allow(clippy::too_many_arguments)]
-fn find_side_annotation_target(
-    tree: &NodeTree,
-    source_map: &NodeSourceMap,
-    file: &File,
-    token_idx: u32,
-    tokens: &[TokenSpan],
-    line_indices: &[u32],
-    group_start_idx: usize,
-    group_end_idx: usize,
-    group_len: usize,
-    is_full_line: bool,
-    is_block_prefix_only: bool,
-    statement_wrappers: &[Option<u32>],
-    ignore_span: &MultiSpan,
-) -> Option<(AnnotationPosition, u32)> {
-    debug_assert!(group_len > 0);
-
-    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
-    let start_token = tokens[group_start_idx];
-    let is_block_comment = matches!(
-        start_token.token.ty,
-        TokenType::BlockComment | TokenType::DocBlockComment
-    );
-    let is_block_comment_single_line = if is_block_comment {
-        annotation_is_single_line_block_comment(file, start_token)
-    } else {
-        false
-    };
-    let is_one_line = if is_block_comment && !is_block_comment_single_line {
-        false
-    } else {
-        line_indices[group_start_idx] == line_indices[group_end_idx]
-    };
-    let enclosing_scope = find_node_enclosing_at(
-        source_map,
-        &start_token.span,
-        NodeSearchMode::SmallestInnermost,
-        |candidate| {
-            !is_annotation_node_id(tree, candidate.idx) && !ignore_span.contains(&candidate.span)
-        },
-    );
-    let enclosing_span = enclosing_scope.map(|scope| scope.span);
-
-    // type operator separator seams
-    if !is_block_prefix_only {
-        let prev_token = annotation_prev_token(token_idx, tokens, ignore_span, enclosing_span);
-        let forward_token = annotation_next_non_annotation_token(
-            token_idx as usize + group_len,
-            tokens,
-            ignore_span,
-            enclosing_span,
-        );
-
-        // `as const` and `as comptime`: seam comments belong to the full expression boundary
-        if let (Some((_, prev_token)), Some((_, forward_token))) = (prev_token, forward_token)
-            && annotation_is_identifier_keyword(file, prev_token, "as")
-            && annotation_is_type_unary_as_keyword_target(file, forward_token)
-            && let Some(operator_owner_id) = find_type_operator_owner_for_separator(
-                tree,
-                source_map,
-                prev_token,
-                forward_token,
-                ignore_span,
-            )
-        {
-            let target_node_id = annotation_promote_statement(
-                tree,
-                start_token,
-                operator_owner_id,
-                statement_wrappers,
-            );
-            return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
-        }
-
-        // `as` and `satisfies` with line comments before the rhs: keep on expression boundary
-        if start_token.token.ty == TokenType::LineComment
-            && let (Some((_, prev_token)), Some((_, forward_token))) = (prev_token, forward_token)
-            && annotation_is_type_operator_separator(file, prev_token)
-            && !annotation_is_type_unary_as_keyword_target(file, forward_token)
-            && let Some(operator_owner_id) = find_type_operator_owner_for_separator(
-                tree,
-                source_map,
-                prev_token,
-                forward_token,
-                ignore_span,
-            )
-        {
-            if let Some(argument_target_id) =
-                find_satisfies_right_static_argument_target(tree, operator_owner_id)
-            {
-                return Some((AnnotationPosition::LinePrefix, argument_target_id));
-            }
-
-            let target_node_id = annotation_promote_statement(
-                tree,
-                start_token,
-                operator_owner_id,
-                statement_wrappers,
-            );
-            return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
-        }
-
-        // `export // comment` before declaration heads: keep comment between export and head
-        if start_token.token.ty == TokenType::LineComment
-            && let (Some((prev_idx, prev_token)), Some((forward_idx, forward_token))) =
-                (prev_token, forward_token)
-            && line_indices[prev_idx] == line_indices[group_end_idx]
-            && annotation_is_identifier_keyword(file, prev_token, "export")
-            && annotation_is_declaration_head_start(
-                file,
-                tokens,
-                forward_idx,
-                ignore_span,
-                enclosing_span,
-            )
-            && let Some(declaration_owner_id) = find_node_enclosing_at(
-                source_map,
-                &prev_token.span,
-                NodeSearchMode::SmallestOutermost,
-                |candidate| {
-                    !is_annotation_node_id(tree, candidate.idx)
-                        && tree.get_node_type(candidate.idx) == NodeType::Declaration
-                        && candidate.span.intersects(forward_token.span)
-                },
-            )
-            .map(|span| span.idx)
-        {
-            return Some((AnnotationPosition::LinePrefix, declaration_owner_id));
-        }
-    }
-
-    // line prefix or postfix
-    if !is_block_prefix_only && is_one_line {
-        let prev_token = annotation_prev_token(token_idx, tokens, ignore_span, enclosing_span);
-        let next_token =
-            annotation_next_token(token_idx, group_len, tokens, ignore_span, enclosing_span);
-
-        // call/new argument seams: keep comments in argument list context
-        let prev_seam_token = prev_token.and_then(|(prev_idx, prev_token)| {
-            if prev_token.token.ty == TokenType::Newline {
-                return annotation_prev_significant_token(
-                    prev_idx,
-                    tokens,
-                    ignore_span,
-                    enclosing_span,
-                );
-            }
-
-            Some(prev_token)
+        nearest_owner_start_by_token[index] = owner_start_by_token[index].or_else(|| {
+            neighbor_index.next_attachable[index]
+                .and_then(|next_index| nearest_owner_start_by_token[next_index])
         });
-        if let Some((position, target_id)) = resolve_call_like_argument_seam_target(
-            tree,
-            source_map,
-            prev_seam_token,
-            next_token.map(|(_, token)| token),
-            ignore_span,
-        ) {
-            return Some((position, target_id));
-        }
-
-        // assignment seams with single-line block comments before a newline:
-        // keep the marker on the rhs prefix instead of trailing the lhs statement
-        if is_block_comment_single_line
-            && let Some((prev_idx, prev_token)) = prev_token
-            && line_indices[prev_idx] == line_indices[group_end_idx]
-            && AssignOperator::from_token(prev_token.token.ty).is_some()
-            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
-            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                token_idx as usize + group_len,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            )
-            && let Some(forward_target_id) = find_node_starting_at(
-                source_map,
-                &forward_token.span,
-                NodeSearchMode::SmallestOutermost,
-            )
-            .or_else(|| {
-                find_node_enclosing_at(
-                    source_map,
-                    &forward_token.span,
-                    NodeSearchMode::SmallestOutermost,
-                    |candidate| !is_annotation_node_id(tree, candidate.idx),
-                )
-            })
-            .map(|span| span.idx)
-        {
-            return Some((
-                AnnotationPosition::BlockPrefix,
-                annotation_promote_statement(
-                    tree,
-                    start_token,
-                    forward_target_id,
-                    statement_wrappers,
-                ),
-            ));
-        }
-
-        // assignment seam line comments on their own line:
-        // keep as rhs line-prefix so surrounding blank lines stay stable
-        if start_token.token.ty == TokenType::LineComment
-            && let Some(previous_significant_token) = annotation_prev_significant_token(
-                token_idx as usize,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            )
-            && AssignOperator::from_token(previous_significant_token.token.ty).is_some()
-            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
-            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                token_idx as usize + group_len,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            )
-            && let Some(forward_target_id) = find_node_starting_at(
-                source_map,
-                &forward_token.span,
-                NodeSearchMode::SmallestOutermost,
-            )
-            .or_else(|| {
-                find_node_enclosing_at(
-                    source_map,
-                    &forward_token.span,
-                    NodeSearchMode::SmallestOutermost,
-                    |candidate| !is_annotation_node_id(tree, candidate.idx),
-                )
-            })
-            .map(|span| span.idx)
-        {
-            return Some((
-                AnnotationPosition::LinePrefix,
-                annotation_promote_statement(
-                    tree,
-                    start_token,
-                    forward_target_id,
-                    statement_wrappers,
-                ),
-            ));
-        }
-
-        // inline member split: keep comments between receiver and dot on their own line
-        if let (Some((prev_idx, _)), Some((next_idx, next_token)), Some(enclosing_scope)) =
-            (prev_token, next_token, enclosing_scope)
-            && next_token.token.ty == TokenType::Dot
-            && line_indices[group_end_idx] == line_indices[next_idx]
-            && line_indices[prev_idx] == line_indices[group_end_idx]
-            && tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
-        {
-            let enclosing_expr_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
-            if matches!(tree.get(enclosing_expr_id), Expression::Path { .. }) {
-                return Some((AnnotationPosition::BlockInfix, enclosing_scope.idx));
-            }
-        }
-
-        // line postfix: check for directly preceding node that ends at the start token
-        let line_postfix_target = if let Some((prev_idx, prev_token)) = prev_token
-            && line_indices[prev_idx] == line_indices[group_end_idx]
-            && prev_token.token.ty != TokenType::Newline
-        {
-            let search_mode = if is_full_line && prev_token.token.ty == TokenType::Comma {
-                NodeSearchMode::BiggestOutermost
-            } else {
-                NodeSearchMode::SmallestOutermost
-            };
-            find_node_ending_at(source_map, &prev_token.span, search_mode)
-                .or_else(|| {
-                    // if prev_token is a separator and comment is at end of line,
-                    // look past the separator to find the element (handles `3, // comment`)
-                    let is_end_of_line = next_token.is_none()
-                        || next_token.unwrap().1.token.ty == TokenType::Newline
-                        || next_token.unwrap().1.token.ty == TokenType::End;
-                    if is_end_of_line
-                        && matches!(
-                            prev_token.token.ty,
-                            TokenType::Comma | TokenType::Semicolon | TokenType::ElementwiseOr
-                        )
-                    {
-                        // semicolon seam comments belong to the enclosing statement or member
-                        if prev_token.token.ty == TokenType::Semicolon {
-                            if let Some(separator_owner) = find_node_enclosing_at(
-                                source_map,
-                                &prev_token.span,
-                                NodeSearchMode::SmallestOutermost,
-                                |candidate| {
-                                    !is_annotation_node_id(tree, candidate.idx)
-                                        && !ignore_span.contains(&candidate.span)
-                                },
-                            ) {
-                                return Some(separator_owner);
-                            }
-                        }
-
-                        if token_idx <= 1 {
-                            return None;
-                        }
-
-                        let mut before_sep_idx = token_idx as usize - 1;
-                        while before_sep_idx > 0 {
-                            before_sep_idx -= 1;
-                            let before_token = tokens.get(before_sep_idx)?;
-                            if ignore_span.contains(&before_token.span)
-                                || before_token.token.ty == TokenType::Whitespace
-                            {
-                                continue;
-                            }
-
-                            return find_node_ending_at(
-                                source_map,
-                                &before_token.span,
-                                search_mode,
-                            );
-                        }
-                    }
-                    None
-                })
-                .map(|span| span.idx)
-        } else {
-            None
-        };
-
-        if let Some(target_node_id) = line_postfix_target {
-            if next_token.is_none()
-                || next_token.unwrap().1.token.ty == TokenType::Newline
-                || next_token.unwrap().1.token.ty == TokenType::End
-            {
-                // control-head line comments like `if (x) // note` bind to the body
-                if start_token.token.ty == TokenType::LineComment
-                    && let Some((prev_idx, prev_token)) = prev_token
-                    && prev_token.token.ty == TokenType::CloseParenthesis
-                    && annotation_is_control_head_close_parenthesis(file, tokens, prev_idx)
-                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                        token_idx as usize + group_len,
-                        tokens,
-                        ignore_span,
-                        enclosing_span,
-                    )
-                    && let Some(forward_target_id) = find_node_starting_at(
-                        source_map,
-                        &forward_token.span,
-                        NodeSearchMode::SmallestInnermost,
-                    )
-                    .or_else(|| {
-                        find_node_enclosing_at(
-                            source_map,
-                            &forward_token.span,
-                            NodeSearchMode::SmallestInnermost,
-                            |candidate| !is_annotation_node_id(tree, candidate.idx),
-                        )
-                    })
-                    .map(|span| span.idx)
-                {
-                    if debug_trivia {
-                        eprintln!("target-debug: control-head -> line-prefix {forward_target_id}");
-                    }
-                    let mut forward_target_id = forward_target_id;
-
-                    // prefer the widest expression starting at the seam so `run` promotes to `run()`
-                    if tree.get_node_type(forward_target_id) == NodeType::Expression
-                        && let Some(outer_expression_id) = find_node_starting_at(
-                            source_map,
-                            &forward_token.span,
-                            NodeSearchMode::BiggestOutermost,
-                        )
-                        .map(|span| span.idx)
-                        .filter(|candidate_id| {
-                            tree.get_node_type(*candidate_id) == NodeType::Expression
-                        })
-                    {
-                        forward_target_id = outer_expression_id;
-                    }
-
-                    // unwrap implicit body blocks to their single statement expression
-                    if tree.get_node_type(forward_target_id) == NodeType::Expression {
-                        let expression_id = LocalNodeId::<Expression>::new(forward_target_id);
-                        if let Expression::Block(block_id) = tree.get(expression_id) {
-                            let block = tree.get::<Block>(*block_id);
-                            if block.format == destack_ast::BlockFormat::Implicit
-                                && block.expressions.len() == 1
-                            {
-                                forward_target_id = block.expressions[0].id;
-                            }
-                        }
-                    }
-
-                    let promoted_target_id =
-                        if tree.get_node_type(forward_target_id) == NodeType::Expression {
-                            statement_wrappers
-                                .get(forward_target_id as usize)
-                                .and_then(|id| *id)
-                                .unwrap_or(forward_target_id)
-                        } else {
-                            forward_target_id
-                        };
-                    return Some((AnnotationPosition::LinePrefix, promoted_target_id));
-                }
-
-                // continuation seams like `target // note` + newline + `?.()`
-                if start_token.token.ty == TokenType::LineComment
-                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                        token_idx as usize + group_len,
-                        tokens,
-                        ignore_span,
-                        enclosing_span,
-                    )
-                    && matches!(
-                        forward_token.token.ty,
-                        TokenType::Maybe | TokenType::OpenParenthesis | TokenType::OpenBracket
-                    )
-                    && let Some(continuation_owner_id) = find_node_enclosing_at(
-                        source_map,
-                        &forward_token.span,
-                        NodeSearchMode::SmallestOutermost,
-                        |candidate| !is_annotation_node_id(tree, candidate.idx),
-                    )
-                    .map(|span| span.idx)
-                    && continuation_owner_id != target_node_id
-                    && tree.get_node_type(continuation_owner_id) == NodeType::Expression
-                {
-                    if debug_trivia {
-                        eprintln!(
-                            "target-debug: continuation promotion {target_node_id} -> {continuation_owner_id}"
-                        );
-                    }
-                    return Some((AnnotationPosition::LinePostfix, continuation_owner_id));
-                }
-
-                // declaration and method heads: move `// comment` before `{` into block bodies
-                if start_token.token.ty == TokenType::LineComment
-                    && let Some((_, prev_token)) = prev_token
-                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                        token_idx as usize + group_len,
-                        tokens,
-                        ignore_span,
-                        enclosing_span,
-                    )
-                    && forward_token.token.ty == TokenType::OpenBrace
-                    && let Some(declaration_owner_id) = find_node_enclosing_at(
-                        source_map,
-                        &prev_token.span,
-                        NodeSearchMode::SmallestOutermost,
-                        |candidate| {
-                            !is_annotation_node_id(tree, candidate.idx)
-                                && tree.get_node_type(candidate.idx) == NodeType::Declaration
-                        },
-                    )
-                    .map(|span| span.idx)
-                    && declaration_heritage_contains_expression(
-                        tree,
-                        declaration_owner_id,
-                        target_node_id,
-                    )
-                    && let Some((position, target_id)) =
-                        declaration_body_comment_target(tree, declaration_owner_id)
-                {
-                    return Some((position, target_id));
-                }
-
-                // expression and method heads: move `// comment` before `{` into block bodies
-                if start_token.token.ty == TokenType::LineComment
-                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                        token_idx as usize + group_len,
-                        tokens,
-                        ignore_span,
-                        enclosing_span,
-                    )
-                    && forward_token.token.ty == TokenType::OpenBrace
-                    && let Some(forward_target_id) = find_node_starting_at(
-                        source_map,
-                        &forward_token.span,
-                        NodeSearchMode::SmallestOutermost,
-                    )
-                    .or_else(|| {
-                        find_node_enclosing_at(
-                            source_map,
-                            &forward_token.span,
-                            NodeSearchMode::SmallestOutermost,
-                            |candidate| !is_annotation_node_id(tree, candidate.idx),
-                        )
-                    })
-                    .map(|span| span.idx)
-                {
-                    if tree.get_node_type(forward_target_id) == NodeType::Expression {
-                        let forward_expression_id =
-                            LocalNodeId::<Expression>::new(forward_target_id);
-                        if let Expression::Block(block_id) = tree.get(forward_expression_id) {
-                            let block = tree.get::<Block>(*block_id);
-                            if let Some(first_expression_id) = block.expressions.first().copied() {
-                                return Some((
-                                    AnnotationPosition::BlockPrefix,
-                                    first_expression_id.id,
-                                ));
-                            }
-
-                            return Some((AnnotationPosition::BlockInfix, forward_target_id));
-                        }
-                    }
-
-                    if tree.get_node_type(forward_target_id) == NodeType::Declaration
-                        && let Some((position, target_id)) =
-                            declaration_body_comment_target(tree, forward_target_id)
-                    {
-                        return Some((position, target_id));
-                    }
-                }
-
-                // field-like tails: keep boundary comments on member/property owners
-                if tree.get_node_type(target_node_id) == NodeType::Expression
-                    && statement_wrappers
-                        .get(target_node_id as usize)
-                        .and_then(|id| *id)
-                        .is_none()
-                    && let Some((_, prev_token)) = prev_token
-                    && let Some(field_owner_id) = find_node_enclosing_at(
-                        source_map,
-                        &prev_token.span,
-                        NodeSearchMode::SmallestOutermost,
-                        |candidate| {
-                            !is_annotation_node_id(tree, candidate.idx)
-                                && matches!(
-                                    tree.get_node_type(candidate.idx),
-                                    NodeType::Member | NodeType::Property
-                                )
-                        },
-                    )
-                    .map(|span| span.idx)
-                    && annotation_owner_is_field_like(tree, field_owner_id)
-                {
-                    return Some((AnnotationPosition::LinePostfixBoundary, field_owner_id));
-                }
-
-                if debug_trivia {
-                    eprintln!("target-debug: line-postfix-boundary {target_node_id}");
-                }
-                return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
-            } else {
-                if debug_trivia {
-                    eprintln!("target-debug: line-postfix {target_node_id}");
-                }
-                return Some((AnnotationPosition::LinePostfix, target_node_id));
-            }
-        }
-        // separator seams like `name: // comment` and `lhs = // marker` stay on rhs line-prefix
-        else if start_token.token.ty == TokenType::LineComment
-            && let Some((prev_idx, prev_token)) = prev_token
-            && line_indices[prev_idx] == line_indices[group_end_idx]
-            && annotation_is_forward_prefix_separator(prev_token)
-            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                token_idx as usize + group_len,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            )
-            && let Some(forward_target_id) = find_node_starting_at(
-                source_map,
-                &forward_token.span,
-                NodeSearchMode::SmallestOutermost,
-            )
-            .or_else(|| {
-                find_node_enclosing_at(
-                    source_map,
-                    &forward_token.span,
-                    NodeSearchMode::SmallestOutermost,
-                    |candidate| !is_annotation_node_id(tree, candidate.idx),
-                )
-            })
-            .map(|span| span.idx)
-        {
-            if prev_token.token.ty == TokenType::Colon
-                && let Some(mapped_value_target_id) = mapped_type_value_target_for_separator(
-                    tree,
-                    source_map,
-                    prev_token,
-                    forward_token,
-                    forward_target_id,
-                    ignore_span,
-                )
-            {
-                return Some((
-                    AnnotationPosition::LinePostfixBoundary,
-                    mapped_value_target_id,
-                ));
-            }
-
-            return Some((
-                AnnotationPosition::LinePrefix,
-                annotation_promote_statement(
-                    tree,
-                    start_token,
-                    forward_target_id,
-                    statement_wrappers,
-                ),
-            ));
-        }
-        // comments right after `implements` belong on the extends seam line, before `implements`
-        else if start_token.token.ty == TokenType::LineComment
-            && let previous_keyword_token = prev_token.and_then(|(prev_idx, prev_token)| {
-                if prev_token.token.ty == TokenType::Newline {
-                    annotation_prev_significant_token(prev_idx, tokens, ignore_span, enclosing_span)
-                } else {
-                    Some(prev_token)
-                }
-            })
-            && let Some(prev_token) = previous_keyword_token
-            && annotation_is_identifier_keyword(file, prev_token, "implements")
-            && let Some(declaration_owner_id) = find_node_enclosing_at(
-                source_map,
-                &prev_token.span,
-                NodeSearchMode::SmallestOutermost,
-                |candidate| {
-                    !is_annotation_node_id(tree, candidate.idx)
-                        && tree.get_node_type(candidate.idx) == NodeType::Declaration
-                },
-            )
-            .map(|span| span.idx)
-            && let Some(extends_target_id) =
-                declaration_last_extends_expression(tree, declaration_owner_id)
-        {
-            return Some((AnnotationPosition::LinePostfixBoundary, extends_target_id));
-        }
-        // comments between declaration names and `<...>` generic heads stay on the declaration seam
-        else if start_token.token.ty == TokenType::LineComment
-            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
-            && let Some(previous_significant_token) = annotation_prev_significant_token(
-                token_idx as usize,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            )
-            && previous_significant_token.token.ty == TokenType::Identifier
-            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                token_idx as usize + group_len,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            )
-            && forward_token.token.ty == TokenType::LessThan
-            && let Some(declaration_owner_id) = find_node_enclosing_at(
-                source_map,
-                &forward_token.span,
-                NodeSearchMode::SmallestOutermost,
-                |candidate| {
-                    !is_annotation_node_id(tree, candidate.idx)
-                        && tree.get_node_type(candidate.idx) == NodeType::Declaration
-                },
-            )
-            .map(|span| span.idx)
-        {
-            return Some((AnnotationPosition::LinePrefix, declaration_owner_id));
-        }
-        // comments before a leading semicolon stay on the previous statement boundary
-        else if start_token.token.ty == TokenType::LineComment
-            && let Some((_, prev_token)) = prev_token
-            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
-                token_idx as usize + group_len,
-                tokens,
-                ignore_span,
-                None,
-            )
-            && forward_token.token.ty == TokenType::Semicolon
-            && let Some(statement_owner_id) = find_node_enclosing_at(
-                source_map,
-                &prev_token.span,
-                NodeSearchMode::SmallestOutermost,
-                |candidate| {
-                    !is_annotation_node_id(tree, candidate.idx)
-                        && tree.get_node_type(candidate.idx) == NodeType::Expression
-                        && matches!(
-                            tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
-                            Expression::Statement(_)
-                        )
-                },
-            )
-            .map(|span| span.idx)
-        {
-            return Some((AnnotationPosition::LinePostfixBoundary, statement_owner_id));
-        }
-        // comments after statement semicolons stay on that statement line
-        else if let Some((prev_idx, prev_token)) = prev_token
-            && prev_token.token.ty == TokenType::Semicolon
-            && line_indices[prev_idx] == line_indices[group_end_idx]
-            && (next_token.is_none()
-                || next_token.unwrap().1.token.ty == TokenType::Newline
-                || next_token.unwrap().1.token.ty == TokenType::End)
-            && let Some(statement_owner_id) = find_node_enclosing_at(
-                source_map,
-                &prev_token.span,
-                NodeSearchMode::SmallestOutermost,
-                |candidate| {
-                    !is_annotation_node_id(tree, candidate.idx)
-                        && tree.get_node_type(candidate.idx) == NodeType::Expression
-                },
-            )
-            .map(|span| span.idx)
-        {
-            return Some((AnnotationPosition::LinePostfixBoundary, statement_owner_id));
-        }
-        // directive-tail block comments like `"use strict" /**/` stay on the directive line
-        else if is_block_comment_single_line
-            && let Some((prev_idx, prev_token)) = prev_token
-            && line_indices[prev_idx] == line_indices[group_end_idx]
-            && (next_token.is_none()
-                || next_token.unwrap().1.token.ty == TokenType::Newline
-                || next_token.unwrap().1.token.ty == TokenType::End)
-            && let Some(statement_owner_id) = find_node_enclosing_at(
-                source_map,
-                &prev_token.span,
-                NodeSearchMode::SmallestOutermost,
-                |candidate| {
-                    !is_annotation_node_id(tree, candidate.idx)
-                        && tree.get_node_type(candidate.idx) == NodeType::Expression
-                },
-            )
-            .map(|span| span.idx)
-            && matches!(
-                tree.get(LocalNodeId::<Expression>::new(statement_owner_id)),
-                Expression::Statement(_)
-            )
-        {
-            return Some((AnnotationPosition::LinePostfixBoundary, statement_owner_id));
-        }
-        // inline block comment before a node: keep on the same line
-        else if start_token.token.ty == TokenType::LineComment
-            && let Some((_, prev_token)) = prev_token
-            && prev_token.token.ty == TokenType::ElementwiseAnd
-            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
-        {
-            // keep `A & // note \n B` attached to the left member
-            let mut separator_owner = None;
-            let mut before_separator_idx = token_idx as usize;
-            while before_separator_idx > 0 {
-                before_separator_idx -= 1;
-                let Some(before_token) = tokens.get(before_separator_idx).copied() else {
-                    break;
-                };
-                if ignore_span.contains(&before_token.span)
-                    || before_token.token.ty == TokenType::Whitespace
-                    || before_token.token.ty == TokenType::Newline
-                {
-                    continue;
-                }
-                if before_token.token.ty == TokenType::ElementwiseAnd {
-                    continue;
-                }
-
-                separator_owner = find_node_ending_at(
-                    source_map,
-                    &before_token.span,
-                    NodeSearchMode::SmallestOutermost,
-                )
-                .map(|span| span.idx);
-                break;
-            }
-
-            if let Some(target_node_id) = separator_owner {
-                return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
-            }
-        }
-        // inline block comment before a node: keep on the same line
-        else if is_block_comment_single_line
-            && let Some((next_idx, next_token)) = next_token
-            && next_token.token.ty != TokenType::Newline
-            && !matches!(
-                next_token.token.ty,
-                TokenType::CloseParenthesis
-                    | TokenType::CloseBrace
-                    | TokenType::CloseBracket
-                    | TokenType::End
-            )
-            && (line_indices[group_end_idx] == line_indices[next_idx]
-                || line_indices[group_start_idx] == line_indices[next_idx])
-        {
-            let target_node_id = find_node_starting_at(
-                source_map,
-                &next_token.span,
-                NodeSearchMode::SmallestOutermost,
-            )
-            .or_else(|| {
-                find_node_enclosing_at(
-                    source_map,
-                    &next_token.span,
-                    NodeSearchMode::SmallestOutermost,
-                    |candidate| {
-                        !is_annotation_node_id(tree, candidate.idx)
-                            && !ignore_span.contains(&candidate.span)
-                    },
-                )
-            })
-            .or_else(|| {
-                find_node_enclosing_at(
-                    source_map,
-                    &next_token.span,
-                    NodeSearchMode::BiggestOutermost,
-                    |candidate| {
-                        !is_annotation_node_id(tree, candidate.idx)
-                            && !ignore_span.contains(&candidate.span)
-                    },
-                )
-            })
-            .map(|span| span.idx);
-
-            if let Some(target_node_id) = target_node_id {
-                let target_node_id = annotation_argument_value_expression_id(tree, target_node_id)
-                    .unwrap_or(target_node_id);
-                return Some((
-                    AnnotationPosition::LinePrefix,
-                    annotation_promote_statement(
-                        tree,
-                        start_token,
-                        target_node_id,
-                        statement_wrappers,
-                    ),
-                ));
-            }
-        }
-        // special case: inline comment between path segments attaches to the path as postfix
-        else if let Some((_, prev_token)) = prev_token
-            && let Some(enclosing_scope) = enclosing_scope
-            && tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
-        {
-            let expression_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
-            if let Expression::Path { path, .. } = tree.get(expression_id)
-                && path.segments.len() > 1
-                && enclosing_scope.span.end > prev_token.span.end
-            {
-                return Some((
-                    AnnotationPosition::LinePostfixBoundary,
-                    annotation_promote_statement(
-                        tree,
-                        start_token,
-                        expression_id.id,
-                        statement_wrappers,
-                    ),
-                ));
-            }
-        }
-        // line prefix: check for directly following node that starts at the end token
-        else if let Some((next_idx, next_token)) = next_token
-            && next_token.token.ty != TokenType::Newline
-            && !matches!(
-                next_token.token.ty,
-                TokenType::CloseParenthesis
-                    | TokenType::CloseBrace
-                    | TokenType::CloseBracket
-                    | TokenType::End
-            )
-            && (line_indices[group_end_idx] == line_indices[next_idx]
-                || line_indices[group_start_idx] == line_indices[next_idx])
-        {
-            let target_node_id = find_node_starting_at(
-                source_map,
-                &next_token.span,
-                NodeSearchMode::SmallestOutermost,
-            )
-            .or_else(|| {
-                find_node_enclosing_at(
-                    source_map,
-                    &next_token.span,
-                    NodeSearchMode::SmallestOutermost,
-                    |candidate| {
-                        !is_annotation_node_id(tree, candidate.idx)
-                            && !ignore_span.contains(&candidate.span)
-                    },
-                )
-            })
-            .map(|span| span.idx);
-
-            if let Some(target_node_id) = target_node_id {
-                return Some((
-                    AnnotationPosition::LinePrefix,
-                    annotation_promote_statement(
-                        tree,
-                        start_token,
-                        target_node_id,
-                        statement_wrappers,
-                    ),
-                ));
-            }
-        }
-        // comments before interpolation close braces should stay on the preceding expression boundary
-        else if start_token.token.ty == TokenType::LineComment
-            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
-            && annotation_next_non_annotation_token(
-                token_idx as usize + group_len,
-                tokens,
-                ignore_span,
-                enclosing_span,
-            )
-            .is_some_and(|(_, token)| token.token.ty == TokenType::CloseBrace)
-            && let Some((_, prev_token)) = prev_token
-            && let Some(target_node_id) = find_node_ending_at(
-                source_map,
-                &prev_token.span,
-                NodeSearchMode::BiggestOutermost,
-            )
-            .map(|span| span.idx)
-        {
-            return Some((
-                AnnotationPosition::LinePostfixBoundary,
-                annotation_promote_statement(tree, start_token, target_node_id, statement_wrappers),
-            ));
-        }
     }
 
-    // block prefix: find the following targetable node
-    let mut next_token_idx = token_idx as usize + group_len;
-    while let Some(next_token) = tokens.get(next_token_idx) {
-        if ignore_span.contains(&next_token.span)
-            || ANNOTATION_TOKEN_TYPES.contains(&next_token.token.ty)
-            || next_token.token.ty == TokenType::Whitespace
-        {
-            next_token_idx += 1;
+    nearest_owner_start_by_token
+}
+
+/// Build nearest end-owner ids for each semantic token index.
+fn build_formatter_nearest_owner_end_by_token(
+    semantic_tokens: &[TokenSpan],
+    owner_end_by_token: &[Option<u32>],
+    neighbor_index: &FormatterTokenNeighborIndex,
+) -> Vec<Option<u32>> {
+    let mut nearest_owner_end_by_token = vec![None; semantic_tokens.len()];
+
+    for index in 0..semantic_tokens.len() {
+        let token = semantic_tokens[index];
+        if !is_attachable_semantic_token_for_trivia(token.token.ty) {
+            nearest_owner_end_by_token[index] = neighbor_index.previous_attachable[index]
+                .and_then(|previous_index| nearest_owner_end_by_token[previous_index]);
             continue;
         }
-        if let Some(enclosing_span) = enclosing_span
-            && !enclosing_span.intersects(next_token.span)
-            && start_token.token.ty != TokenType::Newline
-        {
-            break;
-        }
-        let next_node = if is_block_prefix_only {
-            find_node_starting_at(
-                source_map,
-                &next_token.span,
-                NodeSearchMode::BiggestOutermost,
-            )
-            .or_else(|| {
-                find_node_enclosing_at(
-                    source_map,
-                    &next_token.span,
-                    NodeSearchMode::SmallestOutermost,
-                    |candidate| {
-                        !is_annotation_node_id(tree, candidate.idx)
-                            && !ignore_span.contains(&candidate.span)
-                    },
-                )
-            })
-        } else {
-            find_node_starting_at(
-                source_map,
-                &next_token.span,
-                NodeSearchMode::BiggestOutermost,
-            )
-        };
 
-        if let Some(next_node) = next_node {
-            let target_node_id =
-                annotation_promote_statement(tree, start_token, next_node.idx, statement_wrappers);
-            return Some((AnnotationPosition::BlockPrefix, target_node_id));
-        }
-        if next_token.token.ty == TokenType::Dot {
-            let target_node_id = find_node_enclosing_at(
-                source_map,
-                &next_token.span,
-                NodeSearchMode::SmallestOutermost,
-                |candidate| {
-                    !is_annotation_node_id(tree, candidate.idx)
-                        && !ignore_span.contains(&candidate.span)
-                },
-            )
-            .map(|span| span.idx);
-            if let Some(target_node_id) = target_node_id {
-                return Some((
-                    AnnotationPosition::BlockPrefix,
-                    annotation_promote_statement(
-                        tree,
-                        start_token,
-                        target_node_id,
-                        statement_wrappers,
-                    ),
-                ));
-            }
-        }
-        next_token_idx += 1;
+        nearest_owner_end_by_token[index] = owner_end_by_token[index].or_else(|| {
+            neighbor_index.previous_attachable[index]
+                .and_then(|previous_index| nearest_owner_end_by_token[previous_index])
+        });
     }
 
-    // block postfix: find the preceding targetable node
-    if !is_block_prefix_only && token_idx > 0 {
-        let mut prev_token_idx = token_idx as usize;
-        while prev_token_idx > 0 {
-            prev_token_idx -= 1;
-            let Some(prev_token) = tokens.get(prev_token_idx) else {
-                break;
-            };
-            if ignore_span.contains(&prev_token.span)
-                || ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.ty)
-                || prev_token.token.ty == TokenType::Whitespace
-            {
-                continue;
-            }
-            if let Some(enclosing_span) = enclosing_span
-                && !enclosing_span.intersects(prev_token.span)
-            {
-                break;
-            }
-            if let Some(prev_node) = find_node_ending_at(
-                source_map,
-                &prev_token.span,
-                NodeSearchMode::BiggestOutermost,
-            ) {
-                return Some((
-                    AnnotationPosition::BlockPostfix,
-                    annotation_promote_statement(
-                        tree,
-                        start_token,
-                        prev_node.idx,
-                        statement_wrappers,
-                    ),
-                ));
-            }
-        }
-    }
-
-    // find inner enclosing node (block infix)
-    if !is_block_prefix_only && let Some(enclosing_node) = enclosing_scope {
-        return Some((
-            AnnotationPosition::BlockInfix,
-            annotation_promote_statement(tree, start_token, enclosing_node.idx, statement_wrappers),
-        ));
-    }
-
-    None
+    nearest_owner_end_by_token
 }
 
-/// Collect semantic and side tokens without whitespace in source order.
-fn collect_annotation_tokens(
-    tokens: &[TokenSpan],
-    side_tokens: &[TokenSpan],
-    file: &File,
-) -> (Vec<TokenSpan>, Vec<u32>) {
-    let mut merged = Vec::with_capacity(tokens.len() + side_tokens.len());
-    let mut line_indices = Vec::with_capacity(tokens.len() + side_tokens.len());
+/// Build owner indexes for formatter-side trivia attachment.
+fn build_formatter_trivia_owner_index(
+    tree: &NodeTree,
+    semantic_tokens: &[TokenSpan],
+) -> FormatterTriviaOwnerIndex {
+    let neighbor_index = build_formatter_token_neighbor_index(semantic_tokens);
+    let (owner_start_by_token, owner_end_by_token) =
+        build_formatter_owner_start_end_by_token(tree, semantic_tokens);
+    let nearest_owner_start_by_token = build_formatter_nearest_owner_start_by_token(
+        semantic_tokens,
+        &owner_start_by_token,
+        &neighbor_index,
+    );
+    let nearest_owner_end_by_token = build_formatter_nearest_owner_end_by_token(
+        semantic_tokens,
+        &owner_end_by_token,
+        &neighbor_index,
+    );
 
-    let mut main_index = 0usize;
-    let mut side_index = 0usize;
+    FormatterTriviaOwnerIndex {
+        owner_start_by_token,
+        owner_end_by_token,
+        nearest_owner_start_by_token,
+        nearest_owner_end_by_token,
+    }
+}
+
+/// Decode one compact token index with sentinel for none.
+fn decode_token_index(token_index: u32) -> Option<usize> {
+    (token_index != NO_TOKEN_INDEX).then_some(token_index as usize)
+}
+
+/// Normalize one trivia owner id to the canonical structural owner.
+fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u32 {
+    let mut current_id = owner_id;
+
     loop {
-        while let Some(token) = tokens.get(main_index) {
-            if token.token.ty != TokenType::Whitespace {
-                break;
-            }
-            main_index += 1;
+        if tree.get_node_type(current_id) != NodeType::Expression {
+            return current_id;
         }
 
-        while let Some(token) = side_tokens.get(side_index) {
-            if token.token.ty != TokenType::Whitespace {
-                break;
+        let expression_id = LocalNodeId::<Expression>::new(current_id);
+        match tree.get(expression_id) {
+            // statement wrappers are transparent for trivia ownership
+            Expression::Statement(expression) => {
+                current_id = expression.id;
             }
-            side_index += 1;
+            // parenthesized wrappers are transparent for trivia ownership
+            Expression::Parenthesized { expression } => {
+                current_id = expression.id;
+            }
+            // block expression trivia belongs to the block container
+            Expression::Block(block) => {
+                return block.id;
+            }
+            // declaration expression trivia belongs to the declaration node
+            Expression::Declaration(declaration) => {
+                return declaration.id;
+            }
+            _ => {
+                return current_id;
+            }
         }
-
-        let main_token = tokens.get(main_index).copied();
-        let side_token = side_tokens.get(side_index).copied();
-        let next = match (main_token, side_token) {
-            (Some(main_token), Some(side_token)) => {
-                if main_token.span.start <= side_token.span.start {
-                    main_index += 1;
-                    Some(main_token)
-                } else {
-                    side_index += 1;
-                    Some(side_token)
-                }
-            }
-            (Some(main_token), None) => {
-                main_index += 1;
-                Some(main_token)
-            }
-            (None, Some(side_token)) => {
-                side_index += 1;
-                Some(side_token)
-            }
-            (None, None) => None,
-        };
-
-        let Some(next) = next else {
-            break;
-        };
-
-        let line_index = file
-            .get_position(next.span.start)
-            .map_or(0, |position| position.0);
-        merged.push(next);
-        line_indices.push(line_index);
     }
-
-    (merged, line_indices)
 }
 
-/// Build formatter-owned annotation ids and entries from semantic attachments and trivia.
+/// Resolve one comment trivia target owner and position from token seams.
+fn resolve_formatter_comment_trivia_attachment(
+    tree: &NodeTree,
+    trivia: destack_ast::CommentTrivia,
+    owner_index: &FormatterTriviaOwnerIndex,
+) -> (Option<u32>, AnnotationPosition) {
+    let token_before = decode_token_index(trivia.boundary.token_before);
+    let token_after = decode_token_index(trivia.boundary.token_after);
+
+    let right_owner = token_after
+        .and_then(|index| {
+            owner_index
+                .owner_start_by_token
+                .get(index)
+                .and_then(|owner| *owner)
+        })
+        .or_else(|| {
+            token_after.and_then(|index| {
+                owner_index
+                    .nearest_owner_start_by_token
+                    .get(index)
+                    .and_then(|owner| *owner)
+            })
+        });
+    let left_owner = token_before
+        .and_then(|index| {
+            owner_index
+                .owner_end_by_token
+                .get(index)
+                .and_then(|owner| *owner)
+        })
+        .or_else(|| {
+            token_before.and_then(|index| {
+                owner_index
+                    .nearest_owner_end_by_token
+                    .get(index)
+                    .and_then(|owner| *owner)
+            })
+        });
+
+    let has_leading_newline = trivia.boundary.newlines.has_leading_newline();
+    let has_trailing_newline = trivia.boundary.newlines.has_trailing_newline();
+
+    // own-line comments prefer the right owner as block-prefix
+    if has_leading_newline && let Some(target_node) = right_owner {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::BlockPrefix);
+    }
+
+    // trailing-line comments prefer the left owner as boundary-postfix
+    if (has_trailing_newline || token_after.is_none())
+        && let Some(target_node) = left_owner
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
+    }
+
+    // same-line seams prefer the right owner as line-prefix
+    if let Some(target_node) = right_owner {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::LinePrefix);
+    }
+
+    // fallback to left owner as line-postfix
+    if let Some(target_node) = left_owner {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::LinePostfix);
+    }
+
+    (None, AnnotationPosition::BlockInfix)
+}
+
+/// Resolve one blank trivia target owner and position from token seams.
+fn resolve_formatter_blank_trivia_attachment(
+    tree: &NodeTree,
+    trivia: destack_ast::BlankTrivia,
+    owner_index: &FormatterTriviaOwnerIndex,
+) -> (Option<u32>, AnnotationPosition) {
+    let token_before = decode_token_index(trivia.boundary.token_before);
+    let token_after = decode_token_index(trivia.boundary.token_after);
+
+    let right_owner = token_after
+        .and_then(|index| {
+            owner_index
+                .owner_start_by_token
+                .get(index)
+                .and_then(|owner| *owner)
+        })
+        .or_else(|| {
+            token_after.and_then(|index| {
+                owner_index
+                    .nearest_owner_start_by_token
+                    .get(index)
+                    .and_then(|owner| *owner)
+            })
+        });
+    let left_owner = token_before
+        .and_then(|index| {
+            owner_index
+                .owner_end_by_token
+                .get(index)
+                .and_then(|owner| *owner)
+        })
+        .or_else(|| {
+            token_before.and_then(|index| {
+                owner_index
+                    .nearest_owner_end_by_token
+                    .get(index)
+                    .and_then(|owner| *owner)
+            })
+        });
+
+    if let Some(target_node) = right_owner {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::BlockPrefix);
+    }
+
+    if let Some(target_node) = left_owner {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return (Some(target_node), AnnotationPosition::BlockPostfix);
+    }
+
+    (None, AnnotationPosition::BlockInfix)
+}
+
 fn build_formatter_annotation_projection(
-    file: &File,
+    _file: &File,
     tree: &NodeTree,
     tokens: &[TokenSpan],
-    side_tokens: &[TokenSpan],
-    side_span: &MultiSpan,
+    _side_tokens: &[TokenSpan],
+    _side_span: &MultiSpan,
 ) -> (
     Vec<FormatterAnnotationEntry>,
     Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
@@ -2203,102 +706,16 @@ fn build_formatter_annotation_projection(
         }
     }
 
-    // side annotation mapping
-    let statement_wrappers = collect_statement_wrappers(tree);
-    let (annotation_tokens, line_indices) = collect_annotation_tokens(tokens, side_tokens, file);
+    // build formatter-side owner indexes for trivia placement
+    let owner_index = build_formatter_trivia_owner_index(tree, tokens);
 
-    let mut token_index_by_span_and_type = FxHashMap::<(u32, u32, TokenType), usize>::default();
-    let mut newline_index_by_start = FxHashMap::<u32, usize>::default();
-    for (token_index, token) in annotation_tokens.iter().copied().enumerate() {
-        if !is_side_annotation_token(token.token.ty) {
-            continue;
-        }
-        token_index_by_span_and_type.insert(
-            (token.span.start, token.span.end, token.token.ty),
-            token_index,
-        );
-        if token.token.ty == TokenType::Newline {
-            newline_index_by_start.insert(token.span.start, token_index);
-        }
-    }
-
-    // add formatter-placed comment trivia with legacy-compatible targeting
-    let debug_trivia = std::env::var("DESTACK_DEBUG_TRIVIA").is_ok();
+    // add comment trivia with formatter-side placement resolution
     for trivia in tree.comment_trivia().iter().copied() {
-        let comment = tree.get::<Comment>(trivia.comment);
-        let token_index = match comment.style {
-            CommentStyle::Slash => token_index_by_span_and_type
-                .get(&(trivia.span.start, trivia.span.end, TokenType::LineComment))
-                .copied()
-                .or_else(|| {
-                    token_index_by_span_and_type
-                        .get(&(
-                            trivia.span.start,
-                            trivia.span.end,
-                            TokenType::DocLineComment,
-                        ))
-                        .copied()
-                }),
-            CommentStyle::Star => token_index_by_span_and_type
-                .get(&(trivia.span.start, trivia.span.end, TokenType::BlockComment))
-                .copied()
-                .or_else(|| {
-                    token_index_by_span_and_type
-                        .get(&(
-                            trivia.span.start,
-                            trivia.span.end,
-                            TokenType::DocBlockComment,
-                        ))
-                        .copied()
-                }),
-        };
-        let Some(token_index) = token_index else {
+        let (target_id, position) =
+            resolve_formatter_comment_trivia_attachment(tree, trivia, &owner_index);
+        let Some(target_id) = target_id else {
             continue;
         };
-
-        let Some((position, target_id)) = find_side_annotation_target(
-            tree,
-            &tree.source_map,
-            file,
-            token_index as u32,
-            &annotation_tokens,
-            &line_indices,
-            token_index,
-            token_index,
-            1,
-            comment.style == CommentStyle::Slash,
-            false,
-            &statement_wrappers,
-            side_span,
-        ) else {
-            continue;
-        };
-        if debug_trivia {
-            let comment_text = file.span_str(trivia.span);
-            let previous_non_whitespace = file
-                .span_str(Span::new(file.id, 0, trivia.span.start))
-                .chars()
-                .rev()
-                .find(|character| !character.is_whitespace());
-            let target_type = tree.get_node_type(target_id);
-            if target_type == NodeType::Expression {
-                let expression = tree.get(LocalNodeId::<Expression>::new(target_id));
-                eprintln!(
-                    "comment {:?} => {:?} on {} ({:?}) prev_char={:?} expression={:?}",
-                    comment_text,
-                    position,
-                    target_id,
-                    target_type,
-                    previous_non_whitespace,
-                    expression
-                );
-            } else {
-                eprintln!(
-                    "comment {:?} => {:?} on {} ({:?}) prev_char={:?}",
-                    comment_text, position, target_id, target_type, previous_non_whitespace
-                );
-            }
-        }
         if target_id as usize >= by_node_id.len() {
             continue;
         }
@@ -2314,68 +731,13 @@ fn build_formatter_annotation_projection(
         by_node_id[target_id as usize].push(local_id);
     }
 
-    // add formatter-placed blank trivia with legacy-compatible targeting
+    // add blank trivia with formatter-side placement resolution
     for trivia in tree.blank_trivia().iter().copied() {
-        let Some(start_token_index) = newline_index_by_start.get(&trivia.span.start).copied()
-        else {
+        let (target_id, position) =
+            resolve_formatter_blank_trivia_attachment(tree, trivia, &owner_index);
+        let Some(target_id) = target_id else {
             continue;
         };
-
-        let mut end_token_index = start_token_index;
-        let mut cursor = start_token_index;
-        while let Some(token) = annotation_tokens.get(cursor).copied() {
-            if token.token.ty != TokenType::Newline {
-                break;
-            }
-            if token.span.start < trivia.span.start || token.span.end > trivia.span.end {
-                break;
-            }
-            end_token_index = cursor;
-            cursor += 1;
-        }
-
-        let group_len = end_token_index.saturating_sub(start_token_index) + 1;
-        if group_len <= 1 {
-            continue;
-        }
-
-        let Some((position, target_id)) = find_side_annotation_target(
-            tree,
-            &tree.source_map,
-            file,
-            start_token_index as u32,
-            &annotation_tokens,
-            &line_indices,
-            start_token_index,
-            end_token_index,
-            group_len,
-            false,
-            false,
-            &statement_wrappers,
-            side_span,
-        ) else {
-            continue;
-        };
-        if debug_trivia {
-            if tree.get_node_type(target_id) == NodeType::Expression {
-                eprintln!(
-                    "blank {:?} => {:?} on {} ({:?}) expression={:?}",
-                    file.span_str(trivia.span),
-                    position,
-                    target_id,
-                    tree.get_node_type(target_id),
-                    tree.get(LocalNodeId::<Expression>::new(target_id))
-                );
-            } else {
-                eprintln!(
-                    "blank {:?} => {:?} on {} ({:?})",
-                    file.span_str(trivia.span),
-                    position,
-                    target_id,
-                    tree.get_node_type(target_id)
-                );
-            }
-        }
         if target_id as usize >= by_node_id.len() {
             continue;
         }
@@ -2942,6 +1304,18 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn get_token_str(&self, token: TokenSpan) -> &'a str {
         self.get_span_str(token.span)
+    }
+
+    /// Get one normalized comment payload string.
+    #[inline]
+    pub fn get_comment_text(&self, comment_id: LocalNodeId<Comment>) -> Cow<'a, str> {
+        let comment = self.tree.get(comment_id);
+        if let Some(string_id) = comment.string {
+            return Cow::Borrowed(self.strings.get(string_id));
+        }
+
+        let comment_source = self.get_span_str(self.get_span(comment_id));
+        normalize_comment_payload(comment_source)
     }
 
     /// Get comment tokens sorted by source position.

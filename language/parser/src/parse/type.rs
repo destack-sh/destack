@@ -1326,8 +1326,9 @@ impl Parser {
             return false;
         };
 
-        let annotations = self.tree.get_annotations(expression_id.id);
-        annotations.into_iter().any(|annotation_id| {
+        // decorated class heads own decorators on the semantic declaration node
+        let declaration_annotations = self.tree.get_annotations(declaration_id.id);
+        declaration_annotations.into_iter().any(|annotation_id| {
             matches!(
                 self.tree.get::<Annotation>(annotation_id),
                 Annotation::Decorator { .. }
