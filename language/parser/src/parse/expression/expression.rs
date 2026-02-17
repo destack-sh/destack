@@ -1297,36 +1297,67 @@ impl Parser {
         Ok(expression_id)
     }
 
-    /// Attach pending decorators to the best expression target.
+    /// Attach pending decorators to the best structural target node.
     fn attach_pending_decorators_to_expression(
         &mut self,
         decorators: &mut PendingDecorators,
         expression_id: LocalNodeId<Expression>,
     ) {
-        let target_expression_id = self.decorator_target_expression(expression_id);
-        self.attach_decorators(target_expression_id.id, std::mem::take(decorators));
+        let target_node_id = self.decorator_target_node_id(expression_id);
+        self.attach_decorators(target_node_id, std::mem::take(decorators));
     }
 
-    /// Return the expression target that should own prefix decorators.
-    fn decorator_target_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        let expression = self.tree.get(expression_id);
-        let Expression::Export { items, .. } = expression else {
-            return expression_id;
-        };
+    /// Return the structural node id that should own prefix decorators.
+    fn decorator_target_node_id(&self, expression_id: LocalNodeId<Expression>) -> u32 {
+        let mut current_expression_id = expression_id;
 
-        for item_id in items {
-            let item = self.tree.get(*item_id);
-            let Some(value) = item.value else {
-                continue;
-            };
-            if matches!(self.tree.get(value), Expression::Declaration(_)) {
-                return value;
+        loop {
+            let expression = self.tree.get(current_expression_id);
+            match expression {
+                // declaration expressions bind decorators to the declaration node itself
+                Expression::Declaration(declaration_id) => {
+                    return declaration_id.id;
+                }
+
+                // statement wrappers around declarations are transparent for decorator ownership
+                Expression::Statement(inner_expression_id)
+                    if matches!(
+                        self.tree.get(*inner_expression_id),
+                        Expression::Declaration(_)
+                    ) =>
+                {
+                    current_expression_id = *inner_expression_id;
+                }
+
+                // export wrappers forward decorator ownership to the exported declaration expression
+                Expression::Export { items, .. } => {
+                    let mut exported_declaration_expression = None;
+                    for item_id in items {
+                        let item = self.tree.get(*item_id);
+                        let Some(value_expression_id) = item.value else {
+                            continue;
+                        };
+                        if matches!(
+                            self.tree.get(value_expression_id),
+                            Expression::Declaration(_)
+                        ) {
+                            exported_declaration_expression = Some(value_expression_id);
+                            break;
+                        }
+                    }
+
+                    if let Some(exported_declaration_expression) = exported_declaration_expression {
+                        current_expression_id = exported_declaration_expression;
+                    } else {
+                        return current_expression_id.id;
+                    }
+                }
+
+                // all other expressions own their decorators directly
+                _ => {
+                    return current_expression_id.id;
+                }
             }
         }
-
-        expression_id
     }
 }

@@ -482,6 +482,15 @@ pub(super) fn call_arguments_use_single_callback_argument_inline(
     }
 
     let argument_id = dynamic_arguments[0];
+    if argument_has_non_blank_annotation(context, argument_id) {
+        return false;
+    }
+
+    let value_id = argument_value_id(context.tree, argument_id);
+    if context.has_non_blank_annotation(value_id) {
+        return false;
+    }
+
     !argument_has_callback_blocking_comment_annotation(context, argument_id)
         && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
         && (argument_is_lambda_expression(context, argument_id)

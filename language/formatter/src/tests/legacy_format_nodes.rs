@@ -203,7 +203,7 @@ mod function {
         moreStuff: bar(),
         evenMoreStuff: foo(),
         moreMoreMoreStuff: baz(),
-    };
+    }
 }",
             |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false)
         );
@@ -485,10 +485,10 @@ mod let_declaration {
             r"const shapes = if (self.nextPiece) {
     const nextShape = next.shape;
     self.nextPiece = TetrisPiece.new();
-    nextShape;
+    nextShape
 } else {
     self.nextPiece = TetrisPiece.new();
-    TetrisGame.getRandomShape(random);
+    TetrisGame.getRandomShape(random)
 }",
             |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
@@ -596,7 +596,7 @@ mod try_expression {
         assert_format!(
             source,
             r"try {
-    foo();
+    foo()
 } catch match (e) {
     Error(err) => err
 }",
@@ -617,11 +617,11 @@ mod try_expression {
         assert_format!(
             source,
             r"try {
-    foo();
+    foo()
 } catch (e) {
-    bar();
+    bar()
 } finally {
-    baz();
+    baz()
 }",
             |p| p.eat_try(),
             DestackFormatOptions::default()

@@ -720,8 +720,8 @@ mod tests {
         TestFormatter, assert_format,
     };
 
-    /// Semicolons should be automatically inserted for every value-ignored expression.
-    /// Control flow forms like if and let only get semicolons if used as statements.
+    /// Semicolons should be inserted for non-tail statement expressions.
+    /// Tail expressions in value-position blocks should stay semicolonless.
     #[test]
     fn test_format_block_insert_semicolon() {
         assert_format!(
@@ -762,10 +762,10 @@ mod tests {
     y;
 
     if (x) {
-        y;
+        y
     } else {
         print("foo");
-        z(x);
+        z(x)
     }
 
     loop {
@@ -774,9 +774,9 @@ mod tests {
 
     let x = z();
     let x = if (let y = 1) {
-        z();
+        z()
     } else {
-        w();
+        w()
     };
 
     return 5;
@@ -903,7 +903,7 @@ mod tests {
                 )
             })
             .count();
-        assert_eq!(let_blank_annotations, 1);
+        assert_eq!(let_blank_annotations, 0);
 
         let let_blank_block_prefix = let_annotations
             .iter()
@@ -917,7 +917,7 @@ mod tests {
                 )
             })
             .count();
-        assert_eq!(let_blank_block_prefix, 1);
+        assert_eq!(let_blank_block_prefix, 0);
 
         let let_blank_line_prefix = let_annotations
             .iter()
@@ -933,7 +933,7 @@ mod tests {
             .count();
         assert_eq!(let_blank_line_prefix, 0);
 
-        assert!(context.has_blank_prefix_annotation(let_after_loop_id));
+        assert!(!context.has_blank_prefix_annotation(let_after_loop_id));
     }
 
     /// One blank line between loop and following let should stay one blank line.
@@ -1086,7 +1086,7 @@ mod tests {
     /// Block shouldn't break if the expression is used inline.
     #[test]
     fn test_format_block_inline() {
-        let source = "const x = if (y) {\n\tz;\n} else {\n\tw;\n}";
+        let source = "const x = if (y) { z } else { w }";
         assert_format!(
             "const x = if (y) { z } else { w }",
             source,
@@ -1099,7 +1099,7 @@ mod tests {
     fn test_format_block_statement_like() {
         assert_format!(
             "if (y) { z } else { w; }",
-            "if (y) {\n\tz;\n} else {\n\tw;\n}",
+            "if (y) {\n\tz\n} else {\n\tw;\n}",
             |p| p.eat_if(),
             DestackFormatOptions::default_tab()
         );

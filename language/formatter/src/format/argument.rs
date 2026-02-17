@@ -263,10 +263,8 @@ where
             }
         }
 
-        // grouped lists use one adaptive layout path, except single element call argument lists
-        let is_single_element_parenthesized_list =
-            self.elements.len() == 1 && self.start_token == "(" && self.end_token == ")";
-        if self.group_id.is_some() && !is_single_element_parenthesized_list {
+        // grouped lists use one adaptive layout path
+        if self.group_id.is_some() {
             format_grouped.format(f)?;
             return Ok(());
         }
@@ -303,94 +301,12 @@ where
             } else {
                 format_grouped.format(f)?;
             }
-        } else if is_single_element_parenthesized_list {
-            // single argument parenthesized lists should keep the opening paren on the same line
-            let element_id = self.elements[0];
-            let element_span = f.context().get_span(element_id);
-            let should_force_inline = f.context().has_newline(element_span)
-                || f.context().has_annotation(element_id)
-                || expression_argument_prefers_inline_parenthesized_layout(f.context(), element_id);
-            if should_force_inline {
-                format_inline.format(f)?;
-            } else {
-                let line_width = usize::from(options.line_width);
-                let element_len = f.context().span_char_len(element_span);
-                let element_source = f.context().get_span_str(element_span);
-                let delimiter_len = self.start_token.len().saturating_add(self.end_token.len());
-                let can_skip_best_fitting = element_source.is_ascii()
-                    && element_len <= line_width.saturating_sub(delimiter_len)
-                    && f.context().get_parent(element_id).is_some_and(
-                        |(parent_id, parent_type)| {
-                            if parent_type != NodeType::Expression {
-                                return false;
-                            }
-
-                            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                            let parent_span =
-                                f.context().get_span::<Expression>(parent_expression_id);
-                            let parent_source = f.context().get_span_str(parent_span);
-                            parent_source.is_ascii()
-                                && f.context().span_char_len(parent_span) <= line_width
-                        },
-                    );
-
-                if can_skip_best_fitting {
-                    f.context()
-                        .increment_counter("profile.argument.single_parenthesized.fast_path", 1);
-                    format_inline.format(f)?;
-                } else {
-                    f.context()
-                        .increment_counter("profile.argument.single_parenthesized.grouped", 1);
-                    format_grouped.format(f)?;
-                }
-            }
         } else {
             format_grouped.format(f)?;
         }
 
         Ok(())
     }
-}
-
-/// Return whether an expression argument should keep a hugged single-parenthesized layout.
-fn expression_argument_prefers_inline_parenthesized_layout<'ast, T>(
-    context: &DestackFormatContext<'ast>,
-    element_id: LocalNodeId<T>,
-) -> bool
-where
-    T: Node + Clone + FormatNode<'ast, T>,
-    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Expression> + NodeTreeImpl<Declaration>,
-{
-    if T::TYPE != NodeType::Expression {
-        return false;
-    }
-
-    let expression_id = LocalNodeId::<Expression>::new(element_id.id);
-    let expression = context.tree.get(expression_id);
-    if matches!(
-        expression,
-        Expression::ArrayExpression { .. }
-            | Expression::TupleExpression { .. }
-            | Expression::ObjectExpression { .. }
-            | Expression::TreeExpression { .. }
-            | Expression::Call { .. }
-            | Expression::Instantiation { .. }
-            | Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-            | Expression::Maybe { .. }
-    ) {
-        return true;
-    }
-
-    matches!(
-        expression,
-        Expression::Declaration(declaration_id)
-            if matches!(
-                context.tree.get(*declaration_id),
-                Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
-            )
-    )
 }
 
 /// Return whether the parent expression includes source line breaks around this element.

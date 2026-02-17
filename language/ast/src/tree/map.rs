@@ -1,15 +1,18 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
-use crate::{CapturingNodeVisitor, LocalNodeId, Node, NodeTree, NodeTreeImpl, walk_any};
+use crate::{
+    Annotation, Argument, Blank, Block, Comment, Declaration, Declarator, Decorator,
+    DependencyItem, Doc, EnumField, Expression, LocalNodeId, MatchCase, Member, Node, NodeTree,
+    NodeTreeImpl, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField,
+    Property, WhereClause, walk_any,
+};
 
 /// The NodeParentIndex is a side index of parent nodes into the AST NodeTree.
 /// (We maintain this separately since it's more convenient to build bottom up during parsing;
 ///  having bottom-up ids also makes it simpler to get the "innermost" or "outermost" node unambiguously.)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeParentIndex {
-    parent_id_by_node_id: Vec<Option<u32>>,
+    parent_id_by_node_id: Vec<u32>,
 }
 
 impl Default for NodeParentIndex {
@@ -19,6 +22,9 @@ impl Default for NodeParentIndex {
 }
 
 impl NodeParentIndex {
+    /// Sentinel used for nodes without a parent.
+    const NO_PARENT: u32 = u32::MAX;
+
     /// Create a new NodeParentIndex.
     pub fn new() -> Self {
         Self {
@@ -28,29 +34,16 @@ impl NodeParentIndex {
 
     /// Create a new NodeParentIndex from a NodeTree.
     pub fn from_tree(tree: &NodeTree) -> Self {
-        let mut capturing_visitor = CapturingNodeVisitor::default();
-        let mut parent_by_node: HashMap<u32, u32> = HashMap::new();
-
-        // capture the parents of each node
+        // build dense parent lookup directly: no hash map and no captured child list
+        let node_count = tree.node_type_by_node_id.len();
+        let mut visitor = ParentIndexBuilderVisitor::new(node_count);
         for (parent_id, node_type) in tree.node_type_by_node_id.iter().enumerate() {
-            capturing_visitor.reset();
-            walk_any(&mut capturing_visitor, tree, *node_type, parent_id as u32);
-            for node_id in capturing_visitor.visited() {
-                if *node_id != parent_id as u32 {
-                    // ignore self
-                    parent_by_node.insert(*node_id, parent_id as u32);
-                }
-            }
-        }
-
-        // put into linear map
-        let mut parents_per_node: Vec<Option<u32>> = Vec::new();
-        for i in 0..tree.node_type_by_node_id.len() {
-            parents_per_node.push(parent_by_node.get(&(i as u32)).cloned());
+            visitor.set_current_parent(parent_id as u32);
+            walk_any(&mut visitor, tree, *node_type, parent_id as u32);
         }
 
         Self {
-            parent_id_by_node_id: parents_per_node,
+            parent_id_by_node_id: visitor.take_parent_ids(),
         }
     }
 
@@ -60,13 +53,14 @@ impl NodeParentIndex {
     where
         T: Node,
     {
-        self.parent_id_by_node_id[node_id.id as usize]
+        self.get_by_id(node_id.id)
     }
 
     /// Get the parent for a node by its id.
     #[inline]
     pub fn get_by_id(&self, node_id: u32) -> Option<u32> {
-        self.parent_id_by_node_id[node_id as usize]
+        let parent_id = self.parent_id_by_node_id[node_id as usize];
+        (parent_id != Self::NO_PARENT).then_some(parent_id)
     }
 
     /// Walk all parents to the root.
@@ -93,6 +87,218 @@ impl NodeParentIndex {
 
     /// Append a root node with no parent.
     pub fn append_root(&mut self) {
-        self.parent_id_by_node_id.push(None);
+        self.parent_id_by_node_id.push(Self::NO_PARENT);
+    }
+}
+
+/// Internal visitor that records direct child to parent mappings.
+#[derive(Debug, Clone)]
+struct ParentIndexBuilderVisitor {
+    current_parent: u32,
+    parent_id_by_node_id: Vec<u32>,
+    options: NodeVisitorOptions,
+}
+
+impl ParentIndexBuilderVisitor {
+    /// Create a parent index builder with fixed node capacity.
+    fn new(node_count: usize) -> Self {
+        Self {
+            current_parent: 0,
+            parent_id_by_node_id: vec![NodeParentIndex::NO_PARENT; node_count],
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Set the current parent node being walked.
+    #[inline]
+    fn set_current_parent(&mut self, parent_id: u32) {
+        self.current_parent = parent_id;
+    }
+
+    /// Record a parent for a node when it is not the parent itself.
+    #[inline]
+    fn record_parent_for(&mut self, node_id: u32) {
+        if node_id == self.current_parent {
+            return;
+        }
+
+        self.parent_id_by_node_id[node_id as usize] = self.current_parent;
+    }
+
+    /// Consume the builder and return the dense parent table.
+    fn take_parent_ids(self) -> Vec<u32> {
+        self.parent_id_by_node_id
+    }
+}
+
+impl NodeVisitor for ParentIndexBuilderVisitor {
+    #[inline]
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    #[inline]
+    fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
+        self.record_parent_for(id);
+    }
+
+    #[inline]
+    fn visit_block(&mut self, _tree: &NodeTree, id: LocalNodeId<Block>, _block: &Block) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_expression(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Expression>,
+        _expression: &Expression,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_declaration(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Declaration>,
+        _declaration: &Declaration,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_property(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Property>,
+        _property: &Property,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_member(&mut self, _tree: &NodeTree, id: LocalNodeId<Member>, _member: &Member) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_enum_field(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<EnumField>,
+        _enum_field: &EnumField,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_where_clause(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<WhereClause>,
+        _where_clause: &WhereClause,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_dependency_item(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<DependencyItem>,
+        _dependency_item: &DependencyItem,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_parameter(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Parameter>,
+        _parameter: &Parameter,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_argument(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Argument>,
+        _argument: &Argument,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_match_case(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<MatchCase>,
+        _match_case: &MatchCase,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_declarator(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Declarator>,
+        _declarator: &Declarator,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_pattern(&mut self, _tree: &NodeTree, id: LocalNodeId<Pattern>, _pattern: &Pattern) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_pattern_field(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<PatternField>,
+        _pattern_field: &PatternField,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_annotation(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Annotation>,
+        _annotation: &Annotation,
+    ) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_blank(&mut self, _tree: &NodeTree, id: LocalNodeId<Blank>, _blank: &Blank) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_doc(&mut self, _tree: &NodeTree, id: LocalNodeId<Doc>, _doc: &Doc) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_comment(&mut self, _tree: &NodeTree, id: LocalNodeId<Comment>, _comment: &Comment) {
+        self.record_parent_for(id.id);
+    }
+
+    #[inline]
+    fn visit_decorator(
+        &mut self,
+        _tree: &NodeTree,
+        id: LocalNodeId<Decorator>,
+        _decorator: &Decorator,
+    ) {
+        self.record_parent_for(id.id);
     }
 }

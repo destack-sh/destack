@@ -110,9 +110,8 @@ impl LintRule for CommentLayout {
 
         // check inline comments
         for trivia in ctx.tree.comment_trivia().iter().copied() {
-            let comment = ctx.tree.get(trivia.comment);
-            let text = ctx.strings.get(comment.string);
-            let text = text.as_ref().trim();
+            let text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span)).into_owned();
+            let text = text.trim();
 
             // skip empty, directive, and separator comments
             if text.is_empty() || is_directive_comment(text) || is_separator_comment(text) {

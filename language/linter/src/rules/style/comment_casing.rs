@@ -40,8 +40,7 @@ impl LintRule for CommentCasing {
 
         // non doc comments should start with lowercase
         for trivia in ctx.tree.comment_trivia().iter().copied() {
-            let comment = ctx.tree.get(trivia.comment);
-            let comment_text = ctx.strings.get(comment.string);
+            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
             let comment_text = comment_text.as_ref().trim();
 
             // skip comments that are exempt from lowercase casing

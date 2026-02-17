@@ -1,3 +1,4 @@
+use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
@@ -33,8 +34,7 @@ impl LintRule for NoWarningComments {
 
         // iterate over all comment trivia records
         for trivia in ctx.tree.comment_trivia().iter().copied() {
-            let comment = ctx.tree.get(trivia.comment);
-            let comment_text = ctx.strings.get(comment.string);
+            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
             let comment_upper = comment_text.to_uppercase();
 
             // check for warning terms in the comment

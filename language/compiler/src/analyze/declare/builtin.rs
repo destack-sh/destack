@@ -1,7 +1,8 @@
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeIdAny, NodeType};
+use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolType};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, WellKnownIntrinsics};
 
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskResultCollector};
 
 impl Compiler {
@@ -69,6 +70,11 @@ impl Compiler {
             // scan active symbols for intrinsic bindings
             let symbols = module.dir(profile).symbols.read();
             for local_symbol_id in symbols.active_symbol_ids() {
+                // intrinsic bindings are only meaningful on callable function symbols
+                if local_symbol_id.ty != SymbolType::Function {
+                    continue;
+                }
+
                 // load the symbol and decorator
                 let symbol = symbols.get_symbol(local_symbol_id);
                 let Some(binding) = symbol.decorators.intrinsic_binding.as_ref() else {
@@ -77,6 +83,13 @@ impl Compiler {
 
                 // resolve the binding name id
                 let symbol_id = local_symbol_id.into_global(module_id);
+                let canonical_symbol_id = self.canonical_symbol_id(
+                    &module,
+                    &symbols,
+                    profile,
+                    symbol_id,
+                    CanonicalSymbolMode::FollowAliases,
+                );
                 let Some(name_id) = binding.name.or(symbol.name()) else {
                     let message = self
                         .program
@@ -90,13 +103,17 @@ impl Compiler {
 
                 // reject duplicate binding names
                 if let Some(existing) = intrinsics.symbols_by_name.get(&name_id)
-                    && *existing != symbol_id
+                    && *existing != canonical_symbol_id
                 {
-                    let name = self.program.strings.get(name_id);
-                    let message = self.program.strings.intern(&format!(
-                        "intrinsic name '{}' is already bound",
-                        name.as_ref()
-                    ));
+                    // copy name text before interning to avoid read-write lock inversion
+                    let name = {
+                        let name = self.program.strings.get(name_id);
+                        name.to_string()
+                    };
+                    let message = self
+                        .program
+                        .strings
+                        .intern(&format!("intrinsic name '{}' is already bound", name));
                     return Err(AnalyzeError::InvalidWellKnownDecorator {
                         node: intrinsic_binding_anchor(symbol, symbol_id, profile),
                         message,
@@ -104,8 +121,13 @@ impl Compiler {
                 }
 
                 // record the binding mapping
+                intrinsics
+                    .names_by_symbol
+                    .insert(canonical_symbol_id, name_id);
                 intrinsics.names_by_symbol.insert(symbol_id, name_id);
-                intrinsics.symbols_by_name.insert(name_id, symbol_id);
+                intrinsics
+                    .symbols_by_name
+                    .insert(name_id, canonical_symbol_id);
             }
         }
 

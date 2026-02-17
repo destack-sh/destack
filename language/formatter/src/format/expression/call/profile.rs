@@ -280,15 +280,6 @@ fn format_default_call_argument_list<'ast>(
     };
     let trailing_collection_has_comment_signal =
         trailing_collection_argument_has_comment_signal(f.context(), dynamic_arguments);
-    let single_callback_without_leading_prefix = if is_single_argument {
-        single_argument_id.is_some_and(|argument_id| {
-            (argument_is_lambda_expression(f.context(), argument_id)
-                || argument_is_function_expression(f.context(), argument_id))
-                && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
-        })
-    } else {
-        false
-    };
     let single_argument_has_source_separator_line_comment_annotation = if is_single_argument {
         single_argument_id.is_some_and(|argument_id| {
             argument_has_source_separator_line_comment_annotation(f.context(), argument_id)
@@ -333,7 +324,6 @@ fn format_default_call_argument_list<'ast>(
         list.disallow_trailing_separator();
     }
     if trailing_collection_has_comment_signal
-        || single_callback_without_leading_prefix
         || single_argument_has_source_separator_line_comment_annotation
     {
         list.disallow_trailing_separator();

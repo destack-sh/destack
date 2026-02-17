@@ -388,8 +388,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Block, Comment, CommentStyle, Expression, MatchCase, MatchKind, MatchSelector, Pattern,
-        ScalarLiteral,
+        AnnotationPosition, Block, Comment, CommentStyle, Expression, MatchCase, MatchKind,
+        MatchSelector, Pattern, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -860,14 +860,25 @@ switch (value) {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 3);
+        let before_ready_trivia = parser.tree.comment_trivia()[0];
+        assert_eq!(before_ready_trivia.position, AnnotationPosition::BlockInfix);
+        assert_eq!(before_ready_trivia.target_node, None);
         assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "before-ready");
         });
+
+        let ready_tail_trivia = parser.tree.comment_trivia()[1];
+        assert_eq!(ready_tail_trivia.position, AnnotationPosition::BlockInfix);
+        assert_eq!(ready_tail_trivia.target_node, None);
         assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "ready-tail");
         });
+
+        let default_tail_trivia = parser.tree.comment_trivia()[2];
+        assert_eq!(default_tail_trivia.position, AnnotationPosition::BlockInfix);
+        assert_eq!(default_tail_trivia.target_node, None);
         assert_node!(parser.tree, parser.tree.comment_trivia()[2].comment, Comment { string, style } => {
             assert_eq!(*style, CommentStyle::Slash);
             assert_string!(parser, *string, "default-tail");

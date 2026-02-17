@@ -95,7 +95,10 @@ macro_rules! assert_node {
 #[macro_export]
 macro_rules! assert_string {
     ($parser:expr, $id:expr, $expected:expr) => {{
-        let got = $parser.strings.get($id).to_string();
+        let maybe_id: Option<destack_base::StringId> = ::core::convert::Into::into($id);
+        let got = maybe_id
+            .map(|string_id| $parser.strings.get(string_id).to_string())
+            .unwrap_or_default();
         assert_eq!(got, $expected, "expected string");
     }};
 }

@@ -1,7 +1,6 @@
 use super::*;
 use crate::directive::is_ignore_directive_comment;
 use crate::scan::previous_non_whitespace_before_span as previous_non_whitespace_before_source_span;
-use destack_ast::Comment;
 
 /// Return a compact lower bound for one-line width from source text.
 #[inline]
@@ -165,15 +164,11 @@ pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
                     return false;
                 }
 
-                let comment = context.tree.get::<Comment>(node);
-                let comment_source = context.strings.get(comment.string);
-                if is_ignore_directive_comment(comment_source) {
+                let comment_source = context.get_comment_text(node);
+                if is_ignore_directive_comment(comment_source.as_ref()) {
                     return true;
                 }
-
-                let comment_span = context.get_span::<Comment>(node);
-                let raw_comment = context.get_span_str(comment_span);
-                is_ignore_directive_comment(raw_comment)
+                false
             })
         })
         .unwrap_or(false)
