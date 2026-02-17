@@ -867,6 +867,33 @@ fn encode_destack_process_fd_signal_fd_try_read_result(
     })
 }
 
+/// Encode the result for destack.process.fd.stdioStderr.
+#[inline]
+fn encode_destack_process_fd_stdio_stderr_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::FileHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Encode the result for destack.process.fd.stdioStdin.
+#[inline]
+fn encode_destack_process_fd_stdio_stdin_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::FileHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Encode the result for destack.process.fd.stdioStdout.
+#[inline]
+fn encode_destack_process_fd_stdio_stdout_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::FileHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
 /// Decode arguments for destack.process.group.cgroupGetLimit.
 #[inline]
 fn decode_destack_process_group_cgroup_get_limit_args(
@@ -2676,6 +2703,27 @@ struct ProcessFdSignalFdTryReadReplay {
     pub result: Result<SignalEvent, PlatformError>,
 }
 
+/// Replay payload for destack.process.fd.stdioStderr.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdStdioStderrReplay {
+    /// Replay result payload.
+    pub result: Result<resource::FileHandle, PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.stdioStdin.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdStdioStdinReplay {
+    /// Replay result payload.
+    pub result: Result<resource::FileHandle, PlatformError>,
+}
+
+/// Replay payload for destack.process.fd.stdioStdout.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ProcessFdStdioStdoutReplay {
+    /// Replay result payload.
+    pub result: Result<resource::FileHandle, PlatformError>,
+}
+
 /// Replay payload for destack.process.ids.egid.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ProcessIdsEgidReplay {
@@ -3427,6 +3475,84 @@ pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::
     BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.process.fd.stdioStderr.
+pub const PROCESS_FD_STDIO_STDERR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.stdioStderr",
+        "export function stdioStderr(): Result<FileHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.stdio"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.process.fd.stdioStdin.
+pub const PROCESS_FD_STDIO_STDIN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.stdioStdin",
+        "export function stdioStdin(): Result<FileHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.stdio"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.process.fd.stdioStdout.
+pub const PROCESS_FD_STDIO_STDOUT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.process.fd.stdioStdout",
+        "export function stdioStdout(): Result<FileHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["process.stdio"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.group.cgroupGetLimit.
 pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4579,6 +4705,9 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     PROCESS_FD_SIGNAL_FD_READ,
     PROCESS_FD_SIGNAL_FD_SET_MASK,
     PROCESS_FD_SIGNAL_FD_TRY_READ,
+    PROCESS_FD_STDIO_STDERR,
+    PROCESS_FD_STDIO_STDIN,
+    PROCESS_FD_STDIO_STDOUT,
     PROCESS_GROUP_CGROUP_GET_LIMIT,
     PROCESS_GROUP_CGROUP_JOIN,
     PROCESS_GROUP_CGROUP_SET_LIMIT,
@@ -4753,6 +4882,21 @@ pub const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             PROCESS_FD_SIGNAL_FD_TRY_READ,
             "destack.process.fd.signalFdTryRead",
             destack_process_fd_signal_fd_try_read as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_STDIO_STDERR,
+            "destack.process.fd.stdioStderr",
+            destack_process_fd_stdio_stderr as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_STDIO_STDIN,
+            "destack.process.fd.stdioStdin",
+            destack_process_fd_stdio_stdin as *const (),
+        ),
+        NativeBinding::new(
+            PROCESS_FD_STDIO_STDOUT,
+            "destack.process.fd.stdioStdout",
+            destack_process_fd_stdio_stdout as *const (),
         ),
         NativeBinding::new(
             PROCESS_GROUP_CGROUP_GET_LIMIT,
@@ -6367,6 +6511,180 @@ fn destack_process_fd_signal_fd_try_read_replay(
                         signal: value_native_signal,
                         pid: value_native_pid,
                     };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_stdio_stderr_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_payload_policy(
+        PROCESS_FD_STDIO_STDERR,
+        context.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_stdio_stderr(context, out)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_stdio_stderr(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = ProcessFdStdioStderrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdStdioStderrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_stdio_stdin_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_payload_policy(
+        PROCESS_FD_STDIO_STDIN,
+        context.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_stdio_stdin(context, out)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_stdio_stdin(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = ProcessFdStdioStdinReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdStdioStdinReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_process_fd_stdio_stdout_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_payload_policy(
+        PROCESS_FD_STDIO_STDOUT,
+        context.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_process_stdio_stdout(context, out)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_process_stdio_stdout(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = ProcessFdStdioStdoutReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ProcessFdStdioStdoutReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -9307,6 +9625,54 @@ pub unsafe extern "C" fn destack_process_fd_signal_fd_try_read(
     })
 }
 
+#[unsafe(export_name = "destack.process.fd.stdioStderr")]
+pub unsafe extern "C" fn destack_process_fd_stdio_stderr(
+    out: *mut resource::FileHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        context.check_policy(PROCESS_FD_STDIO_STDERR)?;
+        let world = context.check_and_resolve_world(PROCESS_FD_STDIO_STDERR)?;
+        destack_process_fd_stdio_stderr_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.stdioStdin")]
+pub unsafe extern "C" fn destack_process_fd_stdio_stdin(
+    out: *mut resource::FileHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        context.check_policy(PROCESS_FD_STDIO_STDIN)?;
+        let world = context.check_and_resolve_world(PROCESS_FD_STDIO_STDIN)?;
+        destack_process_fd_stdio_stdin_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.process.fd.stdioStdout")]
+pub unsafe extern "C" fn destack_process_fd_stdio_stdout(
+    out: *mut resource::FileHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        context.check_policy(PROCESS_FD_STDIO_STDOUT)?;
+        let world = context.check_and_resolve_world(PROCESS_FD_STDIO_STDOUT)?;
+        destack_process_fd_stdio_stdout_replay(context, world, out)
+    })
+}
+
 #[unsafe(export_name = "destack.process.group.cgroupGetLimit")]
 pub unsafe extern "C" fn destack_process_group_cgroup_get_limit(
     out: *mut ProcessLimit,
@@ -11638,6 +12004,171 @@ fn destack_process_fd_signal_fd_try_read_vm_replay(
             },
         );
     let result = encode_destack_process_fd_signal_fd_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_stdio_stderr_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            PROCESS_FD_STDIO_STDERR,
+            runtime.replay_payload_for(PROCESS_FD_STDIO_STDERR)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_stdio_stderr(runtime, context),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_stdio_stderr(runtime, context)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: resource::FileHandle = value.clone();
+                    let result_recorded = result_value;
+                    let payload = ProcessFdStdioStderrReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ProcessFdStdioStderrReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_process_fd_stdio_stderr_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_stdio_stdin_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            PROCESS_FD_STDIO_STDIN,
+            runtime.replay_payload_for(PROCESS_FD_STDIO_STDIN)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_stdio_stdin(runtime, context),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_stdio_stdin(runtime, context)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: resource::FileHandle = value.clone();
+                    let result_recorded = result_value;
+                    let payload = ProcessFdStdioStdinReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ProcessFdStdioStdinReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_process_fd_stdio_stdin_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_process_fd_stdio_stdout_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            PROCESS_FD_STDIO_STDOUT,
+            runtime.replay_payload_for(PROCESS_FD_STDIO_STDOUT)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_process_stdio_stdout(runtime, context),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_process_stdio_stdout(runtime, context)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: resource::FileHandle = value.clone();
+                    let result_recorded = result_value;
+                    let payload = ProcessFdStdioStdoutReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ProcessFdStdioStdoutReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_process_fd_stdio_stdout_result(context, result)?;
     Ok(result)
 }
 
@@ -14720,6 +15251,54 @@ pub fn register_process_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     runtime.check_policy(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
                     let world = runtime.check_and_resolve_world(PROCESS_FD_SIGNAL_FD_TRY_READ)?;
                     destack_process_fd_signal_fd_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_STDIO_STDERR,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // execute binding
+                    runtime.check_policy(PROCESS_FD_STDIO_STDERR)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_FD_STDIO_STDERR)?;
+                    destack_process_fd_stdio_stderr_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_STDIO_STDIN,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // execute binding
+                    runtime.check_policy(PROCESS_FD_STDIO_STDIN)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_FD_STDIO_STDIN)?;
+                    destack_process_fd_stdio_stdin_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            PROCESS_FD_STDIO_STDOUT,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // execute binding
+                    runtime.check_policy(PROCESS_FD_STDIO_STDOUT)?;
+                    let world = runtime.check_and_resolve_world(PROCESS_FD_STDIO_STDOUT)?;
+                    destack_process_fd_stdio_stdout_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
             }

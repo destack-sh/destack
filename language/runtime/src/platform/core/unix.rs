@@ -1,4 +1,4 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
 
 /// Build an I/O runtime error from the last unix errno value.
@@ -44,40 +44,4 @@ pub(crate) fn net_error_with_errno(syscall: &str, errno: i32) -> Box<RuntimeErro
         message,
     ))
     .boxed()
-}
-
-/// Write a full set of iovec buffers to a unix file descriptor.
-pub(crate) fn writev_all_fd(fd: libc::c_int, buffers: &mut [libc::iovec]) -> RuntimeResult<()> {
-    let mut start = 0;
-    while start < buffers.len() {
-        let rc = unsafe {
-            libc::writev(
-                fd,
-                buffers[start..].as_ptr(),
-                (buffers.len() - start) as i32,
-            )
-        };
-        if rc < 0 {
-            let errno = super::get_errno();
-            if errno == libc::EINTR {
-                continue;
-            }
-            return Err(io_error_with_errno("writev", errno, None));
-        }
-        let mut remaining = rc as usize;
-        while remaining > 0 && start < buffers.len() {
-            let current = buffers[start].iov_len;
-            if remaining < current {
-                let base = buffers[start].iov_base as *mut u8;
-                let advanced = unsafe { base.add(remaining) } as *mut libc::c_void;
-                buffers[start].iov_base = advanced;
-                buffers[start].iov_len = current - remaining;
-                remaining = 0;
-            } else {
-                remaining -= current;
-                start += 1;
-            }
-        }
-    }
-    Ok(())
 }

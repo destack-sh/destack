@@ -301,7 +301,7 @@ fn test_fs_openat2_rejects_resolve_flags() {
         };
         let result =
             context.destack_fs_openat2(dir_handle, path, context.open_options_value(options));
-        super::assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+        super::assert_platform_error_codes(result, &[PlatformErrorCode::NotSupported])?;
 
         // cleanup
         context.destack_fs_closedir(dir_handle)?;
@@ -348,7 +348,7 @@ fn test_fs_renameat2_rejects_exchange_flags() {
         let second = context.path_bytes(second_name);
         let result =
             context.destack_fs_renameat2(dir_handle, first, dir_handle, second, RenameFlags(0x2));
-        super::assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+        super::assert_platform_error_codes(result, &[PlatformErrorCode::NotSupported])?;
 
         // cleanup
         let first = context.path_bytes(first_name);

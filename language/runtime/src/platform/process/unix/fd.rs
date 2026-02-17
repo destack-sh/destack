@@ -5,6 +5,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{bindings_generated as bindings, core as core_process};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+    core as core_platform,
 };
 
 use crate::runtime::RuntimeCallContext;
@@ -19,6 +20,68 @@ use crate::platform::process::{
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
+/// Finalizer that closes one duplicated stdio file descriptor.
+#[derive(Debug)]
+struct StdioFdFinalizer {
+    /// File descriptor to close.
+    fd: libc::c_int,
+}
+
+impl resource::ResourceFinalizer for StdioFdFinalizer {
+    /// Close the duplicated descriptor when the resource is finalized.
+    fn finalize(self: Box<Self>, _resource_id: resource::ResourceId) {
+        unsafe {
+            libc::close(self.fd);
+        }
+    }
+}
+
+/// Duplicate one stdio descriptor for the current process.
+fn duplicate_stdio_fd(fd: libc::c_int) -> RuntimeResult<libc::c_int> {
+    // duplicate the descriptor
+    let duplicated = unsafe { libc::dup(fd) };
+    if duplicated < 0 {
+        return Err(core_platform::io_error("dup", None));
+    }
+
+    // set close on exec on the duplicated descriptor
+    let rc = unsafe { libc::fcntl(duplicated, libc::F_SETFD, libc::FD_CLOEXEC) };
+    if rc < 0 {
+        let error = core_platform::io_error("fcntl", None);
+        unsafe {
+            libc::close(duplicated);
+        }
+        return Err(error);
+    }
+
+    Ok(duplicated)
+}
+
+/// Register one duplicated stdio descriptor as a file handle.
+fn register_stdio_fd(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+    fd: libc::c_int,
+    label: &str,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let duplicated = duplicate_stdio_fd(fd)?;
+    let entry = resource::ResourceEntry::new(resource::ResourceKind::File)
+        .with_label(label)
+        .with_fd(duplicated)
+        .with_finalizer(StdioFdFinalizer { fd: duplicated });
+    let resource_id = context.runtime().resources.insert(entry);
+
+    unsafe {
+        *out = resource::FileHandle(resource_id);
+    }
+
+    Ok(())
+}
 
 /// Resolve a process-fd handle into its process id payload.
 fn resolve_process_fd(
@@ -140,6 +203,78 @@ fn ensure_signal_fd_handle(
     }
 
     Ok(())
+}
+
+/// Open one standard input stream handle.
+///
+/// Open one handle for the current process standard input stream.
+/// The returned handle can be used with file-handle read and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stdin(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    register_stdio_fd(context, out, libc::STDIN_FILENO, "process.stdio.stdin")
+}
+
+/// Open one standard output stream handle.
+///
+/// Open one handle for the current process standard output stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stdout(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    register_stdio_fd(context, out, libc::STDOUT_FILENO, "process.stdio.stdout")
+}
+
+/// Open one standard error stream handle.
+///
+/// Open one handle for the current process standard error stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_process_stdio_stderr(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+) -> RuntimeResult<()> {
+    register_stdio_fd(context, out, libc::STDERR_FILENO, "process.stdio.stderr")
 }
 
 /// Close one process descriptor.

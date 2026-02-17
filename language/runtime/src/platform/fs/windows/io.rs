@@ -417,17 +417,38 @@ pub(crate) unsafe fn destack_fs_read(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve the handle and cursor
-    let cursor = file_resource(context, handle)?;
-    let mut guard = cursor.lock();
-    let offset = FileOffset(*guard);
+    // use tracked cursor when the resource carries file state
+    if let Ok(cursor) = file_resource(context, handle) {
+        let mut guard = cursor.lock();
+        let offset = FileOffset(*guard);
 
-    // perform the read
-    unsafe { destack_fs_pread(context, out, handle, buffer, offset) }?;
+        unsafe { destack_fs_pread(context, out, handle, buffer, offset) }?;
 
-    // update the cursor
-    let bytes_read = unsafe { *out };
-    *guard = add_offset(*guard, bytes_read, "cursor")?;
+        let bytes_read = unsafe { *out };
+        *guard = add_offset(*guard, bytes_read, "cursor")?;
+        return Ok(());
+    }
+
+    // fall back to stream style reads for untracked handles
+    let handle = file_handle(context, handle)?;
+    let buffer = unsafe { buffer.as_mut_slice()? };
+    let mut bytes_read = 0_u32;
+    let rc = unsafe {
+        ReadFile(
+            handle,
+            buffer.as_mut_ptr() as *mut _,
+            buffer.len() as u32,
+            &mut bytes_read,
+            std::ptr::null_mut(),
+        )
+    };
+    if rc == 0 {
+        return Err(last_os_error("ReadFile", None));
+    }
+
+    unsafe {
+        *out = bytes_read as u64;
+    }
 
     Ok(())
 }
@@ -460,17 +481,38 @@ pub(crate) unsafe fn destack_fs_write(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // resolve the handle and cursor
-    let cursor = file_resource(context, handle)?;
-    let mut guard = cursor.lock();
-    let offset = FileOffset(*guard);
+    // use tracked cursor when the resource carries file state
+    if let Ok(cursor) = file_resource(context, handle) {
+        let mut guard = cursor.lock();
+        let offset = FileOffset(*guard);
 
-    // perform the write
-    unsafe { destack_fs_pwrite(context, out, handle, buffer, offset) }?;
+        unsafe { destack_fs_pwrite(context, out, handle, buffer, offset) }?;
 
-    // update the cursor
-    let bytes_written = unsafe { *out };
-    *guard = add_offset(*guard, bytes_written, "cursor")?;
+        let bytes_written = unsafe { *out };
+        *guard = add_offset(*guard, bytes_written, "cursor")?;
+        return Ok(());
+    }
+
+    // fall back to stream style writes for untracked handles
+    let handle = file_handle(context, handle)?;
+    let buffer = unsafe { buffer.as_slice()? };
+    let mut bytes_written = 0_u32;
+    let rc = unsafe {
+        WriteFile(
+            handle,
+            buffer.as_ptr() as *const _,
+            buffer.len() as u32,
+            &mut bytes_written,
+            std::ptr::null_mut(),
+        )
+    };
+    if rc == 0 {
+        return Err(last_os_error("WriteFile", None));
+    }
+
+    unsafe {
+        *out = bytes_written as u64;
+    }
 
     Ok(())
 }

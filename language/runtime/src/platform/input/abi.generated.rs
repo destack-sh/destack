@@ -4,10 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
-    VmValueCodec, input as platform_input, resource, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmValueCodec, input as platform_input, resource,
+    resource as platform_resource,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -33,7 +34,22 @@ pub enum InputDeviceKind {
 impl VmValueCodec for InputDeviceKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, InputDeviceKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Keyboard,
+            2u8 => Self::Mouse,
+            3u8 => Self::Touch,
+            4u8 => Self::Gamepad,
+            5u8 => Self::Pen,
+            255u8 => Self::Raw,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputDeviceKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -66,7 +82,24 @@ pub enum InputEventKind {
 impl VmValueCodec for InputEventKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, InputEventKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Key,
+            2u8 => Self::PointerMotion,
+            3u8 => Self::PointerButton,
+            4u8 => Self::Scroll,
+            5u8 => Self::Touch,
+            6u8 => Self::Gamepad,
+            7u8 => Self::Text,
+            8u8 => Self::Device,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputEventKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

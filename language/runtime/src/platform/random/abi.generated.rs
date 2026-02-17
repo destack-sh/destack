@@ -4,9 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, random as platform_random};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, random as platform_random};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +43,18 @@ pub enum RandomStreamDomain {
 impl VmValueCodec for RandomStreamDomain {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, RandomStreamDomain>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Process,
+            2u8 => Self::Task,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown RandomStreamDomain value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -70,7 +81,21 @@ pub enum SecureRandomSource {
 impl VmValueCodec for SecureRandomSource {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SecureRandomSource>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Kernel,
+            2u8 => Self::SystemCryptoProvider,
+            3u8 => Self::Hardware,
+            4u8 => Self::Virtualized,
+            5u8 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SecureRandomSource value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

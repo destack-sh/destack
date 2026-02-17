@@ -228,10 +228,7 @@ pub(crate) unsafe fn destack_process_groups(
         .boxed());
     }
 
-    let groups = groups
-        .into_iter()
-        .map(|group| GroupId(group as u32))
-        .collect::<Vec<_>>();
+    let groups = groups.into_iter().map(GroupId).collect::<Vec<_>>();
 
     unsafe {
         *out = context.store_slice(groups);
@@ -462,7 +459,7 @@ pub(crate) unsafe fn destack_process_set_group_ids(
         if result != 0 {
             return Err(core_process::process_last_error(
                 "setregid",
-                format!("failed to set group ids to {:?}", ids),
+                format!("failed to set group ids to {ids:?}"),
             ));
         }
 
@@ -609,7 +606,7 @@ pub(crate) unsafe fn destack_process_set_user_ids(
         if result != 0 {
             return Err(core_process::process_last_error(
                 "setreuid",
-                format!("failed to set user ids to {:?}", ids),
+                format!("failed to set user ids to {ids:?}"),
             ));
         }
 

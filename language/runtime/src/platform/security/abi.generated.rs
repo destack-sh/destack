@@ -4,9 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, security as platform_security};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmValueCodec, security as platform_security,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -44,7 +46,23 @@ pub enum SecurityFilterKind {
 impl VmValueCodec for SecurityFilterKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SecurityFilterKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::SeccompBpf,
+            2u8 => Self::Landlock,
+            3u8 => Self::Pledge,
+            4u8 => Self::Unveil,
+            5u8 => Self::Seatbelt,
+            6u8 => Self::WindowsToken,
+            255u8 => Self::Custom,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SecurityFilterKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -67,7 +85,19 @@ pub enum SecurityPolicyMode {
 impl VmValueCodec for SecurityPolicyMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SecurityPolicyMode>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Allow,
+            2u8 => Self::Deny,
+            3u8 => Self::Audit,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SecurityPolicyMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

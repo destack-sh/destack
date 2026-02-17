@@ -4,8 +4,6 @@ pub mod abi;
 pub mod audio;
 /// Platform bindings for runtime integration.
 pub mod bindings;
-/// Console bindings.
-pub mod console;
 /// Platform context and configuration.
 pub mod context;
 /// Cross-domain platform helpers.

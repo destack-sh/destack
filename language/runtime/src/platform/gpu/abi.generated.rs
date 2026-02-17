@@ -4,9 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, gpu as platform_gpu, resource, resource as platform_resource};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmValueCodec, gpu as platform_gpu, resource,
+    resource as platform_resource,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +30,20 @@ pub enum GpuAdapterType {
 impl VmValueCodec for GpuAdapterType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, GpuAdapterType>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Integrated,
+            2u8 => Self::Discrete,
+            3u8 => Self::Cpu,
+            255u8 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuAdapterType value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -56,7 +72,22 @@ pub enum GpuBackend {
 impl VmValueCodec for GpuBackend {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, GpuBackend>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Vulkan,
+            2u8 => Self::Metal,
+            3u8 => Self::D3D12,
+            4u8 => Self::OpenGL,
+            5u8 => Self::WebGpu,
+            255u8 => Self::Null,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuBackend value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -79,7 +110,19 @@ pub enum GpuPowerPreference {
 impl VmValueCodec for GpuPowerPreference {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, GpuPowerPreference>(raw) })
+        let decoded = match raw {
+            1u8 => Self::LowPower,
+            2u8 => Self::HighPerformance,
+            3u8 => Self::None,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuPowerPreference value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -102,7 +145,19 @@ pub enum GpuShaderStage {
 impl VmValueCodec for GpuShaderStage {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, GpuShaderStage>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Vertex,
+            2u8 => Self::Fragment,
+            3u8 => Self::Compute,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuShaderStage value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

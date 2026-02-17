@@ -4,9 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, fs, fs as platform_fs, os as platform_os};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmValueCodec, fs, fs as platform_fs, os as platform_os,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +27,19 @@ pub enum PowerState {
 impl VmValueCodec for PowerState {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PowerState>(raw) })
+        let decoded = match raw {
+            1u8 => Self::AC,
+            2u8 => Self::Battery,
+            3u8 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PowerState value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

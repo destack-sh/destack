@@ -164,7 +164,9 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
         !binding_type_requires_abi(inner)
     }) || !enums.is_empty();
     if needs_vm_codec {
+        output.push_str("use crate::diagnostic::RuntimeError;\n");
         output.push_str("use crate::diagnostic::RuntimeResult;\n");
+        output.push_str("use crate::platform::PlatformError as AbiPlatformError;\n");
         output.push_str("use crate::platform::VmValueCodec;\n");
         output.push_str("use destack_vm as vm;\n");
     }
@@ -259,14 +261,26 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
 
         if matches!(backing, EnumBackingType::Int(_)) {
             let backing_type = enum_backing_rust_type(*backing);
+            let mut arms = Vec::new();
+            for variant in variants {
+                if let BindingEnumValue::Int(value) = variant.value {
+                    let literal = format!("{value}{backing_type}");
+                    arms.push(format!("{literal} => Self::{}", variant.name));
+                }
+            }
+            let arms = arms.join(", ");
             output.push_str(&format!("impl VmValueCodec for {name} {{\n"));
             output.push_str("    fn decode(value: vm::Value) -> RuntimeResult<Self> {\n");
             output.push_str(&format!(
                 "        let raw = <{backing_type} as VmValueCodec>::decode(value)?;\n"
             ));
+            output.push_str("        let decoded = match raw {\n");
+            output.push_str(&format!("            {arms},\n"));
             output.push_str(&format!(
-                "        Ok(unsafe {{ std::mem::transmute::<{backing_type}, {name}>(raw) }})\n"
+                "            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"unknown {name} value\")).boxed()),\n"
             ));
+            output.push_str("        };\n");
+            output.push_str("        Ok(decoded)\n");
             output.push_str("    }\n\n");
             output.push_str("    fn encode(self) -> vm::Value {\n");
             output.push_str(&format!(

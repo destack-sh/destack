@@ -2,14 +2,13 @@
 
 use crate::platform::bindings::{NativeBindingSet, VmBindingSet};
 use crate::platform::{
-    audio, console, crypto, debug, device, display, error, ffi, fs, gpu, input, io, ipc, memory,
-    net, os, process, random, resource, security, thread, time, timer, tls, tty,
+    audio, crypto, debug, device, display, error, ffi, fs, gpu, input, io, ipc, memory, net, os,
+    process, random, resource, security, thread, time, timer, tls, tty,
 };
 
 /// Native binding sets for all platform domains.
 pub const PLATFORM_NATIVE_BINDINGS: &[NativeBindingSet] = &[
     audio::AUDIO_NATIVE_BINDINGS,
-    console::CONSOLE_NATIVE_BINDINGS,
     crypto::CRYPTO_NATIVE_BINDINGS,
     debug::DEBUG_NATIVE_BINDINGS,
     device::DEVICE_NATIVE_BINDINGS,
@@ -38,7 +37,6 @@ pub const PLATFORM_NATIVE_BINDINGS: &[NativeBindingSet] = &[
 /// VM binding sets for all platform domains.
 pub const PLATFORM_VM_BINDINGS: &[VmBindingSet] = &[
     audio::AUDIO_VM_BINDINGS,
-    console::CONSOLE_VM_BINDINGS,
     crypto::CRYPTO_VM_BINDINGS,
     debug::DEBUG_VM_BINDINGS,
     device::DEVICE_VM_BINDINGS,

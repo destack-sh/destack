@@ -4,9 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, fs as platform_fs};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, fs as platform_fs};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -557,7 +557,24 @@ pub enum DirentKind {
 impl VmValueCodec for DirentKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, DirentKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::File,
+            2u8 => Self::Directory,
+            3u8 => Self::Symlink,
+            4u8 => Self::BlockDevice,
+            5u8 => Self::CharDevice,
+            6u8 => Self::Fifo,
+            7u8 => Self::Socket,
+            255u8 => Self::Unknown,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DirentKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -586,7 +603,22 @@ pub enum FileAdvice {
 impl VmValueCodec for FileAdvice {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, FileAdvice>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Normal,
+            1u8 => Self::Sequential,
+            2u8 => Self::Random,
+            3u8 => Self::WillNeed,
+            4u8 => Self::DontNeed,
+            5u8 => Self::NoReuse,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown FileAdvice value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -613,7 +645,21 @@ pub enum MmapAdvice {
 impl VmValueCodec for MmapAdvice {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, MmapAdvice>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Normal,
+            1u8 => Self::Sequential,
+            2u8 => Self::Random,
+            3u8 => Self::WillNeed,
+            4u8 => Self::DontNeed,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MmapAdvice value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -634,7 +680,18 @@ pub enum PathEncoding {
 impl VmValueCodec for PathEncoding {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PathEncoding>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Bytes,
+            2u8 => Self::Utf16,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -657,7 +714,19 @@ pub enum SeekWhence {
 impl VmValueCodec for SeekWhence {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SeekWhence>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Set,
+            1u8 => Self::Cur,
+            2u8 => Self::End,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SeekWhence value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -680,7 +749,19 @@ pub enum SymlinkType {
 impl VmValueCodec for SymlinkType {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SymlinkType>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Auto,
+            1u8 => Self::File,
+            2u8 => Self::Directory,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SymlinkType value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -709,7 +790,22 @@ pub enum WatchEventKind {
 impl VmValueCodec for WatchEventKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, WatchEventKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Create,
+            2u8 => Self::Remove,
+            3u8 => Self::Modify,
+            4u8 => Self::Rename,
+            5u8 => Self::Metadata,
+            6u8 => Self::Overflow,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WatchEventKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

@@ -459,7 +459,6 @@ pub(crate) unsafe fn destack_fs_preadv2(
 
 /// Write from multiple buffers with explicit write flags.
 #[cfg(unix)]
-
 /// Write from multiple buffers at the given file offset with explicit write flags.
 ///
 /// Write bytes from a gather buffer list at an explicit file offset and apply host write flags.
@@ -490,7 +489,6 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 
 /// Move data between resource handles.
 #[cfg(unix)]
-
 /// Transfer bytes between descriptors using kernel splice pipelines.
 ///
 /// Move bytes between descriptor endpoints and optionally update explicit cursors for each side.
@@ -524,7 +522,6 @@ pub(crate) unsafe fn destack_fs_splice(
 
 /// Duplicate pipe data between pipe handles.
 #[cfg(unix)]
-
 /// Duplicate bytes from one pipe to another without consuming source bytes.
 ///
 /// Clone bytes between two pipe descriptors while preserving source pipe contents.
@@ -556,7 +553,6 @@ pub(crate) unsafe fn destack_fs_tee(
 
 /// Move user buffers into a pipe.
 #[cfg(unix)]
-
 /// Map user memory pages into a pipe as queued pipe buffers.
 ///
 /// Publish one set of user buffers into a pipe endpoint for downstream splice pipelines.

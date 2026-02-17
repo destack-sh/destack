@@ -143,6 +143,102 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
+    /// Convert a native status into a runtime result.
+    #[cfg(windows)]
+    pub(crate) fn status_result(
+        &self,
+        status: crate::diagnostic::RuntimeStatus,
+        label: &str,
+    ) -> RuntimeResult<()> {
+        // fast path: success
+        if status == crate::diagnostic::RuntimeStatus::OK {
+            return Ok(());
+        }
+
+        // decode status-only errors when no runtime id is attached
+        if status.error_id == 0 {
+            if status.code == PlatformErrorCode::NotSupported.number().saturating_add(1) {
+                return Err(RuntimeError::from(PlatformError::not_supported(label)).boxed());
+            }
+
+            return Err(RuntimeError::from(PlatformError::io(format!(
+                "{label} failed without runtime error id",
+            )))
+            .boxed());
+        }
+
+        // load the captured runtime error
+        let error = self
+            .runtime
+            .runtime
+            .context
+            .errors()
+            .take(crate::diagnostic::RuntimeErrorId::from_raw(status.error_id))
+            .unwrap_or_else(|| {
+                RuntimeError::from(PlatformError::io(format!(
+                    "{label} failed with missing runtime error",
+                )))
+                .boxed()
+            });
+
+        Err(error)
+    }
+
+    /// Convert a native status into a test-friendly result.
+    #[cfg(windows)]
+    pub(crate) fn status_ok(
+        &self,
+        status: crate::diagnostic::RuntimeStatus,
+        label: &str,
+    ) -> RuntimeResult<()> {
+        self.status_result(status, label)
+    }
+
+    /// Write bytes to one socket handle.
+    #[cfg(windows)]
+    pub(crate) fn write(
+        &mut self,
+        handle: crate::platform::resource::SocketHandle,
+        buffer: &[u8],
+    ) -> RuntimeResult<u64> {
+        let buffer = self.bytes_slice_value(buffer)?;
+        self.destack_net_write(handle, buffer)
+    }
+
+    /// Read bytes from one socket handle into one mutable buffer.
+    #[cfg(windows)]
+    pub(crate) fn read(
+        &mut self,
+        handle: crate::platform::resource::SocketHandle,
+        buffer: &mut [u8],
+    ) -> RuntimeResult<u64> {
+        // allocate one backend-specific mutable slice for socket reads
+        let output = self.zeroed_bytes_slice_value(buffer.len())?;
+        let (read_input, read_output) = self.duplicate_value(output);
+
+        // run the read and decode the captured bytes
+        let read = self.destack_net_read(handle, read_input)?;
+        let read_len = usize::try_from(read).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "read",
+                "read length does not fit usize",
+            ))
+            .boxed()
+        })?;
+        if read_len > buffer.len() {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "read",
+                "read length exceeds provided buffer length",
+            ))
+            .boxed());
+        }
+
+        let bytes = self.bytes_prefix_from_slice_value(read_output, read_len)?;
+        buffer[..read_len].copy_from_slice(&bytes[..read_len]);
+
+        Ok(read)
+    }
+
     /// Decode one backend-specific nested byte-slice value into byte vectors.
     pub(crate) fn bytes_slices_from_value(
         &self,

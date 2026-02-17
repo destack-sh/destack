@@ -68,7 +68,6 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 }
 
 #[allow(dead_code)]
-
 /// Create a temporary directory.
 ///
 /// Create a unique temporary directory from the template in the platform temp directory.

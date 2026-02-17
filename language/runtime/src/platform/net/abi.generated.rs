@@ -4,11 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
-    VmValueCodec, fs, fs as platform_fs, net as platform_net, resource,
-    resource as platform_resource,
+    PlatformError as AbiPlatformError, VmValueCodec, fs, fs as platform_fs, net as platform_net,
+    resource, resource as platform_resource,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -245,7 +245,22 @@ pub enum PacketFanoutMode {
 impl VmValueCodec for PacketFanoutMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PacketFanoutMode>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Hash,
+            1u8 => Self::LoadBalance,
+            2u8 => Self::Cpu,
+            3u8 => Self::RoundRobin,
+            4u8 => Self::Rollover,
+            5u8 => Self::QueueMap,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PacketFanoutMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -268,7 +283,19 @@ pub enum PacketTimestampMode {
 impl VmValueCodec for PacketTimestampMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PacketTimestampMode>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Disabled,
+            1u8 => Self::Software,
+            2u8 => Self::Hardware,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PacketTimestampMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -295,7 +322,21 @@ pub enum RouteKind {
 impl VmValueCodec for RouteKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, RouteKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Unicast,
+            2u8 => Self::Local,
+            3u8 => Self::Broadcast,
+            4u8 => Self::Multicast,
+            5u8 => Self::Blackhole,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown RouteKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -318,7 +359,19 @@ pub enum SocketFamily {
 impl VmValueCodec for SocketFamily {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SocketFamily>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Unspecified,
+            4u8 => Self::IPv4,
+            6u8 => Self::IPv6,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SocketFamily value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -341,7 +394,19 @@ pub enum SocketShutdown {
 impl VmValueCodec for SocketShutdown {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SocketShutdown>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Read,
+            1u8 => Self::Write,
+            2u8 => Self::ReadWrite,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SocketShutdown value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -364,7 +429,19 @@ pub enum SocketTimestampingMode {
 impl VmValueCodec for SocketTimestampingMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, SocketTimestampingMode>(raw) })
+        let decoded = match raw {
+            0u8 => Self::Off,
+            1u8 => Self::Software,
+            2u8 => Self::Hardware,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown SocketTimestampingMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -387,7 +464,19 @@ pub enum UdsAddressKind {
 impl VmValueCodec for UdsAddressKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, UdsAddressKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Path,
+            2u8 => Self::Abstract,
+            3u8 => Self::Unnamed,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UdsAddressKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

@@ -759,6 +759,78 @@ pub(crate) fn destack_process_exit(
     unsafe { host_process::destack_process_exit(runtime, code) }
 }
 
+/// Open one standard input stream handle.
+///
+/// Open one handle for the current process standard input stream.
+/// The returned handle can be used with file-handle read and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_process_stdio_stdin(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::FileHandle> {
+    call_out(|out| unsafe { host_process::destack_process_stdio_stdin(runtime, out) })
+}
+
+/// Open one standard output stream handle.
+///
+/// Open one handle for the current process standard output stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_process_stdio_stdout(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::FileHandle> {
+    call_out(|out| unsafe { host_process::destack_process_stdio_stdout(runtime, out) })
+}
+
+/// Open one standard error stream handle.
+///
+/// Open one handle for the current process standard error stream.
+/// The returned handle can be used with file-handle write, sync, and close operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `process.stdio`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_process_stdio_stderr(
+    runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::FileHandle> {
+    call_out(|out| unsafe { host_process::destack_process_stdio_stderr(runtime, out) })
+}
+
 /// Close one process descriptor.
 ///
 /// Close one host process descriptor and release the kernel object reference.

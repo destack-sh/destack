@@ -4,9 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{VmValueCodec, error as platform_error};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, error as platform_error};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -211,7 +211,112 @@ pub enum PlatformErrorCode {
 impl VmValueCodec for PlatformErrorCode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u16 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u16, PlatformErrorCode>(raw) })
+        let decoded = match raw {
+            1000u16 => Self::InvalidArgument,
+            1001u16 => Self::InvalidArgumentType,
+            1002u16 => Self::InvalidArgumentValue,
+            1100u16 => Self::NullPointer,
+            1200u16 => Self::NotSupported,
+            2000u16 => Self::Io,
+            2100u16 => Self::IoReadFailed,
+            2101u16 => Self::IoWriteFailed,
+            2102u16 => Self::IoNotFound,
+            2103u16 => Self::IoPermissionDenied,
+            2104u16 => Self::IoAlreadyExists,
+            2105u16 => Self::IoNotDirectory,
+            2106u16 => Self::IoIsDirectory,
+            2107u16 => Self::IoNotEmpty,
+            2108u16 => Self::IoReadOnly,
+            2109u16 => Self::IoNameTooLong,
+            2110u16 => Self::IoFileTooLarge,
+            2111u16 => Self::IoTooManyOpenFiles,
+            2112u16 => Self::IoFileTableOverflow,
+            2113u16 => Self::IoInvalidData,
+            2114u16 => Self::IoCrossDevice,
+            2115u16 => Self::IoBrokenPipe,
+            2116u16 => Self::IoTimedOut,
+            2117u16 => Self::IoInterrupted,
+            2118u16 => Self::IoBusy,
+            2119u16 => Self::IoWouldBlock,
+            3000u16 => Self::Net,
+            3100u16 => Self::NetConnectionRefused,
+            3101u16 => Self::NetTimedOut,
+            3102u16 => Self::NetConnectionReset,
+            3103u16 => Self::NetAddressInUse,
+            3104u16 => Self::NetAddressNotAvailable,
+            3105u16 => Self::NetNetworkUnreachable,
+            3106u16 => Self::NetHostUnreachable,
+            3107u16 => Self::NetConnectionAborted,
+            3108u16 => Self::NetBrokenPipe,
+            3109u16 => Self::NetDnsFailed,
+            3110u16 => Self::NetNotConnected,
+            3111u16 => Self::NetAlreadyConnected,
+            3112u16 => Self::NetMessageTooLarge,
+            3113u16 => Self::NetNotSocket,
+            3114u16 => Self::NetProtocolError,
+            3115u16 => Self::NetInProgress,
+            3116u16 => Self::NetShutdown,
+            3117u16 => Self::NetUnsupportedFamily,
+            3118u16 => Self::NetUnsupportedProtocol,
+            3119u16 => Self::NetNoBufferSpace,
+            4000u16 => Self::Process,
+            4100u16 => Self::ProcessSpawnFailed,
+            4101u16 => Self::ProcessNotFound,
+            4102u16 => Self::ProcessPermissionDenied,
+            4103u16 => Self::ProcessExecFailed,
+            4104u16 => Self::ProcessWaitFailed,
+            4105u16 => Self::ProcessSignaled,
+            4106u16 => Self::ProcessTimedOut,
+            5000u16 => Self::Random,
+            5100u16 => Self::RandomUnavailable,
+            6000u16 => Self::Time,
+            6100u16 => Self::TimeUnavailable,
+            7000u16 => Self::Ipc,
+            7100u16 => Self::IpcMessageTooLarge,
+            7101u16 => Self::IpcTimedOut,
+            7102u16 => Self::IpcClosed,
+            7103u16 => Self::IpcWouldBlock,
+            7104u16 => Self::IpcAlreadyExists,
+            7200u16 => Self::Security,
+            7210u16 => Self::SecurityDenied,
+            7211u16 => Self::SecurityViolation,
+            7300u16 => Self::Thread,
+            7310u16 => Self::ThreadSpawnFailed,
+            7311u16 => Self::ThreadJoinFailed,
+            7312u16 => Self::ThreadDeadlock,
+            7400u16 => Self::Ffi,
+            7410u16 => Self::FfiLibraryLoadFailed,
+            7411u16 => Self::FfiSymbolNotFound,
+            7412u16 => Self::FfiCallFailed,
+            7500u16 => Self::Device,
+            7510u16 => Self::DeviceUnavailable,
+            7600u16 => Self::Display,
+            7610u16 => Self::DisplayUnavailable,
+            7700u16 => Self::Audio,
+            7710u16 => Self::AudioUnavailable,
+            7800u16 => Self::Gpu,
+            7810u16 => Self::GpuUnavailable,
+            7811u16 => Self::GpuOutOfMemory,
+            7812u16 => Self::GpuDeviceLost,
+            7900u16 => Self::Resource,
+            7910u16 => Self::ResourceNotFound,
+            7911u16 => Self::ResourceClosed,
+            7912u16 => Self::ResourceBusy,
+            7913u16 => Self::ResourceTypeMismatch,
+            8000u16 => Self::IoDriver,
+            8010u16 => Self::IoSubmissionFailed,
+            8011u16 => Self::IoCompletionFailed,
+            8012u16 => Self::IoCancelled,
+            9000u16 => Self::Generic,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformErrorCode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -258,7 +363,31 @@ pub enum PlatformErrorContextKind {
 impl VmValueCodec for PlatformErrorContextKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PlatformErrorContextKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Generic,
+            2u8 => Self::Io,
+            3u8 => Self::Net,
+            4u8 => Self::Process,
+            5u8 => Self::Timer,
+            6u8 => Self::Resource,
+            7u8 => Self::Security,
+            8u8 => Self::Ffi,
+            9u8 => Self::Thread,
+            10u8 => Self::Ipc,
+            11u8 => Self::Device,
+            12u8 => Self::Display,
+            13u8 => Self::Audio,
+            14u8 => Self::Gpu,
+            15u8 => Self::IoDriver,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformErrorContextKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -279,7 +408,18 @@ pub enum PlatformPathEncoding {
 impl VmValueCodec for PlatformPathEncoding {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PlatformPathEncoding>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Bytes,
+            2u8 => Self::Utf16,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformPathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {
@@ -308,7 +448,22 @@ pub enum PlatformSystemSourceKind {
 impl VmValueCodec for PlatformSystemSourceKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
-        Ok(unsafe { std::mem::transmute::<u8, PlatformSystemSourceKind>(raw) })
+        let decoded = match raw {
+            1u8 => Self::Errno,
+            2u8 => Self::Winsock,
+            3u8 => Self::HResult,
+            4u8 => Self::Eai,
+            5u8 => Self::Signal,
+            255u8 => Self::Other,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PlatformSystemSourceKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
     }
 
     fn encode(self) -> vm::Value {

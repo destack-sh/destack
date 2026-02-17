@@ -4,8 +4,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::diagnostic::RuntimeResult;
-use crate::platform::{VmValueCodec, ffi as platform_ffi};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, ffi as platform_ffi};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 

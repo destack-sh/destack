@@ -103,7 +103,7 @@ pub(crate) fn os_path_from_utf8_string(context: &RuntimeCallContext, value: Stri
     #[cfg(unix)]
     {
         let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.into_bytes()));
-        return path_ref_from_bytes(bytes);
+        path_ref_from_bytes(bytes)
     }
 
     #[cfg(windows)]
