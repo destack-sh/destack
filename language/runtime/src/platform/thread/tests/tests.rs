@@ -3,11 +3,73 @@
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::resource::ResourceId;
+use crate::platform::thread::{ThreadOptions, native as thread_native, vm as thread_vm};
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
 mod harness;
+
+/// Return canonical thread spawn options used by tests.
+pub(crate) fn default_thread_options() -> ThreadOptions {
+    ThreadOptions {
+        stack_bytes: 0,
+        flags: 0,
+    }
+}
+
+/// Return canonical thread entry symbol used by tests.
+pub(crate) fn test_thread_entry() -> &'static str {
+    "destack.thread.test.entry"
+}
+
+/// Return canonical timeout that means wait indefinitely.
+pub(crate) fn wait_forever_timeout() -> u64 {
+    u64::MAX
+}
+
+/// Assert one result failed with one exact platform error code.
+pub(crate) fn assert_platform_error_code<T>(
+    result: RuntimeResult<T>,
+    expected: PlatformErrorCode,
+) -> RuntimeResult<()> {
+    let error = match result {
+        Ok(_) => panic!("operation should fail"),
+        Err(error) => error,
+    };
+
+    let platform = error
+        .platform_error()
+        .expect("error should contain one platform error");
+    assert_eq!(platform.code, expected);
+
+    Ok(())
+}
+
+/// Assert one result failed with one code from the allowed set.
+pub(crate) fn assert_platform_error_codes<T>(
+    result: RuntimeResult<T>,
+    expected: &[PlatformErrorCode],
+) -> RuntimeResult<()> {
+    let error = match result {
+        Ok(_) => panic!("operation should fail"),
+        Err(error) => error,
+    };
+
+    let platform = error
+        .platform_error()
+        .expect("error should contain one platform error");
+    assert!(
+        expected.contains(&platform.code),
+        "unexpected platform error code {:?}, allowed: {:?}",
+        platform.code,
+        expected
+    );
+
+    Ok(())
+}
 
 /// Test harness context used by tests.
 pub(crate) struct ThreadHarnessContext<'call> {
@@ -113,4 +175,39 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Build one default thread handle value for native out-pointer calls.
+pub(crate) fn empty_thread_handle() -> crate::platform::resource::ThreadHandle {
+    crate::platform::resource::ThreadHandle(ResourceId(0))
+}
+
+/// Build one default thread-local key value for native out-pointer calls.
+pub(crate) fn empty_thread_local_key() -> crate::platform::resource::ThreadLocalKey {
+    crate::platform::resource::ThreadLocalKey(ResourceId(0))
+}
+
+/// Build one default mutex handle value for native out-pointer calls.
+pub(crate) fn empty_mutex_handle() -> crate::platform::resource::MutexHandle {
+    crate::platform::resource::MutexHandle(ResourceId(0))
+}
+
+/// Build one default rwlock handle value for native out-pointer calls.
+pub(crate) fn empty_rwlock_handle() -> crate::platform::resource::RwLockHandle {
+    crate::platform::resource::RwLockHandle(ResourceId(0))
+}
+
+/// Build one default condition-variable handle value for native out-pointer calls.
+pub(crate) fn empty_condvar_handle() -> crate::platform::resource::CondVarHandle {
+    crate::platform::resource::CondVarHandle(ResourceId(0))
+}
+
+/// Build one default semaphore handle value for native out-pointer calls.
+pub(crate) fn empty_semaphore_handle() -> crate::platform::resource::ThreadSemaphoreHandle {
+    crate::platform::resource::ThreadSemaphoreHandle(ResourceId(0))
+}
+
+/// Build one default barrier handle value for native out-pointer calls.
+pub(crate) fn empty_barrier_handle() -> crate::platform::resource::BarrierHandle {
+    crate::platform::resource::BarrierHandle(ResourceId(0))
 }

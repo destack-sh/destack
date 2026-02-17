@@ -1,15 +1,27 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
+use std::mem;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::thread::{bindings_generated as bindings, core as core_thread};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::platform::PlatformError;
+use crate::platform::resource::ThreadHandle;
+use crate::platform::thread::{core as core_thread, resource as resource_thread};
 
 use crate::runtime::RuntimeCallContext;
-use bindings::*;
 
-use crate::platform::resource;
-use crate::platform::thread::ThreadOptions;
+/// Build one pthread scheduling error from a return code.
+fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        None,
+        None,
+        Some(code),
+        Some(syscall.to_string()),
+        None,
+        format!("{syscall} failed: errno {code}"),
+    ))
+    .boxed()
+}
+
 /// Read thread affinity mask.
 ///
 /// Read one thread CPU affinity mask.
@@ -28,19 +40,61 @@ use crate::platform::thread::ThreadOptions;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
-    _context: &RuntimeCallContext,
+    context: &RuntimeCallContext,
     out: *mut u64,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getAffinity",
-    ))
-    .boxed())
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
+
+    // read affinity on targets that expose pthread affinity APIs
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let mut cpu_set: libc::cpu_set_t = unsafe { mem::zeroed() };
+        let rc = unsafe {
+            libc::pthread_getaffinity_np(
+                resource.native_handle,
+                mem::size_of::<libc::cpu_set_t>(),
+                &mut cpu_set,
+            )
+        };
+        if rc != 0 {
+            return Err(pthread_error("pthread_getaffinity_np", rc));
+        }
+
+        let mut mask = 0_u64;
+        for cpu in 0..64 {
+            let is_set = unsafe { libc::CPU_ISSET(cpu, &cpu_set) };
+            if is_set {
+                mask |= 1_u64 << cpu;
+            }
+        }
+
+        unsafe {
+            *out = mask;
+        }
+        return Ok(());
+    }
+
+    // report unsupported affinity reads on targets without pthread affinity APIs
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        let _ = resource;
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.thread.priority.getAffinity",
+        ))
+        .boxed())
+    }
 }
 
 /// Read thread priority.
@@ -61,19 +115,38 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_priority(
-    _context: &RuntimeCallContext,
+    context: &RuntimeCallContext,
     out: *mut i32,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getPriority",
-    ))
-    .boxed())
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
+
+    // read scheduling policy and parameters from the host thread
+    let mut policy = 0_i32;
+    let mut parameters: libc::sched_param = unsafe { mem::zeroed() };
+    let rc = unsafe {
+        libc::pthread_getschedparam(resource.native_handle, &mut policy, &mut parameters)
+    };
+    if rc != 0 {
+        return Err(pthread_error("pthread_getschedparam", rc));
+    }
+
+    unsafe {
+        *out = parameters.sched_priority;
+    }
+
+    Ok(())
 }
 
 /// Set thread affinity mask.
@@ -94,16 +167,62 @@ pub(crate) unsafe fn destack_thread_get_priority(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
-    _context: &RuntimeCallContext,
-    handle: resource::ThreadHandle,
+    context: &RuntimeCallContext,
+    handle: ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, mask);
+    // validate the affinity mask
+    if mask == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "mask",
+            "affinity mask must not be zero",
+        ))
+        .boxed());
+    }
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setAffinity",
-    ))
-    .boxed())
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
+
+    // write affinity on targets that expose pthread affinity APIs
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let mut cpu_set: libc::cpu_set_t = unsafe { mem::zeroed() };
+        for cpu in 0..64 {
+            if (mask & (1_u64 << cpu)) != 0 {
+                unsafe {
+                    libc::CPU_SET(cpu, &mut cpu_set);
+                }
+            }
+        }
+
+        let rc = unsafe {
+            libc::pthread_setaffinity_np(
+                resource.native_handle,
+                mem::size_of::<libc::cpu_set_t>(),
+                &cpu_set,
+            )
+        };
+        if rc != 0 {
+            return Err(pthread_error("pthread_setaffinity_np", rc));
+        }
+
+        return Ok(());
+    }
+
+    // report unsupported affinity writes on targets without pthread affinity APIs
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        let _ = resource;
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.thread.priority.setAffinity",
+        ))
+        .boxed())
+    }
 }
 
 /// Set thread priority.
@@ -124,14 +243,35 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
-    _context: &RuntimeCallContext,
-    handle: resource::ThreadHandle,
+    context: &RuntimeCallContext,
+    handle: ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
-    let _ = (handle, priority);
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setPriority",
-    ))
-    .boxed())
+    // read current scheduling policy before setting one new priority
+    let mut policy = 0_i32;
+    let mut parameters: libc::sched_param = unsafe { mem::zeroed() };
+    let get_rc = unsafe {
+        libc::pthread_getschedparam(resource.native_handle, &mut policy, &mut parameters)
+    };
+    if get_rc != 0 {
+        return Err(pthread_error("pthread_getschedparam", get_rc));
+    }
+
+    // write one new scheduling priority
+    parameters.sched_priority = priority;
+    let set_rc =
+        unsafe { libc::pthread_setschedparam(resource.native_handle, policy, &parameters) };
+    if set_rc != 0 {
+        return Err(pthread_error("pthread_setschedparam", set_rc));
+    }
+
+    Ok(())
 }

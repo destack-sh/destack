@@ -1,15 +1,32 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::thread::{bindings_generated as bindings, core as core_thread};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::platform::resource::ThreadHandle;
+use crate::platform::thread::{core as core_thread, resource as resource_thread};
+use crate::platform::{PlatformError, PlatformErrorCode, core as core_platform};
+use windows_sys::Win32::Foundation::{
+    ERROR_ACCESS_DENIED, ERROR_CALL_NOT_IMPLEMENTED, ERROR_INVALID_PARAMETER, ERROR_NOT_SUPPORTED,
+};
+use windows_sys::Win32::System::SystemInformation::GROUP_AFFINITY;
+use windows_sys::Win32::System::Threading::{
+    GetThreadGroupAffinity, GetThreadPriority, SetThreadAffinityMask, SetThreadPriority,
+};
+use windows_sys::Win32::System::WindowsProgramming::THREAD_PRIORITY_ERROR_RETURN;
 
 use crate::runtime::RuntimeCallContext;
-use bindings::*;
 
-use crate::platform::resource;
-use crate::platform::thread::ThreadOptions;
+/// Build one thread-priority error from the last Win32 error.
+fn thread_priority_error(syscall: &str) -> Box<RuntimeError> {
+    let errno = core_platform::last_error_code();
+    let code = match errno as u32 {
+        ERROR_ACCESS_DENIED => PlatformErrorCode::IoPermissionDenied,
+        ERROR_INVALID_PARAMETER => PlatformErrorCode::IoInvalidData,
+        ERROR_NOT_SUPPORTED | ERROR_CALL_NOT_IMPLEMENTED => PlatformErrorCode::NotSupported,
+        _ => PlatformErrorCode::Io,
+    };
+    core_platform::io_error_with_platform_code(syscall, errno, code)
+}
+
 /// Read thread affinity mask.
 ///
 /// Read one thread CPU affinity mask.
@@ -30,17 +47,38 @@ use crate::platform::thread::ThreadOptions;
 pub(crate) unsafe fn destack_thread_get_affinity(
     context: &RuntimeCallContext,
     out: *mut u64,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getAffinity",
-    ))
-    .boxed())
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
+
+    // query the host thread affinity mask
+    let mut affinity = GROUP_AFFINITY {
+        Mask: 0,
+        Group: 0,
+        Reserved: [0, 0, 0],
+    };
+    let rc = unsafe { GetThreadGroupAffinity(resource.native_handle, &mut affinity) };
+    if rc == 0 {
+        return Err(thread_priority_error("GetThreadGroupAffinity"));
+    }
+
+    let mask = affinity.Mask as u64;
+    unsafe {
+        *out = mask;
+    }
+
+    Ok(())
 }
 
 /// Read thread priority.
@@ -63,17 +101,32 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 pub(crate) unsafe fn destack_thread_get_priority(
     context: &RuntimeCallContext,
     out: *mut i32,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
 ) -> RuntimeResult<()> {
+    // validate output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.getPriority",
-    ))
-    .boxed())
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
+
+    // query the host thread priority
+    let priority = unsafe { GetThreadPriority(resource.native_handle) };
+    if priority == THREAD_PRIORITY_ERROR_RETURN as i32 {
+        return Err(thread_priority_error("GetThreadPriority"));
+    }
+
+    unsafe {
+        *out = priority;
+    }
+
+    Ok(())
 }
 
 /// Set thread affinity mask.
@@ -95,15 +148,42 @@ pub(crate) unsafe fn destack_thread_get_priority(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
     context: &RuntimeCallContext,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
     mask: u64,
 ) -> RuntimeResult<()> {
-    let _ = (handle, mask);
+    // validate the affinity mask
+    if mask == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "mask",
+            "affinity mask must not be zero",
+        ))
+        .boxed());
+    }
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setAffinity",
-    ))
-    .boxed())
+    // validate affinity mask width on 32-bit windows hosts
+    if std::mem::size_of::<usize>() < std::mem::size_of::<u64>() && mask > (usize::MAX as u64) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "mask",
+            "affinity mask exceeds host platform width",
+        ))
+        .boxed());
+    }
+
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
+
+    // apply the host thread affinity mask
+    let rc = unsafe { SetThreadAffinityMask(resource.native_handle, mask as usize) };
+    if rc == 0 {
+        return Err(thread_priority_error("SetThreadAffinityMask"));
+    }
+
+    Ok(())
 }
 
 /// Set thread priority.
@@ -125,13 +205,22 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
     context: &RuntimeCallContext,
-    handle: resource::ThreadHandle,
+    handle: ThreadHandle,
     priority: i32,
 ) -> RuntimeResult<()> {
-    let _ = (handle, priority);
+    // resolve the thread handle resource
+    let resource = core_thread::resolve_thread_resource::<resource_thread::ThreadResource>(
+        context,
+        handle.0,
+        "handle",
+        "thread handle",
+    )?;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.thread.priority.setPriority",
-    ))
-    .boxed())
+    // apply the host thread priority
+    let rc = unsafe { SetThreadPriority(resource.native_handle, priority) };
+    if rc == 0 {
+        return Err(thread_priority_error("SetThreadPriority"));
+    }
+
+    Ok(())
 }

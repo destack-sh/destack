@@ -1,102 +1,179 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::Arc;
+use std::time::Duration;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::resource::{ResourceId, ThreadLocalKey};
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::resource::{ResourceEntry, ResourceId, ResourceKind};
+use crate::runtime::RuntimeCallContext;
 
-/// Next thread-local key identifier.
-static NEXT_THREAD_LOCAL_KEY: AtomicU64 = AtomicU64::new(1);
+/// Sentinel timeout that means wait indefinitely.
+pub(crate) const WAIT_FOREVER: u64 = u64::MAX;
 
-/// Global registry of active thread-local keys.
-static THREAD_LOCAL_KEYS: OnceLock<Mutex<HashSet<u64>>> = OnceLock::new();
+/// Canonical resource kind for thread-domain runtime resources.
+const THREAD_RESOURCE_KIND: ResourceKind = ResourceKind::Unknown;
 
-thread_local! {
-    /// Per-thread value map for created thread-local keys.
-    static THREAD_LOCAL_VALUES: RefCell<HashMap<u64, u64>> = RefCell::new(HashMap::new());
-}
-
-/// Return the global thread-local key registry.
-fn thread_local_key_registry() -> &'static Mutex<HashSet<u64>> {
-    THREAD_LOCAL_KEYS.get_or_init(|| Mutex::new(HashSet::new()))
-}
-
-/// Borrow the key registry mutably.
-fn with_key_registry<T>(
-    run: impl FnOnce(&mut HashSet<u64>) -> RuntimeResult<T>,
-) -> RuntimeResult<T> {
-    let mut keys = thread_local_key_registry().lock().map_err(|_| {
-        RuntimeError::from(PlatformError::io("thread local key registry lock poisoned")).boxed()
-    })?;
-
-    run(&mut keys)
-}
-
-/// Validate that a thread-local key exists.
-fn ensure_thread_local_key_exists(key: u64) -> RuntimeResult<()> {
-    let exists = with_key_registry(|keys| Ok(keys.contains(&key)))?;
-    if exists {
-        return Ok(());
-    }
-
-    Err(RuntimeError::from(PlatformError::invalid_argument_value(
-        "key",
-        format!("thread local key not found: {key}"),
+/// Produce one invalid-handle error.
+pub(crate) fn invalid_handle_error(field: &str, kind: &str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::invalid_argument_value(
+        field,
+        format!("unknown {kind}"),
     ))
-    .boxed())
+    .boxed()
 }
 
-/// Create one thread-local key.
-pub(crate) fn thread_local_create() -> RuntimeResult<ThreadLocalKey> {
-    let key = NEXT_THREAD_LOCAL_KEY.fetch_add(1, Ordering::Relaxed);
-    with_key_registry(|keys| {
-        keys.insert(key);
-        Ok(())
-    })?;
-
-    Ok(ThreadLocalKey(ResourceId(key)))
+/// Produce one unsupported-flags error.
+pub(crate) fn unsupported_flags_error(field: &str, flags: u32) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::invalid_argument_value(
+        field,
+        format!("unsupported flag bits: 0x{flags:x}"),
+    ))
+    .boxed()
 }
 
-/// Delete one thread-local key.
-pub(crate) fn thread_local_delete(key: ThreadLocalKey) -> RuntimeResult<()> {
-    let key_id = key.0.0;
+/// Produce one thread-deadlock error.
+pub(crate) fn thread_deadlock_error(message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::generic(
+        Some(PlatformErrorCode::ThreadDeadlock),
+        message,
+    ))
+    .boxed()
+}
 
-    let removed = with_key_registry(|keys| Ok(keys.remove(&key_id)))?;
-    if !removed {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "key",
-            format!("thread local key not found: {key_id}"),
-        ))
-        .boxed());
+/// Produce one would-block error.
+pub(crate) fn io_would_block_error(
+    operation: &str,
+    message: impl Into<String>,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoWouldBlock),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message,
+    ))
+    .boxed()
+}
+
+/// Produce one timeout error.
+pub(crate) fn io_timed_out_error(operation: &str, message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoTimedOut),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message,
+    ))
+    .boxed()
+}
+
+/// Produce one permission-denied error.
+pub(crate) fn io_permission_denied_error(
+    operation: &str,
+    message: impl Into<String>,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoPermissionDenied),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message,
+    ))
+    .boxed()
+}
+
+/// Convert binding timeout nanoseconds into an optional duration.
+pub(crate) fn timeout_from_ns(timeoutns: u64) -> Option<Duration> {
+    if timeoutns == WAIT_FOREVER {
+        return None;
     }
 
-    THREAD_LOCAL_VALUES.with(|values| {
-        values.borrow_mut().remove(&key_id);
-    });
-
-    Ok(())
+    Some(Duration::from_nanos(timeoutns))
 }
 
-/// Read one thread-local value.
-pub(crate) fn thread_local_get(key: ThreadLocalKey) -> RuntimeResult<u64> {
-    let key_id = key.0.0;
-    ensure_thread_local_key_exists(key_id)?;
+/// Canonical owner identifier for one host thread.
+#[cfg(any(unix, windows))]
+#[allow(dead_code)]
+pub(crate) type ThreadOwnerId = u64;
+/// Canonical owner identifier for one host thread.
+#[cfg(not(any(unix, windows)))]
+#[allow(dead_code)]
+pub(crate) type ThreadOwnerId = std::thread::ThreadId;
 
-    let value =
-        THREAD_LOCAL_VALUES.with(|values| values.borrow().get(&key_id).copied().unwrap_or(0));
-    Ok(value)
+/// Return the current host thread owner identifier.
+#[cfg(unix)]
+#[allow(dead_code)]
+pub(crate) fn current_thread_owner_id() -> ThreadOwnerId {
+    unsafe { libc::pthread_self() as usize as u64 }
 }
 
-/// Store one thread-local value.
-pub(crate) fn thread_local_set(key: ThreadLocalKey, value: u64) -> RuntimeResult<()> {
-    let key_id = key.0.0;
-    ensure_thread_local_key_exists(key_id)?;
+/// Return the current host thread owner identifier.
+#[cfg(windows)]
+#[allow(dead_code)]
+pub(crate) fn current_thread_owner_id() -> ThreadOwnerId {
+    unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() as u64 }
+}
 
-    THREAD_LOCAL_VALUES.with(|values| {
-        values.borrow_mut().insert(key_id, value);
+/// Return the current host thread owner identifier.
+#[cfg(not(any(unix, windows)))]
+#[allow(dead_code)]
+pub(crate) fn current_thread_owner_id() -> ThreadOwnerId {
+    std::thread::current().id()
+}
+
+/// Insert one thread-domain resource payload into the runtime table.
+pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
+    context: &RuntimeCallContext,
+    label: &str,
+    resource: T,
+) -> ResourceId {
+    let entry = ResourceEntry::new(THREAD_RESOURCE_KIND)
+        .with_label(label)
+        .with_payload(Arc::new(resource));
+
+    context.runtime().resources.insert(entry)
+}
+
+/// Resolve one shared resource payload from the runtime table.
+pub(crate) fn resolve_thread_resource<T: Send + Sync + 'static>(
+    context: &RuntimeCallContext,
+    handle: ResourceId,
+    field: &str,
+    kind: &str,
+) -> RuntimeResult<Arc<T>> {
+    let resolved = context.runtime().resources.with_entry(handle, |entry| {
+        entry
+            .payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<Arc<T>>())
+            .map(Arc::clone)
     });
 
-    Ok(())
+    resolved
+        .flatten()
+        .ok_or_else(|| invalid_handle_error(field, kind))
+}
+
+/// Remove one shared resource payload from the runtime table.
+pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
+    context: &RuntimeCallContext,
+    handle: ResourceId,
+    field: &str,
+    kind: &str,
+) -> RuntimeResult<Arc<T>> {
+    let Some(entry) = context.runtime().resources.remove(handle) else {
+        return Err(invalid_handle_error(field, kind));
+    };
+
+    let Some(payload) = entry.payload else {
+        return Err(invalid_handle_error(field, kind));
+    };
+
+    match payload.downcast::<Arc<T>>() {
+        Ok(resource) => Ok(*resource),
+        Err(_) => Err(invalid_handle_error(field, kind)),
+    }
 }
