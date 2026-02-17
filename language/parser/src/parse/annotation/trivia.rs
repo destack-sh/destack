@@ -5,7 +5,8 @@ use destack_ast::{
     NodeType, StringId, TokenSpan, TokenType, TriviaBoundary, TriviaNewlineFlags,
     normalize_comment_payload,
 };
-use destack_source::{EnclosingSpan, NodeSearchMode, Span};
+use destack_source::{NodeSearchMode, Span};
+use rustc_hash::FxHashMap;
 
 const NO_TOKEN_INDEX: u32 = u32::MAX;
 
@@ -14,6 +15,20 @@ struct TokenNeighborIndex {
     previous_attachable: Vec<u32>,
     next_attachable: Vec<u32>,
     last_attachable: u32,
+}
+
+#[derive(Debug)]
+struct DocumentationOwnerIndex {
+    owner_start_by_token: FxHashMap<u32, u32>,
+}
+
+impl DocumentationOwnerIndex {
+    #[inline]
+    fn owner_start(&self, token_index: usize) -> Option<u32> {
+        self.owner_start_by_token
+            .get(&(token_index as u32))
+            .copied()
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -110,6 +125,22 @@ impl Parser {
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_WRAPPERS);
             Self::build_token_neighbor_index(&semantic_tokens)
         };
+        let documentation_target_token_indexes = self.collect_documentation_target_token_indexes(
+            &semantic_tokens,
+            &side_tokens,
+            &side_owner_token_indexes,
+            &comment_side_token_indexes,
+            &neighbor_index,
+        );
+        let documentation_owner_index = {
+            let _build_owner_index_timing = self.timing_scope(
+                crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_OWNER_INDEX,
+            );
+            self.build_documentation_owner_index(
+                &semantic_tokens,
+                &documentation_target_token_indexes,
+            )
+        };
 
         // emit side token comments and semantic docs
         let inserted_docs = {
@@ -121,6 +152,7 @@ impl Parser {
                 &side_owner_token_indexes,
                 &comment_side_token_indexes,
                 &neighbor_index,
+                &documentation_owner_index,
             )
         };
 
@@ -158,6 +190,7 @@ impl Parser {
         side_owner_token_indexes: &[u32],
         comment_side_token_indexes: &[u32],
         neighbor_index: &TokenNeighborIndex,
+        documentation_owner_index: &DocumentationOwnerIndex,
     ) -> bool {
         let mut pending_documentation =
             Vec::<PendingDocumentationAttachment>::with_capacity(side_tokens.len() / 16);
@@ -238,9 +271,12 @@ impl Parser {
                         DocStyle::Star
                     };
                     let token_after = Self::decode_token_index(token_after_index);
-                    if let Some(target_id) =
-                        self.find_documentation_target(token, token_after, semantic_tokens)
-                    {
+                    if let Some(target_id) = self.find_documentation_target(
+                        token,
+                        token_after,
+                        semantic_tokens,
+                        documentation_owner_index,
+                    ) {
                         let cleaned_text = normalize_comment_payload(raw_text);
                         let string = self.strings.intern(cleaned_text.as_ref());
                         let position = if has_leading_newline {
@@ -336,6 +372,128 @@ impl Parser {
         }
 
         inserted_docs
+    }
+
+    /// Build a direct token-to-owner map for semantic documentation targets.
+    fn build_documentation_owner_index(
+        &self,
+        semantic_tokens: &[TokenSpan],
+        documentation_target_token_indexes: &[u32],
+    ) -> DocumentationOwnerIndex {
+        let mut owner_start_by_token = FxHashMap::<u32, u32>::with_capacity_and_hasher(
+            documentation_target_token_indexes.len(),
+            Default::default(),
+        );
+        if semantic_tokens.is_empty() || documentation_target_token_indexes.is_empty() {
+            return DocumentationOwnerIndex {
+                owner_start_by_token,
+            };
+        }
+
+        let mut token_index_by_start = FxHashMap::<u32, u32>::with_capacity_and_hasher(
+            documentation_target_token_indexes.len(),
+            Default::default(),
+        );
+        for &token_index in documentation_target_token_indexes {
+            let token_index = token_index as usize;
+            let Some(token) = semantic_tokens.get(token_index).copied() else {
+                continue;
+            };
+            if !Self::is_attachable_semantic_token(token.token.ty)
+                || token_index_by_start.contains_key(&token.span.start)
+            {
+                continue;
+            }
+            token_index_by_start
+                .entry(token.span.start)
+                .or_insert(token_index as u32);
+        }
+
+        let node_count = self.tree.next_id();
+        for node_id in 0..node_count {
+            if self.is_annotation_node_id(node_id) {
+                continue;
+            }
+
+            let owner_span = self.tree.get_span_by_id(node_id);
+            let Some(&token_index) = token_index_by_start.get(&owner_span.start) else {
+                continue;
+            };
+            let token_index = token_index as usize;
+            let token_span = semantic_tokens[token_index].span;
+            if owner_span.end < token_span.end {
+                continue;
+            }
+
+            let token_index_u32 = token_index as u32;
+            if let Some(current_owner) = owner_start_by_token.get(&token_index_u32).copied()
+                && !self.documentation_owner_is_better(node_id, current_owner)
+            {
+                continue;
+            }
+
+            owner_start_by_token.insert(token_index_u32, node_id);
+        }
+
+        DocumentationOwnerIndex {
+            owner_start_by_token,
+        }
+    }
+
+    /// Collect normalized doc target token indexes so owner indexing stays sparse.
+    fn collect_documentation_target_token_indexes(
+        &self,
+        semantic_tokens: &[TokenSpan],
+        side_tokens: &[TokenSpan],
+        side_owner_token_indexes: &[u32],
+        comment_side_token_indexes: &[u32],
+        neighbor_index: &TokenNeighborIndex,
+    ) -> Vec<u32> {
+        let mut target_token_indexes =
+            Vec::<u32>::with_capacity(comment_side_token_indexes.len() / 8);
+
+        for &comment_side_index in comment_side_token_indexes {
+            let side_index = comment_side_index as usize;
+            let token = side_tokens[side_index];
+            if !Self::is_documentation_token(token.token.ty) {
+                continue;
+            }
+
+            let raw_text = self.file.span_str(token.span);
+            if !Self::documentation_token_should_stay_semantic(token.token.ty, raw_text) {
+                continue;
+            }
+
+            let side_owner = side_owner_token_indexes[side_index];
+            let boundary_index = if side_owner == NO_TOKEN_INDEX {
+                semantic_tokens.len()
+            } else {
+                side_owner as usize
+            };
+            let token_after_index = if boundary_index < semantic_tokens.len() {
+                let boundary_token = semantic_tokens[boundary_index];
+                if Self::is_attachable_semantic_token(boundary_token.token.ty) {
+                    boundary_index as u32
+                } else {
+                    neighbor_index.next_attachable[boundary_index]
+                }
+            } else {
+                NO_TOKEN_INDEX
+            };
+
+            let token_after = Self::decode_token_index(token_after_index);
+            let Some(token_after) =
+                self.normalize_documentation_token_after(token_after, semantic_tokens)
+            else {
+                continue;
+            };
+
+            target_token_indexes.push(token_after as u32);
+        }
+
+        target_token_indexes.sort_unstable();
+        target_token_indexes.dedup();
+        target_token_indexes
     }
 
     /// Emit blank trivia records from newline runs in semantic tokens.
@@ -462,13 +620,13 @@ impl Parser {
         token: TokenSpan,
         token_after: Option<usize>,
         semantic_tokens: &[TokenSpan],
+        documentation_owner_index: &DocumentationOwnerIndex,
     ) -> Option<u32> {
         let token_after = self.normalize_documentation_token_after(token_after, semantic_tokens);
 
-        // direct seam owner: use the smallest owner that starts at the following token
+        // direct seam owner: use the precomputed owner that starts at the following token
         if let Some(token_after) = token_after {
-            let owner_token = semantic_tokens[token_after];
-            if let Some(owner_id) = self.find_preferred_owner_starting_at(&owner_token.span) {
+            if let Some(owner_id) = documentation_owner_index.owner_start(token_after) {
                 let owner_id =
                     self.normalize_documentation_target(owner_id, token_after, semantic_tokens);
                 return Some(owner_id);
@@ -490,6 +648,34 @@ impl Parser {
 
         // trivia-only fallback: attach to stable anchor expression
         self.find_trivia_anchor_owner()
+    }
+
+    /// Return whether one owner should replace another in documentation ranking.
+    fn documentation_owner_is_better(&self, candidate_id: u32, current_id: u32) -> bool {
+        let candidate_span = self.tree.get_span_by_id(candidate_id);
+        let current_span = self.tree.get_span_by_id(current_id);
+
+        let candidate_length = candidate_span.end.saturating_sub(candidate_span.start);
+        let current_length = current_span.end.saturating_sub(current_span.start);
+        if candidate_length != current_length {
+            return candidate_length < current_length;
+        }
+
+        let candidate_kind_rank = if self.tree.get_node_type(candidate_id) == NodeType::Expression {
+            1
+        } else {
+            0
+        };
+        let current_kind_rank = if self.tree.get_node_type(current_id) == NodeType::Expression {
+            1
+        } else {
+            0
+        };
+        if candidate_kind_rank != current_kind_rank {
+            return candidate_kind_rank < current_kind_rank;
+        }
+
+        candidate_id < current_id
     }
 
     /// Skip forward separators so docs bind to the real expression owner token.
@@ -583,51 +769,6 @@ impl Parser {
         }
 
         first_expression_id
-    }
-
-    /// Find the best non-annotation owner that starts at one token span.
-    fn find_preferred_owner_starting_at(&self, span: &Span) -> Option<u32> {
-        let mut best_owner: Option<EnclosingSpan> = None;
-        self.tree.source_map.visit_enclosing_spans(
-            span.start,
-            span.end.saturating_sub(1),
-            |candidate| {
-                if candidate.span.start != span.start || self.is_annotation_node_id(candidate.idx) {
-                    return;
-                }
-
-                let candidate_kind_rank =
-                    if self.tree.get_node_type(candidate.idx) == NodeType::Expression {
-                        1
-                    } else {
-                        0
-                    };
-
-                let should_replace = if let Some(current) = best_owner {
-                    let current_kind_rank =
-                        if self.tree.get_node_type(current.idx) == NodeType::Expression {
-                            1
-                        } else {
-                            0
-                        };
-
-                    candidate.length < current.length
-                        || (candidate.length == current.length
-                            && candidate_kind_rank < current_kind_rank)
-                        || (candidate.length == current.length
-                            && candidate_kind_rank == current_kind_rank
-                            && candidate.idx < current.idx)
-                } else {
-                    true
-                };
-
-                if should_replace {
-                    best_owner = Some(candidate);
-                }
-            },
-        );
-
-        best_owner.map(|owner| owner.idx)
     }
 
     /// Resolve a prefix owner fallback from one token span.

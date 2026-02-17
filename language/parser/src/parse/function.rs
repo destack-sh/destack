@@ -118,6 +118,9 @@ impl Parser {
         open_index: usize,
         close_index: usize,
     ) -> Option<SimpleParenthesizedLambdaHeadShape> {
+        let tokens = self.tokens();
+        let head_tokens = tokens.get(open_index + 1..close_index)?;
+
         // track the simple head state
         let mut has_parameter = false;
         let mut has_type_annotation = false;
@@ -129,9 +132,8 @@ impl Parser {
         let mut bracket_depth = 0usize;
         let mut angle_depth = 0usize;
 
-        for token_index in open_index + 1..close_index {
-            self.ensure_token(token_index);
-            let token_type = self.tokens().get(token_index)?.token.ty;
+        for token in head_tokens {
+            let token_type = token.token.ty;
             if token_type == TokenType::Newline {
                 continue;
             }
@@ -263,16 +265,6 @@ impl Parser {
             return Ok(None);
         }
 
-        // classify the head shape
-        let Some(head_shape) =
-            self.classify_simple_parenthesized_lambda_head(open_index, close_index)
-        else {
-            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
-                speculation_stats.simple_parenthesized_lambda_misses += 1;
-            }
-            return Ok(None);
-        };
-
         // require an arrow or a return type marker after the group
         let follow_index = self.next_non_newline_index_from(close_index + 1);
         if !matches!(
@@ -284,6 +276,16 @@ impl Parser {
             }
             return Ok(None);
         }
+
+        // classify the head shape
+        let Some(head_shape) =
+            self.classify_simple_parenthesized_lambda_head(open_index, close_index)
+        else {
+            if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+                speculation_stats.simple_parenthesized_lambda_misses += 1;
+            }
+            return Ok(None);
+        };
 
         // parse the parenthesized head
         self.eat_token(TokenType::OpenParenthesis)?;
