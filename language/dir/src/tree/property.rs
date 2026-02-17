@@ -178,7 +178,7 @@ impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
 }
 
-/// A Member is a member of a class-like declaration.
+/// A Member is a member of a object-like declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Member {
     /// Associated type alias (like `type Item = T`).
