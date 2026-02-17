@@ -114,6 +114,11 @@ pub(crate) fn runtime_domain_test_harness_generated_path(domain: &str) -> PathBu
     ))
 }
 
+/// Resolve the handwritten tests harness path for a runtime domain.
+pub(crate) fn runtime_domain_test_harness_path(domain: &str) -> PathBuf {
+    language_root().join(format!("runtime/src/platform/{domain}/tests/harness.rs"))
+}
+
 /// Resolve the generated platform binding list path.
 pub(crate) fn runtime_platform_generated_path() -> PathBuf {
     language_root().join("runtime/src/platform/generated.rs")

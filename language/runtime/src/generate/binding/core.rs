@@ -28,17 +28,18 @@ pub(crate) use path::{
     runtime_domain_runtime_native_path, runtime_domain_runtime_vm_path,
     runtime_domain_simulated_mod_path, runtime_domain_simulated_native_path,
     runtime_domain_simulated_vm_path, runtime_domain_test_harness_generated_path,
-    runtime_domain_tests_basic_path, runtime_domain_tests_dir_path, runtime_domain_tests_mod_path,
-    runtime_domain_tests_path, runtime_domain_unix_mod_path, runtime_domain_unsupported_path,
-    runtime_domain_vm_path, runtime_domain_windows_mod_path, runtime_platform_generated_path,
-    write_domain_bindings,
+    runtime_domain_test_harness_path, runtime_domain_tests_basic_path,
+    runtime_domain_tests_dir_path, runtime_domain_tests_mod_path, runtime_domain_tests_path,
+    runtime_domain_unix_mod_path, runtime_domain_unsupported_path, runtime_domain_vm_path,
+    runtime_domain_windows_mod_path, runtime_platform_generated_path, write_domain_bindings,
 };
 use replay::*;
 pub(crate) use stub::{
-    render_domain_mod_stub, render_host_router_stub, render_host_stub, render_native_stub,
-    render_os_backend_mod_stub, render_runtime_mod_stub, render_runtime_native_stub,
-    render_runtime_vm_stub, render_simulated_mod_stub, render_simulated_native_stub,
-    render_simulated_vm_stub, render_vm_stub,
+    render_domain_mod_stub, render_domain_test_harness_generated, render_domain_test_harness_stub,
+    render_host_router_stub, render_host_stub, render_native_stub, render_os_backend_mod_stub,
+    render_runtime_mod_stub, render_runtime_native_stub, render_runtime_vm_stub,
+    render_simulated_mod_stub, render_simulated_native_stub, render_simulated_vm_stub,
+    render_vm_stub,
 };
 
 /// Canonical binding specification for a platform domain.

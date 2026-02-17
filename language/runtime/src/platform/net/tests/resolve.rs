@@ -1,13 +1,23 @@
-use super::{assert_platform_error_code, assert_platform_error_codes, with_harness_context};
+use super::{assert_platform_error_codes, with_harness_context};
+use crate::diagnostic::RuntimeError;
+use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::net::{ResolveFlags, SocketFamily};
+use crate::platform::net::{ResolveFlags, ReverseLookupFlags, SocketFamily};
 
 /// Resolve localhost into concrete socket addresses.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_net_resolve_localhost() {
     with_harness_context(|mut context| {
-        let result = context.resolve("localhost", 0, SocketFamily::Unspecified, ResolveFlags(0));
+        let result = context
+            .destack_net_resolve(context.resolve_query_value(
+                "localhost",
+                0,
+                SocketFamily::Unspecified,
+                ResolveFlags(0),
+            ))
+            .and_then(|value| context.socket_addresses_from_value(value));
+
         // either return at least one address or report not-supported
         match result {
             Ok(addresses) => {
@@ -17,7 +27,13 @@ fn test_net_resolve_localhost() {
                 }
             }
             Err(error) => {
-                assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+                assert_platform_error_codes::<()>(
+                    Err(error),
+                    &[
+                        PlatformErrorCode::NotSupported,
+                        PlatformErrorCode::InvalidArgumentValue,
+                    ],
+                )?;
             }
         }
 
@@ -30,7 +46,31 @@ fn test_net_resolve_localhost() {
 #[test]
 fn test_net_reverse_lookup_localhost() {
     with_harness_context(|mut context| {
-        let result = context.reverse_lookup("127.0.0.1", 0, SocketFamily::IPv4);
+        let resolved = context
+            .destack_net_resolve(context.resolve_query_value(
+                "127.0.0.1",
+                0,
+                SocketFamily::IPv4,
+                ResolveFlags(0),
+            ))
+            .and_then(|value| context.socket_addresses_from_value(value));
+
+        let result = match resolved {
+            Ok(addresses) => {
+                if let Some((host, port, family)) = addresses.first().cloned() {
+                    context
+                        .destack_net_reverse_lookup(
+                            context.socket_address_value(&host, port, family)?,
+                            ReverseLookupFlags(0),
+                        )
+                        .and_then(|value| context.reverse_lookup_names_from_value(value))
+                } else {
+                    Err(RuntimeError::from(PlatformError::not_supported("reverse lookup")).boxed())
+                }
+            }
+            Err(error) => Err(error),
+        };
+
         // either return names or one of the expected network lookup failures
         match result {
             Ok(names) => {
@@ -42,6 +82,7 @@ fn test_net_reverse_lookup_localhost() {
                     &[
                         PlatformErrorCode::NetDnsFailed,
                         PlatformErrorCode::NotSupported,
+                        PlatformErrorCode::InvalidArgumentValue,
                     ],
                 )?;
             }

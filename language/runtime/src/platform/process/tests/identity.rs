@@ -12,7 +12,7 @@ fn test_process_kill_zero_to_self() {
     let pid = ProcessId(std::process::id());
 
     with_harness_context(|mut context| {
-        context.kill(pid, Signal(0))?;
+        context.destack_process_kill(pid, Signal(0))?;
         Ok(())
     });
 }
@@ -30,12 +30,12 @@ fn test_process_identity_scalar_syscall_parity() {
 
     with_harness_context(|mut context| {
         // scalar identity values should match direct syscall observations
-        assert_eq!(context.pid()?, expected_pid);
-        assert_eq!(context.ppid()?, expected_ppid);
-        assert_eq!(context.uid()?.0, expected_uid);
-        assert_eq!(context.gid()?.0, expected_gid);
-        assert_eq!(context.euid()?.0, expected_euid);
-        assert_eq!(context.egid()?.0, expected_egid);
+        assert_eq!(context.destack_process_pid()?, expected_pid);
+        assert_eq!(context.destack_process_ppid()?, expected_ppid);
+        assert_eq!(context.destack_process_uid()?.0, expected_uid);
+        assert_eq!(context.destack_process_gid()?.0, expected_gid);
+        assert_eq!(context.destack_process_euid()?.0, expected_euid);
+        assert_eq!(context.destack_process_egid()?.0, expected_egid);
         Ok(())
     });
 }
@@ -50,9 +50,17 @@ fn test_process_identity_extended_syscall_parity() {
 
     with_harness_context(|mut context| {
         // extended identity vectors should match direct syscall observations
-        assert_eq!(context.group_ids()?, expected_group_ids);
-        assert_eq!(context.groups()?, expected_groups);
-        assert_eq!(context.user_ids()?, expected_user_ids);
+        let group_ids = context.destack_process_group_ids()?;
+        let group_ids = group_ids.into_inner();
+        assert_eq!(group_ids, expected_group_ids);
+
+        let groups = context.destack_process_groups()?;
+        let groups = context.group_list_from_value(groups)?;
+        assert_eq!(groups, expected_groups);
+
+        let user_ids = context.destack_process_user_ids()?;
+        let user_ids = user_ids.into_inner();
+        assert_eq!(user_ids, expected_user_ids);
         Ok(())
     });
 }
@@ -65,7 +73,7 @@ fn test_process_getpgid_matches_syscall() {
     let expected = syscall_getpgid(pid).expect("getpgid syscall should succeed");
 
     with_harness_context(|mut context| {
-        assert_eq!(context.getpgid(pid)?, expected);
+        assert_eq!(context.destack_process_getpgid(pid)?, expected);
         Ok(())
     });
 }
@@ -76,14 +84,17 @@ fn test_process_getpgid_matches_syscall() {
 fn test_process_identity_setters_preserve_identity_state() {
     with_harness_context(|mut context| {
         // baseline identity snapshot
-        let current_uid = context.uid()?;
-        let current_gid = context.gid()?;
-        let current_user_ids = context.user_ids()?;
-        let current_group_ids = context.group_ids()?;
-        let current_groups = context.groups()?;
+        let current_uid = context.destack_process_uid()?;
+        let current_gid = context.destack_process_gid()?;
+        let current_user_ids = context.destack_process_user_ids()?;
+        let current_user_ids = current_user_ids.into_inner();
+        let current_group_ids = context.destack_process_group_ids()?;
+        let current_group_ids = current_group_ids.into_inner();
+        let current_groups = context.destack_process_groups()?;
+        let current_groups = context.group_list_from_value(current_groups)?;
 
         // setter outcomes: allowed values are success, permission denied, or not supported
-        let set_uid = context.set_uid(current_uid);
+        let set_uid = context.destack_process_set_uid(current_uid);
         if let Err(error) = set_uid {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -95,10 +106,10 @@ fn test_process_identity_setters_preserve_identity_state() {
         }
 
         // identity reads should remain unchanged after each setter call
-        let observed_uid = context.uid()?;
+        let observed_uid = context.destack_process_uid()?;
         assert_eq!(observed_uid, current_uid);
 
-        let set_euid = context.set_euid(current_user_ids.effective);
+        let set_euid = context.destack_process_set_euid(current_user_ids.effective);
         if let Err(error) = set_euid {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -109,10 +120,11 @@ fn test_process_identity_setters_preserve_identity_state() {
             )?;
         }
 
-        let observed_user_ids = context.user_ids()?;
+        let observed_user_ids = context.destack_process_user_ids()?;
+        let observed_user_ids = observed_user_ids.into_inner();
         assert_eq!(observed_user_ids, current_user_ids);
 
-        let set_gid = context.set_gid(current_gid);
+        let set_gid = context.destack_process_set_gid(current_gid);
         if let Err(error) = set_gid {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -123,10 +135,10 @@ fn test_process_identity_setters_preserve_identity_state() {
             )?;
         }
 
-        let observed_gid = context.gid()?;
+        let observed_gid = context.destack_process_gid()?;
         assert_eq!(observed_gid, current_gid);
 
-        let set_egid = context.set_egid(current_group_ids.effective);
+        let set_egid = context.destack_process_set_egid(current_group_ids.effective);
         if let Err(error) = set_egid {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -137,10 +149,12 @@ fn test_process_identity_setters_preserve_identity_state() {
             )?;
         }
 
-        let observed_group_ids = context.group_ids()?;
+        let observed_group_ids = context.destack_process_group_ids()?;
+        let observed_group_ids = observed_group_ids.into_inner();
         assert_eq!(observed_group_ids, current_group_ids);
 
-        let set_user_ids = context.set_user_ids(current_user_ids);
+        let set_user_ids =
+            context.destack_process_set_user_ids(context.unified_value(current_user_ids));
         if let Err(error) = set_user_ids {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -151,10 +165,12 @@ fn test_process_identity_setters_preserve_identity_state() {
             )?;
         }
 
-        let observed_user_ids = context.user_ids()?;
+        let observed_user_ids = context.destack_process_user_ids()?;
+        let observed_user_ids = observed_user_ids.into_inner();
         assert_eq!(observed_user_ids, current_user_ids);
 
-        let set_group_ids = context.set_group_ids(current_group_ids);
+        let set_group_ids =
+            context.destack_process_set_group_ids(context.unified_value(current_group_ids));
         if let Err(error) = set_group_ids {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -165,10 +181,12 @@ fn test_process_identity_setters_preserve_identity_state() {
             )?;
         }
 
-        let observed_group_ids = context.group_ids()?;
+        let observed_group_ids = context.destack_process_group_ids()?;
+        let observed_group_ids = observed_group_ids.into_inner();
         assert_eq!(observed_group_ids, current_group_ids);
 
-        let set_groups = context.set_groups(&current_groups);
+        let set_groups =
+            context.destack_process_set_groups(context.group_slice_value(&current_groups)?);
         if let Err(error) = set_groups {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -179,7 +197,8 @@ fn test_process_identity_setters_preserve_identity_state() {
             )?;
         }
 
-        let observed_groups = context.groups()?;
+        let observed_groups = context.destack_process_groups()?;
+        let observed_groups = context.group_list_from_value(observed_groups)?;
         assert_eq!(observed_groups, current_groups);
 
         Ok(())

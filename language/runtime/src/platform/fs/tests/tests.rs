@@ -1,4 +1,8 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
+
+#[path = "harness.rs"]
+mod harness;
+
 use std::net::ToSocketAddrs;
 use std::path::{Path, PathBuf};
 
@@ -11,60 +15,19 @@ use crate::platform::net::{
     self as core_net, AcceptFlags, SocketAddress, SocketAddressVm, SocketFamily, SocketProtocol,
     SocketType, vm as platform_net_vm,
 };
-use crate::platform::resource::{DirectoryHandle, ListenerHandle, ResourceId, SocketHandle};
+use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, fs as platform_fs,
 };
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{
-    AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentVm, FileAdvice, FileHandle,
-    FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
-    OpenFlags, OpenOptions, OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi,
-    RenameFlags, SeekWhence, Stat, StatFs, SymlinkType, SyncFlags, XattrFlags, core as core_fs,
-    vm as platform_vm,
+    Dirent, DirentKind, DirentVm, OpenOptions, OpenOptionsVm, OsPath, OsPathVm, PathBytesAbi,
+    PathEncoding, PathUtf16Abi, core as core_fs,
 };
 
-#[path = "harness.generated.rs"]
-mod harness;
-
-/// Selects the backing harness kind for filesystem tests.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum FsHarnessKind {
-    /// Native bindings backed by the host ABI.
-    Native,
-    /// VM bindings backed by VM ABI values.
-    Vm,
-}
-
 /// Path reference payload used by filesystem test helpers.
-#[derive(Clone)]
-pub(crate) enum FsPathRef {
-    /// Native path with owned storage (keeps buffers alive).
-    Native {
-        /// The owned byte buffer, if the path was byte-encoded.
-        _bytes: Option<Vec<u8>>,
-        /// The owned utf16 buffer, if the path was utf16-encoded.
-        _utf16: Option<Vec<u16>>,
-        /// The native path reference.
-        path: OsPath,
-    },
-    /// VM path reference.
-    Vm {
-        /// The VM path reference.
-        path: OsPathVm,
-    },
-}
-
-impl FsPathRef {
-    /// Return the native path reference if available.
-    pub(crate) fn native(&self) -> Option<OsPath> {
-        match self {
-            FsPathRef::Native { path, .. } => Some(*path),
-            FsPathRef::Vm { .. } => None,
-        }
-    }
-}
+pub(crate) type FsPathRef = harness::HarnessValue<OsPath, OsPathVm>;
 
 /// Directory entry payload for filesystem tests.
 #[derive(Clone, Copy)]
@@ -87,11 +50,11 @@ pub(crate) enum FsMapping {
 /// Filesystem harness context used by tests.
 pub(crate) struct FsHarnessContext<'call> {
     /// Runtime backing this harness.
-    runtime: &'call TestRuntime,
+    pub(super) runtime: &'call TestRuntime,
     /// Runtime call context active for this operation.
-    call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call RuntimeCallContext,
     /// VM context when running VM bindings.
-    vm_context: Option<*mut ()>,
+    pub(super) vm_context: Option<*mut ()>,
 }
 
 /// Native filesystem harness backed by native bindings.
@@ -205,24 +168,6 @@ pub(crate) fn temp_dir(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!("destack_runtime_{label}_{nonce}"))
 }
 
-/// Assert one result failed with one exact platform error code.
-pub(crate) fn assert_platform_error_code<T>(
-    result: RuntimeResult<T>,
-    expected: PlatformErrorCode,
-) -> RuntimeResult<()> {
-    let error = match result {
-        Ok(_) => panic!("operation should fail"),
-        Err(error) => error,
-    };
-    let platform = error
-        .platform_error()
-        .expect("error should contain one platform error");
-    assert_no_permission_denied_in_privileged_mode(platform.code, &[expected]);
-    assert_eq!(platform.code, expected);
-
-    Ok(())
-}
-
 /// Assert one result failed with one of the expected platform error codes.
 pub(crate) fn assert_platform_error_codes<T>(
     result: RuntimeResult<T>,
@@ -295,15 +240,6 @@ pub(crate) fn native_slice(buffer: &[u8]) -> NativeSlice<u8> {
     }
 }
 
-/// Build a NativeArray from a byte buffer.
-pub(crate) fn native_array(buffer: &mut [u8]) -> NativeArray<u8> {
-    NativeArray {
-        data: buffer.as_mut_ptr(),
-        len: buffer.len() as u32,
-        capacity: buffer.len() as u32,
-    }
-}
-
 /// Build an empty VM array.
 fn empty_vm_array<T>() -> VmArray<T> {
     VmArray {
@@ -314,70 +250,6 @@ fn empty_vm_array<T>() -> VmArray<T> {
     }
 }
 
-/// Build a native byte path reference.
-#[cfg(unix)]
-fn path_bytes_native(path: &Path) -> (Vec<u8>, OsPath) {
-    use std::os::unix::ffi::OsStrExt;
-
-    let mut bytes = path.as_os_str().as_bytes().to_vec();
-    let path = PathBytesAbi::<NativeAbi>(native_array(&mut bytes));
-    (bytes, core_fs::path_ref_from_bytes(path))
-}
-
-/// Build a native byte path reference.
-#[cfg(windows)]
-fn path_bytes_native(path: &Path) -> (Vec<u8>, OsPath) {
-    let value = path.to_str().expect("path must be utf8 for windows tests");
-    let mut bytes = value.as_bytes().to_vec();
-    let path = PathBytesAbi::<NativeAbi>(native_array(&mut bytes));
-    (bytes, core_fs::path_ref_from_bytes(path))
-}
-
-/// Build a native byte path reference.
-#[cfg(not(any(unix, windows)))]
-fn path_bytes_native(_path: &Path) -> (Vec<u8>, OsPath) {
-    unreachable!("unsupported platform for fs tests");
-}
-
-/// Build a native UTF-16 path reference.
-#[cfg(unix)]
-fn path_utf16_native(path: &Path) -> (Vec<u16>, OsPath) {
-    use std::os::unix::ffi::OsStrExt;
-
-    let bytes = path.as_os_str().as_bytes();
-    let text = std::str::from_utf8(bytes).expect("path must be utf8 for unix utf16 tests");
-    let mut utf16_units: Vec<u16> = text.encode_utf16().collect();
-    let path = PathUtf16Abi::<NativeAbi>(NativeArray {
-        data: utf16_units.as_mut_ptr(),
-        len: utf16_units.len() as u32,
-        capacity: utf16_units.len() as u32,
-    });
-
-    (utf16_units, core_fs::path_ref_from_utf16(path))
-}
-
-/// Build a native UTF-16 path reference.
-#[cfg(windows)]
-fn path_utf16_native(path: &Path) -> (Vec<u16>, OsPath) {
-    use std::os::windows::ffi::OsStrExt;
-
-    let mut utf16_units: Vec<u16> = path.as_os_str().encode_wide().collect();
-    let path = PathUtf16Abi::<NativeAbi>(NativeArray {
-        data: utf16_units.as_mut_ptr(),
-        len: utf16_units.len() as u32,
-        capacity: utf16_units.len() as u32,
-    });
-
-    (utf16_units, core_fs::path_ref_from_utf16(path))
-}
-
-/// Build a native UTF-16 path reference.
-#[cfg(not(any(unix, windows)))]
-#[allow(dead_code)]
-fn path_utf16_native(_path: &Path) -> (Vec<u16>, OsPath) {
-    unreachable!("unsupported platform for utf16 tests");
-}
-
 /// Read raw bytes from a native path reference.
 fn path_ref_bytes_native(path: OsPath) -> Vec<u8> {
     match path.encoding {
@@ -385,37 +257,6 @@ fn path_ref_bytes_native(path: OsPath) -> Vec<u8> {
             .expect("path bytes should be valid")
             .to_vec(),
         PathEncoding::Utf16 => panic!("expected byte path"),
-    }
-}
-
-/// Build an owned native path reference from a raw path reference.
-fn own_path_ref_native(path: OsPath) -> FsPathRef {
-    match path.encoding {
-        PathEncoding::Bytes => {
-            let mut bytes = path_ref_bytes_native(path);
-            let path = PathBytesAbi::<NativeAbi>(native_array(&mut bytes));
-            let path = core_fs::path_ref_from_bytes(path);
-            FsPathRef::Native {
-                _bytes: Some(bytes),
-                _utf16: None,
-                path,
-            }
-        }
-        PathEncoding::Utf16 => {
-            let mut utf16_units = path_ref_utf16_native(path);
-            let path = PathUtf16Abi::<NativeAbi>(NativeArray {
-                data: utf16_units.as_mut_ptr(),
-                len: utf16_units.len() as u32,
-                capacity: utf16_units.len() as u32,
-            });
-            let path = core_fs::path_ref_from_utf16(path);
-
-            FsPathRef::Native {
-                _bytes: None,
-                _utf16: Some(utf16_units),
-                path,
-            }
-        }
     }
 }
 
@@ -615,11 +456,6 @@ fn decode_string_value(
         );
     }
     Ok(vm::StringHandle::new(value))
-}
-
-fn vm_string(context: &mut vm::ExternalCallContext<'_>, value: &str) -> vm::StringHandle {
-    let value = context.intern_string(value);
-    vm::StringHandle::new(value)
 }
 
 #[cfg(unix)]

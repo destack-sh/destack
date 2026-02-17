@@ -11,16 +11,17 @@ fn test_fs_mkdir_opendir_readdir_closedir() {
         let child_dir = temp_dir.join("child");
 
         let dir = context.path_bytes(&temp_dir);
-        context.mkdir(dir, FileMode(0o755))?;
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
         let child = context.path_bytes(&child_dir);
-        context.mkdir(child, FileMode(0o755))?;
+        context.destack_fs_mkdir(child, FileMode(0o755))?;
 
         // open and read entries
         let dir = context.path_bytes(&temp_dir);
-        let handle = context.opendir(dir)?;
+        let handle = context.destack_fs_opendir(dir)?;
 
+        let dirents = context.destack_fs_readdir(handle)?;
         let entries = context
-            .readdir(handle)?
+            .dirents_from_value(dirents)?
             .into_iter()
             .map(|entry| {
                 let name = context.dirent_name(entry);
@@ -41,12 +42,12 @@ fn test_fs_mkdir_opendir_readdir_closedir() {
         assert!(!entries.iter().any(|(name, _)| name == ".."));
 
         // cleanup
-        context.closedir(handle)?;
+        context.destack_fs_closedir(handle)?;
 
         let child = context.path_bytes(&child_dir);
-        context.rmdir(child)?;
+        context.destack_fs_rmdir(child)?;
         let dir = context.path_bytes(&temp_dir);
-        context.rmdir(dir)?;
+        context.destack_fs_rmdir(dir)?;
 
         Ok(())
     });
@@ -62,23 +63,23 @@ fn test_fs_mkdirat_bytes() {
         let child_dir = temp_dir.join("child");
 
         let dir = context.path_bytes(&temp_dir);
-        context.mkdir(dir, FileMode(0o755))?;
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
 
         // mkdirat through directory handle
         let dir = context.path_bytes(&temp_dir);
-        let handle = context.opendir(dir)?;
+        let handle = context.destack_fs_opendir(dir)?;
 
         let child_name = std::path::Path::new("child");
         let path = context.path_bytes(child_name);
-        context.mkdirat(handle, path, FileMode(0o755))?;
+        context.destack_fs_mkdirat(handle, path, FileMode(0o755))?;
 
-        context.closedir(handle)?;
+        context.destack_fs_closedir(handle)?;
 
         // cleanup
         let child = context.path_bytes(&child_dir);
-        context.rmdir(child)?;
+        context.destack_fs_rmdir(child)?;
         let dir = context.path_bytes(&temp_dir);
-        context.rmdir(dir)?;
+        context.destack_fs_rmdir(dir)?;
 
         Ok(())
     });
@@ -94,18 +95,18 @@ fn test_fs_mkdtemp() {
         let template_path = temp_dir.join("destack_XXXXXX");
 
         let dir = context.path_bytes(&temp_dir);
-        context.mkdir(dir, FileMode(0o755))?;
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
 
         // create a temporary directory
         let template = context.path_bytes(&template_path);
-        let created = context.mkdtemp(template)?;
+        let created = context.destack_fs_mkdtemp(template)?;
         let name = context.path_ref_string(created.clone());
         assert!(name.contains("destack_"));
 
         // cleanup
-        context.rmdir(created)?;
+        context.destack_fs_rmdir(created)?;
         let dir = context.path_bytes(&temp_dir);
-        context.rmdir(dir)?;
+        context.destack_fs_rmdir(dir)?;
 
         Ok(())
     });

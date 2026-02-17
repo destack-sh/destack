@@ -10,9 +10,11 @@ use crate::platform::diagnostic::PlatformErrorCode;
 fn test_thread_spawn_join_roundtrip() {
     with_harness_context(|mut context| {
         let options = default_thread_options();
-        let handle = context.spawn(test_thread_entry(), 41, &options)?;
+        let entry = context.string_value(test_thread_entry());
+        let options = context.thread_options_value(options);
+        let handle = context.destack_thread_spawn(entry, 41, options)?;
 
-        let exit = context.join(handle)?;
+        let exit = context.destack_thread_join(handle)?;
 
         // join should return the low 32-bit argument payload
         assert_eq!(exit, 41);
@@ -27,11 +29,13 @@ fn test_thread_spawn_join_roundtrip() {
 fn test_thread_detach_consumes_handle() {
     with_harness_context(|mut context| {
         let options = default_thread_options();
-        let handle = context.spawn(test_thread_entry(), 0, &options)?;
+        let entry = context.string_value(test_thread_entry());
+        let options = context.thread_options_value(options);
+        let handle = context.destack_thread_spawn(entry, 0, options)?;
 
-        context.detach(handle)?;
+        context.destack_thread_detach(handle)?;
 
-        let result = context.join(handle);
+        let result = context.destack_thread_join(handle);
         assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
 
         Ok(())
@@ -46,7 +50,9 @@ fn test_thread_spawn_rejects_unknown_flags() {
         let mut options = default_thread_options();
         options.flags = 1;
 
-        let result = context.spawn(test_thread_entry(), 0, &options);
+        let entry = context.string_value(test_thread_entry());
+        let options = context.thread_options_value(options);
+        let result = context.destack_thread_spawn(entry, 0, options);
         assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
 
         Ok(())

@@ -12,7 +12,8 @@ use crate::platform::process::{
 #[test]
 fn test_process_chdir_updates_cwd_and_restores() {
     with_harness_context(|mut context| {
-        let original_cwd = context.cwd()?;
+        let original_cwd = context.destack_process_cwd()?;
+        let original_cwd = context.path_string_from_value(original_cwd)?;
         let target_path = std::env::temp_dir().join(unique_env_name("CHDIR"));
         std::fs::create_dir_all(&target_path).expect("temporary chdir directory should be created");
         let target_path = target_path
@@ -22,12 +23,13 @@ fn test_process_chdir_updates_cwd_and_restores() {
 
         let mut observed_cwd = None;
         let change_result: RuntimeResult<()> = (|| {
-            context.chdir(&target_path)?;
-            observed_cwd = Some(context.cwd()?);
+            context.destack_process_chdir(context.path_value(&target_path)?)?;
+            let cwd = context.destack_process_cwd()?;
+            observed_cwd = Some(context.path_string_from_value(cwd)?);
             Ok(())
         })();
 
-        context.chdir(&original_cwd)?;
+        context.destack_process_chdir(context.path_value(&original_cwd)?)?;
 
         // observed cwd should match the canonical target directory
         change_result?;
@@ -47,7 +49,9 @@ fn test_process_chdir_updates_cwd_and_restores() {
 fn test_process_chroot_missing_path_reports_specific_error() {
     with_harness_context(|mut context| {
         assert_platform_error_codes(
-            context.chroot("/definitely/missing/destack-process-chroot"),
+            context.destack_process_chroot(
+                context.path_value("/definitely/missing/destack-process-chroot")?,
+            ),
             &[
                 PlatformErrorCode::ProcessNotFound,
                 PlatformErrorCode::ProcessPermissionDenied,
@@ -62,7 +66,10 @@ fn test_process_chroot_missing_path_reports_specific_error() {
 fn test_process_install_syscall_filter_validates_program_shape() {
     with_harness_context(|mut context| {
         assert_platform_error_codes(
-            context.install_syscall_filter(&[], SyscallFilterFlags(0)),
+            context.destack_process_install_syscall_filter(
+                context.bytes_array_value(&[])?,
+                SyscallFilterFlags(0),
+            ),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::NotSupported,
@@ -77,7 +84,7 @@ fn test_process_install_syscall_filter_validates_program_shape() {
 fn test_process_set_host_name_rejects_empty_value() {
     with_harness_context(|mut context| {
         assert_platform_error_code(
-            context.set_host_name(""),
+            context.destack_process_set_host_name(context.string_value("")),
             PlatformErrorCode::InvalidArgumentValue,
         )
     });
@@ -89,7 +96,9 @@ fn test_process_set_host_name_rejects_empty_value() {
 fn test_process_set_network_namespace_missing_path_reports_specific_error() {
     with_harness_context(|mut context| {
         assert_platform_error_codes(
-            context.set_network_namespace("/definitely/missing/destack-process-netns"),
+            context.destack_process_set_network_namespace(
+                context.path_value("/definitely/missing/destack-process-netns")?,
+            ),
             &[
                 PlatformErrorCode::ProcessNotFound,
                 PlatformErrorCode::ProcessPermissionDenied,
@@ -105,7 +114,7 @@ fn test_process_set_network_namespace_missing_path_reports_specific_error() {
 fn test_process_setns_missing_process_reports_specific_error() {
     with_harness_context(|mut context| {
         assert_platform_error_codes(
-            context.setns(ProcessId(u32::MAX), ProcessNamespaceKind::Network),
+            context.destack_process_setns(ProcessId(u32::MAX), ProcessNamespaceKind::Network),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::ProcessNotFound,
@@ -122,7 +131,7 @@ fn test_process_setns_missing_process_reports_specific_error() {
 fn test_process_unshare_rejects_oversized_flag_word() {
     with_harness_context(|mut context| {
         assert_platform_error_codes(
-            context.unshare(ProcessUnshareFlags(u64::MAX)),
+            context.destack_process_unshare(ProcessUnshareFlags(u64::MAX)),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::NotSupported,

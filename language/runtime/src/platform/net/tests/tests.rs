@@ -1,15 +1,23 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
+
+#[path = "harness.rs"]
+mod harness;
+
 use std::net::ToSocketAddrs;
 
 use destack_vm as vm;
 
-use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
     OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, core as core_fs,
 };
-use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
+#[cfg(windows)]
+use crate::platform::net::vm as platform_vm;
+use crate::platform::resource::ListenerHandle;
+#[cfg(windows)]
+use crate::platform::resource::{ResourceId, SocketHandle};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, VmValueCodec,
     net as platform_net,
@@ -17,33 +25,21 @@ use crate::platform::{
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
-    AcceptFlags, KeepAliveConfig, Linger, LingerVm, ResolveFlags, ResolveQuery, ReverseLookupFlags,
+    KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, ResolveFlags, ResolveQuery,
     ReverseLookupName, SocketAddress, SocketAddressVm, SocketCredentials, SocketCredentialsVm,
     SocketFamily, SocketMessageFlags, SocketProtocol, SocketRecvBatchRequest, SocketRecvMessage,
-    SocketSendBatchEntry, SocketSendMessage, SocketSendMessageVm, SocketShutdown, SocketType,
-    UdpMessageFlags, UdpReceive, UdpReceiveVm, UdsAddress, UdsAddressKind, vm as platform_vm,
+    SocketSendBatchEntry, SocketSendMessage, SocketSendMessageVm, SocketType, UdpReceive,
+    UdpReceiveVm, UdsAddress, UdsAddressKind,
 };
-
-#[path = "harness.generated.rs"]
-mod harness;
-
-/// Selects the backing harness kind for network tests.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum NetHarnessKind {
-    /// Native bindings backed by the host ABI.
-    Native,
-    /// VM bindings backed by VM ABI values.
-    Vm,
-}
 
 /// Network harness context used by tests.
 pub(crate) struct NetHarnessContext<'call> {
     /// Runtime backing this harness.
-    runtime: &'call TestRuntime,
+    pub(super) runtime: &'call TestRuntime,
     /// Runtime call context active for this operation.
-    call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call RuntimeCallContext,
     /// VM context when running VM bindings.
-    vm_context: Option<*mut ()>,
+    pub(super) vm_context: Option<*mut ()>,
 }
 
 /// Native network harness backed by native bindings.
@@ -158,7 +154,23 @@ impl<'call> NetHarnessContext<'call> {
             .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
     }
 
-    /// Create one connected socket pair.
+    /// Create a connected socket pair.
+    ///
+    /// Allocate two already-connected peer sockets for local full-duplex communication.
+    /// Pair creation semantics and descriptor inheritance follow host kernel behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+    /// Uses socketpair(2) on Unix and loopback-pair emulation on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
     pub(crate) fn socket_pair(
         &mut self,
         family: SocketFamily,
@@ -194,7 +206,23 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
-    /// Create one connected unix-domain socket pair.
+    /// Create a connected UDS socket pair.
+    ///
+    /// Allocate a connected AF_UNIX socket pair for local full-duplex messaging.
+    /// Pair semantics and descriptor inheritance follow host kernel behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows only when AF_UNIX support is available at runtime.
+    /// Uses socketpair(AF_UNIX) on Unix and runtime emulation on Windows.
+    ///
+    /// # Errors
+    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
     pub(crate) fn uds_socket_pair(
         &mut self,
         socket_type: SocketType,
@@ -313,24 +341,6 @@ pub(crate) fn native_slice(buffer: &[u8]) -> NativeSlice<u8> {
     NativeSlice {
         data: buffer.as_ptr() as *mut u8,
         len: buffer.len() as u32,
-    }
-}
-
-/// Build a nested NativeSlice from immutable buffer slices.
-pub(crate) fn native_slice_slices(buffers: &[NativeSlice<u8>]) -> NativeSlice<NativeSlice<u8>> {
-    NativeSlice {
-        data: buffers.as_ptr() as *mut NativeSlice<u8>,
-        len: buffers.len() as u32,
-    }
-}
-
-/// Build a nested NativeSlice from mutable buffer slices.
-pub(crate) fn native_slice_slices_mut(
-    buffers: &mut [NativeSlice<u8>],
-) -> NativeSlice<NativeSlice<u8>> {
-    NativeSlice {
-        data: buffers.as_mut_ptr(),
-        len: buffers.len() as u32,
     }
 }
 
@@ -455,22 +465,22 @@ fn udp_receive_vm(
 }
 
 #[cfg(unix)]
-fn tcp_stream_socket_type() -> SocketType {
+pub(super) fn tcp_stream_socket_type() -> SocketType {
     SocketType(libc::SOCK_STREAM as u32)
 }
 
 #[cfg(windows)]
-fn tcp_stream_socket_type() -> SocketType {
+pub(super) fn tcp_stream_socket_type() -> SocketType {
     SocketType(windows_sys::Win32::Networking::WinSock::SOCK_STREAM as u32)
 }
 
 #[cfg(unix)]
-fn tcp_protocol() -> SocketProtocol {
+pub(super) fn tcp_protocol() -> SocketProtocol {
     SocketProtocol(libc::IPPROTO_TCP)
 }
 
 #[cfg(windows)]
-fn tcp_protocol() -> SocketProtocol {
+pub(super) fn tcp_protocol() -> SocketProtocol {
     SocketProtocol(windows_sys::Win32::Networking::WinSock::IPPROTO_TCP)
 }
 
@@ -909,59 +919,6 @@ fn socket_address_vm_from_value(
         length,
         bytes,
     })
-}
-
-#[cfg(unix)]
-fn path_ref_native(path: &std::path::Path) -> (Vec<u8>, OsPath) {
-    use std::os::unix::ffi::OsStrExt;
-    let bytes = path.as_os_str().as_bytes().to_vec();
-    let path_ref = OsPath {
-        encoding: PathEncoding::Bytes,
-        bytes: PathBytesAbi(NativeArray {
-            data: bytes.as_ptr() as *mut u8,
-            len: bytes.len() as u32,
-            capacity: bytes.len() as u32,
-        }),
-        utf16: core_fs::empty_path_utf16(),
-    };
-    (bytes, path_ref)
-}
-
-#[cfg(unix)]
-fn path_ref_native_utf16(path: &std::path::Path) -> (Vec<u16>, OsPath) {
-    use std::os::unix::ffi::OsStrExt;
-
-    // decode bytes as utf8 for deterministic utf16 test paths
-    let bytes = path.as_os_str().as_bytes();
-    let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
-    let mut utf16_units: Vec<u16> = text.encode_utf16().collect();
-    let path_ref = OsPath {
-        encoding: PathEncoding::Utf16,
-        bytes: core_fs::empty_path_bytes(),
-        utf16: PathUtf16Abi(NativeArray {
-            data: utf16_units.as_mut_ptr(),
-            len: utf16_units.len() as u32,
-            capacity: utf16_units.len() as u32,
-        }),
-    };
-
-    (utf16_units, path_ref)
-}
-
-#[cfg(windows)]
-fn path_ref_native(path: &std::path::Path) -> (Vec<u16>, OsPath) {
-    use std::os::windows::ffi::OsStrExt;
-    let mut utf16_units: Vec<u16> = path.as_os_str().encode_wide().collect();
-    let path_ref = OsPath {
-        encoding: PathEncoding::Utf16,
-        bytes: core_fs::empty_path_bytes(),
-        utf16: PathUtf16Abi(NativeArray {
-            data: utf16_units.as_mut_ptr(),
-            len: utf16_units.len() as u32,
-            capacity: utf16_units.len() as u32,
-        }),
-    };
-    (utf16_units, path_ref)
 }
 
 fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path) -> OsPathVm {

@@ -29,8 +29,8 @@ fn test_net_socket_pair_stream_roundtrip() {
         assert_eq!(read_buffer, b"pair-stream-second");
 
         // close both handles
-        context.close(first)?;
-        context.close(second)?;
+        context.destack_net_close(first)?;
+        context.destack_net_close(second)?;
 
         Ok(())
     });
@@ -63,8 +63,8 @@ fn test_net_socket_pair_dgram_roundtrip() {
         assert_eq!(read_buffer, b"pair-dgram-second");
 
         // close both handles
-        context.close(first)?;
-        context.close(second)?;
+        context.destack_net_close(first)?;
+        context.destack_net_close(second)?;
 
         Ok(())
     });
@@ -110,8 +110,8 @@ fn test_net_uds_socket_pair_roundtrip() {
         assert_eq!(read_buffer, b"pair-uds-second");
 
         // close both handles
-        context.close(first)?;
-        context.close(second)?;
+        context.destack_net_close(first)?;
+        context.destack_net_close(second)?;
 
         Ok(())
     });

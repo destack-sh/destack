@@ -1,6 +1,6 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::with_harness_context;
-use crate::platform::net::SocketFamily;
+use crate::platform::net::{SocketFamily, UdpMessageFlags};
 
 /// Send one udp datagram and verify sender metadata on receipt.
 #[cfg(unix)]
@@ -8,23 +8,34 @@ use crate::platform::net::SocketFamily;
 fn test_net_udp_roundtrip() {
     with_harness_context(|mut context| {
         // setup server socket
-        let server = context.udp_socket(SocketFamily::IPv4)?;
-        context.udp_bind(server, "127.0.0.1", 0)?;
+        let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+        context.destack_net_udp_bind(
+            server,
+            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+        )?;
 
         // resolve server port
-        let (_host, port, _family) = context.local_address(server)?;
+        let server_address = context.destack_net_local_address(server)?;
+        let (_host, port, _family) = context.socket_address_from_value(server_address)?;
 
         // setup client socket
-        let client = context.udp_socket(SocketFamily::IPv4)?;
+        let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
 
         // send a datagram
-        let sent = context.udp_send_to(client, "127.0.0.1", port, b"ping")?;
+        let sent = context.destack_net_udp_send_to(
+            client,
+            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.bytes_slice_value(b"ping")?,
+            UdpMessageFlags(0),
+        )?;
         assert_eq!(sent, 4);
 
         // receive the datagram
-        let mut buffer = vec![0u8; 32];
-        let (host, recv_port, family, bytes) = context.udp_recv_from(server, &mut buffer)?;
-        buffer.truncate(bytes as usize);
+        let read_buffer = context.zeroed_bytes_slice_value(32)?;
+        let (read_call, read_decode) = context.duplicate_value(read_buffer);
+        let receive = context.destack_net_udp_recv_from(server, read_call, UdpMessageFlags(0))?;
+        let (host, recv_port, family, bytes) = context.udp_receive_from_value(receive)?;
+        let buffer = context.bytes_prefix_from_slice_value(read_decode, bytes as usize)?;
 
         // sender metadata and payload should match the sent datagram
         assert_eq!(family, SocketFamily::IPv4);
@@ -33,8 +44,8 @@ fn test_net_udp_roundtrip() {
         assert_eq!(buffer, b"ping");
 
         // close sockets
-        context.close(client)?;
-        context.close(server)?;
+        context.destack_net_close(client)?;
+        context.destack_net_close(server)?;
 
         Ok(())
     });
@@ -46,28 +57,37 @@ fn test_net_udp_roundtrip() {
 fn test_net_udp_connect_roundtrip() {
     with_harness_context(|mut context| {
         // set up server socket
-        let server = context.udp_socket(SocketFamily::IPv4)?;
-        context.udp_bind(server, "127.0.0.1", 0)?;
-        let (_host, port, _family) = context.local_address(server)?;
+        let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+        context.destack_net_udp_bind(
+            server,
+            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+        )?;
+        let server_address = context.destack_net_local_address(server)?;
+        let (_host, port, _family) = context.socket_address_from_value(server_address)?;
 
         // set up client socket and connect it
-        let client = context.udp_socket(SocketFamily::IPv4)?;
-        context.udp_connect(client, "127.0.0.1", port)?;
+        let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+        context.destack_net_udp_connect(
+            client,
+            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+        )?;
 
         // write through connected udp socket
-        let sent = context.write(client, b"ping")?;
+        let sent = context.destack_net_write(client, context.bytes_slice_value(b"ping")?)?;
         assert_eq!(sent, 4);
 
         // read datagram on server
-        let mut buffer = vec![0u8; 32];
-        let (_host, _port, family, bytes) = context.udp_recv_from(server, &mut buffer)?;
-        buffer.truncate(bytes as usize);
+        let read_buffer = context.zeroed_bytes_slice_value(32)?;
+        let (read_call, read_decode) = context.duplicate_value(read_buffer);
+        let receive = context.destack_net_udp_recv_from(server, read_call, UdpMessageFlags(0))?;
+        let (_host, _port, family, bytes) = context.udp_receive_from_value(receive)?;
+        let buffer = context.bytes_prefix_from_slice_value(read_decode, bytes as usize)?;
         assert_eq!(family, SocketFamily::IPv4);
         assert_eq!(buffer, b"ping");
 
         // close resources
-        context.close(client)?;
-        context.close(server)?;
+        context.destack_net_close(client)?;
+        context.destack_net_close(server)?;
 
         Ok(())
     });

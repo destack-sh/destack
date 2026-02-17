@@ -13,8 +13,6 @@ use super::{assert_platform_error_code, assert_platform_error_codes, is_would_bl
 use super::{fork_child_sleep_then_exit, unique_temp_file_path};
 #[cfg(any(unix, windows))]
 use crate::diagnostic::RuntimeError;
-#[cfg(windows)]
-use crate::diagnostic::RuntimeResult;
 #[cfg(any(unix, windows))]
 use crate::platform::PlatformError;
 #[cfg(unix)]
@@ -148,14 +146,19 @@ fn test_process_spawn_wait_handle_roundtrip() {
         let environment = Vec::new();
 
         // spawn should exit with the requested status
-        let handle = context.spawn(command, &arguments, &environment, &options)?;
-        let status = context.wait(handle, ProcessWaitFlags(0))?;
+        let handle = context.destack_process_spawn(
+            context.path_value(command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+        )?;
+        let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 17);
 
         // consumed handles should not remain waitable
         assert_platform_error_codes(
-            context.try_wait(handle),
+            context.destack_process_try_wait(handle),
             &[
                 PlatformErrorCode::ProcessNotFound,
                 PlatformErrorCode::InvalidArgumentValue,
@@ -172,13 +175,13 @@ fn test_process_spawn_wait_handle_roundtrip() {
 fn test_process_fd_wait_roundtrip() {
     with_harness_context(|mut context| {
         let child_pid = fork_child_sleep_then_exit(1, 31)?;
-        let handle = context.process_fd_open(child_pid, ProcessFdFlags(0))?;
-        let status = context.process_fd_wait(handle, 2_000_000_000)?;
+        let handle = context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
+        let status = context.destack_process_process_fd_wait(handle, 2_000_000_000)?;
 
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 31);
 
-        context.process_fd_close(handle)?;
+        context.destack_process_process_fd_close(handle)?;
         Ok(())
     });
 }
@@ -196,14 +199,19 @@ fn test_process_fd_close_rejects_forged_process_handle() {
         let environment = Vec::new();
 
         // forged process-fd handles should be rejected
-        let process_handle = context.spawn(command, &arguments, &environment, &options)?;
+        let process_handle = context.destack_process_spawn(
+            context.path_value(command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+        )?;
         let forged_handle = ProcessFdHandle(process_handle.0);
         assert_platform_error_code(
-            context.process_fd_close(forged_handle),
+            context.destack_process_process_fd_close(forged_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
-        let status = context.wait(process_handle, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait(process_handle, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
 
         Ok(())
@@ -241,15 +249,15 @@ fn test_process_spawn_with_actions_wait_roundtrip() {
         ];
         let actions = Vec::<ProcessFdActionSpec>::new();
 
-        let handle = context.spawn_with_actions(
-            &command,
-            &arguments,
-            &environment,
-            &options,
-            &stdio,
-            &actions,
+        let handle = context.destack_process_spawn_with_actions(
+            context.path_value(&command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+            context.stdio_slice_value(&stdio)?,
+            context.fd_action_slice_value(&actions)?,
         )?;
-        let status = context.wait(handle, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
 
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 23);
@@ -337,7 +345,7 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
         pipe.close_write();
 
         // wait for the child process to complete successfully
-        let status = context.wait(child, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait(child, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 0);
 
@@ -363,20 +371,20 @@ fn test_process_spawn_wait_after_exit_delay_roundtrip() {
         let stdio = Vec::<ProcessStdioSpec>::new();
         let actions = Vec::<ProcessFdActionSpec>::new();
 
-        let handle = context.spawn_with_actions(
-            &command,
-            &arguments,
-            &environment,
-            &options,
-            &stdio,
-            &actions,
+        let handle = context.destack_process_spawn_with_actions(
+            context.path_value(&command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+            context.stdio_slice_value(&stdio)?,
+            context.fd_action_slice_value(&actions)?,
         )?;
 
         // allow the child to exit before the wait call
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         // waits should still observe the terminal status
-        let status = context.wait(handle, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 29);
 
@@ -414,15 +422,15 @@ fn test_process_spawn_with_actions_open_stdout_roundtrip() {
             mode: fs::FileMode(0o644),
         }];
 
-        let handle = context.spawn_with_actions(
-            &command,
-            &arguments,
-            &environment,
-            &options,
-            &stdio,
-            &actions,
+        let handle = context.destack_process_spawn_with_actions(
+            context.path_value(&command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+            context.stdio_slice_value(&stdio)?,
+            context.fd_action_slice_value(&actions)?,
         )?;
-        let status = context.wait(handle, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 0);
 
@@ -486,15 +494,15 @@ fn test_process_spawn_with_actions_dup2_stderr_roundtrip() {
             mode: fs::FileMode(0),
         }];
 
-        let handle = context.spawn_with_actions(
-            &command,
-            &arguments,
-            &environment,
-            &options,
-            &stdio,
-            &actions,
+        let handle = context.destack_process_spawn_with_actions(
+            context.path_value(&command)?,
+            context.string_slice_value(&arguments)?,
+            context.string_slice_value(&environment)?,
+            context.spawn_options_value(&options)?,
+            context.stdio_slice_value(&stdio)?,
+            context.fd_action_slice_value(&actions)?,
         )?;
-        let status = context.wait(handle, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 0);
 
@@ -516,12 +524,12 @@ fn test_process_fd_wait_spawn_roundtrip() {
         let (command, arguments) = shell_sleep_then_exit_command(1, 37);
         let child_pid = spawn_shell(command, arguments)?;
 
-        let handle = context.process_fd_open(child_pid, ProcessFdFlags(0))?;
-        let status = context.process_fd_wait(handle, 2_000_000_000)?;
+        let handle = context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
+        let status = context.destack_process_process_fd_wait(handle, 2_000_000_000)?;
 
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 37);
-        context.process_fd_close(handle)?;
+        context.destack_process_process_fd_close(handle)?;
 
         Ok(())
     });
@@ -534,16 +542,16 @@ fn test_process_fd_wait_after_exit_delay_roundtrip() {
     with_harness_context(|mut context| {
         let (command, arguments) = shell_sleep_then_exit_command(1, 41);
         let child_pid = spawn_shell(command, arguments)?;
-        let handle = context.process_fd_open(child_pid, ProcessFdFlags(0))?;
+        let handle = context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
 
         // allow the child process to exit before waiting through the process-fd
         std::thread::sleep(std::time::Duration::from_millis(1500));
 
         // wait should still return the terminal exit status
-        let status = context.process_fd_wait(handle, 2_000_000_000)?;
+        let status = context.destack_process_process_fd_wait(handle, 2_000_000_000)?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
         assert_eq!(status.exit_code, 41);
-        context.process_fd_close(handle)?;
+        context.destack_process_process_fd_close(handle)?;
 
         Ok(())
     });
@@ -557,10 +565,10 @@ fn test_process_fd_try_wait_and_send_signal_roundtrip() {
         let (command, arguments) = shell_sleep_then_exit_command(1, 0);
         let child_pid = spawn_shell(command, arguments)?;
 
-        let handle = context.process_fd_open(child_pid, ProcessFdFlags(0))?;
+        let handle = context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
 
         // try-wait should either report running/exited or a would-block error
-        let first_try_wait = context.process_fd_try_wait(handle);
+        let first_try_wait = context.destack_process_process_fd_try_wait(handle);
         match first_try_wait {
             Ok(status) => assert!(matches!(
                 status.kind,
@@ -571,10 +579,14 @@ fn test_process_fd_try_wait_and_send_signal_roundtrip() {
             }
         }
 
-        context.process_fd_send_signal(handle, Signal(0), ProcessFdSignalFlags(0))?;
+        context.destack_process_process_fd_send_signal(
+            handle,
+            Signal(0),
+            ProcessFdSignalFlags(0),
+        )?;
 
-        let _ = context.process_fd_wait(handle, 3_000_000_000)?;
-        context.process_fd_close(handle)?;
+        let _ = context.destack_process_process_fd_wait(handle, 3_000_000_000)?;
+        context.destack_process_process_fd_close(handle)?;
 
         Ok(())
     });
@@ -585,38 +597,46 @@ fn test_process_fd_try_wait_and_send_signal_roundtrip() {
 #[test]
 fn test_process_fd_validation_errors_are_specific() {
     with_harness_context(|mut context| {
-        let pid = context.pid()?;
+        let pid = context.destack_process_pid()?;
 
         // invalid flags and handles should be rejected with invalid-argument errors
         assert_platform_error_code(
-            context.process_fd_open(pid, ProcessFdFlags(1)),
+            context.destack_process_process_fd_open(pid, ProcessFdFlags(1)),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
-        let handle = context.process_fd_open(pid, ProcessFdFlags(0))?;
+        let handle = context.destack_process_process_fd_open(pid, ProcessFdFlags(0))?;
         assert_platform_error_code(
-            context.process_fd_send_signal(handle, Signal(0), ProcessFdSignalFlags(1)),
+            context.destack_process_process_fd_send_signal(
+                handle,
+                Signal(0),
+                ProcessFdSignalFlags(1),
+            ),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
-        context.process_fd_close(handle)?;
+        context.destack_process_process_fd_close(handle)?;
 
         let invalid_handle = ProcessFdHandle(ResourceId(0));
         assert_platform_error_code(
-            context.process_fd_try_wait(invalid_handle),
+            context.destack_process_process_fd_try_wait(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
         assert_platform_error_code(
-            context.process_fd_close(invalid_handle),
+            context.destack_process_process_fd_close(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
         assert_platform_error_code(
-            context.process_fd_send_signal(invalid_handle, Signal(0), ProcessFdSignalFlags(0)),
+            context.destack_process_process_fd_send_signal(
+                invalid_handle,
+                Signal(0),
+                ProcessFdSignalFlags(0),
+            ),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
         // opening an unreachable pid should report one of the expected process errors
         assert_platform_error_codes(
-            context.process_fd_open(ProcessId(i32::MAX as u32), ProcessFdFlags(0)),
+            context.destack_process_process_fd_open(ProcessId(i32::MAX as u32), ProcessFdFlags(0)),
             &[
                 PlatformErrorCode::ProcessNotFound,
                 PlatformErrorCode::ProcessPermissionDenied,
@@ -627,10 +647,11 @@ fn test_process_fd_validation_errors_are_specific() {
 
         let (command, arguments) = shell_sleep_then_exit_command(1, 0);
         let child_pid = spawn_shell(command, arguments)?;
-        let timeout_handle = context.process_fd_open(child_pid, ProcessFdFlags(0))?;
-        let timeout_status = context.process_fd_wait(timeout_handle, u64::MAX)?;
+        let timeout_handle =
+            context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
+        let timeout_status = context.destack_process_process_fd_wait(timeout_handle, u64::MAX)?;
         assert_eq!(timeout_status.kind, ProcessWaitKind::Exited);
-        context.process_fd_close(timeout_handle)?;
+        context.destack_process_process_fd_close(timeout_handle)?;
 
         Ok(())
     });

@@ -22,26 +22,35 @@ fn test_process_identity_setters_succeed_in_privileged_mode() {
     }
 
     with_harness_context(|mut context| {
-        let current_uid = context.uid()?;
-        let current_gid = context.gid()?;
-        let current_user_ids = context.user_ids()?;
-        let current_group_ids = context.group_ids()?;
-        let current_groups = context.groups()?;
+        let current_uid = context.destack_process_uid()?;
+        let current_gid = context.destack_process_gid()?;
+        let current_user_ids = context.destack_process_user_ids()?;
+        let current_user_ids = current_user_ids.into_inner();
+        let current_group_ids = context.destack_process_group_ids()?;
+        let current_group_ids = current_group_ids.into_inner();
+        let current_groups = context.destack_process_groups()?;
+        let current_groups = context.group_list_from_value(current_groups)?;
 
-        context.set_uid(current_uid)?;
-        context.set_euid(current_user_ids.effective)?;
-        context.set_gid(current_gid)?;
-        context.set_egid(current_group_ids.effective)?;
-        context.set_user_ids(current_user_ids)?;
-        context.set_group_ids(current_group_ids)?;
-        context.set_groups(&current_groups)?;
+        context.destack_process_set_uid(current_uid)?;
+        context.destack_process_set_euid(current_user_ids.effective)?;
+        context.destack_process_set_gid(current_gid)?;
+        context.destack_process_set_egid(current_group_ids.effective)?;
+        context.destack_process_set_user_ids(context.unified_value(current_user_ids))?;
+        context.destack_process_set_group_ids(context.unified_value(current_group_ids))?;
+        context.destack_process_set_groups(context.group_slice_value(&current_groups)?)?;
 
         // identity reads should remain unchanged after setter calls
-        assert_eq!(context.uid()?, current_uid);
-        assert_eq!(context.gid()?, current_gid);
-        assert_eq!(context.user_ids()?, current_user_ids);
-        assert_eq!(context.group_ids()?, current_group_ids);
-        assert_eq!(context.groups()?, current_groups);
+        assert_eq!(context.destack_process_uid()?, current_uid);
+        assert_eq!(context.destack_process_gid()?, current_gid);
+        let user_ids = context.destack_process_user_ids()?;
+        let user_ids = user_ids.into_inner();
+        assert_eq!(user_ids, current_user_ids);
+        let group_ids = context.destack_process_group_ids()?;
+        let group_ids = group_ids.into_inner();
+        assert_eq!(group_ids, current_group_ids);
+        let groups = context.destack_process_groups()?;
+        let groups = context.group_list_from_value(groups)?;
+        assert_eq!(groups, current_groups);
 
         Ok(())
     });
@@ -56,19 +65,19 @@ fn test_process_set_priority_negative_succeeds_in_privileged_mode() {
     }
 
     with_harness_context(|mut context| {
-        let pid = context.pid()?;
-        let original_priority = context.get_priority(pid)?;
+        let pid = context.destack_process_pid()?;
+        let original_priority = context.destack_process_get_priority(pid)?;
         let target_priority = if original_priority <= -1 {
             original_priority
         } else {
             -1
         };
 
-        context.set_priority(pid, target_priority)?;
-        let lowered_priority = context.get_priority(pid)?;
+        context.destack_process_set_priority(pid, target_priority)?;
+        let lowered_priority = context.destack_process_get_priority(pid)?;
         // observed priority should be at or above the requested level
         assert!(lowered_priority <= target_priority);
-        context.set_priority(pid, original_priority)?;
+        context.destack_process_set_priority(pid, original_priority)?;
 
         Ok(())
     });
@@ -89,20 +98,34 @@ fn test_process_chroot_succeeds_in_privileged_mode() {
 
         let child = unsafe { libc::fork() };
         if child == 0 {
-            if context.chroot(&root_path_string).is_err() {
+            if context
+                .destack_process_chroot(context.path_value(&root_path_string)?)
+                .is_err()
+            {
                 unsafe {
                     libc::_exit(111);
                 }
             }
-            if context.chdir("/").is_err() {
+            if context
+                .destack_process_chdir(context.path_value("/")?)
+                .is_err()
+            {
                 unsafe {
                     libc::_exit(112);
                 }
             }
-            match context.cwd() {
-                Ok(cwd) if cwd == "/" => unsafe {
-                    libc::_exit(0);
-                },
+            match context.destack_process_cwd() {
+                Ok(cwd) => {
+                    let cwd = context.path_string_from_value(cwd)?;
+                    if cwd == "/" {
+                        unsafe {
+                            libc::_exit(0);
+                        }
+                    }
+                    unsafe {
+                        libc::_exit(113);
+                    }
+                }
                 _ => unsafe {
                     libc::_exit(113);
                 },
@@ -136,7 +159,7 @@ fn test_process_set_network_namespace_succeeds_in_privileged_mode() {
             let target = unsafe { libc::fork() };
             if target == 0 {
                 let unshare_result =
-                    context.unshare(ProcessUnshareFlags(libc::CLONE_NEWNET as u64));
+                    context.destack_process_unshare(ProcessUnshareFlags(libc::CLONE_NEWNET as u64));
                 if unshare_result.is_err() {
                     unsafe {
                         libc::_exit(121);
@@ -172,7 +195,10 @@ fn test_process_set_network_namespace_succeeds_in_privileged_mode() {
             }
 
             let target_path = format!("/proc/{target}/ns/net");
-            if context.set_network_namespace(&target_path).is_err() {
+            if context
+                .destack_process_set_network_namespace(context.path_value(&target_path)?)
+                .is_err()
+            {
                 unsafe {
                     libc::_exit(126);
                 }
@@ -223,7 +249,7 @@ fn test_process_setns_self_network_namespace_succeeds_in_privileged_mode() {
             let target = unsafe { libc::fork() };
             if target == 0 {
                 let unshare_result =
-                    context.unshare(ProcessUnshareFlags(libc::CLONE_NEWNET as u64));
+                    context.destack_process_unshare(ProcessUnshareFlags(libc::CLONE_NEWNET as u64));
                 if unshare_result.is_err() {
                     unsafe {
                         libc::_exit(131);
@@ -259,7 +285,7 @@ fn test_process_setns_self_network_namespace_succeeds_in_privileged_mode() {
             }
 
             if context
-                .setns(ProcessId(target as u32), ProcessNamespaceKind::Network)
+                .destack_process_setns(ProcessId(target as u32), ProcessNamespaceKind::Network)
                 .is_err()
             {
                 unsafe {

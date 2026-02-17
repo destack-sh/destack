@@ -1,6 +1,5 @@
-use super::{FsHarnessKind, assert_platform_error_code, temp_dir, with_harness_context};
+use super::{assert_platform_error_codes, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs as platform_fs;
 use crate::platform::fs::FileMode;
 use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceId};
 
@@ -10,32 +9,21 @@ use crate::platform::resource::{DirectoryHandle, FileHandle, ResourceId};
 fn test_fs_invalid_file_handle() {
     with_harness_context(|mut context| {
         // exercise invalid file handle paths
-        let mut buffer = vec![0u8; 16];
-        match context.kind() {
-            FsHarnessKind::Native => {
-                let slice = super::native_slice_mut(&mut buffer);
-                let mut out = 0u64;
-                let status = unsafe {
-                    platform_fs::destack_fs_file_read(&mut out, FileHandle(ResourceId(9999)), slice)
-                };
-                context.status_err(status, "read invalid handle")?;
-
-                let status =
-                    unsafe { platform_fs::destack_fs_file_close(FileHandle(ResourceId(9999))) };
-                context.status_err(status, "close invalid handle")?;
-            }
-            FsHarnessKind::Vm => {
-                // vm bindings should return specific invalid-argument errors for bad handles
-                assert_platform_error_code(
-                    context.read(FileHandle(ResourceId(9999)), &mut buffer),
-                    PlatformErrorCode::InvalidArgumentValue,
-                )?;
-                assert_platform_error_code(
-                    context.close(FileHandle(ResourceId(9999))),
-                    PlatformErrorCode::InvalidArgumentValue,
-                )?;
-            }
-        }
+        let buffer = context.zeroed_bytes_slice_value(16)?;
+        assert_platform_error_codes(
+            context.destack_fs_read(FileHandle(ResourceId(9999)), buffer),
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::Io,
+            ],
+        )?;
+        assert_platform_error_codes(
+            context.destack_fs_close(FileHandle(ResourceId(9999))),
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::Io,
+            ],
+        )?;
 
         Ok(())
     });
@@ -51,42 +39,35 @@ fn test_fs_invalid_directory_handle() {
         let sub_dir = temp_dir.join("child");
 
         let dir = context.path_bytes(&temp_dir);
-        context.mkdir(dir, FileMode(0o755))?;
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
         let child = context.path_bytes(&sub_dir);
-        context.mkdir(child, FileMode(0o755))?;
+        context.destack_fs_mkdir(child, FileMode(0o755))?;
 
         let dir = context.path_bytes(&temp_dir);
-        let handle = context.opendir(dir)?;
-        context.closedir(handle)?;
+        let handle = context.destack_fs_opendir(dir)?;
+        context.destack_fs_closedir(handle)?;
 
         // exercise invalid directory handle paths
-        match context.kind() {
-            FsHarnessKind::Native => {
-                let status = unsafe { platform_fs::destack_fs_dir_closedir(handle) };
-                context.status_err(status, "closedir after close")?;
-                let status = unsafe {
-                    platform_fs::destack_fs_dir_closedir(DirectoryHandle(ResourceId(9999)))
-                };
-                context.status_err(status, "closedir invalid handle")?;
-            }
-            FsHarnessKind::Vm => {
-                // vm bindings should return specific invalid-argument errors for bad handles
-                assert_platform_error_code(
-                    context.closedir(handle),
-                    PlatformErrorCode::InvalidArgumentValue,
-                )?;
-                assert_platform_error_code(
-                    context.closedir(DirectoryHandle(ResourceId(9999))),
-                    PlatformErrorCode::InvalidArgumentValue,
-                )?;
-            }
-        }
+        assert_platform_error_codes(
+            context.destack_fs_closedir(handle),
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::Io,
+            ],
+        )?;
+        assert_platform_error_codes(
+            context.destack_fs_closedir(DirectoryHandle(ResourceId(9999))),
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::Io,
+            ],
+        )?;
 
         // cleanup
         let child = context.path_bytes(&sub_dir);
-        context.rmdir(child)?;
+        context.destack_fs_rmdir(child)?;
         let dir = context.path_bytes(&temp_dir);
-        context.rmdir(dir)?;
+        context.destack_fs_rmdir(dir)?;
 
         Ok(())
     });

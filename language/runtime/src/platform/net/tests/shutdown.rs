@@ -1,7 +1,9 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{NetHarnessKind, assert_platform_error_codes, native_slice, with_harness_context};
+use super::{
+    assert_platform_error_codes, tcp_protocol, tcp_stream_socket_type, with_harness_context,
+};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::net::{SocketShutdown, destack_net_write};
+use crate::platform::net::{AcceptFlags, SocketFamily, SocketShutdown};
 
 /// Shut down both directions and ensure writes fail afterward.
 #[cfg(unix)]
@@ -9,56 +11,46 @@ use crate::platform::net::{SocketShutdown, destack_net_write};
 fn test_net_shutdown() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
-        let listener = context.listen("127.0.0.1", 0, 16)?;
+        let listener = context.destack_net_listen(
+            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            16,
+        )?;
         let port = context.listener_port(listener);
 
         // connect a client socket
-        let client = context.connect("127.0.0.1", port)?;
+        let client = context.destack_net_socket(
+            SocketFamily::IPv4,
+            tcp_stream_socket_type(),
+            tcp_protocol(),
+        )?;
+        context.destack_net_connect(
+            client,
+            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+        )?;
 
         // accept on the server side
-        let server = context.accept(listener)?;
+        let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
         // shut down the client
-        context.shutdown(client, SocketShutdown::ReadWrite)?;
+        context.destack_net_shutdown(client, SocketShutdown::ReadWrite)?;
 
         // writes should fail after full shutdown
-        match context.kind() {
-            NetHarnessKind::Native => {
-                let buffer = b"after-shutdown".to_vec();
-                let slice = native_slice(&buffer);
-                let mut out = 0u64;
-                let status = unsafe { destack_net_write(&mut out, client, slice) };
-                assert_platform_error_codes(
-                    context.status_result(status, "write after shutdown"),
-                    &[
-                        PlatformErrorCode::NetShutdown,
-                        PlatformErrorCode::NetBrokenPipe,
-                        PlatformErrorCode::NetNotConnected,
-                        PlatformErrorCode::NetConnectionReset,
-                        PlatformErrorCode::IoBrokenPipe,
-                        PlatformErrorCode::Io,
-                    ],
-                )?;
-            }
-            NetHarnessKind::Vm => {
-                assert_platform_error_codes(
-                    context.write(client, b"after-shutdown"),
-                    &[
-                        PlatformErrorCode::NetShutdown,
-                        PlatformErrorCode::NetBrokenPipe,
-                        PlatformErrorCode::NetNotConnected,
-                        PlatformErrorCode::NetConnectionReset,
-                        PlatformErrorCode::IoBrokenPipe,
-                        PlatformErrorCode::Io,
-                    ],
-                )?;
-            }
-        }
+        assert_platform_error_codes(
+            context.destack_net_write(client, context.bytes_slice_value(b"after-shutdown")?),
+            &[
+                PlatformErrorCode::NetShutdown,
+                PlatformErrorCode::NetBrokenPipe,
+                PlatformErrorCode::NetNotConnected,
+                PlatformErrorCode::NetConnectionReset,
+                PlatformErrorCode::IoBrokenPipe,
+                PlatformErrorCode::Io,
+            ],
+        )?;
 
         // close sockets and listener
-        context.close(server)?;
-        context.close(client)?;
-        context.close_listener(listener)?;
+        context.destack_net_close(server)?;
+        context.destack_net_close(client)?;
+        context.destack_net_close_listener(listener)?;
 
         Ok(())
     });
@@ -70,63 +62,54 @@ fn test_net_shutdown() {
 fn test_net_shutdown_write_keeps_read_path() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
-        let listener = context.listen("127.0.0.1", 0, 16)?;
+        let listener = context.destack_net_listen(
+            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            16,
+        )?;
         let port = context.listener_port(listener);
 
         // connect a client socket
-        let client = context.connect("127.0.0.1", port)?;
+        let client = context.destack_net_socket(
+            SocketFamily::IPv4,
+            tcp_stream_socket_type(),
+            tcp_protocol(),
+        )?;
+        context.destack_net_connect(
+            client,
+            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+        )?;
 
         // accept on the server side
-        let server = context.accept(listener)?;
+        let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
         // shut down client writes and ensure reads still work
-        context.shutdown(client, SocketShutdown::Write)?;
+        context.destack_net_shutdown(client, SocketShutdown::Write)?;
         let payload = b"after-write-shutdown";
-        context.write(server, payload)?;
-        let mut read_buffer = vec![0u8; payload.len()];
-        let read = context.read(client, &mut read_buffer)?;
-        read_buffer.truncate(read as usize);
+        context.destack_net_write(server, context.bytes_slice_value(payload)?)?;
+        let read_buffer = context.zeroed_bytes_slice_value(payload.len())?;
+        let (read_call, read_decode) = context.duplicate_value(read_buffer);
+        let read = context.destack_net_read(client, read_call)?;
+        let read_buffer = context.bytes_prefix_from_slice_value(read_decode, read as usize)?;
         assert_eq!(read_buffer, payload);
 
         // write should now fail on the shutdown side
         // writes should fail after write-side shutdown
-        match context.kind() {
-            NetHarnessKind::Native => {
-                let buffer = b"write-should-fail".to_vec();
-                let slice = native_slice(&buffer);
-                let mut out = 0u64;
-                let status = unsafe { destack_net_write(&mut out, client, slice) };
-                assert_platform_error_codes(
-                    context.status_result(status, "write after write-shutdown"),
-                    &[
-                        PlatformErrorCode::NetShutdown,
-                        PlatformErrorCode::NetBrokenPipe,
-                        PlatformErrorCode::NetNotConnected,
-                        PlatformErrorCode::NetConnectionReset,
-                        PlatformErrorCode::IoBrokenPipe,
-                        PlatformErrorCode::Io,
-                    ],
-                )?;
-            }
-            NetHarnessKind::Vm => {
-                assert_platform_error_codes(
-                    context.write(client, b"write-should-fail"),
-                    &[
-                        PlatformErrorCode::NetShutdown,
-                        PlatformErrorCode::NetBrokenPipe,
-                        PlatformErrorCode::NetNotConnected,
-                        PlatformErrorCode::NetConnectionReset,
-                        PlatformErrorCode::IoBrokenPipe,
-                        PlatformErrorCode::Io,
-                    ],
-                )?;
-            }
-        }
+        assert_platform_error_codes(
+            context.destack_net_write(client, context.bytes_slice_value(b"write-should-fail")?),
+            &[
+                PlatformErrorCode::NetShutdown,
+                PlatformErrorCode::NetBrokenPipe,
+                PlatformErrorCode::NetNotConnected,
+                PlatformErrorCode::NetConnectionReset,
+                PlatformErrorCode::IoBrokenPipe,
+                PlatformErrorCode::Io,
+            ],
+        )?;
 
         // close sockets and listener
-        context.close(server)?;
-        context.close(client)?;
-        context.close_listener(listener)?;
+        context.destack_net_close(server)?;
+        context.destack_net_close(client)?;
+        context.destack_net_close_listener(listener)?;
 
         Ok(())
     });
@@ -138,29 +121,41 @@ fn test_net_shutdown_write_keeps_read_path() {
 fn test_net_shutdown_read_keeps_write_path() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
-        let listener = context.listen("127.0.0.1", 0, 16)?;
+        let listener = context.destack_net_listen(
+            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            16,
+        )?;
         let port = context.listener_port(listener);
 
         // connect a client socket
-        let client = context.connect("127.0.0.1", port)?;
+        let client = context.destack_net_socket(
+            SocketFamily::IPv4,
+            tcp_stream_socket_type(),
+            tcp_protocol(),
+        )?;
+        context.destack_net_connect(
+            client,
+            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+        )?;
 
         // accept on the server side
-        let server = context.accept(listener)?;
+        let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
         // shut down client reads and ensure writes still work
-        context.shutdown(client, SocketShutdown::Read)?;
+        context.destack_net_shutdown(client, SocketShutdown::Read)?;
         let payload = b"after-read-shutdown";
-        let written = context.write(client, payload)?;
+        let written = context.destack_net_write(client, context.bytes_slice_value(payload)?)?;
         assert_eq!(written as usize, payload.len());
-        let mut read_buffer = vec![0u8; payload.len()];
-        let read = context.read(server, &mut read_buffer)?;
-        read_buffer.truncate(read as usize);
+        let read_buffer = context.zeroed_bytes_slice_value(payload.len())?;
+        let (read_call, read_decode) = context.duplicate_value(read_buffer);
+        let read = context.destack_net_read(server, read_call)?;
+        let read_buffer = context.bytes_prefix_from_slice_value(read_decode, read as usize)?;
         assert_eq!(read_buffer, payload);
 
         // close sockets and listener
-        context.close(server)?;
-        context.close(client)?;
-        context.close_listener(listener)?;
+        context.destack_net_close(server)?;
+        context.destack_net_close(client)?;
+        context.destack_net_close_listener(listener)?;
 
         Ok(())
     });
