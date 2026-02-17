@@ -69,8 +69,8 @@ check:
 # build everything
 build:
     just language/build
-    just library/napi
-    just library/wasm
+    just platform/napi
+    just platform/wasm
     just platform/build
 
 # format all code

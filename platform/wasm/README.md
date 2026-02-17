@@ -38,7 +38,7 @@ bun run build:full
 
 ## size analysis
 
-Use the size report script to build one or more presets and collect size data into `library/wasm/size-reports/<timestamp>/report.json`.
+Use the size report script to build one or more presets and collect size data into `platform/wasm/size-reports/<timestamp>/report.json`.
 The report includes raw, gzip, and brotli sizes, exact section breakdown, and `twiggy top` entries for each artifact.
 
 ```sh
