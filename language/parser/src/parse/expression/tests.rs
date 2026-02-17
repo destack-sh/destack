@@ -317,7 +317,7 @@ fn test_parse_double_dot_member_call_after_numeric_literal_in_typescript() {
 fn test_parse_this_member_expression_in_variant_context() {
     let mut test = TestParser::new_with_options("this.port1.onmessage", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    parser.options.in_variant = true;
+    parser.options.set_in_variant(true);
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // this.port1.onmessage
@@ -338,7 +338,7 @@ fn test_parse_call_argument_this_member_expression_in_variant_context() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.options.in_variant = true;
+    parser.options.set_in_variant(true);
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     // setTimeout(this.port1.onmessage, 0)
@@ -1346,7 +1346,7 @@ const shapes = (
 fn test_parse_anonymous_struct_literal() {
     let mut test = TestParser::new("{ }");
     let mut parser = test.prepare();
-    parser.options.in_statement_position = true;
+    parser.options.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block { .. });
 }
@@ -1356,7 +1356,7 @@ fn test_parse_anonymous_struct_literal() {
 fn test_parse_statement_position_object_literal_with_comment() {
     let mut test = TestParser::new("{ /* key */ a: 1 }");
     let mut parser = test.prepare();
-    parser.options.in_statement_position = true;
+    parser.options.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
         assert_eq!(properties.len(), 1);
@@ -1372,7 +1372,7 @@ fn test_parse_statement_position_object_literal_with_comment() {
 fn test_parse_statement_position_object_literal_computed_key() {
     let mut test = TestParser::new("{ [key]: value }");
     let mut parser = test.prepare();
-    parser.options.in_statement_position = true;
+    parser.options.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
         assert_eq!(properties.len(), 1);
@@ -1388,7 +1388,7 @@ fn test_parse_statement_position_object_literal_computed_key() {
 fn test_parse_statement_position_block_with_assignment() {
     let mut test = TestParser::new("{ step = step + 1; return base + step; }");
     let mut parser = test.prepare();
-    parser.options.in_statement_position = true;
+    parser.options.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.options.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
         assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
@@ -1406,7 +1406,7 @@ fn test_parse_statement_position_block_with_assignment() {
 fn test_parse_statement_position_block_with_array_literal() {
     let mut test = TestParser::new("{ [] }");
     let mut parser = test.prepare();
-    parser.options.in_statement_position = true;
+    parser.options.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
         assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
@@ -1427,7 +1427,7 @@ fn test_parse_statement_position_block_with_array_literal() {
 fn test_parse_statement_position_computed_method_as_block() {
     let mut test = TestParser::new("{ [key]()\n{} }");
     let mut parser = test.prepare();
-    parser.options.in_statement_position = true;
+    parser.options.set_in_statement_position(true);
     let expr_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(_) => {});
 }
@@ -2105,7 +2105,7 @@ await fetchListResult<{
     );
     let mut parser = test.prepare();
     parser.eat_newline().unwrap();
-    parser.options.in_before_block = true;
+    parser.options.set_in_before_block(true);
     let expression_id = parser.eat_expression(parser.options).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
@@ -5367,7 +5367,7 @@ fn test_parse_type_alias_named_as_or_satisfies() {
 fn test_reject_type_assertion_when_disallow_ambiguous_tree_literal() {
     let mut test = TestParser::new_with_options("<T>x", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    parser.options.disallow_ambiguous_tree_literal = true;
+    parser.options.set_disallow_ambiguous_tree_literal(true);
 
     let result = parser.eat_expression(parser.options);
     assert!(result.is_err());
@@ -5378,7 +5378,7 @@ fn test_reject_type_assertion_when_disallow_ambiguous_tree_literal() {
 fn test_reject_generic_arrow_when_disallow_ambiguous_tree_literal() {
     let mut test = TestParser::new_with_options("<T>() => 1", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    parser.options.disallow_ambiguous_tree_literal = true;
+    parser.options.set_disallow_ambiguous_tree_literal(true);
 
     let result = parser.eat_expression(parser.options);
     assert!(result.is_err());

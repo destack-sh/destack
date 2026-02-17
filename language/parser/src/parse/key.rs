@@ -566,7 +566,7 @@ impl Parser {
     /// Return true when the next tokens start a private hash key.
     #[inline]
     fn peek_private_hash_key_is(&mut self) -> bool {
-        if !self.options.allow_private_hash_key
+        if !self.options.allows_private_hash_key()
             || !(self.language.is_javascript()
                 || self.language.is_typescript()
                 || self.language.is_destack())

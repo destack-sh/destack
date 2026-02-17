@@ -36,7 +36,10 @@ impl Parser {
         next_next_token: Option<&TokenSpan>,
     ) -> Option<(InfixOperator, u8)> {
         // this recovery only applies in value expression contexts
-        if self.options.in_static || self.options.in_tree_literal || self.options.in_type {
+        if self.options.is_in_static()
+            || self.options.is_in_tree_literal()
+            || self.options.is_in_type()
+        {
             return None;
         }
 
@@ -134,17 +137,17 @@ impl Parser {
         // regular binary operator
         // (only a subset of binary operators are allowed in static and tree contexts)
         if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
-            && (!self.options.in_type
-                || self.options.in_static
+            && (!self.options.is_in_type()
+                || self.options.is_in_static()
                 || matches!(
                     binary_operator,
                     BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
                 ))
-            && (!self.options.in_static
+            && (!self.options.is_in_static()
                 || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
-            && (!self.options.in_tree_literal
+            && (!self.options.is_in_tree_literal()
                 || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
-            && (!self.options.in_for_each
+            && (!self.options.is_in_for_each()
                 || !NOT_IN_FOR_EACH_BINARY_OPERATORS.contains(&binary_operator))
         {
             return Ok((InfixOperator::Binary(binary_operator), 1));
@@ -152,13 +155,13 @@ impl Parser {
 
         // regular type binary operator
         // (forbidden in super type clauses, avoid newline glue in TS mode)
-        if !self.options.in_super_type
+        if !self.options.is_in_super_type()
             && let Some(type_binary_operator) =
                 TypeBinaryOperator::from_token(token_str, token.token.ty)
-            && (!self.options.in_type_mapped_constraint
+            && (!self.options.is_in_type_mapped_constraint()
                 || type_binary_operator != TypeBinaryOperator::Cast)
-            && (!self.options.in_for_each || type_binary_operator != TypeBinaryOperator::In)
-            && (self.options.in_type
+            && (!self.options.is_in_for_each() || type_binary_operator != TypeBinaryOperator::In)
+            && (self.options.is_in_type()
                 || matches!(
                     type_binary_operator,
                     TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
@@ -192,9 +195,9 @@ impl Parser {
 
         // regular assign operator
         // (not allowed in static, type, and tree contexts)
-        if !self.options.in_static
-            && !self.options.in_type
-            && !self.options.in_tree_literal
+        if !self.options.is_in_static()
+            && !self.options.is_in_type()
+            && !self.options.is_in_tree_literal()
             && let Some(assign_operator) = AssignOperator::from_token(token.token.ty)
         {
             return Ok((InfixOperator::Assign(assign_operator), 1));
@@ -207,7 +210,7 @@ impl Parser {
     #[inline]
     pub fn peek_unary_prefix_operator_maybe(&mut self) -> Option<UnaryOperator> {
         let token = *self.peek().ok()?;
-        if token.token.ty == TokenType::Identifier && !self.options.in_type {
+        if token.token.ty == TokenType::Identifier && !self.options.is_in_type() {
             let token_str = self.get_span_str(token.span);
             if let Ok(keyword) = Keyword::from_str(token_str)
                 && let Some(operator) = UnaryOperator::from_prefix_keyword(keyword)
@@ -444,7 +447,7 @@ impl Parser {
                 right,
             },
             InfixOperator::TypeBinary(type_binary_operator) => {
-                if self.options.in_type
+                if self.options.is_in_type()
                     && type_binary_operator == TypeBinaryOperator::Is
                     && let Some(subject) = self.type_predicate_subject_from_expression(left)
                 {

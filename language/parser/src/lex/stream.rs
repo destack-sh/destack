@@ -75,6 +75,8 @@ pub struct TokenStreamMark {
     pub(super) pending_leading_side_start: usize,
     /// Whether side trivia since the last semantic token had a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
+    /// Whether side trivia since the last semantic token had a comment token.
+    pub(super) pending_comment_before_next: bool,
     /// Whether this stream snapshot has comment style side annotations.
     pub(super) has_comment_side_tokens: bool,
     /// Whether this stream snapshot has semantic newline tokens.
@@ -119,6 +121,8 @@ pub struct TokenStream {
     token_keywords: Vec<Option<Keyword>>,
     /// Cached line terminator presence before semantic token indexes.
     line_terminators_before: Vec<bool>,
+    /// Cached comment trivia presence before semantic token indexes.
+    leading_comment_before: Vec<bool>,
     /// Side trivia start index before each semantic token.
     leading_side_start_by_token: Vec<u32>,
     /// Side trivia end index before each semantic token.
@@ -137,6 +141,8 @@ pub struct TokenStream {
     bracket_stack: Vec<usize>,
     /// Whether side trivia since the previous semantic token had a line terminator.
     pending_line_terminator_before_next: bool,
+    /// Whether side trivia since the previous semantic token had a comment token.
+    pending_comment_before_next: bool,
     /// Whether any comment style side trivia token was seen.
     has_comment_side_tokens: bool,
     /// Whether any semantic newline token was seen.
@@ -173,6 +179,7 @@ impl TokenStream {
             matching_pairs: Vec::new(),
             token_keywords: Vec::new(),
             line_terminators_before: Vec::new(),
+            leading_comment_before: Vec::new(),
             leading_side_start_by_token: Vec::new(),
             leading_side_end_by_token: Vec::new(),
             non_whitespace_side_prefix: vec![0],
@@ -182,6 +189,7 @@ impl TokenStream {
             brace_stack: Vec::new(),
             bracket_stack: Vec::new(),
             pending_line_terminator_before_next: false,
+            pending_comment_before_next: false,
             has_comment_side_tokens: false,
             has_semantic_newline_tokens: false,
             is_finished: false,
@@ -363,6 +371,7 @@ impl TokenStream {
                 .to_vec(),
             pending_leading_side_start: self.pending_leading_side_start,
             pending_line_terminator_before_next: self.pending_line_terminator_before_next,
+            pending_comment_before_next: self.pending_comment_before_next,
             has_comment_side_tokens: self.has_comment_side_tokens,
             has_semantic_newline_tokens: self.has_semantic_newline_tokens,
             split_token: self.split_token,
@@ -387,6 +396,7 @@ impl TokenStream {
             non_whitespace_side_prefix_tail,
             pending_leading_side_start,
             pending_line_terminator_before_next,
+            pending_comment_before_next,
             has_comment_side_tokens,
             has_semantic_newline_tokens,
             split_token,
@@ -405,6 +415,7 @@ impl TokenStream {
         self.comment_side_token_indexes
             .truncate(comment_side_tokens_len);
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
+        self.pending_comment_before_next = pending_comment_before_next;
         self.pending_leading_side_start = pending_leading_side_start;
         self.has_comment_side_tokens = has_comment_side_tokens;
         self.has_semantic_newline_tokens = has_semantic_newline_tokens;
@@ -420,6 +431,7 @@ impl TokenStream {
         self.lexer.tokens.truncate(tokens_len);
         self.token_keywords.truncate(tokens_len);
         self.line_terminators_before.truncate(tokens_len);
+        self.leading_comment_before.truncate(tokens_len);
         self.leading_side_start_by_token.truncate(tokens_len);
         self.leading_side_end_by_token.truncate(tokens_len);
         self.non_whitespace_side_prefix.truncate(tokens_len + 1);
@@ -543,6 +555,7 @@ impl TokenStream {
         self.matching_pairs.clear();
         self.token_keywords.clear();
         self.line_terminators_before.clear();
+        self.leading_comment_before.clear();
         self.leading_side_start_by_token.clear();
         self.leading_side_end_by_token.clear();
         self.non_whitespace_side_prefix.clear();
@@ -553,6 +566,7 @@ impl TokenStream {
         self.brace_stack.clear();
         self.bracket_stack.clear();
         self.pending_line_terminator_before_next = false;
+        self.pending_comment_before_next = false;
         self.has_comment_side_tokens = false;
         self.has_semantic_newline_tokens = false;
         self.clear_split_token();
@@ -574,6 +588,25 @@ impl TokenStream {
 
         self.ensure_token(index);
         self.line_terminators_before
+            .get(index)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Return whether trivia before a semantic token index had a comment token.
+    #[inline]
+    pub fn comment_before(&mut self, index: usize) -> bool {
+        // hot fast path: full token stream is already materialized
+        if self.is_finished {
+            return self
+                .leading_comment_before
+                .get(index)
+                .copied()
+                .unwrap_or(false);
+        }
+
+        self.ensure_token(index);
+        self.leading_comment_before
             .get(index)
             .copied()
             .unwrap_or(false)
@@ -904,14 +937,16 @@ impl TokenStream {
     #[inline]
     fn push_side_token(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
         let side_index = self.side_tokens.len() as u32;
-        if matches!(
+        let is_comment = matches!(
             token_span.token.ty,
             TokenType::LineComment
                 | TokenType::DocLineComment
                 | TokenType::BlockComment
                 | TokenType::DocBlockComment
-        ) {
+        );
+        if is_comment {
             self.has_comment_side_tokens = true;
+            self.pending_comment_before_next = true;
             self.comment_side_token_indexes.push(side_index);
         }
 
@@ -926,6 +961,7 @@ impl TokenStream {
     fn push_semantic_token(&mut self, token_span: TokenSpan) {
         let token_index = self.tokens.len();
         let has_line_terminator_before = self.pending_line_terminator_before_next;
+        let has_comment_before = self.pending_comment_before_next;
         let leading_side_start = self.pending_leading_side_start as u32;
         let leading_side_end = self.side_tokens.len() as u32;
         let mut has_non_whitespace_side = false;
@@ -950,6 +986,7 @@ impl TokenStream {
         self.token_keywords.push(keyword);
         self.line_terminators_before
             .push(has_line_terminator_before);
+        self.leading_comment_before.push(has_comment_before);
         self.leading_side_start_by_token.push(leading_side_start);
         self.leading_side_end_by_token.push(leading_side_end);
         let previous_non_whitespace_side_prefix =
@@ -958,6 +995,7 @@ impl TokenStream {
             .push(previous_non_whitespace_side_prefix + has_non_whitespace_side as u32);
         self.pending_leading_side_start = self.side_tokens.len();
         self.pending_line_terminator_before_next = token_span.token.ty == TokenType::Newline;
+        self.pending_comment_before_next = false;
         if token_span.token.ty == TokenType::Newline {
             self.has_semantic_newline_tokens = true;
         }

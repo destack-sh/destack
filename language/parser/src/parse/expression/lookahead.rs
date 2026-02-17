@@ -22,9 +22,18 @@ pub(crate) struct DelimiterAnalysis {
 /// Parenthesized group shape alias used by expression dispatch.
 pub(crate) type ParenthesizedGroupShape = DelimiterAnalysis;
 
+/// The raw follow token facts for a parenthesized group.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ParenthesizedFollowToken {
+    /// The semantic token index of the matching close parenthesis.
+    pub close_index: usize,
+    /// The raw token type immediately following the close parenthesis.
+    pub follow_token_type: TokenType,
+}
+
 impl Parser {
     /// Return the raw token type that follows the current parenthesized group.
-    pub(super) fn parenthesized_follow_raw_token_type(&mut self) -> Option<TokenType> {
+    pub(super) fn parenthesized_follow_token(&mut self) -> Option<ParenthesizedFollowToken> {
         if self.peek_token_type() != TokenType::OpenParenthesis {
             return None;
         }
@@ -35,7 +44,10 @@ impl Parser {
         if follow_token_type == TokenType::End {
             None
         } else {
-            Some(follow_token_type)
+            Some(ParenthesizedFollowToken {
+                close_index,
+                follow_token_type,
+            })
         }
     }
 
@@ -59,7 +71,7 @@ impl Parser {
         }
 
         // tree literal lexing can mutate token stream state during lookahead
-        let needs_snapshot = self.allow_tree_literals() && !self.options.in_type;
+        let needs_snapshot = self.allow_tree_literals() && !self.options.is_in_type();
         let lookahead_result = if needs_snapshot {
             let lookahead_mark = self.mark_rewind();
             let lookahead_result = self.lookahead_delimiter_analysis_inner();
@@ -129,8 +141,8 @@ impl Parser {
             Some(TokenType::Arrow | TokenType::ArrowWide)
         );
         let has_colon_follow = matches!(follow_token_type, Some(TokenType::Colon));
-        let needs_parameter_shape_for_arrow_return = self.options.in_arrow_return_type;
-        let needs_parameter_shape_for_typed_colon = self.options.in_type && has_colon_follow;
+        let needs_parameter_shape_for_arrow_return = self.options.is_in_arrow_return_type();
+        let needs_parameter_shape_for_typed_colon = self.options.is_in_type() && has_colon_follow;
 
         // js and ts can usually decide lambda eligibility from the token after ')'
         // skip deep shape scanning unless parameter shape data is required
@@ -166,11 +178,11 @@ impl Parser {
 
         // tree literals can contain raw `)` text, so groups that start as tree literals use expression matching
         let tree_literals_allowed = self.language.supports_jsx()
-            && !self.options.in_type
-            && (self.allow_tree_literals() || self.options.in_tree_literal);
+            && !self.options.is_in_type()
+            && (self.allow_tree_literals() || self.options.is_in_tree_literal());
         let needs_tree_aware_parenthesis_matching = open_token_type == TokenType::OpenParenthesis
             && tree_literals_allowed
-            && (self.options.in_tree_literal
+            && (self.options.is_in_tree_literal()
                 || self.parenthesized_group_starts_with_tree_literal(open_index));
         if needs_tree_aware_parenthesis_matching {
             let close_pos = self.find_matching_close_in_expression(

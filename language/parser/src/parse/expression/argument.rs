@@ -24,20 +24,22 @@ impl Parser {
         if token_type == TokenType::End {
             return true;
         }
-        if self.options.in_static && token_type == TokenType::GreaterThan {
+        if self.options.is_in_static() && token_type == TokenType::GreaterThan {
             return true;
         }
 
         // allow ternary and arrow continuations
-        if self.options.in_ternary_condition && token_type == TokenType::Colon {
+        if self.options.is_in_ternary_condition() && token_type == TokenType::Colon {
             return true;
         }
-        if self.options.in_type && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide) {
+        if self.options.is_in_type()
+            && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
+        {
             return true;
         }
 
         // allow statement-start keywords after static args in new receivers
-        if self.options.in_new_receiver
+        if self.options.is_in_new_receiver()
             && token_type == TokenType::Identifier
             && self.keyword_for_index(index).is_some()
         {
@@ -74,7 +76,7 @@ impl Parser {
         }
 
         // allow heritage terminators after static arguments
-        if self.options.in_super_type {
+        if self.options.is_in_super_type() {
             if token_type == TokenType::OpenBrace {
                 return true;
             }
@@ -116,7 +118,10 @@ impl Parser {
         allow_newline_prefix: bool,
     ) -> Option<Vec<LocalNodeId<Argument>>> {
         // javascript modes do not support static arguments
-        if self.language.is_javascript() && !self.options.in_type && !self.options.in_decorator {
+        if self.language.is_javascript()
+            && !self.options.is_in_type()
+            && !self.options.is_in_decorator()
+        {
             return None;
         }
 
@@ -150,7 +155,7 @@ impl Parser {
         match self.eat_static_arguments() {
             Ok(static_arguments) => {
                 // in type or decorator context, type arguments are always valid
-                if self.options.in_type || self.options.in_decorator {
+                if self.options.is_in_type() || self.options.is_in_decorator() {
                     return Some(static_arguments);
                 }
 
@@ -184,13 +189,16 @@ impl Parser {
         allow_object_literal: bool,
     ) -> Option<Vec<LocalNodeId<Argument>>> {
         // new receivers parse static arguments in `eat_new` with dedicated follow validation
-        if self.options.in_new_receiver {
+        if self.options.is_in_new_receiver() {
             return None;
         }
 
         // in typescript value expressions, defer static arguments to postfix parsing
         // this keeps `f<T>` and `obj.method<T>` as instantiation or call forms
-        if self.language.is_typescript() && !self.options.in_type && !self.options.in_decorator {
+        if self.language.is_typescript()
+            && !self.options.is_in_type()
+            && !self.options.is_in_decorator()
+        {
             return None;
         }
 

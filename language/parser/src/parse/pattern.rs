@@ -156,7 +156,7 @@ impl Parser {
                 )
             }
             // binding with expression or pattern
-            else if !self.options.in_before_type
+            else if !self.options.is_in_before_type()
                 && self.peek_identifier_is()
                 && self.peek_next_is(TokenType::Colon)
             {
@@ -205,7 +205,7 @@ impl Parser {
                     self.tree.insert(pattern, self.get_span_from(&start))
                 }
                 // struct with path
-                else if !self.options.in_before_block && self.peek_is(TokenType::OpenBrace) {
+                else if !self.options.is_in_before_block() && self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat open brace
                     self.eat_newlines_maybe()?;
                     let fields = self
@@ -289,7 +289,7 @@ impl Parser {
             return Ok(pattern_id);
         }
         // union
-        if self.peek_is(TokenType::ElementwiseOr) && !self.options.in_union_pattern {
+        if self.peek_is(TokenType::ElementwiseOr) && !self.options.is_in_union_pattern() {
             // eat all union "fields" (just unnamed patterns)
             let mut patterns: Vec<LocalNodeId<Pattern>> = vec![pattern_id];
             while self.peek_is(TokenType::ElementwiseOr) {

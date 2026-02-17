@@ -204,7 +204,7 @@ impl Parser {
                     self.insert_declaration_expression(start, extension_id),
                 ))
             }
-            Keyword::Type if !self.options.in_new_receiver => {
+            Keyword::Type if !self.options.is_in_new_receiver() => {
                 if next_has_line_break {
                     return Ok(None);
                 }
@@ -329,7 +329,7 @@ impl Parser {
                         .insert(Expression::Debugger, self.get_span_from(start)),
                 ))
             }
-            Keyword::Yield if self.options.in_generator => {
+            Keyword::Yield if self.options.is_in_generator() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_yield()?))
             }
@@ -367,7 +367,7 @@ impl Parser {
                 }
             }
             Keyword::Await => {
-                if self.options.forbid_await {
+                if self.options.is_forbid_await() {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
@@ -406,7 +406,7 @@ impl Parser {
         next_token_index: usize,
     ) -> bool {
         // this fallback only applies inside type expressions
-        if !self.options.in_type {
+        if !self.options.is_in_type() {
             return false;
         }
 
@@ -463,7 +463,7 @@ impl Parser {
                 if self.language.is_destack() && (is_declaration_start || next_has_line_break) =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let allow_anonymous_class = !self.options.in_statement_position
+                let allow_anonymous_class = !self.options.is_in_statement_position()
                     || descriptor.export == Some(DependencyMode::Default);
                 let struct_id =
                     self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
@@ -472,7 +472,7 @@ impl Parser {
             // class declaration
             Keyword::Class if is_declaration_start || next_has_line_break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let allow_anonymous_class = !self.options.in_statement_position
+                let allow_anonymous_class = !self.options.is_in_statement_position()
                     || descriptor.export == Some(DependencyMode::Default);
                 let struct_id =
                     self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
@@ -555,7 +555,7 @@ impl Parser {
             // extension declaration
             Keyword::Extension
                 if self.language.is_destack()
-                    && self.options.in_statement_position
+                    && self.options.is_in_statement_position()
                     && is_declaration_start =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
@@ -583,7 +583,7 @@ impl Parser {
 
                 // avoid async generic parses when tree literal disambiguation is active
                 if self.language.supports_jsx()
-                    && self.options.disallow_ambiguous_tree_literal
+                    && self.options.is_disallow_ambiguous_tree_literal()
                     && self.options.left_precedence.is_some()
                     && has_generic_head
                 {
@@ -602,11 +602,11 @@ impl Parser {
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // override is contextual in value expressions
-            Keyword::Override if !self.options.in_type => Ok(None),
+            Keyword::Override if !self.options.is_in_type() => Ok(None),
             // abstract is contextual outside declaration positions
             Keyword::Abstract
-                if !self.options.in_type
-                    && !self.options.in_statement_position
+                if !self.options.is_in_type()
+                    && !self.options.is_in_statement_position()
                     && descriptor.export.is_none() =>
             {
                 Ok(None)
@@ -629,7 +629,7 @@ impl Parser {
                 Ok(Some(self.insert_declaration_expression(start, function_id)))
             }
             // new signature declaration in type positions
-            Keyword::New if self.options.in_type => {
+            Keyword::New if self.options.is_in_type() => {
                 // require a valid function signature start
                 let can_start_signature = Self::can_start_function_signature(next_token_type);
                 if can_start_signature {
@@ -643,7 +643,7 @@ impl Parser {
                 }
             }
             // variant method declaration
-            Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.in_variant => {
+            Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.is_in_variant() => {
                 // require a valid function signature start
                 let can_start_signature = Self::can_start_function_signature(next_token_type);
                 if !can_start_signature {
@@ -674,7 +674,7 @@ impl Parser {
                 ))
             }
             // new expression
-            Keyword::New if !self.options.in_type => {
+            Keyword::New if !self.options.is_in_type() => {
                 // require a valid new expression start
                 let can_start_new_expression = matches!(
                     next_token_type,
@@ -708,7 +708,8 @@ impl Parser {
             }
             // type only import expression
             Keyword::Import
-                if self.options.in_type && next_raw_token_type == TokenType::OpenParenthesis =>
+                if self.options.is_in_type()
+                    && next_raw_token_type == TokenType::OpenParenthesis =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_type_import_expression()?))
@@ -749,9 +750,11 @@ impl Parser {
                 }
             }
             // infer type expression
-            Keyword::Infer if self.options.in_type => Ok(Some(self.eat_type_infer_expression()?)),
+            Keyword::Infer if self.options.is_in_type() => {
+                Ok(Some(self.eat_type_infer_expression()?))
+            }
             // asserts type predicate
-            Keyword::Asserts if self.options.in_type => {
+            Keyword::Asserts if self.options.is_in_type() => {
                 // allow asserts predicate only when grammar supports it
                 if self.can_start_type_predicate_asserts() {
                     Ok(Some(self.eat_type_predicate_asserts()?))
@@ -778,12 +781,12 @@ impl Parser {
             // readonly type operator in ts and js type contexts
             Keyword::Readonly if self.language.is_typescript() || self.language.is_javascript() => {
                 // in new receiver context, readonly behaves like an identifier
-                if self.options.in_new_receiver {
+                if self.options.is_in_new_receiver() {
                     return Ok(None);
                 }
 
                 // ts and js parse readonly as a type unary in type positions
-                if self.options.in_type {
+                if self.options.is_in_type() {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     return Ok(Some(self.eat_type(start, descriptor)?));
                 }
@@ -794,12 +797,12 @@ impl Parser {
             // type alias declaration and destack readonly/newtype aliases
             Keyword::Type | Keyword::Readonly => {
                 // for each bindings keep `type` and `readonly` as identifiers
-                if self.options.in_for_each && !self.options.in_type {
+                if self.options.is_in_for_each() && !self.options.is_in_type() {
                     return Ok(None);
                 }
 
                 // in new receiver context, `type` and `readonly` behave like identifiers
-                if self.options.in_new_receiver {
+                if self.options.is_in_new_receiver() {
                     return Ok(None);
                 }
 
@@ -903,7 +906,7 @@ impl Parser {
             // await expression or await using
             Keyword::Await => {
                 // reject await in contexts that forbid it
-                if self.options.forbid_await {
+                if self.options.is_forbid_await() {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
@@ -929,7 +932,7 @@ impl Parser {
                 Ok(Some(self.eat_comptime()?))
             }
             // yield statement
-            Keyword::Yield if self.options.in_generator => {
+            Keyword::Yield if self.options.is_in_generator() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_yield()?))
             }

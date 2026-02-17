@@ -20,13 +20,13 @@ impl Parser {
 
         // require disambiguators only when explicitly requested by settings
         let require_disambiguator =
-            self.options.disallow_ambiguous_tree_literal && !self.options.in_type;
+            self.options.is_disallow_ambiguous_tree_literal() && !self.options.is_in_type();
         self.peek_generic_arrow_after_type_parameters(require_disambiguator)
     }
 
     /// Return true if `<` starts a tree literal without committing tokens.
     pub(crate) fn can_start_tree_literal(&mut self) -> bool {
-        if !self.language.supports_jsx() || self.options.in_type {
+        if !self.language.supports_jsx() || self.options.is_in_type() {
             return false;
         }
         if !self.peek_is(TokenType::LessThan) {
@@ -39,7 +39,7 @@ impl Parser {
         }
 
         let mark = self.mark_rewind();
-        let require_disambiguator = self.options.disallow_ambiguous_tree_literal;
+        let require_disambiguator = self.options.is_disallow_ambiguous_tree_literal();
         let is_disambiguated_generic =
             self.peek_generic_arrow_after_type_parameters(require_disambiguator);
         self.rewind(mark);
@@ -75,7 +75,7 @@ impl Parser {
         // probe from the next token with in_type disabled
         self.with_pos(next, |parser| {
             let mut options = parser.options;
-            options.in_type = false;
+            options.set_in_type(false);
             parser.with_options(options, |inner| inner.can_start_tree_literal())
         })
     }

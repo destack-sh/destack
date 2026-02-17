@@ -99,10 +99,12 @@ impl Parser {
         // labelled blocks are only allowed in statement position
         let is_labelled_block =
             label_target_token.is_some_and(|token| token.token.ty == TokenType::OpenBrace);
-        let can_parse_label = if self.options.in_statement_position && !self.language.is_destack() {
+        let can_parse_label = if self.options.is_in_statement_position()
+            && !self.language.is_destack()
+        {
             true
         } else {
-            is_labelled_expression || (self.options.in_statement_position && is_labelled_block)
+            is_labelled_expression || (self.options.is_in_statement_position() && is_labelled_block)
         };
 
         if !can_parse_label {

@@ -409,7 +409,7 @@ impl Parser {
     /// ```
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         // collect runtime decorators so validation can check placement
-        let decorators = if !self.options.in_type {
+        let decorators = if !self.options.is_in_type() {
             self.eat_decorators_maybe()?
         } else {
             smallvec::SmallVec::new()
@@ -420,7 +420,7 @@ impl Parser {
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe(
             true,
             false,
-            self.options.in_static,
+            self.options.is_in_static(),
             false,
             true,
         )?;
@@ -435,7 +435,7 @@ impl Parser {
 
         // pattern/name
         let (pattern, name, name_span) =
-            if is_variadic && (self.options.in_type || self.options.in_variant) {
+            if is_variadic && (self.options.is_in_type() || self.options.is_in_variant()) {
                 // variadic tuple labels in type positions: ...[name]: T
                 if let Some((name, span)) = self.try_eat_variadic_tuple_label_name_with_span()? {
                     (None, Some(name), Some(span))
@@ -466,7 +466,7 @@ impl Parser {
                 None
             };
             let has_type_annotation_marker = annotation_token_type == TokenType::Colon
-                || self.options.in_static
+                || self.options.is_in_static()
                     && matches!(
                         annotation_keyword,
                         Some(Keyword::Extends | Keyword::Implements)
@@ -482,7 +482,7 @@ impl Parser {
                     .not_in_position()
                     .not_in_left_precedence()
                     .in_type();
-                if self.options.in_type_conditional_right {
+                if self.options.is_in_type_conditional_right() {
                     type_options = type_options.in_type_conditional_right();
                 }
                 let ty = self
@@ -505,7 +505,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
 
                 // value
-                let mut value_options = if self.options.in_static {
+                let mut value_options = if self.options.is_in_static() {
                     self.options
                         .not_in_position()
                         .not_in_sequence_expression()
@@ -519,7 +519,7 @@ impl Parser {
                 };
 
                 // parameter defaults are value expressions, even in class or variant scopes
-                value_options.in_variant = false;
+                value_options.set_in_variant(false);
                 let value = self
                     .eat_expression(value_options)
                     .for_node_type(NodeType::Parameter)?;
@@ -668,7 +668,7 @@ impl Parser {
         let mut has_variadic_parameter = false;
         self.eat_newlines_maybe()?;
         while self.peek_is(TokenType::Identifier)
-            || (self.options.in_static && self.is_keyword(Keyword::In))
+            || (self.options.is_in_static() && self.is_keyword(Keyword::In))
             // spread
             || self.peek_is(TokenType::Spread)
             // pattern
@@ -676,7 +676,7 @@ impl Parser {
             || self.peek_is(TokenType::OpenBracket)
             || self.peek_is(TokenType::OpenBrace)
             // decorator
-            || (!self.options.in_type && self.peek_is(TokenType::At))
+            || (!self.options.is_in_type() && self.peek_is(TokenType::At))
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
 
@@ -764,7 +764,10 @@ impl Parser {
 
         // regular static parameters
         let mut options = self.options.nested().in_static();
-        if self.options.in_type || self.options.in_decorator || self.language.is_typescript() {
+        if self.options.is_in_type()
+            || self.options.is_in_decorator()
+            || self.language.is_typescript()
+        {
             options = options.in_type();
         }
         let parameters = self.with_options(options, |parser| parser.eat_parameters_body())?;
@@ -795,10 +798,10 @@ impl Parser {
 
         // regular dynamic parameters
         let mut parameter_options = self.options.nested();
-        if self.options.in_type {
+        if self.options.is_in_type() {
             parameter_options = parameter_options.in_type();
         }
-        if self.options.in_variant {
+        if self.options.is_in_variant() {
             parameter_options = parameter_options.in_variant();
         }
         let parameters =
@@ -847,16 +850,37 @@ impl Parser {
     /// ```
     #[inline]
     pub fn eat_positional_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
+        // hot path: plain positional value arguments in value contexts
+        if !self.options.is_in_type()
+            && !self.peek_is(TokenType::At)
+            && !self.peek_is(TokenType::Spread)
+        {
+            let start = self.mark_span();
+            let mut value_options = self.options.not_in_position().not_in_sequence_expression();
+            if self.options.is_in_arrow_return_type() {
+                value_options = value_options.not_in_arrow_return_type();
+            }
+            let value = self.eat_expression(value_options)?;
+            let argument_id = self.tree.insert(
+                Argument::Positional {
+                    modifiers: None,
+                    value,
+                },
+                self.get_span_from(&start),
+            );
+            return Ok(argument_id);
+        }
+
         let start = self.mark_span();
         let mut modifiers = None;
-        let decorators = if !self.options.in_type {
+        let decorators = if !self.options.is_in_type() {
             self.eat_decorators_maybe()?
         } else {
             smallvec::SmallVec::new()
         };
 
         // readonly tuple element modifiers in type context
-        if self.options.in_type && self.is_keyword(Keyword::Readonly) {
+        if self.options.is_in_type() && self.is_keyword(Keyword::Readonly) {
             self.bump(); // eat readonly
             modifiers = Some(BindingModifier {
                 mutability: Some(Mutability::Immutable),
@@ -865,7 +889,7 @@ impl Parser {
         }
 
         // detect labeled tuple element heads like `label: Type` and `label?: Type`
-        let has_labeled_tuple_head = self.options.in_type
+        let has_labeled_tuple_head = self.options.is_in_type()
             && self.peek_is(TokenType::Identifier)
             && (self.peek_next_is(TokenType::Colon)
                 || self.peek_next_is(TokenType::Maybe) && self.peek_next_next_is(TokenType::Colon));
@@ -875,7 +899,7 @@ impl Parser {
             self.bump(); // eat spread
 
             // detect spread labels like `...label: Type` and `...label?: Type`
-            let has_spread_labeled_tuple_head = self.options.in_type
+            let has_spread_labeled_tuple_head = self.options.is_in_type()
                 && self.peek_is(TokenType::Identifier)
                 && (self.peek_next_is(TokenType::Colon)
                     || self.peek_next_is(TokenType::Maybe)
@@ -898,7 +922,7 @@ impl Parser {
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
                 let mut value_options = self.options.not_in_position().not_in_sequence_expression();
-                if self.options.in_arrow_return_type {
+                if self.options.is_in_arrow_return_type() {
                     value_options = value_options.not_in_arrow_return_type();
                 }
                 let value = self.eat_expression(value_options)?;
@@ -907,7 +931,7 @@ impl Parser {
                 // spread positional value
                 self.eat_newlines_maybe()?;
                 let mut value_options = self.options.not_in_position().not_in_sequence_expression();
-                if self.options.in_arrow_return_type {
+                if self.options.is_in_arrow_return_type() {
                     value_options = value_options.not_in_arrow_return_type();
                 }
                 let value = self.eat_expression(value_options)?;
@@ -947,7 +971,7 @@ impl Parser {
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             let mut value_options = self.options.not_in_sequence_expression();
-            if self.options.in_arrow_return_type {
+            if self.options.is_in_arrow_return_type() {
                 value_options = value_options.not_in_arrow_return_type();
             }
             let value = self.eat_expression(value_options)?;
@@ -968,13 +992,13 @@ impl Parser {
 
         // positional value expression
         let mut value_options = self.options.not_in_position().not_in_sequence_expression();
-        if self.options.in_arrow_return_type {
+        if self.options.is_in_arrow_return_type() {
             value_options = value_options.not_in_arrow_return_type();
         }
         let mut value = self.eat_expression(value_options)?;
 
         // tuple optional marker after positional element
-        if self.options.in_type && self.peek_is(TokenType::Maybe) {
+        if self.options.is_in_type() && self.peek_is(TokenType::Maybe) {
             let is_tuple_optional = self.is_token_after_newlines(self.pos(), TokenType::Comma)
                 || self.is_token_after_newlines(self.pos(), TokenType::CloseBracket);
             if is_tuple_optional {
@@ -987,7 +1011,7 @@ impl Parser {
         }
 
         // normalize direct postfix maybe expressions into tuple modifiers
-        if self.options.in_type
+        if self.options.is_in_type()
             && let Expression::Maybe {
                 position: PostfixPosition::Direct,
                 left,
@@ -1131,7 +1155,7 @@ impl Parser {
         // positional argument (bare expression like nested <Element />)
         else {
             // jsx content without braces must be text or nested tags
-            if self.language.supports_jsx() && self.options.in_tree_literal {
+            if self.language.supports_jsx() && self.options.is_in_tree_literal() {
                 let token = *self.peek()?;
                 let is_tree_text = token.token.ty == TokenType::Literal
                     && matches!(
@@ -1408,8 +1432,8 @@ impl Parser {
 
         // regular static arguments (positional/spread only)
         let mut options = self.options.nested().in_static();
-        if self.options.in_type
-            || self.options.in_decorator
+        if self.options.is_in_type()
+            || self.options.is_in_decorator()
             || self.language.is_destack()
             || self.language.is_typescript()
         {
@@ -1420,8 +1444,9 @@ impl Parser {
 
         // ts expression contexts only close static args on a concrete `>` token
         // (this matches ts disambiguation for cases like `f<T>=x` and `x < y, x >>= y`.. sigh)
-        let allow_glued_type_close =
-            self.options.in_type || self.options.in_decorator || self.language.is_destack();
+        let allow_glued_type_close = self.options.is_in_type()
+            || self.options.is_in_decorator()
+            || self.language.is_destack();
 
         self.eat_newlines_maybe()?;
         if allow_glued_type_close {
@@ -1730,7 +1755,7 @@ mod tests {
     fn test_parse_parameter_variadic_tuple_name() {
         let mut test = TestParser::new("...[value]: [] | [TNext]");
         let mut parser = test.prepare();
-        parser.options.in_type = true;
+        parser.options.set_in_type(true);
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { modifiers: _, name, ty } => {
             assert_string!(parser, *name, "value");
@@ -2309,7 +2334,7 @@ class Test {
         // ...args: number
         let mut test = TestParser::new("...args: number");
         let mut parser = test.prepare();
-        parser.options.in_type = true;
+        parser.options.set_in_type(true);
         let argument_id = parser.eat_positional_argument().unwrap();
         assert_node!(parser.tree, argument_id, Argument::Spread { modifiers: _, label, value } => {
             assert_string!(parser, label.unwrap(), "args");
@@ -2327,7 +2352,7 @@ class Test {
     fn test_parse_tuple_label_argument_span() {
         let mut test = TestParser::new("label: number");
         let mut parser = test.prepare();
-        parser.options.in_type = true;
+        parser.options.set_in_type(true);
         let argument_id = parser.eat_positional_argument().unwrap();
         assert_node!(parser.tree, argument_id, Argument::Labeled { modifiers: _, label, value } => {
             assert_string!(parser, *label, "label");
@@ -2345,7 +2370,7 @@ class Test {
     fn test_parse_tuple_label_argument_multiline_union_type() {
         let mut test = TestParser::new("options?:\n  | SkipToken\n  | OtherOption");
         let mut parser = test.prepare();
-        parser.options.in_type = true;
+        parser.options.set_in_type(true);
         let argument_id = parser.eat_positional_argument().unwrap();
         assert_node!(parser.tree, argument_id, Argument::Labeled { modifiers: Some(modifiers), label, value } => {
             assert_eq!(modifiers.kind, Some(BindingKind::Maybe));

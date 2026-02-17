@@ -122,7 +122,7 @@ impl Parser {
             || token_type == TokenType::Identifier
             || token_type == TokenType::Literal
             // (if we're before a block then { is a terminator, not the start of a block)
-            || (token_type == TokenType::OpenBrace && !self.options.in_before_block)
+            || (token_type == TokenType::OpenBrace && !self.options.is_in_before_block())
             || UnaryOperator::from_prefix_token(token_type).is_some()
             || TypeUnaryOperator::from_prefix_token(token_str, token_type).is_some()
     }
@@ -158,7 +158,7 @@ impl Parser {
         }
 
         // bail if not inside static or type context
-        if !self.options.in_type && !self.options.in_static {
+        if !self.options.is_in_type() && !self.options.is_in_static() {
             return Err(ParseError::unexpected(next.span));
         }
 
@@ -356,7 +356,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 // value
                 let mut value_options = self.options.not_in_position().in_type();
-                if self.options.in_type_conditional_right {
+                if self.options.is_in_type_conditional_right() {
                     value_options = value_options.in_type_conditional_right();
                 }
                 let value_id = self.with_options(value_options, |parser| {
@@ -388,7 +388,7 @@ impl Parser {
                 // re-parse from before the name to get static arguments properly
                 self.restore(speculative_start.0.clone(), speculative_start.1);
                 let mut right_options = self.options.not_in_position().in_type();
-                if self.options.in_type_conditional_right {
+                if self.options.is_in_type_conditional_right() {
                     right_options = right_options.in_type_conditional_right();
                 }
                 let right = self.with_options(right_options, |parser| {
@@ -408,7 +408,7 @@ impl Parser {
         // type expression
         else {
             let mut right_options = self.options.not_in_position().in_type();
-            if self.options.in_type_conditional_right {
+            if self.options.is_in_type_conditional_right() {
                 right_options = right_options.in_type_conditional_right();
             }
             let right = self.with_options(right_options, |parser| {
@@ -499,7 +499,7 @@ impl Parser {
 
         // prefer infer constraints on conditional right unless nested
         let mut require_nested_close =
-            self.options.in_type_conditional_right && !self.options.in_parenthesis;
+            self.options.is_in_type_conditional_right() && !self.options.is_in_parenthesis();
         if require_nested_close {
             // allow nested conditionals inside delimited lists
             let mut index = self.pos() as isize - 1;
@@ -688,7 +688,7 @@ impl Parser {
 
         // constraint (e.g., infer T extends U)
         let mut constraint_options = self.options.not_in_position().in_type();
-        if self.options.in_type_conditional_right {
+        if self.options.is_in_type_conditional_right() {
             constraint_options = constraint_options.in_type_conditional_right();
         }
         let constraint =
@@ -790,7 +790,7 @@ impl Parser {
             self.bump(); // eat is
             self.eat_newlines_maybe()?;
             let mut target_options = self.options.not_in_position().in_type();
-            if self.options.in_type_conditional_right {
+            if self.options.is_in_type_conditional_right() {
                 target_options = target_options.in_type_conditional_right();
             }
             Some(self.eat_expression(target_options)?)
