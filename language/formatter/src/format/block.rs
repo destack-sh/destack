@@ -221,6 +221,62 @@ fn expression_prefix_start(
     start
 }
 
+/// Return whether an expression or its declaration wrapper has any prefix annotation.
+fn expression_has_effective_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.has_prefix_annotation(expression_id) {
+        return true;
+    }
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => context.has_prefix_annotation(*declaration_id),
+        Expression::Statement(inner_id) => {
+            expression_has_effective_prefix_annotation(context, *inner_id)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether an expression or its declaration wrapper has a blank prefix annotation.
+fn expression_has_effective_blank_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.has_blank_prefix_annotation(expression_id) {
+        return true;
+    }
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => {
+            context.has_blank_prefix_annotation(*declaration_id)
+        }
+        Expression::Statement(inner_id) => {
+            expression_has_effective_blank_prefix_annotation(context, *inner_id)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether an expression or its declaration wrapper has postfix annotations.
+fn expression_has_effective_postfix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.has_postfix_annotation(expression_id) {
+        return true;
+    }
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => context.has_postfix_annotation(*declaration_id),
+        Expression::Statement(inner_id) => {
+            expression_has_effective_postfix_annotation(context, *inner_id)
+        }
+        _ => false,
+    }
+}
+
 /// Format a block inline with zero or one expression (including label and infix annotations).
 /// Format block contents with compact inner spacing.
 #[inline]
@@ -325,10 +381,8 @@ pub(crate) fn format_block_of_statements<'ast>(
         false
     } else {
         let last_directive_expression = effective_expressions[directive_count - 1];
-        !f.context().has_prefix_annotation(last_directive_expression)
-            && !f
-                .context()
-                .has_postfix_annotation(last_directive_expression)
+        !expression_has_effective_prefix_annotation(f.context(), last_directive_expression)
+            && !expression_has_effective_postfix_annotation(f.context(), last_directive_expression)
     };
 
     let mut prev_was_import = false;
@@ -355,10 +409,11 @@ pub(crate) fn format_block_of_statements<'ast>(
         if i > 0 {
             let previous_expression_id = effective_expressions[i - 1];
             let has_blank_prefix_annotation =
-                f.context().has_blank_prefix_annotation(expression_id);
-            let has_prefix_annotation = f.context().has_prefix_annotation(expression_id);
+                expression_has_effective_blank_prefix_annotation(f.context(), expression_id);
+            let has_prefix_annotation =
+                expression_has_effective_prefix_annotation(f.context(), expression_id);
             let previous_has_postfix_annotation =
-                f.context().has_postfix_annotation(previous_expression_id);
+                expression_has_effective_postfix_annotation(f.context(), previous_expression_id);
             let source_has_blank_line_between = if has_ignore_range {
                 if let Some((previous_file, previous_end)) = previous_output_end {
                     if previous_file != expression_span.file {
@@ -658,6 +713,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
 #[cfg(test)]
 mod tests {
     use destack_ast::{AnnotationPosition, Block, NodeParentIndex};
+    use destack_source::FileType;
 
     use crate::{
         Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
@@ -1152,5 +1208,36 @@ mod tests {
             |p| p.eat_block(),
             options
         );
+    }
+
+    /// A directive prelude followed by one statement keeps one blank line before the next declaration.
+    #[test]
+    fn test_statement_list_directive_comment_adjacency_keeps_single_blank_line() {
+        let source = r#"/******/ "use strict" /**/
+/******/ a;
+
+function func() {
+  /******/ "use strict" //
+  /******/ b;
+}
+"#;
+        let expected = r#"/******/ "use strict"; /**/
+/******/ a;
+
+function func() {
+    /******/ "use strict"; //
+    /******/ b;
+}
+"#;
+
+        let (test, expressions) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+                .unwrap();
+        let formatted = test.format(
+            &super::statement_list(expressions.as_slice()),
+            DestackFormatOptions::default(),
+        );
+
+        assert_eq!(formatted, expected);
     }
 }

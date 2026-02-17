@@ -290,6 +290,47 @@ fn test_parenthesis_policy_allows_ordinary_comment_member_object_unwrap() {
     ));
 }
 
+/// Decorated class expressions in extends heads should keep explicit parentheses.
+#[test]
+fn test_format_decorated_class_expression_keeps_extends_parentheses() {
+    let source = "class Derived extends (@decorator class Base {}) {}";
+    let expected = "class Derived extends (\n    @decorator\n    class Base {}\n) {}";
+    let (formatter, expression_id) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse decorated class extends expression");
+
+    let formatted = formatter.format(&expression_id, DestackFormatOptions::default());
+    assert_eq!(formatted, expected);
+}
+
+/// Decorated class arguments should be visible to argument annotation profiling.
+#[test]
+fn test_call_argument_profile_detects_decorated_class_argument() {
+    let source = "use((@decorator class {}))";
+    let (formatter, expression_id) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse decorated class argument expression");
+    let context = context_from_formatter(&formatter);
+
+    let Expression::Call {
+        dynamic_arguments, ..
+    } = formatter.tree.get(expression_id)
+    else {
+        panic!("expected call expression");
+    };
+    assert_eq!(dynamic_arguments.len(), 1);
+
+    let profile = context.argument_annotation_profile(dynamic_arguments[0]);
+    assert!(
+        profile.has_prefix_annotation,
+        "expected decorated class argument to report prefix annotation"
+    );
+}
+
 /// Parenthesized new callees with optional chains should not unwrap.
 #[test]
 fn test_parenthesis_policy_rejects_optional_new_callee_unwrap() {
@@ -1294,4 +1335,64 @@ fn test_format_assignment_chain_in_call_argument_is_idempotent() {
     let second_output = second_test.format(&second_expression, options);
 
     assert_eq!(first_output, second_output);
+}
+
+/// Satisfies seam comments should stay attached for qualified rhs type paths.
+#[test]
+fn test_format_satisfies_seam_comment_keeps_qualified_type_argument_comment() {
+    let source = "value satisfies // seam\nns.Record<A, B>";
+    let expected = "value satisfies ns.Record<\n        // seam\n        A,\n        B\n    >";
+    let (formatter, expression_id) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse qualified satisfies seam source");
+
+    let formatted = formatter.format(&expression_id, DestackFormatOptions::default());
+    assert_eq!(formatted, expected);
+}
+
+/// Satisfies seam comments should keep the compact single-segment remap form.
+#[test]
+fn test_format_satisfies_seam_comment_keeps_single_segment_compact_remap() {
+    let source = "value satisfies // seam\nRecord<A, B>";
+    let expected = "value satisfies Record< // seam\n    A,\n    B\n>";
+    let (formatter, expression_id) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse single-segment satisfies seam source");
+
+    let formatted = formatter.format(&expression_id, DestackFormatOptions::default());
+    assert_eq!(formatted, expected);
+}
+
+/// Export seam comments should stay between export and declare declaration heads.
+#[test]
+fn test_format_export_seam_comment_keeps_declare_declaration_head() {
+    let source = "export // seam\ndeclare function f(): void {}";
+    let expected = "export // seam\ndeclare function f(): void {}";
+    let (formatter, expression_id) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse export declare seam source");
+
+    let formatted = formatter.format(&expression_id, DestackFormatOptions::default());
+    assert_eq!(formatted, expected);
+}
+
+/// Export seam comments should stay between export and async declaration heads.
+#[test]
+fn test_format_export_seam_comment_keeps_async_declaration_head() {
+    let source = "export // seam\nasync function f() {}";
+    let expected = "export // seam\nasync function f() {}";
+    let (formatter, expression_id) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse export async seam source");
+
+    let formatted = formatter.format(&expression_id, DestackFormatOptions::default());
+    assert_eq!(formatted, expected);
 }

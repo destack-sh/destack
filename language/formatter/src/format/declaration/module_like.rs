@@ -1,4 +1,4 @@
-use super::dispatch::format_super_type_clause;
+use super::dispatch::{format_declaration_export_modifier, format_super_type_clause};
 use crate::block::format_block_of_statements;
 use crate::key::format_key_with_quote_policy;
 use crate::property::format_block_of_members;
@@ -20,9 +20,7 @@ pub(super) fn format_global_declaration<'ast>(
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
     // export
-    if let Some(export) = descriptor.export {
-        write!(f, [export, space()])?;
-    }
+    format_declaration_export_modifier(f, node_id, descriptor)?;
 
     // kind
     if descriptor.kind == DeclarationKind::Declaration {
@@ -64,9 +62,7 @@ pub(super) fn format_namespace_declaration<'ast>(
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
     // export
-    if let Some(export) = descriptor.export {
-        write!(f, [export, space()])?;
-    }
+    format_declaration_export_modifier(f, node_id, descriptor)?;
 
     // kind
     if descriptor.kind == DeclarationKind::Declaration {
@@ -126,14 +122,13 @@ pub(super) fn format_namespace_declaration<'ast>(
 /// Format an import alias declaration.
 pub(super) fn format_import_alias_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
     kind: DependencyKind,
     target: &ImportAliasTarget,
 ) -> FormatResult<()> {
     // export
-    if let Some(export) = descriptor.export {
-        write!(f, [export, space()])?;
-    }
+    format_declaration_export_modifier(f, node_id, descriptor)?;
 
     // keyword
     write!(f, [Keyword::Import])?;
@@ -182,9 +177,7 @@ pub(super) fn format_extension_declaration<'ast>(
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
     // export
-    if let Some(export) = descriptor.export {
-        write!(f, [export, space()])?;
-    }
+    format_declaration_export_modifier(f, node_id, descriptor)?;
 
     // kind
     if descriptor.kind == DeclarationKind::Declaration {

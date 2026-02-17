@@ -367,6 +367,40 @@ pub(super) fn type_binary_is_statement_expression(
     )
 }
 
+/// Return whether a type-binary expression is wrapped by one statement parenthesized node.
+pub(super) fn type_binary_is_parenthesized_statement_expression(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::Parenthesized { expression } = context.tree.get(parent_id) else {
+        return false;
+    };
+    if *expression != node_id {
+        return false;
+    }
+
+    let Some((grandparent_id, grandparent_type)) = context.get_parent(parent_id) else {
+        return false;
+    };
+    if grandparent_type != NodeType::Expression {
+        return false;
+    }
+
+    let grandparent_id = LocalNodeId::<Expression>::new(grandparent_id);
+    matches!(
+        context.tree.get(grandparent_id),
+        Expression::Statement(inner_id) if *inner_id == parent_id
+    )
+}
+
 /// Return whether any parenthesized expression ancestor has leading inner trivia.
 pub(super) fn has_parenthesized_ancestor_with_leading_inner_trivia(
     context: &DestackFormatContext<'_>,
@@ -456,7 +490,9 @@ pub(super) fn should_drop_type_binary_left_parentheses(
         return false;
     }
 
-    if type_binary_is_statement_expression(context, node_id) {
+    if type_binary_is_statement_expression(context, node_id)
+        || type_binary_is_parenthesized_statement_expression(context, node_id)
+    {
         return false;
     }
 
@@ -549,6 +585,17 @@ pub(super) fn should_drop_parenthesized_type_expression(
     inner_id: LocalNodeId<Expression>,
 ) -> bool {
     let _timing = context.timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_TYPE_DROP);
+
+    // type wrappers with annotations are semantic boundaries, not redundant parens
+    if context.has_annotation(node_id) || context.has_annotation(inner_id) {
+        return false;
+    }
+
+    // decorated class extends heads must preserve explicit grouping
+    if parenthesized_wraps_decorated_class_extends_head(context, node_id, inner_id) {
+        return false;
+    }
+
     if !is_type_context(context, node_id) {
         return false;
     }
@@ -698,6 +745,20 @@ fn should_drop_parenthesized_expression_wrapper(
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let _timing = context.timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_DROP_POLICY);
+    // decorated class extends heads must keep explicit grouping
+    if parenthesized_wraps_decorated_class_extends_head(context, node_id, inner_expression_id) {
+        return false;
+    }
+
+    // closure-style cast wrappers in class heritage should stay explicit
+    if parenthesized_wraps_prefix_annotated_class_extends_head(
+        context,
+        node_id,
+        inner_expression_id,
+    ) {
+        return false;
+    }
+
     let should_drop_type_parentheses =
         should_drop_parenthesized_type_expression(context, node_id, inner_expression_id);
 
@@ -705,6 +766,15 @@ fn should_drop_parenthesized_expression_wrapper(
         return should_drop_type_parentheses;
     };
     if parent_type != NodeType::Expression {
+        // call/new arguments can unwrap decorated class expressions
+        let should_drop_argument_decorated_class_wrapper = parent_type == NodeType::Argument
+            && !context.has_annotation(node_id)
+            && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
+            && expression_is_decorated_class_declaration(context, inner_expression_id);
+        if should_drop_argument_decorated_class_wrapper {
+            return true;
+        }
+
         // declarator wrappers can drop when left spine carries prefix comment/doc annotations
         let should_drop_declarator_prefix_wrapper = parent_type == NodeType::Declarator
             && !context.has_annotation(node_id)
@@ -723,6 +793,16 @@ fn should_drop_parenthesized_expression_wrapper(
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_id);
     let inner_expression = context.tree.get(inner_expression_id);
+    let should_drop_statement_type_binary_wrapper = matches!(
+        parent_expression,
+        Expression::Statement(inner_id) if inner_id.id == node_id.id
+    ) && matches!(
+        inner_expression,
+        Expression::TypeBinary {
+            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
+            ..
+        }
+    ) && !context.has_annotation(node_id);
     let should_drop_assignment_must = matches!(
         parent_expression,
         Expression::Assign { left, .. } if *left == node_id
@@ -738,7 +818,100 @@ fn should_drop_parenthesized_expression_wrapper(
                 Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
             )
     ) && !context.has_annotation(node_id);
-    should_drop_assignment_must || should_drop_statement_lambda || should_drop_type_parentheses
+    should_drop_statement_type_binary_wrapper
+        || should_drop_assignment_must
+        || should_drop_statement_lambda
+        || should_drop_type_parentheses
+}
+
+/// Return whether a declaration expression is a decorated class declaration.
+fn expression_is_decorated_class_declaration(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+    let Declaration::Class { .. } = context.tree.get(*declaration_id) else {
+        return false;
+    };
+
+    let expression_has_decorator = context.with_annotations(expression_id, |annotations| {
+        annotations.iter().any(|annotation_id| {
+            matches!(
+                context.get_annotation(*annotation_id),
+                Annotation::Decorator { .. }
+            )
+        })
+    });
+    if expression_has_decorator.unwrap_or(false) {
+        return true;
+    }
+
+    context
+        .with_annotations(*declaration_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.get_annotation(*annotation_id),
+                    Annotation::Decorator { .. }
+                )
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether a parenthesized expression wraps a decorated class in `extends`.
+fn parenthesized_wraps_decorated_class_extends_head(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let extends_types = match context.tree.get(declaration_id) {
+        Declaration::Class { heritage, .. } => heritage.extends_types.as_deref(),
+        _ => None,
+    };
+    let Some(extends_types) = extends_types else {
+        return false;
+    };
+
+    extends_types.contains(&node_id)
+        && expression_is_decorated_class_declaration(context, inner_expression_id)
+}
+
+/// Return whether a parenthesized extends head carries prefix comment/doc annotations.
+fn parenthesized_wraps_prefix_annotated_class_extends_head(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let extends_types = match context.tree.get(declaration_id) {
+        Declaration::Class { heritage, .. } => heritage.extends_types.as_deref(),
+        _ => None,
+    };
+    let Some(extends_types) = extends_types else {
+        return false;
+    };
+    if !extends_types.contains(&node_id) {
+        return false;
+    }
+
+    expression_has_prefix_comment_or_doc_annotation_in_left_spine(context, inner_expression_id)
 }
 
 /// Return whether annotations are only prefix comment/doc markers for this expression.

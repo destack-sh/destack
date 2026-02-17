@@ -1,9 +1,9 @@
 use crate::argument::list_like;
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    AnnotationPosition, Asynchrony, Comment, CommentStyle, Expression, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Keyword, LocalNodeId,
-    Parameter, Pattern, PatternField,
+    AnnotationPosition, Asynchrony, Comment, CommentStyle, Doc, DocStyle, Expression,
+    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    Keyword, LocalNodeId, Parameter, Pattern, PatternField,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -84,11 +84,13 @@ fn parameter_has_prefix_annotation(
         return false;
     }
 
+    let is_variadic_parameter = parameter_is_variadic(context, parameter_id);
     context
         .with_annotations(parameter_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                matches!(
-                    context.get_annotation(*annotation_id),
+                let annotation = context.get_annotation(*annotation_id);
+                let is_prefix = matches!(
+                    annotation,
                     Annotation::Decorator { .. }
                         | Annotation::Comment {
                             position: AnnotationPosition::BlockPrefix
@@ -100,7 +102,42 @@ fn parameter_has_prefix_annotation(
                                 | AnnotationPosition::LinePrefix,
                             ..
                         }
-                )
+                );
+                if !is_prefix {
+                    return false;
+                }
+
+                // keep single-line decorators inline with parameters when they fit
+                if matches!(annotation, Annotation::Decorator { .. }) {
+                    let annotation_span = context.get_annotation_span(*annotation_id);
+                    if !context.has_newline(annotation_span) {
+                        return false;
+                    }
+                }
+
+                // keep single variadic parameters compact for inline star-style rest seam comments
+                if is_variadic_parameter {
+                    let annotation_span = context.get_annotation_span(*annotation_id);
+                    let is_single_line = !context.has_newline(annotation_span);
+                    if is_single_line {
+                        let is_star_style = match annotation {
+                            Annotation::Comment { node, .. } => {
+                                let comment = context.tree.get::<Comment>(node);
+                                comment.style == CommentStyle::Star
+                            }
+                            Annotation::Doc { node, .. } => {
+                                let doc = context.tree.get::<Doc>(node);
+                                doc.style == DocStyle::Star
+                            }
+                            Annotation::Decorator { .. } | Annotation::Blank { .. } => false,
+                        };
+                        if is_star_style {
+                            return false;
+                        }
+                    }
+                }
+
+                true
             })
         })
         .unwrap_or(false)

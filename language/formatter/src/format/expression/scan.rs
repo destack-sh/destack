@@ -250,14 +250,22 @@ pub(super) fn should_hoist_parenthesized_inner_cast_prefix_comments(
         return false;
     }
 
-    matches!(
-        context.tree.get(inner_id),
-        Expression::TypeBinary {
-            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
-            ..
-        }
-    ) && parenthesized_has_leading_inner_trivia(context, node_id, inner_id)
-        && expression_has_prefix_comment_annotation(context, inner_id)
+    let has_doc_like_prefix_annotation = context
+        .with_annotations(inner_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.get_annotation(*annotation_id),
+                    Annotation::Doc {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false);
+
+    parenthesized_has_leading_inner_trivia(context, node_id, inner_id)
+        && has_doc_like_prefix_annotation
         && !expression_has_prefix_ignore_directive_comment_annotation(context, inner_id)
 }
 

@@ -1,6 +1,7 @@
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, BlockFormat, Comment, CommentDirective, CommentStyle,
-    Declaration, Decorator, Doc, DocStyle, Expression, LocalNodeId, TriviaRef,
+    Annotation, AnnotationPosition, Argument, BinaryOperator, BlockFormat, Comment,
+    CommentDirective, CommentStyle, Declaration, Decorator, Doc, DocStyle, Expression,
+    LocalNodeId, TriviaRef,
 };
 use destack_source::LanguageType;
 
@@ -18,6 +19,10 @@ fn comment_text(parser: &Parser, comment_id: LocalNodeId<Comment>) -> String {
         .strings
         .get(parser.tree.get(comment_id).string)
         .to_string()
+}
+
+fn doc_text(parser: &Parser, doc_id: LocalNodeId<Doc>) -> String {
+    parser.strings.get(parser.tree.get(doc_id).string).to_string()
 }
 
 #[test]
@@ -161,18 +166,149 @@ fn test_doc_comments_attach_semantically_and_skip_comment_trivia() {
     assert_eq!(expressions.len(), 1);
     assert_eq!(parser.tree.comment_trivia().len(), 0);
 
-    let mut doc_annotations = Vec::new();
-    for annotation_id in parser.tree.iter_nodes::<Annotation>() {
-        if let Annotation::Doc { node, position } = parser.tree.get(annotation_id) {
-            doc_annotations.push((*node, *position));
-        }
-    }
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        let expression_annotations = parser.tree.get_annotations(expression_id.id);
+        assert!(expression_annotations.is_empty());
 
-    assert_eq!(doc_annotations.len(), 1);
-    assert_eq!(doc_annotations[0].1, AnnotationPosition::LinePrefix);
-    assert_node!(parser.tree, doc_annotations[0].0, Doc { string, style } => {
-        assert_eq!(*style, DocStyle::Slash);
-        assert_string!(parser, *string, "docs");
+        let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
+        assert_eq!(declaration_annotations.len(), 1);
+        assert_node!(parser.tree, declaration_annotations[0], Annotation::Doc { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LinePrefix);
+            assert_node!(parser.tree, *node, Doc { string, style } => {
+                assert_eq!(*style, DocStyle::Slash);
+                assert_string!(parser, *string, "docs");
+            });
+        });
+    });
+}
+
+#[test]
+fn test_doc_comment_attaches_to_parameter() {
+    let (parser, expressions) = parse_source(
+        "function demo(/** parameter-doc */ value: number): void {}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+            assert_eq!(signature.dynamic_parameters.len(), 1);
+            let parameter_id = signature.dynamic_parameters[0];
+            let annotations = parser.tree.get_annotations(parameter_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePrefix);
+                assert_node!(parser.tree, *node, Doc { string, style } => {
+                    assert_eq!(*style, DocStyle::Star);
+                    assert_string!(parser, *string, " parameter-doc");
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
+    let (parser, expressions) = parse_source(
+        "export type Value = /** keep-doc\n */\n| { ok: true }\n| { ok: false; value: bigint | null };",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
+        assert!(declaration_annotations.is_empty());
+
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::Binary { left, operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+
+                let left_annotations = parser.tree.get_annotations(left.id);
+                assert_eq!(left_annotations.len(), 1);
+                assert_node!(parser.tree, left_annotations[0], Annotation::Doc { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePrefix);
+                    assert_node!(parser.tree, *node, Doc { style, .. } => {
+                        assert_eq!(*style, DocStyle::Star);
+                    });
+
+                    let text = doc_text(&parser, *node);
+                    assert!(text.contains("keep-doc"));
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_doc_comment_attaches_to_call_argument() {
+    let (parser, expressions) =
+        parse_source("run(/** argument-doc */ value)", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Call { dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        let argument_id = dynamic_arguments[0];
+        let argument_annotations = parser.tree.get_annotations(argument_id.id);
+        assert!(argument_annotations.is_empty());
+        assert_node!(parser.tree, argument_id, Argument::Positional { value, .. } => {
+            let value_annotations = parser.tree.get_annotations(value.id);
+            assert_eq!(value_annotations.len(), 1);
+            assert_node!(parser.tree, value_annotations[0], Annotation::Doc { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePrefix);
+                assert_node!(parser.tree, *node, Doc { string, style } => {
+                    assert_eq!(*style, DocStyle::Star);
+                    assert_string!(parser, *string, " argument-doc");
+                });
+            });
+            assert_expression_path!(parser, parser.tree.get(*value), "value");
+        });
+    });
+}
+
+#[test]
+fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
+    let (parser, expressions) = parse_source(
+        "/** docs */\n@memo\nfunction f() {}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.comment_trivia().len(), 0);
+    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 1);
+    assert_eq!(parser.tree.iter_nodes::<Decorator>().count(), 1);
+
+    let doc_annotation = parser
+        .tree
+        .iter_nodes::<Annotation>()
+        .find(|annotation_id| matches!(parser.tree.get(*annotation_id), Annotation::Doc { .. }))
+        .expect("missing doc annotation");
+    assert_node!(parser.tree, doc_annotation, Annotation::Doc { node, position } => {
+        assert_eq!(*position, AnnotationPosition::LinePrefix);
+        assert_node!(parser.tree, *node, Doc { string, style } => {
+            assert_eq!(*style, DocStyle::Star);
+            assert_string!(parser, *string, " docs");
+        });
+    });
+
+    let decorator_annotation = parser
+        .tree
+        .iter_nodes::<Annotation>()
+        .find(|annotation_id| {
+            matches!(
+                parser.tree.get(*annotation_id),
+                Annotation::Decorator { .. }
+            )
+        })
+        .expect("missing decorator annotation");
+    assert_node!(parser.tree, decorator_annotation, Annotation::Decorator { node, position } => {
+        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+        assert_node!(parser.tree, *node, Decorator { expression } => {
+            assert_expression_path!(parser, parser.tree.get(*expression), "memo");
+        });
     });
 }
 
@@ -188,11 +324,7 @@ fn test_empty_doc_block_comment_falls_back_to_comment_trivia() {
         assert_eq!(*style, CommentStyle::Star);
     });
 
-    let has_doc_annotation = parser
-        .tree
-        .iter_nodes::<Annotation>()
-        .any(|annotation_id| matches!(parser.tree.get(annotation_id), Annotation::Doc { .. }));
-    assert!(!has_doc_annotation);
+    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 0);
 }
 
 #[test]
@@ -308,29 +440,35 @@ fn test_docs_and_decorators_remain_semantic_annotations() {
     );
 
     assert_eq!(expressions.len(), 1);
-    let mut documentation_nodes = Vec::new();
-    let mut decorator_nodes = Vec::new();
-    for annotation_id in parser.tree.iter_nodes::<Annotation>() {
-        match parser.tree.get(annotation_id) {
-            Annotation::Doc { node, .. } => {
-                documentation_nodes.push(*node);
-            }
-            Annotation::Decorator { node, .. } => {
-                decorator_nodes.push(*node);
-            }
-        }
-    }
-
-    assert_eq!(documentation_nodes.len(), 1);
-    assert_eq!(decorator_nodes.len(), 1);
-
-    assert_node!(parser.tree, documentation_nodes[0], Doc { string, style } => {
-        assert_eq!(*style, DocStyle::Star);
-        assert_string!(parser, *string, " docs");
-    });
-    assert_node!(parser.tree, decorator_nodes[0], Decorator { expression } => {
-        assert_expression_path!(parser, parser.tree.get(*expression), "memo");
-    });
-
+    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 1);
+    assert_eq!(parser.tree.iter_nodes::<Decorator>().count(), 1);
     assert_eq!(parser.tree.comment_trivia().len(), 0);
+}
+
+#[test]
+fn test_doc_comment_attaches_to_class_extends_expression() {
+    let (parser, expressions) = parse_source(
+        "class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 1);
+
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("missing extends");
+            assert_eq!(extends_types.len(), 1);
+            let extends_id = extends_types[0];
+            let annotations = parser.tree.get_annotations(extends_id.id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePrefix);
+                assert_node!(parser.tree, *node, Doc { style, .. } => {
+                    assert_eq!(*style, DocStyle::Star);
+                });
+            });
+        });
+    });
 }

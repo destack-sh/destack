@@ -474,6 +474,80 @@ pub(crate) fn argument_has_prefix_line_comment_annotation(
         .has_prefix_line_comment
 }
 
+/// Return whether an argument is an inline closure-cast object argument.
+pub(crate) fn argument_is_inline_closure_cast_object(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if context.node_has_newline(argument_id) {
+        return false;
+    }
+
+    let argument_span = context.get_span(argument_id);
+    let value_id = argument_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, value_id);
+    if !matches!(
+        context.tree.get(value_id),
+        Expression::ObjectExpression { .. }
+    ) {
+        return false;
+    }
+
+    let value_span = context.get_span(value_id);
+    let argument_has_inline_prefix = context
+        .with_annotations(argument_id, |annotations| {
+            if annotations.is_empty() {
+                return false;
+            }
+
+            annotations.iter().all(
+                |annotation_id| match context.get_annotation(*annotation_id) {
+                    Annotation::Blank { .. } => true,
+                    Annotation::Doc { position, .. } | Annotation::Comment { position, .. } => {
+                        if !matches!(
+                            position,
+                            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                        ) {
+                            return false;
+                        }
+
+                        let annotation_span = context.get_annotation_span(*annotation_id);
+                        annotation_span.start < argument_span.start
+                    }
+                    Annotation::Decorator { .. } => false,
+                },
+            )
+        })
+        .unwrap_or(false);
+    let value_has_inline_prefix = context
+        .with_annotations(value_id, |annotations| {
+            if annotations.is_empty() {
+                return false;
+            }
+
+            annotations.iter().all(
+                |annotation_id| match context.get_annotation(*annotation_id) {
+                    Annotation::Blank { .. } => true,
+                    Annotation::Doc { position, .. } | Annotation::Comment { position, .. } => {
+                        if !matches!(
+                            position,
+                            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                        ) {
+                            return false;
+                        }
+
+                        let annotation_span = context.get_annotation_span(*annotation_id);
+                        annotation_span.start < value_span.start
+                    }
+                    Annotation::Decorator { .. } => false,
+                },
+            )
+        })
+        .unwrap_or(false);
+
+    argument_has_inline_prefix || value_has_inline_prefix
+}
+
 /// Return whether an argument has a slash comment annotation preceded by a source comma.
 pub(crate) fn argument_has_source_separator_line_comment_annotation(
     context: &DestackFormatContext<'_>,

@@ -530,30 +530,489 @@ fn annotation_next_non_annotation_token(
     }
 }
 
-/// Return whether a token type exists between two token indices.
-fn annotation_has_token_type_between(
+/// Find the previous significant token, excluding whitespace, newlines, and annotation tokens.
+fn annotation_prev_significant_token(
+    token_idx: usize,
     tokens: &[TokenSpan],
-    start_idx: usize,
-    end_idx: usize,
-    token_type: TokenType,
-) -> bool {
-    let mut cursor = start_idx;
-    while cursor < end_idx {
-        if tokens
-            .get(cursor)
-            .is_some_and(|token| token.token.ty == token_type)
+    ignore_span: &MultiSpan,
+    enclosing_span: Option<Span>,
+) -> Option<TokenSpan> {
+    let mut cursor = token_idx;
+    while cursor > 0 {
+        cursor -= 1;
+        let token = tokens.get(cursor)?;
+        if ignore_span.contains(&token.span)
+            || token.token.ty == TokenType::Whitespace
+            || token.token.ty == TokenType::Newline
+            || ANNOTATION_TOKEN_TYPES.contains(&token.token.ty)
         {
-            return true;
+            continue;
         }
-        cursor += 1;
+
+        if let Some(enclosing_span) = enclosing_span
+            && !enclosing_span.intersects(token.span)
+        {
+            return None;
+        }
+
+        return Some(*token);
     }
 
-    false
+    None
+}
+
+/// Resolve one argument node id to its value expression node id.
+fn annotation_argument_value_expression_id(tree: &NodeTree, node_id: u32) -> Option<u32> {
+    if tree.get_node_type(node_id) != NodeType::Argument {
+        return None;
+    }
+
+    let argument_id = LocalNodeId::<Argument>::new(node_id);
+    let value_id = match tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    };
+    Some(value_id.id)
+}
+
+/// Find one call/new owner for one argument-list open parenthesis token.
+fn find_call_like_owner_for_open_parenthesis(
+    tree: &NodeTree,
+    source_map: &NodeSourceMap,
+    open_parenthesis_token: TokenSpan,
+    ignore_span: &MultiSpan,
+) -> Option<u32> {
+    if open_parenthesis_token.token.ty != TokenType::OpenParenthesis {
+        return None;
+    }
+
+    let call_owner_id = find_node_enclosing_at(
+        source_map,
+        &open_parenthesis_token.span,
+        NodeSearchMode::SmallestOutermost,
+        |candidate| {
+            if is_annotation_node_id(tree, candidate.idx) || ignore_span.contains(&candidate.span) {
+                return false;
+            }
+
+            if tree.get_node_type(candidate.idx) != NodeType::Expression {
+                return false;
+            }
+
+            matches!(
+                tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
+                Expression::Call { .. } | Expression::New { .. }
+            )
+        },
+    )
+    .map(|span| span.idx)?;
+
+    // ensure this `(` belongs to the call/new argument list, not an inner parenthesized expression
+    let call_owner_expression_id = LocalNodeId::<Expression>::new(call_owner_id);
+    let call_left_id = match tree.get(call_owner_expression_id) {
+        Expression::Call { left, .. } | Expression::New { left, .. } => *left,
+        _ => return None,
+    };
+
+    let call_span = tree.get_span(call_owner_expression_id);
+    let call_left_span = tree.get_span(call_left_id);
+    let open_start = open_parenthesis_token.span.start;
+    if open_start < call_left_span.end || open_start >= call_span.end {
+        return None;
+    }
+
+    Some(call_owner_id)
+}
+
+/// Resolve one call-like argument seam target from comment neighbors.
+fn resolve_call_like_argument_seam_target(
+    tree: &NodeTree,
+    source_map: &NodeSourceMap,
+    prev_token: Option<TokenSpan>,
+    next_token: Option<TokenSpan>,
+    ignore_span: &MultiSpan,
+) -> Option<(AnnotationPosition, u32)> {
+    // comment between callee and argument list: `callee /* note */ (arg)`
+    if let Some(open_parenthesis_token) = next_token
+        && open_parenthesis_token.token.ty == TokenType::OpenParenthesis
+        && let Some(call_owner_id) = find_call_like_owner_for_open_parenthesis(
+            tree,
+            source_map,
+            open_parenthesis_token,
+            ignore_span,
+        )
+    {
+        let call_owner_expression_id = LocalNodeId::<Expression>::new(call_owner_id);
+        let dynamic_arguments = match tree.get(call_owner_expression_id) {
+            Expression::Call {
+                dynamic_arguments, ..
+            }
+            | Expression::New {
+                dynamic_arguments, ..
+            } => dynamic_arguments,
+            _ => return None,
+        };
+
+        if let Some(first_argument_id) = dynamic_arguments.first().copied() {
+            let target_id = annotation_argument_value_expression_id(tree, first_argument_id.id)
+                .unwrap_or(first_argument_id.id);
+            return Some((AnnotationPosition::LinePrefix, target_id));
+        }
+
+        return Some((AnnotationPosition::BlockInfix, call_owner_id));
+    }
+
+    // comment at argument list start: `callee( /* note */ arg )` or `callee( // note\n )`
+    if let Some(open_parenthesis_token) = prev_token
+        && open_parenthesis_token.token.ty == TokenType::OpenParenthesis
+        && let Some(call_owner_id) = find_call_like_owner_for_open_parenthesis(
+            tree,
+            source_map,
+            open_parenthesis_token,
+            ignore_span,
+        )
+    {
+        let call_owner_expression_id = LocalNodeId::<Expression>::new(call_owner_id);
+        let dynamic_arguments = match tree.get(call_owner_expression_id) {
+            Expression::Call {
+                dynamic_arguments, ..
+            }
+            | Expression::New {
+                dynamic_arguments, ..
+            } => dynamic_arguments,
+            _ => return None,
+        };
+
+        if let Some(first_argument_id) = dynamic_arguments.first().copied() {
+            let target_id = annotation_argument_value_expression_id(tree, first_argument_id.id)
+                .unwrap_or(first_argument_id.id);
+            return Some((AnnotationPosition::LinePrefix, target_id));
+        }
+
+        return Some((AnnotationPosition::BlockInfix, call_owner_id));
+    }
+
+    None
 }
 
 /// Return whether one token keeps separator comments as line-prefix on the following node.
 fn annotation_is_forward_prefix_separator(token: TokenSpan) -> bool {
     token.token.ty == TokenType::Colon || AssignOperator::from_token(token.token.ty).is_some()
+}
+
+/// Return whether a token is one identifier keyword.
+#[inline]
+fn annotation_is_identifier_keyword(file: &File, token: TokenSpan, keyword: &str) -> bool {
+    token.token.ty == TokenType::Identifier && file.span_str(token.span) == keyword
+}
+
+/// Return whether this separator token is `as` or `satisfies`.
+#[inline]
+fn annotation_is_type_operator_separator(file: &File, token: TokenSpan) -> bool {
+    annotation_is_identifier_keyword(file, token, "as")
+        || annotation_is_identifier_keyword(file, token, "satisfies")
+}
+
+/// Return whether this separator seam targets `as const` or `as comptime`.
+#[inline]
+fn annotation_is_type_unary_as_keyword_target(file: &File, token: TokenSpan) -> bool {
+    annotation_is_identifier_keyword(file, token, "const")
+        || annotation_is_identifier_keyword(file, token, "comptime")
+}
+
+/// Return whether a token starts one declaration head keyword.
+#[inline]
+fn annotation_is_declaration_head_keyword(file: &File, token: TokenSpan) -> bool {
+    token.token.ty == TokenType::Identifier
+        && matches!(
+            file.span_str(token.span),
+            "class"
+                | "struct"
+                | "enum"
+                | "interface"
+                | "type"
+                | "newtype"
+                | "function"
+                | "namespace"
+                | "module"
+                | "global"
+                | "extension"
+                | "import"
+        )
+}
+
+/// Return whether a token is one declaration-head modifier keyword.
+#[inline]
+fn annotation_is_declaration_head_modifier(file: &File, token: TokenSpan) -> bool {
+    annotation_is_identifier_keyword(file, token, "declare")
+        || annotation_is_identifier_keyword(file, token, "abstract")
+        || annotation_is_identifier_keyword(file, token, "async")
+        || annotation_is_identifier_keyword(file, token, "default")
+}
+
+/// Return whether one token index starts one declaration head including optional modifiers.
+fn annotation_is_declaration_head_start(
+    file: &File,
+    tokens: &[TokenSpan],
+    start_idx: usize,
+    ignore_span: &MultiSpan,
+    enclosing_span: Option<Span>,
+) -> bool {
+    let mut cursor = start_idx;
+    loop {
+        let Some((token_idx, token)) =
+            annotation_next_non_annotation_token(cursor, tokens, ignore_span, enclosing_span)
+        else {
+            return false;
+        };
+
+        if annotation_is_declaration_head_keyword(file, token) {
+            return true;
+        }
+        if !annotation_is_declaration_head_modifier(file, token) {
+            return false;
+        }
+
+        cursor = token_idx + 1;
+    }
+}
+
+/// Find one type-operator expression owner for comments on `as`/`satisfies` seams.
+fn find_type_operator_owner_for_separator(
+    tree: &NodeTree,
+    source_map: &NodeSourceMap,
+    prev_token: TokenSpan,
+    forward_token: TokenSpan,
+    ignore_span: &MultiSpan,
+) -> Option<u32> {
+    find_node_enclosing_at(
+        source_map,
+        &prev_token.span,
+        NodeSearchMode::SmallestOutermost,
+        |candidate| {
+            if is_annotation_node_id(tree, candidate.idx) || ignore_span.contains(&candidate.span) {
+                return false;
+            }
+
+            if tree.get_node_type(candidate.idx) != NodeType::Expression {
+                return false;
+            }
+
+            if !candidate.span.intersects(prev_token.span)
+                || !candidate.span.intersects(forward_token.span)
+            {
+                return false;
+            }
+
+            matches!(
+                tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
+                Expression::TypeBinary {
+                    operator: destack_ast::TypeBinaryOperator::Cast
+                        | destack_ast::TypeBinaryOperator::Satisfies,
+                    ..
+                } | Expression::TypeUnary {
+                    operator: destack_ast::TypeUnaryOperator::AsConst
+                        | destack_ast::TypeUnaryOperator::AsComptime,
+                    ..
+                }
+            )
+        },
+    )
+    .map(|span| span.idx)
+}
+
+/// Resolve one `satisfies` right side to its first static argument target when list has multiple arguments.
+fn find_satisfies_right_static_argument_target(tree: &NodeTree, owner_id: u32) -> Option<u32> {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return None;
+    }
+
+    let owner_expression_id = LocalNodeId::<Expression>::new(owner_id);
+    let Expression::TypeBinary {
+        operator: destack_ast::TypeBinaryOperator::Satisfies,
+        right,
+        ..
+    } = tree.get(owner_expression_id)
+    else {
+        return None;
+    };
+
+    let right_id = match tree.get(*right) {
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => *expression,
+        _ => *right,
+    };
+
+    let static_arguments = match tree.get(right_id) {
+        Expression::Path {
+            static_arguments, ..
+        }
+        | Expression::Member {
+            static_arguments, ..
+        }
+        | Expression::PrivateMember {
+            static_arguments, ..
+        }
+        | Expression::Call {
+            static_arguments, ..
+        }
+        | Expression::New {
+            static_arguments, ..
+        }
+        | Expression::TypeImport {
+            static_arguments, ..
+        } => static_arguments.as_ref(),
+        Expression::Instantiation {
+            static_arguments, ..
+        } => Some(static_arguments),
+        _ => None,
+    }?;
+
+    if static_arguments.len() <= 1 {
+        return None;
+    }
+
+    Some(static_arguments[0].id)
+}
+
+/// Return the last extends expression id for one declaration when present.
+fn declaration_last_extends_expression(tree: &NodeTree, declaration_id: u32) -> Option<u32> {
+    let declaration_id = LocalNodeId::<Declaration>::new(declaration_id);
+    let extends_types = match tree.get(declaration_id) {
+        Declaration::Struct { heritage, .. }
+        | Declaration::Class { heritage, .. }
+        | Declaration::Enum { heritage, .. }
+        | Declaration::Interface { heritage, .. }
+        | Declaration::Extension { heritage, .. } => heritage.extends_types.as_ref(),
+        _ => None,
+    }?;
+
+    extends_types.last().map(|expression_id| expression_id.id)
+}
+
+/// Return whether one declaration heritage references this expression id.
+fn declaration_heritage_contains_expression(
+    tree: &NodeTree,
+    declaration_id: u32,
+    expression_id: u32,
+) -> bool {
+    let declaration_id = LocalNodeId::<Declaration>::new(declaration_id);
+    let (extends_types, implements_types) = match tree.get(declaration_id) {
+        Declaration::Struct { heritage, .. }
+        | Declaration::Class { heritage, .. }
+        | Declaration::Enum { heritage, .. }
+        | Declaration::Interface { heritage, .. }
+        | Declaration::Extension { heritage, .. } => (
+            heritage.extends_types.as_deref().unwrap_or_default(),
+            heritage.implements_types.as_deref().unwrap_or_default(),
+        ),
+        _ => return false,
+    };
+
+    extends_types
+        .iter()
+        .chain(implements_types.iter())
+        .any(|expression| expression.id == expression_id)
+}
+
+/// Return the body attachment target for comments that sit right before declaration `{`.
+fn declaration_body_comment_target(
+    tree: &NodeTree,
+    declaration_id: u32,
+) -> Option<(AnnotationPosition, u32)> {
+    let declaration_id = LocalNodeId::<Declaration>::new(declaration_id);
+
+    match tree.get(declaration_id) {
+        Declaration::Struct { members, .. }
+        | Declaration::Class { members, .. }
+        | Declaration::Interface { members, .. }
+        | Declaration::Extension { members, .. } => members
+            .first()
+            .map(|member_id| (AnnotationPosition::BlockPrefix, member_id.id))
+            .or(Some((AnnotationPosition::BlockInfix, declaration_id.id))),
+        Declaration::Enum {
+            fields, members, ..
+        } => fields
+            .first()
+            .map(|field_id| (AnnotationPosition::BlockPrefix, field_id.id))
+            .or_else(|| {
+                members
+                    .first()
+                    .map(|member_id| (AnnotationPosition::BlockPrefix, member_id.id))
+            })
+            .or(Some((AnnotationPosition::BlockInfix, declaration_id.id))),
+        Declaration::Namespace { expressions, .. } | Declaration::Global { expressions, .. } => {
+            expressions
+                .first()
+                .map(|expression_id| (AnnotationPosition::BlockPrefix, expression_id.id))
+                .or(Some((AnnotationPosition::BlockInfix, declaration_id.id)))
+        }
+        _ => None,
+    }
+}
+
+/// Return whether this owner node is field-like and can absorb field-tail comments.
+fn annotation_owner_is_field_like(tree: &NodeTree, owner_id: u32) -> bool {
+    match tree.get_node_type(owner_id) {
+        NodeType::Member => matches!(
+            tree.get(LocalNodeId::<Member>::new(owner_id)),
+            Member::Field { .. } | Member::Type { .. } | Member::ComptimeConst { .. }
+        ),
+        NodeType::Property => matches!(
+            tree.get(LocalNodeId::<Property>::new(owner_id)),
+            Property::Field { .. }
+        ),
+        _ => false,
+    }
+}
+
+/// Return whether one `:` separator owns a mapped-type value seam.
+fn mapped_type_value_target_for_separator(
+    tree: &NodeTree,
+    source_map: &NodeSourceMap,
+    prev_token: TokenSpan,
+    forward_token: TokenSpan,
+    forward_target_id: u32,
+    ignore_span: &MultiSpan,
+) -> Option<u32> {
+    let mapped_owner_id = find_node_enclosing_at(
+        source_map,
+        &prev_token.span,
+        NodeSearchMode::SmallestOutermost,
+        |candidate| {
+            if is_annotation_node_id(tree, candidate.idx) || ignore_span.contains(&candidate.span) {
+                return false;
+            }
+
+            if tree.get_node_type(candidate.idx) != NodeType::Expression {
+                return false;
+            }
+
+            if !candidate.span.intersects(prev_token.span)
+                || !candidate.span.intersects(forward_token.span)
+            {
+                return false;
+            }
+
+            matches!(
+                tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
+                Expression::TypeMapped { .. }
+            )
+        },
+    )
+    .map(|span| span.idx)?;
+
+    let mapped_owner_id = LocalNodeId::<Expression>::new(mapped_owner_id);
+    let Expression::TypeMapped { value, .. } = tree.get(mapped_owner_id) else {
+        return None;
+    };
+
+    if forward_target_id == value.id {
+        return Some(value.id);
+    }
+
+    None
 }
 
 /// Return whether this `)` token closes a control head like `if (...)` or `while (...)`.
@@ -656,11 +1115,204 @@ fn find_side_annotation_target(
     );
     let enclosing_span = enclosing_scope.map(|scope| scope.span);
 
+    // type operator separator seams
+    if !is_block_prefix_only {
+        let prev_token = annotation_prev_token(token_idx, tokens, ignore_span, enclosing_span);
+        let forward_token = annotation_next_non_annotation_token(
+            token_idx as usize + group_len,
+            tokens,
+            ignore_span,
+            enclosing_span,
+        );
+
+        // `as const` and `as comptime`: seam comments belong to the full expression boundary
+        if let (Some((_, prev_token)), Some((_, forward_token))) = (prev_token, forward_token)
+            && annotation_is_identifier_keyword(file, prev_token, "as")
+            && annotation_is_type_unary_as_keyword_target(file, forward_token)
+            && let Some(operator_owner_id) = find_type_operator_owner_for_separator(
+                tree,
+                source_map,
+                prev_token,
+                forward_token,
+                ignore_span,
+            )
+        {
+            let target_node_id = annotation_promote_statement(
+                tree,
+                start_token,
+                operator_owner_id,
+                statement_wrappers,
+            );
+            return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
+        }
+
+        // `as` and `satisfies` with line comments before the rhs: keep on expression boundary
+        if start_token.token.ty == TokenType::LineComment
+            && let (Some((_, prev_token)), Some((_, forward_token))) = (prev_token, forward_token)
+            && annotation_is_type_operator_separator(file, prev_token)
+            && !annotation_is_type_unary_as_keyword_target(file, forward_token)
+            && let Some(operator_owner_id) = find_type_operator_owner_for_separator(
+                tree,
+                source_map,
+                prev_token,
+                forward_token,
+                ignore_span,
+            )
+        {
+            if let Some(argument_target_id) =
+                find_satisfies_right_static_argument_target(tree, operator_owner_id)
+            {
+                return Some((AnnotationPosition::LinePrefix, argument_target_id));
+            }
+
+            let target_node_id = annotation_promote_statement(
+                tree,
+                start_token,
+                operator_owner_id,
+                statement_wrappers,
+            );
+            return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
+        }
+
+        // `export // comment` before declaration heads: keep comment between export and head
+        if start_token.token.ty == TokenType::LineComment
+            && let (Some((prev_idx, prev_token)), Some((forward_idx, forward_token))) =
+                (prev_token, forward_token)
+            && line_indices[prev_idx] == line_indices[group_end_idx]
+            && annotation_is_identifier_keyword(file, prev_token, "export")
+            && annotation_is_declaration_head_start(
+                file,
+                tokens,
+                forward_idx,
+                ignore_span,
+                enclosing_span,
+            )
+            && let Some(declaration_owner_id) = find_node_enclosing_at(
+                source_map,
+                &prev_token.span,
+                NodeSearchMode::SmallestOutermost,
+                |candidate| {
+                    !is_annotation_node_id(tree, candidate.idx)
+                        && tree.get_node_type(candidate.idx) == NodeType::Declaration
+                        && candidate.span.intersects(forward_token.span)
+                },
+            )
+            .map(|span| span.idx)
+        {
+            return Some((AnnotationPosition::LinePrefix, declaration_owner_id));
+        }
+    }
+
     // line prefix or postfix
     if !is_block_prefix_only && is_one_line {
         let prev_token = annotation_prev_token(token_idx, tokens, ignore_span, enclosing_span);
         let next_token =
             annotation_next_token(token_idx, group_len, tokens, ignore_span, enclosing_span);
+
+        // call/new argument seams: keep comments in argument list context
+        let prev_seam_token = prev_token.and_then(|(prev_idx, prev_token)| {
+            if prev_token.token.ty == TokenType::Newline {
+                return annotation_prev_significant_token(
+                    prev_idx,
+                    tokens,
+                    ignore_span,
+                    enclosing_span,
+                );
+            }
+
+            Some(prev_token)
+        });
+        if let Some((position, target_id)) = resolve_call_like_argument_seam_target(
+            tree,
+            source_map,
+            prev_seam_token,
+            next_token.map(|(_, token)| token),
+            ignore_span,
+        ) {
+            return Some((position, target_id));
+        }
+
+        // assignment seams with single-line block comments before a newline:
+        // keep the marker on the rhs prefix instead of trailing the lhs statement
+        if is_block_comment_single_line
+            && let Some((prev_idx, prev_token)) = prev_token
+            && line_indices[prev_idx] == line_indices[group_end_idx]
+            && AssignOperator::from_token(prev_token.token.ty).is_some()
+            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
+            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                token_idx as usize + group_len,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            )
+            && let Some(forward_target_id) = find_node_starting_at(
+                source_map,
+                &forward_token.span,
+                NodeSearchMode::SmallestOutermost,
+            )
+            .or_else(|| {
+                find_node_enclosing_at(
+                    source_map,
+                    &forward_token.span,
+                    NodeSearchMode::SmallestOutermost,
+                    |candidate| !is_annotation_node_id(tree, candidate.idx),
+                )
+            })
+            .map(|span| span.idx)
+        {
+            return Some((
+                AnnotationPosition::BlockPrefix,
+                annotation_promote_statement(
+                    tree,
+                    start_token,
+                    forward_target_id,
+                    statement_wrappers,
+                ),
+            ));
+        }
+
+        // assignment seam line comments on their own line:
+        // keep as rhs line-prefix so surrounding blank lines stay stable
+        if start_token.token.ty == TokenType::LineComment
+            && let Some(previous_significant_token) = annotation_prev_significant_token(
+                token_idx as usize,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            )
+            && AssignOperator::from_token(previous_significant_token.token.ty).is_some()
+            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
+            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                token_idx as usize + group_len,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            )
+            && let Some(forward_target_id) = find_node_starting_at(
+                source_map,
+                &forward_token.span,
+                NodeSearchMode::SmallestOutermost,
+            )
+            .or_else(|| {
+                find_node_enclosing_at(
+                    source_map,
+                    &forward_token.span,
+                    NodeSearchMode::SmallestOutermost,
+                    |candidate| !is_annotation_node_id(tree, candidate.idx),
+                )
+            })
+            .map(|span| span.idx)
+        {
+            return Some((
+                AnnotationPosition::LinePrefix,
+                annotation_promote_statement(
+                    tree,
+                    start_token,
+                    forward_target_id,
+                    statement_wrappers,
+                ),
+            ));
+        }
 
         // inline member split: keep comments between receiver and dot on their own line
         if let (Some((prev_idx, _)), Some((next_idx, next_token)), Some(enclosing_scope)) =
@@ -681,7 +1333,7 @@ fn find_side_annotation_target(
             && line_indices[prev_idx] == line_indices[group_end_idx]
             && prev_token.token.ty != TokenType::Newline
         {
-            let search_mode = if is_full_line {
+            let search_mode = if is_full_line && prev_token.token.ty == TokenType::Comma {
                 NodeSearchMode::BiggestOutermost
             } else {
                 NodeSearchMode::SmallestOutermost
@@ -828,10 +1480,7 @@ fn find_side_annotation_target(
                     )
                     && matches!(
                         forward_token.token.ty,
-                        TokenType::Maybe
-                            | TokenType::Dot
-                            | TokenType::OpenParenthesis
-                            | TokenType::OpenBracket
+                        TokenType::Maybe | TokenType::OpenParenthesis | TokenType::OpenBracket
                     )
                     && let Some(continuation_owner_id) = find_node_enclosing_at(
                         source_map,
@@ -852,6 +1501,37 @@ fn find_side_annotation_target(
                 }
 
                 // declaration and method heads: move `// comment` before `{` into block bodies
+                if start_token.token.ty == TokenType::LineComment
+                    && let Some((_, prev_token)) = prev_token
+                    && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                        token_idx as usize + group_len,
+                        tokens,
+                        ignore_span,
+                        enclosing_span,
+                    )
+                    && forward_token.token.ty == TokenType::OpenBrace
+                    && let Some(declaration_owner_id) = find_node_enclosing_at(
+                        source_map,
+                        &prev_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                        |candidate| {
+                            !is_annotation_node_id(tree, candidate.idx)
+                                && tree.get_node_type(candidate.idx) == NodeType::Declaration
+                        },
+                    )
+                    .map(|span| span.idx)
+                    && declaration_heritage_contains_expression(
+                        tree,
+                        declaration_owner_id,
+                        target_node_id,
+                    )
+                    && let Some((position, target_id)) =
+                        declaration_body_comment_target(tree, declaration_owner_id)
+                {
+                    return Some((position, target_id));
+                }
+
+                // expression and method heads: move `// comment` before `{` into block bodies
                 if start_token.token.ty == TokenType::LineComment
                     && let Some((_, forward_token)) = annotation_next_non_annotation_token(
                         token_idx as usize + group_len,
@@ -874,16 +1554,28 @@ fn find_side_annotation_target(
                         )
                     })
                     .map(|span| span.idx)
-                    && tree.get_node_type(forward_target_id) == NodeType::Expression
                 {
-                    let forward_expression_id = LocalNodeId::<Expression>::new(forward_target_id);
-                    if let Expression::Block(block_id) = tree.get(forward_expression_id) {
-                        let block = tree.get::<Block>(*block_id);
-                        if let Some(first_expression_id) = block.expressions.first().copied() {
-                            return Some((AnnotationPosition::BlockPrefix, first_expression_id.id));
-                        }
+                    if tree.get_node_type(forward_target_id) == NodeType::Expression {
+                        let forward_expression_id =
+                            LocalNodeId::<Expression>::new(forward_target_id);
+                        if let Expression::Block(block_id) = tree.get(forward_expression_id) {
+                            let block = tree.get::<Block>(*block_id);
+                            if let Some(first_expression_id) = block.expressions.first().copied() {
+                                return Some((
+                                    AnnotationPosition::BlockPrefix,
+                                    first_expression_id.id,
+                                ));
+                            }
 
-                        return Some((AnnotationPosition::BlockInfix, forward_target_id));
+                            return Some((AnnotationPosition::BlockInfix, forward_target_id));
+                        }
+                    }
+
+                    if tree.get_node_type(forward_target_id) == NodeType::Declaration
+                        && let Some((position, target_id)) =
+                            declaration_body_comment_target(tree, forward_target_id)
+                    {
+                        return Some((position, target_id));
                     }
                 }
 
@@ -907,6 +1599,7 @@ fn find_side_annotation_target(
                         },
                     )
                     .map(|span| span.idx)
+                    && annotation_owner_is_field_like(tree, field_owner_id)
                 {
                     return Some((AnnotationPosition::LinePostfixBoundary, field_owner_id));
                 }
@@ -948,6 +1641,22 @@ fn find_side_annotation_target(
             })
             .map(|span| span.idx)
         {
+            if prev_token.token.ty == TokenType::Colon
+                && let Some(mapped_value_target_id) = mapped_type_value_target_for_separator(
+                    tree,
+                    source_map,
+                    prev_token,
+                    forward_token,
+                    forward_target_id,
+                    ignore_span,
+                )
+            {
+                return Some((
+                    AnnotationPosition::LinePostfixBoundary,
+                    mapped_value_target_id,
+                ));
+            }
+
             return Some((
                 AnnotationPosition::LinePrefix,
                 annotation_promote_statement(
@@ -957,6 +1666,62 @@ fn find_side_annotation_target(
                     statement_wrappers,
                 ),
             ));
+        }
+        // comments right after `implements` belong on the extends seam line, before `implements`
+        else if start_token.token.ty == TokenType::LineComment
+            && let previous_keyword_token = prev_token.and_then(|(prev_idx, prev_token)| {
+                if prev_token.token.ty == TokenType::Newline {
+                    annotation_prev_significant_token(prev_idx, tokens, ignore_span, enclosing_span)
+                } else {
+                    Some(prev_token)
+                }
+            })
+            && let Some(prev_token) = previous_keyword_token
+            && annotation_is_identifier_keyword(file, prev_token, "implements")
+            && let Some(declaration_owner_id) = find_node_enclosing_at(
+                source_map,
+                &prev_token.span,
+                NodeSearchMode::SmallestOutermost,
+                |candidate| {
+                    !is_annotation_node_id(tree, candidate.idx)
+                        && tree.get_node_type(candidate.idx) == NodeType::Declaration
+                },
+            )
+            .map(|span| span.idx)
+            && let Some(extends_target_id) =
+                declaration_last_extends_expression(tree, declaration_owner_id)
+        {
+            return Some((AnnotationPosition::LinePostfixBoundary, extends_target_id));
+        }
+        // comments between declaration names and `<...>` generic heads stay on the declaration seam
+        else if start_token.token.ty == TokenType::LineComment
+            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
+            && let Some(previous_significant_token) = annotation_prev_significant_token(
+                token_idx as usize,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            )
+            && previous_significant_token.token.ty == TokenType::Identifier
+            && let Some((_, forward_token)) = annotation_next_non_annotation_token(
+                token_idx as usize + group_len,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            )
+            && forward_token.token.ty == TokenType::LessThan
+            && let Some(declaration_owner_id) = find_node_enclosing_at(
+                source_map,
+                &forward_token.span,
+                NodeSearchMode::SmallestOutermost,
+                |candidate| {
+                    !is_annotation_node_id(tree, candidate.idx)
+                        && tree.get_node_type(candidate.idx) == NodeType::Declaration
+                },
+            )
+            .map(|span| span.idx)
+        {
+            return Some((AnnotationPosition::LinePrefix, declaration_owner_id));
         }
         // comments before a leading semicolon stay on the previous statement boundary
         else if start_token.token.ty == TokenType::LineComment
@@ -1110,6 +1875,8 @@ fn find_side_annotation_target(
             .map(|span| span.idx);
 
             if let Some(target_node_id) = target_node_id {
+                let target_node_id = annotation_argument_value_expression_id(tree, target_node_id)
+                    .unwrap_or(target_node_id);
                 return Some((
                     AnnotationPosition::LinePrefix,
                     annotation_promote_statement(
@@ -1185,6 +1952,29 @@ fn find_side_annotation_target(
                 ));
             }
         }
+        // comments before interpolation close braces should stay on the preceding expression boundary
+        else if start_token.token.ty == TokenType::LineComment
+            && next_token.is_some_and(|(_, token)| token.token.ty == TokenType::Newline)
+            && annotation_next_non_annotation_token(
+                token_idx as usize + group_len,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            )
+            .is_some_and(|(_, token)| token.token.ty == TokenType::CloseBrace)
+            && let Some((_, prev_token)) = prev_token
+            && let Some(target_node_id) = find_node_ending_at(
+                source_map,
+                &prev_token.span,
+                NodeSearchMode::BiggestOutermost,
+            )
+            .map(|span| span.idx)
+        {
+            return Some((
+                AnnotationPosition::LinePostfixBoundary,
+                annotation_promote_statement(tree, start_token, target_node_id, statement_wrappers),
+            ));
+        }
     }
 
     // block prefix: find the following targetable node
@@ -1229,25 +2019,8 @@ fn find_side_annotation_target(
         };
 
         if let Some(next_node) = next_node {
-            let mut target_node_id =
+            let target_node_id =
                 annotation_promote_statement(tree, start_token, next_node.idx, statement_wrappers);
-
-            // blank runs before function declaration expressions should target the declaration node
-            if start_token.token.ty == TokenType::Newline
-                && !annotation_has_token_type_between(
-                    tokens,
-                    token_idx as usize + group_len,
-                    next_token_idx,
-                    TokenType::At,
-                )
-                && tree.get_node_type(target_node_id) == NodeType::Expression
-                && let Expression::Declaration(declaration_id) =
-                    tree.get(LocalNodeId::<Expression>::new(target_node_id))
-                && matches!(tree.get(*declaration_id), Declaration::Function { .. })
-            {
-                target_node_id = declaration_id.id;
-            }
-
             return Some((AnnotationPosition::BlockPrefix, target_node_id));
         }
         if next_token.token.ty == TokenType::Dot {
@@ -3107,53 +3880,86 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         argument_id: LocalNodeId<Argument>,
     ) -> CachedArgumentAnnotationProfile {
-        if !self.has_annotation(argument_id) {
-            return CachedArgumentAnnotationProfile::default();
-        }
-
-        let argument_span = self.get_span(argument_id);
         let mut profile = CachedArgumentAnnotationProfile::default();
+        let argument_span = self.get_span(argument_id);
+        let argument_end = argument_span.end;
 
-        self.with_annotations(argument_id, |annotations| {
-            for annotation_id in annotations {
-                let annotation = self.get_annotation(*annotation_id);
+        // argument annotations
+        if self.has_annotation(argument_id) {
+            self.with_annotations(argument_id, |annotations| {
+                for annotation_id in annotations {
+                    let annotation = self.get_annotation(*annotation_id);
 
-                match annotation {
-                    Annotation::Blank { .. } => {}
-                    Annotation::Doc { position, .. }
-                    | Annotation::Decorator { position, .. }
-                    | Annotation::Comment { position, .. } => {
-                        if matches!(
-                            position,
-                            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                        ) {
-                            profile.has_prefix_annotation = true;
-                        }
+                    match annotation {
+                        Annotation::Blank { .. } => {}
+                        Annotation::Doc { position, .. }
+                        | Annotation::Decorator { position, .. }
+                        | Annotation::Comment { position, .. } => {
+                            if matches!(
+                                position,
+                                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                            ) {
+                                profile.has_prefix_annotation = true;
+                            }
 
-                        let Annotation::Comment { node, .. } = annotation else {
-                            continue;
-                        };
-                        profile.has_comment = true;
+                            let Annotation::Comment { node, .. } = annotation else {
+                                continue;
+                            };
+                            profile.has_comment = true;
 
-                        let comment = self.tree.get::<Comment>(node);
-                        if comment.style != destack_ast::CommentStyle::Slash {
-                            continue;
-                        }
+                            let comment = self.tree.get::<Comment>(node);
+                            if comment.style != destack_ast::CommentStyle::Slash {
+                                continue;
+                            }
 
-                        let annotation_span = self.get_annotation_span(*annotation_id);
-                        if annotation_span.start >= argument_span.end {
-                            profile.has_line_comment = true;
-                        }
-                        if matches!(
-                            position,
-                            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                        ) {
-                            profile.has_prefix_line_comment = true;
+                            let annotation_span = self.get_annotation_span(*annotation_id);
+                            if annotation_span.start >= argument_end {
+                                profile.has_line_comment = true;
+                            }
+                            if matches!(
+                                position,
+                                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                            ) {
+                                profile.has_prefix_line_comment = true;
+                            }
                         }
                     }
                 }
+            });
+        }
+
+        // value annotations
+        let argument_value_expression = match self.tree.get(argument_id) {
+            Argument::Named { value, .. }
+            | Argument::Labeled { value, .. }
+            | Argument::Positional { value, .. }
+            | Argument::Spread { value, .. } => Some(*value),
+        };
+        if let Some(value_id) = argument_value_expression {
+            let value_id = self.transparent_inner_expression(value_id);
+            let declaration_annotation_target = match self.tree.get(value_id) {
+                Expression::Declaration(declaration_id) => Some(*declaration_id),
+                _ => None,
+            };
+
+            // direct value annotation state
+            if self.has_annotation(value_id) {
+                profile.has_comment = true;
+                if self.has_prefix_annotation(value_id) {
+                    profile.has_prefix_annotation = true;
+                }
             }
-        });
+
+            // wrapped declaration annotation state
+            if let Some(declaration_id) = declaration_annotation_target
+                && self.has_annotation(declaration_id)
+            {
+                profile.has_comment = true;
+                if self.has_prefix_annotation(declaration_id) {
+                    profile.has_prefix_annotation = true;
+                }
+            }
+        }
 
         profile
     }

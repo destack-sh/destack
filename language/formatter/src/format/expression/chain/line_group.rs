@@ -197,7 +197,7 @@ fn extend_member_line(
     }
 
     // merge member runs that end in a call operation
-    if should_merge_member_run_with_call(line, iter) {
+    if should_merge_member_run_with_call(context, line, iter) {
         while matches!(iter.peek(), Some(ChainExpression::Member { .. })) {
             push_next_chain_operation(iter, line);
         }
@@ -282,9 +282,16 @@ fn extend_must_line(iter: &mut ChainOperationIter, line: &mut SmallVec<[ChainExp
 
 /// Return whether a member line should absorb a member run that ends with a call.
 fn should_merge_member_run_with_call(
+    context: &DestackFormatContext<'_>,
     line: &SmallVec<[ChainExpression; 2]>,
     iter: &ChainOperationIter,
 ) -> bool {
+    if let Some(ChainExpression::Member { node_id, .. }) = line.first()
+        && expression_has_line_postfix_boundary_comment(context, *node_id)
+    {
+        return false;
+    }
+
     let line_has_call_like = line.iter().any(|operation| {
         matches!(
             operation,
@@ -312,7 +319,7 @@ fn should_merge_member_run_with_call(
             }
             ChainExpression::Call { .. } => {
                 terminal_is_call = true;
-                should_merge = member_run_count >= 2;
+                should_merge = member_run_count >= 1;
                 break;
             }
             ChainExpression::Index { .. } | ChainExpression::Instantiation { .. } => {

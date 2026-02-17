@@ -4,6 +4,7 @@ use super::classify::*;
 use crate::CachedCallArgumentLayoutClass;
 use crate::directive::any_ignore_range_for_nodes;
 use crate::timing::tags;
+use destack_ast::{Comment, CommentStyle};
 use destack_fir::write;
 
 /// Decide default list layout after profile-driven checks.
@@ -523,6 +524,37 @@ fn call_arguments_use_forced_hug_last_inline_fast_path(
     dynamic_arguments.len() > 1 && !has_boundary_comments && layout_class.force_hug_last_inline
 }
 
+/// Return whether empty call infix annotations should expand across lines.
+fn empty_call_infix_requires_multiline(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .with_annotations(call_node_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation = context.get_annotation(*annotation_id);
+                if annotation.position() != AnnotationPosition::BlockInfix {
+                    return false;
+                }
+
+                let annotation_span = context.get_annotation_span(*annotation_id);
+                if context.has_newline(annotation_span) {
+                    return true;
+                }
+
+                match annotation {
+                    Annotation::Comment { node, .. } => {
+                        let comment = context.tree.get::<Comment>(node);
+                        comment.style == CommentStyle::Slash
+                    }
+                    Annotation::Blank { .. } | Annotation::Doc { .. } => true,
+                    Annotation::Decorator { .. } => false,
+                }
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Format call arguments with an active list group id.
 fn format_single_call_argument_with_group<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -536,7 +568,11 @@ fn format_single_call_argument_with_group<'ast>(
 
     // shared single argument planner base state
     let has_call_infix_annotations = call_has_non_blank_infix_annotation(f.context(), call_node_id);
-    let has_any_argument_annotation = f.context().has_annotation(argument_id);
+    let argument_annotation_profile = f.context().argument_annotation_profile(argument_id);
+    let has_any_argument_annotation = argument_annotation_profile.has_prefix_annotation
+        || argument_annotation_profile.has_comment
+        || argument_annotation_profile.has_line_comment
+        || argument_annotation_profile.has_prefix_line_comment;
     let is_multiline_in_source = f.context().node_has_newline(argument_id);
     let argument_shape = CallArgumentShape {
         has_any_argument_annotation,
@@ -584,6 +620,16 @@ fn format_single_call_argument_with_group<'ast>(
         return Ok(());
     }
 
+    // keep closure-cast object arguments inline in call-then-chain no-semi seams
+    let use_inline_closure_cast_object_argument =
+        !has_boundary_comments && argument_is_inline_closure_cast_object(f.context(), argument_id);
+    if use_inline_closure_cast_object_argument {
+        f.context()
+            .increment_counter("profile.call.arguments.path.inline_closure_cast_object", 1);
+        write_single_call_argument_inline_wrapped(f, argument_id)?;
+        return Ok(());
+    }
+
     // preserve inline callback single argument rendering
     let force_expand_single_long_with_static_arguments =
         call_force_expand_single_long_with_static_arguments(
@@ -617,6 +663,7 @@ fn format_single_call_argument_with_group<'ast>(
     let has_hug_blocking_comment_annotation =
         argument_has_callback_blocking_comment_annotation(f.context(), argument_id);
     let can_use_hugged = !has_boundary_comments
+        && !has_any_argument_annotation
         && !argument_has_multiline_prefix_annotation(f.context(), argument_id)
         && !has_hug_blocking_comment_annotation
         && !planner_base_state.has_call_infix_annotations
@@ -687,14 +734,27 @@ fn format_call_arguments_with_group<'ast>(
     // empty argument lists can still carry boundary infix annotations
     if dynamic_arguments.is_empty() {
         if f.context().has_infix_annotation(call_node_id) {
-            write!(
-                f,
-                [
-                    token("("),
-                    f.context().block_infix_annotations(call_node_id),
-                    token(")")
-                ]
-            )?;
+            let should_expand_multiline =
+                empty_call_infix_requires_multiline(f.context(), call_node_id);
+            if should_expand_multiline {
+                write!(
+                    f,
+                    [
+                        token("("),
+                        block_indent(&f.context().block_infix_annotations(call_node_id)),
+                        token(")")
+                    ]
+                )?;
+            } else {
+                write!(
+                    f,
+                    [
+                        token("("),
+                        f.context().block_infix_annotations(call_node_id),
+                        token(")")
+                    ]
+                )?;
+            }
         } else {
             write!(f, [token("("), token(")")])?;
         }

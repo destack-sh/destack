@@ -11,11 +11,7 @@ fn statement_expression_needs_semicolon(
 ) -> bool {
     let expression = context.tree.get(expression_id);
 
-    let is_type_declaration_statement = matches!(
-        expression,
-        Expression::Declaration(declaration_id)
-            if matches!(context.tree.get(*declaration_id), Declaration::Type { .. })
-    );
+    let is_declaration_statement = matches!(expression, Expression::Declaration(_));
     let is_block_statement = matches!(expression, Expression::Block(_));
     let is_control_flow_statement = matches!(
         expression,
@@ -29,7 +25,7 @@ fn statement_expression_needs_semicolon(
             | Expression::Match { .. }
     );
 
-    !(is_type_declaration_statement || is_block_statement || is_control_flow_statement)
+    !(is_declaration_statement || is_block_statement || is_control_flow_statement)
 }
 
 /// Format `with { ... }` arguments for import and export statements.
@@ -79,18 +75,29 @@ fn format_import_expression<'ast>(
             write!(
                 f,
                 [group(&block_indent(&format_with(|f| {
+                    let arguments_len = arguments.map_or(0, |items| items.len());
+                    let total_items = 1usize + arguments_len;
+
+                    // target item
                     match target {
                         ImportTarget::String(target) => {
-                            write!(f, [token("\""), *target, token("\""), token(",")])?;
+                            write!(f, [token("\""), *target, token("\"")])?;
                         }
                         ImportTarget::Expression { target } => {
-                            write!(f, [*target, token(",")])?;
+                            write!(f, [*target])?;
                         }
                     }
+                    if total_items > 1 {
+                        write!(f, [token(",")])?;
+                    }
 
+                    // with-arguments items
                     if let Some(arguments) = arguments {
-                        for argument in arguments {
-                            write!(f, [hard_line_break(), *argument, token(",")])?;
+                        for (index, argument) in arguments.iter().enumerate() {
+                            write!(f, [hard_line_break(), *argument])?;
+                            if index + 1 < arguments.len() {
+                                write!(f, [token(",")])?;
+                            }
                         }
                     }
 

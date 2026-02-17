@@ -1,8 +1,8 @@
 use crate::Parser;
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, BlankTrivia, Comment,
-    CommentDirective, CommentStyle, CommentTrivia, Doc, DocStyle, Expression, TokenSpan, TokenType,
-    TriviaBoundary, TriviaNewlineFlags,
+    CommentDirective, CommentStyle, CommentTrivia, Doc, DocStyle, Expression, LocalNodeId,
+    NodeType, TokenSpan, TokenType, TriviaBoundary, TriviaNewlineFlags,
 };
 use destack_source::{NodeSearchMode, Span};
 use rustc_hash::FxHashMap;
@@ -343,15 +343,22 @@ impl Parser {
         semantic_tokens: &[TokenSpan],
         owner_start_by_token: &[Option<u32>],
     ) -> Option<u32> {
+        let token_after =
+            self.normalize_documentation_token_after(token_after, semantic_tokens);
+
+        // direct seam owner: use the owner that starts at the following token
         if let Some(token_after) = token_after {
             if let Some(owner_id) = owner_start_by_token
                 .get(token_after)
                 .and_then(|owner| *owner)
             {
+                let owner_id =
+                    self.normalize_documentation_target(owner_id, token_after, semantic_tokens);
                 return Some(owner_id);
             }
         }
 
+        // fallback seam owner: resolve from the following token span
         if let Some(token_after) = token_after {
             let owner_token = semantic_tokens[token_after];
             if let Some(owner) = self.fallback_prefix_owner_for_token(owner_token) {
@@ -359,11 +366,90 @@ impl Parser {
             }
         }
 
+        // side token owner fallback: resolve from the doc token span itself
         if let Some(owner) = self.fallback_prefix_owner_for_token(token) {
             return Some(owner);
         }
 
+        // trivia-only fallback: attach to stable anchor expression
         self.find_trivia_anchor_owner()
+    }
+
+    /// Skip forward separators so docs bind to the real expression owner token.
+    fn normalize_documentation_token_after(
+        &self,
+        token_after: Option<usize>,
+        semantic_tokens: &[TokenSpan],
+    ) -> Option<usize> {
+        let mut token_index = token_after?;
+
+        loop {
+            let token = semantic_tokens.get(token_index).copied()?;
+
+            // skip newline seams while searching for the first targetable token
+            if token.token.ty == TokenType::Newline {
+                token_index += 1;
+                continue;
+            }
+
+            // skip leading type separators like `|` and `&`
+            if Self::is_documentation_forward_separator(token.token.ty) {
+                token_index += 1;
+                continue;
+            }
+
+            if Self::is_attachable_semantic_token(token.token.ty) {
+                return Some(token_index);
+            }
+
+            token_index += 1;
+        }
+    }
+
+    /// Normalize one documentation owner id to a semantic expression target.
+    fn normalize_documentation_target(
+        &self,
+        owner_id: u32,
+        token_after_index: usize,
+        semantic_tokens: &[TokenSpan],
+    ) -> u32 {
+        let Some(token_after) = semantic_tokens.get(token_after_index).copied() else {
+            return owner_id;
+        };
+        if token_after.token.ty != TokenType::OpenParenthesis {
+            return owner_id;
+        }
+
+        let previous_token = semantic_tokens[..token_after_index]
+            .iter()
+            .rev()
+            .copied()
+            .find(|token| token.token.ty != TokenType::Newline);
+        let is_extends_seam = previous_token.is_some_and(|token| {
+            token.token.ty == TokenType::Identifier && self.get_span_str(token.span) == "extends"
+        });
+        if !is_extends_seam {
+            return owner_id;
+        }
+
+        let mut current_id = owner_id;
+
+        loop {
+            if self.tree.get_node_type(current_id) != NodeType::Expression {
+                return current_id;
+            }
+
+            let expression_id = LocalNodeId::<Expression>::new(current_id);
+            let Some(next_id) = (match self.tree.get(expression_id) {
+                Expression::Parenthesized { expression } => Some(expression.id),
+                Expression::Statement(expression) => Some(expression.id),
+                _ => None,
+            }) else {
+                return current_id;
+            };
+
+            current_id = next_id;
+        }
     }
 
     /// Return a stable trivia anchor owner for trivia-only files.
@@ -432,6 +518,11 @@ impl Parser {
             token_type,
             TokenType::DocLineComment | TokenType::DocBlockComment
         )
+    }
+
+    /// Return whether docs should skip this separator to find a forward target.
+    fn is_documentation_forward_separator(token_type: TokenType) -> bool {
+        matches!(token_type, TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
     }
 
     /// Return whether a node id belongs to one annotation node type.

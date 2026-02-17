@@ -227,6 +227,14 @@ fn format_chain_expression<'ast>(
             (*node_id, should_emit_prefix_annotations, true)
         }
     };
+    let call_or_new_handles_empty_infix = matches!(
+        op,
+        ChainExpression::Call {
+            node_id,
+            dynamic_arguments,
+            ..
+        } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(*node_id)
+    );
     let emit_prefix_annotations = emit_prefix_annotations && node_id != formatted_root_id;
     if emit_prefix_annotations {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
@@ -301,7 +309,11 @@ fn format_chain_expression<'ast>(
 
     // output any line postfix annotations after the operation
     if emit_postfix_annotations {
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        if call_or_new_handles_empty_infix {
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        } else {
+            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        }
     }
 
     Ok(())

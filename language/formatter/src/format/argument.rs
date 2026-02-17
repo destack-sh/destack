@@ -15,6 +15,7 @@ use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AnnotationPosition, Argument, CommentStyle, Declaration, Expression, FunctionKind, Keyword,
     LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Property, TokenType,
+    TypeBinaryOperator,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -571,13 +572,51 @@ fn write_parameter_type_with_infix<'ast>(
     Ok(true)
 }
 
+/// Return whether all prefix annotations on one variadic parameter follow `...`.
+fn parameter_prefix_annotations_follow_spread(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(parameter_id) else {
+        return false;
+    };
+
+    let mut has_prefix_annotation = false;
+    for annotation_id in annotations {
+        let position = context.get_annotation(annotation_id).position();
+        if !matches!(
+            position,
+            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+        ) {
+            continue;
+        }
+
+        has_prefix_annotation = true;
+        let previous_token =
+            previous_non_whitespace_token_before_annotation(context, annotation_id);
+        if !previous_token.is_some_and(|token| token.token.ty == TokenType::Spread) {
+            return false;
+        }
+    }
+
+    has_prefix_annotation
+}
+
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
         node_id: LocalNodeId<Parameter>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        let is_variadic_parameter = matches!(
+            self,
+            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
+        );
+        let defer_prefix_annotations_after_spread = is_variadic_parameter
+            && parameter_prefix_annotations_follow_spread(f.context(), node_id);
+        if !defer_prefix_annotations_after_spread {
+            write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        }
 
         let is_typescript = f.context().options.language_type.is_typescript();
         let parameter_is_static = is_typescript && parameter_is_static(f.context(), node_id);
@@ -633,6 +672,10 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // keyword
                 write!(f, [token("...")])?;
+                // spread seam prefix annotations
+                if defer_prefix_annotations_after_spread {
+                    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+                }
                 // name
                 write!(f, [name])?;
                 // type
@@ -647,6 +690,10 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // keyword
                 write!(f, [token("...")])?;
+                // spread seam prefix annotations
+                if defer_prefix_annotations_after_spread {
+                    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+                }
                 // pattern
                 write!(f, [pattern])?;
                 // type
@@ -720,6 +767,10 @@ fn argument_should_emit_prefix_annotations(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
+    if argument_has_satisfies_static_seam_prefix_line_comment(context, argument_id) {
+        return false;
+    }
+
     if !argument_is_call_or_new(context, argument_id) {
         return true;
     }
@@ -737,6 +788,136 @@ fn argument_should_emit_prefix_annotations(
     }
 
     !argument_has_blank_prefix_annotation(context, argument_id)
+}
+
+/// Return one satisfies static seam line comment source for this argument when present.
+pub(super) fn argument_satisfies_static_seam_comment_source(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<String> {
+    let seam_comment_id = argument_satisfies_static_seam_comment_id(context, argument_id)?;
+    let span = context.get_annotation_span(seam_comment_id);
+    Some(context.get_span_str(span).trim().to_string())
+}
+
+/// Return one satisfies static seam line comment annotation id for this argument when present.
+pub(super) fn argument_satisfies_static_seam_comment_id(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Annotation>> {
+    if !argument_is_first_static_argument_of_satisfies_right_path(context, argument_id) {
+        return None;
+    }
+
+    let Some(annotations) = context.get_annotations(argument_id) else {
+        return None;
+    };
+
+    let mut seam_comment_id = None;
+    for annotation_id in annotations {
+        let Annotation::Comment {
+            node,
+            position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+        } = context.get_annotation(annotation_id)
+        else {
+            continue;
+        };
+
+        let comment = context.tree.get::<destack_ast::Comment>(node);
+        if comment.style != CommentStyle::Slash {
+            continue;
+        }
+
+        seam_comment_id = Some(annotation_id);
+        break;
+    }
+
+    seam_comment_id
+}
+
+/// Return whether one argument is the first static argument in a `satisfies` rhs path with multiple arguments.
+fn argument_is_first_static_argument_of_satisfies_right_path(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if !argument_is_first_static_argument_of_multi_argument_path(context, argument_id) {
+        return false;
+    }
+
+    let Some((path_expression_id, path_parent_type)) = context.get_parent(argument_id) else {
+        return false;
+    };
+    if path_parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let path_expression_id = LocalNodeId::<Expression>::new(path_expression_id);
+    let Some((type_binary_id, type_binary_parent_type)) = context.get_parent(path_expression_id)
+    else {
+        return false;
+    };
+    if type_binary_parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let type_binary_id = LocalNodeId::<Expression>::new(type_binary_id);
+    let Expression::TypeBinary {
+        operator: TypeBinaryOperator::Satisfies,
+        right,
+        ..
+    } = context.tree.get(type_binary_id)
+    else {
+        return false;
+    };
+
+    let right_expression_id = match context.tree.get(*right) {
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => *expression,
+        _ => *right,
+    };
+
+    right_expression_id == path_expression_id
+}
+
+/// Return whether one argument is the first static argument of a multi-argument path static list.
+fn argument_is_first_static_argument_of_multi_argument_path(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(argument_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let static_arguments = match context.tree.get(expression_id) {
+        // keep seam remapping constrained to the formatter path we re-render explicitly
+        Expression::Path {
+            path,
+            static_arguments,
+        } if path.segments.len() == 1 => static_arguments.as_ref(),
+        _ => None,
+    };
+
+    let Some(static_arguments) = static_arguments else {
+        return false;
+    };
+    if static_arguments.len() <= 1 {
+        return false;
+    }
+
+    static_arguments
+        .first()
+        .is_some_and(|first| *first == argument_id)
+}
+
+/// Return whether this argument has one satisfies static seam prefix line comment.
+fn argument_has_satisfies_static_seam_prefix_line_comment(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    argument_satisfies_static_seam_comment_id(context, argument_id).is_some()
 }
 
 /// Return whether an argument belongs to a call or new expression.

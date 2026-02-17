@@ -18,6 +18,26 @@ use super::type_like::{
     format_struct_or_class_declaration,
 };
 
+/// Format one declaration export modifier and export-head seam comments.
+pub(super) fn format_declaration_export_modifier<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    descriptor: &destack_ast::DeclarationDescriptor,
+) -> FormatResult<()> {
+    if let Some(export) = descriptor.export {
+        write!(
+            f,
+            [
+                export,
+                space(),
+                f.context().declaration_export_head_annotations(node_id)
+            ]
+        )?;
+    }
+
+    Ok(())
+}
+
 /// Format a super type clause.
 pub(super) fn format_super_type_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -114,7 +134,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             } else {
                 None
             };
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(f, [f.context().declaration_prefix_annotations(node_id)])?;
 
         match self {
             // global augmentation
@@ -160,7 +180,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 kind,
                 target,
             } => {
-                format_import_alias_declaration(f, descriptor, *kind, target)?;
+                format_import_alias_declaration(f, node_id, descriptor, *kind, target)?;
             }
 
             // struct or class
