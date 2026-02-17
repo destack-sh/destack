@@ -46,6 +46,7 @@ declare namespace gpu {
         effect: "external",
         replay: "nonrecordable",
         requires: ["gpu.present"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -76,6 +77,7 @@ declare namespace gpu {
         effect: "external",
         replay: "nonrecordable",
         requires: ["gpu.present"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })

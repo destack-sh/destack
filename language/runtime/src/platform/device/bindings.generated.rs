@@ -335,16 +335,16 @@ struct DeviceIoWriteReplay {
 }
 
 /// Binding descriptor for destack.device.control.control.
-pub const DEVICE_CONTROL_CONTROL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.device.control.control",
-        "export function control(handle: DeviceHandle, operation: DeviceControlOperation, input: Slice<uint8>, output: Slice<uint8>): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["device.control"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DEVICE_CONTROL_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.control.control",
+    "export function control(handle: DeviceHandle, operation: DeviceControlOperation, input: Slice<uint8>, output: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["device.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.io.close.
 pub const DEVICE_IO_CLOSE: BindingDescriptor =
@@ -356,43 +356,57 @@ pub const DEVICE_IO_CLOSE: BindingDescriptor =
         &["device.read", "device.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.device.io.open.
-pub const DEVICE_IO_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.device.io.open",
-        "export function open(path: OsPath, flags: uint32, mode: uint32): Result<DeviceHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["device.read", "device.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DEVICE_IO_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.io.open",
+    "export function open(path: OsPath, flags: uint32, mode: uint32): Result<DeviceHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["device.read", "device.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.io.read.
-pub const DEVICE_IO_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.device.io.read",
-        "export function read(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["device.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DEVICE_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.io.read",
+    "export function read(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["device.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.device.io.write.
-pub const DEVICE_IO_WRITE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.device.io.write",
-        "export function write(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["device.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DEVICE_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.device.io.write",
+    "export function write(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["device.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for device.
 pub const BINDINGS: &[BindingDescriptor] = &[

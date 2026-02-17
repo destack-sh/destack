@@ -123,6 +123,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
 ///
 /// Request writeback of one byte range for the target descriptor.
 /// Range ordering, blocking behavior, and fallback support follow host kernel policy.
+///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
 /// Uses sync_file_range(2) on linux and runtime fallback on other targets.

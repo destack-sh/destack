@@ -374,6 +374,7 @@ export declare namespace error {
             effect: "deterministic",
             replay: "nonrecordable",
             requires: ["diagnostic.read"],
+            platforms: ["unix", "windows", "wasi"],
             scope: "runtime",
             blocking: "never",
         },

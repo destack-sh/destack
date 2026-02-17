@@ -542,7 +542,21 @@ pub const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
         &["display.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.display.monitor.list.
 pub const DISPLAY_MONITOR_LIST: BindingDescriptor =
@@ -554,7 +568,21 @@ pub const DISPLAY_MONITOR_LIST: BindingDescriptor =
         &["display.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.display.monitor.modes.
 pub const DISPLAY_MONITOR_MODES: BindingDescriptor =
@@ -566,7 +594,21 @@ pub const DISPLAY_MONITOR_MODES: BindingDescriptor =
         &["display.mode"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.display.monitor.open.
 pub const DISPLAY_MONITOR_OPEN: BindingDescriptor =
@@ -578,19 +620,33 @@ pub const DISPLAY_MONITOR_OPEN: BindingDescriptor =
         &["display.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.display.monitor.setMode.
-pub const DISPLAY_MONITOR_SET_MODE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.display.monitor.setMode",
-        "export function setMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["display.mode"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.monitor.setMode",
+    "export function setMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["display.mode"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.close.
 pub const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
@@ -602,7 +658,21 @@ pub const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
         &["display.window"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.display.window.event.
 pub const DISPLAY_WINDOW_EVENT: BindingDescriptor =
@@ -614,31 +684,45 @@ pub const DISPLAY_WINDOW_EVENT: BindingDescriptor =
         &["display.window"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.display.window.open.
-pub const DISPLAY_WINDOW_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.display.window.open",
-        "export function windowOpen(display: DisplayHandle, options: WindowOptions): Result<WindowHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["display.window"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DISPLAY_WINDOW_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.open",
+    "export function windowOpen(display: DisplayHandle, options: WindowOptions): Result<WindowHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTitle.
-pub const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.display.window.setTitle",
-        "export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["display.window"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.setTitle",
+    "export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.display.window.tryEvent.
 pub const DISPLAY_WINDOW_TRY_EVENT: BindingDescriptor =
@@ -650,19 +734,33 @@ pub const DISPLAY_WINDOW_TRY_EVENT: BindingDescriptor =
         &["display.window"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.display.window.vsyncWait.
-pub const DISPLAY_WINDOW_VSYNC_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.display.window.vsyncWait",
-        "export function windowVsyncWait(window: WindowHandle, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["display.vsync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const DISPLAY_WINDOW_VSYNC_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.vsyncWait",
+    "export function windowVsyncWait(window: WindowHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.vsync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for display.
 pub const BINDINGS: &[BindingDescriptor] = &[

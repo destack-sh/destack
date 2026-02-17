@@ -423,14 +423,14 @@ struct SecuritySandboxExitReplay {
 }
 
 /// Binding descriptor for destack.security.capability.has.
-pub const SECURITY_CAPABILITY_HAS: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.security.capability.has",
-        "export function capabilityHas(capability: PlatformCapability): Result<boolean, PlatformError>",
-        &["security.policy.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+    "destack.security.capability.has",
+    "export function capabilityHas(capability: PlatformCapability): Result<boolean, PlatformError>",
+    &["security.policy.read"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.security.capability.list.
 pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
@@ -440,19 +440,34 @@ pub const SECURITY_CAPABILITY_LIST: BindingDescriptor =
         &["security.policy.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.security.enforce.sandboxInstallFilter.
-pub const SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.security.enforce.sandboxInstallFilter",
-        "export function sandboxInstallFilter(handle: SandboxHandle, filter: SecurityFilter): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["security.filter"],
-        BindingScope::Hybrid,
-        BindingBlocking::Sometimes,
-    );
+pub const SECURITY_ENFORCE_SANDBOX_INSTALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.security.enforce.sandboxInstallFilter",
+    "export function sandboxInstallFilter(handle: SandboxHandle, filter: SecurityFilter): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["security.filter"],
+    BindingScope::Hybrid,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSeal.
 pub const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
@@ -462,57 +477,72 @@ pub const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
         &["security.restrict"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSetCapabilities.
-pub const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.security.enforce.sandboxSetCapabilities",
-        "export function sandboxSetCapabilities(handle: SandboxHandle, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
-        &["security.restrict"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+    "destack.security.enforce.sandboxSetCapabilities",
+    "export function sandboxSetCapabilities(handle: SandboxHandle, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
+    &["security.restrict"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.security.policy.get.
-pub const SECURITY_POLICY_GET: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.security.policy.get",
-        "export function policyGet(scope: string): Result<Slice<PlatformCapability>, PlatformError>",
-        &["security.policy.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+    "destack.security.policy.get",
+    "export function policyGet(scope: string): Result<Slice<PlatformCapability>, PlatformError>",
+    &["security.policy.read"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.security.policy.getRules.
-pub const SECURITY_POLICY_GET_RULES: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.security.policy.getRules",
-        "export function policyGetRules(scope: string): Result<Slice<SecurityPolicyRule>, PlatformError>",
-        &["security.policy.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+    "destack.security.policy.getRules",
+    "export function policyGetRules(scope: string): Result<Slice<SecurityPolicyRule>, PlatformError>",
+    &["security.policy.read"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.security.policy.set.
-pub const SECURITY_POLICY_SET: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.security.policy.set",
-        "export function policySet(scope: string, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
-        &["security.policy.write"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+    "destack.security.policy.set",
+    "export function policySet(scope: string, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
+    &["security.policy.write"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.security.policy.setRules.
-pub const SECURITY_POLICY_SET_RULES: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.security.policy.setRules",
-        "export function policySetRules(scope: string, rules: Slice<SecurityPolicyRule>): Result<void, PlatformError>",
-        &["security.policy.write"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+    "destack.security.policy.setRules",
+    "export function policySetRules(scope: string, rules: Slice<SecurityPolicyRule>): Result<void, PlatformError>",
+    &["security.policy.write"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.enter.
 pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
@@ -524,7 +554,22 @@ pub const SECURITY_SANDBOX_ENTER: BindingDescriptor =
         &["security.sandbox"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.security.sandbox.exit.
 pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
@@ -536,7 +581,22 @@ pub const SECURITY_SANDBOX_EXIT: BindingDescriptor =
         &["security.sandbox"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptors for security.
 pub const BINDINGS: &[BindingDescriptor] = &[

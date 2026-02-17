@@ -551,16 +551,16 @@ struct MemoryProtectRemapReplay {
 }
 
 /// Binding descriptor for destack.memory.advise.advise.
-pub const MEMORY_ADVISE_ADVISE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.advise.advise",
-        "export function advise(address: uint64, length: uint64, advice: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.advise"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_ADVISE_ADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.advise.advise",
+    "export function advise(address: uint64, length: uint64, advice: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.advise"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.advise.discard.
 pub const MEMORY_ADVISE_DISCARD: BindingDescriptor =
@@ -572,19 +572,33 @@ pub const MEMORY_ADVISE_DISCARD: BindingDescriptor =
         &["memory.advise"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.memory.advise.hugePage.
-pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.advise.hugePage",
-        "export function hugePage(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.hugePage"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.advise.hugePage",
+    "export function hugePage(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.hugePage"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.lock.lock.
 pub const MEMORY_LOCK_LOCK: BindingDescriptor =
@@ -596,7 +610,21 @@ pub const MEMORY_LOCK_LOCK: BindingDescriptor =
         &["memory.lock"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.memory.lock.unlock.
 pub const MEMORY_LOCK_UNLOCK: BindingDescriptor =
@@ -608,19 +636,33 @@ pub const MEMORY_LOCK_UNLOCK: BindingDescriptor =
         &["memory.lock"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.memory.map.commit.
-pub const MEMORY_MAP_COMMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.map.commit",
-        "export function commit(address: uint64, length: uint64, flags: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.map"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.map.commit",
+    "export function commit(address: uint64, length: uint64, flags: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.map"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.map.decommit.
 pub const MEMORY_MAP_DECOMMIT: BindingDescriptor =
@@ -632,19 +674,33 @@ pub const MEMORY_MAP_DECOMMIT: BindingDescriptor =
         &["memory.map"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.memory.map.numaBind.
-pub const MEMORY_MAP_NUMA_BIND: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.map.numaBind",
-        "export function numaBind(address: uint64, length: uint64, policy: uint32, nodeMask: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.numa"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.map.numaBind",
+    "export function numaBind(address: uint64, length: uint64, policy: uint32, nodeMask: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.numa"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["linux", "windows"]);
 
 /// Binding descriptor for destack.memory.map.release.
 pub const MEMORY_MAP_RELEASE: BindingDescriptor =
@@ -656,67 +712,81 @@ pub const MEMORY_MAP_RELEASE: BindingDescriptor =
         &["memory.map"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.memory.map.reserve.
-pub const MEMORY_MAP_RESERVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.map.reserve",
-        "export function reserve(length: uint64, flags: uint32): Result<MemoryRange, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.map"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.map.reserve",
+    "export function reserve(length: uint64, flags: uint32): Result<MemoryRange, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.map"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.execute.
-pub const MEMORY_PROTECT_EXECUTE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.protect.execute",
-        "export function protectExecute(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.execute"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_PROTECT_EXECUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.protect.execute",
+    "export function protectExecute(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.execute"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.flushInstructionCache.
-pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.protect.flushInstructionCache",
-        "export function flushInstructionCache(address: uint64, length: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.execute"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.protect.flushInstructionCache",
+    "export function flushInstructionCache(address: uint64, length: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.execute"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.protect.
-pub const MEMORY_PROTECT_PROTECT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.protect.protect",
-        "export function protect(address: uint64, length: uint64, protection: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.protect"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_PROTECT_PROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.protect.protect",
+    "export function protect(address: uint64, length: uint64, protection: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.protect"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.remap.
-pub const MEMORY_PROTECT_REMAP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.memory.protect.remap",
-        "export function remap(address: uint64, oldLength: uint64, newLength: uint64, flags: uint32): Result<ProtectedMemoryRange, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["memory.protect"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.memory.protect.remap",
+    "export function remap(address: uint64, oldLength: uint64, newLength: uint64, flags: uint32): Result<ProtectedMemoryRange, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["memory.protect"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.setWriteXorExecute.
 pub const MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
@@ -726,7 +796,22 @@ pub const MEMORY_PROTECT_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
         &["memory.execute"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptors for memory.
 pub const BINDINGS: &[BindingDescriptor] = &[

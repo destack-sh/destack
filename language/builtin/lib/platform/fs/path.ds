@@ -76,7 +76,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.rename", { effect: "external", replay: "recordable", requires: ["fs.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.rename", { effect: "external", replay: "recordable", requires: ["fs.write"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function rename(from: OsPath, to: OsPath): Result<void, PlatformError>;
 
     /// Rename or move a file relative to directory handles.
@@ -96,7 +96,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.renameat", { effect: "external", replay: "recordable", requires: ["fs.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.renameat", { effect: "external", replay: "recordable", requires: ["fs.write"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function renameat(
         fromDir: DirectoryHandle,
         from: OsPath,
@@ -121,7 +121,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.renameat2", { effect: "external", replay: "recordable", requires: ["fs.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.renameat2", { effect: "external", replay: "recordable", requires: ["fs.write"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function renameat2(
         fromDir: DirectoryHandle,
         from: OsPath,
@@ -147,7 +147,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.unlink", { effect: "external", replay: "recordable", requires: ["fs.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.unlink", { effect: "external", replay: "recordable", requires: ["fs.write"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function unlink(path: OsPath): Result<void, PlatformError>;
 
     /// Unlink a file relative to a directory handle.
@@ -167,7 +167,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.unlinkat", { effect: "external", replay: "recordable", requires: ["fs.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.unlinkat", { effect: "external", replay: "recordable", requires: ["fs.write"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function unlinkat(
         dir: DirectoryHandle,
         path: OsPath,
@@ -191,7 +191,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.link", { effect: "external", replay: "recordable", requires: ["fs.link"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.link", { effect: "external", replay: "recordable", requires: ["fs.link"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function link(existingPath: OsPath, newPath: OsPath): Result<void, PlatformError>;
 
     /// Create a hard link relative to directory handles.
@@ -211,7 +211,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.linkat", { effect: "external", replay: "recordable", requires: ["fs.link"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.linkat", { effect: "external", replay: "recordable", requires: ["fs.link"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function linkat(
         existingDir: DirectoryHandle,
         existingPath: OsPath,
@@ -237,7 +237,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.symlink", { effect: "external", replay: "recordable", requires: ["fs.link"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.symlink", { effect: "external", replay: "recordable", requires: ["fs.link"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function symlink(
         target: OsPath,
         path: OsPath,
@@ -261,7 +261,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.symlinkat", { effect: "external", replay: "recordable", requires: ["fs.link"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.symlinkat", { effect: "external", replay: "recordable", requires: ["fs.link"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function symlinkat(
         target: OsPath,
         dir: DirectoryHandle,
@@ -286,7 +286,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.readlink", { effect: "external", replay: "recordable", requires: ["fs.read"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.readlink", { effect: "external", replay: "recordable", requires: ["fs.read"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function readlink(path: OsPath): Result<OsPath, PlatformError>;
 
     /// Read a symbolic link relative to a directory handle.
@@ -306,7 +306,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.readlinkat", { effect: "external", replay: "recordable", requires: ["fs.read"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.readlinkat", { effect: "external", replay: "recordable", requires: ["fs.read"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>;
 
     /// Resolve a path to its canonical form.
@@ -326,7 +326,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.realpath", { effect: "external", replay: "recordable", requires: ["fs.metadata"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.realpath", { effect: "external", replay: "recordable", requires: ["fs.metadata"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function realpath(path: OsPath): Result<OsPath, PlatformError>;
 
     /// Copy a file.
@@ -346,7 +346,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.copyfile", { effect: "external", replay: "recordable", requires: ["fs.read", "fs.write"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.copyfile", { effect: "external", replay: "recordable", requires: ["fs.read", "fs.write"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function copyfile(
         from: OsPath,
         to: OsPath,
@@ -370,7 +370,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.mkfifo", { effect: "external", replay: "recordable", requires: ["fs.special"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.mkfifo", { effect: "external", replay: "recordable", requires: ["fs.special"], platforms: ["unix"], scope: "os", blocking: "sometimes" })
     export function mkfifo(path: OsPath, mode: FileMode): Result<void, PlatformError>;
 
     /// Create a FIFO special file relative to a directory handle.
@@ -390,7 +390,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.mkfifoat", { effect: "external", replay: "recordable", requires: ["fs.special"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.mkfifoat", { effect: "external", replay: "recordable", requires: ["fs.special"], platforms: ["unix"], scope: "os", blocking: "sometimes" })
     export function mkfifoat(
         dir: DirectoryHandle,
         path: OsPath,
@@ -414,7 +414,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.mknod", { effect: "external", replay: "recordable", requires: ["fs.special"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.mknod", { effect: "external", replay: "recordable", requires: ["fs.special"], platforms: ["unix"], scope: "os", blocking: "sometimes" })
     export function mknod(
         path: OsPath,
         mode: FileMode,
@@ -438,7 +438,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.path.mknodat", { effect: "external", replay: "recordable", requires: ["fs.special"], scope: "os", blocking: "sometimes" })
+    @binding("destack.fs.path.mknodat", { effect: "external", replay: "recordable", requires: ["fs.special"], platforms: ["unix"], scope: "os", blocking: "sometimes" })
     export function mknodat(
         dir: DirectoryHandle,
         path: OsPath,

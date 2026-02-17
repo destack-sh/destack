@@ -125,6 +125,8 @@ pub(crate) struct BindingEntry {
     pub replay_payload: ReplayPayload,
     /// Required platform capabilities for this binding.
     pub requires: Vec<String>,
+    /// Host platforms where this binding is supported.
+    pub host_platforms: Vec<String>,
     /// Platform scope for this binding.
     pub scope: BindingScope,
     /// Blocking behavior for this binding.

@@ -460,7 +460,22 @@ pub const DEBUG_CORE_BREAK_NOW: BindingDescriptor =
         &["debug.inspect"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.debug.core.mark.
 pub const DEBUG_CORE_MARK: BindingDescriptor =
@@ -472,31 +487,46 @@ pub const DEBUG_CORE_MARK: BindingDescriptor =
         &["debug.trace"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.debug.inspector.endpoint.
-pub const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.debug.inspector.endpoint",
-        "export function inspectorEndpoint(handle: InspectorHandle): Result<InspectorEndpoint, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["debug.inspect"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.debug.inspector.endpoint",
+    "export function inspectorEndpoint(handle: InspectorHandle): Result<InspectorEndpoint, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["debug.inspect"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.start.
-pub const DEBUG_INSPECTOR_START: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.debug.inspector.start",
-        "export function inspectorStart(host: string, port: uint16): Result<InspectorHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["debug.inspect"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-    );
+pub const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.debug.inspector.start",
+    "export function inspectorStart(host: string, port: uint16): Result<InspectorHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["debug.inspect"],
+    BindingScope::Runtime,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.stop.
 pub const DEBUG_INSPECTOR_STOP: BindingDescriptor =
@@ -508,7 +538,22 @@ pub const DEBUG_INSPECTOR_STOP: BindingDescriptor =
         &["debug.inspect"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.debug.profile.snapshot.
 pub const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
@@ -520,7 +565,22 @@ pub const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
         &["debug.profile"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.debug.profile.start.
 pub const DEBUG_PROFILE_START: BindingDescriptor =
@@ -532,7 +592,22 @@ pub const DEBUG_PROFILE_START: BindingDescriptor =
         &["debug.profile"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.debug.profile.stop.
 pub const DEBUG_PROFILE_STOP: BindingDescriptor =
@@ -544,31 +619,46 @@ pub const DEBUG_PROFILE_STOP: BindingDescriptor =
         &["debug.profile"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.debug.trace.emit.
-pub const DEBUG_TRACE_EMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.debug.trace.emit",
-        "export function traceEmit(category: string, name: string, payloadJson: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["debug.trace"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-    );
+pub const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.debug.trace.emit",
+    "export function traceEmit(category: string, name: string, payloadJson: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["debug.trace"],
+    BindingScope::Runtime,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.start.
-pub const DEBUG_TRACE_START: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.debug.trace.start",
-        "export function traceStart(level: TraceLevel, destination: string): Result<TraceHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["debug.trace"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-    );
+pub const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.debug.trace.start",
+    "export function traceStart(level: TraceLevel, destination: string): Result<TraceHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["debug.trace"],
+    BindingScope::Runtime,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.stop.
 pub const DEBUG_TRACE_STOP: BindingDescriptor =
@@ -580,7 +670,22 @@ pub const DEBUG_TRACE_STOP: BindingDescriptor =
         &["debug.trace"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptors for debug.
 pub const BINDINGS: &[BindingDescriptor] = &[

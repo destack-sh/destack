@@ -25,6 +25,7 @@ declare namespace process {
             effect: "external",
             replay: "recordable",
             requires: ["process.run"],
+            platforms: ["unix", "windows", "wasi"],
             scope: "os",
             blocking: "never",
         },

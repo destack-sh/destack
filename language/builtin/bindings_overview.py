@@ -11,7 +11,15 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
-FIELD_ORDER = ["effect", "replay", "payload", "scope", "blocking", "requires"]
+FIELD_ORDER = [
+    "effect",
+    "replay",
+    "payload",
+    "scope",
+    "blocking",
+    "requires",
+    "platforms",
+]
 
 
 @dataclass
@@ -31,6 +39,7 @@ class BindingRecord:
     scope: str | None
     blocking: str | None
     requires: list[str]
+    platforms: list[str]
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -116,6 +125,17 @@ def parse_requires(block: str) -> list[str]:
     requires_body = match.group(1)
     requires = re.findall(r'"([^"]+)"', requires_body)
     return requires
+
+
+def parse_platforms(block: str) -> list[str]:
+    """Parse the platforms array from one @binding block."""
+    match = re.search(r"platforms\s*:\s*\[([^\]]*)\]", block, re.DOTALL)
+    if match is None:
+        return []
+
+    platforms_body = match.group(1)
+    platforms = re.findall(r'"([^"]+)"', platforms_body)
+    return platforms
 
 
 def parse_function_name(source: str, block_end: int) -> str:
@@ -220,6 +240,7 @@ def collect_records(root: Path, allowed_modules: set[str]) -> list[BindingRecord
                     scope=parse_option_value(block, "scope"),
                     blocking=parse_option_value(block, "blocking"),
                     requires=parse_requires(block),
+                    platforms=parse_platforms(block),
                 )
             )
 
@@ -235,6 +256,7 @@ def render_record_metadata(record: BindingRecord) -> str:
         "scope": record.scope or "-",
         "blocking": record.blocking or "-",
         "requires": ",".join(record.requires) if record.requires else "-",
+        "platforms": ",".join(record.platforms) if record.platforms else "-",
     }
     return " ".join(f"{field}={metadata[field]}" for field in FIELD_ORDER)
 

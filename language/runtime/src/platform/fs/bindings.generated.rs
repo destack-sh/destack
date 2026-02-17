@@ -6851,19 +6851,33 @@ pub const FS_ATTRS_ACCESS: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.attrs.accessat.
-pub const FS_ATTRS_ACCESSAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.accessat",
-        "export function accessat(dir: DirectoryHandle, path: OsPath, mode: AccessMode, flags: AtFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.metadata"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.accessat",
+    "export function accessat(dir: DirectoryHandle, path: OsPath, mode: AccessMode, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.metadata"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.chmod.
 pub const FS_ATTRS_CHMOD: BindingDescriptor =
@@ -6875,19 +6889,33 @@ pub const FS_ATTRS_CHMOD: BindingDescriptor =
         &["fs.chmod"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.attrs.chown.
-pub const FS_ATTRS_CHOWN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.chown",
-        "export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.chown"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.chown",
+    "export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.chown"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchmod.
 pub const FS_ATTRS_FCHMOD: BindingDescriptor =
@@ -6899,91 +6927,105 @@ pub const FS_ATTRS_FCHMOD: BindingDescriptor =
         &["fs.chmod"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.attrs.fchmodat.
-pub const FS_ATTRS_FCHMODAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.fchmodat",
-        "export function fchmodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, flags: AtFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.chmod"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.fchmodat",
+    "export function fchmodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.chmod"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchown.
-pub const FS_ATTRS_FCHOWN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.fchown",
-        "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.chown"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.fchown",
+    "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.chown"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchownat.
-pub const FS_ATTRS_FCHOWNAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.fchownat",
-        "export function fchownat(dir: DirectoryHandle, path: OsPath, uid: uint32, gid: uint32, flags: AtFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.chown"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.fchownat",
+    "export function fchownat(dir: DirectoryHandle, path: OsPath, uid: uint32, gid: uint32, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.chown"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.futimes.
-pub const FS_ATTRS_FUTIMES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.futimes",
-        "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.metadata"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.futimes",
+    "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.metadata"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.lutimes.
-pub const FS_ATTRS_LUTIMES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.lutimes",
-        "export function lutimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.metadata"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.lutimes",
+    "export function lutimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.metadata"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimensat.
-pub const FS_ATTRS_UTIMENSAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.utimensat",
-        "export function utimensat(dir: DirectoryHandle, path: OsPath, atimeNs: uint64, mtimeNs: uint64, flags: AtFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.metadata"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.utimensat",
+    "export function utimensat(dir: DirectoryHandle, path: OsPath, atimeNs: uint64, mtimeNs: uint64, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.metadata"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimes.
-pub const FS_ATTRS_UTIMES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.attrs.utimes",
-        "export function utimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.metadata"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.attrs.utimes",
+    "export function utimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.metadata"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.closedir.
 pub const FS_DIR_CLOSEDIR: BindingDescriptor =
@@ -6995,7 +7037,21 @@ pub const FS_DIR_CLOSEDIR: BindingDescriptor =
         &["fs.handle"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.dirfd.
 pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7006,7 +7062,21 @@ pub const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.dir.mkdir.
 pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7017,19 +7087,33 @@ pub const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.write"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.dir.mkdirat.
-pub const FS_DIR_MKDIRAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.dir.mkdirat",
-        "export function mkdirat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.dir.mkdirat",
+    "export function mkdirat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdtemp.
 pub const FS_DIR_MKDTEMP: BindingDescriptor =
@@ -7041,7 +7125,21 @@ pub const FS_DIR_MKDTEMP: BindingDescriptor =
         &["fs.temp"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.opendir.
 pub const FS_DIR_OPENDIR: BindingDescriptor =
@@ -7053,7 +7151,21 @@ pub const FS_DIR_OPENDIR: BindingDescriptor =
         &["fs.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.readdir.
 pub const FS_DIR_READDIR: BindingDescriptor =
@@ -7065,7 +7177,21 @@ pub const FS_DIR_READDIR: BindingDescriptor =
         &["fs.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.readdirNext.
 pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
@@ -7077,7 +7203,21 @@ pub const FS_DIR_READDIR_NEXT: BindingDescriptor =
         &["fs.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.rewinddir.
 pub const FS_DIR_REWINDDIR: BindingDescriptor =
@@ -7089,7 +7229,21 @@ pub const FS_DIR_REWINDDIR: BindingDescriptor =
         &["fs.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.dir.rmdir.
 pub const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7100,30 +7254,59 @@ pub const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.write"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.file.close.
-pub const FS_FILE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.close",
-    "export function close(handle: FileHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.handle"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
-
-/// Binding descriptor for destack.fs.file.copyFileRange.
-pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor =
+pub const FS_FILE_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.copyFileRange",
-        "export function copyFileRange(src: FileHandle, srcOffset: FileOffset, dst: FileHandle, dstOffset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
+        "destack.fs.file.close",
+        "export function close(handle: FileHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["fs.read", "fs.write"],
+        &["fs.handle"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.fs.file.copyFileRange.
+pub const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.copyFileRange",
+    "export function copyFileRange(src: FileHandle, srcOffset: FileOffset, dst: FileHandle, dstOffset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read", "fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup.
 pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7134,7 +7317,21 @@ pub const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::external_with_requ
     &["fs.handle"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.file.dup2.
 pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7145,7 +7342,8 @@ pub const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup3.
 pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7156,31 +7354,32 @@ pub const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fadvise.
-pub const FS_FILE_FADVISE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.fadvise",
-        "export function fadvise(handle: FileHandle, offset: FileOffset, length: FileSize, advice: FileAdvice): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.metadata"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.fadvise",
+    "export function fadvise(handle: FileHandle, offset: FileOffset, length: FileSize, advice: FileAdvice): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.metadata"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fallocate.
-pub const FS_FILE_FALLOCATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.fallocate",
-        "export function fallocate(handle: FileHandle, offset: FileOffset, length: FileSize, flags: AllocFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.fallocate",
+    "export function fallocate(handle: FileHandle, offset: FileOffset, length: FileSize, flags: AllocFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fdatasync.
 pub const FS_FILE_FDATASYNC: BindingDescriptor =
@@ -7192,30 +7391,59 @@ pub const FS_FILE_FDATASYNC: BindingDescriptor =
         &["fs.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.file.fsync.
-pub const FS_FILE_FSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.file.fsync",
-    "export function fsync(handle: FileHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.sync"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
-
-/// Binding descriptor for destack.fs.file.ftruncate.
-pub const FS_FILE_FTRUNCATE: BindingDescriptor =
+pub const FS_FILE_FSYNC: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.ftruncate",
-        "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
+        "destack.fs.file.fsync",
+        "export function fsync(handle: FileHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["fs.write"],
+        &["fs.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.fs.file.ftruncate.
+pub const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.ftruncate",
+    "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.getFdFlags.
 pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
@@ -7227,7 +7455,21 @@ pub const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
         &["fs.handle"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.file.getStatusFlags.
 pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
@@ -7239,7 +7481,21 @@ pub const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
         &["fs.handle"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.file.lock.
 pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7250,7 +7506,21 @@ pub const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.lock"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.file.open.
 pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7261,31 +7531,32 @@ pub const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.read", "fs.write"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat.
-pub const FS_FILE_OPENAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.openat",
-        "export function openat(dir: DirectoryHandle, path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.read", "fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.openat",
+    "export function openat(dir: DirectoryHandle, path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read", "fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat2.
-pub const FS_FILE_OPENAT2: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.openat2",
-        "export function openat2(dir: DirectoryHandle, path: OsPath, how: OpenOptions): Result<FileHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.read", "fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.openat2",
+    "export function openat2(dir: DirectoryHandle, path: OsPath, how: OpenOptions): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read", "fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pread.
 pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7296,67 +7567,68 @@ pub const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.read"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv.
-pub const FS_FILE_PREADV: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.preadv",
-        "export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.preadv",
+    "export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv2.
-pub const FS_FILE_PREADV2: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.preadv2",
-        "export function preadv2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.preadv2",
+    "export function preadv2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwrite.
-pub const FS_FILE_PWRITE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.pwrite",
-        "export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.pwrite",
+    "export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev.
-pub const FS_FILE_PWRITEV: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.pwritev",
-        "export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.pwritev",
+    "export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev2.
-pub const FS_FILE_PWRITEV2: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.pwritev2",
-        "export function pwritev2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.pwritev2",
+    "export function pwritev2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.read.
 pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7367,7 +7639,21 @@ pub const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.read"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.file.readv.
 pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7378,7 +7664,8 @@ pub const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.read"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.seek.
 pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7389,67 +7676,68 @@ pub const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.handle"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.sendfile.
-pub const FS_FILE_SENDFILE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.sendfile",
-        "export function sendfile(socket: SocketHandle, file: FileHandle, offset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.read", "fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.sendfile",
+    "export function sendfile(socket: SocketHandle, file: FileHandle, offset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read", "fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setFdFlags.
-pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.setFdFlags",
-        "export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.handle"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.setFdFlags",
+    "export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.handle"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setStatusFlags.
-pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.setStatusFlags",
-        "export function setStatusFlags(handle: FileHandle, flags: StatusFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.handle"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.setStatusFlags",
+    "export function setStatusFlags(handle: FileHandle, flags: StatusFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.handle"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.splice.
-pub const FS_FILE_SPLICE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.splice",
-        "export function splice(source: ResourceId, sourceCursor: SpliceCursor, target: ResourceId, targetCursor: SpliceCursor, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.zero.copy"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.splice",
+    "export function splice(source: ResourceId, sourceCursor: SpliceCursor, target: ResourceId, targetCursor: SpliceCursor, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.zero.copy"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncFileRange.
-pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.syncFileRange",
-        "export function syncFileRange(handle: FileHandle, offset: FileOffset, length: FileSize, flags: SyncFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.syncFileRange",
+    "export function syncFileRange(handle: FileHandle, offset: FileOffset, length: FileSize, flags: SyncFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncfs.
 pub const FS_FILE_SYNCFS: BindingDescriptor =
@@ -7461,7 +7749,21 @@ pub const FS_FILE_SYNCFS: BindingDescriptor =
         &["fs.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.file.tee.
 pub const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7472,7 +7774,8 @@ pub const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requ
     &["io.zero.copy"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.truncate.
 pub const FS_FILE_TRUNCATE: BindingDescriptor =
@@ -7484,19 +7787,33 @@ pub const FS_FILE_TRUNCATE: BindingDescriptor =
         &["fs.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.file.vmsplice.
-pub const FS_FILE_VMSPLICE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.vmsplice",
-        "export function vmsplice(pipe: PipeHandle, buffers: Slice<Slice<uint8>>, flags: SpliceFlags): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.zero.copy"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.vmsplice",
+    "export function vmsplice(pipe: PipeHandle, buffers: Slice<Slice<uint8>>, flags: SpliceFlags): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.zero.copy"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.write.
 pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7507,43 +7824,44 @@ pub const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.write"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.file.writev.
-pub const FS_FILE_WRITEV: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.file.writev",
-        "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.file.writev",
+    "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.madvise.
-pub const FS_MMAP_MADVISE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.mmap.madvise",
-        "export function madvise(mapping: Slice<uint8>, advice: MmapAdvice): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.mmap"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.mmap.madvise",
+    "export function madvise(mapping: Slice<uint8>, advice: MmapAdvice): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.mmap"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mprotect.
-pub const FS_MMAP_MPROTECT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.mmap.mprotect",
-        "export function mprotect(mapping: Slice<uint8>, prot: MmapProt): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.mmap"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.mmap.mprotect",
+    "export function mprotect(mapping: Slice<uint8>, prot: MmapProt): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.mmap"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.msync.
 pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7554,7 +7872,8 @@ pub const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.mmap"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.munmap.
 pub const FS_MMAP_MUNMAP: BindingDescriptor =
@@ -7566,19 +7885,33 @@ pub const FS_MMAP_MUNMAP: BindingDescriptor =
         &["fs.mmap"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.mmapAnonymous.
-pub const FS_MMAP_ANONYMOUS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.mmapAnonymous",
-        "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.mmap"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.mmapAnonymous",
+    "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.mmap"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.mmapFile.
 pub const FS_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7589,19 +7922,20 @@ pub const FS_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.mmap"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.copyfile.
-pub const FS_PATH_COPYFILE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.copyfile",
-        "export function copyfile(from: OsPath, to: OsPath, flags: CopyFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.read", "fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.copyfile",
+    "export function copyfile(from: OsPath, to: OsPath, flags: CopyFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read", "fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.link.
 pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7612,19 +7946,33 @@ pub const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.link"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.path.linkat.
-pub const FS_PATH_LINKAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.linkat",
-        "export function linkat(existingDir: DirectoryHandle, existingPath: OsPath, newDir: DirectoryHandle, newPath: OsPath, flags: AtFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.link"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.linkat",
+    "export function linkat(existingDir: DirectoryHandle, existingPath: OsPath, newDir: DirectoryHandle, newPath: OsPath, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.link"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.mkfifo.
 pub const FS_PATH_MKFIFO: BindingDescriptor =
@@ -7636,19 +7984,32 @@ pub const FS_PATH_MKFIFO: BindingDescriptor =
         &["fs.special"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+    ]);
 
 /// Binding descriptor for destack.fs.path.mkfifoat.
-pub const FS_PATH_MKFIFOAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.mkfifoat",
-        "export function mkfifoat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.special"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.mkfifoat",
+    "export function mkfifoat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.special"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.mknod.
 pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7659,19 +8020,20 @@ pub const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.special"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.mknodat.
-pub const FS_PATH_MKNODAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.mknodat",
-        "export function mknodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.special"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.mknodat",
+    "export function mknodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.special"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.fs.path.readlink.
 pub const FS_PATH_READLINK: BindingDescriptor =
@@ -7683,19 +8045,33 @@ pub const FS_PATH_READLINK: BindingDescriptor =
         &["fs.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.path.readlinkat.
-pub const FS_PATH_READLINKAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.readlinkat",
-        "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.readlinkat",
+    "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.realpath.
 pub const FS_PATH_REALPATH: BindingDescriptor =
@@ -7707,7 +8083,21 @@ pub const FS_PATH_REALPATH: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.path.rename.
 pub const FS_PATH_RENAME: BindingDescriptor =
@@ -7719,55 +8109,69 @@ pub const FS_PATH_RENAME: BindingDescriptor =
         &["fs.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.path.renameat.
-pub const FS_PATH_RENAMEAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.renameat",
-        "export function renameat(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.renameat",
+    "export function renameat(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.renameat2.
-pub const FS_PATH_RENAMEAT2: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.renameat2",
-        "export function renameat2(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath, flags: RenameFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.renameat2",
+    "export function renameat2(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath, flags: RenameFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlink.
-pub const FS_PATH_SYMLINK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.symlink",
-        "export function symlink(target: OsPath, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.link"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.symlink",
+    "export function symlink(target: OsPath, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.link"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlinkat.
-pub const FS_PATH_SYMLINKAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.symlinkat",
-        "export function symlinkat(target: OsPath, dir: DirectoryHandle, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.link"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.symlinkat",
+    "export function symlinkat(target: OsPath, dir: DirectoryHandle, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.link"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.path.unlink.
 pub const FS_PATH_UNLINK: BindingDescriptor =
@@ -7779,30 +8183,59 @@ pub const FS_PATH_UNLINK: BindingDescriptor =
         &["fs.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.path.unlinkat.
-pub const FS_PATH_UNLINKAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.path.unlinkat",
-        "export function unlinkat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
-
-/// Binding descriptor for destack.fs.stat.fstat.
-pub const FS_STAT_FSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.fstat",
-    "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
+pub const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.path.unlinkat",
+    "export function unlinkat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["fs.metadata"],
+    &["fs.write"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.fs.stat.fstat.
+pub const FS_STAT_FSTAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.stat.fstat",
+        "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.stat.fstatfs.
 pub const FS_STAT_FSTATFS: BindingDescriptor =
@@ -7814,18 +8247,47 @@ pub const FS_STAT_FSTATFS: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.stat.lstat.
-pub const FS_STAT_LSTAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.stat.lstat",
-    "export function lstat(path: OsPath): Result<Stat, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.metadata"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_STAT_LSTAT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.stat.lstat",
+        "export function lstat(path: OsPath): Result<Stat, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.metadata"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.stat.stat.
 pub const FS_STAT_STAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7836,19 +8298,33 @@ pub const FS_STAT_STAT: BindingDescriptor = BindingDescriptor::external_with_req
     &["fs.metadata"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.fs.stat.statat.
-pub const FS_STAT_STATAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.stat.statat",
-        "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.metadata"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_STAT_STATAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.stat.statat",
+    "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.metadata"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.statfs.
 pub const FS_STAT_STATFS: BindingDescriptor =
@@ -7860,7 +8336,21 @@ pub const FS_STAT_STATFS: BindingDescriptor =
         &["fs.metadata"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.stat.statx.
 pub const FS_STAT_STATX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7871,7 +8361,8 @@ pub const FS_STAT_STATX: BindingDescriptor = BindingDescriptor::external_with_re
     &["fs.metadata"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.
 pub const FS_WATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7882,7 +8373,8 @@ pub const FS_WATCH: BindingDescriptor = BindingDescriptor::external_with_require
     &["fs.watch"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "macos", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.fs.watchClose.
 pub const FS_WATCH_CLOSE: BindingDescriptor =
@@ -7894,18 +8386,37 @@ pub const FS_WATCH_CLOSE: BindingDescriptor =
         &["fs.watch"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.watchRead.
-pub const FS_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.fs.watchRead",
-    "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["fs.watch"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const FS_WATCH_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.fs.watchRead",
+        "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["fs.watch"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.watchat.
 pub const FS_WATCHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7916,31 +8427,32 @@ pub const FS_WATCHAT: BindingDescriptor = BindingDescriptor::external_with_requi
     &["fs.watch"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "macos", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
-pub const FS_XATTR_FGETXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.fgetxattr",
-        "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.fgetxattr",
+    "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
-pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.fgetxattrBytes",
-        "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.fgetxattrBytes",
+    "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattr.
 pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
@@ -7952,7 +8464,21 @@ pub const FS_XATTR_FLISTXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattrBytes.
 pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
@@ -7964,55 +8490,69 @@ pub const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattr.
-pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.fremovexattr",
-        "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.fremovexattr",
+    "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattrBytes.
-pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.fremovexattrBytes",
-        "export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.fremovexattrBytes",
+    "export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattr.
-pub const FS_XATTR_FSETXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.fsetxattr",
-        "export function fsetxattr(handle: FileHandle, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.fsetxattr",
+    "export function fsetxattr(handle: FileHandle, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattrBytes.
-pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.fsetxattrBytes",
-        "export function fsetxattrBytes(handle: FileHandle, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.fsetxattrBytes",
+    "export function fsetxattrBytes(handle: FileHandle, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.getxattr.
 pub const FS_XATTR_GETXATTR: BindingDescriptor =
@@ -8024,19 +8564,33 @@ pub const FS_XATTR_GETXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.getxattrBytes.
-pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.getxattrBytes",
-        "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.getxattrBytes",
+    "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
 pub const FS_XATTR_LGETXATTR: BindingDescriptor =
@@ -8048,19 +8602,33 @@ pub const FS_XATTR_LGETXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattrBytes.
-pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.lgetxattrBytes",
-        "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.lgetxattrBytes",
+    "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.listxattr.
 pub const FS_XATTR_LISTXATTR: BindingDescriptor =
@@ -8072,7 +8640,21 @@ pub const FS_XATTR_LISTXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.listxattrBytes.
 pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
@@ -8084,7 +8666,21 @@ pub const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattr.
 pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
@@ -8096,7 +8692,21 @@ pub const FS_XATTR_LLISTXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattrBytes.
 pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
@@ -8108,7 +8718,21 @@ pub const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattr.
 pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
@@ -8120,43 +8744,57 @@ pub const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattrBytes.
-pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.lremovexattrBytes",
-        "export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.lremovexattrBytes",
+    "export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattr.
-pub const FS_XATTR_LSETXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.lsetxattr",
-        "export function lsetxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.lsetxattr",
+    "export function lsetxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattrBytes.
-pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.lsetxattrBytes",
-        "export function lsetxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.lsetxattrBytes",
+    "export function lsetxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.removexattr.
 pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
@@ -8168,43 +8806,57 @@ pub const FS_XATTR_REMOVEXATTR: BindingDescriptor =
         &["fs.xattr"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.fs.xattr.removexattrBytes.
-pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.removexattrBytes",
-        "export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.removexattrBytes",
+    "export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattr.
-pub const FS_XATTR_SETXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.setxattr",
-        "export function setxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.setxattr",
+    "export function setxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattrBytes.
-pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.fs.xattr.setxattrBytes",
-        "export function setxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["fs.xattr"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.fs.xattr.setxattrBytes",
+    "export function setxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["fs.xattr"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for fs.
 pub const BINDINGS: &[BindingDescriptor] = &[

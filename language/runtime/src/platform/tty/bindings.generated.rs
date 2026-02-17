@@ -412,7 +412,21 @@ pub const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requ
     &["tty.read"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.tty.io.write.
 pub const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -423,7 +437,21 @@ pub const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_req
     &["tty.write"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.tty.mode.getMode.
 pub const TTY_MODE_GET_MODE: BindingDescriptor =
@@ -435,7 +463,21 @@ pub const TTY_MODE_GET_MODE: BindingDescriptor =
         &["tty.mode"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.tty.mode.setMode.
 pub const TTY_MODE_SET_MODE: BindingDescriptor =
@@ -447,18 +489,47 @@ pub const TTY_MODE_SET_MODE: BindingDescriptor =
         &["tty.mode"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.tty.pty.close.
-pub const TTY_PTY_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.tty.pty.close",
-    "export function ptyClose(handle: PtyHandle): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["tty.mode"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const TTY_PTY_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.tty.pty.close",
+        "export function ptyClose(handle: PtyHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["tty.mode"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.tty.pty.open.
 pub const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -469,7 +540,8 @@ pub const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     &["tty.mode"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.tty.size.getSize.
 pub const TTY_SIZE_GET_SIZE: BindingDescriptor =
@@ -481,7 +553,21 @@ pub const TTY_SIZE_GET_SIZE: BindingDescriptor =
         &["tty.size"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.tty.size.setSize.
 pub const TTY_SIZE_SET_SIZE: BindingDescriptor =
@@ -493,7 +579,21 @@ pub const TTY_SIZE_SET_SIZE: BindingDescriptor =
         &["tty.size"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptors for tty.
 pub const BINDINGS: &[BindingDescriptor] = &[

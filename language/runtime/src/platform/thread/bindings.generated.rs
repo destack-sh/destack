@@ -828,7 +828,22 @@ pub const THREAD_LOCAL_CREATE: BindingDescriptor =
         &["thread.local"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.local.delete.
 pub const THREAD_LOCAL_DELETE: BindingDescriptor =
@@ -840,7 +855,22 @@ pub const THREAD_LOCAL_DELETE: BindingDescriptor =
         &["thread.local"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.local.get.
 pub const THREAD_LOCAL_GET: BindingDescriptor =
@@ -852,7 +882,22 @@ pub const THREAD_LOCAL_GET: BindingDescriptor =
         &["thread.local"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.local.set.
 pub const THREAD_LOCAL_SET: BindingDescriptor =
@@ -864,7 +909,22 @@ pub const THREAD_LOCAL_SET: BindingDescriptor =
         &["thread.local"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.priority.getAffinity.
 pub const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
@@ -876,7 +936,21 @@ pub const THREAD_PRIORITY_GET_AFFINITY: BindingDescriptor =
         &["thread.priority"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.priority.getPriority.
 pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
@@ -888,31 +962,45 @@ pub const THREAD_PRIORITY_GET_PRIORITY: BindingDescriptor =
         &["thread.priority"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.priority.setAffinity.
-pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.priority.setAffinity",
-        "export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.priority"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_PRIORITY_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.priority.setAffinity",
+    "export function setAffinity(handle: ThreadHandle, mask: uint64): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.priority"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.priority.setPriority.
-pub const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.priority.setPriority",
-        "export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.priority"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_PRIORITY_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.priority.setPriority",
+    "export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.priority"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.detach.
 pub const THREAD_SPAWN_DETACH: BindingDescriptor =
@@ -924,7 +1012,22 @@ pub const THREAD_SPAWN_DETACH: BindingDescriptor =
         &["thread.spawn"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.spawn.join.
 pub const THREAD_SPAWN_JOIN: BindingDescriptor =
@@ -936,31 +1039,46 @@ pub const THREAD_SPAWN_JOIN: BindingDescriptor =
         &["thread.spawn"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.spawn.spawn.
-pub const THREAD_SPAWN_SPAWN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.spawn.spawn",
-        "export function spawn(entry: string, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.spawn"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SPAWN_SPAWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.spawn.spawn",
+    "export function spawn(entry: string, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.spawn"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.addressWait.
-pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.addressWait",
-        "export function addressWait(address: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.wait"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.addressWait",
+    "export function addressWait(address: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.wait"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.addressWakeAll.
 pub const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
@@ -972,7 +1090,21 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ALL: BindingDescriptor =
         &["thread.wait"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.addressWakeOne.
 pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
@@ -984,31 +1116,45 @@ pub const THREAD_SYNC_ADDRESS_WAKE_ONE: BindingDescriptor =
         &["thread.wait"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.barrierCreate.
-pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.barrierCreate",
-        "export function barrierCreate(participants: uint32, flags: uint32): Result<BarrierHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_BARRIER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.barrierCreate",
+    "export function barrierCreate(participants: uint32, flags: uint32): Result<BarrierHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.barrierWait.
-pub const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.barrierWait",
-        "export function barrierWait(handle: BarrierHandle, timeoutNs: uint64): Result<boolean, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_BARRIER_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.barrierWait",
+    "export function barrierWait(handle: BarrierHandle, timeoutNs: uint64): Result<boolean, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.condVarCreate.
 pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
@@ -1020,7 +1166,22 @@ pub const THREAD_SYNC_COND_VAR_CREATE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.condVarNotifyAll.
 pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
@@ -1032,7 +1193,22 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ALL: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.condVarNotifyOne.
 pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
@@ -1044,19 +1220,34 @@ pub const THREAD_SYNC_COND_VAR_NOTIFY_ONE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.condVarWait.
-pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.condVarWait",
-        "export function condVarWait(condVar: CondVarHandle, mutex: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_COND_VAR_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.condVarWait",
+    "export function condVarWait(condVar: CondVarHandle, mutex: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexCreate.
 pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
@@ -1068,19 +1259,34 @@ pub const THREAD_SYNC_MUTEX_CREATE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.mutexLock.
-pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.mutexLock",
-        "export function mutexLock(handle: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_MUTEX_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.mutexLock",
+    "export function mutexLock(handle: MutexHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.mutexUnlock.
 pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
@@ -1092,7 +1298,22 @@ pub const THREAD_SYNC_MUTEX_UNLOCK: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.rwlockCreate.
 pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
@@ -1104,19 +1325,34 @@ pub const THREAD_SYNC_RWLOCK_CREATE: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.rwlockReadLock.
-pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.rwlockReadLock",
-        "export function rwlockReadLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_RWLOCK_READ_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.rwlockReadLock",
+    "export function rwlockReadLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.rwlockUnlock.
 pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
@@ -1128,55 +1364,70 @@ pub const THREAD_SYNC_RWLOCK_UNLOCK: BindingDescriptor =
         &["thread.sync"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.thread.sync.rwlockWriteLock.
-pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.rwlockWriteLock",
-        "export function rwlockWriteLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_RWLOCK_WRITE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.rwlockWriteLock",
+    "export function rwlockWriteLock(handle: RwLockHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreCreate.
-pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.semaphoreCreate",
-        "export function semaphoreCreate(initial: uint32, maximum: uint32, flags: uint32): Result<ThreadSemaphoreHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.semaphoreCreate",
+    "export function semaphoreCreate(initial: uint32, maximum: uint32, flags: uint32): Result<ThreadSemaphoreHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphorePost.
-pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.semaphorePost",
-        "export function semaphorePost(handle: ThreadSemaphoreHandle, count: uint32): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.semaphorePost",
+    "export function semaphorePost(handle: ThreadSemaphoreHandle, count: uint32): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.thread.sync.semaphoreWait.
-pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.thread.sync.semaphoreWait",
-        "export function semaphoreWait(handle: ThreadSemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["thread.sync"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const THREAD_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.thread.sync.semaphoreWait",
+    "export function semaphoreWait(handle: ThreadSemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["thread.sync"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptors for thread.
 pub const BINDINGS: &[BindingDescriptor] = &[

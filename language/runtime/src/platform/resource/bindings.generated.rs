@@ -191,7 +191,22 @@ pub const RESOURCE_ID_CLOSE: BindingDescriptor =
         &["resource.close"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.resource.id.kind.
 pub const RESOURCE_ID_KIND: BindingDescriptor =
@@ -201,7 +216,22 @@ pub const RESOURCE_ID_KIND: BindingDescriptor =
         &["resource.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.resource.id.remove.
 pub const RESOURCE_ID_REMOVE: BindingDescriptor =
@@ -211,17 +241,32 @@ pub const RESOURCE_ID_REMOVE: BindingDescriptor =
         &["resource.manage"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.resource.id.transfer.
-pub const RESOURCE_ID_TRANSFER: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.resource.id.transfer",
-        "export function transfer(id: ResourceId, ownership: ResourceOwnership): Result<void, PlatformError>",
-        &["resource.transfer"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+    "destack.resource.id.transfer",
+    "export function transfer(id: ResourceId, ownership: ResourceOwnership): Result<void, PlatformError>",
+    &["resource.transfer"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptors for resource.
 pub const BINDINGS: &[BindingDescriptor] = &[

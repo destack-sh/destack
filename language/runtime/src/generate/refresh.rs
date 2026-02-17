@@ -385,8 +385,38 @@ fn render_binding_docs(entry: &BindingEntry, extern_name: &str) -> Vec<String> {
         return vec![format!("/// Binding for `{extern_name}`.")];
     };
 
+    let mut lines = documentation
+        .lines()
+        .map(|line| line.trim_end().to_string())
+        .collect::<Vec<_>>();
+
+    // restore paragraph spacing when the doc stream has no explicit blank lines
+    if lines.iter().all(|line| !line.trim().is_empty()) && lines.len() > 1 {
+        let mut normalized = Vec::with_capacity(lines.len() + 8);
+        normalized.push(lines[0].clone());
+
+        let second_line = lines[1].trim();
+        if !second_line.starts_with('#') {
+            normalized.push(String::new());
+        }
+
+        for line in lines.into_iter().skip(1) {
+            let is_heading = line.trim_start().starts_with('#');
+            if is_heading
+                && normalized
+                    .last()
+                    .is_some_and(|last| !last.trim().is_empty())
+            {
+                normalized.push(String::new());
+            }
+            normalized.push(line);
+        }
+
+        lines = normalized;
+    }
+
     let mut docs = Vec::new();
-    for line in documentation.lines() {
+    for line in lines {
         if line.trim().is_empty() {
             docs.push("///".to_string());
         } else {

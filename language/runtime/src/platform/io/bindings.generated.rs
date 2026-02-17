@@ -1122,16 +1122,16 @@ struct IoUringUnregisterFilesReplay {
 }
 
 /// Binding descriptor for destack.io.completion.cancel.
-pub const IO_COMPLETION_CANCEL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completion.cancel",
-        "export function completionCancel(handle: CompletionHandle, target: ResourceId): Result<uint32, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.completion"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.completion.cancel",
+    "export function completionCancel(handle: CompletionHandle, target: ResourceId): Result<uint32, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.completion"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.close.
 pub const IO_COMPLETION_CLOSE: BindingDescriptor =
@@ -1143,19 +1143,33 @@ pub const IO_COMPLETION_CLOSE: BindingDescriptor =
         &["io.completion"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.io.completion.enter.
-pub const IO_COMPLETION_ENTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completion.enter",
-        "export function completionEnter(handle: CompletionHandle, minComplete: uint32, timeoutNs: uint64, flags: uint32): Result<uint32, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.submit"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.completion.enter",
+    "export function completionEnter(handle: CompletionHandle, minComplete: uint32, timeoutNs: uint64, flags: uint32): Result<uint32, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.submit"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.open.
 pub const IO_COMPLETION_OPEN: BindingDescriptor =
@@ -1167,79 +1181,93 @@ pub const IO_COMPLETION_OPEN: BindingDescriptor =
         &["io.completion"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.io.completion.submit.
-pub const IO_COMPLETION_SUBMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completion.submit",
-        "export function completionSubmit(handle: CompletionHandle, operation: CompletionOperation): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.submit"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.completion.submit",
+    "export function completionSubmit(handle: CompletionHandle, operation: CompletionOperation): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.submit"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.submitBatch.
-pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completion.submitBatch",
-        "export function completionSubmitBatch(handle: CompletionHandle, operationWords: Slice<uint64>, operationCount: uint32, operationWordStride: uint32): Result<uint32, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.submit"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.completion.submitBatch",
+    "export function completionSubmitBatch(handle: CompletionHandle, operationWords: Slice<uint64>, operationCount: uint32, operationWordStride: uint32): Result<uint32, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.submit"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.completion.wait.
-pub const IO_COMPLETION_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.completion.wait",
-        "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.completion"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.completion.wait",
+    "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.completion"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.control.fcntl.
-pub const IO_CONTROL_FCNTL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.control.fcntl",
-        "export function controlFcntl(handle: ResourceId, command: DescriptorControlCommand, argument: uint64, flags: DescriptorControlFlags): Result<int64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.control"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.control.fcntl",
+    "export function controlFcntl(handle: ResourceId, command: DescriptorControlCommand, argument: uint64, flags: DescriptorControlFlags): Result<int64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.control.ioctl.
-pub const IO_CONTROL_IOCTL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.control.ioctl",
-        "export function controlIoctl(handle: ResourceId, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.control"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.control.ioctl",
+    "export function controlIoctl(handle: ResourceId, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.event.attach.
-pub const IO_EVENT_ATTACH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.event.attach",
-        "export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.event"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.event.attach",
+    "export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.event"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.event.close.
 pub const IO_EVENT_CLOSE: BindingDescriptor =
@@ -1251,53 +1279,97 @@ pub const IO_EVENT_CLOSE: BindingDescriptor =
         &["io.event"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.io.event.open.
-pub const IO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.event.open",
-    "export function eventOpen(initial: uint64): Result<EventToken, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["io.event"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
-
-/// Binding descriptor for destack.io.event.signal.
-pub const IO_EVENT_SIGNAL: BindingDescriptor =
+pub const IO_EVENT_OPEN: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.event.signal",
-        "export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>",
+        "destack.io.event.open",
+        "export function eventOpen(initial: uint64): Result<EventToken, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.event"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
-/// Binding descriptor for destack.io.poll.close.
-pub const IO_POLL_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.io.poll.close",
-    "export function pollClose(handle: PollHandle): Result<void, PlatformError>",
+/// Binding descriptor for destack.io.event.signal.
+pub const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.event.signal",
+    "export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["io.poll"],
+    &["io.event"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.io.poll.deregister.
-pub const IO_POLL_DEREGISTER: BindingDescriptor =
+/// Binding descriptor for destack.io.poll.close.
+pub const IO_POLL_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.poll.deregister",
-        "export function pollDeregister(handle: PollHandle, target: ResourceId): Result<void, PlatformError>",
+        "destack.io.poll.close",
+        "export function pollClose(handle: PollHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["io.poll"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.io.poll.deregister.
+pub const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.poll.deregister",
+    "export function pollDeregister(handle: PollHandle, target: ResourceId): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.poll"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.open.
 pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1308,31 +1380,45 @@ pub const IO_POLL_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     &["io.poll"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.io.poll.register.
-pub const IO_POLL_REGISTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.poll.register",
-        "export function pollRegister(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.poll"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.poll.register",
+    "export function pollRegister(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.poll"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.update.
-pub const IO_POLL_UPDATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.poll.update",
-        "export function pollUpdate(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.poll"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.poll.update",
+    "export function pollUpdate(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.poll"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.poll.wait.
 pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1343,7 +1429,8 @@ pub const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_req
     &["io.poll"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.io.uring.close.
 pub const IO_URING_CLOSE: BindingDescriptor =
@@ -1355,7 +1442,8 @@ pub const IO_URING_CLOSE: BindingDescriptor =
         &["io.uring"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.features.
 pub const IO_URING_FEATURES: BindingDescriptor =
@@ -1367,7 +1455,8 @@ pub const IO_URING_FEATURES: BindingDescriptor =
         &["io.uring"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.open.
 pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1378,31 +1467,32 @@ pub const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     &["io.uring"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerBuffers.
-pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.uring.registerBuffers",
-        "export function uringRegisterBuffers(handle: UringHandle, addresses: Slice<uint64>, lengths: Slice<uint32>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.register"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.uring.registerBuffers",
+    "export function uringRegisterBuffers(handle: UringHandle, addresses: Slice<uint64>, lengths: Slice<uint32>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.register"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerFiles.
-pub const IO_URING_REGISTER_FILES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.io.uring.registerFiles",
-        "export function uringRegisterFiles(handle: UringHandle, files: Slice<ResourceId>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["io.register"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.uring.registerFiles",
+    "export function uringRegisterFiles(handle: UringHandle, files: Slice<ResourceId>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.register"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterBuffers.
 pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
@@ -1414,7 +1504,8 @@ pub const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
         &["io.register"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterFiles.
 pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
@@ -1426,7 +1517,8 @@ pub const IO_URING_UNREGISTER_FILES: BindingDescriptor =
         &["io.register"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptors for io.
 pub const BINDINGS: &[BindingDescriptor] = &[

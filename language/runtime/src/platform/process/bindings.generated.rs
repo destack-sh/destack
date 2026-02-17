@@ -2987,7 +2987,22 @@ pub const PROCESS_ARGS_ARGS: BindingDescriptor =
         &["process.run"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.cwd.chdir.
 pub const PROCESS_CWD_CHDIR: BindingDescriptor =
@@ -2999,7 +3014,21 @@ pub const PROCESS_CWD_CHDIR: BindingDescriptor =
         &["process.workdir.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.cwd.cwd.
 pub const PROCESS_CWD_CWD: BindingDescriptor =
@@ -3011,7 +3040,21 @@ pub const PROCESS_CWD_CWD: BindingDescriptor =
         &["process.workdir.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.env.delete.
 pub const PROCESS_ENV_DELETE: BindingDescriptor =
@@ -3023,7 +3066,22 @@ pub const PROCESS_ENV_DELETE: BindingDescriptor =
         &["env.write"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.env.deleteBytes.
 pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
@@ -3035,7 +3093,22 @@ pub const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
         &["env.write"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.env.get.
 pub const PROCESS_ENV_GET: BindingDescriptor =
@@ -3047,7 +3120,22 @@ pub const PROCESS_ENV_GET: BindingDescriptor =
         &["env.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.env.getBytes.
 pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
@@ -3059,7 +3147,22 @@ pub const PROCESS_ENV_GET_BYTES: BindingDescriptor =
         &["env.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.env.set.
 pub const PROCESS_ENV_SET: BindingDescriptor =
@@ -3071,55 +3174,70 @@ pub const PROCESS_ENV_SET: BindingDescriptor =
         &["env.write"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.env.setBytes.
-pub const PROCESS_ENV_SET_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.env.setBytes",
-        "export function envSetBytes(name: Slice<uint8>, value: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["env.write"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.env.setBytes",
+    "export function envSetBytes(name: Slice<uint8>, value: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["env.write"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.process.exec.exec.
-pub const PROCESS_EXEC_EXEC: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.exec.exec",
-        "export function exec(command: OsPath, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.exec"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_EXEC_EXEC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.exec.exec",
+    "export function exec(command: OsPath, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.exec"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.execat.
-pub const PROCESS_EXEC_EXECAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.exec.execat",
-        "export function execat(directory: DirectoryHandle, path: OsPath, arguments: Slice<string>, environment: Slice<string>, flags: ExecAtFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.exec"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_EXEC_EXECAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.exec.execat",
+    "export function execat(directory: DirectoryHandle, path: OsPath, arguments: Slice<string>, environment: Slice<string>, flags: ExecAtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.exec"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exec.fexec.
-pub const PROCESS_EXEC_FEXEC: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.exec.fexec",
-        "export function fexec(executable: FileHandle, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.exec"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.exec.fexec",
+    "export function fexec(executable: FileHandle, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.exec"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.exit.exit.
 pub const PROCESS_EXIT_EXIT: BindingDescriptor =
@@ -3131,7 +3249,22 @@ pub const PROCESS_EXIT_EXIT: BindingDescriptor =
         &["process.run"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.fd.processFdClose.
 pub const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
@@ -3143,55 +3276,69 @@ pub const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
         &["process.handle"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.fd.processFdOpen.
-pub const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.fd.processFdOpen",
-        "export function processFdOpen(pid: ProcessId, flags: ProcessFdFlags): Result<ProcessFdHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.handle"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.fd.processFdOpen",
+    "export function processFdOpen(pid: ProcessId, flags: ProcessFdFlags): Result<ProcessFdHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.handle"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdSendSignal.
-pub const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.fd.processFdSendSignal",
-        "export function processFdSendSignal(handle: ProcessFdHandle, signal: Signal, flags: ProcessFdSignalFlags): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.signal.send"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.fd.processFdSendSignal",
+    "export function processFdSendSignal(handle: ProcessFdHandle, signal: Signal, flags: ProcessFdSignalFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.signal.send"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdTryWait.
-pub const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.fd.processFdTryWait",
-        "export function processFdTryWait(handle: ProcessFdHandle): Result<ProcessWaitStatus, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.wait"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.fd.processFdTryWait",
+    "export function processFdTryWait(handle: ProcessFdHandle): Result<ProcessWaitStatus, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.wait"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdWait.
-pub const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.fd.processFdWait",
-        "export function processFdWait(handle: ProcessFdHandle, timeoutNs: uint64): Result<ProcessWaitStatus, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.wait"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.fd.processFdWait",
+    "export function processFdWait(handle: ProcessFdHandle, timeoutNs: uint64): Result<ProcessWaitStatus, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.wait"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdClose.
 pub const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
@@ -3203,19 +3350,33 @@ pub const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.fd.signalFdOpen.
-pub const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.fd.signalFdOpen",
-        "export function signalFdOpen(signals: Slice<Signal>, flags: SignalFdFlags): Result<SignalFdHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.signal.receive"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.fd.signalFdOpen",
+    "export function signalFdOpen(signals: Slice<Signal>, flags: SignalFdFlags): Result<SignalFdHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.signal.receive"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdRead.
 pub const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
@@ -3227,43 +3388,57 @@ pub const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.fd.signalFdSetMask.
-pub const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.fd.signalFdSetMask",
-        "export function signalFdSetMask(handle: SignalFdHandle, signals: Slice<Signal>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.signal.receive"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.fd.signalFdSetMask",
+    "export function signalFdSetMask(handle: SignalFdHandle, signals: Slice<Signal>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.signal.receive"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdTryRead.
-pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.fd.signalFdTryRead",
-        "export function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.signal.receive"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.fd.signalFdTryRead",
+    "export function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.signal.receive"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.group.cgroupGetLimit.
-pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.group.cgroupGetLimit",
-        "export function cgroupGetLimit(path: string, resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["process.cgroup"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.group.cgroupGetLimit",
+    "export function cgroupGetLimit(path: string, resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["process.cgroup"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupJoin.
 pub const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
@@ -3275,43 +3450,44 @@ pub const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
         &["process.cgroup"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupSetLimit.
-pub const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.group.cgroupSetLimit",
-        "export function cgroupSetLimit(path: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["process.cgroup"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.group.cgroupSetLimit",
+    "export function cgroupSetLimit(path: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["process.cgroup"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.jobAssign.
-pub const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.group.jobAssign",
-        "export function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["process.cgroup"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.group.jobAssign",
+    "export function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["process.cgroup"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.group.jobSetLimit.
-pub const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.group.jobSetLimit",
-        "export function jobSetLimit(name: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["process.cgroup"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.group.jobSetLimit",
+    "export function jobSetLimit(name: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["process.cgroup"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.ids.egid.
 pub const PROCESS_IDS_EGID: BindingDescriptor =
@@ -3323,7 +3499,21 @@ pub const PROCESS_IDS_EGID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.euid.
 pub const PROCESS_IDS_EUID: BindingDescriptor =
@@ -3335,7 +3525,21 @@ pub const PROCESS_IDS_EUID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.gid.
 pub const PROCESS_IDS_GID: BindingDescriptor =
@@ -3347,7 +3551,21 @@ pub const PROCESS_IDS_GID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.groupIds.
 pub const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
@@ -3359,7 +3577,21 @@ pub const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.groups.
 pub const PROCESS_IDS_GROUPS: BindingDescriptor =
@@ -3371,7 +3603,21 @@ pub const PROCESS_IDS_GROUPS: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.pid.
 pub const PROCESS_IDS_PID: BindingDescriptor =
@@ -3383,7 +3629,21 @@ pub const PROCESS_IDS_PID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.ppid.
 pub const PROCESS_IDS_PPID: BindingDescriptor =
@@ -3395,7 +3655,21 @@ pub const PROCESS_IDS_PPID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.setEgid.
 pub const PROCESS_IDS_SET_EGID: BindingDescriptor =
@@ -3407,7 +3681,21 @@ pub const PROCESS_IDS_SET_EGID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.setEuid.
 pub const PROCESS_IDS_SET_EUID: BindingDescriptor =
@@ -3419,7 +3707,21 @@ pub const PROCESS_IDS_SET_EUID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.setGid.
 pub const PROCESS_IDS_SET_GID: BindingDescriptor =
@@ -3431,7 +3733,21 @@ pub const PROCESS_IDS_SET_GID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.setGroupIds.
 pub const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
@@ -3443,7 +3759,21 @@ pub const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.setGroups.
 pub const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
@@ -3455,7 +3785,21 @@ pub const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.setUid.
 pub const PROCESS_IDS_SET_UID: BindingDescriptor =
@@ -3467,7 +3811,21 @@ pub const PROCESS_IDS_SET_UID: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.setUserIds.
 pub const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
@@ -3479,7 +3837,21 @@ pub const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.uid.
 pub const PROCESS_IDS_UID: BindingDescriptor =
@@ -3491,7 +3863,21 @@ pub const PROCESS_IDS_UID: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.ids.userIds.
 pub const PROCESS_IDS_USER_IDS: BindingDescriptor =
@@ -3503,7 +3889,21 @@ pub const PROCESS_IDS_USER_IDS: BindingDescriptor =
         &["process.identity.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.isolation.chroot.
 pub const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
@@ -3515,19 +3915,32 @@ pub const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
         &["security.restrict"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+    ]);
 
 /// Binding descriptor for destack.process.isolation.installSyscallFilter.
-pub const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.isolation.installSyscallFilter",
-        "export function installSyscallFilter(program: uint8[], flags: SyscallFilterFlags): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["security.filter"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.isolation.installSyscallFilter",
+    "export function installSyscallFilter(program: uint8[], flags: SyscallFilterFlags): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["security.filter"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setHostName.
 pub const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
@@ -3539,7 +3952,21 @@ pub const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
         &["process.namespace"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.isolation.setNetworkNamespace.
 pub const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
@@ -3551,19 +3978,20 @@ pub const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
         &["process.namespace"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setns.
-pub const PROCESS_ISOLATION_SETNS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.isolation.setns",
-        "export function setns(pid: ProcessId, namespace: ProcessNamespaceKind): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["process.namespace"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.isolation.setns",
+    "export function setns(pid: ProcessId, namespace: ProcessNamespaceKind): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["process.namespace"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.unshare.
 pub const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
@@ -3575,31 +4003,32 @@ pub const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
         &["process.namespace"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.limits.getLimit.
-pub const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.limits.getLimit",
-        "export function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.run"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.limits.getLimit",
+    "export function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.run"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.limits.setLimit.
-pub const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.limits.setLimit",
-        "export function setLimit(resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.run"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.limits.setLimit",
+    "export function setLimit(resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.run"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.getAffinity.
 pub const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
@@ -3611,7 +4040,21 @@ pub const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
         &["process.affinity"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.sched.getPriority.
 pub const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
@@ -3623,31 +4066,45 @@ pub const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
         &["process.priority"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.sched.getScheduler.
-pub const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.sched.getScheduler",
-        "export function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.scheduler"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.sched.getScheduler",
+    "export function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.scheduler"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setAffinity.
-pub const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.sched.setAffinity",
-        "export function setAffinity(pid: ProcessId, cpus: ProcessCpuSet): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.affinity"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.sched.setAffinity",
+    "export function setAffinity(pid: ProcessId, cpus: ProcessCpuSet): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.affinity"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setPriority.
 pub const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
@@ -3659,19 +4116,33 @@ pub const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
         &["process.priority"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.sched.setScheduler.
-pub const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.sched.setScheduler",
-        "export function setScheduler(pid: ProcessId, config: ProcessSchedulerConfig): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.scheduler"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.sched.setScheduler",
+    "export function setScheduler(pid: ProcessId, config: ProcessSchedulerConfig): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.scheduler"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.sched.yieldNow.
 pub const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
@@ -3683,7 +4154,21 @@ pub const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
         &["process.scheduler"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.session.getpgid.
 pub const PROCESS_SESSION_GETPGID: BindingDescriptor =
@@ -3695,7 +4180,21 @@ pub const PROCESS_SESSION_GETPGID: BindingDescriptor =
         &["process.session"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.session.setpgid.
 pub const PROCESS_SESSION_SETPGID: BindingDescriptor =
@@ -3707,7 +4206,21 @@ pub const PROCESS_SESSION_SETPGID: BindingDescriptor =
         &["process.session"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.session.setsid.
 pub const PROCESS_SESSION_SETSID: BindingDescriptor =
@@ -3719,7 +4232,21 @@ pub const PROCESS_SESSION_SETSID: BindingDescriptor =
         &["process.session"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.signals.kill.
 pub const PROCESS_SIGNALS_KILL: BindingDescriptor =
@@ -3731,7 +4258,21 @@ pub const PROCESS_SIGNALS_KILL: BindingDescriptor =
         &["process.signal.send"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.signals.signalMaskRead.
 pub const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
@@ -3743,19 +4284,33 @@ pub const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.signals.signalMaskUpdate.
-pub const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.signals.signalMaskUpdate",
-        "export function signalMaskUpdate(how: SignalMaskHow, signals: Slice<Signal>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.signal.receive"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.signals.signalMaskUpdate",
+    "export function signalMaskUpdate(how: SignalMaskHow, signals: Slice<Signal>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.signal.receive"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalReceive.
 pub const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
@@ -3767,7 +4322,21 @@ pub const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.signals.signalSubscribe.
 pub const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
@@ -3779,19 +4348,33 @@ pub const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Runtime,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.signals.signalTryReceive.
-pub const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.signals.signalTryReceive",
-        "export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.signal.receive"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.signals.signalTryReceive",
+    "export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.signal.receive"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalTryWait.
 pub const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
@@ -3803,7 +4386,21 @@ pub const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.signals.signalUnsubscribe.
 pub const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
@@ -3815,7 +4412,21 @@ pub const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.signals.signalWait.
 pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
@@ -3827,31 +4438,45 @@ pub const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
         &["process.signal.receive"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.spawn.spawn.
-pub const PROCESS_SPAWN_SPAWN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.spawn.spawn",
-        "export function spawn(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions): Result<ProcessHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.spawn"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_SPAWN_SPAWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.spawn.spawn",
+    "export function spawn(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions): Result<ProcessHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.spawn"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.spawn.withActions.
-pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.spawn.withActions",
-        "export function spawnWithActions(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions, stdio: Slice<ProcessStdio>, actions: Slice<ProcessFdAction>): Result<ProcessHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.spawn", "process.spawn.actions"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.spawn.withActions",
+    "export function spawnWithActions(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions, stdio: Slice<ProcessStdio>, actions: Slice<ProcessFdAction>): Result<ProcessHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.spawn", "process.spawn.actions"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.umask.umask.
 pub const PROCESS_UMASK_UMASK: BindingDescriptor =
@@ -3863,19 +4488,33 @@ pub const PROCESS_UMASK_UMASK: BindingDescriptor =
         &["process.identity.write"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.wait.pid.
-pub const PROCESS_WAIT_PID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.wait.pid",
-        "export function waitPid(pid: ProcessId, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.wait"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.wait.pid",
+    "export function waitPid(pid: ProcessId, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.wait"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.process.wait.tryWait.
 pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
@@ -3887,19 +4526,33 @@ pub const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
         &["process.wait"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.process.wait.wait.
-pub const PROCESS_WAIT_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.process.wait.wait",
-        "export function wait(handle: ProcessHandle, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["process.wait"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const PROCESS_WAIT_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.process.wait.wait",
+    "export function wait(handle: ProcessHandle, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["process.wait"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for process.
 pub const BINDINGS: &[BindingDescriptor] = &[

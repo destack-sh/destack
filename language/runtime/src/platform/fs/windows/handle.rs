@@ -339,6 +339,7 @@ pub(crate) unsafe fn destack_fs_fchown(
 ///
 /// Flush file data pages for the target descriptor without requiring full metadata durability.
 /// Metadata needed for data reachability may still be persisted per host kernel rules.
+///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
 /// Uses fdatasync(2) on Unix and FlushFileBuffers on Windows.
@@ -821,6 +822,7 @@ pub(crate) unsafe fn destack_fs_set_status_flags(
 ///
 /// Flush pending filesystem writeback for the mount that contains this handle.
 /// Scope and ordering guarantees follow host mount-level sync semantics.
+///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
 /// Uses syncfs(2) on Unix and volume flush APIs on Windows.

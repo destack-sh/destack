@@ -69,6 +69,7 @@ declare namespace audio {
         effect: "external",
         replay: "recordable",
         requires: ["audio.device"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -95,6 +96,7 @@ declare namespace audio {
         effect: "external",
         replay: "recordable",
         requires: ["audio.device"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -124,6 +126,7 @@ declare namespace audio {
         effect: "external",
         replay: "recordable",
         requires: ["audio.device"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })

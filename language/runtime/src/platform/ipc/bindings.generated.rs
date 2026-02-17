@@ -824,52 +824,52 @@ struct IpcUnixSendReplay {
 }
 
 /// Binding descriptor for destack.ipc.message.queueClose.
-pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.message.queueClose",
-        "export function messageQueueClose(handle: MessageQueueHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.message"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.message.queueClose",
+    "export function messageQueueClose(handle: MessageQueueHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.message"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueOpen.
-pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.message.queueOpen",
-        "export function messageQueueOpen(name: string, flags: uint32, mode: uint32, maxMessages: uint32, maxMessageBytes: uint32): Result<MessageQueueHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.message"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.message.queueOpen",
+    "export function messageQueueOpen(name: string, flags: uint32, mode: uint32, maxMessages: uint32, maxMessageBytes: uint32): Result<MessageQueueHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.message"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueReceive.
-pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.message.queueReceive",
-        "export function messageQueueReceive(handle: MessageQueueHandle, timeoutNs: uint64, buffer: Slice<uint8>): Result<MessageQueueReceive, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.message"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.message.queueReceive",
+    "export function messageQueueReceive(handle: MessageQueueHandle, timeoutNs: uint64, buffer: Slice<uint8>): Result<MessageQueueReceive, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.message"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueSend.
-pub const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.message.queueSend",
-        "export function messageQueueSend(handle: MessageQueueHandle, priority: uint32, timeoutNs: uint64, payload: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.message"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.message.queueSend",
+    "export function messageQueueSend(handle: MessageQueueHandle, priority: uint32, timeoutNs: uint64, payload: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.message"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueUnlink.
 pub const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
@@ -881,7 +881,21 @@ pub const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
         &["ipc.message"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ipc.pipe.close.
 pub const IPC_PIPE_CLOSE: BindingDescriptor =
@@ -893,18 +907,49 @@ pub const IPC_PIPE_CLOSE: BindingDescriptor =
         &["ipc.pipe"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ipc.pipe.open.
-pub const IPC_PIPE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.ipc.pipe.open",
-    "export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["ipc.pipe"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const IPC_PIPE_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.ipc.pipe.open",
+        "export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["ipc.pipe"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ipc.pipe.read.
 pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -915,151 +960,152 @@ pub const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_re
     &["ipc.pipe"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ipc.pipe.write.
-pub const IPC_PIPE_WRITE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.pipe.write",
-        "export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.pipe"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.pipe.write",
+    "export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.pipe"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.close.
-pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sharedMemory.close",
-        "export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.sharedMemory"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sharedMemory.close",
+    "export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.sharedMemory"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.create.
-pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sharedMemory.create",
-        "export function sharedMemoryCreate(name: string, size: uint64, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.sharedMemory"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sharedMemory.create",
+    "export function sharedMemoryCreate(name: string, size: uint64, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.sharedMemory"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.map.
-pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sharedMemory.map",
-        "export function sharedMemoryMap(handle: SharedMemoryHandle, offset: uint64, length: uint64, flags: uint32): Result<SharedMemoryMapping, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.sharedMemory"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sharedMemory.map",
+    "export function sharedMemoryMap(handle: SharedMemoryHandle, offset: uint64, length: uint64, flags: uint32): Result<SharedMemoryMapping, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.sharedMemory"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.open.
-pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sharedMemory.open",
-        "export function sharedMemoryOpen(name: string, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.sharedMemory"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sharedMemory.open",
+    "export function sharedMemoryOpen(name: string, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.sharedMemory"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.unmap.
-pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sharedMemory.unmap",
-        "export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.sharedMemory"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sharedMemory.unmap",
+    "export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.sharedMemory"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWait.
-pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sync.futexWait",
-        "export function futexWait(sharedMemory: SharedMemoryHandle, offset: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.futex"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sync.futexWait",
+    "export function futexWait(sharedMemory: SharedMemoryHandle, offset: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.futex"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWake.
-pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sync.futexWake",
-        "export function futexWake(sharedMemory: SharedMemoryHandle, offset: uint64, count: uint32): Result<uint32, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.futex"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sync.futexWake",
+    "export function futexWake(sharedMemory: SharedMemoryHandle, offset: uint64, count: uint32): Result<uint32, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.futex"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreCreate.
-pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sync.semaphoreCreate",
-        "export function semaphoreCreate(name: string, initial: uint32, flags: uint32): Result<SemaphoreHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.semaphore"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sync.semaphoreCreate",
+    "export function semaphoreCreate(name: string, initial: uint32, flags: uint32): Result<SemaphoreHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.semaphore"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphorePost.
-pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sync.semaphorePost",
-        "export function semaphorePost(handle: SemaphoreHandle, count: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.semaphore"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sync.semaphorePost",
+    "export function semaphorePost(handle: SemaphoreHandle, count: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.semaphore"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreWait.
-pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.sync.semaphoreWait",
-        "export function semaphoreWait(handle: SemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.semaphore"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.sync.semaphoreWait",
+    "export function semaphoreWait(handle: SemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.semaphore"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.ipc.unix.receive.
-pub const IPC_UNIX_RECEIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ipc.unix.receive",
-        "export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["ipc.fdPass", "ipc.unix"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ipc.unix.receive",
+    "export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["ipc.fdPass", "ipc.unix"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.ipc.unix.send.
 pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1070,7 +1116,8 @@ pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_re
     &["ipc.fdPass", "ipc.unix"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptors for ipc.
 pub const BINDINGS: &[BindingDescriptor] = &[

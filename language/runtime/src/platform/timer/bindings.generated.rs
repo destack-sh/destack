@@ -708,7 +708,22 @@ pub const TIMER_CONTROL_CANCEL: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.control.isActive.
 pub const TIMER_CONTROL_IS_ACTIVE: BindingDescriptor =
@@ -720,7 +735,22 @@ pub const TIMER_CONTROL_IS_ACTIVE: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.control.pause.
 pub const TIMER_CONTROL_PAUSE: BindingDescriptor =
@@ -732,7 +762,22 @@ pub const TIMER_CONTROL_PAUSE: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.control.remainingNs.
 pub const TIMER_CONTROL_REMAINING_NS: BindingDescriptor =
@@ -744,7 +789,22 @@ pub const TIMER_CONTROL_REMAINING_NS: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.control.reset.
 pub const TIMER_CONTROL_RESET: BindingDescriptor =
@@ -756,7 +816,22 @@ pub const TIMER_CONTROL_RESET: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.control.resume.
 pub const TIMER_CONTROL_RESUME: BindingDescriptor =
@@ -768,19 +843,34 @@ pub const TIMER_CONTROL_RESUME: BindingDescriptor =
         &["time.timer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.control.updateInterval.
-pub const TIMER_CONTROL_UPDATE_INTERVAL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.timer.control.updateInterval",
-        "export function updateInterval(handle: TimerHandle, periodNs: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["time.timer"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const TIMER_CONTROL_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.timer.control.updateInterval",
+    "export function updateInterval(handle: TimerHandle, periodNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["time.timer"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.timer.fd.close.
 pub const TIMER_FD_CLOSE: BindingDescriptor =
@@ -792,7 +882,21 @@ pub const TIMER_FD_CLOSE: BindingDescriptor =
         &["time.timerfd"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.fd.get.
 pub const TIMER_FD_GET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -803,7 +907,21 @@ pub const TIMER_FD_GET: BindingDescriptor = BindingDescriptor::external_with_req
     &["time.timerfd"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.timer.fd.open.
 pub const TIMER_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -814,18 +932,34 @@ pub const TIMER_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     &["time.timerfd"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.timer.fd.read.
-pub const TIMER_FD_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.timer.fd.read",
-    "export function timerFdRead(handle: TimerFdHandle): Result<uint64, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["time.timerfd"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const TIMER_FD_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.timer.fd.read",
+        "export function timerFdRead(handle: TimerFdHandle): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["time.timerfd"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.timer.fd.set.
 pub const TIMER_FD_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -836,43 +970,44 @@ pub const TIMER_FD_SET: BindingDescriptor = BindingDescriptor::external_with_req
     &["time.timerfd"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.timer.schedule.at.
-pub const TIMER_SCHEDULE_AT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.timer.schedule.at",
-        "export function at(deadlineNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["time.timer"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const TIMER_SCHEDULE_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.timer.schedule.at",
+    "export function at(deadlineNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["time.timer"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.timer.schedule.interval.
-pub const TIMER_SCHEDULE_INTERVAL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.timer.schedule.interval",
-        "export function interval(periodNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["time.timer"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const TIMER_SCHEDULE_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.timer.schedule.interval",
+    "export function interval(periodNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["time.timer"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.timer.schedule.once.
-pub const TIMER_SCHEDULE_ONCE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.timer.schedule.once",
-        "export function once(delayNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["time.timer"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const TIMER_SCHEDULE_ONCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.timer.schedule.once",
+    "export function once(delayNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["time.timer"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptors for timer.
 pub const BINDINGS: &[BindingDescriptor] = &[

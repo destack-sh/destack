@@ -39,6 +39,8 @@ struct BindingRecord {
     replay_payload: ReplayPayload,
     /// Required platform capabilities for this binding.
     requires: Vec<String>,
+    /// Host platforms where this binding is supported.
+    host_platforms: Vec<String>,
     /// Platform scope for this binding.
     scope: BindingScope,
     /// Blocking behavior for this binding.
@@ -56,6 +58,8 @@ struct BindingDecorator {
     replay_payload: ReplayPayload,
     /// Required platform capabilities for this binding.
     requires: Vec<String>,
+    /// Host platforms where this binding is supported.
+    host_platforms: Vec<String>,
     /// Platform scope for this binding.
     scope: BindingScope,
     /// Blocking behavior for this binding.
@@ -223,6 +227,7 @@ pub(crate) fn collect_platform_bindings(
                 binding.effect_class,
                 binding.replay_payload,
                 binding.requires,
+                binding.host_platforms,
                 binding.scope,
                 binding.blocking,
             ) {
@@ -265,6 +270,7 @@ fn binding_from_node(
     effect_class: EffectClass,
     replay_payload: ReplayPayload,
     requires: Vec<String>,
+    host_platforms: Vec<String>,
     scope: BindingScope,
     blocking: BindingBlocking,
 ) -> Option<BindingRecord> {
@@ -285,6 +291,7 @@ fn binding_from_node(
         effect_class,
         replay_payload,
         requires,
+        host_platforms,
         scope,
         blocking,
     })
@@ -308,6 +315,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
         replay_kind: record.replay_kind,
         replay_payload: record.replay_payload,
         requires: record.requires,
+        host_platforms: record.host_platforms,
         scope: record.scope,
         blocking: record.blocking,
     };
@@ -321,6 +329,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
             || existing.replay_kind != entry.replay_kind
             || existing.replay_payload != entry.replay_payload
             || existing.requires != entry.requires
+            || existing.host_platforms != entry.host_platforms
             || existing.scope != entry.scope
             || existing.blocking != entry.blocking)
     {
@@ -358,19 +367,24 @@ fn annotation_docs(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> 
         let Annotation::Doc { string, .. } = annotation else {
             continue;
         };
+
+        // keep paragraph breaks from source docs
         let text = strings.get(*string);
-        let content = text.trim();
-        if content.is_empty() {
-            continue;
+        for line in text.lines() {
+            docs.push(line.trim_end().to_string());
         }
-        docs.push(content.to_string());
     }
 
-    if docs.is_empty() {
+    // trim leading and trailing blank lines after collection
+    let Some(start) = docs.iter().position(|line| !line.trim().is_empty()) else {
         return None;
-    }
+    };
+    let end = docs
+        .iter()
+        .rposition(|line| !line.trim().is_empty())
+        .unwrap_or(start);
 
-    Some(docs.join("\n"))
+    Some(docs[start..=end].join("\n"))
 }
 
 /// Extract the binding decorator value from a declaration expression.
@@ -470,6 +484,7 @@ fn decorator_binding_argument(
         effect_class: spec.effect_class,
         replay_payload: spec.replay_payload,
         requires: spec.requires,
+        host_platforms: spec.host_platforms,
         scope: spec.scope,
         blocking: spec.blocking,
     }
@@ -483,6 +498,8 @@ struct BindingEffectSpec {
     replay_payload: ReplayPayload,
     /// Required platform capabilities for this binding.
     requires: Vec<String>,
+    /// Host platforms where this binding is supported.
+    host_platforms: Vec<String>,
     /// Platform scope for this binding.
     scope: BindingScope,
     /// Blocking behavior for this binding.
@@ -507,6 +524,7 @@ fn parse_effect_spec(
     let mut log = None;
     let mut payload = None;
     let mut requires = Vec::new();
+    let mut host_platforms = Vec::new();
     let mut scope = None;
     let mut blocking = None;
 
@@ -525,6 +543,9 @@ fn parse_effect_spec(
         match key.as_str() {
             "requires" => {
                 requires = parse_requires_list(tree, *value_id, strings);
+            }
+            "platforms" => {
+                host_platforms = parse_host_platforms_list(tree, *value_id, strings);
             }
             "effect" => {
                 let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
@@ -604,6 +625,7 @@ fn parse_effect_spec(
         effect_class,
         replay_payload,
         requires,
+        host_platforms,
         scope,
         blocking,
     }
@@ -723,6 +745,104 @@ fn parse_requires_list(
     // ensure deterministic ordering and remove duplicates
     let unique = parsed.into_iter().collect::<BTreeSet<_>>();
     unique.into_iter().collect()
+}
+
+/// Canonical host platforms covered by the `unix` alias.
+const UNIX_HOST_PLATFORMS: &[&str] = &[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+];
+
+/// Canonical host platforms covered by the `bsd` alias.
+const BSD_HOST_PLATFORMS: &[&str] = &["dragonfly", "freebsd", "netbsd", "openbsd"];
+
+/// Parse host platforms from a decorator value.
+fn parse_host_platforms_list(
+    tree: &dir::NodeTree,
+    value_id: dir::LocalNodeId<Expression>,
+    strings: &StringPool,
+) -> Vec<String> {
+    // accept a single string as shorthand
+    if let Some(value) = scalar_string_literal(tree, value_id, strings) {
+        let mut parsed = BTreeSet::new();
+        parse_host_platform_name(&value, &mut parsed);
+        return parsed.into_iter().collect();
+    }
+
+    // decode array and tuple forms
+    let value = tree.get::<Expression>(value_id);
+    let elements = match value {
+        Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
+            elements
+        }
+        _ => {
+            panic!("@binding platforms must be a string or an array of strings");
+        }
+    };
+
+    // parse and normalize host platform names
+    let mut parsed = BTreeSet::new();
+    for argument_id in elements {
+        let argument = tree.get::<Argument>(*argument_id);
+        let platform_id = argument.value();
+        let platform = scalar_string_literal(tree, platform_id, strings).unwrap_or_else(|| {
+            panic!("@binding platforms must contain only string literals");
+        });
+        parse_host_platform_name(&platform, &mut parsed);
+    }
+
+    parsed.into_iter().collect()
+}
+
+/// Parse one host platform selector into canonical platform names.
+fn parse_host_platform_name(name: &str, parsed: &mut BTreeSet<String>) {
+    let normalized = name.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        panic!("@binding platforms names cannot be empty");
+    }
+
+    // normalize canonical host platform names and aliases
+    match normalized.as_str() {
+        "win" | "win32" => {
+            parsed.insert("windows".to_string());
+        }
+        "darwin" | "mac" => {
+            parsed.insert("macos".to_string());
+        }
+        "bare-metal" => {
+            parsed.insert("baremetal".to_string());
+        }
+        "windows" | "android" | "dragonfly" | "freebsd" | "haiku" | "illumos" | "ios" | "linux"
+        | "macos" | "netbsd" | "openbsd" | "solaris" | "fuchsia" | "redox" | "hermit" | "wasi"
+        | "emscripten" | "baremetal" | "web" | "universal" => {
+            parsed.insert(normalized);
+        }
+        "unix" => {
+            append_host_platform_alias(parsed, UNIX_HOST_PLATFORMS);
+        }
+        "bsd" => {
+            append_host_platform_alias(parsed, BSD_HOST_PLATFORMS);
+        }
+        _ => {
+            panic!("unsupported @binding platforms value {name}");
+        }
+    }
+}
+
+/// Append all host platforms covered by one alias.
+fn append_host_platform_alias(parsed: &mut BTreeSet<String>, alias: &[&str]) {
+    for platform in alias {
+        parsed.insert((*platform).to_string());
+    }
 }
 
 /// Validate one capability name in canonical dotted form.

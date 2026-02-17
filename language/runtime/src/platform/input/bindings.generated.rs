@@ -371,7 +371,21 @@ pub const INPUT_DEVICE_CLOSE: BindingDescriptor =
         &["input.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.input.device.list.
 pub const INPUT_DEVICE_LIST: BindingDescriptor =
@@ -383,7 +397,21 @@ pub const INPUT_DEVICE_LIST: BindingDescriptor =
         &["input.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.input.device.open.
 pub const INPUT_DEVICE_OPEN: BindingDescriptor =
@@ -395,7 +423,21 @@ pub const INPUT_DEVICE_OPEN: BindingDescriptor =
         &["input.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.input.event.read.
 pub const INPUT_EVENT_READ: BindingDescriptor =
@@ -407,19 +449,33 @@ pub const INPUT_EVENT_READ: BindingDescriptor =
         &["input.read"],
         BindingScope::Hybrid,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.input.event.setGrab.
-pub const INPUT_EVENT_SET_GRAB: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.input.event.setGrab",
-        "export function setGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["input.control"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const INPUT_EVENT_SET_GRAB: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.input.event.setGrab",
+    "export function setGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["input.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.input.event.tryRead.
 pub const INPUT_EVENT_TRY_READ: BindingDescriptor =
@@ -431,7 +487,21 @@ pub const INPUT_EVENT_TRY_READ: BindingDescriptor =
         &["input.read"],
         BindingScope::Hybrid,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptors for input.
 pub const BINDINGS: &[BindingDescriptor] = &[

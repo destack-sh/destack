@@ -444,6 +444,7 @@ pub(crate) unsafe fn destack_fs_fchown(
 ///
 /// Flush file data pages for the target descriptor without requiring full metadata durability.
 /// Metadata needed for data reachability may still be persisted per host kernel rules.
+///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
 /// Uses fdatasync(2) on Unix and FlushFileBuffers on Windows.
@@ -2931,6 +2932,7 @@ pub(crate) unsafe fn destack_fs_vmsplice(
 ///
 /// Request writeback of one byte range for the target descriptor.
 /// Range ordering, blocking behavior, and fallback support follow host kernel policy.
+///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
 /// Uses sync_file_range(2) on linux and runtime fallback on other targets.

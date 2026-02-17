@@ -334,7 +334,8 @@ pub const FFI_CALL_CALL: BindingDescriptor = BindingDescriptor::external_with_re
     &["ffi.call"],
     BindingScope::Runtime,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.close.
 pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
@@ -346,7 +347,21 @@ pub const FFI_LIBRARY_CLOSE: BindingDescriptor =
         &["ffi.load"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ffi.library.open.
 pub const FFI_LIBRARY_OPEN: BindingDescriptor =
@@ -358,7 +373,21 @@ pub const FFI_LIBRARY_OPEN: BindingDescriptor =
         &["ffi.load"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ffi.pointer.address.
 pub const FFI_POINTER_ADDRESS: BindingDescriptor =
@@ -368,7 +397,22 @@ pub const FFI_POINTER_ADDRESS: BindingDescriptor =
         &["ffi.pointer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ffi.pointer.fromAddress.
 pub const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
@@ -378,7 +422,22 @@ pub const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
         &["ffi.pointer"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ffi.symbol.address.
 pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
@@ -390,19 +449,33 @@ pub const FFI_SYMBOL_ADDRESS: BindingDescriptor =
         &["ffi.symbol"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.ffi.symbol.lookup.
-pub const FFI_SYMBOL_LOOKUP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.ffi.symbol.lookup",
-        "export function symbolLookup(library: LibraryHandle, name: string): Result<SymbolHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["ffi.symbol"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.ffi.symbol.lookup",
+    "export function symbolLookup(library: LibraryHandle, name: string): Result<SymbolHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["ffi.symbol"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for ffi.
 pub const BINDINGS: &[BindingDescriptor] = &[
