@@ -1,4 +1,5 @@
 use super::*;
+use destack_ast::{Comment, CommentStyle};
 
 /// Get the root head expression of a chain.
 pub(crate) fn chain_head_id(
@@ -632,8 +633,11 @@ pub(crate) fn is_simple_chain_operation(
             ..
         } => {
             let has_intervening_comment = member_has_intervening_comment(context, *node_id);
+            let has_promotable_boundary_comment =
+                chain_member_has_promotable_boundary_comment(context, *node_id);
             let has_annotations = (*emit_prefix_annotations || *emit_postfix_annotations)
-                && chain_node_has_non_inline_annotation(context, *node_id);
+                && chain_node_has_non_inline_annotation(context, *node_id)
+                && !has_promotable_boundary_comment;
             let has_break = has_intervening_comment || has_annotations;
             !has_break && is_simple_chain_static_arguments(context, static_arguments)
         }
@@ -658,6 +662,36 @@ pub(crate) fn is_simple_chain_operation(
             !chain_node_has_non_inline_annotation(context, *node_id)
         }
     }
+}
+
+/// Return whether a member has only one promotable slash boundary comment annotation.
+fn chain_member_has_promotable_boundary_comment(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.get_annotations(node_id) else {
+        return false;
+    };
+
+    let mut found_promotable_boundary_comment = false;
+    for annotation_id in annotations {
+        match context.get_annotation(annotation_id) {
+            Annotation::Blank { .. } => {}
+            Annotation::Comment {
+                node,
+                position: AnnotationPosition::LinePostfixBoundary,
+            } => {
+                let comment = context.tree.get::<Comment>(node);
+                if comment.style != CommentStyle::Slash {
+                    return false;
+                }
+                found_promotable_boundary_comment = true;
+            }
+            _ => return false,
+        }
+    }
+
+    found_promotable_boundary_comment
 }
 
 /// Return the source span between one member receiver and property token.

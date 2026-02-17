@@ -527,11 +527,104 @@ pub(super) fn write_postfix_base_expression<'ast>(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if needs_parens_in_postfix_position(f.context().tree, expression_id) {
-        write!(f, [token("("), expression_id, token(")")])?;
+        let line_width = usize::from(f.context().options.line_width);
+        let parenthesized_chain_overflows =
+            postfix_parent_expression_id(f.context(), expression_id).is_some_and(
+                |parent_expression_id| {
+                    let available_width =
+                        assignment_like_remaining_width(f.context(), parent_expression_id)
+                            .unwrap_or(line_width);
+                    expression_source_len(f.context(), parent_expression_id) > available_width
+                },
+            );
+
+        if parenthesized_chain_overflows {
+            write!(
+                f,
+                [
+                    token("("),
+                    block_indent(&expression_id),
+                    hard_line_break(),
+                    token(")")
+                ]
+            )?;
+        } else {
+            write!(f, [token("("), expression_id, token(")")])?;
+        }
     } else {
         write!(f, [expression_id])?;
     }
     Ok(())
+}
+
+/// Return one postfix parent expression id when this expression is used as a chain receiver.
+fn postfix_parent_expression_id(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    // direct parent chain receiver
+    if let Some((parent_id, parent_type)) = context.get_parent(expression_id)
+        && parent_type == NodeType::Expression
+    {
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        let parent_expression = context.tree.get(parent_expression_id);
+        let uses_expression_as_left = matches!(
+            parent_expression,
+            Expression::Member { left, .. }
+                | Expression::PrivateMember { left, .. }
+                | Expression::Call { left, .. }
+                | Expression::Index { left, .. }
+                | Expression::Instantiation { left, .. }
+                | Expression::Maybe { left, .. }
+                | Expression::Must { left, .. }
+                if *left == expression_id
+        );
+        if uses_expression_as_left {
+            return Some(parent_expression_id);
+        }
+    }
+
+    // parenthesized wrapper chain receiver
+    let Some((parent_id, parent_type)) = context.get_parent(expression_id) else {
+        return None;
+    };
+    if parent_type != NodeType::Expression {
+        return None;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::Parenthesized { expression } = context.tree.get(parent_expression_id) else {
+        return None;
+    };
+    if *expression != expression_id {
+        return None;
+    }
+
+    let Some((grandparent_id, grandparent_type)) = context.get_parent(parent_expression_id) else {
+        return None;
+    };
+    if grandparent_type != NodeType::Expression {
+        return None;
+    }
+
+    let grandparent_expression_id = LocalNodeId::<Expression>::new(grandparent_id);
+    let grandparent_expression = context.tree.get(grandparent_expression_id);
+    let uses_parenthesized_as_left = matches!(
+        grandparent_expression,
+        Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. }
+            if *left == parent_expression_id
+    );
+    if !uses_parenthesized_as_left {
+        return None;
+    }
+
+    Some(grandparent_expression_id)
 }
 
 /// Check whether a parenthesized cast or satisfies left side is simple enough to unwrap.

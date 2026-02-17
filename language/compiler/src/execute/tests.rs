@@ -3,11 +3,8 @@ use crate::TestProgram;
 /// Execute comptime addition and patch it into DIR.
 #[test]
 fn test_execute_comptime_literal_add() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_libs(&["native"])
-        .with_options_mut(|options| {
-            options.retain_comptime_as_comment = true;
-        });
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
     test.add_package("test", None);
     let module_id = test.add_module(
         "test.ds",
@@ -21,7 +18,7 @@ const VALUE = comptime 2 + 4;
     test.assert_executed(
         module_id,
         r#"
-const VALUE = 6; // comptime 2 + 4
+const VALUE = 6;
 "#,
     );
 }
@@ -29,11 +26,8 @@ const VALUE = 6; // comptime 2 + 4
 /// Execute comptime string literals and patch them into DIR.
 #[test]
 fn test_execute_comptime_string_literal() {
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_libs(&["native"])
-        .with_options_mut(|options| {
-            options.retain_comptime_as_comment = true;
-        });
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
     test.add_package("test", None);
     let module_id = test.add_module(
         "test.ds",
@@ -47,7 +41,7 @@ const VALUE = comptime "hello";
     test.assert_executed(
         module_id,
         r#"
-const VALUE = "hello"; // comptime "hello"
+const VALUE = "hello";
 "#,
     );
 }

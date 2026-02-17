@@ -1,3 +1,4 @@
+use super::dispatch::format_declaration_export_modifier;
 use crate::argument::list_like;
 use crate::signature::{
     FunctionHeaderStyle, parameter_is_variadic, signature_parameters_should_expand,
@@ -70,9 +71,7 @@ pub(super) fn format_function_declaration<'ast>(
     let generics = signature.generics.as_ref();
 
     // export
-    if let Some(export) = descriptor.export {
-        write!(f, [export, space()])?;
-    }
+    format_declaration_export_modifier(f, node_id, descriptor)?;
 
     // kind
     if descriptor.kind == destack_ast::DeclarationKind::Declaration {

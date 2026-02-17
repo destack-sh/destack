@@ -141,7 +141,6 @@ pub(super) fn build_chain_render_inputs(
     let assignment_like_width = if is_chain_call_like_argument
         || options.in_template_literal_interpolation
         || is_chain_conditional_branch
-        || !options.chain_has_calls
     {
         None
     } else {
@@ -152,10 +151,8 @@ pub(super) fn build_chain_render_inputs(
         || is_chain_conditional_branch
     {
         line_width
-    } else if options.chain_has_calls {
-        assignment_like_width.unwrap_or(line_width)
     } else {
-        line_width
+        assignment_like_width.unwrap_or(line_width)
     };
     let first_line_has_non_empty_dynamic_call = lines.first().is_some_and(|line| {
         line.iter().any(|operation| {

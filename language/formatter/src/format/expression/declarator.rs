@@ -86,13 +86,14 @@ struct DeclaratorLayoutInputs {
     value_is_long: bool,
     inline_declarator_fits: bool,
     value_is_leading_pipe_type_union: bool,
+    value_is_inline_closure_cast_type_binary: bool,
     is_string_literal: bool,
     value_is_long_binary: bool,
     value_has_internal_comment: bool,
     value_has_between_comment: bool,
     value_has_existing_operator_break: bool,
     value_handles_its_own_breaking: bool,
-    value_has_prefix_annotation: bool,
+    value_has_prefix_annotation_that_forces_break: bool,
     prefer_static_argument_operator_break: bool,
     value_is_chain: bool,
     has_single_chain_call: bool,
@@ -121,6 +122,11 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
         return DeclaratorLayout::Inline;
     }
 
+    // keep closure-cast type binaries inline in declarator rhs
+    if inputs.value_is_inline_closure_cast_type_binary {
+        return DeclaratorLayout::Inline;
+    }
+
     // keep string rhs mostly inline
     if inputs.is_string_literal {
         if inputs.value_is_long && !inputs.pattern_breakable {
@@ -139,7 +145,7 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
     }
 
     // declaration rhs values with prefix trivia should break directly after `=`
-    if inputs.value_is_declaration && inputs.value_has_prefix_annotation {
+    if inputs.value_is_declaration && inputs.value_has_prefix_annotation_that_forces_break {
         return DeclaratorLayout::BreakAfterOperator;
     }
 
@@ -165,7 +171,7 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
         // self-breaking rhs policy: avoid source-preserving break heuristics, they cause idempotence flips
         let value_prefers_operator_break = !inputs.value_is_lambda
             && !inputs.value_is_declaration
-            && (inputs.value_has_prefix_annotation
+            && (inputs.value_has_prefix_annotation_that_forces_break
                 || inputs.prefer_static_argument_operator_break
                 || (inputs.value_is_chain
                     && inputs.value_is_long
@@ -177,12 +183,14 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
         let value_should_lead_with_break = (inputs.value_is_long
             && !inputs.value_is_await_expression
             && !inputs.value_has_multiline_chain_body)
-            || inputs.value_has_prefix_annotation
+            || inputs.value_has_prefix_annotation_that_forces_break
             || inputs.prefer_static_argument_operator_break
             || inputs.has_significant_between_comment;
 
         if inputs.pattern_breakable {
-            if inputs.value_has_prefix_annotation || inputs.has_significant_between_comment {
+            if inputs.value_has_prefix_annotation_that_forces_break
+                || inputs.has_significant_between_comment
+            {
                 return DeclaratorLayout::BreakAfterOperator;
             }
 
@@ -248,7 +256,7 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
                 if inputs.inline_declarator_fits
                     && !inputs.value_is_long
                     && !inputs.value_has_between_comment
-                    && !inputs.value_has_prefix_annotation
+                    && !inputs.value_has_prefix_annotation_that_forces_break
                 {
                     DeclaratorLayout::Inline
                 } else {
@@ -259,7 +267,7 @@ fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout 
             {
                 DeclaratorLayout::Inline
             } else if inputs.value_has_newline
-                || inputs.value_has_prefix_annotation
+                || inputs.value_has_prefix_annotation_that_forces_break
                 || inputs.value_is_long
             {
                 DeclaratorLayout::ValueExpanded
@@ -329,6 +337,79 @@ fn value_has_generic_class_heritage(
             value_has_generic_class_heritage(context, *expression)
         }
         _ => false,
+    }
+}
+
+/// Return whether a value is a single-line closure-cast style type binary.
+fn value_is_inline_closure_cast_type_binary(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.node_has_newline(value_id) {
+        return false;
+    }
+
+    if !matches!(
+        context.tree.get(value_id),
+        Expression::TypeBinary {
+            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
+            ..
+        }
+    ) {
+        return false;
+    }
+
+    let mut current_id = value_id;
+    loop {
+        let current_span = context.get_span(current_id);
+        let has_prefix = context
+            .with_annotations(current_id, |annotations| {
+                !annotations.is_empty()
+                    && annotations.iter().all(|annotation_id| {
+                        let annotation_is_prefix = matches!(
+                            context.get_annotation(*annotation_id),
+                            Annotation::Comment {
+                                position: AnnotationPosition::LinePrefix
+                                    | AnnotationPosition::BlockPrefix,
+                                ..
+                            } | Annotation::Doc {
+                                position: AnnotationPosition::LinePrefix
+                                    | AnnotationPosition::BlockPrefix,
+                                ..
+                            }
+                        );
+                        if !annotation_is_prefix {
+                            return false;
+                        }
+
+                        let annotation_span = context.get_annotation_span(*annotation_id);
+                        annotation_span.start < current_span.start
+                    })
+            })
+            .unwrap_or(false);
+        if has_prefix {
+            return true;
+        }
+
+        let next_id = match context.tree.get(current_id) {
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                Some(*expression)
+            }
+            Expression::TypeBinary { left, .. }
+            | Expression::Binary { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
+            _ => None,
+        };
+        let Some(next_id) = next_id else {
+            return false;
+        };
+        current_id = next_id;
     }
 }
 
@@ -517,7 +598,15 @@ pub(super) fn format_declarator<'ast>(
 
     let value_source_len = expression_source_len(f.context(), *value_id);
     let value_has_prefix_annotation = f.context().has_prefix_annotation(*value_id);
-    let value_annotation_len = expression_prefix_annotation_source_len(f.context(), *value_id);
+    let value_is_inline_closure_cast_type_binary =
+        value_is_inline_closure_cast_type_binary(f.context(), *value_id);
+    let value_has_prefix_annotation_that_forces_break =
+        value_has_prefix_annotation && !value_is_inline_closure_cast_type_binary;
+    let value_annotation_len = if value_is_inline_closure_cast_type_binary {
+        0
+    } else {
+        expression_prefix_annotation_source_len(f.context(), *value_id)
+    };
     let value_source_len = value_source_len.saturating_add(value_annotation_len);
     let value_is_long = value_source_len >= remaining_width;
     let estimated_inline_declarator_len = leading_prefix_len
@@ -573,7 +662,7 @@ pub(super) fn format_declarator<'ast>(
         && !value_breakable
         && !value_is_long
         && !value_has_newline
-        && !value_has_prefix_annotation
+        && !value_has_prefix_annotation_that_forces_break
         && !value_has_between_comment
         && !value_has_generic_class_heritage
         && !f.context().has_annotation(*pattern)
@@ -689,7 +778,7 @@ pub(super) fn format_declarator<'ast>(
         && value_has_static_arguments
         && !value_has_multiline_static_argument
         && (!value_is_chain || has_single_chain_call)
-        && !value_has_prefix_annotation
+        && !value_has_prefix_annotation_that_forces_break
         && !value_has_between_comment
         && estimated_inline_declarator_len >= line_width.saturating_sub(leading_prefix_len);
     let prefer_static_argument_operator_break =
@@ -710,13 +799,14 @@ pub(super) fn format_declarator<'ast>(
         value_is_long,
         inline_declarator_fits,
         value_is_leading_pipe_type_union,
+        value_is_inline_closure_cast_type_binary,
         is_string_literal,
         value_is_long_binary,
         value_has_internal_comment,
         value_has_between_comment,
         value_has_existing_operator_break,
         value_handles_its_own_breaking,
-        value_has_prefix_annotation,
+        value_has_prefix_annotation_that_forces_break,
         prefer_static_argument_operator_break,
         value_is_chain,
         has_single_chain_call,

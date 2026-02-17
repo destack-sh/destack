@@ -1,8 +1,39 @@
 use super::*;
+use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
 
 use super::line_group::{
     expression_has_line_postfix_boundary_comment, group_chain_expression_lines,
 };
+
+/// Return whether one chain root has inline doc/comment prefix annotations.
+fn chain_root_has_inline_prefix_comment_or_doc(
+    context: &DestackFormatContext<'_>,
+    root_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .with_annotations(root_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation = context.get_annotation(*annotation_id);
+                if !matches!(
+                    annotation.position(),
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) {
+                    return false;
+                }
+
+                match annotation {
+                    Annotation::Comment { node, .. } => {
+                        context.tree.get::<Comment>(node).style == CommentStyle::Star
+                    }
+                    Annotation::Doc { node, .. } => {
+                        context.tree.get::<Doc>(node).style == DocStyle::Star
+                    }
+                    Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
+                }
+            })
+        })
+        .unwrap_or(false)
+}
 
 /// Store the root-derived base and synthetic operations for chain formatting.
 struct ChainRootParts {
@@ -173,6 +204,8 @@ fn chain_should_avoid_head_promotion_for_boundary_comment(
 ) -> bool {
     let root_has_line_postfix_boundary_comment =
         expression_has_line_postfix_boundary_comment(context, root_id);
+    let root_has_inline_prefix_comment_or_doc =
+        chain_root_has_inline_prefix_comment_or_doc(context, root_id);
     let first_member_has_line_postfix_boundary_comment = body.first().is_some_and(|operation| {
         let ChainExpression::Member { node_id, .. } = operation else {
             return false;
@@ -182,7 +215,7 @@ fn chain_should_avoid_head_promotion_for_boundary_comment(
     });
     let starts_with_member_operation = matches!(body.first(), Some(ChainExpression::Member { .. }));
 
-    first_member_has_line_postfix_boundary_comment
+    (first_member_has_line_postfix_boundary_comment && !root_has_inline_prefix_comment_or_doc)
         || (root_has_line_postfix_boundary_comment && starts_with_member_operation)
 }
 

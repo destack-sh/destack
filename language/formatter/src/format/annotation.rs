@@ -7,8 +7,8 @@ use crate::directive::{is_any_ignore_directive_comment, is_ignore_directive_comm
 use crate::scan::{next_non_whitespace_after_span, previous_non_whitespace_before_annotation};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Expression,
-    LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+    AnnotationPosition, Blank, Comment, CommentStyle, Declaration, Decorator, Doc, DocStyle,
+    Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
 };
 
 /// Return the concrete content span for an annotation node.
@@ -86,6 +86,61 @@ impl<'ast> DestackFormatContext<'ast> {
         }
     }
 
+    /// Format declaration prefix annotations excluding export-head seam comments.
+    #[inline]
+    pub fn declaration_prefix_annotations(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> Annotations<Declaration> {
+        Annotations {
+            position: AnnotationCapture::DeclarationPrefix,
+            node_id,
+        }
+    }
+
+    /// Format declaration export-head seam comments.
+    #[inline]
+    pub fn declaration_export_head_annotations(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> Annotations<Declaration> {
+        Annotations {
+            position: AnnotationCapture::DeclarationExportHead,
+            node_id,
+        }
+    }
+
+    /// Format declaration generic-head seam comments.
+    #[inline]
+    pub fn declaration_generic_head_annotations(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> Annotations<Declaration> {
+        Annotations {
+            position: AnnotationCapture::DeclarationGenericHead,
+            node_id,
+        }
+    }
+
+    /// Return whether one declaration has any generic-head seam comment annotations.
+    pub fn has_declaration_generic_head_annotation(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> bool {
+        let Some(annotation_ids) = self.get_annotations(node_id) else {
+            return false;
+        };
+
+        annotation_ids.iter().copied().any(|annotation_id| {
+            annotation_is_declaration_generic_head_comment(
+                self,
+                node_id,
+                self.get_annotation(annotation_id),
+                annotation_id,
+            )
+        })
+    }
+
     /// Format the line and block postfix annotations for a node.
     #[inline]
     pub fn any_postfix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
@@ -118,6 +173,15 @@ fn annotation_precedes_separator<'ast>(
     matches!(
         next_non_whitespace_after_span(context, span),
         Some(',' | ';' | '(' | ')' | '[' | ']' | '}' | '>' | '?' | '.' | ':' | '=')
+    )
+}
+
+/// Return whether inline block comments can remain tightly bound to the next separator.
+#[inline]
+fn inline_block_comment_allows_tight_separator(next_character: Option<char>) -> bool {
+    matches!(
+        next_character,
+        Some(',' | ';' | ')' | ']' | '}' | '>' | '?' | '.' | ':' | '=')
     )
 }
 
@@ -206,6 +270,41 @@ fn annotation_has_leading_newline<'ast>(
         .any(|character| character == '\n')
 }
 
+/// Return whether annotation source is followed by one blank line before the next token.
+fn annotation_has_trailing_blank_line<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = annotation_content_span(context, annotation_id);
+    if span.end >= context.file.len {
+        return false;
+    }
+
+    let tail_span = Span::new(span.file, span.end, context.file.len);
+    let Some(tail_source) = context.file.get_span_str(tail_span) else {
+        return false;
+    };
+
+    let mut newline_count = 0usize;
+    for character in tail_source.chars() {
+        if character == '\n' {
+            newline_count += 1;
+            if newline_count >= 2 {
+                return true;
+            }
+            continue;
+        }
+
+        if character.is_whitespace() {
+            continue;
+        }
+
+        break;
+    }
+
+    false
+}
+
 /// Return whether an annotation is slash-style.
 fn annotation_is_slash_style(context: &DestackFormatContext<'_>, annotation: &Annotation) -> bool {
     match annotation {
@@ -278,6 +377,15 @@ fn annotation_render_facts(
     }
 }
 
+/// Return whether decorators may stay inline for this owner node type.
+#[inline]
+fn decorator_can_stay_inline_for_node_type(node_type: NodeType) -> bool {
+    !matches!(
+        node_type,
+        NodeType::Declaration | NodeType::Member | NodeType::Property | NodeType::MatchCase
+    )
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AnnotationCapture {
     BlockInfix,
@@ -290,6 +398,9 @@ pub enum AnnotationCapture {
     AnyPrefix,
     AnyPostfix,
     AnyInfixOrPostfix,
+    DeclarationPrefix,
+    DeclarationExportHead,
+    DeclarationGenericHead,
 }
 
 /// Annotations for a node.
@@ -312,7 +423,11 @@ fn annotation_capture_includes_position(
                 || capture == AnnotationCapture::AnyInfixOrPostfix
         }
         AnnotationPosition::BlockPrefix => {
-            capture == AnnotationCapture::BlockPrefix || capture == AnnotationCapture::AnyPrefix
+            capture == AnnotationCapture::BlockPrefix
+                || capture == AnnotationCapture::AnyPrefix
+                || capture == AnnotationCapture::DeclarationPrefix
+                || capture == AnnotationCapture::DeclarationExportHead
+                || capture == AnnotationCapture::DeclarationGenericHead
         }
         AnnotationPosition::BlockPostfix => {
             capture == AnnotationCapture::BlockPostfix
@@ -320,7 +435,11 @@ fn annotation_capture_includes_position(
                 || capture == AnnotationCapture::AnyInfixOrPostfix
         }
         AnnotationPosition::LinePrefix => {
-            capture == AnnotationCapture::LinePrefix || capture == AnnotationCapture::AnyPrefix
+            capture == AnnotationCapture::LinePrefix
+                || capture == AnnotationCapture::AnyPrefix
+                || capture == AnnotationCapture::DeclarationPrefix
+                || capture == AnnotationCapture::DeclarationExportHead
+                || capture == AnnotationCapture::DeclarationGenericHead
         }
         AnnotationPosition::LinePostfix => {
             capture == AnnotationCapture::LinePostfix
@@ -333,6 +452,146 @@ fn annotation_capture_includes_position(
                 || capture == AnnotationCapture::AnyInfixOrPostfix
         }
     }
+}
+
+/// Return whether one declaration carries an export modifier.
+fn declaration_has_export_modifier(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    let declaration = context.tree.get(declaration_id);
+    match declaration {
+        Declaration::Global { descriptor, .. }
+        | Declaration::Namespace { descriptor, .. }
+        | Declaration::Type { descriptor, .. }
+        | Declaration::ImportAlias { descriptor, .. }
+        | Declaration::Struct { descriptor, .. }
+        | Declaration::Class { descriptor, .. }
+        | Declaration::Enum { descriptor, .. }
+        | Declaration::Interface { descriptor, .. }
+        | Declaration::Extension { descriptor, .. }
+        | Declaration::Function { descriptor, .. } => descriptor.export.is_some(),
+    }
+}
+
+/// Return whether one declaration has static parameters.
+fn declaration_has_static_parameters(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    match context.tree.get(declaration_id) {
+        Declaration::Global { .. }
+        | Declaration::ImportAlias { .. }
+        | Declaration::Function { .. } => false,
+        Declaration::Type {
+            static_parameters, ..
+        } => static_parameters
+            .as_ref()
+            .is_some_and(|parameters| !parameters.is_empty()),
+        Declaration::Namespace { generics, .. }
+        | Declaration::Struct { generics, .. }
+        | Declaration::Class { generics, .. }
+        | Declaration::Enum { generics, .. }
+        | Declaration::Interface { generics, .. }
+        | Declaration::Extension { generics, .. } => generics
+            .static_parameters
+            .as_ref()
+            .is_some_and(|parameters| !parameters.is_empty()),
+    }
+}
+
+/// Return whether one annotation is an export-head seam comment for a declaration.
+fn annotation_is_declaration_export_head_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(node_id.id);
+    if !declaration_has_export_modifier(context, declaration_id) {
+        return false;
+    }
+
+    let Annotation::Comment {
+        node,
+        position: AnnotationPosition::LinePrefix,
+    } = annotation
+    else {
+        return false;
+    };
+    let comment = context.tree.get::<Comment>(node);
+    if comment.style != CommentStyle::Slash {
+        return false;
+    }
+
+    let declaration_span = context.get_span_by_id(node_id.id);
+    let annotation_span = context.get_annotation_span(annotation_id);
+    if annotation_span.start <= declaration_span.start {
+        return false;
+    }
+
+    let declaration_start_line = context
+        .file
+        .get_position(declaration_span.start)
+        .map_or(0, |position| position.0);
+    let annotation_start_line = context
+        .file
+        .get_position(annotation_span.start)
+        .map_or(0, |position| position.0);
+
+    annotation_start_line == declaration_start_line
+}
+
+/// Return whether one annotation is a generic-head seam comment for a declaration.
+fn annotation_is_declaration_generic_head_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(node_id.id);
+    if !declaration_has_static_parameters(context, declaration_id) {
+        return false;
+    }
+
+    let Annotation::Comment {
+        node,
+        position: AnnotationPosition::LinePrefix,
+    } = annotation
+    else {
+        return false;
+    };
+    let comment = context.tree.get::<Comment>(node);
+    if comment.style != CommentStyle::Slash {
+        return false;
+    }
+
+    let annotation_span = context.get_annotation_span(annotation_id);
+    let declaration_span = context.get_span_by_id(node_id.id);
+    if annotation_span.start <= declaration_span.start || annotation_span.end > declaration_span.end
+    {
+        return false;
+    }
+
+    if !matches!(
+        previous_non_whitespace_before_annotation(context, annotation_id),
+        Some(character) if character.is_ascii_alphanumeric() || character == '_'
+    ) {
+        return false;
+    }
+
+    matches!(
+        next_non_whitespace_after_span(context, annotation_span),
+        Some('<')
+    )
 }
 
 impl<'ast, T> Format<DestackFormatContext<'ast>> for Annotations<T>
@@ -360,9 +619,50 @@ where
             if !is_included {
                 continue;
             }
+            if self.position == AnnotationCapture::DeclarationPrefix
+                && annotation_is_declaration_export_head_comment(
+                    f.context(),
+                    self.node_id,
+                    annotation,
+                    annotation_id,
+                )
+            {
+                continue;
+            }
+            if self.position == AnnotationCapture::DeclarationPrefix
+                && annotation_is_declaration_generic_head_comment(
+                    f.context(),
+                    self.node_id,
+                    annotation,
+                    annotation_id,
+                )
+            {
+                continue;
+            }
+            if self.position == AnnotationCapture::DeclarationExportHead
+                && !annotation_is_declaration_export_head_comment(
+                    f.context(),
+                    self.node_id,
+                    annotation,
+                    annotation_id,
+                )
+            {
+                continue;
+            }
+            if self.position == AnnotationCapture::DeclarationGenericHead
+                && !annotation_is_declaration_generic_head_comment(
+                    f.context(),
+                    self.node_id,
+                    annotation,
+                    annotation_id,
+                )
+            {
+                continue;
+            }
 
             // collect annotation-specific rendering facts
             let render_facts = annotation_render_facts(f.context(), &annotation, annotation_id);
+            let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id);
             let is_ignore_directive_postfix_comment = render_facts.is_slash_comment
                 && matches!(
                     position,
@@ -392,11 +692,15 @@ where
                         false
                     }
                 };
-            let decorator_can_stay_inline_for_owner = render_facts.follows_colon;
+            let decorator_can_stay_inline_for_owner = render_facts.follows_colon
+                || render_facts.follows_opening_delimiter
+                || render_facts.follows_separator;
             let is_inline_decorator_prefix = matches!(annotation, Annotation::Decorator { .. })
                 && position == AnnotationPosition::BlockPrefix
+                && !starts_on_own_line
                 && annotation_next_token_is_on_same_line(f.context(), annotation_id)
-                && decorator_can_stay_inline_for_owner;
+                && decorator_can_stay_inline_for_owner
+                && decorator_can_stay_inline_for_node_type(T::TYPE);
             let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
             if is_blank_annotation && previous_was_blank_annotation {
                 continue;
@@ -405,7 +709,6 @@ where
             if is_ignore_directive_postfix_comment {
                 continue;
             }
-            let starts_on_own_line = annotation_starts_on_own_line(f.context(), annotation_id);
             let is_inline_block_star_comment = matches!(
                 position,
                 AnnotationPosition::BlockPrefix | AnnotationPosition::BlockInfix
@@ -429,15 +732,9 @@ where
                 && position == AnnotationPosition::LinePostfixBoundary
                 && starts_on_own_line
             {
-                write!(
-                    f,
-                    [indent(&format_with(|f| {
-                        write!(f, [hard_line_break()])?;
-                        annotation.format_node(annotation_id, f)?;
-                        write!(f, [soft_line_break()])?;
-                        Ok(())
-                    }))]
-                )?;
+                write!(f, [hard_line_break()])?;
+                annotation.format_node(annotation_id, f)?;
+                write!(f, [hard_line_break()])?;
                 continue;
             }
 
@@ -517,7 +814,9 @@ where
                                 write!(f, [space()])?;
                             }
                         } else if is_inline_decorator_prefix {
-                            if !render_facts.follows_colon {
+                            if !render_facts.follows_colon
+                                && !render_facts.follows_opening_delimiter
+                            {
                                 write!(f, [space()])?;
                             }
                         } else if !is_block_prefix_after_colon
@@ -537,7 +836,9 @@ where
                         }
                     }
                     AnnotationPosition::LinePrefix => {
-                        // no spacing needed for line prefix
+                        if self.position == AnnotationCapture::DeclarationGenericHead {
+                            write!(f, [space()])?;
+                        }
                     }
                 }
             }
@@ -571,6 +872,8 @@ where
                     if render_facts.is_slash_comment {
                         if next_token_is_on_same_line {
                             write!(f, [space()])?;
+                        } else if annotation_has_trailing_blank_line(f.context(), annotation_id) {
+                            write!(f, [empty_line()])?;
                         } else {
                             write!(f, [hard_line_break()])?;
                         }
@@ -587,7 +890,11 @@ where
                 }
                 AnnotationPosition::BlockInfix => {
                     if is_inline_block_star_comment {
-                        if !render_facts.precedes_separator {
+                        if !render_facts.precedes_separator
+                            || !inline_block_comment_allows_tight_separator(
+                                render_facts.next_character,
+                            )
+                        {
                             write!(f, [space()])?;
                         }
                     } else {
@@ -596,7 +903,11 @@ where
                 }
                 AnnotationPosition::BlockPostfix => {
                     if is_inline_delimited_block_postfix_star_comment {
-                        if !render_facts.precedes_separator {
+                        if !render_facts.precedes_separator
+                            || !inline_block_comment_allows_tight_separator(
+                                render_facts.next_character,
+                            )
+                        {
                             write!(f, [space()])?;
                         }
                     } else {
@@ -605,7 +916,11 @@ where
                 }
                 AnnotationPosition::BlockPrefix => {
                     if is_inline_block_star_comment {
-                        if !render_facts.precedes_separator {
+                        if !render_facts.precedes_separator
+                            || !inline_block_comment_allows_tight_separator(
+                                render_facts.next_character,
+                            )
+                        {
                             write!(f, [space()])?;
                         }
                     } else if is_inline_decorator_prefix
@@ -684,17 +999,24 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
                 if is_multi_line {
                     let total_lines = string.lines().count();
                     for (i, line) in string.lines().enumerate() {
-                        if i == 0 {
+                        let is_last_line = i == total_lines - 1;
+                        let is_last_blank_line = is_last_line && line.trim().is_empty();
+
+                        if is_last_blank_line {
+                            // keep a trailing empty line compact as plain closing delimiter
+                        } else if i == 0 {
                             write!(f, [token("/**")])?;
                         } else {
                             write!(f, [token(" *")])?;
                         }
-                        if !line.is_empty() {
+
+                        if !line.is_empty() && !is_last_blank_line {
                             write!(f, [space(), text(line)])?;
                         } else if i == 0 {
                             write!(f, [space()])?;
                         }
-                        if i != total_lines - 1 {
+
+                        if !is_last_line {
                             write!(f, [hard_line_break()])?;
                         }
                     }
@@ -1035,6 +1357,19 @@ mod tests {
             formatted.contains("1 satisfies /* sat-between */ Foo;"),
             "expected formatted output to preserve satisfies seam block comment, got:\n{formatted}"
         );
+    }
+
+    /// Prefix cast comments before parenthesized values should keep one separating space.
+    #[test]
+    fn test_prefix_cast_comment_keeps_space_before_parenthesized_value() {
+        let source = "{\n    target(/** @type {{id: string}} */ (entry), second);\n}";
+        let expected = "{\n    target(/** @type {{id: string}} */ (entry), second);\n}";
+        let (formatter, block_id) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| p.eat_block())
+                .expect("parse parenthesized cast argument source");
+
+        let formatted = formatter.format(&block_id, DestackFormatOptions::default());
+        assert_eq!(formatted, expected);
     }
 
     /// Condition boundary comments should detect closing delimiter separators.

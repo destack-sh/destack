@@ -111,10 +111,9 @@ pub(super) fn collect_single_call_argument_facts(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> (bool, bool) {
-    let has_line_comment_annotations = context.has_annotation(argument_id)
-        && context
-            .argument_annotation_profile(argument_id)
-            .has_line_comment;
+    let has_line_comment_annotations = context
+        .argument_annotation_profile(argument_id)
+        .has_line_comment;
     let trailing_collection_argument = argument_is_collection_literal(context, argument_id);
     let has_collection_source_comment = if trailing_collection_argument {
         let argument_span = context.get_span(argument_id);
@@ -221,6 +220,7 @@ pub(super) fn build_call_argument_expansion_profiles(
 
     if dynamic_arguments.len() == 1 {
         let argument_id = dynamic_arguments[0];
+        let argument_annotation_profile = context.argument_annotation_profile(argument_id);
         let (has_line_comment_annotations, trailing_collection_argument) =
             collect_single_call_argument_facts(context, argument_id);
         let force_expand_jsx = has_multiline_jsx_argument(context.tree, dynamic_arguments);
@@ -258,6 +258,8 @@ pub(super) fn build_call_argument_expansion_profiles(
             );
         let force_expand_single_chain_argument =
             single_argument_requires_expanded_list(context, dynamic_arguments);
+        let force_expand_single_prefix_line_commented_argument =
+            argument_annotation_profile.has_prefix_line_comment;
 
         let regular_force_expand = force_expand_jsx
             || has_line_comment_annotations
@@ -266,6 +268,7 @@ pub(super) fn build_call_argument_expansion_profiles(
             || force_expand_single_long_with_static_arguments
             || force_expand_single_chain_argument
             || force_expand_single_collection_for_type_binary_callee
+            || force_expand_single_prefix_line_commented_argument
             || has_call_infix_annotations;
         let chain_force_expand = force_expand_jsx
             || has_line_comment_annotations

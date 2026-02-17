@@ -7,6 +7,59 @@ use destack_fir::{format_args, write};
 const PAREN_ASSIGNMENT_OBJECT_EXPAND_MIN_PROPERTIES: usize = 3;
 const PAREN_ASSIGNMENT_ARRAY_EXPAND_MIN_ELEMENTS: usize = 4;
 
+/// Return whether an expression or its wrapped declaration has prefix annotations.
+fn expression_has_effective_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if context.has_prefix_annotation(expression_id) {
+        return true;
+    }
+
+    match context.tree.get(expression_id) {
+        Expression::Declaration(declaration_id) => context.has_prefix_annotation(*declaration_id),
+        _ => false,
+    }
+}
+
+/// Return whether an expression or wrapped declaration has decorator prefix annotations.
+fn expression_has_effective_decorator_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_has_decorator = context.with_annotations(expression_id, |annotations| {
+        annotations.iter().any(|annotation_id| {
+            matches!(
+                context.get_annotation(*annotation_id),
+                Annotation::Decorator {
+                    position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                    ..
+                }
+            )
+        })
+    });
+    if expression_has_decorator.unwrap_or(false) {
+        return true;
+    }
+
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+    context
+        .with_annotations(*declaration_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.get_annotation(*annotation_id),
+                    Annotation::Decorator {
+                        position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Format primary expression variants.
 pub(super) fn format_primary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -548,9 +601,11 @@ pub(super) fn format_primary_expression<'ast>(
                     parenthesized_has_leading_inner_trivia(f.context(), node_id, *expression);
                 let has_parenthesized_leading_inner_newline =
                     parenthesized_has_leading_inner_newline(f.context(), node_id, *expression);
+                let has_parenthesized_leading_inner_comments =
+                    parenthesized_has_leading_inner_comments(f.context(), node_id, *expression);
                 let has_parenthesized_prefix_annotation =
-                    f.context().has_prefix_annotation(node_id)
-                        || f.context().has_prefix_annotation(*expression);
+                    expression_has_effective_prefix_annotation(f.context(), node_id)
+                        || expression_has_effective_prefix_annotation(f.context(), *expression);
                 let should_expand_assignment_target = match inner_expression {
                     // prefer expanded destructuring targets once they become moderately wide
                     Expression::ObjectExpression { properties, .. } => {
@@ -635,8 +690,14 @@ pub(super) fn format_primary_expression<'ast>(
                         ])]
                     )?;
                 } else if has_parenthesized_prefix_annotation {
+                    let inner_has_decorator_prefix_annotation =
+                        expression_has_effective_decorator_prefix_annotation(
+                            f.context(),
+                            *expression,
+                        );
                     if f.context().node_has_newline(*expression)
                         || has_parenthesized_leading_inner_newline
+                        || inner_has_decorator_prefix_annotation
                     {
                         write!(
                             f,
@@ -685,6 +746,25 @@ pub(super) fn format_primary_expression<'ast>(
                     )?;
                 } else if has_parenthesized_leading_inner_trivia {
                     if has_parenthesized_leading_inner_newline {
+                        let line_width = usize::from(f.context().options.line_width);
+                        let available_width = assignment_like_remaining_width(f.context(), node_id)
+                            .unwrap_or(line_width);
+                        let inline_width = expression_source_len(f.context(), *expression) + 2;
+                        let should_keep_multiline = has_parenthesized_leading_inner_comments
+                            || inline_width > available_width;
+                        if !should_keep_multiline {
+                            write!(f, [token("("), expression, token(")")])?;
+                            let boundary_comments = collect_parenthesized_boundary_comments(
+                                f.context(),
+                                node_id,
+                                *expression,
+                            );
+                            for comment in boundary_comments {
+                                write!(f, [space(), text(comment.as_str())])?;
+                            }
+                            return Ok(true);
+                        }
+
                         write!(
                             f,
                             [
@@ -698,7 +778,33 @@ pub(super) fn format_primary_expression<'ast>(
                         write!(f, [token("("), expression, token(")")])?;
                     }
                 } else {
-                    write!(f, [token("("), expression, token(")")])?;
+                    let line_width = usize::from(f.context().options.line_width);
+                    let available_width =
+                        assignment_like_remaining_width(f.context(), node_id).unwrap_or(line_width);
+                    let inline_width = expression_source_len(f.context(), *expression) + 2;
+                    let is_await_wrapped_chain = matches!(
+                        tree.get(*expression),
+                        Expression::Await { expression }
+                            | Expression::AwaitMaybe { expression }
+                            if is_expression_chain(tree, *expression) || is_chain_root(tree, *expression)
+                    );
+                    let should_expand_parenthesized_chain =
+                        (is_expression_chain(tree, *expression) || is_await_wrapped_chain)
+                            && inline_width > available_width;
+
+                    if should_expand_parenthesized_chain {
+                        write!(
+                            f,
+                            [
+                                token("("),
+                                block_indent(&group(expression).should_expand(true)),
+                                hard_line_break(),
+                                token(")")
+                            ]
+                        )?;
+                    } else {
+                        write!(f, [token("("), expression, token(")")])?;
+                    }
                 }
 
                 let boundary_comments =

@@ -1,4 +1,81 @@
 use super::*;
+use destack_ast::{Comment, CommentStyle, Doc, DocStyle, TokenType};
+
+/// Return whether the next non-whitespace token after one annotation starts on the same line.
+fn annotation_next_token_is_on_same_line(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let span = context.get_annotation_span(annotation_id);
+    let tokens = context.tokens;
+    let mut index = tokens.partition_point(|token| token.span.start < span.end);
+
+    while let Some(token) = tokens.get(index).copied() {
+        match token.token.ty {
+            TokenType::Whitespace => {
+                index += 1;
+                continue;
+            }
+            TokenType::Newline => return false,
+            _ => return true,
+        }
+    }
+
+    false
+}
+
+/// Return whether one annotation should not force multiline chain breaking.
+fn chain_annotation_is_inline_non_breaking(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let annotation = context.get_annotation(annotation_id);
+    let position = annotation.position();
+    if !matches!(
+        position,
+        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+    ) {
+        return false;
+    }
+
+    let is_star_style = match annotation {
+        Annotation::Comment { node, .. } => {
+            let comment = context.tree.get::<Comment>(node);
+            comment.style == CommentStyle::Star
+        }
+        Annotation::Doc { node, .. } => {
+            let doc = context.tree.get::<Doc>(node);
+            doc.style == DocStyle::Star
+        }
+        Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
+    };
+    if !is_star_style {
+        return false;
+    }
+
+    let annotation_span = context.get_annotation_span(annotation_id);
+    if context.has_newline(annotation_span) {
+        return false;
+    }
+
+    annotation_next_token_is_on_same_line(context, annotation_id)
+}
+
+/// Return whether one annotation is an internal call argument infix marker.
+fn chain_annotation_is_internal_call_argument_infix(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if context.get_annotation(annotation_id).position() != AnnotationPosition::BlockInfix {
+        return false;
+    }
+
+    matches!(
+        context.tree.get(node_id),
+        Expression::Call { .. } | Expression::Instantiation { .. } | Expression::New { .. }
+    )
+}
 
 /// Split off simple head operations that should stay with the base.
 pub(crate) fn split_chain_head_operations(
@@ -307,6 +384,7 @@ pub(crate) fn analyze_chain_break(
     let chain_head = chain_head_id(context.tree, chain_root);
     let call_summaries = summarize_chain_calls(context, chain);
     let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(context, chain);
+    let has_chain_intervening_comment = chain_has_intervening_comment(context, chain);
     let root_has_path_tail_segments = matches!(
         context.tree.get(chain_root),
         Expression::Path { path, .. } if path.segments.len() > 1
@@ -332,15 +410,23 @@ pub(crate) fn analyze_chain_break(
         .copied()
         .any(|expression_id| chain_node_has_breaking_annotation(context, expression_id))
         || chain_node_has_breaking_annotation(context, chain_head);
+    let chain_root_has_inline_non_breaking_prefix_annotation = context
+        .with_annotations(chain_root, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                chain_annotation_is_inline_non_breaking(context, *annotation_id)
+            })
+        })
+        .unwrap_or(false);
 
     // keep short inline chains stable even when source trivia appears between operations
     let should_allow_short_inline_chain_with_trivia = has_chain_intervening_trivia
         && has_member_access
         && chain.len() <= 3
-        && expression_source_len(context, chain_root) <= line_width;
+        && (expression_source_len(context, chain_root) <= line_width
+            || chain_root_has_inline_non_breaking_prefix_annotation);
 
     let should_break_for_annotation_or_trivia = has_chain_annotations
-        || (has_chain_intervening_trivia
+        || (has_chain_intervening_comment
             && has_member_access
             && !should_allow_short_inline_chain_with_trivia);
     if should_break_for_annotation_or_trivia {
@@ -419,6 +505,16 @@ pub(crate) fn chain_node_has_breaking_annotation(
     context
         .with_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
+                if chain_annotation_is_inline_non_breaking(context, *annotation_id)
+                    || chain_annotation_is_internal_call_argument_infix(
+                        context,
+                        node_id,
+                        *annotation_id,
+                    )
+                {
+                    return false;
+                }
+
                 let annotation = context.get_annotation(*annotation_id);
                 let position = annotation.position();
 
@@ -443,6 +539,16 @@ pub(crate) fn chain_node_has_non_inline_annotation(
     context
         .with_annotations(node_id, |annotations| {
             annotations.iter().any(|annotation_id| {
+                if chain_annotation_is_inline_non_breaking(context, *annotation_id)
+                    || chain_annotation_is_internal_call_argument_infix(
+                        context,
+                        node_id,
+                        *annotation_id,
+                    )
+                {
+                    return false;
+                }
+
                 let annotation = context.get_annotation(*annotation_id);
                 let position = annotation.position();
 
@@ -592,6 +698,83 @@ pub(crate) fn chain_has_intervening_break_or_comment(
         member_has_intervening_break_or_comment(context, expression_id)
             || chain_has_parent_intervening_break_or_comment(context, expression_id)
     })
+}
+
+/// Return whether a chain contains comments between adjacent chain operations.
+fn chain_has_intervening_comment(
+    context: &DestackFormatContext<'_>,
+    chain: &[LocalNodeId<Expression>],
+) -> bool {
+    // check adjacent chain nodes directly for source comments
+    for adjacent in chain.windows(2) {
+        let left_id = adjacent[0];
+        let right_id = adjacent[1];
+        if has_comment_between_expressions(context, left_id, right_id) {
+            return true;
+        }
+    }
+
+    chain.iter().copied().any(|expression_id| {
+        member_has_intervening_comment(context, expression_id)
+            || chain_has_parent_intervening_comment(context, expression_id)
+    })
+}
+
+/// Check if a chain node has source comments before its parent operator.
+fn chain_has_parent_intervening_comment(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    let parent = context.tree.get(parent_id);
+    let parent_uses_node_as_left = match parent {
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => *left == node_id,
+        _ => false,
+    };
+    if !parent_uses_node_as_left {
+        return false;
+    }
+
+    let should_check_parent_gap = match parent {
+        Expression::Member { .. } | Expression::PrivateMember { .. } => true,
+        Expression::Call { .. }
+        | Expression::Index { .. }
+        | Expression::Instantiation { .. }
+        | Expression::Maybe { .. }
+        | Expression::Must { .. } => matches!(
+            context.tree.get(node_id),
+            Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Path { .. }
+        ),
+        _ => false,
+    };
+    if !should_check_parent_gap {
+        return false;
+    }
+
+    let node_span = context.get_span(node_id);
+    let node_anchor_end = expression_trivia_anchor_end(context, node_id);
+    let Some(parent_main_span) = context.tree.get_main_span(parent_id) else {
+        return false;
+    };
+    if node_span.file != parent_main_span.file || parent_main_span.start <= node_anchor_end {
+        return false;
+    }
+
+    let between_span = Span::new(node_span.file, node_anchor_end, parent_main_span.start);
+    span_has_comment(context, between_span)
 }
 
 /// Return whether a non-head call in a chain takes a non-lambda function argument.

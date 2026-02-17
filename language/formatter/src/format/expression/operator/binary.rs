@@ -1,6 +1,7 @@
 use super::super::super::timing::tags;
 use super::super::*;
 use super::common::expression_is_trivial_inline_without_annotations;
+use crate::argument::argument_satisfies_static_seam_comment_source;
 use crate::scan::previous_non_whitespace_before_annotation;
 use destack_fir::format::text;
 use destack_fir::{format_args, write};
@@ -186,8 +187,8 @@ fn type_binary_operands_have_nontrailing_slash_comment_pressure(
     })
 }
 
-/// Return whether expression annotations are only doc-like block-prefix comments.
-fn expression_has_only_doc_like_block_prefix_annotations(
+/// Return whether expression annotations are only doc-like prefix comments.
+fn expression_has_only_doc_like_prefix_annotations(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -202,17 +203,9 @@ fn expression_has_only_doc_like_block_prefix_annotations(
     annotation_ids.into_iter().all(
         |annotation_id| match context.get_annotation(annotation_id) {
             Annotation::Doc {
-                position: AnnotationPosition::BlockPrefix,
+                position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
                 ..
             } => true,
-            Annotation::Comment {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            } => {
-                let annotation_span = context.get_annotation_span(annotation_id);
-                let annotation_source = context.get_span_str(annotation_span);
-                annotation_source.trim_start().starts_with("/**")
-            }
             _ => false,
         },
     )
@@ -405,7 +398,19 @@ fn format_flat_type_binary_operands<'ast>(
                     write!(f, [space(), operator, space()])?;
                 }
             }
-            write!(f, [operand.expression])?;
+
+            // keep prefix-owned first operands aligned under assignment seams
+            let is_first_operand_with_prefix_annotation =
+                index == 0 && f.context().has_prefix_annotation(operand.expression);
+            if is_first_operand_with_prefix_annotation {
+                write!(
+                    f,
+                    [indent(&format_with(|f| write!(f, [operand.expression])))]
+                )?;
+            } else {
+                write!(f, [operand.expression])?;
+            }
+
             prev_expression = Some(operand.expression);
         }
         Ok(())
@@ -441,7 +446,7 @@ fn operand_allows_flat_type_binary_render(
         return true;
     }
 
-    if expression_has_only_doc_like_block_prefix_annotations(context, operand_expression_id) {
+    if expression_has_only_doc_like_prefix_annotations(context, operand_expression_id) {
         return true;
     }
 
@@ -972,7 +977,7 @@ pub(super) fn format_binary_expression<'ast>(
     if (is_type_union || is_type_intersection)
         && !is_destack
         && (!f.context().has_annotation(node_id)
-            || expression_has_only_doc_like_block_prefix_annotations(f.context(), node_id))
+            || expression_has_only_doc_like_prefix_annotations(f.context(), node_id))
         && !type_binary_operands_have_nontrailing_slash_comment_pressure(f.context(), &operands)
         && flat_type_binary_operands_len(f.context(), *operator, &operands) <= line_width
         && operands.iter().enumerate().all(|(index, operand)| {
@@ -1352,6 +1357,26 @@ fn write_type_binary_operator_and_right<'ast>(
     write!(f, [right])
 }
 
+/// Return one inline source form for satisfies seam left operands when safe.
+fn satisfies_seam_inline_left_source(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<String> {
+    if !matches!(
+        context.tree.get(expression_id),
+        Expression::ObjectExpression { .. }
+    ) {
+        return None;
+    }
+
+    let span = context.get_span(expression_id);
+    if context.has_newline(span) || span_has_comment(context, span) {
+        return None;
+    }
+
+    Some(context.get_span_str(span).trim().to_string())
+}
+
 /// Format a type-binary expression with chain-aware left-hand expansion.
 pub(super) fn format_type_binary_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1375,6 +1400,25 @@ pub(super) fn format_type_binary_expression<'ast>(
         formatted_left = *expression;
     }
 
+    // statement-level satisfies/cast over object literals should keep `({ ... })` lhs wrapping
+    let left_needs_statement_object_parentheses =
+        matches!(
+            operator,
+            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
+        ) && matches!(
+            f.context().tree.get(formatted_left),
+            Expression::ObjectExpression { .. }
+        ) && (type_binary_is_statement_expression(f.context(), node_id)
+            || type_binary_is_parenthesized_statement_expression(f.context(), node_id));
+
+    let format_left = |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
+        if left_needs_statement_object_parentheses {
+            write!(f, [token("("), formatted_left, token(")")])
+        } else {
+            write!(f, [formatted_left])
+        }
+    };
+
     let has_postfix = f.context().has_postfix_annotation(formatted_left);
     let left_has_leading_prefix_comment =
         expression_has_leading_prefix_comment(f.context(), formatted_left);
@@ -1382,6 +1426,55 @@ pub(super) fn format_type_binary_expression<'ast>(
         || is_chain_root(f.context().tree, formatted_left);
     let line_width = usize::from(f.context().options.line_width);
     let is_parenthesized_new_callee = type_binary_is_parenthesized_new_callee(f.context(), node_id);
+
+    // satisfies separator seam comments before multi-argument static type lists:
+    // `... satisfies // note\nRecord<A, B>` -> `... satisfies Record< // note\n    A,\n    B\n>`
+    if *operator == TypeBinaryOperator::Satisfies
+        && let Expression::Path {
+            path,
+            static_arguments: Some(static_arguments),
+        } = f.context().tree.get(right)
+        && static_arguments.len() > 1
+        && path.segments.len() == 1
+        && let Some(seam_comment) =
+            argument_satisfies_static_seam_comment_source(f.context(), static_arguments[0])
+    {
+        if let Some(left_source) = satisfies_seam_inline_left_source(f.context(), formatted_left) {
+            write!(f, [text(left_source.as_str())])?;
+        } else {
+            write!(f, [format_with(format_left)])?;
+        }
+        if !has_postfix {
+            write!(f, [space()])?;
+        }
+        write!(
+            f,
+            [
+                operator,
+                space(),
+                path.segments[0],
+                token("<"),
+                space(),
+                text(seam_comment.as_str())
+            ]
+        )?;
+        write!(
+            f,
+            [indent(&format_with(|f| {
+                write!(f, [hard_line_break()])?;
+                for (index, argument_id) in static_arguments.iter().enumerate() {
+                    write!(f, [*argument_id])?;
+                    if index + 1 < static_arguments.len() {
+                        write!(f, [token(","), hard_line_break()])?;
+                    }
+                }
+                Ok(())
+            }))]
+        )?;
+        write!(f, [hard_line_break(), token(">")])?;
+        return Ok(());
+    }
+
     let should_expand_chain_left = matches!(
         operator,
         TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
@@ -1396,7 +1489,7 @@ pub(super) fn format_type_binary_expression<'ast>(
                 write!(
                     f,
                     [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        write!(f, [formatted_left])
+                        format_left(f)
                     }))
                     .should_expand(true)]
                 )?;
@@ -1415,7 +1508,7 @@ pub(super) fn format_type_binary_expression<'ast>(
         write!(
             f,
             [group(&format_args![
-                formatted_left,
+                format_with(format_left),
                 indent(&format_with(|f| {
                     if !has_postfix {
                         if left_has_leading_prefix_comment || keep_left_and_operator_on_same_line {

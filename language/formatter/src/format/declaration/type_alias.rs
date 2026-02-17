@@ -1,3 +1,4 @@
+use super::dispatch::format_declaration_export_modifier;
 use crate::argument::list_like;
 use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
@@ -198,9 +199,7 @@ pub(super) fn format_type_alias_declaration<'ast>(
 ) -> FormatResult<()> {
     let header = format_with(|f| {
         // export
-        if let Some(export) = descriptor.export {
-            write!(f, [export, space()])?;
-        }
+        format_declaration_export_modifier(f, node_id, descriptor)?;
 
         // kind
         if descriptor.kind == DeclarationKind::Declaration {
@@ -225,6 +224,10 @@ pub(super) fn format_type_alias_declaration<'ast>(
         // static parameters
         if let Some(static_parameters) = static_parameters {
             write!(f, [list_like("<", ">", ",", static_parameters)])?;
+            write!(
+                f,
+                [f.context().declaration_generic_head_annotations(node_id)]
+            )?;
         }
 
         Ok(())

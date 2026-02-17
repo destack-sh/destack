@@ -541,14 +541,21 @@ pub(super) fn format_binary_operand_with_grouping_parentheses<'ast>(
     if let Expression::Parenthesized {
         expression: inner_expression_id,
     } = f.context().tree.get(operand_id)
-        && redundant_parenthesized_binary_operand_can_drop(
+    {
+        let can_drop_for_binary = redundant_parenthesized_binary_operand_can_drop(
             f.context(),
             parent_operator,
             operand_id,
             *inner_expression_id,
-        )
-    {
-        operand_id = *inner_expression_id;
+        );
+        let can_drop_for_closure_cast = redundant_parenthesized_closure_cast_operand_can_drop(
+            f.context(),
+            operand_id,
+            *inner_expression_id,
+        );
+        if can_drop_for_binary || can_drop_for_closure_cast {
+            operand_id = *inner_expression_id;
+        }
     }
 
     let expression = f.context().tree.get(operand_id);
@@ -578,6 +585,48 @@ pub(super) fn format_binary_operand_with_grouping_parentheses<'ast>(
     Ok(())
 }
 
+/// Return whether a parenthesized closure-cast style operand can drop wrappers.
+fn redundant_parenthesized_closure_cast_operand_can_drop(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if !parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id) {
+        return false;
+    }
+
+    let has_doc_like_prefix = context
+        .with_annotations(inner_expression_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    context.get_annotation(*annotation_id),
+                    Annotation::Doc {
+                        position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
+                        ..
+                    }
+                )
+            })
+        })
+        .unwrap_or(false);
+    if !has_doc_like_prefix {
+        return false;
+    }
+
+    matches!(
+        context.tree.get(inner_expression_id),
+        Expression::Path { .. }
+            | Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::ScalarLiteral(_)
+            | Expression::TypeLiteral(_)
+            | Expression::Call { .. }
+            | Expression::Index { .. }
+            | Expression::Instantiation { .. }
+            | Expression::Maybe { .. }
+            | Expression::Must { .. }
+    )
+}
+
 /// Return whether a parenthesized binary operand can safely drop its wrapper.
 fn redundant_parenthesized_binary_operand_can_drop(
     context: &DestackFormatContext<'_>,
@@ -585,11 +634,33 @@ fn redundant_parenthesized_binary_operand_can_drop(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
+    // closure style casts use inline prefix docs/comments before the inner expression
+    let has_inline_closure_cast_prefix =
+        parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id)
+            && context
+                .with_annotations(inner_expression_id, |annotations| {
+                    annotations.iter().any(|annotation_id| {
+                        matches!(
+                            context.get_annotation(*annotation_id),
+                            Annotation::Doc {
+                                position: AnnotationPosition::BlockPrefix
+                                    | AnnotationPosition::LinePrefix,
+                                ..
+                            }
+                        )
+                    })
+                })
+                .unwrap_or(false);
+
+    if (context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id))
+        && !has_inline_closure_cast_prefix
+    {
         return false;
     }
 
-    if parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id) {
+    if parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id)
+        && !has_inline_closure_cast_prefix
+    {
         return false;
     }
 
