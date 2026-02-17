@@ -148,7 +148,22 @@ pub const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
         &["diagnostic.read"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptors for error.
 pub const BINDINGS: &[BindingDescriptor] = &[ERROR_ERROR_TAKE_PLATFORM_ERROR];

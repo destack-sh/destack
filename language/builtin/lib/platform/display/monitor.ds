@@ -51,6 +51,7 @@ declare namespace display {
         effect: "external",
         replay: "recordable",
         requires: ["display.read"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -77,6 +78,7 @@ declare namespace display {
         effect: "external",
         replay: "recordable",
         requires: ["display.read"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -103,6 +105,7 @@ declare namespace display {
         effect: "external",
         replay: "recordable",
         requires: ["display.read"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "never",
     })
@@ -129,6 +132,7 @@ declare namespace display {
         effect: "external",
         replay: "recordable",
         requires: ["display.mode"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -155,6 +159,7 @@ declare namespace display {
         effect: "external",
         replay: "nonrecordable",
         requires: ["display.mode"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })

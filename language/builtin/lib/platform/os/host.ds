@@ -37,6 +37,7 @@ declare namespace os {
             effect: "external",
             replay: "recordable",
             requires: ["os.hostname", "os.sysinfo"],
+            platforms: ["unix", "windows", "wasi"],
             scope: "os",
             blocking: "sometimes",
         },

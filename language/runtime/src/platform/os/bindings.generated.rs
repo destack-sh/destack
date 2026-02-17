@@ -478,7 +478,22 @@ pub const OS_HOST_IDENTITY: BindingDescriptor =
         &["os.hostname", "os.sysinfo"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.info.bootTimeUnixNs.
 pub const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
@@ -490,7 +505,21 @@ pub const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.info.loadAverage.
 pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
@@ -502,7 +531,20 @@ pub const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+    ]);
 
 /// Binding descriptor for destack.os.info.systemInfo.
 pub const OS_INFO_SYSTEM_INFO: BindingDescriptor =
@@ -514,7 +556,22 @@ pub const OS_INFO_SYSTEM_INFO: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.info.uptimeNs.
 pub const OS_INFO_UPTIME_NS: BindingDescriptor =
@@ -526,7 +583,22 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
         &["os.sysinfo"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.mount.add.
 pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -537,18 +609,34 @@ pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_req
     &["os.mount"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.mount.list.
-pub const OS_MOUNT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.os.mount.list",
-    "export function list(): Result<MountEntry[], PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["os.mount"],
-    BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+pub const OS_MOUNT_LIST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.mount.list",
+        "export function list(): Result<MountEntry[], PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.mount"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.mount.remove.
 pub const OS_MOUNT_REMOVE: BindingDescriptor =
@@ -560,7 +648,21 @@ pub const OS_MOUNT_REMOVE: BindingDescriptor =
         &["os.mount"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.power.state.
 pub const OS_POWER_STATE: BindingDescriptor =
@@ -572,7 +674,21 @@ pub const OS_POWER_STATE: BindingDescriptor =
         &["os.power"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.os.power.suspend.
 pub const OS_POWER_SUSPEND: BindingDescriptor =
@@ -584,7 +700,21 @@ pub const OS_POWER_SUSPEND: BindingDescriptor =
         &["os.power"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptors for os.
 pub const BINDINGS: &[BindingDescriptor] = &[

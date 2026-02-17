@@ -27,7 +27,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.listen", { effect: "external", replay: "recordable", requires: ["net.listen"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.listen", { effect: "external", replay: "recordable", requires: ["net.listen"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function listen(
         address: SocketAddress,
         backlog: uint32,
@@ -50,7 +50,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.bind", { effect: "external", replay: "recordable", requires: ["net.listen"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.bind", { effect: "external", replay: "recordable", requires: ["net.listen"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function bind(
         handle: SocketHandle,
         address: SocketAddress,
@@ -73,7 +73,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.accept", { effect: "external", replay: "recordable", requires: ["net.accept"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.accept", { effect: "external", replay: "recordable", requires: ["net.accept"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function accept(
         listener: ListenerHandle,
         flags: AcceptFlags,
@@ -96,7 +96,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.closeListener", { effect: "external", replay: "recordable", requires: ["net.close"], scope: "os", blocking: "sometimes" })
+    @binding("destack.net.closeListener", { effect: "external", replay: "recordable", requires: ["net.close"], platforms: ["unix", "windows"], scope: "os", blocking: "sometimes" })
     export function closeListener(
         handle: ListenerHandle,
     ): Result<void, PlatformError>;

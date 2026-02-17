@@ -921,76 +921,76 @@ fn encode_destack_crypto_store_open_result(
 }
 
 /// Binding descriptor for destack.crypto.certificate.delete.
-pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.certificate.delete",
-        "export function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.certificate.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.certificate.delete",
+    "export function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.certificate.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.export.
-pub const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.certificate.export",
-        "export function certificateExport(handle: CryptoCertificateHandle, format: CryptoCertificateFormat): Result<Slice<uint8>, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.certificate.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.certificate.export",
+    "export function certificateExport(handle: CryptoCertificateHandle, format: CryptoCertificateFormat): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.certificate.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.import.
-pub const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.certificate.import",
-        "export function certificateImport(store: CryptoStoreHandle, format: CryptoCertificateFormat, certificate: Slice<uint8>): Result<CryptoCertificateHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.certificate.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.certificate.import",
+    "export function certificateImport(store: CryptoStoreHandle, format: CryptoCertificateFormat, certificate: Slice<uint8>): Result<CryptoCertificateHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.certificate.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.metadata.
-pub const CRYPTO_CERTIFICATE_METADATA: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.certificate.metadata",
-        "export function certificateMetadata(handle: CryptoCertificateHandle): Result<CryptoCertificateMetadata, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.certificate.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_CERTIFICATE_METADATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.certificate.metadata",
+    "export function certificateMetadata(handle: CryptoCertificateHandle): Result<CryptoCertificateMetadata, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.certificate.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.verify.
-pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.certificate.verify",
-        "export function certificateVerify(request: CryptoCertificateVerifyRequest): Result<CryptoCertificateVerifyResult, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.certificate.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.certificate.verify",
+    "export function certificateVerify(request: CryptoCertificateVerifyRequest): Result<CryptoCertificateVerifyResult, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.certificate.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.decrypt.
-pub const CRYPTO_KEY_DECRYPT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.decrypt",
-        "export function keyDecrypt(handle: CryptoKeyHandle, scheme: CryptoEncryptionScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.key.decrypt"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.decrypt",
+    "export function keyDecrypt(handle: CryptoKeyHandle, scheme: CryptoEncryptionScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.decrypt"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.delete.
 pub const CRYPTO_KEY_DELETE: BindingDescriptor =
@@ -1002,91 +1002,105 @@ pub const CRYPTO_KEY_DELETE: BindingDescriptor =
         &["crypto.store.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.crypto.key.encrypt.
-pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.encrypt",
-        "export function keyEncrypt(handle: CryptoKeyHandle, scheme: CryptoEncryptionScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.key.encrypt"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.encrypt",
+    "export function keyEncrypt(handle: CryptoKeyHandle, scheme: CryptoEncryptionScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.encrypt"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportPublic.
-pub const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.exportPublic",
-        "export function keyExportPublic(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.store.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.exportPublic",
+    "export function keyExportPublic(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.generate.
-pub const CRYPTO_KEY_GENERATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.generate",
-        "export function keyGenerate(store: CryptoStoreHandle, spec: CryptoKeySpec): Result<CryptoKeyHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.key.generate"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_GENERATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.generate",
+    "export function keyGenerate(store: CryptoStoreHandle, spec: CryptoKeySpec): Result<CryptoKeyHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.generate"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.import.
-pub const CRYPTO_KEY_IMPORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.import",
-        "export function keyImport(store: CryptoStoreHandle, format: CryptoKeyFormat, bytes: Slice<uint8>, usageMask: CryptoKeyUsageMask, label: string): Result<CryptoKeyHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.store.write"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.import",
+    "export function keyImport(store: CryptoStoreHandle, format: CryptoKeyFormat, bytes: Slice<uint8>, usageMask: CryptoKeyUsageMask, label: string): Result<CryptoKeyHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.metadata.
-pub const CRYPTO_KEY_METADATA: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.metadata",
-        "export function keyMetadata(handle: CryptoKeyHandle): Result<CryptoKeyMetadata, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.store.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_METADATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.metadata",
+    "export function keyMetadata(handle: CryptoKeyHandle): Result<CryptoKeyMetadata, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.sign.
-pub const CRYPTO_KEY_SIGN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.sign",
-        "export function keySign(handle: CryptoKeyHandle, scheme: CryptoSignatureScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.key.sign"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.sign",
+    "export function keySign(handle: CryptoKeyHandle, scheme: CryptoSignatureScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.sign"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.verify.
-pub const CRYPTO_KEY_VERIFY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.key.verify",
-        "export function keyVerify(handle: CryptoKeyHandle, scheme: CryptoSignatureScheme, payload: Slice<uint8>, signature: Slice<uint8>): Result<boolean, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.key.verify"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.verify",
+    "export function keyVerify(handle: CryptoKeyHandle, scheme: CryptoSignatureScheme, payload: Slice<uint8>, signature: Slice<uint8>): Result<boolean, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.verify"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.close.
 pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
@@ -1098,43 +1112,57 @@ pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
         &["crypto.store.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.crypto.store.listCertificates.
-pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.store.listCertificates",
-        "export function storeListCertificates(handle: CryptoStoreHandle, query: CryptoCertificateQuery): Result<CryptoCertificateHandle[], PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.store.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.store.listCertificates",
+    "export function storeListCertificates(handle: CryptoStoreHandle, query: CryptoCertificateQuery): Result<CryptoCertificateHandle[], PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.listKeys.
-pub const CRYPTO_STORE_LIST_KEYS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.store.listKeys",
-        "export function storeListKeys(handle: CryptoStoreHandle, query: CryptoKeyQuery): Result<CryptoKeyHandle[], PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.store.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.store.listKeys",
+    "export function storeListKeys(handle: CryptoStoreHandle, query: CryptoKeyQuery): Result<CryptoKeyHandle[], PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.open.
-pub const CRYPTO_STORE_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.crypto.store.open",
-        "export function storeOpen(options: CryptoStoreOptions): Result<CryptoStoreHandle, PlatformError>",
-        ReplayPolicy::NonRecordable,
-        BindingReplayKind::Regular,
-        &["crypto.store.read"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.store.open",
+    "export function storeOpen(options: CryptoStoreOptions): Result<CryptoStoreHandle, PlatformError>",
+    ReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for crypto.
 pub const BINDINGS: &[BindingDescriptor] = &[

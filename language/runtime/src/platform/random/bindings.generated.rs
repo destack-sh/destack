@@ -505,7 +505,22 @@ pub const RANDOM_SECURE_BYTES: BindingDescriptor =
         &["random.secure"],
         BindingScope::Hybrid,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.secure.bytesTry.
 pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
@@ -517,7 +532,22 @@ pub const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
         &["random.secure"],
         BindingScope::Hybrid,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.secure.info.
 pub const RANDOM_SECURE_INFO: BindingDescriptor =
@@ -529,19 +559,34 @@ pub const RANDOM_SECURE_INFO: BindingDescriptor =
         &["random.secure"],
         BindingScope::Hybrid,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.stream.export.
-pub const RANDOM_STREAM_EXPORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.random.stream.export",
-        "export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["random.deterministic"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.random.stream.export",
+    "export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["random.deterministic"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.random.stream.fillBytes.
 pub const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
@@ -553,31 +598,46 @@ pub const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.stream.fillBytesFrom.
-pub const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.random.stream.fillBytesFrom",
-        "export function fillBytesFrom(stream: RandomStream, buffer: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Random(RandomEventKind::Bytes),
-        &["random.deterministic"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.random.stream.fillBytesFrom",
+    "export function fillBytesFrom(stream: RandomStream, buffer: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Random(RandomEventKind::Bytes),
+    &["random.deterministic"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.random.stream.import.
-pub const RANDOM_STREAM_IMPORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.random.stream.import",
-        "export function streamImport(stream: RandomStream, state: RandomStreamState): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["random.deterministic"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.random.stream.import",
+    "export function streamImport(stream: RandomStream, state: RandomStreamState): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["random.deterministic"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.random.stream.in.
 pub const RANDOM_STREAM_IN: BindingDescriptor =
@@ -589,19 +649,34 @@ pub const RANDOM_STREAM_IN: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.stream.jump.
-pub const RANDOM_STREAM_JUMP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.random.stream.jump",
-        "export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["random.deterministic"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-    );
+pub const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.random.stream.jump",
+    "export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["random.deterministic"],
+    BindingScope::Runtime,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.random.stream.nextU64.
 pub const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
@@ -613,7 +688,22 @@ pub const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.stream.nextU64From.
 pub const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
@@ -625,7 +715,22 @@ pub const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.stream.split.
 pub const RANDOM_STREAM_SPLIT: BindingDescriptor =
@@ -637,7 +742,22 @@ pub const RANDOM_STREAM_SPLIT: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.random.stream.stream.
 pub const RANDOM_STREAM_STREAM: BindingDescriptor =
@@ -649,7 +769,22 @@ pub const RANDOM_STREAM_STREAM: BindingDescriptor =
         &["random.deterministic"],
         BindingScope::Runtime,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptors for random.
 pub const BINDINGS: &[BindingDescriptor] = &[

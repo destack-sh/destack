@@ -504,7 +504,21 @@ pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
         &["audio.device"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.audio.device.list.
 pub const AUDIO_DEVICE_LIST: BindingDescriptor =
@@ -516,19 +530,33 @@ pub const AUDIO_DEVICE_LIST: BindingDescriptor =
         &["audio.device"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.audio.device.open.
-pub const AUDIO_DEVICE_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.audio.device.open",
-        "export function deviceOpen(id: string, direction: AudioDeviceDirection): Result<AudioDeviceHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["audio.device"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.device.open",
+    "export function deviceOpen(id: string, direction: AudioDeviceDirection): Result<AudioDeviceHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.close.
 pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
@@ -540,31 +568,45 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
         &["audio.playback"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.audio.stream.open.
-pub const AUDIO_STREAM_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.audio.stream.open",
-        "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig): Result<AudioStreamHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["audio.playback"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.open",
+    "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig): Result<AudioStreamHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.playback"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.read.
-pub const AUDIO_STREAM_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.audio.stream.read",
-        "export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["audio.capture"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.read",
+    "export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.capture"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.start.
 pub const AUDIO_STREAM_START: BindingDescriptor =
@@ -576,19 +618,33 @@ pub const AUDIO_STREAM_START: BindingDescriptor =
         &["audio.playback"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.audio.stream.state.
-pub const AUDIO_STREAM_STATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.audio.stream.state",
-        "export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["audio.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.state",
+    "export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.stop.
 pub const AUDIO_STREAM_STOP: BindingDescriptor =
@@ -600,19 +656,33 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
         &["audio.playback"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.audio.stream.write.
-pub const AUDIO_STREAM_WRITE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.audio.stream.write",
-        "export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["audio.playback"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.write",
+    "export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.playback"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for audio.
 pub const BINDINGS: &[BindingDescriptor] = &[

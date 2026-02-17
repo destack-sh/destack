@@ -57,6 +57,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         requires: ["input.read"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -83,6 +84,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         requires: ["input.read"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -109,6 +111,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         requires: ["input.read"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })

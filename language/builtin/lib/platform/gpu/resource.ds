@@ -81,6 +81,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -110,6 +111,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -136,6 +138,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -166,6 +169,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -196,6 +200,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -226,6 +231,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -252,6 +258,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -281,6 +288,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -307,6 +315,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -336,6 +345,7 @@ declare namespace gpu {
         effect: "external",
         replay: "recordable",
         requires: ["gpu.memory"],
+        platforms: ["unix", "windows"],
         scope: "os",
         blocking: "sometimes",
     })

@@ -172,7 +172,22 @@ pub const CONSOLE_CONSOLE_ERROR: BindingDescriptor =
         &["console.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.console.console.info.
 pub const CONSOLE_CONSOLE_INFO: BindingDescriptor =
@@ -184,7 +199,22 @@ pub const CONSOLE_CONSOLE_INFO: BindingDescriptor =
         &["console.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.console.console.log.
 pub const CONSOLE_CONSOLE_LOG: BindingDescriptor =
@@ -196,7 +226,22 @@ pub const CONSOLE_CONSOLE_LOG: BindingDescriptor =
         &["console.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.console.console.warn.
 pub const CONSOLE_CONSOLE_WARN: BindingDescriptor =
@@ -208,7 +253,22 @@ pub const CONSOLE_CONSOLE_WARN: BindingDescriptor =
         &["console.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptors for console.
 pub const BINDINGS: &[BindingDescriptor] = &[

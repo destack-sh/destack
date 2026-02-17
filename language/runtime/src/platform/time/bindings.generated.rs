@@ -374,7 +374,22 @@ pub const TIME_CLOCK_INFO: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Hybrid,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.time.clock.monoNs.
 pub const TIME_CLOCK_MONO_NS: BindingDescriptor =
@@ -386,7 +401,22 @@ pub const TIME_CLOCK_MONO_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Hybrid,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.time.clock.nowNs.
 pub const TIME_CLOCK_NOW_NS: BindingDescriptor =
@@ -398,7 +428,22 @@ pub const TIME_CLOCK_NOW_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Hybrid,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.time.clock.processCpuNs.
 pub const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
@@ -410,7 +455,21 @@ pub const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.time.clock.threadCpuNs.
 pub const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
@@ -422,7 +481,21 @@ pub const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
         &["time.monotonic.read"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.time.clock.wallNs.
 pub const TIME_CLOCK_WALL_NS: BindingDescriptor =
@@ -434,30 +507,61 @@ pub const TIME_CLOCK_WALL_NS: BindingDescriptor =
         &["time.wall.read"],
         BindingScope::Hybrid,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.time.sleep.ns.
-pub const TIME_SLEEP_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.time.sleep.ns",
-    "export function sleepNs(duration: uint64): Result<void, PlatformError>",
-    ReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["time.wall.sleep"],
-    BindingScope::Hybrid,
-    BindingBlocking::Sometimes,
-);
-
-/// Binding descriptor for destack.time.sleep.onNs.
-pub const TIME_SLEEP_ON_NS: BindingDescriptor =
+pub const TIME_SLEEP_NS: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.time.sleep.onNs",
-        "export function sleepOnNs(duration: uint64, clock: SleepClock): Result<void, PlatformError>",
+        "destack.time.sleep.ns",
+        "export function sleepNs(duration: uint64): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["time.wall.sleep"],
         BindingScope::Hybrid,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.time.sleep.onNs.
+pub const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.time.sleep.onNs",
+    "export function sleepOnNs(duration: uint64, clock: SleepClock): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["time.wall.sleep"],
+    BindingScope::Hybrid,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilNs.
 pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
@@ -469,19 +573,34 @@ pub const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
         &["time.wall.sleep"],
         BindingScope::Hybrid,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "wasi",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.time.sleep.untilOnNs.
-pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.time.sleep.untilOnNs",
-        "export function sleepUntilOnNs(deadline: uint64, clock: SleepClock): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["time.wall.sleep"],
-        BindingScope::Hybrid,
-        BindingBlocking::Sometimes,
-    );
+pub const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.time.sleep.untilOnNs",
+    "export function sleepUntilOnNs(deadline: uint64, clock: SleepClock): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["time.wall.sleep"],
+    BindingScope::Hybrid,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
 
 /// Binding descriptors for time.
 pub const BINDINGS: &[BindingDescriptor] = &[

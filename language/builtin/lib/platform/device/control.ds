@@ -35,6 +35,7 @@ declare namespace device {
             effect: "external",
             replay: "recordable",
             requires: ["device.control"],
+            platforms: ["unix", "windows"],
             scope: "os",
             blocking: "sometimes",
         },

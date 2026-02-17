@@ -520,7 +520,9 @@ fn generate_bindings(
     // render bindings for each discovered domain
     let binding_domains = catalog.keys().cloned().collect::<BTreeSet<_>>();
     let mut abi_domains = binding_domains.clone();
-    abi_domains.extend(domain_types.keys().cloned());
+    if write_platform_index {
+        abi_domains.extend(domain_types.keys().cloned());
+    }
 
     let empty_types = DomainAbiTypes::default();
 

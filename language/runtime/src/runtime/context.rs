@@ -7,7 +7,8 @@ use crate::platform::bindings::{
     BindingDescriptor, BindingPolicy, ExecutionMode, PolicyEngine, ReplayPayload, RuntimeWorld,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformContext, ResourceTable,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformContext, PlatformError,
+    ResourceTable,
 };
 use crate::random::{Random, RandomStreamId};
 use crate::replay::{ReplayController, ReplayHeader};
@@ -468,16 +469,25 @@ impl RuntimeCallContext {
     /// Validate the policy against a binding descriptor.
     #[inline]
     pub fn check_policy(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
-        self.effects().before_binding(spec, Some(self.engine))?;
-        self.policy.check_for_engine(spec, Some(self.engine))
+        let _ = self.check_and_resolve_world(spec)?;
+        Ok(())
     }
 
     /// Validate policy and resolve the binding world for this call context.
     #[inline]
     pub fn check_and_resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
+        // run effect hooks and policy checks first
         self.effects().before_binding(spec, Some(self.engine))?;
-        self.policy
-            .check_and_resolve_world_for_engine(spec, Some(self.engine))
+        let world = self
+            .policy
+            .check_and_resolve_world_for_engine(spec, Some(self.engine))?;
+
+        // reject host dispatch when the binding is unavailable on this host
+        if world == RuntimeWorld::Host && !spec.supports_current_host() {
+            return Err(RuntimeError::from(PlatformError::not_supported(spec.name)).boxed());
+        }
+
+        Ok(world)
     }
 
     /// Resolve the binding world for this call context.

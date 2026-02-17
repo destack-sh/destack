@@ -4624,7 +4624,8 @@ pub const NET_ACCEPT: BindingDescriptor = BindingDescriptor::external_with_requi
     &["net.accept"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.address.localAddress.
 pub const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
@@ -4636,7 +4637,21 @@ pub const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.address.peerAddress.
 pub const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
@@ -4648,7 +4663,21 @@ pub const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.bind.
 pub const NET_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4659,7 +4688,8 @@ pub const NET_BIND: BindingDescriptor = BindingDescriptor::external_with_require
     &["net.listen"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.close.
 pub const NET_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4670,7 +4700,21 @@ pub const NET_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requir
     &["net.close"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+.with_host_platforms(&[
+    "android",
+    "dragonfly",
+    "freebsd",
+    "haiku",
+    "illumos",
+    "ios",
+    "linux",
+    "macos",
+    "netbsd",
+    "openbsd",
+    "solaris",
+    "windows",
+]);
 
 /// Binding descriptor for destack.net.closeListener.
 pub const NET_CLOSE_LISTENER: BindingDescriptor =
@@ -4682,7 +4726,21 @@ pub const NET_CLOSE_LISTENER: BindingDescriptor =
         &["net.close"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.connect.
 pub const NET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4693,7 +4751,8 @@ pub const NET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requ
     &["net.connect"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.interface.listInterfaces.
 pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
@@ -4705,7 +4764,21 @@ pub const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
         &["net.interface"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.interfaceIndex.
 pub const NET_INTERFACE_INDEX: BindingDescriptor =
@@ -4717,7 +4790,21 @@ pub const NET_INTERFACE_INDEX: BindingDescriptor =
         &["net.interface"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.interfaceName.
 pub const NET_INTERFACE_NAME: BindingDescriptor =
@@ -4729,7 +4816,21 @@ pub const NET_INTERFACE_NAME: BindingDescriptor =
         &["net.interface"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.listen.
 pub const NET_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4740,7 +4841,8 @@ pub const NET_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requi
     &["net.listen"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getBroadcast.
 pub const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
@@ -4752,7 +4854,21 @@ pub const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getLinger.
 pub const NET_OPTIONS_GET_LINGER: BindingDescriptor =
@@ -4764,7 +4880,21 @@ pub const NET_OPTIONS_GET_LINGER: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getOnlyV6.
 pub const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
@@ -4776,7 +4906,21 @@ pub const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getPacketMark.
 pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
@@ -4788,7 +4932,8 @@ pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&["linux", "windows"]);
 
 /// Binding descriptor for destack.net.options.getReadTimeout.
 pub const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
@@ -4800,7 +4945,21 @@ pub const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getRecvBuffer.
 pub const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
@@ -4812,7 +4971,21 @@ pub const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getSendBuffer.
 pub const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
@@ -4824,31 +4997,45 @@ pub const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getSockOptRaw.
-pub const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.getSockOptRaw",
-        "export function getSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, maxBytes: uint32): Result<uint8[], PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.getSockOptRaw",
+    "export function getSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, maxBytes: uint32): Result<uint8[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTimestamping.
-pub const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.getTimestamping",
-        "export function getTimestamping(handle: SocketHandle): Result<SocketTimestampingMode, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.getTimestamping",
+    "export function getTimestamping(handle: SocketHandle): Result<SocketTimestampingMode, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTos.
 pub const NET_OPTIONS_GET_TOS: BindingDescriptor =
@@ -4860,7 +5047,21 @@ pub const NET_OPTIONS_GET_TOS: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getTtl.
 pub const NET_OPTIONS_GET_TTL: BindingDescriptor =
@@ -4872,7 +5073,21 @@ pub const NET_OPTIONS_GET_TTL: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getWriteTimeout.
 pub const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
@@ -4884,115 +5099,129 @@ pub const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.setBroadcast.
-pub const NET_OPTIONS_SET_BROADCAST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setBroadcast",
-        "export function setBroadcast(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setBroadcast",
+    "export function setBroadcast(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setLinger.
-pub const NET_OPTIONS_SET_LINGER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setLinger",
-        "export function setLinger(handle: SocketHandle, linger: Linger): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setLinger",
+    "export function setLinger(handle: SocketHandle, linger: Linger): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setOnlyV6.
-pub const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setOnlyV6",
-        "export function setOnlyV6(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setOnlyV6",
+    "export function setOnlyV6(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setPacketMark.
-pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setPacketMark",
-        "export function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setPacketMark",
+    "export function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["linux", "windows"]);
 
 /// Binding descriptor for destack.net.options.setReadTimeout.
-pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setReadTimeout",
-        "export function setReadTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setReadTimeout",
+    "export function setReadTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setRecvBuffer.
-pub const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setRecvBuffer",
-        "export function setRecvBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setRecvBuffer",
+    "export function setRecvBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSendBuffer.
-pub const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setSendBuffer",
-        "export function setSendBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setSendBuffer",
+    "export function setSendBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSockOptRaw.
-pub const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setSockOptRaw",
-        "export function setSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, value: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setSockOptRaw",
+    "export function setSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, value: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTimestamping.
-pub const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setTimestamping",
-        "export function setTimestamping(handle: SocketHandle, mode: SocketTimestampingMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setTimestamping",
+    "export function setTimestamping(handle: SocketHandle, mode: SocketTimestampingMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTos.
 pub const NET_OPTIONS_SET_TOS: BindingDescriptor =
@@ -5004,7 +5233,21 @@ pub const NET_OPTIONS_SET_TOS: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.setTtl.
 pub const NET_OPTIONS_SET_TTL: BindingDescriptor =
@@ -5016,19 +5259,33 @@ pub const NET_OPTIONS_SET_TTL: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.setWriteTimeout.
-pub const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.options.setWriteTimeout",
-        "export function setWriteTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.options.setWriteTimeout",
+    "export function setWriteTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetClearFanout.
 pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
@@ -5040,7 +5297,15 @@ pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
         &["net.raw"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.raw.packetClearFilter.
 pub const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
@@ -5052,7 +5317,15 @@ pub const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
         &["net.raw"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.raw.packetClearRing.
 pub const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
@@ -5064,139 +5337,147 @@ pub const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
         &["net.raw"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.raw.packetOpen.
-pub const NET_RAW_PACKET_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetOpen",
-        "export function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetOpen",
+    "export function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetReceive.
-pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetReceive",
-        "export function packetReceive(handle: SocketHandle, payload: Slice<uint8>): Result<PacketCaptureRecord, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetReceive",
+    "export function packetReceive(handle: SocketHandle, payload: Slice<uint8>): Result<PacketCaptureRecord, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSend.
-pub const NET_RAW_PACKET_SEND: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetSend",
-        "export function packetSend(handle: SocketHandle, payload: Slice<uint8>): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetSend",
+    "export function packetSend(handle: SocketHandle, payload: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFanout.
-pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetSetFanout",
-        "export function packetSetFanout(handle: SocketHandle, options: PacketFanoutOptions): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetSetFanout",
+    "export function packetSetFanout(handle: SocketHandle, options: PacketFanoutOptions): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFilter.
-pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetSetFilter",
-        "export function packetSetFilter(handle: SocketHandle, filterProgram: Slice<uint8>): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetSetFilter",
+    "export function packetSetFilter(handle: SocketHandle, filterProgram: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetRxRing.
-pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetSetRxRing",
-        "export function packetSetRxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetSetRxRing",
+    "export function packetSetRxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTimestampMode.
-pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetSetTimestampMode",
-        "export function packetSetTimestampMode(handle: SocketHandle, mode: PacketTimestampMode): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetSetTimestampMode",
+    "export function packetSetTimestampMode(handle: SocketHandle, mode: PacketTimestampMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTxRing.
-pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetSetTxRing",
-        "export function packetSetTxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetSetTxRing",
+    "export function packetSetTxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetStats.
-pub const NET_RAW_PACKET_STATS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.packetStats",
-        "export function packetStats(handle: SocketHandle): Result<PacketCaptureStats, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetStats",
+    "export function packetStats(handle: SocketHandle): Result<PacketCaptureStats, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
 
 /// Binding descriptor for destack.net.raw.setHeaderIncluded.
-pub const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.setHeaderIncluded",
-        "export function rawSetHeaderIncluded(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.setHeaderIncluded",
+    "export function rawSetHeaderIncluded(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.socket.
-pub const NET_RAW_SOCKET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.raw.socket",
-        "export function rawSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.raw"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.socket",
+    "export function rawSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.read.
 pub const NET_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5207,7 +5488,8 @@ pub const NET_READ: BindingDescriptor = BindingDescriptor::external_with_require
     &["net.connect"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.readv.
 pub const NET_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5218,7 +5500,8 @@ pub const NET_READV: BindingDescriptor = BindingDescriptor::external_with_requir
     &["net.connect"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.recvFrom.
 pub const NET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5229,7 +5512,8 @@ pub const NET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_re
     &["net.udp"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.recvMmsg.
 pub const NET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5240,7 +5524,8 @@ pub const NET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_re
     &["net.udp"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.recvMsg.
 pub const NET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5251,7 +5536,8 @@ pub const NET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_req
     &["net.control"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.resolve.resolve.
 pub const NET_RESOLVE_RESOLVE: BindingDescriptor =
@@ -5263,19 +5549,33 @@ pub const NET_RESOLVE_RESOLVE: BindingDescriptor =
         &["net.dns"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.resolve.reverseLookup.
-pub const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.resolve.reverseLookup",
-        "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<ReverseLookupName[], PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.dns"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.resolve.reverseLookup",
+    "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<ReverseLookupName[], PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.dns"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.getReuseAddr.
 pub const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
@@ -5287,7 +5587,21 @@ pub const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.reuse.getReusePort.
 pub const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
@@ -5299,42 +5613,64 @@ pub const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+    ]);
 
 /// Binding descriptor for destack.net.reuse.setReuseAddr.
-pub const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.reuse.setReuseAddr",
-        "export function setReuseAddr(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
-
-/// Binding descriptor for destack.net.reuse.setReusePort.
-pub const NET_REUSE_SET_REUSE_PORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.reuse.setReusePort",
-        "export function setReusePort(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
-
-/// Binding descriptor for destack.net.routeAdd.
-pub const NET_ROUTE_ADD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.net.routeAdd",
-    "export function routeAdd(route: RouteEntry): Result<void, PlatformError>",
+pub const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.reuse.setReuseAddr",
+    "export function setReuseAddr(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["net.route.write"],
+    &["net.control"],
     BindingScope::Os,
-    BindingBlocking::Sometimes,
-);
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.net.reuse.setReusePort.
+pub const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.reuse.setReusePort",
+    "export function setReusePort(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
+/// Binding descriptor for destack.net.routeAdd.
+pub const NET_ROUTE_ADD: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.net.routeAdd",
+        "export function routeAdd(route: RouteEntry): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["net.route.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.routeDelete.
 pub const NET_ROUTE_DELETE: BindingDescriptor =
@@ -5346,7 +5682,15 @@ pub const NET_ROUTE_DELETE: BindingDescriptor =
         &["net.route.write"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.routeList.
 pub const NET_ROUTE_LIST: BindingDescriptor =
@@ -5358,7 +5702,15 @@ pub const NET_ROUTE_LIST: BindingDescriptor =
         &["net.route.read"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "dragonfly",
+        "freebsd",
+        "linux",
+        "netbsd",
+        "openbsd",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.sendMmsg.
 pub const NET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5369,7 +5721,8 @@ pub const NET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_re
     &["net.udp"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.sendMsg.
 pub const NET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5380,7 +5733,8 @@ pub const NET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_req
     &["net.control"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.sendTo.
 pub const NET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5391,19 +5745,20 @@ pub const NET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requ
     &["net.udp"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.setNonblocking.
-pub const NET_SET_NONBLOCKING: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.setNonblocking",
-        "export function setNonblocking(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.setNonblocking",
+    "export function setNonblocking(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.shutdown.
 pub const NET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5414,7 +5769,8 @@ pub const NET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_req
     &["net.close"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socket.
 pub const NET_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5425,31 +5781,32 @@ pub const NET_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requi
     &["net.control"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.socketPair.
-pub const NET_SOCKET_PAIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.socketPair",
-        "export function socketPair(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketPair, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.connect"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_SOCKET_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.socketPair",
+    "export function socketPair(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketPair, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.connect"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getKeepAlive.
-pub const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.tcp.getKeepAlive",
-        "export function getKeepAlive(handle: SocketHandle): Result<KeepAliveConfig, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.tcp.getKeepAlive",
+    "export function getKeepAlive(handle: SocketHandle): Result<KeepAliveConfig, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getNoDelay.
 pub const NET_TCP_GET_NO_DELAY: BindingDescriptor =
@@ -5461,31 +5818,45 @@ pub const NET_TCP_GET_NO_DELAY: BindingDescriptor =
         &["net.control"],
         BindingScope::Os,
         BindingBlocking::Never,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.tcp.setKeepAlive.
-pub const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.tcp.setKeepAlive",
-        "export function setKeepAlive(handle: SocketHandle, config: KeepAliveConfig): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.tcp.setKeepAlive",
+    "export function setKeepAlive(handle: SocketHandle, config: KeepAliveConfig): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.setNoDelay.
-pub const NET_TCP_SET_NO_DELAY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.tcp.setNoDelay",
-        "export function setNoDelay(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.control"],
-        BindingScope::Os,
-        BindingBlocking::Never,
-    );
+pub const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.tcp.setNoDelay",
+    "export function setNoDelay(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.bind.
 pub const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5496,43 +5867,44 @@ pub const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_req
     &["net.udp"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.connect.
-pub const NET_UDP_CONNECT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.connect",
-        "export function udpConnect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.udp"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.connect",
+    "export function udpConnect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.udp"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV4.
-pub const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.getMulticastInterfaceV4",
-        "export function getMulticastInterfaceV4(handle: SocketHandle): Result<string, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.getMulticastInterfaceV4",
+    "export function getMulticastInterfaceV4(handle: SocketHandle): Result<string, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV6.
-pub const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.getMulticastInterfaceV6",
-        "export function getMulticastInterfaceV6(handle: SocketHandle): Result<uint32, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.getMulticastInterfaceV6",
+    "export function getMulticastInterfaceV6(handle: SocketHandle): Result<uint32, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastLoop.
 pub const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
@@ -5544,7 +5916,21 @@ pub const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
         &["net.multicast"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.udp.getMulticastTtl.
 pub const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
@@ -5556,175 +5942,189 @@ pub const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
         &["net.multicast"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastSourceV4.
-pub const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.joinMulticastSourceV4",
-        "export function joinMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.joinMulticastSourceV4",
+    "export function joinMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastSourceV6.
-pub const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.joinMulticastSourceV6",
-        "export function joinMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.joinMulticastSourceV6",
+    "export function joinMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV4.
-pub const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.joinMulticastV4",
-        "export function joinMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.joinMulticastV4",
+    "export function joinMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV6.
-pub const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.joinMulticastV6",
-        "export function joinMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.joinMulticastV6",
+    "export function joinMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV4.
-pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.leaveMulticastSourceV4",
-        "export function leaveMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.leaveMulticastSourceV4",
+    "export function leaveMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV6.
-pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.leaveMulticastSourceV6",
-        "export function leaveMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.leaveMulticastSourceV6",
+    "export function leaveMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV4.
-pub const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.leaveMulticastV4",
-        "export function leaveMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.leaveMulticastV4",
+    "export function leaveMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV6.
-pub const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.leaveMulticastV6",
-        "export function leaveMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.leaveMulticastV6",
+    "export function leaveMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.recvFrom.
-pub const NET_UDP_RECV_FROM: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.recvFrom",
-        "export function udpRecvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: UdpMessageFlags): Result<UdpReceive, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.udp"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.recvFrom",
+    "export function udpRecvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: UdpMessageFlags): Result<UdpReceive, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.udp"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.sendTo.
-pub const NET_UDP_SEND_TO: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.sendTo",
-        "export function udpSendTo(handle: SocketHandle, address: SocketAddress, buffer: Slice<uint8>, sendFlags: UdpMessageFlags): Result<uint64, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.udp"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.sendTo",
+    "export function udpSendTo(handle: SocketHandle, address: SocketAddress, buffer: Slice<uint8>, sendFlags: UdpMessageFlags): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.udp"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV4.
-pub const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.setMulticastInterfaceV4",
-        "export function setMulticastInterfaceV4(handle: SocketHandle, interfaceAddress: string): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.setMulticastInterfaceV4",
+    "export function setMulticastInterfaceV4(handle: SocketHandle, interfaceAddress: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV6.
-pub const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.setMulticastInterfaceV6",
-        "export function setMulticastInterfaceV6(handle: SocketHandle, interfaceIndex: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.setMulticastInterfaceV6",
+    "export function setMulticastInterfaceV6(handle: SocketHandle, interfaceIndex: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastLoop.
-pub const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.setMulticastLoop",
-        "export function setMulticastLoop(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.setMulticastLoop",
+    "export function setMulticastLoop(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastTtl.
-pub const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udp.setMulticastTtl",
-        "export function setMulticastTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.multicast"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udp.setMulticastTtl",
+    "export function setMulticastTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.multicast"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udp.socket.
 pub const NET_UDP_SOCKET: BindingDescriptor =
@@ -5736,7 +6136,21 @@ pub const NET_UDP_SOCKET: BindingDescriptor =
         &["net.udp"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.udsAccept.
 pub const NET_UDS_ACCEPT: BindingDescriptor =
@@ -5748,7 +6162,21 @@ pub const NET_UDS_ACCEPT: BindingDescriptor =
         &["net.accept"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.udsCloseListener.
 pub const NET_UDS_CLOSE_LISTENER: BindingDescriptor =
@@ -5760,7 +6188,21 @@ pub const NET_UDS_CLOSE_LISTENER: BindingDescriptor =
         &["net.close"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.udsConnect.
 pub const NET_UDS_CONNECT: BindingDescriptor =
@@ -5772,19 +6214,33 @@ pub const NET_UDS_CONNECT: BindingDescriptor =
         &["net.connect"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.udsListen.
-pub const NET_UDS_LISTEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
-        "destack.net.udsListen",
-        "export function udsListen(address: UdsAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
-        ReplayPolicy::Recordable,
-        BindingReplayKind::Regular,
-        &["net.listen"],
-        BindingScope::Os,
-        BindingBlocking::Sometimes,
-    );
+pub const NET_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.udsListen",
+    "export function udsListen(address: UdsAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.listen"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.udsSocketPair.
 pub const NET_UDS_SOCKET_PAIR: BindingDescriptor =
@@ -5796,7 +6252,21 @@ pub const NET_UDS_SOCKET_PAIR: BindingDescriptor =
         &["net.connect"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
-    );
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.write.
 pub const NET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5807,7 +6277,8 @@ pub const NET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requir
     &["net.connect"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.writev.
 pub const NET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5818,7 +6289,8 @@ pub const NET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requi
     &["net.connect"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
-);
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptors for net.
 pub const BINDINGS: &[BindingDescriptor] = &[

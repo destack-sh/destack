@@ -102,6 +102,123 @@ const fn effect_mask_for_class(effect_class: EffectClass) -> BindingEffectMask {
     }
 }
 
+/// Return the current compile target host platform name.
+fn current_host_platform_name() -> &'static str {
+    #[cfg(target_os = "windows")]
+    {
+        return "windows";
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        return "android";
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        return "linux";
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        return "macos";
+    }
+
+    #[cfg(target_os = "freebsd")]
+    {
+        return "freebsd";
+    }
+
+    #[cfg(target_os = "openbsd")]
+    {
+        return "openbsd";
+    }
+
+    #[cfg(target_os = "netbsd")]
+    {
+        return "netbsd";
+    }
+
+    #[cfg(target_os = "dragonfly")]
+    {
+        return "dragonfly";
+    }
+
+    #[cfg(target_os = "solaris")]
+    {
+        return "solaris";
+    }
+
+    #[cfg(target_os = "illumos")]
+    {
+        return "illumos";
+    }
+
+    #[cfg(target_os = "haiku")]
+    {
+        return "haiku";
+    }
+
+    #[cfg(target_os = "fuchsia")]
+    {
+        return "fuchsia";
+    }
+
+    #[cfg(target_os = "redox")]
+    {
+        return "redox";
+    }
+
+    #[cfg(target_os = "hermit")]
+    {
+        return "hermit";
+    }
+
+    #[cfg(target_os = "ios")]
+    {
+        return "ios";
+    }
+
+    #[cfg(target_os = "wasi")]
+    {
+        return "wasi";
+    }
+
+    #[cfg(target_os = "emscripten")]
+    {
+        return "emscripten";
+    }
+
+    #[cfg(target_os = "none")]
+    {
+        return "baremetal";
+    }
+
+    #[cfg(not(any(
+        target_os = "windows",
+        target_os = "android",
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "netbsd",
+        target_os = "dragonfly",
+        target_os = "solaris",
+        target_os = "illumos",
+        target_os = "haiku",
+        target_os = "fuchsia",
+        target_os = "redox",
+        target_os = "hermit",
+        target_os = "ios",
+        target_os = "wasi",
+        target_os = "emscripten",
+        target_os = "none"
+    )))]
+    {
+        "unknown"
+    }
+}
+
 /// Stable identifier for a binding name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BindingId(pub u128);
@@ -159,6 +276,8 @@ pub struct BindingDescriptor {
     pub replay_payload: ReplayPayload,
     /// Required platform capabilities for this binding.
     pub requires: &'static [&'static str],
+    /// Host platforms where this binding is supported.
+    pub host_platforms: &'static [&'static str],
     /// Platform scope for this binding.
     pub scope: BindingScope,
     /// Blocking behavior for this binding.
@@ -233,6 +352,7 @@ impl BindingDescriptor {
             replay_kind,
             replay_payload,
             requires,
+            host_platforms: &[],
             scope,
             blocking,
         }
@@ -471,6 +591,31 @@ impl BindingDescriptor {
     /// Return the required platform capabilities for this binding.
     pub const fn requires(self) -> &'static [&'static str] {
         self.requires
+    }
+
+    /// Return the host platform availability list for this binding.
+    pub const fn host_platforms(self) -> &'static [&'static str] {
+        self.host_platforms
+    }
+
+    /// Return this descriptor with explicit host platform availability.
+    pub const fn with_host_platforms(mut self, host_platforms: &'static [&'static str]) -> Self {
+        self.host_platforms = host_platforms;
+        self
+    }
+
+    /// Return whether this binding supports one host platform.
+    pub fn supports_host_platform(self, platform: &str) -> bool {
+        if self.host_platforms.is_empty() {
+            return true;
+        }
+
+        self.host_platforms.iter().any(|name| *name == platform)
+    }
+
+    /// Return whether this binding supports the current host platform.
+    pub fn supports_current_host(self) -> bool {
+        self.supports_host_platform(current_host_platform_name())
     }
 
     /// Return the platform scope classification for this binding.

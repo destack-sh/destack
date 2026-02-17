@@ -27,6 +27,7 @@ declare namespace ffi {
             effect: "external",
             replay: "nonrecordable",
             requires: ["ffi.call"],
+            platforms: ["unix", "windows", "wasi"],
             scope: "runtime",
             blocking: "sometimes",
         },

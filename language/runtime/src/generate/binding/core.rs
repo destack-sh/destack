@@ -1046,6 +1046,7 @@ impl<'a> DomainWriter<'a> {
                 binding.entry.scope,
                 binding.entry.blocking,
             );
+            let host_platforms = render_binding_host_platforms(&binding.entry.host_platforms);
             output.push_str(&format!(
                 "/// Binding descriptor for {}.\n",
                 binding.extern_name
@@ -1059,7 +1060,11 @@ impl<'a> DomainWriter<'a> {
             for arg in args {
                 output.push_str(&format!("    {arg},\n"));
             }
-            output.push_str(");\n\n");
+            output.push_str(")");
+            if let Some(host_platforms) = host_platforms {
+                output.push_str(&format!("\n    .with_host_platforms({host_platforms})"));
+            }
+            output.push_str(";\n\n");
         }
     }
 
@@ -1716,6 +1721,26 @@ fn render_binding_requires(requires: &[String]) -> String {
     }
     values.push(']');
     values
+}
+
+/// Render host platform literals for a descriptor constant.
+fn render_binding_host_platforms(host_platforms: &[String]) -> Option<String> {
+    if host_platforms.is_empty() {
+        return None;
+    }
+
+    let mut values = String::new();
+    values.push_str("&[");
+    for (index, platform) in host_platforms.iter().enumerate() {
+        if index > 0 {
+            values.push_str(", ");
+        }
+        values.push('"');
+        values.push_str(&escape_rust_string(platform));
+        values.push('"');
+    }
+    values.push(']');
+    Some(values)
 }
 
 /// Convert a domain into a module safe identifier.
