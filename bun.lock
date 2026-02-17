@@ -10,7 +10,6 @@
       "version": "0.47.3",
       "dependencies": {
         "@destack-sh/schema": "workspace:*",
-        "@destack-sh/ui": "workspace:*",
       },
       "devDependencies": {
         "@destack-sh/bun": "workspace:*",
@@ -19,7 +18,7 @@
     },
     "examples/tetris": {
       "name": "@destack-sh/tetris",
-      "version": "0.54.0",
+      "version": "0.55.2",
       "devDependencies": {
         "@destack-sh/bun": "workspace:*",
         "@types/bun": "latest",
@@ -36,58 +35,34 @@
         "@types/bun": "latest",
       },
     },
-    "library/entity": {
-      "name": "@destack-sh/entity",
-      "version": "0.54.0",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
     "library/napi": {
       "name": "@destack-sh/napi",
-      "version": "0.54.0",
+      "version": "0.55.2",
       "devDependencies": {
         "@napi-rs/cli": "^3.4.1",
       },
     },
     "library/schema": {
       "name": "@destack-sh/schema",
-      "version": "0.54.0",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "library/telemetry": {
-      "name": "@destack-sh/telemetry",
-      "version": "0.54.0",
+      "version": "0.55.2",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
     "library/test": {
       "name": "@destack-sh/test",
-      "version": "0.54.0",
+      "version": "0.55.2",
       "devDependencies": {
         "@types/bun": "latest",
       },
     },
-    "library/ui": {
-      "name": "@destack-sh/ui",
-      "version": "0.54.0",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "library/web": {
-      "name": "@destack-sh/web",
-      "version": "0.54.0",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
+    "library/wasm": {
+      "name": "@destack-sh/wasm",
+      "version": "0.55.2",
     },
     "platform/bun": {
       "name": "@destack-sh/bun",
-      "version": "0.54.0",
+      "version": "0.55.2",
       "dependencies": {
         "@destack-sh/napi": "workspace:*",
       },
@@ -95,9 +70,46 @@
         "@types/bun": "latest",
       },
     },
+    "platform/cli": {
+      "name": "@destack-sh/cli",
+      "version": "0.55.2",
+      "bin": {
+        "destack": "npm/dist/bin/destack.js",
+        "ds": "npm/dist/bin/ds.js",
+        "dsc": "npm/dist/bin/dsc.js",
+        "dsx": "npm/dist/bin/dsx.js",
+      },
+      "optionalDependencies": {
+        "@destack-sh/cli-darwin-arm64": "0.55.2",
+        "@destack-sh/cli-darwin-x64": "0.55.2",
+        "@destack-sh/cli-linux-arm64-gnu": "0.55.2",
+        "@destack-sh/cli-linux-x64-gnu": "0.55.2",
+        "@destack-sh/cli-win32-x64-msvc": "0.55.2",
+      },
+    },
+    "platform/cli/npm-darwin-arm64": {
+      "name": "@destack-sh/cli-darwin-arm64",
+      "version": "0.55.2",
+    },
+    "platform/cli/npm-darwin-x64": {
+      "name": "@destack-sh/cli-darwin-x64",
+      "version": "0.55.2",
+    },
+    "platform/cli/npm-linux-arm64-gnu": {
+      "name": "@destack-sh/cli-linux-arm64-gnu",
+      "version": "0.55.2",
+    },
+    "platform/cli/npm-linux-x64-gnu": {
+      "name": "@destack-sh/cli-linux-x64-gnu",
+      "version": "0.55.2",
+    },
+    "platform/cli/npm-win32-x64-msvc": {
+      "name": "@destack-sh/cli-win32-x64-msvc",
+      "version": "0.55.2",
+    },
     "platform/vite": {
       "name": "@destack-sh/vite",
-      "version": "0.54.0",
+      "version": "0.55.2",
       "dependencies": {
         "@destack-sh/napi": "workspace:*",
       },
@@ -110,7 +122,7 @@
     },
     "platform/vscode": {
       "name": "destack",
-      "version": "0.54.0",
+      "version": "0.55.2",
       "devDependencies": {
         "@types/mocha": "^10.0.10",
         "@types/node": "^20.11.25",
@@ -162,25 +174,31 @@
   "packages": {
     "@destack-sh/bun": ["@destack-sh/bun@workspace:platform/bun"],
 
-    "@destack-sh/destack-sh": ["@destack-sh/destack-sh@workspace:examples/destack.sh"],
+    "@destack-sh/cli": ["@destack-sh/cli@workspace:platform/cli"],
 
-    "@destack-sh/entity": ["@destack-sh/entity@workspace:library/entity"],
+    "@destack-sh/cli-darwin-arm64": ["@destack-sh/cli-darwin-arm64@workspace:platform/cli/npm-darwin-arm64"],
+
+    "@destack-sh/cli-darwin-x64": ["@destack-sh/cli-darwin-x64@workspace:platform/cli/npm-darwin-x64"],
+
+    "@destack-sh/cli-linux-arm64-gnu": ["@destack-sh/cli-linux-arm64-gnu@workspace:platform/cli/npm-linux-arm64-gnu"],
+
+    "@destack-sh/cli-linux-x64-gnu": ["@destack-sh/cli-linux-x64-gnu@workspace:platform/cli/npm-linux-x64-gnu"],
+
+    "@destack-sh/cli-win32-x64-msvc": ["@destack-sh/cli-win32-x64-msvc@workspace:platform/cli/npm-win32-x64-msvc"],
+
+    "@destack-sh/destack-sh": ["@destack-sh/destack-sh@workspace:examples/destack.sh"],
 
     "@destack-sh/napi": ["@destack-sh/napi@workspace:library/napi"],
 
     "@destack-sh/schema": ["@destack-sh/schema@workspace:library/schema"],
 
-    "@destack-sh/telemetry": ["@destack-sh/telemetry@workspace:library/telemetry"],
-
     "@destack-sh/test": ["@destack-sh/test@workspace:library/test"],
 
     "@destack-sh/tetris": ["@destack-sh/tetris@workspace:examples/tetris"],
 
-    "@destack-sh/ui": ["@destack-sh/ui@workspace:library/ui"],
-
     "@destack-sh/vite": ["@destack-sh/vite@workspace:platform/vite"],
 
-    "@destack-sh/web": ["@destack-sh/web@workspace:library/web"],
+    "@destack-sh/wasm": ["@destack-sh/wasm@workspace:library/wasm"],
 
     "@emnapi/core": ["@emnapi/core@1.7.0", "", { "dependencies": { "@emnapi/wasi-threads": "1.1.0", "tslib": "^2.4.0" } }, "sha512-pJdKGq/1iquWYtv1RRSljZklxHCOCAJFJrImO5ZLKPJVJlVUcs8yFwNQlqS0Lo8xT1VAXXTCZocF9n26FWEKsw=="],
 

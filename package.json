@@ -18,14 +18,10 @@
             "platform/cli/npm-win32-x64-msvc",
             "platform/vite",
             "platform/vscode",
-            "library/entity",
             "library/napi",
             "library/wasm",
             "library/schema",
-            "library/telemetry",
-            "library/test",
-            "library/ui",
-            "library/web"
+            "library/test"
         ]
     },
     "scripts": {

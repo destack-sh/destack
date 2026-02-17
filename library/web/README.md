@@ -1,4 +1,0 @@
-# web
-
-Web platform utilities.
-

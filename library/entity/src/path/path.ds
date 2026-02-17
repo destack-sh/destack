@@ -1,9 +1,0 @@
-import * as ds from "destack";
-
-export struct Path {
-    segments: PathSegment[],
-}
-
-export struct PathSegment {
-    name: string,
-}
