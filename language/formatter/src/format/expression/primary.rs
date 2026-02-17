@@ -448,16 +448,12 @@ pub(super) fn format_primary_expression<'ast>(
                                     element_id,
                                 )
                         });
-                    let is_assignment_target = is_assignment_left_target(f.context(), node_id);
-                    let keep_inline_assignment_target_annotated_array = is_assignment_target
-                        && elements_are_inline_in_source
-                        && !has_line_comment_annotations;
 
                     can_keep_inline_boundary_comment_array = elements_are_inline_in_source
                         && array_elements_are_fill_candidates(f.context().tree, elements_ids)
                         && array_has_only_boundary_comments(f.context(), span, elements_ids);
-                    should_expand_for_annotations = has_line_comment_annotations
-                        || !keep_inline_assignment_target_annotated_array;
+                    should_expand_for_annotations =
+                        has_line_comment_annotations || !elements_are_inline_in_source;
                 }
 
                 let has_complex_elements = elements_ids.len() > 1

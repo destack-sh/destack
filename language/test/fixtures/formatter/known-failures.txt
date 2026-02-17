@@ -38,7 +38,6 @@ destack_test::formatter::transform::transform/declarations/types.md/multi-line-t
 destack_test::formatter::transform::transform/declarations/variables.md/const/const-with-default-destructuring
 destack_test::formatter::transform::transform/declarations/variables.md/let/let-with-multiple-declarators
 destack_test::formatter::transform::transform/expressions/annotation-boundaries.md/decorated-class-expression-contexts/decorated-class-expression-in-argument-position
-destack_test::formatter::transform::transform/expressions/annotation-boundaries.md/decorated-class-expression-contexts/decorated-class-expression-in-extends-position
 destack_test::formatter::transform::transform/expressions/binary.md/bitwise-operators/elementwise-operators-stay-spaced
 destack_test::formatter::transform::transform/expressions/callbacks.md/callback-hugging/callback-last-argument-hugs
 destack_test::formatter::transform::transform/expressions/callbacks.md/callback-hugging/single-callback-argument
@@ -54,8 +53,6 @@ destack_test::formatter::transform::transform/expressions/chains.md/optional-cha
 destack_test::formatter::transform::transform/expressions/chains.md/optional-chaining/optional-chain-with-trailing-comments
 destack_test::formatter::transform::transform/expressions/comment-boundaries.md/binary-and-assignment/binary-operator-boundary-comment
 destack_test::formatter::transform::transform/expressions/comment-boundaries.md/chains/optional-chain-boundary-comment
-destack_test::formatter::transform::transform/expressions/comment-boundaries.md/conditionals/ternary-alternate-line-comment
-destack_test::formatter::transform::transform/expressions/comment-boundaries.md/conditionals/ternary-branch-inline-comments
 destack_test::formatter::transform::transform/expressions/comment-boundaries.md/template-literals-and-unary-boundaries/label-expression-boundary-comment
 destack_test::formatter::transform::transform/expressions/comment-boundaries.md/template-literals-and-unary-boundaries/template-member-expression-interpolation-comment
 destack_test::formatter::transform::transform/expressions/comment-boundaries.md/template-literals-and-unary-boundaries/unary-negative-numeric-comment-boundary
@@ -76,7 +73,6 @@ destack_test::formatter::transform::transform/expressions/comments.md/format-ign
 destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-range-preserves-object-members
 destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-range-preserves-statement-formatting
 destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/prettier-ignore-preserves-class-member-formatting
-destack_test::formatter::transform::transform/expressions/comments.md/inline-comments/comment-in-binary-expression
 destack_test::formatter::transform::transform/expressions/complex.md/advanced-destructuring/array-destructuring-with-nested-objects
 destack_test::formatter::transform::transform/expressions/complex.md/advanced-destructuring/deeply-nested-object-destructuring
 destack_test::formatter::transform::transform/expressions/complex.md/advanced-destructuring/destructuring-in-function-parameters

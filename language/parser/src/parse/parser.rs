@@ -1307,6 +1307,9 @@ impl Parser {
     /// Parse everything as an implicit namespace.
     #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
+        // pre lex all tokens for non jsx files to keep parse hot paths purely token driven
+        self.prelex_all_tokens_maybe();
+
         // parse leading triple-slash reference path directives
         let (mut expressions, consumed_to_end) =
             self.parse_leading_triple_slash_reference_imports();
@@ -1335,6 +1338,9 @@ impl Parser {
 
     /// Parse everything as an implicit namespace without attaching trivia.
     pub fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
+        // pre lex all tokens for non jsx files to keep parse hot paths purely token driven
+        self.prelex_all_tokens_maybe();
+
         // parse leading triple-slash reference path directives
         let (mut expressions, consumed_to_end) =
             self.parse_leading_triple_slash_reference_imports();
@@ -1355,6 +1361,16 @@ impl Parser {
         self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
 
         expressions
+    }
+
+    /// Materialize the full semantic token stream for non jsx files.
+    #[inline]
+    fn prelex_all_tokens_maybe(&mut self) {
+        if self.allow_tree_literals() || !self.tokens().is_empty() {
+            return;
+        }
+
+        self.token_stream.lex_to_end();
     }
 
     /// Ensure one stable owner for comment and blank trivia in trivia only files.

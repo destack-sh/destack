@@ -99,6 +99,7 @@ fn decide_post_hugged_call_argument_layout(
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
     planner_state: CallArgumentPlannerState,
+    has_boundary_comments: bool,
 ) -> CallArgumentLayoutDecision {
     // keep single callback arguments wrapped directly to avoid list-style trailing commas
     let use_single_callback_argument_inline = call_arguments_use_single_callback_argument_inline(
@@ -150,8 +151,6 @@ fn decide_post_hugged_call_argument_layout(
 
     // boundary comments should block aggressive inline and hug-last behavior
     let has_any_argument_annotation = planner_state.argument_shape.has_any_argument_annotation;
-    let has_boundary_comments =
-        call_arguments_have_boundary_comments(context, call_node_id, dynamic_arguments);
 
     // comments can force explicit multiline argument rendering
     let comment_profile = resolve_call_argument_comment_profile(
@@ -698,6 +697,7 @@ fn format_single_call_argument_with_group<'ast>(
             call_node_id,
             &single_argument,
             planner_state,
+            has_boundary_comments,
         )
     };
 
@@ -839,6 +839,7 @@ fn format_call_arguments_with_group<'ast>(
             call_node_id,
             dynamic_arguments,
             planner_state,
+            has_boundary_comments,
         )
     };
 
