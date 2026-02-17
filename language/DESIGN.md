@@ -3,14 +3,15 @@
 > **Destack is "TypeScript++" for building correct, optimal, integrated software systems.**
 >
 > This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
-Basically: Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for whole software systems including high performance ("systems") applications.
+
+Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for whole software systems including high performance ("systems") use cases.
 
 Of course, other JS/TS-derived languages with similar features have tried this before, and some are moderately successful (e.g., AssemblyScript, NativeScript (sort of)).
 But they all fall short in interoperability, usefulness and - ultimately - adoption.
 We feel that now is the time to try this again, and have made some different tradeoffs to enable TypeScript to cover many more usage scenarios.
 
 See [SPECIFICATION](SPECIFICATION.md) for the fine-grained language definition.
-See [COMPATIBILITY](COMPATIBILITY.md) for the full file type matrix and exclusions.
+See [COMPATIBILITY](COMPATIBILITY.md) for interoperability details.
 
 ## "TypeScript++"
 
@@ -479,7 +480,7 @@ In TypeScript, types are - by design - erased at runtime.
 This was critical for early adoption, but it also means you can't easily perform runtime type checks or any meaningful reflection (without additional libraries or build steps).
 Destack supports `Type` as a first-class values to enable reflection with one well-defined system.
 
-### Types as Values
+### Types are Values
 
 Every type `T` in Destack has a corresponding runtime value of type `Type<T>`:
 
@@ -498,24 +499,6 @@ UserType.name                       // "User"
 UserType.fields                     // [{ name: "name", type: string }, ...]
 ```
 
-Types being values enables patterns that require runtime type information:
-
-```ds
-// generic factory that knows its type parameter
-function create<T>(type: Type<T>, data: object): T {
-    return type.create(data);
-}
-const user = create(User, { name: "Alice", age: 30 });
-
-// runtime type checking
-if (User.is(value)) {
-    // value is User
-}
-```
-
-Runtime type guards use `x is T` or `T.is(value)` for general types.
-The `instanceof` operator is reserved for class identity checks.
-
 ### Decorator Metadata
 
 Decorator information is accessible at runtime:
@@ -526,35 +509,6 @@ function oldAPI() { }
 
 oldAPI.decorators       // [{ name: "deprecated", arguments: ["use newAPI"] }]
 ```
-
-### Standard Library Schema
-
-The language provides the reflection primitives; the standard library `@destack-sh/schema` provides validation utilities:
-
-1. **Built-in (no imports)**: `Type<T>`, `.name`, `.fields`, `.is()`, decorator access
-2. **Standard library**: `parse()`, `safeParse()`
-
-```ds
-import { parse } from "@destack-sh/schema";
-
-const data = await fetchUser();
-const user = parse(User, data);    // runtime validation with errors
-const user = User.parse(data);     // shorthand (schema extends Type<T>)
-```
-
-This is similar to how schema libraries work, but without the schema/type duplication:
-
-```typescript
-// Typescript: define schema, derive type
-const UserSchema = t.object({ name: z.string().min(1) });
-type User = t.infer<typeof UserSchema>;
-
-// Destack: define type, validation is explicit
-type User = { name: string.minLength(1) }
-parse(User, data);  // User IS the Type (schema)
-```
-
-<sub>See [test/fixtures/specification/declarations/reflection/](test/fixtures/specification/declarations/reflection/) for specification tests.</sub>
 
 ## Dispatch
 
@@ -577,25 +531,17 @@ Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cann
 To extend a structural shape, wrap it in a nominal type:
 
 ```ds
-// ERROR - an't extend a type alias or inline shape
 type Point = { x: number, y: number };
-extension for Point { ... }  // error
 
-// works - extend newtype / struct / class / ..
+extension for Point { ... }  // ERROR: can't extend a type alias or inline shape
+
 newtype Point = { x: number, y: number };
+// works - extend newtype / struct / class / ..
 extension for Point { ... }  // ok
 ```
 
-Unlike Rust's blanket impls, Destack extensions only target concrete types—no `extension<T> T where T: Foo` patterns.
-This is an intentional simplification: most extensions are "add methods to this specific type," and the simpler model keeps the mental overhead low.
-
-Extension static parameters bind positionally to the target type's static parameters.
-The target type expression can reorder those parameters, and that order defines how receiver static arguments map to extension parameters.
-Defaults on the target type apply when static arguments are omitted at the use site.
-
 Extensions let you add methods to any nominal type: classes, structs, enums, newtypes, even primitives and foreign types without modifying the original definition.
-
-Extension visibility follows clear rules:
+The members of an extension are visible as you would expect:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
 - **Anonymous on foreign type**: Only visible in the file where declared (`extension for int32 { ... }`).
 - **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils for Date { ... }`).

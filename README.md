@@ -4,7 +4,7 @@
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-*Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform, all built on open standards.*
+*Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform - all built on open standards.*
 
 <p>
   <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>
@@ -27,7 +27,7 @@ However, Destack is optimized for incremental adoption, and you are free to pick
 
 ### Higher-Order Programming
 
-We're very early in the history of programming and computing.
+We're very early in the history of programming, even over 50 years .
 We have a lot of software, and there is about to be much, much more.
 At the same time, probabilistic software promises amazing features with built-in bugs.
 
@@ -48,7 +48,7 @@ APIs, CLI behavior, and project structure may change on minor releases.
 
 ## Contributing
 
-Destack is in [very active development](CONTRIBUTING.md) with a singular focus: a fully integrated software stack for optimal, correct, integrated systems development.
+Destack is in [very active development](CONTRIBUTING.md) with a singular focus: a fully integrated software stack for optimal, correct, integrated software systems.
 We welcome feedback, issues, ideas, and small fixes, but please reach out first for non-trivial contributions.
 See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
@@ -57,5 +57,5 @@ See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 The Destack language, toolchain, library, and platform are fully open source under the MIT license.
 See [LICENSE.txt](LICENSE.txt).
 
-Destack includes components from third parties, which are licensed under the Apache-2.0 (WITH LLVM-exception) license.
+Destack includes components licensed, vendored and integrated from third parties, which come with their own licenses including the Apache-2.0 (WITH LLVM-exception) license.
 See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

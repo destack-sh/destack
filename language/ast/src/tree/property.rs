@@ -245,7 +245,7 @@ impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
 }
 
-/// A Member is a member of a class-like declaration.
+/// A Member is a member of a object-like declaration.
 ///
 /// Members differ from Properties in that they support class-specific constructs:
 /// - Static blocks for initialization

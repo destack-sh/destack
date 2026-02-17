@@ -664,7 +664,7 @@ type View = Buffer<int>.View<float64>;
 ##### Associated Comptime Constants
 
 Class-shaped declarations can also declare associated compile-time values with `comptime const`.
-Associated comptime constants are declaration members in static space, not instance fields, and are allowed on any class-like type.
+Associated comptime constants are declaration members in static space, not instance fields, and are allowed on any object-like type.
 (Yes, this is very annoying to implement correctly.)
 
 ```ds
@@ -1261,16 +1261,16 @@ This includes `_`, binding patterns, tagged nominal patterns applied to their ex
 
 When the compiler cannot prove exhaustiveness (for example when any arm has a guard, or when the type is not a finite set), a `_` fallback arm is required.
 
-TypeScript's `switch` also works unchanged in syntax.
+TypeScript's `switch` also works unchanged, of course.
 
 ```ds
 switch (value) {
     case 0:
-        return "zero"
+        return "zero";
     case 1:
-        return "one"
+        return "one";
     default:
-        return "other"
+        return "other";
 }
 ```
 
@@ -1284,16 +1284,16 @@ Iterate over iterables with `for...of` (values) or `for...in` (keys), matching T
 
 ```ds
 for (const item of items) {
-    process(item)
+    process(item);
 }
 
 for (const key in object) {
-    print(key)
+    console.log(key);
 }
 
 // with destructuring
 for (const [key, value] of map) {
-    print(`${key}: ${value}`)
+    console.log(`${key}: ${value}`);
 }
 ```
 
@@ -1303,12 +1303,12 @@ Standard while loops work like TypeScript:
 
 ```ds
 while (condition) {
-    process()
+    process();
 }
 
 // do-while
 do {
-    process()
+    process();
 } while (condition)
 ```
 
@@ -1484,7 +1484,7 @@ The `?` operator immediately propagates `Try` error variants to the caller:
 function readConfig(path: string): Result<Config, Error> {
     const text = readFile(path)?;    // returns early if Err
     const json = parseJson(text)?;   // returns early if Err
-    Result.ok(Config.from(json))
+    return Result.ok(Config.from(json));
 }
 ```
 
@@ -1636,8 +1636,8 @@ await run();
 
 ## Operators
 
-Destack operators match TypeScript with additional precision for integer arithmetic.
-Many operators can be overloaded via extensions implementing the corresponding interface.
+Destack operators match TypeScript with additional precision, e.g., for wrapping or saturating integer arithmetic.
+Most operators can be overloaded via extensions implementing the corresponding interface.
 Operators with an interface in the table below desugar to method calls on the left operand (receiver-based dispatch).
 See [Dispatch](#dispatch) for overload ordering and union based dynamic resolution.
 
@@ -1654,7 +1654,7 @@ newtype interface Add<T, R = this> {
 }
 ```
 
-Because they are nominal, operators only overload when a type explicitly declares `implements` for the operator interface.
+Because they are nominal, operators only overload when a type explicitly `implements` that operator interface.
 (This prevents accidental conformance from types that happen to have a structurally-compatible method.)
 
 ```ds

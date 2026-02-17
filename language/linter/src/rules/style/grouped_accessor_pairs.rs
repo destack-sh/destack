@@ -75,7 +75,7 @@ impl LintRule for GroupedAccessorPairs {
     }
 }
 
-/// Check members in class-like declarations for ungrouped accessor pairs.
+/// Check members in object-like declarations for ungrouped accessor pairs.
 fn check_members_for_ungrouped_accessors(
     ctx: &mut LintModuleAstContext<'_>,
     meta: &'static crate::LintMeta,
@@ -239,7 +239,7 @@ fn check_properties_for_ungrouped_accessors(
     }
 }
 
-/// Build an unsafe reorder fix for class-like member accessor pairs.
+/// Build an unsafe reorder fix for object-like member accessor pairs.
 fn grouped_member_accessor_fix(
     ctx: &LintModuleAstContext<'_>,
     members: &[ast::LocalNodeId<Member>],

@@ -11,7 +11,7 @@ use crate::{LocalNodeId, Node, NodeType};
 /// track borrows across function calls.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Lifetime {
-    /// Use inference rules based on function signature:
+    /// Infer lifetime based on function signature:
     /// - Single `&T` parameter: return borrows from it
     /// - `&self`/`&this` receiver: return borrows from receiver
     /// - Multiple `&T` parameters: conservative (borrows from all)

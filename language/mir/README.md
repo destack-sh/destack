@@ -4,18 +4,26 @@ Machine-level(-ish) IR for Destack for native codegen and VM execution.
 
 ## Overview
 
-MIR is the low-level IR in the Destack pipeline. 
-While DIR is _more_ high-level, target-independent, and polymorphic; MIR is low-level, target-aware, and monomorphic.
-
-Admittedly, compared to some other "MIR"s in related compilers, our MIR is still somewhat high-level, but it's not _as_ high-level as DIR and it's actually executable efficiently so we'll just call it low-level. 
-We know pointer sizes and calling conventions and layouts and all that, but don't commit to specific registers or CPU instructions yet (that is for codegen).
-
-MIR uses SSA with block parameters (instead of phi nodes) like MLIR, Cranelift, and Swift's SIL.
-SSA values are explicitly typed at their definition site in MIR text.
-Overall, it's a pretty standard low-level IR with _some_ extras:
+MIR is Destack's low-level target-aware SSA IR. 
+Our MIR is a pretty standard low-level IR with _some_ extras:
 1. **SSA with block parameters** (like Cranelift, MLIR, Swift SIL) instead of phi nodes
 2. **Value-semantic aggregate operations** (like LLVM, Swift SIL) for constructing and destructuring
 3. **Memory-semantic aggregate operations** (like Cranelift) for pointer-based access
+
+Admittedly, compared to some other "MIR"s in related compilers, our MIR is still somewhat high-level, but it's not _as_ high-level as DIR and it's actually executable efficiently so we'll just call it low-level. 
+
+## Blocks and Values
+
+MIR uses single static assignment form (SSA) with block parameters, quite similar to what MLIR, Cranelift, and Swift's SIL do.
+Unlike most IRs, our SSA values are explicitly typed at their definition site in MIR text, which we found to be significantly easier to review and even slightly easier to implement (for parsing and validating handwritten test cases).
+
+### Blocks
+
+Functions introduce 0-n parameters which are passed to `block0`, each block has 0-n parameters and 0-n instructions with one terminator.
+Blocks are the basic control flow units with:
+ - a single entry point with a list of parameters (typed SSA values)
+ - a list of instructions
+ - a single terminator
 
 ```mir
 block0:
@@ -38,28 +46,19 @@ block2(v3: i32):          // v3 is v1 or v2 depending on which edge
     ...
 ```
 
-### Why Both Value and Memory Semantics?
+### Values
 
-MIR has two ways to work with aggregates (structs, tuples, arrays):
+Values are literally just numbered "slots" in the function's value table, numbered sequentially from 0 through the end of the block (running through all blocks).
 
-| Operation | Style | Use Case |
-|-----------|-------|----------|
-| `struct`, `tuple`, `array`, `field.get`, `field.set`, `element.get`, `element.set` | Value | Local, non-aliased data |
-| `field.addr`, `element.addr` + `load`/`store` | Memory | Data behind references, address-taking |
+### Terminators
 
-**Value operations** treat aggregates as immutable SSA values.
-```mir
-v0: (i32, i32) = tuple v1, v2         ; construct a tuple
-v3: i32 = field.get v0, 0             ; extract first element (new SSA value)
-v4: (i32, i32) = field.set v0, 1, v5  ; "update" creates new tuple value
-```
-
-**Memory operations** compute addresses for load and store:
-```mir
-v0: ref<borrowed i32> = field.addr v1, 0   ; get address of field 0
-v2: i32 = load v0                          ; load through pointer
-store v0, v3                               ; store through pointer
-```
+Every block ends with a single terminator; this is what makes it a "basic" block.
+The terminators themselves are also quite straightforward: essentially, you can either return out of the function or jump to another block maybe with some checks.
+There are a few nuances to terminators for performance and features:
+ - `branch`, `check`, `switch` are all just different ways to conditionally jump to another block, with `check` being the most optimisable because it explicitly encodes the condition (which we can later optimize out).
+ - `return` jumps back to the caller's frame, while `tailcall` (and `tailcall.indirect`, `tailcall.virtual`, `tailcall.interface`) supersede the _current_ frame.
+ - `yield` is a special `return` that remembers some values for resuming execution later in a "resume block".
+ - `unreachable` is just a way of signaling "trust me, I can't prove it, but we'll never get here"
 
 ## Instructions
 
@@ -82,6 +81,8 @@ Each instruction defines at most one `Value`.
 | Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
 | Allocation | `managed.alloc`, `managed.alloc_array`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
+
+### Memory
 
 `field.get/set` and `element.get/set` operate on aggregate values.
 To access through pointers, use `field.addr` or `element.addr` and then `load` or `store`.
@@ -135,13 +136,6 @@ The layout table stores concrete size, alignment, and field offsets for aggregat
 The layout table is the single source of truth for physical layout across optimizer, VM, and codegen.
 Union metadata describes logical union semantics, while the layout table describes physical offsets.
 
-### Kernel metadata
-
-Functions may carry optional kernel metadata for GPU and accelerator execution.
-The execution model defines the pipeline stage for graphics and compute pipelines.
-Compute kernels may specify a fixed workgroup size as `[x, y, z]`.
-Stages include `compute`, `vertex`, `fragment`, `task`, `mesh`, `raygen`, `any_hit`, `closest_hit`, `miss`, `intersection`, and `callable`.
-
 ### Terminators
 
 Blocks end with a terminator that transfers control:
@@ -161,7 +155,7 @@ Blocks end with a terminator that transfers control:
 ## Intrinsics
 
 Intrinsics are primitive operations handled directly by backends.
-They have no function body: each backend implements them specially.
+They have no function body; hosts implement intrinsics however they like.
 
 | Category | Examples |
 |----------|----------|
@@ -180,23 +174,6 @@ They have no function body: each backend implements them specially.
 | Branch hints | `expect`, `likely`, `unlikely` |
 | Optimization | `black_box` |
 
-Reflection intrinsics (`size_of`, etc.) are comptime-only—they get evaluated during compilation and replaced with constants.
-The VM handles these; native codegen never sees them.
-Atomic and barrier intrinsics require explicit ordering, execution scope, memory scope, and memory semantics.
-Memory semantics describe which memory locations participate in the synchronization.
-Memory semantics may also include `volatile`, `make_available`, and `make_visible` flags.
-
-### Integer Arithmetic Semantics
-
-Integer `binary` operations have defined semantics in MIR.
-Addition, subtraction, and multiplication wrap in two's complement.
-Shift operators mask the shift amount to the integer bit width.
-Signed and unsigned division and remainder trap on division by zero.
-Signed division and remainder also trap on `min_value / -1`.
-
-When you need unchecked behavior, use the `*.unchecked` intrinsics.
-Unchecked intrinsics have undefined behavior on overflow or division by zero, so optimizers may assume they do not occur.
-Checked arithmetic can be modeled explicitly with `add.overflow` and related intrinsics.
 
 ## Types
 
@@ -208,33 +185,43 @@ This makes MIR machine-level while remaining target flexible.
 Copyability encodes whether values are trivial or linear.
 Aggregate types store copyability explicitly to avoid recomputation.
 
-Pointer sized integer types are modeled explicitly.
-`isize` is a signed integer with the target pointer width.
-`usize` is an unsigned integer with the target pointer width.
-Their concrete widths are resolved from the target data layout.
+## Value and Memory Semantics
 
-`Type` is an opaque handle that points to a runtime type descriptor record.
-It is pointer sized and comparable for equality.
+MIR has two ways to work with aggregates (structs, tuples, arrays): value semantics and memory semantics.
 
-Vector types represent fixed-width SIMD values.
-Use `vector<T, N>` in MIR text to denote an element type `T` and lane count `N`.
-Vectors model SIMD lane registers, while tensors model N-dimensional value semantics for accelerator-friendly optimization.
+**Value operations** treat aggregates as immutable SSA values.
+```mir
+v0: (i32, i32) = tuple v1, v2         // construct a tuple
+v3: i32 = field.get v0, 0             // extract first element (new SSA value)
+v4: (i32, i32) = field.set v0, 1, v5  // "update" creates new tuple value
+```
 
-Tensor types represent ranked value-semantic tensors.
-Use `tensor<T, [d0, d1, ...]>` for a tensor of element type `T` and ranked shape.
-Use `dynamic` to mark dynamic dimensions.
-Tensor layouts default to `row_major` when omitted.
-Use `layout=row_major` for contiguous row-major tensors.
-Use `layout=column_major` for contiguous column-major tensors.
-Use `layout=strided([s0, s1, ...])` for explicit strides.
-Use `tensor.cast` to refine tensor shapes without changing contents.
-Use `tensor.view` to create a strided view into tensor reference storage.
-Use `tensor.view` with `offsets`, `sizes`, and `strides` lists to describe the view bounds.
+**Memory operations** compute addresses for load and store:
+```mir
+v0: ref<borrowed i32> = field.addr v1, 0   // get address of field 0
+v2: i32 = load v0                          // load through pointer
+store v0, v3                               // store through pointer
+```
+
+### Vectors and Tensors
+
+Vector types represent fixed-width SIMD values to model SIMD lane registers, while tensors model N-dimensional value semantics for accelerator-friendly optimization.
+ - `vector<T, N>` denotes an element type `T` and lane count `N`.
+ - `tensor<T, [d0, d1, ...]>` for a tensor of element type `T` and ranked shape.
 
 Tensor view types represent reference-like views into tensor-shaped memory.
 Use `tensor_ref<kind addrspace(space) readonly T, [d0, d1, ...], layout=...>` in MIR text.
 The `kind` is one of `managed`, `owned`, `borrowed`, or `raw`.
 The `readonly` marker and `addrspace(...)` clause follow the same rules as `ref<...>` syntax.
+
+### Pointers
+
+Pointer sized integer types are modeled explicitly.
+`isize` is a signed integer with the target pointer width.
+`usize` is an unsigned integer with the target pointer width.
+Their concrete widths are resolved from the target data layout.
+
+### References
 
 References carry a kind _and_ mutability:
 - `managed` for auto-managed references
@@ -289,38 +276,20 @@ Field names are optional in MIR types and are for readability only:
 type @Point = { x: f32, y: f32 }
 ```
 
-### Debug Info
-
-MIR preserves enough info to produce high-quality native debug symbols later in codegen.
-Lowering records source spans, names, and lexical scope boundaries so codegen can emit DWARF or platform equivalents.
-Debug metadata is not required for execution.
-Debug metadata is required for precise variable scopes, call stacks, and type names in debuggers.
-Debug metadata is stored in `NodeTree.debug_info`.
-
-At a minimum, lowering should provide:
-- source spans for every instruction and terminator
-- named locals and parameters
-- lexical scope boundaries per block and per inlined callsite
-- type descriptors for variables and fields
-
-The concrete shape of this metadata belongs in MIR so all backends can consume it consistently.
-Cranelift codegen maps this metadata to its own debug facilities and then into DWARF.
-The debug metadata table stores scopes, variables, instruction locations, and variable locations.
-Scopes are nested and may include inline callsite chains.
-Variable locations can reference SSA values, locals, or globals.
-
 ### Type Metadata and Dispatch
 
 Type metadata captures layout, lineage, and dispatch structure for nominal types.
 Type metadata is stored in `NodeTree.type_table.type_metadata_by_id`.
 Layouts store size, alignment, stride, and field offsets in declaration order.
 Lineage tracks parent types, interfaces, and sealed or final flags.
+
 Dispatch tables describe vtables and itabs with slot ordering and targets.
 Dispatch tables are stored in `NodeTree.type_table.dispatch_registry`.
 VTables are only emitted for classes that require virtual dispatch.
 Interface dispatch uses itabs for both struct and class implementations.
 Each itab is specific to a (Type, Interface) pair.
 Itab slots include field offsets and method targets in interface declaration order.
+
 Interface inheritance flattens base interfaces in extends list order before local members.
 Members inherited with the same name and signature reuse the first slot.
 Type descriptors link types to runtime metadata globals when needed.
@@ -348,7 +317,7 @@ Aliases are referenced with `@Name` in type positions.
 The underlying MIR still stores and uses the concrete type.
 This makes some documentation and tests much more readable.
 
-## Functions and Globals
+## Functions
 
 Functions contain basic blocks forming a CFG.
 Imported functions have no body (`entry: None`, empty blocks).
@@ -367,6 +336,42 @@ block0:
     return
 }
 ```
+
+## Globals
+
+Module-level data with optional mutability:
+
+```ds
+struct Global {
+    name: StringId,
+    ty: LocalNodeId<Type>,
+    mutability: Mutability,
+    linkage: Linkage,
+    initializer: GlobalInitializer | null,
+}
+```
+
+Immutable globals are constants (string literals, lookup tables).
+String initializers require a managed reference to the builtin String layout.
+Mutable globals are module-level state (use sparingly).
+
+### Coroutines
+
+Generators and async functions are lowered to state machines in DIR before reaching MIR.
+MIR just sees the `Yield` terminator and knows the function is a coroutine:
+
+```mir
+block0:
+    v0: i32 = call @compute_next() -> fn() -> i32
+    yield v0, block1
+
+block1(v1: i32):    // resumed with value from .next(arg) or resolved promise
+    ...
+```
+
+The `CoroutineKind` (Generator, Async, AsyncGenerator) tells codegen what wrapper to generate.
+Resume arguments appear as normal block arguments, with the resumed value appended after them.
+
 
 ## Attributes
 
@@ -402,38 +407,3 @@ newtype Linkage =
 
 Exported symbols get mangled names for linking.
 Imported symbols reference external definitions (FFI, other modules, runtime).
-
-### Globals
-
-Module-level data with optional mutability:
-
-```ds
-struct Global {
-    name: StringId,
-    ty: LocalNodeId<Type>,
-    mutability: Mutability,
-    linkage: Linkage,
-    initializer: GlobalInitializer | null,
-}
-```
-
-Immutable globals are constants (string literals, lookup tables).
-String initializers require a managed reference to the builtin String layout.
-Mutable globals are module-level state (use sparingly).
-
-## Coroutines
-
-Generators and async functions are lowered to state machines in DIR before reaching MIR.
-MIR just sees the `Yield` terminator and knows the function is a coroutine:
-
-```mir
-block0:
-    v0: i32 = call @compute_next() -> fn() -> i32
-    yield v0, block1
-
-block1(v1: i32):    // resumed with value from .next(arg) or resolved promise
-    ...
-```
-
-The `CoroutineKind` (Generator, Async, AsyncGenerator) tells codegen what wrapper to generate.
-Resume arguments appear as normal block arguments, with the resumed value appended after them.
