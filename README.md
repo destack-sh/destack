@@ -2,6 +2,8 @@
 
 # Destack: Universal Software Engine
 
+---
+
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
 *Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform - all built on open standards.*
@@ -15,6 +17,8 @@
 </p>
 
 </div>
+
+---
 
 ## The Destack
 
@@ -40,11 +44,14 @@ the more we can express in one unified software system, the more software system
 <!--TODO #Incomplete: getting started (`bun i -g @destack-sh/cli`, `curl destack.sh/install`, and local development setup)-->
 Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack-sh/cli`.
 
+---
+
 ## Status
 
 Destack is in very active development and confidently pre-1.0, alpha-stage software.
 Core language and tooling surprisingly usable for experimentation and the earliest of adopters.
 APIs, CLI behavior, and project structure may change on minor releases.
+
 
 ## Contributing
 

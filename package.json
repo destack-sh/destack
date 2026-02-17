@@ -16,14 +16,14 @@
             "platform/cli/npm-win32-x64-msvc",
             "platform/vite",
             "platform/vscode",
-            "library/napi",
-            "library/wasm",
+            "platform/napi",
+            "platform/wasm",
             "library/schema",
             "library/test"
         ]
     },
     "scripts": {
-        "build:napi": "bun run --cwd library/napi build"
+        "build:napi": "bun run --cwd platform/napi build"
     },
     "catalog": {
         "@destack-sh/napi": "workspace:*",
