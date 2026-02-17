@@ -22,6 +22,23 @@ cargo test --release
 Install it in Zed with `Install Dev Extension` and select `platform/zed`.
 Start Zed from a terminal with `zed --foreground` to inspect extension logs.
 
+## Release
+
+The extension version in `extension.toml` must match the repository `version.txt`.
+`destack dev version` updates both files.
+
+You can prepare a dry-run registry update from the repository root.
+
+```sh
+just platform/publish-zed --dry-run
+```
+
+Live mode pushes a branch to your fork of `zed-industries/extensions` and opens or reuses a PR.
+
+```sh
+GH_TOKEN=<token> DESTACK_ZED_REGISTRY_PUSH_TO=<owner>/extensions just platform/publish-zed ""
+```
+
 ## Local Binary Path
 
 When developing across multiple worktrees, set a shared Destack binary path in Zed settings.

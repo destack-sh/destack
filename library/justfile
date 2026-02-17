@@ -1,4 +1,6 @@
 set shell := ["bash", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../.env.local"
 
 packages := "-p destack_napi -p destack_wasm"
 

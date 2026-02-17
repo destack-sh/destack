@@ -6,6 +6,83 @@ The `destack` binary for working with Destack projects, with short aliases:
 - `dsc` for `destack build`
 - `dsx` for `destack run`
 
+## npm distribution
+
+The CLI is published on npm as `@destack-sh/cli`.
+The main package dispatches to platform-specific optional dependency packages that contain prebuilt Rust binaries.
+The npm shims expose `destack`, `ds`, `dsc`, and `dsx`.
+The direct curl and PowerShell installers are in `install/install.sh` and `install/install.ps1`.
+
+Supported npm binary packages:
+
+- `@destack-sh/cli-darwin-arm64`
+- `@destack-sh/cli-darwin-x64`
+- `@destack-sh/cli-linux-arm64-gnu`
+- `@destack-sh/cli-linux-x64-gnu`
+- `@destack-sh/cli-win32-x64-msvc`
+
+Stage npm binaries from release artifacts before publish:
+
+```sh
+just platform/stage-cli-binaries-from-artifacts
+```
+
+This command validates checksums before staging binaries into npm package directories.
+
+Publish platform packages first, then publish `@destack-sh/cli`.
+You can run the full npm publish flow from the repository root with `just platform/publish-cli`.
+You can run the integrated developer release flow with `destack dev release`.
+You can stage a Zed registry PR from the same command with `--publish-zed`.
+
+Recommended preflight command from repository root:
+
+```sh
+just platform/preflight-cli-publish
+```
+
+If you are preparing artifacts locally, run this build and packaging flow first:
+
+```sh
+just platform/build-cli-binaries
+just platform/package-cli-release
+just platform/stage-cli-binaries-from-artifacts
+```
+
+Set `DESTACK_RELEASE_TARGETS` to space-separated Rust target triples when you want to stage a local subset.
+
+Integrated release examples:
+
+```sh
+# preflight + dry-run publish
+destack dev release
+
+# bump patch version, then preflight + dry-run publish
+destack dev release --bump patch
+
+# live publish after preflight
+destack dev release --publish-live
+
+# dry-run npm, vscode, and zed registry publish
+destack dev release --publish-zed
+
+# live npm, vscode, and zed registry publish
+DESTACK_ZED_REGISTRY_PUSH_TO=your-github-user/extensions destack dev release --publish-live --publish-zed
+```
+
+Live Zed publish requires authenticated `gh` access and a push target fork in `DESTACK_ZED_REGISTRY_PUSH_TO`.
+Local `just` commands load repository `.env.local`, so you can keep publish tokens there.
+
+Publish order:
+
+```sh
+cd platform/cli/npm-darwin-arm64 && npm run publish:live
+cd platform/cli/npm-darwin-x64 && npm run publish:live
+cd platform/cli/npm-linux-arm64-gnu && npm run publish:live
+cd platform/cli/npm-linux-x64-gnu && npm run publish:live
+cd platform/cli/npm-win32-x64-msvc && npm run publish:live
+cd platform/cli && npm run publish:live
+```
+
 ## Layout
 
 | Path | Purpose | Description |
@@ -44,6 +121,7 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `doc` | Generate docs (stub). |
 | `lsp` | Run the language server. |
 | `daemon` | Manage the background daemon service. |
+| `dev` | Developer workflows, including integrated release flows. |
 
 `run` resolves `dsconfig.json` tasks first, then `package.json` scripts when the argument is not a file path.
 

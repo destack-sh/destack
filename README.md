@@ -7,7 +7,7 @@
 *Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform, all built on open standards.*
 
 <p>
-  <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.1-2ea44f" alt="Version"></a>
+  <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>
   <a href="https://github.com/destack-sh/destack/actions/workflows/ci.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/nightly.yml/badge.svg" alt="Nightly"></a>
   <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/release.yml/badge.svg" alt="Release"></a>
@@ -37,8 +37,14 @@ the more we can express in one unified software system, the more software system
 
 ## Getting Started
 
-<!--TODO #Incomplete: getting started (`bun i destack`, `curl destack.sh/install`, and local development setup)-->
-COMING SOON
+<!--TODO #Incomplete: getting started (`bun i -g @destack-sh/cli`, `curl destack.sh/install`, and local development setup)-->
+Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack-sh/cli`.
+
+## Status
+
+Destack is in very active development and confidently pre-1.0, alpha-stage software.
+Core language and tooling surprisingly usable for experimentation and the earliest of adopters.
+APIs, CLI behavior, and project structure may change on minor releases.
 
 ## Contributing
 
