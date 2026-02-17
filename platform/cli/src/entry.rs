@@ -81,6 +81,7 @@ pub fn run(default_command: DefaultCommand) -> i32 {
         Command::Dev(subcommand) => match subcommand {
             DevCommand::Resolve(args) => dev::resolve::run(&args),
             DevCommand::Stats(args) => dev::stats::run(&args),
+            DevCommand::Release(args) => dev::release::run(&args),
             DevCommand::Version(cmd) => match cmd {
                 dev::VersionCommands::Show => dev::version::show(),
                 cmd => dev::version::bump(&cmd),

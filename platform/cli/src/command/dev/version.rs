@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
 use clap::Subcommand;
@@ -11,6 +11,7 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "README.md",
     "Cargo.toml",
     "package.json",
+    "platform/zed/extension.toml",
     "*/package.json",
     "*/*/package.json",
     "*/*/*/package.json",
@@ -20,6 +21,9 @@ const FILE_GLOBS_TO_IGNORE: &[&str] = &[
     "language/grammar/destack/",
     "platform/zed/grammars/",
 ];
+const ROOT_README_PATH: &str = "README.md";
+const README_VERSION_BADGE_PREFIX: &str = "https://img.shields.io/badge/version-";
+const README_VERSION_BADGE_SUFFIX: &str = "-2ea44f";
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum VersionCommands {
@@ -138,11 +142,15 @@ pub fn bump(kind: &VersionCommands) -> i32 {
             console::print(&format!("  {}", path.display()));
             match fs::read_to_string(&path) {
                 Ok(text) => {
-                    if !text.contains(&current_version) {
-                        console::error(&format!("error: {current_version} not found in {path:?}"));
-                        return 1;
-                    }
-                    files.push((path, text));
+                    let updated =
+                        match update_file_version(&path, &text, &current_version, &new_version) {
+                            Ok(updated) => updated,
+                            Err(e) => {
+                                console::error(&format!("error: {e} in {path:?}"));
+                                return 1;
+                            }
+                        };
+                    files.push((path, updated));
                 }
                 Err(e) => {
                     console::error(&format!("error: {path:?} not found ({e})"));
@@ -152,9 +160,8 @@ pub fn bump(kind: &VersionCommands) -> i32 {
         }
     }
 
-    // update all files with new version
-    for (p, text) in files.into_iter() {
-        let updated = text.replace(&current_version, &new_version);
+    // write all updated files
+    for (p, updated) in files.into_iter() {
         if let Err(e) = fs::write(&p, updated) {
             console::error(&format!("error: failed to write {} ({e})", p.display()));
             return 1;
@@ -162,6 +169,54 @@ pub fn bump(kind: &VersionCommands) -> i32 {
     }
 
     0
+}
+
+/// Update a file with the new version.
+///
+/// Falls back to the README badge version when the root README drifted.
+fn update_file_version(
+    path: &Path,
+    text: &str,
+    current_version: &str,
+    new_version: &str,
+) -> Result<String, String> {
+    // normal path: update exact version matches
+    if text.contains(current_version) {
+        return Ok(text.replace(current_version, new_version));
+    }
+
+    // fallback: recover root README badge drift
+    if path == Path::new(ROOT_README_PATH) {
+        let Some(updated) = update_readme_badge_version(text, new_version) else {
+            return Err(format!(
+                "{current_version} not found and README version badge was not parseable"
+            ));
+        };
+        return Ok(updated);
+    }
+
+    Err(format!("{current_version} not found"))
+}
+
+/// Update the root README badge version.
+fn update_readme_badge_version(text: &str, new_version: &str) -> Option<String> {
+    let badge_prefix_start = text.find(README_VERSION_BADGE_PREFIX)?;
+    let version_start = badge_prefix_start + README_VERSION_BADGE_PREFIX.len();
+
+    let badge_suffix_start = text[version_start..].find(README_VERSION_BADGE_SUFFIX)?;
+    let version_end = version_start + badge_suffix_start;
+    let current_badge_version = &text[version_start..version_end];
+
+    if SemVer::parse(current_badge_version).is_none() {
+        return None;
+    }
+
+    let mut updated = String::with_capacity(text.len() + new_version.len());
+    updated.push_str(&text[..version_start]);
+    updated.push_str(new_version);
+    updated.push_str(&text[version_end..]);
+
+    Some(updated)
 }
 
 /// Read the current version from the version file.
@@ -173,6 +228,8 @@ fn read_current_version() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
     #[test]
@@ -219,5 +276,36 @@ mod tests {
             patch: 1,
         };
         assert_eq!(v.to_string(), "0.2.1");
+    }
+
+    #[test]
+    fn test_update_file_version_replaces_current_version() {
+        let path = Path::new("Cargo.toml");
+        let source = "version = \"0.55.2\"";
+        let updated = update_file_version(path, source, "0.55.2", "0.55.3").unwrap();
+
+        assert_eq!(updated, "version = \"0.55.3\"");
+    }
+
+    #[test]
+    fn test_update_file_version_recovers_readme_badge_drift() {
+        let path = Path::new("README.md");
+        let source =
+            "<img src=\"https://img.shields.io/badge/version-0.55.1-2ea44f\" alt=\"Version\">";
+        let updated = update_file_version(path, source, "0.55.2", "0.55.3").unwrap();
+
+        assert_eq!(
+            updated,
+            "<img src=\"https://img.shields.io/badge/version-0.55.3-2ea44f\" alt=\"Version\">"
+        );
+    }
+
+    #[test]
+    fn test_update_file_version_errors_without_matching_version() {
+        let path = Path::new("Cargo.toml");
+        let source = "version = \"0.55.1\"";
+        let error = update_file_version(path, source, "0.55.2", "0.55.3").unwrap_err();
+
+        assert_eq!(error, "0.55.2 not found");
     }
 }

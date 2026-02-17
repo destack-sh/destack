@@ -1,4 +1,6 @@
 set shell := ["bash", "-cu"]
+set dotenv-load := true
+set dotenv-filename := ".env.local"
 
 _default:
     @just --list --unsorted

@@ -1,9 +1,11 @@
+pub mod release;
 pub mod resolve;
 pub mod stats;
 pub mod version;
 
 use clap::Subcommand;
 
+pub use release::ReleaseArgs;
 pub use resolve::ResolveArgs;
 pub use stats::StatsArgs;
 pub use version::VersionCommands;
@@ -16,6 +18,8 @@ pub enum DevCommand {
     Resolve(ResolveArgs),
     /// Codebase statistics (lines of code and tokens).
     Stats(StatsArgs),
+    /// Integrated release flow for preflight and publish.
+    Release(ReleaseArgs),
     /// Version management commands.
     #[command(subcommand)]
     Version(VersionCommands),
