@@ -294,7 +294,13 @@ pub(crate) fn format_if_else_chain<'ast>(
                     // keep compact spacing when else prefixes do not force layout
                     let else_has_effective_prefix_annotation =
                         expression_has_effective_prefix_annotation(f.context(), *else_expression);
-                    if !else_has_effective_prefix_annotation {
+                    let if_has_postfix_annotation = f.context().has_postfix_annotation(next_if_id);
+                    let then_has_postfix_annotation =
+                        f.context().has_postfix_annotation(*then_expression_id);
+                    if !else_has_effective_prefix_annotation
+                        && !if_has_postfix_annotation
+                        && !then_has_postfix_annotation
+                    {
                         write!(f, [space()])?;
                     }
                     match f.context().tree.get(*else_expression) {

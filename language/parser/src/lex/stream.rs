@@ -53,6 +53,8 @@ pub struct TokenStreamMark {
     pub(super) tokens_len: usize,
     /// The number of side tokens captured in the mark.
     pub(super) side_tokens_len: usize,
+    /// The number of comment side token indexes captured in the mark.
+    pub(super) comment_side_tokens_len: usize,
     /// The first mutable next non newline index at mark time.
     pub(super) pending_non_newline_start: usize,
     /// The next non newline tail values from pending_non_newline_start onward.
@@ -105,6 +107,8 @@ pub struct TokenStream {
     tokens: Vec<TokenSpan>,
     /// The side tokens produced so far.
     side_tokens: Vec<TokenSpan>,
+    /// Indexes of comment-like side tokens in `side_tokens`.
+    comment_side_token_indexes: Vec<u32>,
     /// The semantic token index that each side token belongs to.
     side_owner_token_index: Vec<u32>,
     /// The cached next non newline token indexes.
@@ -163,6 +167,7 @@ impl TokenStream {
             lexer: Lexer::new(file, language),
             tokens,
             side_tokens,
+            comment_side_token_indexes: Vec::with_capacity(estimated_tokens / 24),
             side_owner_token_index: Vec::with_capacity(estimated_tokens * 2 / 5),
             next_non_newline: Vec::new(),
             matching_pairs: Vec::new(),
@@ -196,6 +201,12 @@ impl TokenStream {
     #[inline]
     pub fn side_tokens(&self) -> &[TokenSpan] {
         &self.side_tokens
+    }
+
+    /// Return side token indexes for comment-like trivia tokens.
+    #[inline]
+    pub fn comment_side_token_indexes(&self) -> &[u32] {
+        &self.comment_side_token_indexes
     }
 
     /// Return the owner semantic token index for a side token.
@@ -337,6 +348,7 @@ impl TokenStream {
             lexer: self.lexer.snapshot(),
             tokens_len: self.tokens.len(),
             side_tokens_len: self.side_tokens.len(),
+            comment_side_tokens_len: self.comment_side_token_indexes.len(),
             pending_non_newline_start,
             next_non_newline_tail: self.next_non_newline[pending_non_newline_start..].to_vec(),
             paren_stack: self.paren_stack.clone(),
@@ -364,6 +376,7 @@ impl TokenStream {
             lexer,
             tokens_len,
             side_tokens_len,
+            comment_side_tokens_len,
             pending_non_newline_start,
             next_non_newline_tail,
             paren_stack,
@@ -389,6 +402,8 @@ impl TokenStream {
             self.lexer.side_tokens.truncate(side_tokens_len);
             self.side_owner_token_index.truncate(side_tokens_len);
         }
+        self.comment_side_token_indexes
+            .truncate(comment_side_tokens_len);
         self.pending_line_terminator_before_next = pending_line_terminator_before_next;
         self.pending_leading_side_start = pending_leading_side_start;
         self.has_comment_side_tokens = has_comment_side_tokens;
@@ -521,6 +536,7 @@ impl TokenStream {
         self.lexer.tokens.clear();
         self.lexer.side_tokens.clear();
         self.side_owner_token_index.clear();
+        self.comment_side_token_indexes.clear();
 
         // reset caches and stacks for any follow-up access
         self.next_non_newline.clear();
@@ -887,6 +903,7 @@ impl TokenStream {
     /// Push a side token and update stream flags that depend on side tokens.
     #[inline]
     fn push_side_token(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
+        let side_index = self.side_tokens.len() as u32;
         if matches!(
             token_span.token.ty,
             TokenType::LineComment
@@ -895,6 +912,7 @@ impl TokenStream {
                 | TokenType::DocBlockComment
         ) {
             self.has_comment_side_tokens = true;
+            self.comment_side_token_indexes.push(side_index);
         }
 
         self.side_tokens.push(token_span);

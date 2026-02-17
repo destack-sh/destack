@@ -241,6 +241,12 @@ pub mod tags {
         ParserTimingTag::new("parse.annotations.compute_side_span");
     pub const PARSE_ANNOTATIONS_ATTACH_SIDE: ParserTimingTag =
         ParserTimingTag::new("parse.annotations.attach_side");
+    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_SCAN: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.attach_side.scan");
+    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_DOCS: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.attach_side.emit_docs");
+    pub const PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_COMMENTS: ParserTimingTag =
+        ParserTimingTag::new("parse.annotations.attach_side.emit_comments");
     pub const PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_NEIGHBORS: ParserTimingTag =
         ParserTimingTag::new("parse.annotations.attach_side.build_neighbors");
     pub const PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_OWNER_INDEX: ParserTimingTag =
