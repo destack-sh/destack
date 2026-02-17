@@ -1569,7 +1569,17 @@ impl Parser {
         expression_id: LocalNodeId<Expression>,
         span: Span,
     ) -> LocalNodeId<Expression> {
-        self.tree.insert(Expression::Statement(expression_id), span)
+        // wrap expression as statement first so annotation remap has a stable target
+        let statement_id = self.tree.insert(Expression::Statement(expression_id), span);
+
+        // semantic annotations on statement expressions must follow the statement owner
+        let _moved = self.tree.move_annotations_if(
+            expression_id.id,
+            statement_id.id,
+            |_annotation_id, _annotation, _annotation_span| true,
+        );
+
+        statement_id
     }
 
     /// Get a mark and return the span of the current position.
