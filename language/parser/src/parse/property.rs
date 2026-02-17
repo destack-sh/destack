@@ -255,7 +255,7 @@ impl Parser {
         }
 
         // object fields cannot start with an unkeyed call signature
-        if !self.options.in_type
+        if !self.options.is_in_type()
             && key.is_none()
             && mode.is_none()
             && !is_async
@@ -379,7 +379,7 @@ impl Parser {
                     .in_statement_position()
                     .not_in_decorator()
                     .with_generator(is_generator);
-                options.allow_sequence_expression = true;
+                options.set_allow_sequence_expression(true);
                 Some(self.eat_expression(options)?)
             } else {
                 None
@@ -452,7 +452,7 @@ impl Parser {
                     .not_in_position()
                     .not_in_left_precedence()
                     .not_in_sequence_expression();
-                if self.options.in_variant || self.options.in_type {
+                if self.options.is_in_variant() || self.options.is_in_type() {
                     type_options = type_options.in_type();
                 }
                 let value = self.eat_expression(type_options)?;
@@ -535,7 +535,7 @@ impl Parser {
                 break;
             }
             // consume decorator prefixes in type literal properties
-            else if self.options.in_type && token_type == TokenType::At {
+            else if self.options.is_in_type() && token_type == TokenType::At {
                 let decorators = self.eat_decorators_maybe()?;
                 pending_property_decorators.extend(decorators);
                 continue;
@@ -1019,7 +1019,7 @@ impl Parser {
                     .in_statement_position()
                     .not_in_decorator()
                     .with_generator(is_generator);
-                options.allow_sequence_expression = true;
+                options.set_allow_sequence_expression(true);
                 Some(self.eat_expression(options)?)
             } else {
                 None
@@ -1309,7 +1309,7 @@ port2 = {
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
-        parser.options.in_variant = true;
+        parser.options.set_in_variant(true);
         let member_id = parser.eat_member().unwrap();
 
         // port2 = { postMessage: () => { setTimeout(this.port1.onmessage, 0) } }
@@ -1643,7 +1643,7 @@ foo(): string;"#,
     fn test_parse_property_with_value() {
         let mut test = TestParser::new("x: int32");
         let mut parser = test.prepare();
-        parser.options.in_variant = true;
+        parser.options.set_in_variant(true);
         let property = parser.eat_property().unwrap();
         assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
             assert_string!(parser, *name, "x");
@@ -1685,7 +1685,7 @@ foo(): string;"#,
     fn test_parse_property_with_value_and_default_value() {
         let mut test = TestParser::new("x: int32 = 42");
         let mut parser = test.prepare();
-        parser.options.in_variant = true;
+        parser.options.set_in_variant(true);
         let property = parser.eat_property().unwrap();
         assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: Some(default), .. } => {
             assert_string!(parser, *name, "x");
@@ -1779,7 +1779,7 @@ foo(): string;"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.options.in_variant = true;
+        parser.options.set_in_variant(true);
 
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::Method { modifiers, key: Some(Key::Expression(key)), signature, .. } => {
@@ -1932,7 +1932,7 @@ foo(): string;"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
-        parser.options.in_variant = true;
+        parser.options.set_in_variant(true);
 
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, .. } => {
@@ -1950,7 +1950,7 @@ foo(): string;"#,
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        parser.options.in_variant = true;
+        parser.options.set_in_variant(true);
 
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {

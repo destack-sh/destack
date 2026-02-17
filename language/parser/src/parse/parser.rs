@@ -74,89 +74,22 @@ impl TypeLiteralIdentifiers {
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ParserOptions {
-    /// Whether we're parsing inside a static argument (`<...>`).
-    /// Disallows certain infix operations in static arguments to avoid ambiguity with <>.
-    pub in_static: bool = false,
-    /// Whether we're parsing inside a comptime expression.
-    /// Enables limited type-only parsing when unambiguous.
-    pub in_comptime: bool = false,
-    /// Whether we're parsing inside a type.
-    /// Type context eagerly evaluates some constructs to their type-ish variants.
-    pub in_type: bool = false,
-    /// Whether we're inside a super type (clause)
-    /// Binary type operators are prohibited in super type clauses.
-    pub in_super_type: bool = false,
-    /// Whether we're parsing inside a variant.
-    /// Certain properties/constructs are only allowed inside variants.
-    pub in_variant: bool = false,
-    /// Whether we're parsing an expression before a type annotation (like the `x` in `x: int32`).
-    /// Disallows binding patterns in these cases to avoid ambiguity with type annotations.
-    pub in_before_type: bool = false,
-    /// Whether we're parsing inside a match case.
-    /// Disallows lambda functions to avoid ambiguity with match cases (`=>`).
-    pub in_match_case: bool = false,
-    /// Whether we're parsing a union pattern.
-    /// Ignore elementwise infix operations in union patterns to avoid ambiguity with `|`
-    pub in_union_pattern: bool = false,
-    /// Whether we're parsing inside an ambient declaration context.
-    pub in_declare_context: bool = false,
-    /// Whether we're in parenthesized expression (`(..)`, directly).
-    /// These expressions might be tuple literals if followed by a comma.
-    pub in_parenthesis: bool = false,
-    /// Whether we're parsing at the start of a "statement".
-    /// Disallows object literals.
-    pub in_statement_position: bool = false,
-    /// Whether this parse originates from a statement root context.
-    pub in_statement_context: bool = false,
-    /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
-    /// Disallows object and typed struct literals at the root level to avoid ambiguity with `expr {}`.
-    pub in_before_block: bool = false,
-    /// Whether we're in a tree literal.
-    /// Disallows angle brackets and divides to avoid ambiguity with `</>``.
-    pub in_tree_literal: bool = false,
-    /// Whether we're parsing a decorator expression.
-    /// Disables declaration and control flow keyword parsing to keep decorators as expressions.
-    pub in_decorator: bool = false,
-    /// Whether we're parsing a ternary if expression.
-    /// Disallows some shorthand syntax like lambdas that looks like a ternary part.
-    pub in_ternary_condition: bool = false,
-    /// Whether we're parsing the right side of a type conditional.
-    /// Stops the parse at `?` so the outer conditional can consume it.
-    pub in_type_conditional_right: bool = false,
-    /// Whether we're parsing a return type before an arrow body.
-    /// Stops lambdas from consuming the outer `=>`.
-    pub in_arrow_return_type: bool = false,
-    /// Whether we're parsing a mapped type constraint.
-    /// Disables `as` casts so the remap clause can be parsed separately.
-    pub in_type_mapped_constraint: bool = false,
-    /// Whether we're parsing a for each expression.
-    /// Disallows container operators.
-    pub in_for_each: bool = false,
-    /// Whether we're parsing a new receiver.
-    /// Disallows call-like expressions to disambiguate dynamic arguments.
-    pub in_new_receiver: bool = false,
-    /// Whether we're parsing a typeof type query operand.
-    /// Keeps contextual keywords available as identifier paths.
-    pub in_typeof_query: bool = false,
-    /// Whether we're parsing inside a generator function.
-    /// Makes `yield` a keyword instead of an identifier.
-    pub in_generator: bool = false,
-    /// Whether `yield` expressions are forbidden in this context.
-    /// Used to tag contexts where `yield` should be rejected during analysis.
-    pub forbid_yield: bool = false,
-    /// Whether `await` expressions are forbidden in this context.
-    pub forbid_await: bool = false,
-    /// Whether sequence expressions (comma operator) are allowed.
-    pub allow_sequence_expression: bool = true,
-    /// Whether private hash keys (`#name`) are allowed in key position.
-    pub allow_private_hash_key: bool = false,
-    /// Whether ambiguous tree literal syntax is disallowed.
-    pub disallow_ambiguous_tree_literal: bool = false,
+    /// Packed parser context and behavior flags.
+    flags: u64,
     /// The left precedence preceding (i.e. before) the expression.
-    /// Determines expression operator lifting / grouping.
-    pub left_precedence: Option<u16> = None,
+    /// Determines expression operator lifting and grouping.
+    pub left_precedence: Option<u16>,
+}
+
+impl Default for ParserOptions {
+    fn default() -> Self {
+        Self {
+            flags: Self::ALLOW_SEQUENCE_EXPRESSION_FLAG,
+            left_precedence: None,
+        }
+    }
 }
 
 /// Parser settings that can be configured externally.
@@ -218,321 +151,549 @@ pub struct ParserSpeculationStats {
 
 #[allow(unused)]
 impl ParserOptions {
+    const IN_STATIC_FLAG: u64 = 1 << 0;
+    const IN_COMPTIME_FLAG: u64 = 1 << 1;
+    const IN_TYPE_FLAG: u64 = 1 << 2;
+    const IN_SUPER_TYPE_FLAG: u64 = 1 << 3;
+    const IN_VARIANT_FLAG: u64 = 1 << 4;
+    const IN_BEFORE_TYPE_FLAG: u64 = 1 << 5;
+    const IN_MATCH_CASE_FLAG: u64 = 1 << 6;
+    const IN_UNION_PATTERN_FLAG: u64 = 1 << 7;
+    const IN_DECLARE_CONTEXT_FLAG: u64 = 1 << 8;
+    const IN_PARENTHESIS_FLAG: u64 = 1 << 9;
+    const IN_STATEMENT_POSITION_FLAG: u64 = 1 << 10;
+    const IN_STATEMENT_CONTEXT_FLAG: u64 = 1 << 11;
+    const IN_BEFORE_BLOCK_FLAG: u64 = 1 << 12;
+    const IN_TREE_LITERAL_FLAG: u64 = 1 << 13;
+    const IN_DECORATOR_FLAG: u64 = 1 << 14;
+    const IN_TERNARY_CONDITION_FLAG: u64 = 1 << 15;
+    const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u64 = 1 << 16;
+    const IN_ARROW_RETURN_TYPE_FLAG: u64 = 1 << 17;
+    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u64 = 1 << 18;
+    const IN_FOR_EACH_FLAG: u64 = 1 << 19;
+    const IN_NEW_RECEIVER_FLAG: u64 = 1 << 20;
+    const IN_TYPEOF_QUERY_FLAG: u64 = 1 << 21;
+    const IN_GENERATOR_FLAG: u64 = 1 << 22;
+    const FORBID_YIELD_FLAG: u64 = 1 << 23;
+    const FORBID_AWAIT_FLAG: u64 = 1 << 24;
+    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u64 = 1 << 25;
+    const ALLOW_PRIVATE_HASH_KEY_FLAG: u64 = 1 << 26;
+    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u64 = 1 << 27;
+
+    #[inline]
+    const fn has_flag(self, flag: u64) -> bool {
+        (self.flags & flag) != 0
+    }
+
+    #[inline]
+    fn with_flag(mut self, flag: u64, enabled: bool) -> Self {
+        if enabled {
+            self.flags |= flag;
+        } else {
+            self.flags &= !flag;
+        }
+        self
+    }
+
+    #[inline]
+    fn set_flag(&mut self, flag: u64, enabled: bool) {
+        if enabled {
+            self.flags |= flag;
+        } else {
+            self.flags &= !flag;
+        }
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_static(self) -> bool {
+        self.has_flag(Self::IN_STATIC_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_comptime(self) -> bool {
+        self.has_flag(Self::IN_COMPTIME_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_type(self) -> bool {
+        self.has_flag(Self::IN_TYPE_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_super_type(self) -> bool {
+        self.has_flag(Self::IN_SUPER_TYPE_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_variant(self) -> bool {
+        self.has_flag(Self::IN_VARIANT_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_before_type(self) -> bool {
+        self.has_flag(Self::IN_BEFORE_TYPE_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_match_case(self) -> bool {
+        self.has_flag(Self::IN_MATCH_CASE_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_union_pattern(self) -> bool {
+        self.has_flag(Self::IN_UNION_PATTERN_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_declare_context(self) -> bool {
+        self.has_flag(Self::IN_DECLARE_CONTEXT_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_parenthesis(self) -> bool {
+        self.has_flag(Self::IN_PARENTHESIS_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_statement_position(self) -> bool {
+        self.has_flag(Self::IN_STATEMENT_POSITION_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_statement_context(self) -> bool {
+        self.has_flag(Self::IN_STATEMENT_CONTEXT_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_before_block(self) -> bool {
+        self.has_flag(Self::IN_BEFORE_BLOCK_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_tree_literal(self) -> bool {
+        self.has_flag(Self::IN_TREE_LITERAL_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_decorator(self) -> bool {
+        self.has_flag(Self::IN_DECORATOR_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_ternary_condition(self) -> bool {
+        self.has_flag(Self::IN_TERNARY_CONDITION_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_type_conditional_right(self) -> bool {
+        self.has_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_arrow_return_type(self) -> bool {
+        self.has_flag(Self::IN_ARROW_RETURN_TYPE_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_type_mapped_constraint(self) -> bool {
+        self.has_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_for_each(self) -> bool {
+        self.has_flag(Self::IN_FOR_EACH_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_new_receiver(self) -> bool {
+        self.has_flag(Self::IN_NEW_RECEIVER_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_typeof_query(self) -> bool {
+        self.has_flag(Self::IN_TYPEOF_QUERY_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_generator(self) -> bool {
+        self.has_flag(Self::IN_GENERATOR_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_forbid_yield(self) -> bool {
+        self.has_flag(Self::FORBID_YIELD_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_forbid_await(self) -> bool {
+        self.has_flag(Self::FORBID_AWAIT_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn allows_sequence_expression(self) -> bool {
+        self.has_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn allows_private_hash_key(self) -> bool {
+        self.has_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_disallow_ambiguous_tree_literal(self) -> bool {
+        self.has_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG)
+    }
+
+    #[inline]
+    pub(crate) fn set_in_static(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_STATIC_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_comptime(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_COMPTIME_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_type(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_TYPE_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_super_type(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_SUPER_TYPE_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_variant(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_VARIANT_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_before_type(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_BEFORE_TYPE_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_match_case(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_MATCH_CASE_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_union_pattern(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_UNION_PATTERN_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_declare_context(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_DECLARE_CONTEXT_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_parenthesis(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_PARENTHESIS_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_statement_position(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_STATEMENT_POSITION_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_statement_context(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_STATEMENT_CONTEXT_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_before_block(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_BEFORE_BLOCK_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_tree_literal(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_TREE_LITERAL_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_decorator(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_DECORATOR_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_ternary_condition(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_TERNARY_CONDITION_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_type_conditional_right(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_arrow_return_type(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_type_mapped_constraint(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_for_each(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_FOR_EACH_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_new_receiver(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_NEW_RECEIVER_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_typeof_query(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_TYPEOF_QUERY_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_generator(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_GENERATOR_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_forbid_yield(&mut self, enabled: bool) {
+        self.set_flag(Self::FORBID_YIELD_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_forbid_await(&mut self, enabled: bool) {
+        self.set_flag(Self::FORBID_AWAIT_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_allow_sequence_expression(&mut self, enabled: bool) {
+        self.set_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_allow_private_hash_key(&mut self, enabled: bool) {
+        self.set_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_disallow_ambiguous_tree_literal(&mut self, enabled: bool) {
+        self.set_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG, enabled);
+    }
+
     /// Set `in_static=true`.
     #[inline]
     pub(crate) fn in_static(self) -> Self {
-        Self {
-            in_static: true,
-            ..self
-        }
+        self.with_flag(Self::IN_STATIC_FLAG, true)
     }
 
     /// Set `in_comptime=true`.
     #[inline]
     pub(crate) fn in_comptime(self) -> Self {
-        Self {
-            in_comptime: true,
-            ..self
-        }
+        self.with_flag(Self::IN_COMPTIME_FLAG, true)
     }
 
     /// Set `in_type=true`.
     #[inline]
     pub(crate) fn in_type(self) -> Self {
-        Self {
-            in_type: true,
-            ..self
-        }
+        self.with_flag(Self::IN_TYPE_FLAG, true)
     }
 
     /// Set `in_type=false`.
     #[inline]
     pub(crate) fn not_in_type(self) -> Self {
-        Self {
-            in_type: false,
-            ..self
-        }
+        self.with_flag(Self::IN_TYPE_FLAG, false)
     }
 
     /// Set `in_super_type=true`.
     #[inline]
     pub(crate) fn in_super_type(self) -> Self {
-        Self {
-            in_type: true,
-            in_super_type: true,
-            ..self
-        }
+        self.with_flag(Self::IN_TYPE_FLAG, true)
+            .with_flag(Self::IN_SUPER_TYPE_FLAG, true)
     }
 
     /// Set `in_generator` to the given value.
     #[inline]
     pub(crate) fn with_generator(self, in_generator: bool) -> Self {
-        Self {
-            in_generator,
-            ..self
-        }
+        self.with_flag(Self::IN_GENERATOR_FLAG, in_generator)
     }
 
     /// Set `forbid_yield` to the given value.
     #[inline]
     pub(crate) fn with_forbid_yield(self, forbid_yield: bool) -> Self {
-        Self {
-            forbid_yield,
-            ..self
-        }
+        self.with_flag(Self::FORBID_YIELD_FLAG, forbid_yield)
     }
 
     /// Set `forbid_await=true`.
     #[inline]
     pub(crate) fn forbid_await(self) -> Self {
-        Self {
-            forbid_await: true,
-            ..self
-        }
+        self.with_flag(Self::FORBID_AWAIT_FLAG, true)
     }
 
     /// Set `in_variant=true`.
     #[inline]
     pub(crate) fn in_variant(self) -> Self {
-        Self {
-            in_variant: true,
-            ..self
-        }
+        self.with_flag(Self::IN_VARIANT_FLAG, true)
     }
 
     /// Set `in_variant=false`.
     #[inline]
     pub(crate) fn not_in_variant(self) -> Self {
-        Self {
-            in_variant: false,
-            ..self
-        }
+        self.with_flag(Self::IN_VARIANT_FLAG, false)
     }
 
     /// Set `in_before_type=true`.
     #[inline]
     pub(crate) fn in_before_type(self) -> Self {
-        Self {
-            in_before_type: true,
-            ..self
-        }
+        self.with_flag(Self::IN_BEFORE_TYPE_FLAG, true)
     }
 
     /// Set `in_match_case=true`.
     #[inline]
     pub(crate) fn in_match_case(self) -> Self {
-        Self {
-            in_match_case: true,
-            ..self
-        }
+        self.with_flag(Self::IN_MATCH_CASE_FLAG, true)
     }
 
     /// Set `in_union_pattern=true`.
     #[inline]
     pub(crate) fn in_union_pattern(self) -> Self {
-        Self {
-            in_union_pattern: true,
-            ..self
-        }
+        self.with_flag(Self::IN_UNION_PATTERN_FLAG, true)
     }
 
     /// Set `in_declare_context=true`.
     #[inline]
     pub(crate) fn in_declare_context(self) -> Self {
-        Self {
-            in_declare_context: true,
-            ..self
-        }
+        self.with_flag(Self::IN_DECLARE_CONTEXT_FLAG, true)
     }
 
     /// Set `in_parenthesis=true`.
     #[inline]
     pub(crate) fn in_parenthesis(self) -> Self {
-        Self {
-            in_parenthesis: true,
-            ..self
-        }
+        self.with_flag(Self::IN_PARENTHESIS_FLAG, true)
     }
 
     /// Set `in_parenthesis=false`.
     #[inline]
     pub(crate) fn not_in_parenthesis(self) -> Self {
-        Self {
-            in_parenthesis: false,
-            ..self
-        }
+        self.with_flag(Self::IN_PARENTHESIS_FLAG, false)
     }
 
     /// Set `in_statement_position=true`.
     #[inline]
     pub(crate) fn in_statement_position(self) -> Self {
-        Self {
-            in_statement_position: true,
-            in_statement_context: true,
-            ..self
-        }
+        self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, true)
+            .with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, true)
     }
 
     /// Set `in_statement_position=false`.
     #[inline]
     pub(crate) fn not_in_statement_position(self) -> Self {
-        Self {
-            in_statement_position: false,
-            ..self
-        }
+        self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, false)
     }
 
     /// Set `in_before_block=true`.
     #[inline]
     pub(crate) fn in_before_block(self) -> Self {
-        Self {
-            in_before_block: true,
-            ..self
-        }
+        self.with_flag(Self::IN_BEFORE_BLOCK_FLAG, true)
     }
 
     /// Set `in_tree_literal=true`.
     #[inline]
     pub(crate) fn in_tree_literal(self) -> Self {
-        Self {
-            in_tree_literal: true,
-            ..self
-        }
+        self.with_flag(Self::IN_TREE_LITERAL_FLAG, true)
     }
 
     /// Set `in_tree_literal=false`.
     #[inline]
     pub(crate) fn not_in_tree_literal(self) -> Self {
-        Self {
-            in_tree_literal: false,
-            ..self
-        }
+        self.with_flag(Self::IN_TREE_LITERAL_FLAG, false)
     }
 
     /// Set `in_before_block=false`.
     #[inline]
     pub(crate) fn not_in_before_block(self) -> Self {
-        Self {
-            in_before_block: false,
-            ..self
-        }
+        self.with_flag(Self::IN_BEFORE_BLOCK_FLAG, false)
     }
 
     /// Set `in_ternary_condition=true`.
     #[inline]
     pub(crate) fn in_ternary_condition(self) -> Self {
-        Self {
-            in_ternary_condition: true,
-            ..self
-        }
+        self.with_flag(Self::IN_TERNARY_CONDITION_FLAG, true)
     }
 
     /// Set `in_ternary_condition=false`.
     #[inline]
     pub(crate) fn not_in_ternary_condition(self) -> Self {
-        Self {
-            in_ternary_condition: false,
-            ..self
-        }
+        self.with_flag(Self::IN_TERNARY_CONDITION_FLAG, false)
     }
 
     /// Set `in_type_conditional_right=true`.
     #[inline]
     pub(crate) fn in_type_conditional_right(self) -> Self {
-        Self {
-            in_type_conditional_right: true,
-            ..self
-        }
+        self.with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, true)
     }
 
     /// Set `in_arrow_return_type=true`.
     #[inline]
     pub(crate) fn in_arrow_return_type(self) -> Self {
-        Self {
-            in_arrow_return_type: true,
-            ..self
-        }
+        self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, true)
     }
 
     /// Set `in_type_mapped_constraint=true`.
     #[inline]
     pub(crate) fn in_type_mapped_constraint(self) -> Self {
-        Self {
-            in_type_mapped_constraint: true,
-            ..self
-        }
+        self.with_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, true)
     }
 
     /// Set `in_for_each=true`.
     #[inline]
     pub(crate) fn in_for_each(self) -> Self {
-        Self {
-            in_for_each: true,
-            ..self
-        }
+        self.with_flag(Self::IN_FOR_EACH_FLAG, true)
     }
 
     /// Set `in_new_receiver=true`.
     #[inline]
     pub(crate) fn in_new_receiver(self) -> Self {
-        Self {
-            in_new_receiver: true,
-            ..self
-        }
+        self.with_flag(Self::IN_NEW_RECEIVER_FLAG, true)
     }
 
     /// Set `in_new_receiver=false`.
     #[inline]
     pub(crate) fn not_in_new_receiver(self) -> Self {
-        Self {
-            in_new_receiver: false,
-            ..self
-        }
+        self.with_flag(Self::IN_NEW_RECEIVER_FLAG, false)
     }
 
     /// Set `in_typeof_query=true`.
     #[inline]
     pub(crate) fn in_typeof_query(self) -> Self {
-        Self {
-            in_typeof_query: true,
-            ..self
-        }
+        self.with_flag(Self::IN_TYPEOF_QUERY_FLAG, true)
     }
 
     /// Set `allow_private_hash_key=true`.
     #[inline]
     pub(crate) fn allow_private_hash_key(self) -> Self {
-        Self {
-            allow_private_hash_key: true,
-            ..self
-        }
+        self.with_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG, true)
     }
 
     /// Set `in_generator=true`.
     #[inline]
     pub(crate) fn in_generator(self) -> Self {
-        Self {
-            in_generator: true,
-            ..self
-        }
+        self.with_flag(Self::IN_GENERATOR_FLAG, true)
     }
 
     /// Set `in_decorator=true`.
     #[inline]
     pub(crate) fn in_decorator(self) -> Self {
-        Self {
-            in_decorator: true,
-            ..self
-        }
+        self.with_flag(Self::IN_DECORATOR_FLAG, true)
     }
 
     /// Set `in_decorator=false`.
     #[inline]
     pub(crate) fn not_in_decorator(self) -> Self {
-        Self {
-            in_decorator: false,
-            ..self
-        }
+        self.with_flag(Self::IN_DECORATOR_FLAG, false)
     }
 
     /// Set `left_precedence=precedence`.
@@ -556,46 +717,36 @@ impl ParserOptions {
     /// Disallow sequence expressions (comma operator).
     #[inline]
     pub(crate) fn not_in_sequence_expression(self) -> Self {
-        Self {
-            allow_sequence_expression: false,
-            ..self
-        }
+        self.with_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, false)
     }
 
     /// Disallow arrow return type shielding for nested expressions.
     #[inline]
     pub(crate) fn not_in_arrow_return_type(self) -> Self {
-        Self {
-            in_arrow_return_type: false,
-            ..self
-        }
+        self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, false)
     }
 
     /// Not previous position.
     #[inline]
     pub(crate) fn not_in_position(self) -> Self {
-        Self {
-            in_parenthesis: false,
-            in_statement_position: false,
-            in_type_conditional_right: false,
-            ..self
-        }
+        self.with_flag(Self::IN_PARENTHESIS_FLAG, false)
+            .with_flag(Self::IN_STATEMENT_POSITION_FLAG, false)
+            .with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, false)
     }
 
     /// Reset position-related options but preserve context options like `in_generator`.
     pub(crate) fn nested(self) -> Self {
-        Self {
-            in_generator: self.in_generator,
-            in_comptime: self.in_comptime,
-            forbid_yield: self.forbid_yield,
-            forbid_await: self.forbid_await,
-            allow_sequence_expression: self.allow_sequence_expression,
-            in_decorator: self.in_decorator,
-            disallow_ambiguous_tree_literal: self.disallow_ambiguous_tree_literal,
-            in_declare_context: self.in_declare_context,
-            in_statement_context: self.in_statement_context,
-            ..Self::default()
-        }
+        let mut options = Self::default();
+        options.set_in_generator(self.is_in_generator());
+        options.set_in_comptime(self.is_in_comptime());
+        options.set_forbid_yield(self.is_forbid_yield());
+        options.set_forbid_await(self.is_forbid_await());
+        options.set_allow_sequence_expression(self.allows_sequence_expression());
+        options.set_in_decorator(self.is_in_decorator());
+        options.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
+        options.set_in_declare_context(self.is_in_declare_context());
+        options.set_in_statement_context(self.is_in_statement_context());
+        options
     }
 }
 
@@ -816,7 +967,8 @@ impl Parser {
     /// Apply externally provided parser settings.
     #[inline]
     pub fn apply_settings(&mut self, settings: ParserSettings) {
-        self.options.disallow_ambiguous_tree_literal = settings.disallow_ambiguous_tree_literal;
+        self.options
+            .set_disallow_ambiguous_tree_literal(settings.disallow_ambiguous_tree_literal);
     }
 
     /// Get the span of all side annotations.
@@ -837,11 +989,11 @@ impl Parser {
         self.scanner.reset();
         self.token_stream.clear_split_token();
         self.expression_stack_depth = 0;
-        self.options = ParserOptions {
-            disallow_ambiguous_tree_literal: self.language.supports_jsx()
-                && self.language.is_typescript(),
-            ..ParserOptions::default()
-        };
+        let mut options = ParserOptions::default();
+        options.set_disallow_ambiguous_tree_literal(
+            self.language.supports_jsx() && self.language.is_typescript(),
+        );
+        self.options = options;
         self.errors.clear();
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             *speculation_stats = ParserSpeculationStats::default();
@@ -1007,7 +1159,7 @@ impl Parser {
     #[inline]
     pub(crate) fn matching_pair_or_lex(&mut self, index: usize) -> Option<usize> {
         // tree literal lexing needs parser driven mode switches before aggressive lookahead
-        if self.allow_tree_literals() && !self.options.in_type {
+        if self.allow_tree_literals() && !self.options.is_in_type() {
             return self.token_stream.matching_pair(index);
         }
 
@@ -1491,7 +1643,8 @@ impl Parser {
     #[inline(always)]
     pub fn mark(&self) -> ParserMark {
         // snapshot token stream when tree state or split state can affect lookahead
-        let should_snapshot_token_stream = (self.allow_tree_literals() && !self.options.in_type)
+        let should_snapshot_token_stream = (self.allow_tree_literals()
+            && !self.options.is_in_type())
             || self.token_stream.has_split_state();
         let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
         ParserMark::new(
@@ -1507,7 +1660,8 @@ impl Parser {
     #[inline(always)]
     pub fn mark_rewind(&self) -> ParserMark {
         // snapshot token stream when tree state or split state can affect lookahead
-        let should_snapshot_token_stream = (self.allow_tree_literals() && !self.options.in_type)
+        let should_snapshot_token_stream = (self.allow_tree_literals()
+            && !self.options.is_in_type())
             || self.token_stream.has_split_state();
         let token_stream_mark = should_snapshot_token_stream.then(|| self.token_stream.mark());
         ParserMark {

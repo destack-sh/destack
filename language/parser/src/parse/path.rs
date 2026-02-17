@@ -10,30 +10,12 @@ impl Parser {
     /// Return true when a semantic token has leading comment trivia.
     #[inline]
     fn token_has_leading_comment_trivia(&mut self, token_index: usize) -> bool {
-        // fast path: skip side-token scans when no comments exist in the stream
+        // fast path: no comment side tokens have been seen yet
         if !self.token_stream.has_comment_trivia_tokens() {
             return false;
         }
 
-        let (side_start, side_end) = self.token_stream.leading_side_range(token_index);
-        if side_start >= side_end {
-            return false;
-        }
-
-        for side_index in side_start..side_end {
-            let side_token_type = self.token_stream.side_tokens()[side_index].token.ty;
-            if matches!(
-                side_token_type,
-                TokenType::LineComment
-                    | TokenType::DocLineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocBlockComment
-            ) {
-                return true;
-            }
-        }
-
-        false
+        self.token_stream.comment_before(token_index)
     }
 
     /// Eat a path.

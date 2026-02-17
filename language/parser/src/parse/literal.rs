@@ -34,7 +34,7 @@ impl Parser {
         let Some(next_token) = self.token_ref_at(next).copied() else {
             return false;
         };
-        if next_token.token.ty == TokenType::Divide && !self.options.in_tree_literal {
+        if next_token.token.ty == TokenType::Divide && !self.options.is_in_tree_literal() {
             return false;
         }
         if !matches!(
@@ -907,11 +907,12 @@ impl Parser {
         self.eat_newlines_maybe()?;
         // object literal properties are always expression properties, not variant members
         let mut property_options = self.options;
-        property_options.in_variant = false;
+        property_options.set_in_variant(false);
         let properties = self.with_options(property_options, |parser| parser.eat_properties())?;
 
         // JS/TS object shorthand only supports identifier names
-        if (self.language.is_javascript() || self.language.is_typescript()) && !self.options.in_type
+        if (self.language.is_javascript() || self.language.is_typescript())
+            && !self.options.is_in_type()
         {
             self.validate_object_literal_shorthand_keys(&properties)?;
         }
@@ -929,12 +930,12 @@ impl Parser {
         }
 
         // type or static contexts do not use tree literal parsing
-        if self.options.in_type || self.options.in_static {
+        if self.options.is_in_type() || self.options.is_in_static() {
             return false;
         }
 
         // require disambiguators only when ambiguity must be rejected
-        let require_tree_disambiguator = self.options.disallow_ambiguous_tree_literal;
+        let require_tree_disambiguator = self.options.is_disallow_ambiguous_tree_literal();
         self.peek_generic_arrow_after_type_parameters(require_tree_disambiguator)
     }
 
@@ -1224,7 +1225,7 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         if !self.in_tree_literal()
             || self.in_tree_attribute_expression()
-            || !self.options.in_tree_literal
+            || !self.options.is_in_tree_literal()
         {
             self.enter_tree_opening_tag();
         }
@@ -1850,7 +1851,7 @@ mod tests {
     fn test_parse_type_literal() {
         let mut test = TestParser::new("int32 uint8 float boolean symbol unique symbol");
         let mut parser = test.prepare();
-        parser.options.in_type = true;
+        parser.options.set_in_type(true);
 
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),

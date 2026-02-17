@@ -350,8 +350,8 @@ impl Parser {
         let mut last_semantic_index: Option<usize> = None;
         let mut prev_semantic_index: Option<usize> = None;
         let tree_literals_allowed = self.language.supports_jsx()
-            && !self.options.in_type
-            && (self.allow_tree_literals() || self.options.in_tree_literal);
+            && !self.options.is_in_type()
+            && (self.allow_tree_literals() || self.options.is_in_tree_literal());
 
         // we should start at the expected open token
         #[cfg(debug_assertions)]
@@ -463,8 +463,8 @@ impl Parser {
         let mut last_semantic_index: Option<usize> = None;
         let mut prev_semantic_index: Option<usize> = None;
         let tree_literals_allowed = self.language.supports_jsx()
-            && !self.options.in_type
-            && (self.allow_tree_literals() || self.options.in_tree_literal);
+            && !self.options.is_in_type()
+            && (self.allow_tree_literals() || self.options.is_in_tree_literal());
 
         // scan the parenthesis contents
         while pos <= close_pos {

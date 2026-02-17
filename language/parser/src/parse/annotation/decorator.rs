@@ -40,6 +40,10 @@ impl Parser {
 
     /// Attach decorators to a parsed owner node in source order.
     pub(crate) fn attach_decorators(&mut self, target_node_id: u32, decorators: PendingDecorators) {
+        if decorators.is_empty() {
+            return;
+        }
+
         for pending in decorators {
             self.attach_decorator(target_node_id, pending.decorator_id);
         }
@@ -59,12 +63,12 @@ impl Parser {
             .in_left_precedence(DECORATOR_EXPRESSION_PRECEDENCE)
             .not_in_sequence_expression()
             .in_decorator();
-        decorator_options.in_type = false;
-        decorator_options.in_static = false;
-        decorator_options.in_super_type = false;
-        decorator_options.in_before_type = false;
-        decorator_options.in_type_conditional_right = false;
-        decorator_options.in_type_mapped_constraint = false;
+        decorator_options.set_in_type(false);
+        decorator_options.set_in_static(false);
+        decorator_options.set_in_super_type(false);
+        decorator_options.set_in_before_type(false);
+        decorator_options.set_in_type_conditional_right(false);
+        decorator_options.set_in_type_mapped_constraint(false);
 
         // parse decorator target expression
         let expression = self.eat_expression(decorator_options)?;

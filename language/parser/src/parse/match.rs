@@ -176,11 +176,8 @@ impl Parser {
                     // guard
                     let guard = if self.is_keyword(Keyword::If) {
                         self.eat_keyword(Keyword::If)?;
-                        let guard_options = ParserOptions {
-                            in_match_case: true,
-                            in_before_block: true,
-                            ..Default::default()
-                        };
+                        let guard_options =
+                            ParserOptions::default().in_match_case().in_before_block();
                         let guard = self.with_options(guard_options, |parser| {
                             parser.eat_expression_parenthesized_maybe()
                         })?;
@@ -203,11 +200,7 @@ impl Parser {
                 // guard
                 let guard = if self.is_keyword(Keyword::If) {
                     self.eat_keyword(Keyword::If)?;
-                    let guard_options = ParserOptions {
-                        in_match_case: true,
-                        in_before_block: true,
-                        ..Default::default()
-                    };
+                    let guard_options = ParserOptions::default().in_match_case().in_before_block();
                     let guard = self.with_options(guard_options, |parser| {
                         parser.eat_expression_parenthesized_maybe()
                     })?;

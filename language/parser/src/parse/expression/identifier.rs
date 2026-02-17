@@ -27,13 +27,18 @@ impl Parser {
         // speculatively unwrap postfix static parameterisation with `<` or `<<`
         //  (might also be just a comparison operator)
         //  `<<` (ShiftLeft) handles cases like `Extends<<T>() => ...>`
-        let static_arguments = self.eat_static_arguments_in_expression(true);
+        let static_arguments =
+            if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
+                self.eat_static_arguments_in_expression(true)
+            } else {
+                None
+            };
 
         // immediately parse call if we have static arguments
         // (so we can stuff the arguments into the call expression)
         if static_arguments.is_some()
             && self.peek_is(TokenType::OpenParenthesis)
-            && !self.options.in_new_receiver
+            && !self.options.is_in_new_receiver()
         {
             let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
             let receiver = Expression::Path {

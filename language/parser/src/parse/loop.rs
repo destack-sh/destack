@@ -86,7 +86,7 @@ impl Parser {
         if asynchrony == Asynchrony::Sync && in_parenthesis && has_top_level_semicolon {
             // C style for clauses always allow comma operator expressions
             let mut clause_options = self.options.nested();
-            clause_options.allow_sequence_expression = true;
+            clause_options.set_allow_sequence_expression(true);
 
             // open parenthesis
             self.bump();

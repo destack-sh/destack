@@ -44,7 +44,7 @@ impl Parser {
         }
 
         // expression
-        let index_options = if self.options.in_type {
+        let index_options = if self.options.is_in_type() {
             self.options.nested().in_type()
         } else {
             self.options.nested()
@@ -56,7 +56,7 @@ impl Parser {
         self.eat_token(TokenType::CloseBracket)?;
 
         // index
-        let index_expression = if self.options.in_type {
+        let index_expression = if self.options.is_in_type() {
             Expression::TypeIndex {
                 left: receiver_id,
                 index,

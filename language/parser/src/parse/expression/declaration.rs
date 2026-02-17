@@ -12,9 +12,9 @@ impl Parser {
     /// Return true when declaration modifier parsing is needed in this context.
     #[inline]
     pub(super) fn should_parse_declaration_descriptor(&mut self) -> bool {
-        if self.options.in_type
-            || self.options.in_variant
-            || self.options.in_declare_context
+        if self.options.is_in_type()
+            || self.options.is_in_variant()
+            || self.options.is_in_declare_context()
             || self.language.is_declaration()
         {
             return true;
@@ -38,7 +38,7 @@ impl Parser {
         }
 
         // contextual global and module declarations in statement position
-        if !self.options.in_statement_position || split_active {
+        if !self.options.is_in_statement_position() || split_active {
             return false;
         }
 
@@ -67,7 +67,7 @@ impl Parser {
         }
 
         // avoid object literals when a block is expected
-        if self.options.in_before_block {
+        if self.options.is_in_before_block() {
             return false;
         }
 
@@ -245,7 +245,7 @@ impl Parser {
         let mut decorators = PendingDecorators::new();
 
         // decorators parse as expressions only
-        if self.options.in_decorator {
+        if self.options.is_in_decorator() {
             return Ok(DescriptorHead::Descriptor {
                 descriptor,
                 decorators,
@@ -462,7 +462,7 @@ impl Parser {
 
         // abstraction modifier
         descriptor.abstraction = if self.is_keyword(Keyword::Abstract)
-            && !self.options.in_variant
+            && !self.options.is_in_variant()
             && !self.peek_next_is(TokenType::Newline)
             && self
                 .peek_next_any_keyword()
@@ -485,7 +485,7 @@ impl Parser {
         // global declaration
         if (descriptor.kind == DeclarationKind::Declaration
             || self.language.is_declaration()
-            || self.options.in_declare_context)
+            || self.options.is_in_declare_context())
             && !self.has_active_split()
             && self.is_global_identifier_at(self.pos_index())
             && self.is_token_after_newlines(self.pos(), TokenType::OpenBrace)
