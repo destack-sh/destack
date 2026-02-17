@@ -6,7 +6,8 @@ use crate::platform::process::{GroupId, UserId};
 #[test]
 fn test_process_args_roundtrip() {
     with_harness_context(|mut context| {
-        let args = context.args()?;
+        let args = context.destack_process_args()?;
+        let args = context.string_list_from_value(args)?;
         assert!(args.is_empty());
         Ok(())
     });
@@ -41,14 +42,17 @@ fn test_process_env_roundtrip() {
     let value = "destack-process-env";
 
     with_harness_context(|mut context| {
-        let _ = context.env_delete(&name);
-        context.env_set(&name, value)?;
-        assert_eq!(context.env_get(&name)?, value);
+        let _ = context.destack_process_env_delete(context.string_value(&name));
+        context
+            .destack_process_env_set(context.string_value(&name), context.string_value(value))?;
+        let value_out = context.destack_process_env_get(context.string_value(&name))?;
+        let value_out = context.string_from_value(value_out)?;
+        assert_eq!(value_out, value);
 
-        context.env_delete(&name)?;
+        context.destack_process_env_delete(context.string_value(&name))?;
         // deleted variables should report missing-variable errors
         assert_platform_error_code(
-            context.env_get(&name),
+            context.destack_process_env_get(context.string_value(&name)),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -64,14 +68,19 @@ fn test_process_env_bytes_roundtrip() {
     let value = vec![0xFF, 0x41, 0x7F, 0x80];
 
     with_harness_context(|mut context| {
-        let _ = context.env_delete_bytes(&name);
-        context.env_set_bytes(&name, &value)?;
-        assert_eq!(context.env_get_bytes(&name)?, value);
+        let _ = context.destack_process_env_delete_bytes(context.bytes_slice_value(&name)?);
+        context.destack_process_env_set_bytes(
+            context.bytes_slice_value(&name)?,
+            context.bytes_slice_value(&value)?,
+        )?;
+        let value_out = context.destack_process_env_get_bytes(context.bytes_slice_value(&name)?)?;
+        let value_out = context.bytes_from_array_value(value_out)?;
+        assert_eq!(value_out, value);
 
-        context.env_delete_bytes(&name)?;
+        context.destack_process_env_delete_bytes(context.bytes_slice_value(&name)?)?;
         // deleted variables should report missing-variable errors
         assert_platform_error_code(
-            context.env_get_bytes(&name),
+            context.destack_process_env_get_bytes(context.bytes_slice_value(&name)?),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -84,7 +93,8 @@ fn test_process_env_bytes_roundtrip() {
 #[test]
 fn test_process_cwd_roundtrip() {
     with_harness_context(|mut context| {
-        let cwd = context.cwd()?;
+        let cwd = context.destack_process_cwd()?;
+        let cwd = context.path_string_from_value(cwd)?;
         assert!(!cwd.is_empty());
         Ok(())
     });
@@ -95,11 +105,11 @@ fn test_process_cwd_roundtrip() {
 #[test]
 fn test_process_identity_reads() {
     with_harness_context(|mut context| {
-        let pid = context.pid()?;
+        let pid = context.destack_process_pid()?;
         assert!(pid.0 > 0);
 
         // uid should be available or explicitly unsupported
-        match context.uid() {
+        match context.destack_process_uid() {
             Ok(_uid) => {}
             Err(error) => {
                 assert_platform_error_code::<UserId>(Err(error), PlatformErrorCode::NotSupported)?;
@@ -107,7 +117,7 @@ fn test_process_identity_reads() {
         }
 
         // gid should be available or explicitly unsupported
-        match context.gid() {
+        match context.destack_process_gid() {
             Ok(_gid) => {}
             Err(error) => {
                 assert_platform_error_code::<GroupId>(Err(error), PlatformErrorCode::NotSupported)?;

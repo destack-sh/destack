@@ -19,18 +19,25 @@ fn test_process_signal_mask_and_try_wait_roundtrip() {
     let signal = Signal(libc::SIGUSR1 as u32);
 
     with_harness_context(|mut context| {
-        let original = context.signal_mask_read()?;
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
 
         let test_result = (|| {
-            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Block,
+                context.signal_slice_value(&[signal])?,
+            )?;
 
             let raise_result = unsafe { libc::raise(signal.0 as libc::c_int) };
             assert_eq!(raise_result, 0);
 
             let mut received = None;
             for _ in 0..SIGNAL_POLL_ATTEMPTS {
-                match context.signal_try_wait(&[signal]) {
+                match context
+                    .destack_process_signal_try_wait(context.signal_slice_value(&[signal])?)
+                {
                     Ok(event) => {
+                        let event = event.into_inner();
                         received = Some(event);
                         break;
                     }
@@ -53,7 +60,10 @@ fn test_process_signal_mask_and_try_wait_roundtrip() {
             Ok(())
         })();
 
-        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
         test_result
     });
 }
@@ -65,19 +75,24 @@ fn test_process_signal_subscribe_try_receive_roundtrip() {
     let signal = Signal(libc::SIGUSR2 as u32);
 
     with_harness_context(|mut context| {
-        let original = context.signal_mask_read()?;
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
 
         let test_result = (|| {
-            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
-            let handle = context.signal_subscribe(signal)?;
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Block,
+                context.signal_slice_value(&[signal])?,
+            )?;
+            let handle = context.destack_process_signal_subscribe(signal)?;
 
             let raise_result = unsafe { libc::raise(signal.0 as libc::c_int) };
             assert_eq!(raise_result, 0);
 
             let mut received = None;
             for _ in 0..SIGNAL_POLL_ATTEMPTS {
-                match context.signal_try_receive(handle) {
+                match context.destack_process_signal_try_receive(handle) {
                     Ok(event) => {
+                        let event = event.into_inner();
                         received = Some(event);
                         break;
                     }
@@ -97,11 +112,14 @@ fn test_process_signal_subscribe_try_receive_roundtrip() {
             })?;
             assert_eq!(received.signal, signal);
 
-            context.signal_unsubscribe(handle)?;
+            context.destack_process_signal_unsubscribe(handle)?;
             Ok(())
         })();
 
-        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
         test_result
     });
 }
@@ -113,19 +131,27 @@ fn test_process_signal_fd_try_read_roundtrip() {
     let signal = Signal(libc::SIGUSR1 as u32);
 
     with_harness_context(|mut context| {
-        let original = context.signal_mask_read()?;
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
 
         let test_result = (|| {
-            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
-            let handle = context.signal_fd_open(&[signal], SignalFdFlags(0))?;
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Block,
+                context.signal_slice_value(&[signal])?,
+            )?;
+            let handle = context.destack_process_signal_fd_open(
+                context.signal_slice_value(&[signal])?,
+                SignalFdFlags(0),
+            )?;
 
             let raise_result = unsafe { libc::raise(signal.0 as libc::c_int) };
             assert_eq!(raise_result, 0);
 
             let mut received = None;
             for _ in 0..SIGNAL_POLL_ATTEMPTS {
-                match context.signal_fd_try_read(handle) {
+                match context.destack_process_signal_fd_try_read(handle) {
                     Ok(event) => {
+                        let event = event.into_inner();
                         received = Some(event);
                         break;
                     }
@@ -145,11 +171,14 @@ fn test_process_signal_fd_try_read_roundtrip() {
             })?;
             assert_eq!(received.signal, signal);
 
-            context.signal_fd_close(handle)?;
+            context.destack_process_signal_fd_close(handle)?;
             Ok(())
         })();
 
-        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
         test_result
     });
 }
@@ -161,32 +190,42 @@ fn test_process_signal_receive_and_wait_roundtrip() {
     let signal = Signal(libc::SIGUSR1 as u32);
 
     with_harness_context(|mut context| {
-        let original = context.signal_mask_read()?;
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
 
         let test_result = (|| {
-            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Block,
+                context.signal_slice_value(&[signal])?,
+            )?;
 
-            let subscription = context.signal_subscribe(signal)?;
+            let subscription = context.destack_process_signal_subscribe(signal)?;
 
             let first_raise = unsafe { libc::raise(signal.0 as libc::c_int) };
             assert_eq!(first_raise, 0);
 
             // both receive and wait paths should return the raised signal
-            let received = context.signal_receive(subscription)?;
+            let received = context.destack_process_signal_receive(subscription)?;
+            let received = received.into_inner();
             assert_eq!(received.signal, signal);
 
-            context.signal_unsubscribe(subscription)?;
+            context.destack_process_signal_unsubscribe(subscription)?;
 
             let second_raise = unsafe { libc::raise(signal.0 as libc::c_int) };
             assert_eq!(second_raise, 0);
 
-            let waited = context.signal_wait(&[signal])?;
+            let waited =
+                context.destack_process_signal_wait(context.signal_slice_value(&[signal])?)?;
+            let waited = waited.into_inner();
             assert_eq!(waited.signal, signal);
 
             Ok(())
         })();
 
-        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
         test_result
     });
 }
@@ -198,25 +237,39 @@ fn test_process_signal_fd_read_and_set_mask_roundtrip() {
     let signal = Signal(libc::SIGUSR2 as u32);
 
     with_harness_context(|mut context| {
-        let original = context.signal_mask_read()?;
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
 
         let test_result = (|| {
-            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
-            let handle = context.signal_fd_open(&[signal], SignalFdFlags(0))?;
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Block,
+                context.signal_slice_value(&[signal])?,
+            )?;
+            let handle = context.destack_process_signal_fd_open(
+                context.signal_slice_value(&[signal])?,
+                SignalFdFlags(0),
+            )?;
 
-            context.signal_fd_set_mask(handle, &[signal])?;
+            context.destack_process_signal_fd_set_mask(
+                handle,
+                context.signal_slice_value(&[signal])?,
+            )?;
 
             let raise_result = unsafe { libc::raise(signal.0 as libc::c_int) };
             assert_eq!(raise_result, 0);
 
-            let received = context.signal_fd_read(handle)?;
+            let received = context.destack_process_signal_fd_read(handle)?;
+            let received = received.into_inner();
             assert_eq!(received.signal, signal);
 
-            context.signal_fd_close(handle)?;
+            context.destack_process_signal_fd_close(handle)?;
             Ok(())
         })();
 
-        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
         test_result
     });
 }
@@ -227,7 +280,7 @@ fn test_process_signal_fd_read_and_set_mask_roundtrip() {
 fn test_process_signal_wait_rejects_invalid_signal_value() {
     with_harness_context(|mut context| {
         assert_platform_error_code(
-            context.signal_wait(&[Signal(0)]),
+            context.destack_process_signal_wait(context.signal_slice_value(&[Signal(0)])?),
             PlatformErrorCode::InvalidArgumentValue,
         )
     });
@@ -240,21 +293,28 @@ fn test_process_signal_wait_requires_blocked_mask() {
     let signal = Signal(libc::SIGUSR1 as u32);
 
     with_harness_context(|mut context| {
-        let original = context.signal_mask_read()?;
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
         let test_result = (|| {
-            context.signal_mask_update(SignalMaskHow::Unblock, &[signal])?;
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Unblock,
+                context.signal_slice_value(&[signal])?,
+            )?;
             assert_platform_error_code(
-                context.signal_wait(&[signal]),
+                context.destack_process_signal_wait(context.signal_slice_value(&[signal])?),
                 PlatformErrorCode::InvalidArgumentValue,
             )?;
             assert_platform_error_code(
-                context.signal_try_wait(&[signal]),
+                context.destack_process_signal_try_wait(context.signal_slice_value(&[signal])?),
                 PlatformErrorCode::InvalidArgumentValue,
             )?;
             Ok(())
         })();
 
-        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
         test_result
     });
 }
@@ -266,45 +326,58 @@ fn test_process_signal_fd_validation_errors_are_specific() {
     with_harness_context(|mut context| {
         // invalid signal-fd arguments should return invalid-argument errors
         assert_platform_error_code(
-            context.signal_fd_open(&[Signal(libc::SIGUSR1 as u32)], SignalFdFlags(1)),
+            context.destack_process_signal_fd_open(
+                context.signal_slice_value(&[Signal(libc::SIGUSR1 as u32)])?,
+                SignalFdFlags(1),
+            ),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
         let invalid_handle = SignalFdHandle(ResourceId(0));
         assert_platform_error_code(
-            context.signal_fd_try_read(invalid_handle),
+            context.destack_process_signal_fd_try_read(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
         assert_platform_error_code(
-            context.signal_fd_read(invalid_handle),
+            context.destack_process_signal_fd_read(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
         assert_platform_error_code(
-            context.signal_fd_set_mask(invalid_handle, &[Signal(libc::SIGUSR1 as u32)]),
+            context.destack_process_signal_fd_set_mask(
+                invalid_handle,
+                context.signal_slice_value(&[Signal(libc::SIGUSR1 as u32)])?,
+            ),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
         assert_platform_error_code(
-            context.signal_fd_close(invalid_handle),
+            context.destack_process_signal_fd_close(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
         // forged signal-fd handles must be rejected even when ids overlap
-        let original = context.signal_mask_read()?;
+        let original = context.destack_process_signal_mask_read()?;
+        let original = context.signal_list_from_value(original)?;
         let signal = Signal(libc::SIGUSR2 as u32);
         let forged_result: RuntimeResult<()> = (|| {
-            context.signal_mask_update(SignalMaskHow::Block, &[signal])?;
-            let subscription = context.signal_subscribe(signal)?;
+            context.destack_process_signal_mask_update(
+                SignalMaskHow::Block,
+                context.signal_slice_value(&[signal])?,
+            )?;
+            let subscription = context.destack_process_signal_subscribe(signal)?;
             let forged_handle = SignalFdHandle(subscription.0);
 
             assert_platform_error_code(
-                context.signal_fd_close(forged_handle),
+                context.destack_process_signal_fd_close(forged_handle),
                 PlatformErrorCode::InvalidArgumentValue,
             )?;
 
-            context.signal_unsubscribe(subscription)?;
+            context.destack_process_signal_unsubscribe(subscription)?;
             Ok(())
         })();
-        context.signal_mask_update(SignalMaskHow::Set, &original)?;
+        context.destack_process_signal_mask_update(
+            SignalMaskHow::Set,
+            context.signal_slice_value(&original)?,
+        )?;
         forged_result?;
 
         Ok(())

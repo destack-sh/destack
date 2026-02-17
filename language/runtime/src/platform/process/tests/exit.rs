@@ -7,7 +7,7 @@ fn test_process_exit_in_child() {
     with_native_harness_context(|mut context| {
         let child = unsafe { libc::fork() };
         if child == 0 {
-            let _ = context.exit(23);
+            let _ = context.destack_process_exit(23);
             unsafe {
                 libc::_exit(111);
             }

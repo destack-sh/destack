@@ -8,7 +8,7 @@ use crate::platform::process::ProcessId;
 fn test_process_session_setpgid_invalid_pid_reports_specific_error() {
     with_harness_context(|mut context| {
         assert_platform_error_codes(
-            context.setpgid(ProcessId(u32::MAX), ProcessId(u32::MAX)),
+            context.destack_process_setpgid(ProcessId(u32::MAX), ProcessId(u32::MAX)),
             &[
                 PlatformErrorCode::InvalidArgumentValue,
                 PlatformErrorCode::NotSupported,
@@ -24,7 +24,7 @@ fn test_process_session_setsid_in_child() {
     with_native_harness_context(|mut context| {
         let child = unsafe { libc::fork() };
         if child == 0 {
-            let setsid_result = context.setsid();
+            let setsid_result = context.destack_process_setsid();
             if let Ok(session_id) = setsid_result {
                 let child_pid = unsafe { libc::getpid() as u32 };
                 if session_id.0 == child_pid {

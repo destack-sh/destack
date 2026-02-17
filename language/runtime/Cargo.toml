@@ -41,10 +41,13 @@ destack_vm_abi = { workspace = true }
 destack_workspace = { workspace = true }
 
 # general
+base64 = "0.22.1"
 getrandom = "0.4.0"
 libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }
+rustls = { version = "0.23.24", features = ["ring", "std"] }
+rustls-pemfile = "2.2.0"
 serde = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 

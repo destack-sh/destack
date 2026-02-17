@@ -11,11 +11,12 @@ use crate::platform::diagnostic::PlatformErrorCode;
 fn test_thread_priority_affinity_roundtrip() {
     with_harness_context(|mut context| {
         let options = default_thread_options();
+        let entry = context.string_value(test_thread_entry());
+        let options = context.thread_options_value(options);
+        let handle = context.destack_thread_spawn(entry, 17, options)?;
 
-        let handle = context.spawn(test_thread_entry(), 17, &options)?;
-
-        let current_priority = context.get_priority(handle)?;
-        let set_priority_result = context.set_priority(handle, current_priority);
+        let current_priority = context.destack_thread_get_priority(handle)?;
+        let set_priority_result = context.destack_thread_set_priority(handle, current_priority);
         if let Err(error) = set_priority_result {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -26,15 +27,15 @@ fn test_thread_priority_affinity_roundtrip() {
                 ],
             )?;
         } else {
-            let priority = context.get_priority(handle)?;
+            let priority = context.destack_thread_get_priority(handle)?;
             assert_eq!(priority, current_priority);
         }
 
-        let current_affinity = match context.get_affinity(handle) {
+        let current_affinity = match context.destack_thread_get_affinity(handle) {
             Ok(affinity) => affinity,
             Err(error) => {
                 assert_platform_error_code::<u64>(Err(error), PlatformErrorCode::NotSupported)?;
-                let exit = context.join(handle)?;
+                let exit = context.destack_thread_join(handle)?;
                 assert_eq!(exit, 17);
                 return Ok(());
             }
@@ -45,7 +46,7 @@ fn test_thread_priority_affinity_roundtrip() {
             current_affinity
         };
 
-        let set_affinity_result = context.set_affinity(handle, target_affinity);
+        let set_affinity_result = context.destack_thread_set_affinity(handle, target_affinity);
         if let Err(error) = set_affinity_result {
             assert_platform_error_codes::<()>(
                 Err(error),
@@ -56,11 +57,11 @@ fn test_thread_priority_affinity_roundtrip() {
                 ],
             )?;
         } else {
-            let affinity = context.get_affinity(handle)?;
+            let affinity = context.destack_thread_get_affinity(handle)?;
             assert_eq!(affinity, target_affinity);
         }
 
-        let exit = context.join(handle)?;
+        let exit = context.destack_thread_join(handle)?;
 
         // join should return the low 32-bit argument payload
         assert_eq!(exit, 17);
@@ -75,12 +76,14 @@ fn test_thread_priority_affinity_roundtrip() {
 fn test_thread_set_affinity_rejects_zero_mask() {
     with_harness_context(|mut context| {
         let options = default_thread_options();
-        let handle = context.spawn(test_thread_entry(), 0, &options)?;
+        let entry = context.string_value(test_thread_entry());
+        let options = context.thread_options_value(options);
+        let handle = context.destack_thread_spawn(entry, 0, options)?;
 
-        let result = context.set_affinity(handle, 0);
+        let result = context.destack_thread_set_affinity(handle, 0);
         assert_platform_error_code(result, PlatformErrorCode::InvalidArgumentValue)?;
 
-        context.detach(handle)?;
+        context.destack_thread_detach(handle)?;
 
         Ok(())
     });

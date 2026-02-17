@@ -66,7 +66,7 @@ declare namespace tls {
     /// Uses host tls handshake step APIs.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `tls.handshake`.

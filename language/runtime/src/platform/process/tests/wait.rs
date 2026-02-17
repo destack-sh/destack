@@ -14,7 +14,7 @@ use crate::platform::process::{
 fn test_process_wait_pid_exit_status_roundtrip() {
     with_harness_context(|mut context| {
         let child_pid = fork_child_exit(7)?;
-        let status = context.wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
 
         assert_eq!(status.pid, child_pid);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
@@ -33,7 +33,8 @@ fn test_process_wait_pid_nohang_would_block_then_reap() {
     with_harness_context(|mut context| {
         let child_pid = fork_child_sleep_then_exit(1, 0)?;
 
-        let first = context.wait_pid(child_pid, ProcessWaitFlags(libc::WNOHANG as u32));
+        let first =
+            context.destack_process_wait_pid(child_pid, ProcessWaitFlags(libc::WNOHANG as u32));
         // nonblocking wait should report would-block while child is still running
         let first = first.expect_err("first nonblocking wait should report would-block");
         let first = first
@@ -41,7 +42,7 @@ fn test_process_wait_pid_nohang_would_block_then_reap() {
             .expect("error should be platform error");
         assert_eq!(first.code, PlatformErrorCode::IoWouldBlock);
 
-        let status = context.wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
 
         Ok(())
@@ -55,7 +56,7 @@ fn test_process_wait_pid_spawn_roundtrip() {
     with_harness_context(|mut context| {
         let (command, arguments) = shell_exit_command(21);
         let child_pid = spawn_shell(command, arguments)?;
-        let status = context.wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
 
         assert_eq!(status.pid, child_pid);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
@@ -75,7 +76,7 @@ fn test_process_wait_pid_nonblocking_spawn_roundtrip() {
         let (command, arguments) = shell_sleep_then_exit_command(1, 0);
         let child_pid = spawn_shell(command, arguments)?;
 
-        let first = context.wait_pid(child_pid, nohang);
+        let first = context.destack_process_wait_pid(child_pid, nohang);
         // nonblocking wait should report would-block while child is still running
         let first = first.expect_err("first nonblocking wait should report would-block");
         let first = first
@@ -83,7 +84,7 @@ fn test_process_wait_pid_nonblocking_spawn_roundtrip() {
             .expect("error should be platform error");
         assert_eq!(first.code, PlatformErrorCode::IoWouldBlock);
 
-        let status = context.wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
         assert_eq!(status.kind, ProcessWaitKind::Exited);
 
         Ok(())
@@ -95,8 +96,8 @@ fn test_process_wait_pid_nonblocking_spawn_roundtrip() {
 #[test]
 fn test_process_wait_pid_rejects_invalid_flags() {
     with_harness_context(|mut context| {
-        let pid = context.pid()?;
-        let invalid = context.wait_pid(pid, ProcessWaitFlags(u32::MAX));
+        let pid = context.destack_process_pid()?;
+        let invalid = context.destack_process_wait_pid(pid, ProcessWaitFlags(u32::MAX));
         let invalid = invalid.expect_err("invalid wait flags should fail");
         let invalid = invalid
             .platform_error()
@@ -112,7 +113,7 @@ fn test_process_wait_pid_rejects_invalid_flags() {
 #[test]
 fn test_process_wait_pid_rejects_zero_pid() {
     with_harness_context(|mut context| {
-        let invalid = context.wait_pid(ProcessId(0), ProcessWaitFlags(0));
+        let invalid = context.destack_process_wait_pid(ProcessId(0), ProcessWaitFlags(0));
         let invalid = invalid.expect_err("pid zero should fail");
         let invalid = invalid
             .platform_error()

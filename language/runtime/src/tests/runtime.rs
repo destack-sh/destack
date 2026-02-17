@@ -142,40 +142,6 @@ impl TestRuntime {
         Err(error)
     }
 
-    /// Assert a RuntimeStatus is OK and include the runtime error message if not.
-    pub(crate) fn assert_status_ok(&self, status: RuntimeStatus, label: &str) {
-        if status == RuntimeStatus::OK {
-            return;
-        }
-
-        let error = self
-            .runtime
-            .context
-            .errors()
-            .take(RuntimeErrorId::from_raw(status.error_id))
-            .map(|error| error.message())
-            .unwrap_or_else(|| "missing runtime error".to_string());
-
-        panic!("{label} failed: {error}");
-    }
-
-    /// Assert a RuntimeStatus is not OK.
-    pub(crate) fn assert_status_err(&self, status: RuntimeStatus, label: &str) {
-        if status != RuntimeStatus::OK {
-            return;
-        }
-
-        let error = self
-            .runtime
-            .context
-            .errors()
-            .take(RuntimeErrorId::from_raw(status.error_id))
-            .map(|error| error.message())
-            .unwrap_or_else(|| "missing runtime error".to_string());
-
-        panic!("{label} unexpectedly succeeded: {error}");
-    }
-
     /// Read the port assigned to a listener handle.
     #[cfg(unix)]
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {

@@ -224,7 +224,7 @@ fn merge_function_docs_map(
         let item_start = function_item_start(&existing_lines, index);
         let doc_range = doc_block_range_with_spacing(&existing_lines, item_start);
 
-        let Some(new_docs) = resolve_docs_for_function(docs_by_function, &function_name) else {
+        let Some(new_docs) = docs_by_function.get(&function_name) else {
             if let Some((doc_start, docs_end)) = doc_range
                 && docs_end != item_start
             {
@@ -237,7 +237,9 @@ fn merge_function_docs_map(
         let start = doc_range
             .map(|(doc_start, _)| doc_start)
             .unwrap_or(item_start);
-        replacements.push((start, item_start, new_docs.clone()));
+        let indentation = leading_indentation(&existing_lines[item_start]);
+        let docs = indent_docs(new_docs, indentation.as_str());
+        replacements.push((start, item_start, docs));
     }
 
     if replacements.is_empty() {
@@ -258,24 +260,18 @@ fn merge_function_docs_map(
     Some(merged)
 }
 
-/// Resolve docs for one function name, including legacy path-encoding suffix fallbacks.
-fn resolve_docs_for_function<'a>(
-    docs_by_function: &'a BTreeMap<String, Vec<String>>,
-    function_name: &str,
-) -> Option<&'a Vec<String>> {
-    if let Some(docs) = docs_by_function.get(function_name) {
-        return Some(docs);
-    }
+/// Return the leading indentation for one source line.
+fn leading_indentation(line: &str) -> String {
+    line.chars()
+        .take_while(|character| character.is_ascii_whitespace())
+        .collect()
+}
 
-    for suffix in ["_bytes", "_utf16", "_handle"] {
-        if let Some(base_name) = function_name.strip_suffix(suffix)
-            && let Some(docs) = docs_by_function.get(base_name)
-        {
-            return Some(docs);
-        }
-    }
-
-    None
+/// Return one doc block with one indentation prefix applied.
+fn indent_docs(docs: &[String], indentation: &str) -> Vec<String> {
+    docs.iter()
+        .map(|line| format!("{indentation}{}", line.trim_start()))
+        .collect()
 }
 
 /// Remove placeholder binding docs that are followed by a real doc block before the same function.
@@ -333,8 +329,6 @@ fn collect_domain_function_docs(
     bindings: &BTreeMap<String, BindingEntry>,
 ) -> BTreeMap<String, Vec<String>> {
     let mut docs_by_function = BTreeMap::<String, Vec<String>>::new();
-    let mut legacy_docs_by_function = BTreeMap::<String, Vec<String>>::new();
-    let mut ambiguous_legacy_functions = BTreeSet::<String>::new();
 
     for (extern_name, entry) in bindings {
         let implementation_function_name =
@@ -348,32 +342,6 @@ fn collect_domain_function_docs(
                 .entry(function_name)
                 .or_insert_with(|| docs.clone());
         }
-
-        // treat legacy names as best effort only to avoid alias collisions
-        let legacy_function_name = legacy_native_fn_name(domain, extern_name);
-        if docs_by_function.contains_key(&legacy_function_name) {
-            continue;
-        }
-
-        match legacy_docs_by_function.get(&legacy_function_name) {
-            Some(existing_docs) if existing_docs != &docs => {
-                ambiguous_legacy_functions.insert(legacy_function_name);
-            }
-            Some(_) => {}
-            None => {
-                legacy_docs_by_function.insert(legacy_function_name, docs);
-            }
-        }
-    }
-
-    // drop ambiguous legacy aliases so no function ever gets merged docs
-    for function_name in ambiguous_legacy_functions {
-        legacy_docs_by_function.remove(&function_name);
-    }
-
-    // include non-ambiguous legacy docs for pre-reorg files
-    for (function_name, docs) in legacy_docs_by_function {
-        docs_by_function.entry(function_name).or_insert(docs);
     }
 
     docs_by_function
@@ -454,47 +422,6 @@ fn collect_rust_files(directory: &Path, files: &mut Vec<PathBuf>) {
 
         files.push(path);
     }
-}
-
-/// Build the legacy symbol name used by pre-reorg host files.
-fn legacy_native_fn_name(domain: &str, extern_name: &str) -> String {
-    let suffix = extern_name
-        .split('.')
-        .next_back()
-        .map(snake_case)
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| "binding".to_string());
-
-    format!("destack_{domain}_{suffix}")
-}
-
-/// Convert one identifier to snake_case.
-fn snake_case(name: &str) -> String {
-    let mut out = String::new();
-    let mut previous_was_lower = false;
-
-    for character in name.chars() {
-        if character.is_ascii_alphanumeric() {
-            if character.is_ascii_uppercase() {
-                if previous_was_lower && !out.ends_with('_') {
-                    out.push('_');
-                }
-                out.push(character.to_ascii_lowercase());
-                previous_was_lower = true;
-            } else {
-                out.push(character.to_ascii_lowercase());
-                previous_was_lower = true;
-            }
-            continue;
-        }
-
-        if !out.ends_with('_') && !out.is_empty() {
-            out.push('_');
-        }
-        previous_was_lower = false;
-    }
-
-    out.trim_matches('_').to_string()
 }
 
 /// Extract one function name from a Rust function signature line.

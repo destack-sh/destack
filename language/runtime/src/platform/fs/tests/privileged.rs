@@ -20,27 +20,27 @@ fn test_fs_chown_and_fchown_succeed_in_privileged_mode() {
         let file_path = temp_directory.join("file.txt");
 
         let directory = context.path_bytes(&temp_directory);
-        context.mkdir(directory, FileMode(0o755))?;
+        context.destack_fs_mkdir(directory, FileMode(0o755))?;
 
         let file = context.path_bytes(&file_path);
         let flags = OpenFlags((libc::O_RDWR | libc::O_CREAT | libc::O_TRUNC) as u32);
-        let handle = context.open(file, flags, FileMode(0o600))?;
+        let handle = context.destack_fs_open(file, flags, FileMode(0o600))?;
 
         let uid = unsafe { libc::getuid() };
         let gid = unsafe { libc::getgid() };
         let file = context.path_bytes(&file_path);
-        context.chown(file.clone(), uid, gid)?;
-        context.fchown(handle, uid, gid)?;
+        context.destack_fs_chown(file.clone(), uid, gid)?;
+        context.destack_fs_fchown(handle, uid, gid)?;
 
         // ownership should match the requested ids after privileged updates
-        let stat = context.stat(file.clone())?;
+        let stat = context.destack_fs_stat(file.clone())?;
         assert_eq!(stat.uid, uid);
         assert_eq!(stat.gid, gid);
 
-        context.close(handle)?;
-        context.unlink(file)?;
+        context.destack_fs_close(handle)?;
+        context.destack_fs_unlink(file)?;
         let directory = context.path_bytes(&temp_directory);
-        context.rmdir(directory)?;
+        context.destack_fs_rmdir(directory)?;
 
         Ok(())
     });
@@ -59,31 +59,31 @@ fn test_fs_fchownat_succeeds_in_privileged_mode() {
         let file_name = Path::new("file.txt");
 
         let directory = context.path_bytes(&temp_directory);
-        context.mkdir(directory, FileMode(0o755))?;
+        context.destack_fs_mkdir(directory, FileMode(0o755))?;
         let directory = context.path_bytes(&temp_directory);
-        let dir_handle = context.opendir(directory)?;
+        let dir_handle = context.destack_fs_opendir(directory)?;
 
         let file = context.path_bytes(file_name);
         let flags = OpenFlags((libc::O_RDWR | libc::O_CREAT | libc::O_TRUNC) as u32);
-        let handle = context.openat(dir_handle, file, flags, FileMode(0o600))?;
-        context.close(handle)?;
+        let handle = context.destack_fs_openat(dir_handle, file, flags, FileMode(0o600))?;
+        context.destack_fs_close(handle)?;
 
         let uid = unsafe { libc::getuid() };
         let gid = unsafe { libc::getgid() };
         let file = context.path_bytes(file_name);
-        context.fchownat(dir_handle, file, uid, gid, AtFlags(0))?;
+        context.destack_fs_fchownat(dir_handle, file, uid, gid, AtFlags(0))?;
 
         // ownership should match the requested ids after privileged updates
         let file = context.path_bytes(file_name);
-        let stat = context.statat(dir_handle, file, AtFlags(0))?;
+        let stat = context.destack_fs_statat(dir_handle, file, AtFlags(0))?;
         assert_eq!(stat.uid, uid);
         assert_eq!(stat.gid, gid);
 
         let file = context.path_bytes(file_name);
-        context.unlinkat(dir_handle, file, AtFlags(0))?;
-        context.closedir(dir_handle)?;
+        context.destack_fs_unlinkat(dir_handle, file, AtFlags(0))?;
+        context.destack_fs_closedir(dir_handle)?;
         let directory = context.path_bytes(&temp_directory);
-        context.rmdir(directory)?;
+        context.destack_fs_rmdir(directory)?;
 
         Ok(())
     });

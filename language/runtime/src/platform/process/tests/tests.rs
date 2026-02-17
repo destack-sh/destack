@@ -1,5 +1,8 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
+#[path = "harness.rs"]
+mod harness;
+
 #[cfg(unix)]
 use std::path::PathBuf;
 use std::process::Command;
@@ -13,13 +16,10 @@ use crate::platform::abi::VmAbi;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::core as core_fs;
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionKind,
-    ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags, ProcessGroupIds, ProcessId,
-    ProcessLimit, ProcessLimitResource, ProcessNamespaceKind, ProcessSchedulerConfig,
-    ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessSpawnOptionsVm, ProcessStdio,
-    ProcessStdioKind, ProcessStdioVm, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
-    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
-    SyscallFilterFlags, UserId, native as process_native, vm as process_vm,
+    GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionKind,
+    ProcessFdActionVm, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
+    ProcessSpawnOptions, ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioKind, ProcessStdioVm,
+    ProcessUserIds, Signal, UserId,
 };
 use crate::platform::resource::{self, ResourceId};
 use crate::platform::{
@@ -28,9 +28,6 @@ use crate::platform::{
 };
 use crate::runtime::RuntimeCallContext;
 use crate::tests::runtime::TestRuntime;
-
-#[path = "harness.generated.rs"]
-mod harness;
 
 /// Spawn options used by process harness helpers.
 #[derive(Debug, Clone)]
@@ -676,9 +673,9 @@ pub(crate) fn spawn_shell(command: String, arguments: Vec<String>) -> RuntimeRes
 /// Process harness context used by tests.
 pub(crate) struct ProcessHarnessContext<'call> {
     /// Runtime call context active for this operation.
-    call_context: &'call RuntimeCallContext,
+    pub(super) call_context: &'call RuntimeCallContext,
     /// VM context when running VM bindings.
-    vm_context: Option<*mut ()>,
+    pub(super) vm_context: Option<*mut ()>,
 }
 
 impl<'call> ProcessHarnessContext<'call> {

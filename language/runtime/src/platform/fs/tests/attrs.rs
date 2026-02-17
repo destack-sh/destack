@@ -1,7 +1,6 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-use super::{FsHarnessKind, assert_platform_error_codes, temp_dir, with_harness_context};
+use super::{assert_platform_error_codes, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs as platform_fs;
 use crate::platform::fs::{AccessMode, FileMode, OpenFlags};
 
 fn is_privileged_test_mode() -> bool {
@@ -24,16 +23,16 @@ fn test_fs_access_and_chmod() {
 
         // create file
         let dir = context.path_bytes(&temp_dir);
-        context.mkdir(dir, FileMode(0o755))?;
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
         let file = context.path_bytes(&file_path);
         let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-        let handle = context.open(file, flags, FileMode(0o644))?;
-        context.close(handle)?;
+        let handle = context.destack_fs_open(file, flags, FileMode(0o644))?;
+        context.destack_fs_close(handle)?;
 
         // check access with write permissions
         let file = context.path_bytes(&file_path);
-        context.access(file.clone(), AccessMode(0o222))?;
-        context.chmod(file.clone(), FileMode(0o444))?;
+        context.destack_fs_access(file.clone(), AccessMode(0o222))?;
+        context.destack_fs_chmod(file.clone(), FileMode(0o444))?;
 
         if should_check_access_failure {
             if is_privileged_test_mode() {
@@ -43,33 +42,17 @@ fn test_fs_access_and_chmod() {
             }
 
             let file = context.path_bytes(&file_path);
-            match context.kind() {
-                FsHarnessKind::Native => {
-                    let native_path = file
-                        .native()
-                        .expect("native path required for native access");
-                    let status = unsafe {
-                        platform_fs::destack_fs_attrs_access(native_path, AccessMode(0o222))
-                    };
-                    assert_platform_error_codes(
-                        context.status_result(status, "access write after chmod"),
-                        &[PlatformErrorCode::IoPermissionDenied, PlatformErrorCode::Io],
-                    )?;
-                }
-                FsHarnessKind::Vm => {
-                    assert_platform_error_codes(
-                        context.access(file, AccessMode(0o222)),
-                        &[PlatformErrorCode::IoPermissionDenied, PlatformErrorCode::Io],
-                    )?;
-                }
-            }
+            assert_platform_error_codes(
+                context.destack_fs_access(file, AccessMode(0o222)),
+                &[PlatformErrorCode::IoPermissionDenied, PlatformErrorCode::Io],
+            )?;
         }
 
         // cleanup
         let file = context.path_bytes(&file_path);
-        context.unlink(file)?;
+        context.destack_fs_unlink(file)?;
         let dir = context.path_bytes(&temp_dir);
-        context.rmdir(dir)?;
+        context.destack_fs_rmdir(dir)?;
 
         Ok(())
     });
@@ -90,35 +73,35 @@ fn test_fs_chown_and_times() {
 
         // create file and open handle
         let dir = context.path_bytes(&temp_dir);
-        context.mkdir(dir, FileMode(0o755))?;
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
         let file = context.path_bytes(&file_path);
         let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
-        let handle = context.open(file, flags, FileMode(0o644))?;
+        let handle = context.destack_fs_open(file, flags, FileMode(0o644))?;
 
         // apply chown and time updates
         let file = context.path_bytes(&file_path);
         if can_chown {
             let uid = unsafe { libc::getuid() };
             let gid = unsafe { libc::getgid() };
-            context.chown(file.clone(), uid, gid)?;
-            context.fchown(handle, uid, gid)?;
+            context.destack_fs_chown(file.clone(), uid, gid)?;
+            context.destack_fs_fchown(handle, uid, gid)?;
         } else if is_privileged_test_mode() {
             panic!(
                 "DESTACK_TEST_PRIVILEGED=1 requires chown coverage, but test process lacks privileges",
             );
         }
 
-        context.utimes(file.clone(), 1_000_000, 2_000_000)?;
-        context.lutimes(file.clone(), 3_000_000, 4_000_000)?;
-        context.futimes(handle, 5_000_000, 6_000_000)?;
-        context.fchmod(handle, FileMode(0o600))?;
+        context.destack_fs_utimes(file.clone(), 1_000_000, 2_000_000)?;
+        context.destack_fs_lutimes(file.clone(), 3_000_000, 4_000_000)?;
+        context.destack_fs_futimes(handle, 5_000_000, 6_000_000)?;
+        context.destack_fs_fchmod(handle, FileMode(0o600))?;
 
         // cleanup
-        context.close(handle)?;
+        context.destack_fs_close(handle)?;
         let file = context.path_bytes(&file_path);
-        context.unlink(file)?;
+        context.destack_fs_unlink(file)?;
         let dir = context.path_bytes(&temp_dir);
-        context.rmdir(dir)?;
+        context.destack_fs_rmdir(dir)?;
 
         Ok(())
     });
