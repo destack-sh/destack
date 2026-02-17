@@ -28,8 +28,8 @@ export struct TlsContextOptions {
     maxVersion: TlsVersion;
     /// Require peer certificate validation.
     verifyPeer: boolean;
-    /// Application layer protocol names in preference order.
-    alpnProtocols: Slice<string>;
+    /// Application layer protocol identifiers in preference order.
+    alpnProtocols: Slice<Slice<uint8>>;
 }
 
 /// Tls hostname verification mode.
@@ -63,7 +63,7 @@ declare namespace tls {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host tls providers such as SecureTransport, Schannel, OpenSSL, or rustls-backed runtime providers.
+    /// Uses host tls provider context APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -355,7 +355,7 @@ declare namespace tls {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SSL_CTX_set_keylog_callback style APIs in OpenSSL or BoringSSL and equivalent hooks in rustls-backed providers.
+    /// Uses host tls provider keylog callback APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

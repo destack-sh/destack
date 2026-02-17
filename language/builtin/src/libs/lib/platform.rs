@@ -38,18 +38,6 @@ builtin_lib_sources_targeted!(
             "stream.ds"
         ),
         (
-            LIB_PLATFORM_CONSOLE_CONSOLE_DS,
-            "lib",
-            "platform/console",
-            "console.ds"
-        ),
-        (
-            LIB_PLATFORM_CONSOLE_INDEX_DS,
-            "lib",
-            "platform/console",
-            "index.ds"
-        ),
-        (
             LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
             "lib",
             "platform/crypto",
@@ -604,8 +592,6 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_AUDIO_DEVICE_DS,
         LIB_PLATFORM_AUDIO_INDEX_DS,
         LIB_PLATFORM_AUDIO_STREAM_DS,
-        LIB_PLATFORM_CONSOLE_CONSOLE_DS,
-        LIB_PLATFORM_CONSOLE_INDEX_DS,
         LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
         LIB_PLATFORM_CRYPTO_INDEX_DS,
         LIB_PLATFORM_CRYPTO_KEY_DS,

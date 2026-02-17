@@ -1,6 +1,6 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { ProcessFdHandle, SignalFdHandle } from "../resource/index.ds";
+import { FileHandle, ProcessFdHandle, SignalFdHandle } from "../resource/index.ds";
 import { ProcessId } from "./ids.ds";
 import { Signal, SignalEvent } from "./signals.ds";
 import { ProcessWaitStatus } from "./wait.ds";
@@ -16,6 +16,96 @@ export newtype SignalFdFlags = uint32;
 
 /// Process descriptor bindings.
 declare namespace process {
+    /// Open one standard input stream handle.
+    ///
+    /// Open one handle for the current process standard input stream.
+    /// The returned handle can be used with file-handle read and close operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.stdio`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.fd.stdioStdin",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.stdio"],
+            platforms: ["unix", "windows"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function stdioStdin(): Result<FileHandle, PlatformError>;
+
+    /// Open one standard output stream handle.
+    ///
+    /// Open one handle for the current process standard output stream.
+    /// The returned handle can be used with file-handle write, sync, and close operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.stdio`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.fd.stdioStdout",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.stdio"],
+            platforms: ["unix", "windows"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function stdioStdout(): Result<FileHandle, PlatformError>;
+
+    /// Open one standard error stream handle.
+    ///
+    /// Open one handle for the current process standard error stream.
+    /// The returned handle can be used with file-handle write, sync, and close operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `process.stdio`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.process.fd.stdioStderr",
+        {
+            effect: "external",
+            replay: "recordable",
+            requires: ["process.stdio"],
+            platforms: ["unix", "windows"],
+            scope: "os",
+            blocking: "never",
+        },
+    )
+    export function stdioStderr(): Result<FileHandle, PlatformError>;
+
     /// Open one process descriptor for the target process id.
     ///
     /// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.

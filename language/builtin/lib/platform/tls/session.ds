@@ -212,10 +212,10 @@ declare namespace tls {
     )
     export function sessionClose(handle: TlsSessionHandle): Result<void, PlatformError>;
 
-    /// Return the negotiated alpn protocol string.
+    /// Return negotiated alpn protocol bytes.
     ///
     /// Read one negotiated application protocol value selected during handshake.
-    /// Empty string indicates no protocol was negotiated by the peer and provider.
+    /// Empty bytes indicate no protocol was negotiated by the peer and provider.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -240,7 +240,7 @@ declare namespace tls {
             blocking: "sometimes",
         },
     )
-    export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<string, PlatformError>;
+    export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>;
 
     /// Return the peer certificate chain bytes in pem encoding.
     ///
@@ -279,7 +279,7 @@ declare namespace tls {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SSL_export_keying_material style APIs in OpenSSL or BoringSSL and equivalent exporter APIs in rustls-backed providers.
+    /// Uses host tls provider exporter APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -314,7 +314,7 @@ declare namespace tls {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SSL_session_reused style APIs in OpenSSL or BoringSSL and equivalent session state APIs in Schannel, SecureTransport, or rustls-backed providers.
+    /// Uses host tls provider session-state query APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
