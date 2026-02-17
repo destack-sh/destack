@@ -2,12 +2,13 @@ use std::borrow::Cow;
 use std::cell::{Cell, OnceCell, Ref, RefCell};
 use std::rc::Rc;
 
-use destack_ast::{
-    Annotation as AstAnnotation, AnnotationPosition, Argument, Blank, Block, Comment, Declaration,
-    Declarator, Decorator, DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny,
-    MatchCase, Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
-    PatternField, Property, TokenSpan, TokenType, WhereClause, normalize_comment_payload,
+use ast::{
+    AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Declarator, Decorator,
+    DependencyItem, Doc, EnumField, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, Member,
+    Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern, PatternField,
+    Property, TokenSpan, TokenType, WhereClause, normalize_comment_payload,
 };
+use destack_ast as ast;
 use destack_base::ImmutableStringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter, GroupId};
 use destack_fir::print::PrintOptions;
@@ -323,7 +324,11 @@ fn build_formatter_token_neighbor_index(
 fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
     matches!(
         tree.get_node_type(node_id),
-        NodeType::Annotation | NodeType::Doc | NodeType::Comment | NodeType::Blank
+        NodeType::Annotation
+            | NodeType::Doc
+            | NodeType::Comment
+            | NodeType::Blank
+            | NodeType::Decorator
     )
 }
 
@@ -524,10 +529,6 @@ fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u3
             Expression::Parenthesized { expression } => {
                 current_id = expression.id;
             }
-            // block expression trivia belongs to the block container
-            Expression::Block(block) => {
-                return block.id;
-            }
             // declaration expression trivia belongs to the declaration node
             Expression::Declaration(declaration) => {
                 return declaration.id;
@@ -539,16 +540,296 @@ fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u3
     }
 }
 
+/// Return whether one token kind is an opening delimiter.
+#[inline]
+fn is_open_delimiter_token(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
+    )
+}
+
+/// Return whether one token kind is a closing delimiter.
+#[inline]
+fn is_close_delimiter_token(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::CloseParenthesis | TokenType::CloseBrace | TokenType::CloseBracket
+    )
+}
+
+/// Return whether one open and close delimiter token pair matches.
+#[inline]
+fn delimiters_match(open: TokenType, close: TokenType) -> bool {
+    matches!(
+        (open, close),
+        (TokenType::OpenParenthesis, TokenType::CloseParenthesis)
+            | (TokenType::OpenBrace, TokenType::CloseBrace)
+            | (TokenType::OpenBracket, TokenType::CloseBracket)
+    )
+}
+
+/// Return whether one token after a comment seam prefers left ownership.
+#[inline]
+fn token_after_prefers_left_ownership(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::Semicolon
+            | TokenType::Comma
+            | TokenType::CloseParenthesis
+            | TokenType::CloseBrace
+            | TokenType::CloseBracket
+            | TokenType::Maybe
+            | TokenType::ElementwiseAnd
+            | TokenType::ElementwiseOr
+            | TokenType::ElementwiseXor
+            | TokenType::LogicalAnd
+            | TokenType::LogicalOr
+            | TokenType::Coalesce
+            | TokenType::Equal
+            | TokenType::EqualWide
+            | TokenType::NotEqual
+            | TokenType::NotEqualWide
+            | TokenType::LessThan
+            | TokenType::LessThanOrEqual
+            | TokenType::GreaterThan
+            | TokenType::GreaterThanOrEqual
+            | TokenType::Add
+            | TokenType::WrappingAdd
+            | TokenType::SaturatingAdd
+            | TokenType::Subtract
+            | TokenType::WrappingSubtract
+            | TokenType::SaturatingSubtract
+            | TokenType::Multiply
+            | TokenType::WrappingMultiply
+            | TokenType::SaturatingMultiply
+            | TokenType::Exponent
+            | TokenType::WrappingExponent
+            | TokenType::SaturatingExponent
+            | TokenType::Divide
+            | TokenType::Remainder
+            | TokenType::ShiftLeft
+            | TokenType::SaturatingShiftLeft
+            | TokenType::Assign
+    )
+}
+
+/// Return one preferred owner that starts at one token span.
+fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> Option<u32> {
+    let mut best_owner: Option<destack_source::EnclosingSpan> = None;
+    tree.source_map
+        .visit_enclosing_spans(span.start, span.end.saturating_sub(1), |candidate| {
+            if candidate.span.start != span.start
+                || is_trivia_excluded_owner_node_id(tree, candidate.idx)
+            {
+                return;
+            }
+
+            let candidate_kind_rank = if tree.get_node_type(candidate.idx) == NodeType::Expression {
+                1
+            } else {
+                0
+            };
+
+            let should_replace = if let Some(current) = best_owner {
+                let current_kind_rank = if tree.get_node_type(current.idx) == NodeType::Expression {
+                    1
+                } else {
+                    0
+                };
+                candidate.length < current.length
+                    || (candidate.length == current.length
+                        && candidate_kind_rank < current_kind_rank)
+                    || (candidate.length == current.length
+                        && candidate_kind_rank == current_kind_rank
+                        && candidate.idx < current.idx)
+            } else {
+                true
+            };
+
+            if should_replace {
+                best_owner = Some(candidate);
+            }
+        });
+
+    best_owner.map(|owner| owner.idx)
+}
+
+/// Return one smallest owner that encloses one token span.
+fn find_smallest_owner_enclosing_token(tree: &NodeTree, span: Span) -> Option<u32> {
+    let mut best_owner: Option<destack_source::EnclosingSpan> = None;
+    tree.source_map
+        .visit_enclosing_spans(span.start, span.end.saturating_sub(1), |candidate| {
+            if is_trivia_excluded_owner_node_id(tree, candidate.idx) {
+                return;
+            }
+
+            let should_replace = if let Some(current) = best_owner {
+                candidate.length < current.length
+                    || (candidate.length == current.length && candidate.idx < current.idx)
+            } else {
+                true
+            };
+
+            if should_replace {
+                best_owner = Some(candidate);
+            }
+        });
+
+    best_owner.map(|owner| owner.idx)
+}
+
+/// Return one smallest owner that encloses one seam range.
+fn find_smallest_owner_enclosing_range(tree: &NodeTree, start: u32, end: u32) -> Option<u32> {
+    if start >= end {
+        return None;
+    }
+
+    let mut best_owner: Option<destack_source::EnclosingSpan> = None;
+    tree.source_map
+        .visit_enclosing_spans(start, end.saturating_sub(1), |candidate| {
+            if is_trivia_excluded_owner_node_id(tree, candidate.idx) {
+                return;
+            }
+
+            let should_replace = if let Some(current) = best_owner {
+                candidate.length < current.length
+                    || (candidate.length == current.length && candidate.idx < current.idx)
+            } else {
+                true
+            };
+
+            if should_replace {
+                best_owner = Some(candidate);
+            }
+        });
+
+    best_owner.map(|owner| owner.idx)
+}
+
+/// Promote one owner while ancestor spans share the same seam end.
+fn promote_owner_by_shared_end(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+    seam_end: u32,
+) -> u32 {
+    let mut current_id = owner_id;
+    let mut best_id = owner_id;
+
+    while let Some(parent_id) = parents.get_by_id(current_id) {
+        let parent_span = tree.get_span_by_id(parent_id);
+        if parent_span.end != seam_end {
+            break;
+        }
+        if is_trivia_excluded_owner_node_id(tree, parent_id) {
+            break;
+        }
+
+        best_id = parent_id;
+        current_id = parent_id;
+    }
+
+    best_id
+}
+
+/// Promote one owner to the nearest declaration ancestor.
+fn promote_owner_to_declaration_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> Option<u32> {
+    let mut current_id = Some(owner_id);
+    while let Some(node_id) = current_id {
+        if tree.get_node_type(node_id) == NodeType::Declaration {
+            return Some(node_id);
+        }
+
+        current_id = parents.get_by_id(node_id);
+    }
+
+    None
+}
+
+/// Find the next declaration owner at or after one semantic token index.
+fn find_next_declaration_owner_from_token(
+    tree: &NodeTree,
+    owner_index: &FormatterTriviaOwnerIndex,
+    token_index: usize,
+) -> Option<u32> {
+    let token_count = owner_index.owner_start_by_token.len();
+    if token_index >= token_count {
+        return None;
+    }
+
+    let search_end = (token_index + 96).min(token_count);
+    for current_index in token_index..search_end {
+        let candidate_owner = owner_index.owner_start_by_token[current_index]
+            .or(owner_index.nearest_owner_start_by_token[current_index]);
+        let Some(candidate_owner) = candidate_owner else {
+            continue;
+        };
+
+        let candidate_owner = normalize_formatter_trivia_target_owner(tree, candidate_owner);
+        if tree.get_node_type(candidate_owner) == NodeType::Declaration {
+            return Some(candidate_owner);
+        }
+    }
+
+    None
+}
+
+/// Return one lowest common ancestor for two owners.
+fn lowest_common_owner_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    left_owner: u32,
+    right_owner: u32,
+) -> Option<u32> {
+    let mut left_chain = SmallVec::<[u32; 24]>::new();
+    let mut current_left = Some(left_owner);
+    while let Some(owner_id) = current_left {
+        left_chain.push(owner_id);
+        current_left = parents.get_by_id(owner_id);
+    }
+
+    let mut current_right = Some(right_owner);
+    while let Some(owner_id) = current_right {
+        if left_chain.contains(&owner_id) && !is_trivia_excluded_owner_node_id(tree, owner_id) {
+            return Some(owner_id);
+        }
+        current_right = parents.get_by_id(owner_id);
+    }
+
+    None
+}
+
+/// Return whether one token span text equals a fixed marker.
+#[inline]
+fn token_text_is(file: &File, token: TokenSpan, marker: &str) -> bool {
+    file.span_str(token.span) == marker
+}
+
 /// Resolve one comment trivia target owner and position from token seams.
 fn resolve_formatter_comment_trivia_attachment(
+    file: &File,
     tree: &NodeTree,
+    semantic_tokens: &[TokenSpan],
     trivia: destack_ast::CommentTrivia,
     owner_index: &FormatterTriviaOwnerIndex,
+    parents: &NodeParentIndex,
 ) -> (Option<u32>, AnnotationPosition) {
     let token_before = decode_token_index(trivia.boundary.token_before);
     let token_after = decode_token_index(trivia.boundary.token_after);
 
-    let right_owner = token_after
+    let token_before_span = token_before
+        .and_then(|index| semantic_tokens.get(index))
+        .copied();
+    let token_after_span = token_after
+        .and_then(|index| semantic_tokens.get(index))
+        .copied();
+
+    let mut right_owner = token_after
         .and_then(|index| {
             owner_index
                 .owner_start_by_token
@@ -563,7 +844,7 @@ fn resolve_formatter_comment_trivia_attachment(
                     .and_then(|owner| *owner)
             })
         });
-    let left_owner = token_before
+    let mut left_owner = token_before
         .and_then(|index| {
             owner_index
                 .owner_end_by_token
@@ -579,21 +860,206 @@ fn resolve_formatter_comment_trivia_attachment(
             })
         });
 
+    if right_owner.is_none()
+        && let Some(token_after_span) = token_after_span
+    {
+        right_owner = find_preferred_owner_starting_at(tree, token_after_span.span)
+            .or_else(|| find_smallest_owner_enclosing_token(tree, token_after_span.span));
+    }
+
+    if left_owner.is_none()
+        && let Some(token_before_span) = token_before_span
+    {
+        left_owner = find_smallest_owner_enclosing_token(tree, token_before_span.span);
+    }
+
+    // delimiter interiors use container infix placement
+    if let (Some(token_before_span), Some(token_after_span)) = (token_before_span, token_after_span)
+    {
+        if is_open_delimiter_token(token_before_span.token.ty)
+            && is_close_delimiter_token(token_after_span.token.ty)
+            && delimiters_match(token_before_span.token.ty, token_after_span.token.ty)
+            && let Some(container_owner) = find_smallest_owner_enclosing_range(
+                tree,
+                token_before_span.span.start,
+                token_after_span.span.end,
+            )
+        {
+            let target_node = if tree.get_node_type(container_owner) == NodeType::Expression {
+                let expression_id = LocalNodeId::<Expression>::new(container_owner);
+                if let Expression::Block(block_id) = tree.get(expression_id) {
+                    block_id.id
+                } else {
+                    normalize_formatter_trivia_target_owner(tree, container_owner)
+                }
+            } else {
+                normalize_formatter_trivia_target_owner(tree, container_owner)
+            };
+            return (Some(target_node), AnnotationPosition::BlockInfix);
+        }
+    }
+
+    // comments between parameter name and type belong to the whole parameter owner
+    if token_after_span.is_some_and(|token| token.token.ty == TokenType::Colon)
+        && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
+        && let Some(owner) = lowest_common_owner_ancestor(tree, parents, left_owner, right_owner)
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, owner);
+        return (Some(target_node), AnnotationPosition::LinePrefix);
+    }
+
     let has_leading_newline = trivia.boundary.newlines.has_leading_newline();
     let has_trailing_newline = trivia.boundary.newlines.has_trailing_newline();
+    let comment_is_multiline_star = tree.get(trivia.comment).style == ast::CommentStyle::Star
+        && file.span_str(trivia.span).contains('\n');
+    let token_after_prefers_left =
+        token_after_span.is_some_and(|token| token_after_prefers_left_ownership(token.token.ty));
+    let token_after_is_at = token_after_span.is_some_and(|token| token.token.ty == TokenType::At);
+    let token_after_is_arrow = token_after_span
+        .is_some_and(|token| matches!(token.token.ty, TokenType::Arrow | TokenType::ArrowWide));
+    let token_after_is_else = token_after_span.is_some_and(|token| {
+        token.token.ty == TokenType::Identifier && token_text_is(file, token, "else")
+    });
+    let token_before_is_arrow = token_before_span
+        .is_some_and(|token| matches!(token.token.ty, TokenType::Arrow | TokenType::ArrowWide));
+    let token_before_is_export = token_before_span.is_some_and(|token| {
+        token.token.ty == TokenType::Identifier && token_text_is(file, token, "export")
+    });
+    let token_before_is_satisfies = token_before_span.is_some_and(|token| {
+        token.token.ty == TokenType::Identifier && token_text_is(file, token, "satisfies")
+    });
+    let token_before_is_as = token_before_span.is_some_and(|token| {
+        token.token.ty == TokenType::Identifier && token_text_is(file, token, "as")
+    });
+    let token_before_is_open_delimiter =
+        token_before_span.is_some_and(|token| is_open_delimiter_token(token.token.ty));
+    let seam_binds_right = token_before_is_open_delimiter
+        || token_before_is_arrow
+        || token_before_is_export
+        || token_before_is_satisfies
+        || token_before_is_as;
 
-    // own-line comments prefer the right owner as block-prefix
+    // comments directly before decorators should bind to the right declaration owner
+    if token_after_is_at {
+        let declaration_target = token_after.and_then(|token_after_index| {
+            find_next_declaration_owner_from_token(tree, owner_index, token_after_index)
+        });
+        let target_node = declaration_target.or_else(|| {
+            right_owner
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+                .or(right_owner)
+        });
+        if let Some(target_node) = target_node {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            if has_leading_newline {
+                return (Some(target_node), AnnotationPosition::BlockPrefix);
+            }
+            return (Some(target_node), AnnotationPosition::LinePrefix);
+        }
+    }
+
+    // comments between parameter list and arrow belong to the enclosing arrow expression
+    if token_after_is_arrow
+        && let (Some(token_before_span), Some(token_after_span)) =
+            (token_before_span, token_after_span)
+        && let Some(owner) = find_smallest_owner_enclosing_range(
+            tree,
+            token_before_span.span.start,
+            token_after_span.span.end,
+        )
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, owner);
+        if has_leading_newline {
+            return (Some(target_node), AnnotationPosition::BlockPrefix);
+        }
+        return (Some(target_node), AnnotationPosition::LinePrefix);
+    }
+
+    // export seam comments belong to the declaration head owner
+    if token_before_is_export
+        && has_trailing_newline
+        && let Some(owner) = token_before_span
+            .zip(token_after_span)
+            .and_then(|(before, after)| {
+                find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
+            })
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, owner);
+        return (Some(target_node), AnnotationPosition::LinePrefix);
+    }
+
+    // own-line comments before `else` should stay between the previous branch and `else`
+    if has_leading_newline
+        && token_after_is_else
+        && let Some(target_node) = left_owner
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        let target_node = token_before_span.map_or(target_node, |token| {
+            promote_owner_by_shared_end(tree, parents, target_node, token.span.end)
+        });
+        return (Some(target_node), AnnotationPosition::BlockPostfix);
+    }
+
+    // own-line comments before separators and closers belong to the left owner
+    if has_leading_newline
+        && token_after_prefers_left
+        && let Some(target_node) = left_owner
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        let target_node = token_before_span.map_or(target_node, |token| {
+            promote_owner_by_shared_end(tree, parents, target_node, token.span.end)
+        });
+        return (Some(target_node), AnnotationPosition::BlockPostfix);
+    }
+
+    // own-line comments usually bind to the right owner
     if has_leading_newline && let Some(target_node) = right_owner {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return (Some(target_node), AnnotationPosition::BlockPrefix);
     }
 
-    // trailing-line comments prefer the left owner as boundary-postfix
-    if (has_trailing_newline || token_after.is_none())
+    // inline multiline block comments before line-end should break to postfix blocks
+    if comment_is_multiline_star
+        && has_trailing_newline
+        && !has_leading_newline
         && let Some(target_node) = left_owner
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
+        let target_node = token_before_span.map_or(target_node, |token| {
+            promote_owner_by_shared_end(tree, parents, target_node, token.span.end)
+        });
+        return (Some(target_node), AnnotationPosition::BlockPostfix);
+    }
+
+    // trailing-line comments usually stay with the left owner
+    if has_trailing_newline || token_after.is_none() {
+        if seam_binds_right
+            && !token_after_prefers_left
+            && let Some(target_node) = right_owner
+        {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return (Some(target_node), AnnotationPosition::LinePrefix);
+        }
+
+        if let Some(target_node) = left_owner {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            let target_node = token_before_span.map_or(target_node, |token| {
+                promote_owner_by_shared_end(tree, parents, target_node, token.span.end)
+            });
+            if token_after_prefers_left {
+                return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
+            }
+            return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
+        }
+    }
+
+    // same-line seams that precede separators and operators prefer left postfix
+    if token_after_prefers_left && let Some(target_node) = left_owner {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        let target_node = token_before_span.map_or(target_node, |token| {
+            promote_owner_by_shared_end(tree, parents, target_node, token.span.end)
+        });
+        return (Some(target_node), AnnotationPosition::LinePostfix);
     }
 
     // same-line seams prefer the right owner as line-prefix
@@ -605,6 +1071,9 @@ fn resolve_formatter_comment_trivia_attachment(
     // fallback to left owner as line-postfix
     if let Some(target_node) = left_owner {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        let target_node = token_before_span.map_or(target_node, |token| {
+            promote_owner_by_shared_end(tree, parents, target_node, token.span.end)
+        });
         return (Some(target_node), AnnotationPosition::LinePostfix);
     }
 
@@ -665,11 +1134,12 @@ fn resolve_formatter_blank_trivia_attachment(
 }
 
 fn build_formatter_annotation_projection(
-    _file: &File,
+    file: &File,
     tree: &NodeTree,
     tokens: &[TokenSpan],
     _side_tokens: &[TokenSpan],
     _side_span: &MultiSpan,
+    parents: &NodeParentIndex,
 ) -> (
     Vec<FormatterAnnotationEntry>,
     Vec<SmallVec<[LocalNodeId<Annotation>; 4]>>,
@@ -687,11 +1157,11 @@ fn build_formatter_annotation_projection(
         for &annotation_id in annotation_ids {
             let ast_annotation = tree.get(annotation_id);
             let annotation = match ast_annotation {
-                AstAnnotation::Doc { node, position } => Annotation::Doc {
+                ast::Annotation::Doc { node, position } => Annotation::Doc {
                     node: *node,
                     position: *position,
                 },
-                AstAnnotation::Decorator { node, position } => Annotation::Decorator {
+                ast::Annotation::Decorator { node, position } => Annotation::Decorator {
                     node: *node,
                     position: *position,
                 },
@@ -711,8 +1181,14 @@ fn build_formatter_annotation_projection(
 
     // add comment trivia with formatter-side placement resolution
     for trivia in tree.comment_trivia().iter().copied() {
-        let (target_id, position) =
-            resolve_formatter_comment_trivia_attachment(tree, trivia, &owner_index);
+        let (target_id, position) = resolve_formatter_comment_trivia_attachment(
+            file,
+            tree,
+            tokens,
+            trivia,
+            &owner_index,
+            parents,
+        );
         let Some(target_id) = target_id else {
             continue;
         };
@@ -1173,7 +1649,14 @@ impl<'a> DestackFormatContext<'a> {
             parents,
         } = artifacts;
         let (formatter_annotation_entries, formatter_annotation_ids_by_node_id) =
-            build_formatter_annotation_projection(file, tree, tokens, side_tokens, side_span);
+            build_formatter_annotation_projection(
+                file,
+                tree,
+                tokens,
+                side_tokens,
+                side_span,
+                &parents,
+            );
         let node_count = tree.next_id() as usize;
         let node_caches = FormatterNodeCaches::new(node_count);
         let timings_enabled = timings_enabled || timings_enabled_from_env();
@@ -2282,7 +2765,7 @@ impl<'a> DestackFormatContext<'a> {
                             profile.has_comment = true;
 
                             let comment = self.tree.get::<Comment>(node);
-                            if comment.style != destack_ast::CommentStyle::Slash {
+                            if comment.style != ast::CommentStyle::Slash {
                                 continue;
                             }
 

@@ -11,9 +11,9 @@ const NO_TOKEN_INDEX: u32 = u32::MAX;
 
 #[derive(Debug)]
 struct TokenNeighborIndex {
-    previous_attachable: Vec<Option<usize>>,
-    next_attachable: Vec<Option<usize>>,
-    last_attachable: Option<usize>,
+    previous_attachable: Vec<u32>,
+    next_attachable: Vec<u32>,
+    last_attachable: u32,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -67,18 +67,41 @@ impl Parser {
             }
         }
 
-        // collect snapshots for one sweep emission
-        let (semantic_tokens, side_tokens, side_owner_token_indexes) = {
+        // borrow token arrays directly for one sweep emission
+        let (semantic_tokens, side_tokens, side_owner_token_indexes, comment_side_token_indexes) = {
             let _collect_tokens_timing =
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_TOKENS);
-            let semantic_tokens = self.token_stream.tokens().to_vec();
-            let side_tokens = self.token_stream.side_tokens().to_vec();
-            let side_owner_token_indexes = self.token_stream.side_owner_token_indexes().to_vec();
-            if semantic_tokens.is_empty() && side_tokens.is_empty() {
+            let semantic_tokens_len = self.token_stream.tokens().len();
+            let side_tokens_len = self.token_stream.side_tokens().len();
+            if semantic_tokens_len == 0 && side_tokens_len == 0 {
                 return;
             }
+            let semantic_tokens_ptr = self.token_stream.tokens().as_ptr();
+            let side_tokens_ptr = self.token_stream.side_tokens().as_ptr();
+            let side_owner_token_indexes_ptr =
+                self.token_stream.side_owner_token_indexes().as_ptr();
+            let side_owner_token_indexes_len = self.token_stream.side_owner_token_indexes().len();
+            let comment_side_token_indexes_ptr =
+                self.token_stream.comment_side_token_indexes().as_ptr();
+            let comment_side_token_indexes_len =
+                self.token_stream.comment_side_token_indexes().len();
 
-            (semantic_tokens, side_tokens, side_owner_token_indexes)
+            // safety: attach_trivia_annotations does not mutate token stream vectors,
+            // and the returned slices remain valid for this function scope
+            unsafe {
+                (
+                    std::slice::from_raw_parts(semantic_tokens_ptr, semantic_tokens_len),
+                    std::slice::from_raw_parts(side_tokens_ptr, side_tokens_len),
+                    std::slice::from_raw_parts(
+                        side_owner_token_indexes_ptr,
+                        side_owner_token_indexes_len,
+                    ),
+                    std::slice::from_raw_parts(
+                        comment_side_token_indexes_ptr,
+                        comment_side_token_indexes_len,
+                    ),
+                )
+            }
         };
 
         // build lightweight seam indexes
@@ -96,6 +119,7 @@ impl Parser {
                 &semantic_tokens,
                 &side_tokens,
                 &side_owner_token_indexes,
+                &comment_side_token_indexes,
                 &neighbor_index,
             )
         };
@@ -132,153 +156,183 @@ impl Parser {
         semantic_tokens: &[TokenSpan],
         side_tokens: &[TokenSpan],
         side_owner_token_indexes: &[u32],
+        comment_side_token_indexes: &[u32],
         neighbor_index: &TokenNeighborIndex,
     ) -> bool {
         let mut pending_documentation =
             Vec::<PendingDocumentationAttachment>::with_capacity(side_tokens.len() / 16);
         let mut pending_comment_trivia =
-            Vec::<PendingCommentTriviaRecord>::with_capacity(side_tokens.len());
+            Vec::<PendingCommentTriviaRecord>::with_capacity(comment_side_token_indexes.len());
 
-        for (side_index, token) in side_tokens.iter().copied().enumerate() {
-            // only comment-like side tokens participate in trivia output
-            if !Self::is_comment_like_token(token.token.ty) {
-                continue;
-            }
+        {
+            let _scan_timing =
+                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_SCAN);
 
-            // normalize token seams from lexer side-owner indexes
-            let side_owner = side_owner_token_indexes
-                .get(side_index)
-                .copied()
-                .unwrap_or(NO_TOKEN_INDEX);
-            let boundary_index = if side_owner == NO_TOKEN_INDEX {
-                semantic_tokens.len()
-            } else {
-                side_owner as usize
-            };
-            let token_after = if boundary_index < semantic_tokens.len() {
-                let boundary_token = semantic_tokens[boundary_index];
-                if Self::is_attachable_semantic_token(boundary_token.token.ty) {
-                    Some(boundary_index)
+            for &comment_side_index in comment_side_token_indexes {
+                let side_index = comment_side_index as usize;
+                debug_assert!(side_index < side_tokens.len());
+                debug_assert!(side_index < side_owner_token_indexes.len());
+                // safety: comment side indexes are emitted from the same side token stream
+                let token = unsafe { *side_tokens.get_unchecked(side_index) };
+
+                // normalize token seams from lexer side-owner indexes
+                // safety: owner index storage is parallel to side token storage
+                let side_owner = unsafe { *side_owner_token_indexes.get_unchecked(side_index) };
+                let boundary_index = if side_owner == NO_TOKEN_INDEX {
+                    semantic_tokens.len()
                 } else {
-                    neighbor_index.next_attachable[boundary_index]
-                }
-            } else {
-                None
-            };
-            let token_before = if boundary_index < semantic_tokens.len() {
-                neighbor_index.previous_attachable[boundary_index]
-            } else {
-                neighbor_index.last_attachable
-            };
-
-            // compute newline flags from source seams around the comment span
-            let seam_before = token_before
-                .map(|index| semantic_tokens[index].span.end)
-                .unwrap_or(0);
-            let seam_after = token_after
-                .map(|index| semantic_tokens[index].span.start)
-                .unwrap_or(self.file.len);
-            let has_leading_newline =
-                self.has_line_terminator_between(seam_before, token.span.start);
-            let has_trailing_newline = self.has_line_terminator_between(token.span.end, seam_after);
-
-            let boundary = TriviaBoundary {
-                token_before: Self::encode_token_index(token_before),
-                token_after: Self::encode_token_index(token_after),
-                newlines: TriviaNewlineFlags::from_bools(has_leading_newline, has_trailing_newline),
-                is_leading_candidate: token_after.is_some(),
-            };
-
-            // normalize payload text once for semantic docs and comment trivia
-            let raw_text = self.file.span_str(token.span);
-            let cleaned_text = normalize_comment_payload(raw_text);
-            let directive = Self::classify_comment_directive(raw_text, cleaned_text.as_ref());
-            let is_semantic_doc_token = Self::is_documentation_token(token.token.ty)
-                && Self::documentation_token_should_stay_semantic(token.token.ty, raw_text);
-
-            // documentation tokens stay semantic and preserve doc marker style
-            if is_semantic_doc_token {
-                let doc_style = if token.token.ty == TokenType::DocLineComment {
-                    DocStyle::Slash
-                } else {
-                    DocStyle::Star
+                    side_owner as usize
                 };
-                if let Some(target_id) =
-                    self.find_documentation_target(token, token_after, semantic_tokens)
-                {
-                    let string = self.strings.intern(cleaned_text.as_ref());
-                    let position = if has_leading_newline {
-                        AnnotationPosition::BlockPrefix
+                let token_after_index = if boundary_index < semantic_tokens.len() {
+                    let boundary_token = semantic_tokens[boundary_index];
+                    if Self::is_attachable_semantic_token(boundary_token.token.ty) {
+                        boundary_index as u32
                     } else {
-                        AnnotationPosition::LinePrefix
+                        neighbor_index.next_attachable[boundary_index]
+                    }
+                } else {
+                    NO_TOKEN_INDEX
+                };
+                let token_before_index = if boundary_index < semantic_tokens.len() {
+                    neighbor_index.previous_attachable[boundary_index]
+                } else {
+                    neighbor_index.last_attachable
+                };
+
+                // compute newline flags from source seams around the comment span
+                let seam_before = if token_before_index == NO_TOKEN_INDEX {
+                    0
+                } else {
+                    semantic_tokens[token_before_index as usize].span.end
+                };
+                let seam_after = if token_after_index == NO_TOKEN_INDEX {
+                    self.file.len
+                } else {
+                    semantic_tokens[token_after_index as usize].span.start
+                };
+                let has_leading_newline =
+                    self.has_line_terminator_between(seam_before, token.span.start);
+                let has_trailing_newline =
+                    self.has_line_terminator_between(token.span.end, seam_after);
+
+                let boundary = TriviaBoundary {
+                    token_before: token_before_index,
+                    token_after: token_after_index,
+                    newlines: TriviaNewlineFlags::from_bools(
+                        has_leading_newline,
+                        has_trailing_newline,
+                    ),
+                    is_leading_candidate: token_after_index != NO_TOKEN_INDEX,
+                };
+
+                let raw_text = self.file.span_str(token.span);
+                let directive = Self::classify_comment_directive(raw_text);
+                let is_semantic_doc_token = Self::is_documentation_token(token.token.ty)
+                    && Self::documentation_token_should_stay_semantic(token.token.ty, raw_text);
+
+                // documentation tokens stay semantic and preserve doc marker style
+                if is_semantic_doc_token {
+                    let doc_style = if token.token.ty == TokenType::DocLineComment {
+                        DocStyle::Slash
+                    } else {
+                        DocStyle::Star
                     };
-                    pending_documentation.push(PendingDocumentationAttachment {
-                        target_id,
-                        position,
-                        string,
-                        style: doc_style,
-                        span: token.span,
-                    });
-                    continue;
+                    let token_after = Self::decode_token_index(token_after_index);
+                    if let Some(target_id) =
+                        self.find_documentation_target(token, token_after, semantic_tokens)
+                    {
+                        let cleaned_text = normalize_comment_payload(raw_text);
+                        let string = self.strings.intern(cleaned_text.as_ref());
+                        let position = if has_leading_newline {
+                            AnnotationPosition::BlockPrefix
+                        } else {
+                            AnnotationPosition::LinePrefix
+                        };
+                        pending_documentation.push(PendingDocumentationAttachment {
+                            target_id,
+                            position,
+                            string,
+                            style: doc_style,
+                            span: token.span,
+                        });
+                        continue;
+                    }
+
+                    // fallback: keep unowned doc tokens as regular comments
                 }
 
-                // fallback: keep unowned doc tokens as regular comments
-            }
-
-            // non-semantic comments are seam facts only
-            let style = if matches!(
-                token.token.ty,
-                TokenType::LineComment | TokenType::DocLineComment
-            ) {
-                CommentStyle::Slash
-            } else {
-                CommentStyle::Star
-            };
-            pending_comment_trivia.push(PendingCommentTriviaRecord {
-                span: token.span,
-                boundary,
-                directive,
-                string: if cfg!(debug_assertions) {
-                    Some(self.strings.intern_no_dedupe(cleaned_text.as_ref()))
+                // non-semantic comments are seam facts only
+                let style = if matches!(
+                    token.token.ty,
+                    TokenType::LineComment | TokenType::DocLineComment
+                ) {
+                    CommentStyle::Slash
                 } else {
-                    None
-                },
-                style,
-            });
+                    CommentStyle::Star
+                };
+                let debug_string = {
+                    #[cfg(debug_assertions)]
+                    {
+                        let cleaned_text = normalize_comment_payload(raw_text);
+                        Some(self.strings.intern(cleaned_text.as_ref()))
+                    }
+
+                    #[cfg(not(debug_assertions))]
+                    {
+                        None
+                    }
+                };
+                pending_comment_trivia.push(PendingCommentTriviaRecord {
+                    span: token.span,
+                    boundary,
+                    directive,
+                    string: debug_string,
+                    style,
+                });
+            }
         }
 
         let inserted_docs = !pending_documentation.is_empty();
 
         // emit semantic documentation after lookup phase to keep source-map index stable
-        for pending in pending_documentation {
-            let doc_id = self.tree.insert(
-                Doc {
-                    string: pending.string,
-                    style: pending.style,
-                },
-                pending.span,
-            );
-            self.tree
-                .append_documentation(pending.target_id, doc_id, pending.position);
+        {
+            let _emit_docs_timing = self
+                .timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_DOCS);
+            for pending in pending_documentation {
+                let doc_id = self.tree.insert(
+                    Doc {
+                        string: pending.string,
+                        style: pending.style,
+                    },
+                    pending.span,
+                );
+                self.tree
+                    .append_documentation(pending.target_id, doc_id, pending.position);
+            }
         }
 
         // emit comment trivia after lookup phase to keep source-map index stable
-        for pending in pending_comment_trivia {
-            let comment_id = self.tree.insert(
-                Comment {
-                    string: pending.string,
-                    style: pending.style,
-                },
-                pending.span,
+        {
+            let _emit_comments_timing = self.timing_scope(
+                crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_COMMENTS,
             );
-            self.tree.push_comment_trivia(CommentTrivia {
-                comment: comment_id,
-                span: pending.span,
-                boundary: pending.boundary,
-                directive: pending.directive,
-                target_node: None,
-                position: AnnotationPosition::BlockInfix,
-            });
+            for pending in pending_comment_trivia {
+                let comment_id = self.tree.insert(
+                    Comment {
+                        string: pending.string,
+                        style: pending.style,
+                    },
+                    pending.span,
+                );
+                self.tree.push_comment_trivia(CommentTrivia {
+                    comment: comment_id,
+                    span: pending.span,
+                    boundary: pending.boundary,
+                    directive: pending.directive,
+                    target_node: None,
+                    position: AnnotationPosition::BlockInfix,
+                });
+            }
         }
 
         inserted_docs
@@ -321,8 +375,9 @@ impl Parser {
                     semantic_tokens[run_start].span.start,
                     semantic_tokens[run_end].span.end,
                 );
-                let token_before = neighbor_index.previous_attachable[run_start];
-                let token_after = neighbor_index.next_attachable[run_end];
+                let token_before =
+                    Self::decode_token_index(neighbor_index.previous_attachable[run_start]);
+                let token_after = Self::decode_token_index(neighbor_index.next_attachable[run_end]);
                 let boundary = TriviaBoundary {
                     token_before: Self::encode_token_index(token_before),
                     token_after: Self::encode_token_index(token_after),
@@ -360,24 +415,24 @@ impl Parser {
 
     /// Build previous and next attachable semantic token indexes.
     fn build_token_neighbor_index(semantic_tokens: &[TokenSpan]) -> TokenNeighborIndex {
-        let mut previous_attachable = vec![None; semantic_tokens.len()];
-        let mut next_attachable = vec![None; semantic_tokens.len()];
+        let mut previous_attachable = vec![NO_TOKEN_INDEX; semantic_tokens.len()];
+        let mut next_attachable = vec![NO_TOKEN_INDEX; semantic_tokens.len()];
 
         // previous attachable token before each semantic token
-        let mut previous = None;
+        let mut previous = NO_TOKEN_INDEX;
         for (index, token) in semantic_tokens.iter().enumerate() {
             previous_attachable[index] = previous;
             if Self::is_attachable_semantic_token(token.token.ty) {
-                previous = Some(index);
+                previous = index as u32;
             }
         }
 
         // next attachable token after each semantic token
-        let mut next = None;
+        let mut next = NO_TOKEN_INDEX;
         for index in (0..semantic_tokens.len()).rev() {
             next_attachable[index] = next;
             if Self::is_attachable_semantic_token(semantic_tokens[index].token.ty) {
-                next = Some(index);
+                next = index as u32;
             }
         }
 
@@ -612,17 +667,6 @@ impl Parser {
         !matches!(token_type, TokenType::Newline | TokenType::End)
     }
 
-    /// Return true when one side token is any comment form.
-    fn is_comment_like_token(token_type: TokenType) -> bool {
-        matches!(
-            token_type,
-            TokenType::LineComment
-                | TokenType::DocLineComment
-                | TokenType::BlockComment
-                | TokenType::DocBlockComment
-        )
-    }
-
     /// Return true when one side token is a documentation comment.
     fn is_documentation_token(token_type: TokenType) -> bool {
         matches!(
@@ -655,69 +699,124 @@ impl Parser {
             .unwrap_or(NO_TOKEN_INDEX)
     }
 
-    /// Classify one comment directive marker from raw and cleaned payload text.
-    fn classify_comment_directive(raw: &str, cleaned: &str) -> CommentDirective {
-        let trimmed = cleaned.trim();
+    /// Decode one compact token index sentinel into an option.
+    fn decode_token_index(token_index: u32) -> Option<usize> {
+        if token_index == NO_TOKEN_INDEX {
+            return None;
+        }
+
+        Some(token_index as usize)
+    }
+
+    /// Classify one comment directive marker from raw payload text.
+    fn classify_comment_directive(raw: &str) -> CommentDirective {
+        // legal header comment forms
+        if raw.starts_with("//!") || raw.starts_with("/*!") {
+            return CommentDirective::Legal;
+        }
+
+        let trimmed = raw.trim();
+        let content = if let Some(rest) = trimmed.strip_prefix("//") {
+            rest.trim_start_matches('/')
+        } else if let Some(rest) = trimmed.strip_prefix("/*") {
+            rest.strip_suffix("*/").unwrap_or(rest)
+        } else {
+            trimmed
+        };
+
+        let mut first_significant_line = None;
+        let mut has_additional_significant_line = false;
+        for line in content.lines() {
+            let line = line.trim();
+            let line = line.strip_prefix('*').unwrap_or(line).trim_start();
+            if line.is_empty() {
+                continue;
+            }
+            if first_significant_line.is_none() {
+                first_significant_line = Some(line);
+            } else {
+                has_additional_significant_line = true;
+                break;
+            }
+        }
+
+        let Some(first_significant_line) = first_significant_line else {
+            return CommentDirective::None;
+        };
 
         // format ignore directives
-        if matches!(
-            trimmed,
-            "prettier-ignore" | "oxfmt-ignore" | "format-ignore" | "fmt-ignore" | "deno-fmt-ignore"
-        ) || (trimmed.starts_with("biome-ignore") && trimmed.contains("format"))
+        if (!has_additional_significant_line
+            && matches!(
+                first_significant_line,
+                "prettier-ignore"
+                    | "oxfmt-ignore"
+                    | "format-ignore"
+                    | "fmt-ignore"
+                    | "deno-fmt-ignore"
+            ))
+            || (first_significant_line.starts_with("biome-ignore") && content.contains("format"))
         {
             return CommentDirective::FormatIgnore;
         }
 
-        if matches!(
-            trimmed,
-            "prettier-ignore-file"
-                | "oxfmt-ignore-file"
-                | "format-ignore-file"
-                | "fmt-ignore-file"
-                | "deno-fmt-ignore-file"
-        ) {
+        if !has_additional_significant_line
+            && matches!(
+                first_significant_line,
+                "prettier-ignore-file"
+                    | "oxfmt-ignore-file"
+                    | "format-ignore-file"
+                    | "fmt-ignore-file"
+                    | "deno-fmt-ignore-file"
+            )
+        {
             return CommentDirective::FormatIgnoreFile;
         }
 
-        if matches!(
-            trimmed,
-            "prettier-ignore-start"
-                | "oxfmt-ignore-start"
-                | "format-ignore-start"
-                | "fmt-ignore-start"
-                | "biome-ignore-start"
-        ) {
+        if !has_additional_significant_line
+            && matches!(
+                first_significant_line,
+                "prettier-ignore-start"
+                    | "oxfmt-ignore-start"
+                    | "format-ignore-start"
+                    | "fmt-ignore-start"
+                    | "biome-ignore-start"
+            )
+        {
             return CommentDirective::FormatIgnoreStart;
         }
 
-        if matches!(
-            trimmed,
-            "prettier-ignore-end"
-                | "oxfmt-ignore-end"
-                | "format-ignore-end"
-                | "fmt-ignore-end"
-                | "biome-ignore-end"
-        ) {
+        if !has_additional_significant_line
+            && matches!(
+                first_significant_line,
+                "prettier-ignore-end"
+                    | "oxfmt-ignore-end"
+                    | "format-ignore-end"
+                    | "fmt-ignore-end"
+                    | "biome-ignore-end"
+            )
+        {
             return CommentDirective::FormatIgnoreEnd;
         }
 
         // purity directives
-        if matches!(trimmed, "#__PURE__" | "@__PURE__") {
+        if !has_additional_significant_line
+            && matches!(first_significant_line, "#__PURE__" | "@__PURE__")
+        {
             return CommentDirective::Pure;
         }
 
-        if matches!(trimmed, "#__NO_SIDE_EFFECTS__" | "@__NO_SIDE_EFFECTS__") {
+        if !has_additional_significant_line
+            && matches!(
+                first_significant_line,
+                "#__NO_SIDE_EFFECTS__" | "@__NO_SIDE_EFFECTS__"
+            )
+        {
             return CommentDirective::NoSideEffects;
         }
 
         // typescript directives
-        if trimmed.starts_with("@ts-") || trimmed.starts_with("ts-") {
+        if first_significant_line.starts_with("@ts-") || first_significant_line.starts_with("ts-") {
             return CommentDirective::TypeScript;
-        }
-
-        // legal header comment forms
-        if raw.starts_with("//!") || raw.starts_with("/*!") {
-            return CommentDirective::Legal;
         }
 
         CommentDirective::None

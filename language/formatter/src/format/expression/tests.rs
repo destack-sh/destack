@@ -751,7 +751,7 @@ fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
 #[test]
 fn test_format_call_nested_arrow_boundary_comments() {
     let source = "call(\n  () /**/ => //\n    () /**/ => /**/\n      () /**/ => /**/ {\n        //\n      }\n)";
-    let expected = "call(\n    () =>\n        //\n        /**/ () =>\n            /**/\n            /**/ () => /**/ {\n                //\n            },\n)";
+    let expected = "call(\n    /**/ () =>\n        //\n        /**/ () =>\n            /**/\n            /**/ () => /**/ {\n                //\n            },\n)";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
