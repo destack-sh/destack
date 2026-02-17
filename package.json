@@ -6,9 +6,7 @@
     "type": "module",
     "workspaces": {
         "packages": [
-            "examples/destack.sh",
             "examples/tetris",
-            "examples/zurich.tech",
             "platform/bun",
             "platform/cli",
             "platform/cli/npm-darwin-arm64",
