@@ -108,6 +108,8 @@ pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
     FileType::Html,
     FileType::Css,
     FileType::Svg,
+    FileType::SourceMap,
+    FileType::DestackMir,
 ];
 
 impl FileType {
@@ -299,10 +301,7 @@ impl FileType {
 
     /// Whether this file type is a data file (JSON, TOML, YAML, etc.).
     pub fn is_data(&self) -> bool {
-        matches!(
-            self,
-            FileType::Json | FileType::Toml | FileType::Yaml | FileType::Env
-        )
+        matches!(self, FileType::Json | FileType::Toml | FileType::Yaml)
     }
 
     /// Whether this file type is a text file.
@@ -314,6 +313,8 @@ impl FileType {
                 | FileType::Html
                 | FileType::Css
                 | FileType::Svg
+                | FileType::Env
+                | FileType::SourceMap
                 | FileType::DestackMir
         )
     }

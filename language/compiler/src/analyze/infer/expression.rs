@@ -1103,13 +1103,29 @@ impl Compiler {
                 target_module: _,
                 kind: _,
                 items,
+                arguments,
             }
-            | Expression::Export { kind: _, items }
             | Expression::UnresolvedReExport {
                 target: _,
                 kind: _,
                 items,
+                arguments,
             } => {
+                for item_id in items {
+                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
+                    }
+                }
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            Expression::Export { kind: _, items } => {
                 for item_id in items {
                     self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
                 }

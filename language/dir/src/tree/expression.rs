@@ -46,6 +46,7 @@ pub enum Expression {
         target: StringId,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Import dependency (like `import "foo"` or `import { bar } from "foo"`).
     Import {
@@ -62,6 +63,7 @@ pub enum Expression {
         target_module: ModuleTarget,
         kind: DependencyKind,
         items: Vec<LocalNodeId<DependencyItem>>,
+        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Export dependency (like `export { bar }` or `export = foo`).
     Export {

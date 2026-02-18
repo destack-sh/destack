@@ -3,6 +3,17 @@ use destack_workspace::Loader;
 
 use crate::Compiler;
 
+/// Result of reading one loader override from import attributes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum LoaderAttribute {
+    /// No `type` attribute was present.
+    None,
+    /// Parsed one valid loader override.
+    Loader(Loader),
+    /// Found a `type` attribute, but the value is not a supported loader.
+    InvalidType { value: String },
+}
+
 impl Compiler {
     /// Extract loader override from import attributes.
     ///
@@ -15,10 +26,11 @@ impl Compiler {
         &self,
         arguments: Option<&Vec<LocalNodeId<Argument>>>,
         tree: &NodeTree,
-    ) -> Option<Loader> {
-        let arguments = arguments?;
+    ) -> LoaderAttribute {
+        let Some(arguments) = arguments else {
+            return LoaderAttribute::None;
+        };
         let type_key = self.program.strings.intern("type");
-
         for arg_id in arguments {
             let Argument::Named { name, value, .. } = tree.get(*arg_id) else {
                 continue;
@@ -28,16 +40,23 @@ impl Compiler {
             }
 
             // get string value from expression
-            let Expression::ScalarLiteral {
-                value: ScalarLiteral::String(s),
-            } = tree.get(*value)
-            else {
-                continue;
+            let value = match tree.get(*value) {
+                Expression::ScalarLiteral {
+                    value: ScalarLiteral::String(s),
+                } => self.program.strings.get(*s).to_string(),
+                _ => {
+                    return LoaderAttribute::InvalidType {
+                        value: "<non-string>".to_string(),
+                    };
+                }
             };
-            let value_str = self.program.strings.get(*s);
 
-            return Loader::from_type_attribute(value_str.as_ref());
+            return match Loader::from_type_attribute(value.as_str()) {
+                Some(loader) => LoaderAttribute::Loader(loader),
+                None => LoaderAttribute::InvalidType { value },
+            };
         }
-        None
+
+        LoaderAttribute::None
     }
 }

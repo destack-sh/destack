@@ -268,12 +268,14 @@ impl ModuleLowerer<'_> {
                 kind,
                 target,
                 items,
+                arguments: _,
             }
             | dir::Expression::ReExport {
                 kind,
                 target,
                 target_module: _,
                 items,
+                arguments: _,
             } => {
                 let target = self.strings.intern_from(&self.ast.strings, *target);
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;

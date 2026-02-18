@@ -4130,3 +4130,40 @@ declare let value: Buffer<SIZE>;
         }
     });
 }
+
+// re-exported data loader overrides keep text semantics at the consumer import site
+#[test]
+fn test_analyze_reexport_text_loader_attribute_infers_string() {
+    let test = TestProgram::memory_parallel();
+    test.add_file("data.json", r#"{ "key": "value" }"#);
+    test.add_module(
+        "bridge.ds",
+        r#"
+export { default as text } from "./data.json" with { type: "text" };
+"#,
+    );
+    let main_id = test.analyze_module_with_source(
+        "main.ds",
+        r#"
+import { text } from "./bridge.ds";
+let value = text;
+"#,
+    );
+
+    let view = test.view(main_id);
+    let text_symbol = test
+        .resolve_to_symbol("main.ds", "text")
+        .expect("expected imported text symbol");
+    let text_ty_id = view
+        .types()
+        .get_value_type_id(text_symbol)
+        .expect("missing value type for imported text symbol");
+
+    assert_type!(
+        view.types(),
+        text_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String)
+        }
+    );
+}

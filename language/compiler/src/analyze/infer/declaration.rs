@@ -6,12 +6,12 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler
 use destack_base::StringId;
 use destack_dir::{
     Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
-    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyMode, DynamicKey,
+    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyKind, DynamicKey,
     Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
     GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, Mutability, NodeTree, NodeType,
-    NormalizationMode, Parameter, Pattern, PrimitiveType, StaticArgument, StaticKey, SymbolSpace,
-    SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
+    LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree, NodeType, NormalizationMode,
+    Parameter, Pattern, PrimitiveType, StaticArgument, StaticKey, SymbolSpace, SymbolTable,
+    SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -2585,7 +2585,7 @@ impl Compiler {
     /// for the local binding symbol.
     pub(super) fn infer_dependency_item(
         &self,
-        _module: &Module,
+        module: &Module,
         item_id: LocalNodeId<DependencyItem>,
         tree: &NodeTree,
         _symbols: &SymbolTable,
@@ -2608,24 +2608,25 @@ impl Compiler {
                 // nothing to do
             }
             DependencyItem::Remote {
-                target_module,
+                kind,
                 target_symbol,
-                mode,
+                symbol,
                 ..
             } => {
-                // check if we're importing from a non-code module
-                if let Some(ModuleTarget::Module(target_module_id)) = target_module.value {
-                    let target = self.program.modules.get(target_module_id);
-                    let target = target.read();
-                    // only handle data module namespace and default imports
-                    if !target.is_code()
-                        && (*mode == DependencyMode::Namespace || *mode == DependencyMode::Default)
-                    {
-                        let ty_id =
-                            self.infer_data_module_type(&target, item_id.into_any(), types)?;
+                // infer remote value imports from non code module targets
+                let target = self.program.modules.get(target_symbol.module_id);
+                let target = target.read();
 
-                        // set the type on the canonical symbol used by the binding
-                        types.set_value_type(*target_symbol, ty_id);
+                // infer from non code module targets
+                if *kind == DependencyKind::Value && !target.is_code() {
+                    let ty_id = self.infer_data_module_type(&target, item_id.into_any(), types)?;
+
+                    // set the type on the remote target symbol
+                    types.set_value_type(*target_symbol, ty_id);
+
+                    // mirror the type onto the local alias symbol when present
+                    if let Some(symbol) = symbol {
+                        types.set_value_type(symbol.into_global(module.id), ty_id);
                     }
                 }
             }

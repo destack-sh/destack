@@ -21,8 +21,6 @@ pub enum Loader {
     Toml,
     /// YAML data (.yaml, .yml)
     Yaml,
-    /// Environment variables (.env)
-    Env,
 
     // Text loaders → ModuleType::Text
     /// Plain text content
@@ -57,24 +55,24 @@ impl Loader {
             FileType::Json => Loader::Json,
             FileType::Toml => Loader::Toml,
             FileType::Yaml => Loader::Yaml,
-            FileType::Env => Loader::Env,
+            FileType::Env => Loader::Text,
 
             // Text formats
             FileType::Text
             | FileType::Markdown
             | FileType::Html
             | FileType::Css
-            | FileType::Svg => Loader::Text,
+            | FileType::Svg
+            | FileType::SourceMap
+            | FileType::DestackMir => Loader::Text,
 
             // Binary formats
             FileType::Wasm
             | FileType::Node
-            | FileType::SourceMap
             | FileType::Object
             | FileType::DestackBinary
             | FileType::DestackAst
             | FileType::DestackDir
-            | FileType::DestackMir
             | FileType::Image
             | FileType::Font
             | FileType::Audio
@@ -91,7 +89,7 @@ impl Loader {
     pub fn module_type(&self) -> ModuleType {
         match self {
             Loader::Destack | Loader::TypeScript | Loader::JavaScript => ModuleType::Code,
-            Loader::Json | Loader::Toml | Loader::Yaml | Loader::Env => ModuleType::Data,
+            Loader::Json | Loader::Toml | Loader::Yaml => ModuleType::Data,
             Loader::Text | Loader::Base64 => ModuleType::Text,
             Loader::Binary | Loader::File => ModuleType::Binary,
         }
@@ -107,10 +105,7 @@ impl Loader {
 
     /// Whether this loader produces data modules.
     pub fn is_data(&self) -> bool {
-        matches!(
-            self,
-            Loader::Json | Loader::Toml | Loader::Yaml | Loader::Env
-        )
+        matches!(self, Loader::Json | Loader::Toml | Loader::Yaml)
     }
 
     /// Whether this loader produces text modules.
@@ -136,9 +131,7 @@ impl Loader {
             "yaml" => Some(Loader::Yaml),
             "text" => Some(Loader::Text),
             "binary" => Some(Loader::Binary),
-            "file" => Some(Loader::File),
             "base64" => Some(Loader::Base64),
-            "env" => Some(Loader::Env),
             _ => None,
         }
     }
@@ -152,7 +145,6 @@ impl Loader {
             Loader::Json => "json",
             Loader::Toml => "toml",
             Loader::Yaml => "yaml",
-            Loader::Env => "env",
             Loader::Text => "text",
             Loader::Binary => "binary",
             Loader::File => "file",

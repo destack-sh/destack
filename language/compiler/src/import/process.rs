@@ -38,7 +38,6 @@ impl Compiler {
             }
             ImportTask::ImportModuleParse { module } => {
                 self.ensure_module_version_matches::<ImportError>(module.id, module.version)?;
-                // parse runs for all modules (loads JSON/TOML/etc for non-code)
                 self.import_module_parse(module.id, module.version)?;
             }
             ImportTask::ImportModuleBind { module } => {

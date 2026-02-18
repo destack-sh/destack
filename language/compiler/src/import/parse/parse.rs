@@ -80,7 +80,7 @@ impl Compiler {
             Loader::Yaml => {
                 self.import_yaml_module_parse(module_id, module_version, file_id, path, uri)
             }
-            Loader::Text | Loader::Env => {
+            Loader::Text => {
                 self.import_text_module_parse(module_id, module_version, file_id, path, uri)
             }
             Loader::Base64 => {

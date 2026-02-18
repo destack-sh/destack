@@ -685,12 +685,13 @@ icon satisfies uint8[];
 Override the default loader with import attributes:
 
 ```ds
-import data from "./config.toml" with { type: "json" };  // parse as JSON
-import raw from "./data.json" with { type: "text" };     // import as string
-import bytes from "./file.txt" with { type: "binary" };  // import as uint8[]
+import dataJson from "./data.toml" with { type: "json" };  // parse as JSON
+import dataRaw from "./data.json" with { type: "text" };     // import as string
+import dataBytes from "./file.txt" with { type: "binary" };  // import as uint8[]
 ```
 
-The same file with different loaders produces different modules.
+Supported `type` loaders are `json`, `toml`, `yaml`, `text`, `binary`, and `base64`.
+(The same file with different loaders produces different modules, of course.)
 
 ## Compatibility
 
