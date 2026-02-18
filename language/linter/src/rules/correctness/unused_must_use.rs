@@ -1,7 +1,9 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_has_decorator, expression_unwrap_parenthesized};
+use crate::rules::common::{
+    expression_discarded_call_like_value, expression_has_decorator, expression_unwrap_parenthesized,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -64,6 +66,9 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
 
         for root_id in roots {
             let expression = tree.get(root_id);
+            if matches!(expression, dir::Expression::Block { .. }) {
+                self.check_statement(root_id, root_id);
+            }
             self.visit_expression(tree, root_id, expression);
         }
     }
@@ -74,14 +79,12 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         statement_id: dir::LocalNodeId<dir::Expression>,
         statement_expression_id: dir::LocalNodeId<dir::Expression>,
     ) {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, statement_expression_id);
-        let expression = self.ctx.tree.get(expression_id);
-        if !matches!(
-            expression,
-            dir::Expression::Call { .. } | dir::Expression::New { .. }
-        ) {
+        let Some((expression_id, fix_expression_id)) =
+            expression_discarded_call_like_value(self.ctx.tree, statement_expression_id)
+        else {
             return;
-        }
+        };
+        let expression = self.ctx.tree.get(expression_id);
 
         let has_must_use = expression_has_decorator(
             &self.ctx.program,
@@ -116,7 +119,7 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
 
         // compute fixes only when requested by the runner
         if self.ctx.include_fixes
-            && let Some(fix) = unused_must_use_fix(self.ctx, statement_expression_id)
+            && let Some(fix) = unused_must_use_fix(self.ctx, fix_expression_id)
         {
             diagnostic = diagnostic.with_fix(fix);
         }
@@ -327,7 +330,9 @@ function parse(): Result<int32, string> {
     return Result.ok(1)
 }
 
-(parse())
+{
+    (parse())
+}
 "#,
         );
         test.result(result)
@@ -339,7 +344,9 @@ function parse(): Result<int32, string> {
     return Result.ok(1);
 }
 
-void parse();
+{
+    void parse()
+}
 "#,
             );
     }

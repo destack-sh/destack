@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expand_span_to_statement_terminator;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -94,7 +95,10 @@ fn no_delete_fix(
         return None;
     }
 
+    let file = ctx.program.files.get(ctx.module.file_id);
+    let source = file.text();
     let statement_span = ctx.tree.get_span(parent_expression_id);
+    let statement_span = expand_span_to_statement_terminator(source, statement_span);
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::r#unsafe("Remove delete statement").with_edits(edits))
 }

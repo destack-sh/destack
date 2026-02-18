@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     first_alphabetic_character, is_directive_comment, is_non_prose_doc_line, is_separator_comment,
-    parse_keyword_comment_with_options,
+    is_separator_heading_line, parse_keyword_comment_with_options,
 };
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
@@ -39,14 +39,30 @@ impl LintRule for CommentCasing {
         let meta = self.meta();
 
         // non doc comments should start with lowercase
-        for trivia in ctx.tree.comment_trivia().iter().copied() {
+        let comment_trivia = ctx.tree.comment_trivia();
+        for (index, trivia) in comment_trivia.iter().copied().enumerate() {
             let comment_text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
             let comment_text = comment_text.as_ref().trim();
+            let previous_comment_text = index.checked_sub(1).map(|previous_index| {
+                ast::normalize_comment_payload(
+                    ctx.get_span_text(comment_trivia[previous_index].span),
+                )
+            });
+            let next_comment_text = comment_trivia.get(index + 1).map(|next_trivia| {
+                ast::normalize_comment_payload(ctx.get_span_text(next_trivia.span))
+            });
+            let is_separator_heading_triplet = is_separator_heading_line(
+                previous_comment_text.as_deref(),
+                comment_text,
+                next_comment_text.as_deref(),
+                ctx.options.comment_separator_heading_min_lines,
+            );
 
             // skip comments that are exempt from lowercase casing
             if comment_text.is_empty()
                 || is_directive_comment(comment_text)
                 || is_separator_comment(comment_text)
+                || is_separator_heading_triplet
                 || is_separator_heading_block(
                     comment_text,
                     ctx.options.comment_separator_heading_min_lines,

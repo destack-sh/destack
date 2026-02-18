@@ -668,6 +668,7 @@ impl<'a> LintResult<'a> {
     pub(crate) fn assert_safe_fixed(&self, expected: &str) -> &Self {
         let fixed = self.apply_fixes(Some(Fixability::Safe));
         let fixed = fixed.trim();
+        let expected = self.format_source(expected);
         let expected = expected.trim();
         if fixed != expected {
             print_diff(expected, fixed, &DiffOptions::new().with_whitespace());
@@ -681,6 +682,7 @@ impl<'a> LintResult<'a> {
     pub(crate) fn assert_unsafe_fixed(&self, expected: &str) -> &Self {
         let fixed = self.apply_fixes(Some(Fixability::Unsafe));
         let fixed = fixed.trim();
+        let expected = self.format_source(expected);
         let expected = expected.trim();
         if fixed != expected {
             print_diff(expected, fixed, &DiffOptions::new().with_whitespace());

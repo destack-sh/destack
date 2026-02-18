@@ -326,15 +326,13 @@ switch (x) {
                 r#"
 let x = 1;
 switch (x) {
-    case 1: {
+    case 1:
         console.log("one")
 
         break
-    }
-    case 2: {
+    case 2:
         console.log("two")
         break
-    }
 }
 "#,
             );
@@ -360,7 +358,9 @@ switch (x) {
                 r#"
 let x = 1;
 switch (x) {
-    case 1: break
+    case 1:
+
+        break
     case 2: break
 }
 "#,
@@ -391,11 +391,10 @@ switch (x) {
 let x = 2;
 switch (x) {
     case 1: break
-    case 2: {
+    case 2:
         console.log("two")
 
         break
-    }
     case 3: break
 }
 "#,

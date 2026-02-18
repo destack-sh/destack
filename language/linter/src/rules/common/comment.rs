@@ -36,6 +36,35 @@ pub fn is_separator_comment(text: &str) -> bool {
     has_separator_character
 }
 
+/// Return true when one comment line is a separator heading between separator lines.
+pub fn is_separator_heading_line(
+    previous_text: Option<&str>,
+    current_text: &str,
+    next_text: Option<&str>,
+    min_lines: usize,
+) -> bool {
+    if min_lines > 3 {
+        return false;
+    }
+
+    let Some(previous_text) = previous_text else {
+        return false;
+    };
+    let Some(next_text) = next_text else {
+        return false;
+    };
+
+    let previous_text = previous_text.trim();
+    let current_text = current_text.trim();
+    let next_text = next_text.trim();
+
+    if current_text.is_empty() || is_separator_comment(current_text) {
+        return false;
+    }
+
+    is_separator_comment(previous_text) && is_separator_comment(next_text)
+}
+
 /// Return true when one comment starts with a known directive marker.
 pub fn is_directive_comment(text: &str) -> bool {
     let trimmed = text.trim_start();
