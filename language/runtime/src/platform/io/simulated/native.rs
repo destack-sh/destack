@@ -286,6 +286,145 @@ pub(crate) unsafe fn destack_io_control_ioctl(
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.ioctl")).boxed())
 }
 
+/// Close one raw device endpoint.
+///
+/// Close one previously opened raw device handle.
+/// Close semantics for in-flight operations follow host backend behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.device.read`, `io.device.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_io_device_close(
+    context: &RuntimeCallContext,
+    handle: resource::DeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = context;
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.close")).boxed())
+}
+
+/// Run one device-specific control request.
+///
+/// Execute one opaque control request with caller-provided bytes and return host output bytes.
+/// Request code semantics and payload layout are device-specific by design.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ioctl(2) on Unix and DeviceIoControl on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.device.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_io_device_control(
+    context: &RuntimeCallContext,
+    out: *mut DescriptorResult,
+    handle: resource::DeviceHandle,
+    request: DescriptorRequest,
+) -> RuntimeResult<()> {
+    let _ = context;
+    let _ = (out, handle, request);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.control")).boxed())
+}
+
+/// Open one raw device endpoint.
+///
+/// Open one host device node or device path with explicit open flags.
+/// Access checks and device availability are enforced by the host kernel and device policy.
+///
+/// # Platform
+/// Unix and Windows, with operation-level `notSupported` on hosts without a compatible raw-device namespace.
+/// Uses open(2) on Unix and CreateFileW on Windows device paths.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.device.read`, `io.device.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_io_device_open(
+    context: &RuntimeCallContext,
+    out: *mut resource::DeviceHandle,
+    path: crate::platform::fs::OsPath,
+    flags: u32,
+    mode: u32,
+) -> RuntimeResult<()> {
+    let _ = context;
+    let _ = (out, path, flags, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.open")).boxed())
+}
+
+/// Read bytes from one raw device endpoint.
+///
+/// Read bytes into caller-provided memory and return the number of bytes transferred.
+/// Partial reads are preserved exactly as reported by the host.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses read(2) on Unix and ReadFile on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.device.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_io_device_read(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: resource::DeviceHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = context;
+    let _ = (out, handle, buffer);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.read")).boxed())
+}
+
+/// Write bytes to one raw device endpoint.
+///
+/// Write bytes from caller-provided memory and return the number of bytes transferred.
+/// Partial writes are preserved exactly as reported by the host.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses write(2) on Unix and WriteFile on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `io.device.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_io_device_write(
+    context: &RuntimeCallContext,
+    out: *mut u64,
+    handle: resource::DeviceHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = context;
+    let _ = (out, handle, buffer);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.device.write")).boxed())
+}
+
 /// Attach an event token to a poll target key.
 ///
 /// Associate one event token with one runtime resource for explicit wakeup wiring.

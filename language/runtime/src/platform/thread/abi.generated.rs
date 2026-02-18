@@ -4,7 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::thread as platform_thread;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice,
+    thread as platform_thread,
+};
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI struct for ThreadOptions.
@@ -18,3 +23,45 @@ pub struct ThreadOptions {
 }
 
 pub type ThreadOptionsVm = ThreadOptions;
+
+impl VmAggregateCodec for ThreadOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ThreadOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_stack_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            stack_bytes: field_stack_bytes,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.stack_bytes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}

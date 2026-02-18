@@ -2579,6 +2579,14 @@ fn render_return_encode_lines(domain: &str, binding_type: &BindingType) -> Vec<S
         return vec!["result.map(vm::Value::bool)".to_string()];
     }
 
+    if matches!(binding_type, BindingType::Float(32)) {
+        return vec!["result.map(vm::Value::float32)".to_string()];
+    }
+
+    if matches!(binding_type, BindingType::Float(64)) {
+        return vec!["result.map(vm::Value::float64)".to_string()];
+    }
+
     let expr = render_encode_expr(domain, binding_type, "value");
     vec![format!("result.map(|value| {expr})")]
 }

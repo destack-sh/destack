@@ -7,9 +7,6 @@ import {
 } from "../resource/index.ds";
 import { GpuAdapterLimits, GpuBackend, GpuFeatureId } from "./adapter.ds";
 
-/// Device limits contract.
-export type GpuDeviceLimits = GpuAdapterLimits;
-
 /// Device-loss reason category.
 export enum GpuDeviceLossReason {
     /// Device is healthy.
@@ -45,7 +42,7 @@ export struct GpuDeviceOptions {
     /// Required feature identifiers.
     requiredFeatures: Slice<GpuFeatureId>;
     /// Required minimum limits.
-    requiredLimits: GpuDeviceLimits;
+    requiredLimits: GpuAdapterLimits;
     /// Preferred backend override.
     backend: GpuBackend;
     /// Device option flags.
@@ -59,7 +56,7 @@ export struct GpuDeviceInfo {
     /// Feature identifiers enabled on this device.
     enabledFeatures: Slice<GpuFeatureId>;
     /// Effective device limits.
-    effectiveLimits: GpuDeviceLimits;
+    effectiveLimits: GpuAdapterLimits;
     /// Default queue count visible to the runtime.
     queueCount: uint32;
     /// Whether timeline synchronization is available.
@@ -201,7 +198,7 @@ declare namespace gpu {
         scope: "os",
         blocking: "never",
     })
-    export function deviceLimits(device: GpuDeviceHandle): Result<GpuDeviceLimits, PlatformError>;
+    export function deviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, PlatformError>;
 
     /// Check whether one device supports one feature.
     ///

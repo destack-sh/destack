@@ -32,7 +32,9 @@ use crate::platform::io::simulated::{
     native as platform_simulated_native, vm as platform_simulated_vm,
 };
 use crate::platform::io::{native as platform_native, vm as platform_vm};
-use crate::platform::{io as platform_io, resource as platform_resource, resource};
+use crate::platform::{
+    fs as platform_fs, fs, io as platform_io, resource as platform_resource, resource,
+};
 
 /// Read a positional argument value.
 #[allow(dead_code)]
@@ -155,6 +157,16 @@ fn decode_slice<T>(
     expected: &'static str,
 ) -> RuntimeResult<VmSlice<T>> {
     VmSlice::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode an array argument.
+fn decode_array<T>(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmArray<T>> {
+    VmArray::<T>::from_value(context, value, name, expected)
 }
 
 /// Decode arguments for destack.io.completion.cancel.
@@ -477,6 +489,193 @@ fn encode_destack_io_control_ioctl_result(
         let field_1 = value.output.to_value(context);
         context.allocate_aggregate(vec![field_0, field_1])
     })
+}
+
+/// Decode arguments for destack.io.device.close.
+#[inline]
+fn decode_destack_io_device_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.io.device.close.
+#[inline]
+fn encode_destack_io_device_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.io.device.control.
+#[inline]
+fn decode_destack_io_device_control_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DeviceHandle, DescriptorRequestVm)> {
+    let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DeviceHandle(handle_inner);
+    let request_value = arg_value(args, 1, "request", "DescriptorRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "DescriptorRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let request_code = decode_uint64(slots[0], "request_code", "code")?;
+        let request_input = decode_slice::<u8>(context, slots[1], "request_input", "input")?;
+        let request_output_size = decode_uint32(slots[2], "request_output_size", "outputSize")?;
+        let request_flags = decode_uint32(slots[3], "request_flags", "flags")?;
+        DescriptorRequestVm {
+            code: request_code,
+            input: request_input,
+            output_size: request_output_size,
+            flags: request_flags,
+        }
+    };
+    Ok((handle, request))
+}
+
+/// Encode the result for destack.io.device.control.
+#[inline]
+fn encode_destack_io_device_control_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<DescriptorResultVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::int(value.return_value, 64);
+        let field_1 = value.output.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.io.device.open.
+#[inline]
+fn decode_destack_io_device_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(fs::OsPathVm, u32, u32)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
+        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
+        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
+        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
+        fs::OsPathVm {
+            encoding: path_encoding,
+            bytes: path_bytes,
+            utf16: path_utf16,
+        }
+    };
+    let flags_value = arg_value(args, 1, "flags", "uint32")?;
+    let flags = decode_uint32(flags_value, "flags", "uint32")?;
+    let mode_value = arg_value(args, 2, "mode", "uint32")?;
+    let mode = decode_uint32(mode_value, "mode", "uint32")?;
+    Ok((path, flags, mode))
+}
+
+/// Encode the result for destack.io.device.open.
+#[inline]
+fn encode_destack_io_device_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::DeviceHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.io.device.read.
+#[inline]
+fn decode_destack_io_device_read_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DeviceHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DeviceHandle(handle_inner);
+    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
+    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
+    Ok((handle, buffer))
+}
+
+/// Encode the result for destack.io.device.read.
+#[inline]
+fn encode_destack_io_device_read_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Decode arguments for destack.io.device.write.
+#[inline]
+fn decode_destack_io_device_write_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DeviceHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DeviceHandle(handle_inner);
+    let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
+    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
+    Ok((handle, buffer))
+}
+
+/// Encode the result for destack.io.device.write.
+#[inline]
+fn encode_destack_io_device_write_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.io.event.attach.
@@ -1001,6 +1200,41 @@ struct IoControlIoctlReplay {
     pub result: Result<DescriptorResultReplayRecord, PlatformError>,
 }
 
+/// Replay payload for destack.io.device.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoDeviceCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.io.device.control.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoDeviceControlReplay {
+    /// Replay result payload.
+    pub result: Result<DescriptorResultReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.io.device.open.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoDeviceOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::DeviceHandle, PlatformError>,
+}
+
+/// Replay payload for destack.io.device.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoDeviceReadReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.io.device.write.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct IoDeviceWriteReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
 /// Replay payload for destack.io.event.attach.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct IoEventAttachReplay {
@@ -1251,6 +1485,80 @@ pub const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["io.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.io.device.close.
+pub const IO_DEVICE_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.io.device.close",
+        "export function deviceClose(handle: DeviceHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["io.device.read", "io.device.write"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.io.device.control.
+pub const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.device.control",
+    "export function deviceControl(handle: DeviceHandle, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.device.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.io.device.open.
+pub const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.device.open",
+    "export function deviceOpen(path: OsPath, flags: uint32, mode: uint32): Result<DeviceHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.device.read", "io.device.write"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.io.device.read.
+pub const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.device.read",
+    "export function deviceRead(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.device.read"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.io.device.write.
+pub const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.io.device.write",
+    "export function deviceWrite(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["io.device.write"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
@@ -1530,6 +1838,11 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     IO_COMPLETION_WAIT,
     IO_CONTROL_FCNTL,
     IO_CONTROL_IOCTL,
+    IO_DEVICE_CLOSE,
+    IO_DEVICE_CONTROL,
+    IO_DEVICE_OPEN,
+    IO_DEVICE_READ,
+    IO_DEVICE_WRITE,
     IO_EVENT_ATTACH,
     IO_EVENT_CLOSE,
     IO_EVENT_OPEN,
@@ -1597,6 +1910,31 @@ pub const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             IO_CONTROL_IOCTL,
             "destack.io.control.ioctl",
             destack_io_control_ioctl as *const (),
+        ),
+        NativeBinding::new(
+            IO_DEVICE_CLOSE,
+            "destack.io.device.close",
+            destack_io_device_close as *const (),
+        ),
+        NativeBinding::new(
+            IO_DEVICE_CONTROL,
+            "destack.io.device.control",
+            destack_io_device_control as *const (),
+        ),
+        NativeBinding::new(
+            IO_DEVICE_OPEN,
+            "destack.io.device.open",
+            destack_io_device_open as *const (),
+        ),
+        NativeBinding::new(
+            IO_DEVICE_READ,
+            "destack.io.device.read",
+            destack_io_device_read as *const (),
+        ),
+        NativeBinding::new(
+            IO_DEVICE_WRITE,
+            "destack.io.device.write",
+            destack_io_device_write as *const (),
         ),
         NativeBinding::new(
             IO_EVENT_ATTACH,
@@ -2303,6 +2641,325 @@ fn destack_io_control_ioctl_replay(
                         return_value: value_native_return_value,
                         output: value_native_output,
                     };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_device_close_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::DeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        IO_DEVICE_CLOSE,
+        context.replay_payload_for(IO_DEVICE_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_device_close(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_device_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = IoDeviceCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_device_control_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut DescriptorResult,
+    handle: resource::DeviceHandle,
+    request: DescriptorRequest,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &request);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_DEVICE_CONTROL,
+        context.replay_payload_for(IO_DEVICE_CONTROL)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_device_control(context, out, handle, request)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_device_control(context, out, handle, request)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_return_value = result_value.return_value;
+                let result_recorded_output_raw = unsafe { result_value.output.as_slice()? };
+                let mut result_recorded_output =
+                    Vec::with_capacity(result_recorded_output_raw.len());
+                for result_recorded_output_item_value in result_recorded_output_raw {
+                    let result_recorded_output_item = *result_recorded_output_item_value;
+                    let result_recorded_output_item_recorded = result_recorded_output_item;
+                    result_recorded_output.push(result_recorded_output_item_recorded);
+                }
+                let result_recorded = DescriptorResultReplayRecord {
+                    return_value: result_recorded_return_value,
+                    output: result_recorded_output,
+                };
+                let payload = IoDeviceControlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceControlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_return_value = value.return_value;
+                    let mut value_native_output_values = Vec::with_capacity(value.output.len());
+                    for value_native_output_item in value.output {
+                        let value_native_output_item_native = value_native_output_item;
+                        value_native_output_values.push(value_native_output_item_native);
+                    }
+                    let value_native_output = context.store_slice(value_native_output_values);
+                    let value_native = DescriptorResult {
+                        return_value: value_native_return_value,
+                        output: value_native_output,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_device_open_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::DeviceHandle,
+    path: fs::OsPath,
+    flags: u32,
+    mode: u32,
+) -> RuntimeResult<()> {
+    let _ = (&path, &flags, &mode);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_DEVICE_OPEN,
+        context.replay_payload_for(IO_DEVICE_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_device_open(context, out, path, flags, mode)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_device_open(context, out, path, flags, mode)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = IoDeviceOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_device_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::DeviceHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffer);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_DEVICE_READ,
+        context.replay_payload_for(IO_DEVICE_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_device_read(context, out, handle, buffer)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_device_read(context, out, handle, buffer)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = IoDeviceReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_io_device_write_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::DeviceHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &buffer);
+
+    context.replay().run_binding_with_payload_policy(
+        IO_DEVICE_WRITE,
+        context.replay_payload_for(IO_DEVICE_WRITE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_io_device_write(context, out, handle, buffer)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_io_device_write(context, out, handle, buffer)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = IoDeviceWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    IoDeviceWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3449,6 +4106,90 @@ pub unsafe extern "C" fn destack_io_control_ioctl(
     })
 }
 
+#[unsafe(export_name = "destack.io.device.close")]
+pub unsafe extern "C" fn destack_io_device_close(handle: resource::DeviceHandle) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(IO_DEVICE_CLOSE)?;
+        let world = context.check_and_resolve_world(IO_DEVICE_CLOSE)?;
+        destack_io_device_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.io.device.control")]
+pub unsafe extern "C" fn destack_io_device_control(
+    out: *mut DescriptorResult,
+    handle: resource::DeviceHandle,
+    request: DescriptorRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &request);
+
+        context.check_policy(IO_DEVICE_CONTROL)?;
+        let world = context.check_and_resolve_world(IO_DEVICE_CONTROL)?;
+        destack_io_device_control_replay(context, world, out, handle, request)
+    })
+}
+
+#[unsafe(export_name = "destack.io.device.open")]
+pub unsafe extern "C" fn destack_io_device_open(
+    out: *mut resource::DeviceHandle,
+    path: fs::OsPath,
+    flags: u32,
+    mode: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path, &flags, &mode);
+
+        context.check_policy(IO_DEVICE_OPEN)?;
+        let world = context.check_and_resolve_world(IO_DEVICE_OPEN)?;
+        destack_io_device_open_replay(context, world, out, path, flags, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.io.device.read")]
+pub unsafe extern "C" fn destack_io_device_read(
+    out: *mut u64,
+    handle: resource::DeviceHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffer);
+
+        context.check_policy(IO_DEVICE_READ)?;
+        let world = context.check_and_resolve_world(IO_DEVICE_READ)?;
+        destack_io_device_read_replay(context, world, out, handle, buffer)
+    })
+}
+
+#[unsafe(export_name = "destack.io.device.write")]
+pub unsafe extern "C" fn destack_io_device_write(
+    out: *mut u64,
+    handle: resource::DeviceHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &buffer);
+
+        context.check_policy(IO_DEVICE_WRITE)?;
+        let world = context.check_and_resolve_world(IO_DEVICE_WRITE)?;
+        destack_io_device_write_replay(context, world, out, handle, buffer)
+    })
+}
+
 #[unsafe(export_name = "destack.io.event.attach")]
 pub unsafe extern "C" fn destack_io_event_attach(
     token: EventToken,
@@ -4330,6 +5071,308 @@ fn destack_io_control_ioctl_vm_replay(
             },
         );
     let result = encode_destack_io_control_ioctl_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_device_close_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_DEVICE_CLOSE,
+            runtime.replay_payload_for(IO_DEVICE_CLOSE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_device_close(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_io_device_close(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = IoDeviceCloseReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoDeviceCloseReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_device_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_device_control_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DeviceHandle,
+    request: DescriptorRequestVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_DEVICE_CONTROL,
+            runtime.replay_payload_for(IO_DEVICE_CONTROL)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_device_control(runtime, context, handle, request)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_device_control(
+                    runtime, context, handle, request,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: DescriptorResultVm = value.clone();
+                    let result_recorded_return_value = result_value.return_value;
+                    let result_recorded_output = result_value.output.read_bytes(context)?;
+                    let result_recorded = DescriptorResultReplayRecord {
+                        return_value: result_recorded_return_value,
+                        output: result_recorded_output,
+                    };
+                    let payload = IoDeviceControlReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoDeviceControlReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_return_value = value.return_value;
+                        let vm_result_output =
+                            VmSlice::from_bytes(context, value.output.as_slice());
+                        let vm_result = DescriptorResultVm {
+                            return_value: vm_result_return_value,
+                            output: vm_result_output,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_device_control_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_device_open_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    path: fs::OsPathVm,
+    flags: u32,
+    mode: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_DEVICE_OPEN,
+            runtime.replay_payload_for(IO_DEVICE_OPEN)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_device_open(runtime, context, path, flags, mode)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_io_device_open(
+                    runtime, context, path, flags, mode,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: resource::DeviceHandle = value.clone();
+                    let result_recorded = result_value;
+                    let payload = IoDeviceOpenReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoDeviceOpenReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_device_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_device_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DeviceHandle,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_DEVICE_READ,
+            runtime.replay_payload_for(IO_DEVICE_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_device_read(runtime, context, handle, buffer)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_io_device_read(runtime, context, handle, buffer)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = IoDeviceReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoDeviceReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_device_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_io_device_write_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::DeviceHandle,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            IO_DEVICE_WRITE,
+            runtime.replay_payload_for(IO_DEVICE_WRITE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_io_device_write(runtime, context, handle, buffer)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_io_device_write(runtime, context, handle, buffer)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = IoDeviceWriteReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        IoDeviceWriteReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_io_device_write_result(context, result)?;
     Ok(result)
 }
 
@@ -5571,6 +6614,81 @@ pub fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 runtime.check_policy(IO_CONTROL_IOCTL)?;
                 let world = runtime.check_and_resolve_world(IO_CONTROL_IOCTL)?;
                 destack_io_control_ioctl_vm_replay(runtime, context, world, handle, request)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_DEVICE_CLOSE, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_io_device_close_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_DEVICE_CLOSE)?;
+                let world = runtime.check_and_resolve_world(IO_DEVICE_CLOSE)?;
+                destack_io_device_close_vm_replay(runtime, context, world, handle)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            IO_DEVICE_CONTROL,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, request) = decode_destack_io_device_control_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(IO_DEVICE_CONTROL)?;
+                    let world = runtime.check_and_resolve_world(IO_DEVICE_CONTROL)?;
+                    destack_io_device_control_vm_replay(runtime, context, world, handle, request)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, IO_DEVICE_OPEN, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (path, flags, mode) = decode_destack_io_device_open_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_DEVICE_OPEN)?;
+                let world = runtime.check_and_resolve_world(IO_DEVICE_OPEN)?;
+                destack_io_device_open_vm_replay(runtime, context, world, path, flags, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_DEVICE_READ, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, buffer) = decode_destack_io_device_read_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_DEVICE_READ)?;
+                let world = runtime.check_and_resolve_world(IO_DEVICE_READ)?;
+                destack_io_device_read_vm_replay(runtime, context, world, handle, buffer)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, IO_DEVICE_WRITE, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, buffer) = decode_destack_io_device_write_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(IO_DEVICE_WRITE)?;
+                let world = runtime.check_and_resolve_world(IO_DEVICE_WRITE)?;
+                destack_io_device_write_vm_replay(runtime, context, world, handle, buffer)
             })
             .map_err(Into::into)
         });

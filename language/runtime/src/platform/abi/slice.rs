@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, VmValueCodec};
+use crate::platform::{PlatformError, VmAggregateCodec, VmValueCodec};
 
 /// FFI slice of raw values for native bindings.
 #[repr(C)]
@@ -55,7 +55,7 @@ pub struct VmSlice<T> {
 impl<T> VmSlice<T> {
     /// Decode a VM slice from an aggregate value.
     pub fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
         name: &str,
         expected: &str,
@@ -127,13 +127,16 @@ impl<T> VmSlice<T> {
     }
 }
 
-impl<T: VmValueCodec> VmSlice<T> {
+impl<T: VmAggregateCodec> VmSlice<T> {
     /// Allocate a VM slice from decoded values.
     pub fn from_values(
         context: &mut vm::ExternalCallContext<'_>,
         values: &[T],
     ) -> RuntimeResult<Self> {
-        let encoded = values.iter().copied().map(T::encode).collect::<Vec<_>>();
+        let mut encoded = Vec::with_capacity(values.len());
+        for value in values {
+            encoded.push(T::encode_with_context(*value, context)?);
+        }
         let data = context.allocate_raw_values(encoded);
         Ok(Self {
             data,
@@ -161,7 +164,7 @@ impl<T: VmValueCodec> VmSlice<T> {
         // decode each value
         let mut decoded = Vec::with_capacity(values.len());
         for value in values {
-            decoded.push(T::decode(value)?);
+            decoded.push(T::decode_with_context(context, value)?);
         }
 
         Ok(decoded)
@@ -181,11 +184,30 @@ impl<T: VmValueCodec> VmSlice<T> {
             .boxed());
         }
 
-        let encoded = values.iter().copied().map(T::encode).collect::<Vec<_>>();
+        let mut encoded = Vec::with_capacity(values.len());
+        for value in values {
+            encoded.push(T::encode_with_context(*value, context)?);
+        }
         context
             .write_raw_values(self.data, &encoded)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         Ok(())
+    }
+}
+
+impl<T: Copy> VmAggregateCodec for VmSlice<T> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        VmSlice::from_value(context, value, "value", "slice")
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        Ok(self.to_value(context))
     }
 }
 

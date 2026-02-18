@@ -6,7 +6,10 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, debug as platform_debug};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    debug as platform_debug,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -113,6 +116,49 @@ impl Copy for InspectorEndpointAbi<VmAbi> {}
 impl Clone for InspectorEndpointAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InspectorEndpoint",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_url =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            url: field_url,
+            pid: field_pid,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

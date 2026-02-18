@@ -6,9 +6,14 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioDeviceDirection, AudioDeviceInfo, AudioDeviceInfoReplayRecord, AudioDeviceInfoVm,
-    AudioSampleFormat, AudioStreamConfig, AudioStreamConfigVm, AudioStreamState,
-    AudioStreamStateVm,
+    AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioClockSnapshotVm,
+    AudioDeviceDirection, AudioDeviceEvent, AudioDeviceEventReplayRecord, AudioDeviceEventVm,
+    AudioDeviceInfo, AudioDeviceInfoReplayRecord, AudioDeviceInfoVm, AudioDeviceListRequest,
+    AudioDeviceListRequestVm, AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioSampleFormat,
+    AudioShareMode, AudioStreamAvailability, AudioStreamAvailabilityVm, AudioStreamConfig,
+    AudioStreamConfigVm, AudioStreamInfo, AudioStreamInfoReplayRecord, AudioStreamInfoVm,
+    AudioStreamState, AudioStreamStateVm, AudioStreamTiming, AudioStreamTimingVm,
+    AudioStreamTransferMode,
 };
 use crate::platform::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingScope,
@@ -115,6 +120,18 @@ fn decode_uint64(
     decode_uint(value, name, expected, 64)
 }
 
+/// Decode an f64 argument.
+#[allow(dead_code)]
+fn decode_float64(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<f64> {
+    value.as_float64().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
+}
+
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
@@ -141,6 +158,80 @@ fn decode_slice<T>(
     VmSlice::<T>::from_value(context, value, name, expected)
 }
 
+/// Decode arguments for destack.audio.clock.now.
+#[inline]
+fn decode_destack_audio_clock_now_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(AudioClockDomain,)> {
+    let domain_value = arg_value(args, 0, "domain", "AudioClockDomain")?;
+    let domain_raw = decode_uint8(domain_value, "domain_raw", "AudioClockDomain")?;
+    let domain = match domain_raw {
+        1u8 => AudioClockDomain::Monotonic,
+        2u8 => AudioClockDomain::Wall,
+        3u8 => AudioClockDomain::Device,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "domain",
+                "unknown AudioClockDomain value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((domain,))
+}
+
+/// Encode the result for destack.audio.clock.now.
+#[inline]
+fn encode_destack_audio_clock_now_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Decode arguments for destack.audio.clock.stream.
+#[inline]
+fn decode_destack_audio_clock_stream_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle, AudioClockDomain)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    let domain_value = arg_value(args, 1, "domain", "AudioClockDomain")?;
+    let domain_raw = decode_uint8(domain_value, "domain_raw", "AudioClockDomain")?;
+    let domain = match domain_raw {
+        1u8 => AudioClockDomain::Monotonic,
+        2u8 => AudioClockDomain::Wall,
+        3u8 => AudioClockDomain::Device,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "domain",
+                "unknown AudioClockDomain value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, domain))
+}
+
+/// Encode the result for destack.audio.clock.stream.
+#[inline]
+fn encode_destack_audio_clock_stream_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioClockSnapshotVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.stream_frames, 64);
+        let field_1 = vm::Value::uint(value.clock_ns, 64);
+        let field_2 = vm::Value::uint(value.monotonic_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
+}
+
 /// Decode arguments for destack.audio.device.close.
 #[inline]
 fn decode_destack_audio_device_close_args(
@@ -164,24 +255,13 @@ fn encode_destack_audio_device_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Encode the result for destack.audio.device.list.
+/// Decode arguments for destack.audio.device.default.
 #[inline]
-fn encode_destack_audio_device_list_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmSlice<AudioDeviceInfoVm>>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
-}
-
-/// Decode arguments for destack.audio.device.open.
-#[inline]
-fn decode_destack_audio_device_open_args(
+fn decode_destack_audio_device_default_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, AudioDeviceDirection)> {
-    let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
-    let direction_value = arg_value(args, 1, "direction", "AudioDeviceDirection")?;
+) -> RuntimeResult<(AudioDeviceDirection,)> {
+    let direction_value = arg_value(args, 0, "direction", "AudioDeviceDirection")?;
     let direction_raw = decode_uint8(direction_value, "direction_raw", "AudioDeviceDirection")?;
     let direction = match direction_raw {
         1u8 => AudioDeviceDirection::Playback,
@@ -195,7 +275,229 @@ fn decode_destack_audio_device_open_args(
             .boxed());
         }
     };
-    Ok((id, direction))
+    Ok((direction,))
+}
+
+/// Encode the result for destack.audio.device.default.
+#[inline]
+fn encode_destack_audio_device_default_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.value())
+}
+
+/// Decode arguments for destack.audio.device.info.
+#[inline]
+fn decode_destack_audio_device_info_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioDeviceHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioDeviceHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioDeviceHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioDeviceHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.device.info.
+#[inline]
+fn encode_destack_audio_device_info_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioDeviceInfoVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.name.value();
+        let field_2 = vm::Value::uint(value.backend as u8 as u64, 8);
+        let field_3 = vm::Value::uint(value.direction as u8 as u64, 8);
+        let field_4 = vm::Value::bool(value.connected);
+        let field_5 = vm::Value::bool(value.is_default_playback);
+        let field_6 = vm::Value::bool(value.is_default_capture);
+        let field_7 = vm::Value::uint(value.preferred_sample_rate as u64, 32);
+        let field_8 = vm::Value::uint(value.min_sample_rate as u64, 32);
+        let field_9 = vm::Value::uint(value.max_sample_rate as u64, 32);
+        let field_10 = vm::Value::uint(value.min_channels as u64, 16);
+        let field_11 = vm::Value::uint(value.max_channels as u64, 16);
+        let field_12 = vm::Value::uint(value.preferred_layout as u8 as u64, 8);
+        let field_13 = vm::Value::uint(value.preferred_channel_mask, 64);
+        let field_14 = vm::Value::uint(value.supported_channel_mask, 64);
+        let field_15 = vm::Value::uint(value.min_period_frames as u64, 32);
+        let field_16 = vm::Value::uint(value.max_period_frames as u64, 32);
+        let field_17 = vm::Value::uint(value.format_mask as u64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17,
+        ])
+    })
+}
+
+/// Decode arguments for destack.audio.device.list.
+#[inline]
+fn decode_destack_audio_device_list_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(AudioDeviceListRequestVm,)> {
+    let request_value = arg_value(args, 0, "request", "AudioDeviceListRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "AudioDeviceListRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let request_direction_raw = decode_uint8(slots[0], "request_direction_raw", "direction")?;
+        let request_direction = match request_direction_raw {
+            1u8 => AudioDeviceDirection::Playback,
+            2u8 => AudioDeviceDirection::Capture,
+            3u8 => AudioDeviceDirection::Duplex,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_direction",
+                    "unknown AudioDeviceDirection value",
+                ))
+                .boxed());
+            }
+        };
+        let request_backend_raw = decode_uint8(slots[1], "request_backend_raw", "backend")?;
+        let request_backend = match request_backend_raw {
+            0u8 => AudioBackend::Auto,
+            1u8 => AudioBackend::Alsa,
+            2u8 => AudioBackend::PulseAudio,
+            3u8 => AudioBackend::PipeWire,
+            4u8 => AudioBackend::CoreAudio,
+            5u8 => AudioBackend::Wasapi,
+            6u8 => AudioBackend::AAudio,
+            7u8 => AudioBackend::OpenSLES,
+            8u8 => AudioBackend::WebAudio,
+            255u8 => AudioBackend::Null,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_backend",
+                    "unknown AudioBackend value",
+                ))
+                .boxed());
+            }
+        };
+        let request_include_disconnected = decode_bool(
+            slots[2],
+            "request_include_disconnected",
+            "includeDisconnected",
+        )?;
+        let request_flags = decode_uint32(slots[3], "request_flags", "flags")?;
+        AudioDeviceListRequestVm {
+            direction: request_direction,
+            backend: request_backend,
+            include_disconnected: request_include_disconnected,
+            flags: request_flags,
+        }
+    };
+    Ok((request,))
+}
+
+/// Encode the result for destack.audio.device.list.
+#[inline]
+fn encode_destack_audio_device_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<AudioDeviceInfoVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.audio.device.open.
+#[inline]
+fn decode_destack_audio_device_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, AudioDeviceOpenOptionsVm)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    let options_value = arg_value(args, 1, "options", "AudioDeviceOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "AudioDeviceOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let options_direction_raw = decode_uint8(slots[0], "options_direction_raw", "direction")?;
+        let options_direction = match options_direction_raw {
+            1u8 => AudioDeviceDirection::Playback,
+            2u8 => AudioDeviceDirection::Capture,
+            3u8 => AudioDeviceDirection::Duplex,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_direction",
+                    "unknown AudioDeviceDirection value",
+                ))
+                .boxed());
+            }
+        };
+        let options_backend_raw = decode_uint8(slots[1], "options_backend_raw", "backend")?;
+        let options_backend = match options_backend_raw {
+            0u8 => AudioBackend::Auto,
+            1u8 => AudioBackend::Alsa,
+            2u8 => AudioBackend::PulseAudio,
+            3u8 => AudioBackend::PipeWire,
+            4u8 => AudioBackend::CoreAudio,
+            5u8 => AudioBackend::Wasapi,
+            6u8 => AudioBackend::AAudio,
+            7u8 => AudioBackend::OpenSLES,
+            8u8 => AudioBackend::WebAudio,
+            255u8 => AudioBackend::Null,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_backend",
+                    "unknown AudioBackend value",
+                ))
+                .boxed());
+            }
+        };
+        let options_share_mode_raw = decode_uint8(slots[2], "options_share_mode_raw", "shareMode")?;
+        let options_share_mode = match options_share_mode_raw {
+            1u8 => AudioShareMode::Shared,
+            2u8 => AudioShareMode::Exclusive,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_share_mode",
+                    "unknown AudioShareMode value",
+                ))
+                .boxed());
+            }
+        };
+        let options_flags = decode_uint32(slots[3], "options_flags", "flags")?;
+        AudioDeviceOpenOptionsVm {
+            direction: options_direction,
+            backend: options_backend,
+            share_mode: options_share_mode,
+            flags: options_flags,
+        }
+    };
+    Ok((id, options))
 }
 
 /// Encode the result for destack.audio.device.open.
@@ -205,6 +507,123 @@ fn encode_destack_audio_device_open_result(
     result: RuntimeResult<resource::AudioDeviceHandle>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.audio.event.close.
+#[inline]
+fn decode_destack_audio_event_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "AudioEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.event.close.
+#[inline]
+fn encode_destack_audio_event_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.audio.event.open.
+#[inline]
+fn encode_destack_audio_event_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::AudioEventHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.audio.event.read.
+#[inline]
+fn decode_destack_audio_event_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioEventHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "AudioEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioEventHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.audio.event.read.
+#[inline]
+fn encode_destack_audio_event_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioDeviceEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = value.device_id.value();
+        let field_3 = vm::Value::uint(value.flags as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Decode arguments for destack.audio.event.tryRead.
+#[inline]
+fn decode_destack_audio_event_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "AudioEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.event.tryRead.
+#[inline]
+fn encode_destack_audio_event_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioDeviceEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = value.device_id.value();
+        let field_3 = vm::Value::uint(value.flags as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Decode arguments for destack.audio.stream.availability.
+#[inline]
+fn decode_destack_audio_stream_availability_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.stream.availability.
+#[inline]
+fn encode_destack_audio_stream_availability_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioStreamAvailabilityVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.readable_frames, 64);
+        let field_1 = vm::Value::uint(value.writable_frames, 64);
+        let field_2 = vm::Value::uint(value.timestamp_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
 }
 
 /// Decode arguments for destack.audio.stream.close.
@@ -230,6 +649,92 @@ fn encode_destack_audio_stream_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.audio.stream.drain.
+#[inline]
+fn decode_destack_audio_stream_drain_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.audio.stream.drain.
+#[inline]
+fn encode_destack_audio_stream_drain_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.audio.stream.flush.
+#[inline]
+fn decode_destack_audio_stream_flush_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.stream.flush.
+#[inline]
+fn encode_destack_audio_stream_flush_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.audio.stream.info.
+#[inline]
+fn decode_destack_audio_stream_info_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.stream.info.
+#[inline]
+fn encode_destack_audio_stream_info_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioStreamInfoVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.sample_rate as u64, 32);
+        let field_1 = vm::Value::uint(value.channels as u64, 16);
+        let field_2 = vm::Value::uint(value.channel_layout as u8 as u64, 8);
+        let field_3 = vm::Value::uint(value.channel_mask, 64);
+        let field_4 = vm::Value::uint(value.format as u8 as u64, 8);
+        let field_5 = vm::Value::uint(value.period_frames as u64, 32);
+        let field_6 = vm::Value::uint(value.transfer_mode as u8 as u64, 8);
+        let field_7 = vm::Value::bool(value.exclusive_mode);
+        let field_8 = vm::Value::uint(value.period_jitter_ns, 64);
+        let field_9 = value.backend_id.value();
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9,
+        ])
+    })
+}
+
 /// Decode arguments for destack.audio.stream.open.
 #[inline]
 fn decode_destack_audio_stream_open_args(
@@ -253,16 +758,35 @@ fn decode_destack_audio_stream_open_args(
         let slots = context
             .aggregate_slots(config_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "config",
-                "expected 5 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
         let config_sample_rate = decode_uint32(slots[0], "config_sample_rate", "sampleRate")?;
         let config_channels = decode_uint16(slots[1], "config_channels", "channels")?;
-        let config_format_raw = decode_uint8(slots[2], "config_format_raw", "format")?;
+        let config_channel_layout_raw =
+            decode_uint8(slots[2], "config_channel_layout_raw", "channelLayout")?;
+        let config_channel_layout = match config_channel_layout_raw {
+            0u8 => AudioChannelLayout::Unknown,
+            1u8 => AudioChannelLayout::Mono,
+            2u8 => AudioChannelLayout::Stereo,
+            3u8 => AudioChannelLayout::Quad,
+            4u8 => AudioChannelLayout::Surround51,
+            5u8 => AudioChannelLayout::Surround71,
+            255u8 => AudioChannelLayout::Custom,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "config_channel_layout",
+                    "unknown AudioChannelLayout value",
+                ))
+                .boxed());
+            }
+        };
+        let config_channel_mask = decode_uint64(slots[3], "config_channel_mask", "channelMask")?;
+        let config_format_raw = decode_uint8(slots[4], "config_format_raw", "format")?;
         let config_format = match config_format_raw {
             1u8 => AudioSampleFormat::U8,
             2u8 => AudioSampleFormat::S16,
@@ -278,13 +802,29 @@ fn decode_destack_audio_stream_open_args(
                 .boxed());
             }
         };
-        let config_period_frames = decode_uint32(slots[3], "config_period_frames", "periodFrames")?;
-        let config_flags = decode_uint32(slots[4], "config_flags", "flags")?;
+        let config_period_frames = decode_uint32(slots[5], "config_period_frames", "periodFrames")?;
+        let config_transfer_mode_raw =
+            decode_uint8(slots[6], "config_transfer_mode_raw", "transferMode")?;
+        let config_transfer_mode = match config_transfer_mode_raw {
+            1u8 => AudioStreamTransferMode::Push,
+            2u8 => AudioStreamTransferMode::Pull,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "config_transfer_mode",
+                    "unknown AudioStreamTransferMode value",
+                ))
+                .boxed());
+            }
+        };
+        let config_flags = decode_uint32(slots[7], "config_flags", "flags")?;
         AudioStreamConfigVm {
             sample_rate: config_sample_rate,
             channels: config_channels,
+            channel_layout: config_channel_layout,
+            channel_mask: config_channel_mask,
             format: config_format,
             period_frames: config_period_frames,
+            transfer_mode: config_transfer_mode,
             flags: config_flags,
         }
     };
@@ -323,6 +863,56 @@ fn encode_destack_audio_stream_read_result(
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.audio.stream.setMute.
+#[inline]
+fn decode_destack_audio_stream_set_mute_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle, bool)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    let muted_value = arg_value(args, 1, "muted", "boolean")?;
+    let muted = decode_bool(muted_value, "muted", "boolean")?;
+    Ok((handle, muted))
+}
+
+/// Encode the result for destack.audio.stream.setMute.
+#[inline]
+fn encode_destack_audio_stream_set_mute_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.audio.stream.setVolume.
+#[inline]
+fn decode_destack_audio_stream_set_volume_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle, f64)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    let lineargain_value = arg_value(args, 1, "lineargain", "float64")?;
+    let lineargain = decode_float64(lineargain_value, "lineargain", "float64")?;
+    Ok((handle, lineargain))
+}
+
+/// Encode the result for destack.audio.stream.setVolume.
+#[inline]
+fn encode_destack_audio_stream_set_volume_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.audio.stream.start.
@@ -369,10 +959,12 @@ fn encode_destack_audio_stream_state_result(
     result: RuntimeResult<AudioStreamStateVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = vm::Value::bool(value.running);
-        let field_1 = vm::Value::uint(value.buffered_frames, 64);
-        let field_2 = vm::Value::uint(value.latency_ns, 64);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+        let field_0 = vm::Value::uint(value.state as u8 as u64, 8);
+        let field_1 = vm::Value::bool(value.running);
+        let field_2 = vm::Value::uint(value.buffered_frames, 64);
+        let field_3 = vm::Value::uint(value.latency_ns, 64);
+        let field_4 = vm::Value::uint(value.xrun_count, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
 }
 
@@ -397,6 +989,85 @@ fn encode_destack_audio_stream_stop_result(
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.audio.stream.timing.
+#[inline]
+fn decode_destack_audio_stream_timing_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.stream.timing.
+#[inline]
+fn encode_destack_audio_stream_timing_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioStreamTimingVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.stream_frames, 64);
+        let field_1 = vm::Value::uint(value.device_clock_ns, 64);
+        let field_2 = vm::Value::uint(value.monotonic_clock_ns, 64);
+        let field_3 = vm::Value::float64(value.drift_ppm);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Decode arguments for destack.audio.stream.tryRead.
+#[inline]
+fn decode_destack_audio_stream_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    let maxbytes_value = arg_value(args, 1, "maxbytes", "uint32")?;
+    let maxbytes = decode_uint32(maxbytes_value, "maxbytes", "uint32")?;
+    Ok((handle, maxbytes))
+}
+
+/// Encode the result for destack.audio.stream.tryRead.
+#[inline]
+fn encode_destack_audio_stream_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.audio.stream.tryWrite.
+#[inline]
+fn decode_destack_audio_stream_try_write_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    let data_value = arg_value(args, 1, "data", "Slice<uint8>")?;
+    let data = decode_slice::<u8>(context, data_value, "data", "Slice<uint8>")?;
+    Ok((handle, data))
+}
+
+/// Encode the result for destack.audio.stream.tryWrite.
+#[inline]
+fn encode_destack_audio_stream_try_write_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
 }
 
 /// Decode arguments for destack.audio.stream.write.
@@ -424,11 +1095,67 @@ fn encode_destack_audio_stream_write_result(
     result.map(|value| vm::Value::uint(value, 64))
 }
 
+/// Decode arguments for destack.audio.stream.writeAt.
+#[inline]
+fn decode_destack_audio_stream_write_at_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle, VmSlice<u8>, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    let data_value = arg_value(args, 1, "data", "Slice<uint8>")?;
+    let data = decode_slice::<u8>(context, data_value, "data", "Slice<uint8>")?;
+    let presentationtimens_value = arg_value(args, 2, "presentationtimens", "uint64")?;
+    let presentationtimens =
+        decode_uint64(presentationtimens_value, "presentationtimens", "uint64")?;
+    Ok((handle, data, presentationtimens))
+}
+
+/// Encode the result for destack.audio.stream.writeAt.
+#[inline]
+fn encode_destack_audio_stream_write_at_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Replay payload for destack.audio.clock.now.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioClockNowReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Replay payload for destack.audio.clock.stream.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioClockStreamReplay {
+    /// Replay result payload.
+    pub result: Result<AudioClockSnapshot, PlatformError>,
+}
+
 /// Replay payload for destack.audio.device.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioDeviceCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.device.default.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioDeviceDefaultReplay {
+    /// Replay result payload.
+    pub result: Result<String, PlatformError>,
+}
+
+/// Replay payload for destack.audio.device.info.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioDeviceInfoReplay {
+    /// Replay result payload.
+    pub result: Result<AudioDeviceInfoReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.audio.device.list.
@@ -445,11 +1172,67 @@ struct AudioDeviceOpenReplay {
     pub result: Result<resource::AudioDeviceHandle, PlatformError>,
 }
 
+/// Replay payload for destack.audio.event.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioEventCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.event.open.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioEventOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::AudioEventHandle, PlatformError>,
+}
+
+/// Replay payload for destack.audio.event.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioEventReadReplay {
+    /// Replay result payload.
+    pub result: Result<AudioDeviceEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.audio.event.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioEventTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<AudioDeviceEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.availability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamAvailabilityReplay {
+    /// Replay result payload.
+    pub result: Result<AudioStreamAvailability, PlatformError>,
+}
+
 /// Replay payload for destack.audio.stream.close.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.drain.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamDrainReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.flush.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamFlushReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.info.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamInfoReplay {
+    /// Replay result payload.
+    pub result: Result<AudioStreamInfoReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.audio.stream.open.
@@ -464,6 +1247,20 @@ struct AudioStreamOpenReplay {
 struct AudioStreamReadReplay {
     /// Replay result payload.
     pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.setMute.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamSetMuteReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.setVolume.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamSetVolumeReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
 }
 
 /// Replay payload for destack.audio.stream.start.
@@ -487,12 +1284,78 @@ struct AudioStreamStopReplay {
     pub result: Result<(), PlatformError>,
 }
 
+/// Replay payload for destack.audio.stream.timing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamTimingReplay {
+    /// Replay result payload.
+    pub result: Result<AudioStreamTiming, PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.tryWrite.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamTryWriteReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
 /// Replay payload for destack.audio.stream.write.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamWriteReplay {
     /// Replay result payload.
     pub result: Result<u64, PlatformError>,
 }
+
+/// Replay payload for destack.audio.stream.writeAt.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamWriteAtReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
+}
+
+/// Binding descriptor for destack.audio.clock.now.
+pub const AUDIO_CLOCK_NOW: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.audio.clock.now",
+        "export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["audio.control"],
+        BindingScope::Os,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.audio.clock.stream.
+pub const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.clock.stream",
+    "export function streamClock(handle: AudioStreamHandle, domain: AudioClockDomain): Result<AudioClockSnapshot, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.device.close.
 pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
@@ -520,14 +1383,62 @@ pub const AUDIO_DEVICE_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.audio.device.default.
+pub const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.device.default",
+    "export function deviceDefault(direction: AudioDeviceDirection): Result<string, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.device.info.
+pub const AUDIO_DEVICE_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.device.info",
+    "export function deviceInfo(handle: AudioDeviceHandle): Result<AudioDeviceInfo, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.audio.device.list.
-pub const AUDIO_DEVICE_LIST: BindingDescriptor =
+pub const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.device.list",
+    "export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceInfo>, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.device.open.
+pub const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.device.open",
+    "export function deviceOpen(id: string, options: AudioDeviceOpenOptions): Result<AudioDeviceHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.event.close.
+pub const AUDIO_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.audio.device.list",
-        "export function deviceList(): Result<Slice<AudioDeviceInfo>, PlatformError>",
+        "destack.audio.event.close",
+        "export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["audio.device"],
+        &["audio.device.monitor"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
     )
@@ -546,15 +1457,65 @@ pub const AUDIO_DEVICE_LIST: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.audio.device.open.
-pub const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.audio.device.open",
-    "export function deviceOpen(id: string, direction: AudioDeviceDirection): Result<AudioDeviceHandle, PlatformError>",
+/// Binding descriptor for destack.audio.event.open.
+pub const AUDIO_EVENT_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.audio.event.open",
+        "export function eventOpen(): Result<AudioEventHandle, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["audio.device.monitor"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.audio.event.read.
+pub const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.event.read",
+    "export function eventRead(handle: AudioEventHandle, timeoutNs: uint64): Result<AudioDeviceEvent, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["audio.device"],
+    &["audio.device.monitor"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.event.tryRead.
+pub const AUDIO_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.event.tryRead",
+    "export function eventTryRead(handle: AudioEventHandle): Result<AudioDeviceEvent, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device.monitor"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.stream.availability.
+pub const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.availability",
+    "export function streamAvailability(handle: AudioStreamHandle): Result<AudioStreamAvailability, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
@@ -565,7 +1526,7 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
         "export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["audio.playback"],
+        &["audio.stream"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
     )
@@ -584,13 +1545,63 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.audio.stream.drain.
+pub const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.drain",
+    "export function streamDrain(handle: AudioStreamHandle, timeoutNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.playback"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.stream.flush.
+pub const AUDIO_STREAM_FLUSH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.audio.stream.flush",
+        "export function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>",
+        ReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["audio.control"],
+        BindingScope::Os,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.audio.stream.info.
+pub const AUDIO_STREAM_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.info",
+    "export function streamInfo(handle: AudioStreamHandle): Result<AudioStreamInfo, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.audio.stream.open.
 pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.open",
     "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig): Result<AudioStreamHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["audio.playback"],
+    &["audio.stream"],
     BindingScope::Os,
     BindingBlocking::Sometimes,
 )
@@ -608,6 +1619,30 @@ pub const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_wit
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.audio.stream.setMute.
+pub const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.setMute",
+    "export function streamSetMute(handle: AudioStreamHandle, muted: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.stream.setVolume.
+pub const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.setVolume",
+    "export function streamSetVolume(handle: AudioStreamHandle, linearGain: float64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.audio.stream.start.
 pub const AUDIO_STREAM_START: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -615,7 +1650,7 @@ pub const AUDIO_STREAM_START: BindingDescriptor =
         "export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["audio.playback"],
+        &["audio.stream"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
     )
@@ -653,7 +1688,7 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
         "export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>",
         ReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["audio.playback"],
+        &["audio.stream"],
         BindingScope::Os,
         BindingBlocking::Sometimes,
     )
@@ -672,6 +1707,42 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.audio.stream.timing.
+pub const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.timing",
+    "export function streamTiming(handle: AudioStreamHandle): Result<AudioStreamTiming, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.stream.tryRead.
+pub const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.tryRead",
+    "export function streamTryRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.capture"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.stream.tryWrite.
+pub const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.tryWrite",
+    "export function streamTryWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.playback"],
+    BindingScope::Os,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.audio.stream.write.
 pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.write",
@@ -684,18 +1755,48 @@ pub const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_wi
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.audio.stream.writeAt.
+pub const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.writeAt",
+    "export function streamWriteAt(handle: AudioStreamHandle, data: Slice<uint8>, presentationTimeNs: uint64): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.playback"],
+    BindingScope::Os,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptors for audio.
 pub const BINDINGS: &[BindingDescriptor] = &[
+    AUDIO_CLOCK_NOW,
+    AUDIO_CLOCK_STREAM,
     AUDIO_DEVICE_CLOSE,
+    AUDIO_DEVICE_DEFAULT,
+    AUDIO_DEVICE_INFO,
     AUDIO_DEVICE_LIST,
     AUDIO_DEVICE_OPEN,
+    AUDIO_EVENT_CLOSE,
+    AUDIO_EVENT_OPEN,
+    AUDIO_EVENT_READ,
+    AUDIO_EVENT_TRY_READ,
+    AUDIO_STREAM_AVAILABILITY,
     AUDIO_STREAM_CLOSE,
+    AUDIO_STREAM_DRAIN,
+    AUDIO_STREAM_FLUSH,
+    AUDIO_STREAM_INFO,
     AUDIO_STREAM_OPEN,
     AUDIO_STREAM_READ,
+    AUDIO_STREAM_SET_MUTE,
+    AUDIO_STREAM_SET_VOLUME,
     AUDIO_STREAM_START,
     AUDIO_STREAM_STATE,
     AUDIO_STREAM_STOP,
+    AUDIO_STREAM_TIMING,
+    AUDIO_STREAM_TRY_READ,
+    AUDIO_STREAM_TRY_WRITE,
     AUDIO_STREAM_WRITE,
+    AUDIO_STREAM_WRITE_AT,
 ];
 
 /// Native binding set for audio.
@@ -703,9 +1804,29 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "audio",
     bindings: &[
         NativeBinding::new(
+            AUDIO_CLOCK_NOW,
+            "destack.audio.clock.now",
+            destack_audio_clock_now as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_CLOCK_STREAM,
+            "destack.audio.clock.stream",
+            destack_audio_clock_stream as *const (),
+        ),
+        NativeBinding::new(
             AUDIO_DEVICE_CLOSE,
             "destack.audio.device.close",
             destack_audio_device_close as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_DEVICE_DEFAULT,
+            "destack.audio.device.default",
+            destack_audio_device_default as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_DEVICE_INFO,
+            "destack.audio.device.info",
+            destack_audio_device_info as *const (),
         ),
         NativeBinding::new(
             AUDIO_DEVICE_LIST,
@@ -718,9 +1839,49 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_audio_device_open as *const (),
         ),
         NativeBinding::new(
+            AUDIO_EVENT_CLOSE,
+            "destack.audio.event.close",
+            destack_audio_event_close as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_EVENT_OPEN,
+            "destack.audio.event.open",
+            destack_audio_event_open as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_EVENT_READ,
+            "destack.audio.event.read",
+            destack_audio_event_read as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_EVENT_TRY_READ,
+            "destack.audio.event.tryRead",
+            destack_audio_event_try_read as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_AVAILABILITY,
+            "destack.audio.stream.availability",
+            destack_audio_stream_availability as *const (),
+        ),
+        NativeBinding::new(
             AUDIO_STREAM_CLOSE,
             "destack.audio.stream.close",
             destack_audio_stream_close as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_DRAIN,
+            "destack.audio.stream.drain",
+            destack_audio_stream_drain as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_FLUSH,
+            "destack.audio.stream.flush",
+            destack_audio_stream_flush as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_INFO,
+            "destack.audio.stream.info",
+            destack_audio_stream_info as *const (),
         ),
         NativeBinding::new(
             AUDIO_STREAM_OPEN,
@@ -731,6 +1892,16 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             AUDIO_STREAM_READ,
             "destack.audio.stream.read",
             destack_audio_stream_read as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_SET_MUTE,
+            "destack.audio.stream.setMute",
+            destack_audio_stream_set_mute as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_SET_VOLUME,
+            "destack.audio.stream.setVolume",
+            destack_audio_stream_set_volume as *const (),
         ),
         NativeBinding::new(
             AUDIO_STREAM_START,
@@ -748,14 +1919,171 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_audio_stream_stop as *const (),
         ),
         NativeBinding::new(
+            AUDIO_STREAM_TIMING,
+            "destack.audio.stream.timing",
+            destack_audio_stream_timing as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_TRY_READ,
+            "destack.audio.stream.tryRead",
+            destack_audio_stream_try_read as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_TRY_WRITE,
+            "destack.audio.stream.tryWrite",
+            destack_audio_stream_try_write as *const (),
+        ),
+        NativeBinding::new(
             AUDIO_STREAM_WRITE,
             "destack.audio.stream.write",
             destack_audio_stream_write as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_WRITE_AT,
+            "destack.audio.stream.writeAt",
+            destack_audio_stream_write_at as *const (),
         ),
     ],
 };
 
 /// Native replay implementations for audio bindings.
+#[inline]
+fn destack_audio_clock_now_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    domain: AudioClockDomain,
+) -> RuntimeResult<()> {
+    let _ = &domain;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_CLOCK_NOW,
+        context.replay_payload_for(AUDIO_CLOCK_NOW)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_clock_now(context, out, domain)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_clock_now(context, out, domain)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = AudioClockNowReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioClockNowReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_clock_stream_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioClockSnapshot,
+    handle: resource::AudioStreamHandle,
+    domain: AudioClockDomain,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &domain);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_CLOCK_STREAM,
+        context.replay_payload_for(AUDIO_CLOCK_STREAM)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_clock(context, out, handle, domain)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_clock(context, out, handle, domain)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_stream_frames = result_value.stream_frames;
+                let result_recorded_clock_ns = result_value.clock_ns;
+                let result_recorded_monotonic_ns = result_value.monotonic_ns;
+                let result_recorded = AudioClockSnapshot {
+                    stream_frames: result_recorded_stream_frames,
+                    clock_ns: result_recorded_clock_ns,
+                    monotonic_ns: result_recorded_monotonic_ns,
+                };
+                let payload = AudioClockStreamReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioClockStreamReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_stream_frames = value.stream_frames;
+                    let value_native_clock_ns = value.clock_ns;
+                    let value_native_monotonic_ns = value.monotonic_ns;
+                    let value_native = AudioClockSnapshot {
+                        stream_frames: value_native_stream_frames,
+                        clock_ns: value_native_clock_ns,
+                        monotonic_ns: value_native_monotonic_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
 #[inline]
 fn destack_audio_device_close_replay(
     context: &RuntimeCallContext,
@@ -805,20 +2133,219 @@ fn destack_audio_device_close_replay(
 }
 
 #[inline]
+fn destack_audio_device_default_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeStringRef,
+    direction: AudioDeviceDirection,
+) -> RuntimeResult<()> {
+    let _ = &direction;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_DEVICE_DEFAULT,
+        context.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_device_default(context, out, direction)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_device_default(context, out, direction)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = unsafe { result_value.as_str()? }.to_string();
+                let payload = AudioDeviceDefaultReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioDeviceDefaultReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = context.store_string(&value);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_device_info_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioDeviceInfo,
+    handle: resource::AudioDeviceHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_DEVICE_INFO,
+        context.replay_payload_for(AUDIO_DEVICE_INFO)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_device_info(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_device_info(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_id = unsafe { result_value.id.as_str()? }.to_string();
+                let result_recorded_name = unsafe { result_value.name.as_str()? }.to_string();
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_direction = result_value.direction;
+                let result_recorded_connected = result_value.connected;
+                let result_recorded_is_default_playback = result_value.is_default_playback;
+                let result_recorded_is_default_capture = result_value.is_default_capture;
+                let result_recorded_preferred_sample_rate = result_value.preferred_sample_rate;
+                let result_recorded_min_sample_rate = result_value.min_sample_rate;
+                let result_recorded_max_sample_rate = result_value.max_sample_rate;
+                let result_recorded_min_channels = result_value.min_channels;
+                let result_recorded_max_channels = result_value.max_channels;
+                let result_recorded_preferred_layout = result_value.preferred_layout;
+                let result_recorded_preferred_channel_mask = result_value.preferred_channel_mask;
+                let result_recorded_supported_channel_mask = result_value.supported_channel_mask;
+                let result_recorded_min_period_frames = result_value.min_period_frames;
+                let result_recorded_max_period_frames = result_value.max_period_frames;
+                let result_recorded_format_mask = result_value.format_mask;
+                let result_recorded = AudioDeviceInfoReplayRecord {
+                    id: result_recorded_id,
+                    name: result_recorded_name,
+                    backend: result_recorded_backend,
+                    direction: result_recorded_direction,
+                    connected: result_recorded_connected,
+                    is_default_playback: result_recorded_is_default_playback,
+                    is_default_capture: result_recorded_is_default_capture,
+                    preferred_sample_rate: result_recorded_preferred_sample_rate,
+                    min_sample_rate: result_recorded_min_sample_rate,
+                    max_sample_rate: result_recorded_max_sample_rate,
+                    min_channels: result_recorded_min_channels,
+                    max_channels: result_recorded_max_channels,
+                    preferred_layout: result_recorded_preferred_layout,
+                    preferred_channel_mask: result_recorded_preferred_channel_mask,
+                    supported_channel_mask: result_recorded_supported_channel_mask,
+                    min_period_frames: result_recorded_min_period_frames,
+                    max_period_frames: result_recorded_max_period_frames,
+                    format_mask: result_recorded_format_mask,
+                };
+                let payload = AudioDeviceInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioDeviceInfoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_id = context.store_string(&value.id);
+                    let value_native_name = context.store_string(&value.name);
+                    let value_native_backend = value.backend;
+                    let value_native_direction = value.direction;
+                    let value_native_connected = value.connected;
+                    let value_native_is_default_playback = value.is_default_playback;
+                    let value_native_is_default_capture = value.is_default_capture;
+                    let value_native_preferred_sample_rate = value.preferred_sample_rate;
+                    let value_native_min_sample_rate = value.min_sample_rate;
+                    let value_native_max_sample_rate = value.max_sample_rate;
+                    let value_native_min_channels = value.min_channels;
+                    let value_native_max_channels = value.max_channels;
+                    let value_native_preferred_layout = value.preferred_layout;
+                    let value_native_preferred_channel_mask = value.preferred_channel_mask;
+                    let value_native_supported_channel_mask = value.supported_channel_mask;
+                    let value_native_min_period_frames = value.min_period_frames;
+                    let value_native_max_period_frames = value.max_period_frames;
+                    let value_native_format_mask = value.format_mask;
+                    let value_native = AudioDeviceInfo {
+                        id: value_native_id,
+                        name: value_native_name,
+                        backend: value_native_backend,
+                        direction: value_native_direction,
+                        connected: value_native_connected,
+                        is_default_playback: value_native_is_default_playback,
+                        is_default_capture: value_native_is_default_capture,
+                        preferred_sample_rate: value_native_preferred_sample_rate,
+                        min_sample_rate: value_native_min_sample_rate,
+                        max_sample_rate: value_native_max_sample_rate,
+                        min_channels: value_native_min_channels,
+                        max_channels: value_native_max_channels,
+                        preferred_layout: value_native_preferred_layout,
+                        preferred_channel_mask: value_native_preferred_channel_mask,
+                        supported_channel_mask: value_native_supported_channel_mask,
+                        min_period_frames: value_native_min_period_frames,
+                        max_period_frames: value_native_max_period_frames,
+                        format_mask: value_native_format_mask,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_audio_device_list_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
     out: *mut NativeSlice<AudioDeviceInfo>,
+    request: AudioDeviceListRequest,
 ) -> RuntimeResult<()> {
+    let _ = &request;
+
     context.replay().run_binding_with_payload_policy(
         AUDIO_DEVICE_LIST,
         context.replay_payload_for(AUDIO_DEVICE_LIST)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_device_list(context, out)
+                platform_native::destack_audio_device_list(context, out, request)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_device_list(context, out)
+                platform_simulated_native::destack_audio_device_list(context, out, request)
             },
         },
         |result| {
@@ -837,23 +2364,56 @@ fn destack_audio_device_list_replay(
                         unsafe { result_recorded_item.id.as_str()? }.to_string();
                     let result_recorded_item_recorded_name =
                         unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_direction = result_recorded_item.direction;
-                    let result_recorded_item_recorded_sample_rate =
-                        result_recorded_item.sample_rate;
+                    let result_recorded_item_recorded_connected = result_recorded_item.connected;
+                    let result_recorded_item_recorded_is_default_playback =
+                        result_recorded_item.is_default_playback;
+                    let result_recorded_item_recorded_is_default_capture =
+                        result_recorded_item.is_default_capture;
+                    let result_recorded_item_recorded_preferred_sample_rate =
+                        result_recorded_item.preferred_sample_rate;
+                    let result_recorded_item_recorded_min_sample_rate =
+                        result_recorded_item.min_sample_rate;
+                    let result_recorded_item_recorded_max_sample_rate =
+                        result_recorded_item.max_sample_rate;
                     let result_recorded_item_recorded_min_channels =
                         result_recorded_item.min_channels;
                     let result_recorded_item_recorded_max_channels =
                         result_recorded_item.max_channels;
-                    let result_recorded_item_recorded_default_period_frames =
-                        result_recorded_item.default_period_frames;
+                    let result_recorded_item_recorded_preferred_layout =
+                        result_recorded_item.preferred_layout;
+                    let result_recorded_item_recorded_preferred_channel_mask =
+                        result_recorded_item.preferred_channel_mask;
+                    let result_recorded_item_recorded_supported_channel_mask =
+                        result_recorded_item.supported_channel_mask;
+                    let result_recorded_item_recorded_min_period_frames =
+                        result_recorded_item.min_period_frames;
+                    let result_recorded_item_recorded_max_period_frames =
+                        result_recorded_item.max_period_frames;
+                    let result_recorded_item_recorded_format_mask =
+                        result_recorded_item.format_mask;
                     let result_recorded_item_recorded = AudioDeviceInfoReplayRecord {
                         id: result_recorded_item_recorded_id,
                         name: result_recorded_item_recorded_name,
+                        backend: result_recorded_item_recorded_backend,
                         direction: result_recorded_item_recorded_direction,
-                        sample_rate: result_recorded_item_recorded_sample_rate,
+                        connected: result_recorded_item_recorded_connected,
+                        is_default_playback: result_recorded_item_recorded_is_default_playback,
+                        is_default_capture: result_recorded_item_recorded_is_default_capture,
+                        preferred_sample_rate: result_recorded_item_recorded_preferred_sample_rate,
+                        min_sample_rate: result_recorded_item_recorded_min_sample_rate,
+                        max_sample_rate: result_recorded_item_recorded_max_sample_rate,
                         min_channels: result_recorded_item_recorded_min_channels,
                         max_channels: result_recorded_item_recorded_max_channels,
-                        default_period_frames: result_recorded_item_recorded_default_period_frames,
+                        preferred_layout: result_recorded_item_recorded_preferred_layout,
+                        preferred_channel_mask:
+                            result_recorded_item_recorded_preferred_channel_mask,
+                        supported_channel_mask:
+                            result_recorded_item_recorded_supported_channel_mask,
+                        min_period_frames: result_recorded_item_recorded_min_period_frames,
+                        max_period_frames: result_recorded_item_recorded_max_period_frames,
+                        format_mask: result_recorded_item_recorded_format_mask,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -883,20 +2443,51 @@ fn destack_audio_device_list_replay(
                             context.store_string(&value_native_item.id);
                         let value_native_item_native_name =
                             context.store_string(&value_native_item.name);
+                        let value_native_item_native_backend = value_native_item.backend;
                         let value_native_item_native_direction = value_native_item.direction;
-                        let value_native_item_native_sample_rate = value_native_item.sample_rate;
+                        let value_native_item_native_connected = value_native_item.connected;
+                        let value_native_item_native_is_default_playback =
+                            value_native_item.is_default_playback;
+                        let value_native_item_native_is_default_capture =
+                            value_native_item.is_default_capture;
+                        let value_native_item_native_preferred_sample_rate =
+                            value_native_item.preferred_sample_rate;
+                        let value_native_item_native_min_sample_rate =
+                            value_native_item.min_sample_rate;
+                        let value_native_item_native_max_sample_rate =
+                            value_native_item.max_sample_rate;
                         let value_native_item_native_min_channels = value_native_item.min_channels;
                         let value_native_item_native_max_channels = value_native_item.max_channels;
-                        let value_native_item_native_default_period_frames =
-                            value_native_item.default_period_frames;
+                        let value_native_item_native_preferred_layout =
+                            value_native_item.preferred_layout;
+                        let value_native_item_native_preferred_channel_mask =
+                            value_native_item.preferred_channel_mask;
+                        let value_native_item_native_supported_channel_mask =
+                            value_native_item.supported_channel_mask;
+                        let value_native_item_native_min_period_frames =
+                            value_native_item.min_period_frames;
+                        let value_native_item_native_max_period_frames =
+                            value_native_item.max_period_frames;
+                        let value_native_item_native_format_mask = value_native_item.format_mask;
                         let value_native_item_native = AudioDeviceInfo {
                             id: value_native_item_native_id,
                             name: value_native_item_native_name,
+                            backend: value_native_item_native_backend,
                             direction: value_native_item_native_direction,
-                            sample_rate: value_native_item_native_sample_rate,
+                            connected: value_native_item_native_connected,
+                            is_default_playback: value_native_item_native_is_default_playback,
+                            is_default_capture: value_native_item_native_is_default_capture,
+                            preferred_sample_rate: value_native_item_native_preferred_sample_rate,
+                            min_sample_rate: value_native_item_native_min_sample_rate,
+                            max_sample_rate: value_native_item_native_max_sample_rate,
                             min_channels: value_native_item_native_min_channels,
                             max_channels: value_native_item_native_max_channels,
-                            default_period_frames: value_native_item_native_default_period_frames,
+                            preferred_layout: value_native_item_native_preferred_layout,
+                            preferred_channel_mask: value_native_item_native_preferred_channel_mask,
+                            supported_channel_mask: value_native_item_native_supported_channel_mask,
+                            min_period_frames: value_native_item_native_min_period_frames,
+                            max_period_frames: value_native_item_native_max_period_frames,
+                            format_mask: value_native_item_native_format_mask,
                         };
                         value_native_values.push(value_native_item_native);
                     }
@@ -918,19 +2509,19 @@ fn destack_audio_device_open_replay(
     world: RuntimeWorld,
     out: *mut resource::AudioDeviceHandle,
     id: NativeStringRef,
-    direction: AudioDeviceDirection,
+    options: AudioDeviceOpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = (&id, &direction);
+    let _ = (&id, &options);
 
     context.replay().run_binding_with_payload_policy(
         AUDIO_DEVICE_OPEN,
         context.replay_payload_for(AUDIO_DEVICE_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_device_open(context, out, id, direction)
+                platform_native::destack_audio_device_open(context, out, id, options)
             },
             RuntimeWorld::Simulated => unsafe {
-                platform_simulated_native::destack_audio_device_open(context, out, id, direction)
+                platform_simulated_native::destack_audio_device_open(context, out, id, options)
             },
         },
         |result| {
@@ -963,6 +2554,348 @@ fn destack_audio_device_open_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_event_close_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::AudioEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_EVENT_CLOSE,
+        context.replay_payload_for(AUDIO_EVENT_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_event_close(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_event_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioEventCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_event_open_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::AudioEventHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_EVENT_OPEN,
+        context.replay_payload_for(AUDIO_EVENT_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_event_open(context, out)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_event_open(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = AudioEventOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_event_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioDeviceEvent,
+    handle: resource::AudioEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_EVENT_READ,
+        context.replay_payload_for(AUDIO_EVENT_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_event_read(context, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_event_read(context, out, handle, timeoutns)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device_id =
+                    unsafe { result_value.device_id.as_str()? }.to_string();
+                let result_recorded_flags = result_value.flags;
+                let result_recorded = AudioDeviceEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device_id: result_recorded_device_id,
+                    flags: result_recorded_flags,
+                };
+                let payload = AudioEventReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_flags = value.flags;
+                    let value_native = AudioDeviceEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        device_id: value_native_device_id,
+                        flags: value_native_flags,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_event_try_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioDeviceEvent,
+    handle: resource::AudioEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_EVENT_TRY_READ,
+        context.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_event_try_read(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_event_try_read(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_device_id =
+                    unsafe { result_value.device_id.as_str()? }.to_string();
+                let result_recorded_flags = result_value.flags;
+                let result_recorded = AudioDeviceEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    device_id: result_recorded_device_id,
+                    flags: result_recorded_flags,
+                };
+                let payload = AudioEventTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_flags = value.flags;
+                    let value_native = AudioDeviceEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        device_id: value_native_device_id,
+                        flags: value_native_flags,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_availability_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioStreamAvailability,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_AVAILABILITY,
+        context.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_availability(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_availability(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_readable_frames = result_value.readable_frames;
+                let result_recorded_writable_frames = result_value.writable_frames;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded = AudioStreamAvailability {
+                    readable_frames: result_recorded_readable_frames,
+                    writable_frames: result_recorded_writable_frames,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                };
+                let payload = AudioStreamAvailabilityReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamAvailabilityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_readable_frames = value.readable_frames;
+                    let value_native_writable_frames = value.writable_frames;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native = AudioStreamAvailability {
+                        readable_frames: value_native_readable_frames,
+                        writable_frames: value_native_writable_frames,
+                        timestamp_ns: value_native_timestamp_ns,
+                    };
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -1016,6 +2949,207 @@ fn destack_audio_stream_close_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_drain_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_DRAIN,
+        context.replay_payload_for(AUDIO_STREAM_DRAIN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_drain(context, handle, timeoutns)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_drain(context, handle, timeoutns)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamDrainReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamDrainReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_flush_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_FLUSH,
+        context.replay_payload_for(AUDIO_STREAM_FLUSH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_flush(context, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_flush(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamFlushReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamFlushReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_info_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioStreamInfo,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_INFO,
+        context.replay_payload_for(AUDIO_STREAM_INFO)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_info(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_info(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_sample_rate = result_value.sample_rate;
+                let result_recorded_channels = result_value.channels;
+                let result_recorded_channel_layout = result_value.channel_layout;
+                let result_recorded_channel_mask = result_value.channel_mask;
+                let result_recorded_format = result_value.format;
+                let result_recorded_period_frames = result_value.period_frames;
+                let result_recorded_transfer_mode = result_value.transfer_mode;
+                let result_recorded_exclusive_mode = result_value.exclusive_mode;
+                let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
+                let result_recorded_backend_id =
+                    unsafe { result_value.backend_id.as_str()? }.to_string();
+                let result_recorded = AudioStreamInfoReplayRecord {
+                    sample_rate: result_recorded_sample_rate,
+                    channels: result_recorded_channels,
+                    channel_layout: result_recorded_channel_layout,
+                    channel_mask: result_recorded_channel_mask,
+                    format: result_recorded_format,
+                    period_frames: result_recorded_period_frames,
+                    transfer_mode: result_recorded_transfer_mode,
+                    exclusive_mode: result_recorded_exclusive_mode,
+                    period_jitter_ns: result_recorded_period_jitter_ns,
+                    backend_id: result_recorded_backend_id,
+                };
+                let payload = AudioStreamInfoReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamInfoReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_sample_rate = value.sample_rate;
+                    let value_native_channels = value.channels;
+                    let value_native_channel_layout = value.channel_layout;
+                    let value_native_channel_mask = value.channel_mask;
+                    let value_native_format = value.format;
+                    let value_native_period_frames = value.period_frames;
+                    let value_native_transfer_mode = value.transfer_mode;
+                    let value_native_exclusive_mode = value.exclusive_mode;
+                    let value_native_period_jitter_ns = value.period_jitter_ns;
+                    let value_native_backend_id = context.store_string(&value.backend_id);
+                    let value_native = AudioStreamInfo {
+                        sample_rate: value_native_sample_rate,
+                        channels: value_native_channels,
+                        channel_layout: value_native_channel_layout,
+                        channel_mask: value_native_channel_mask,
+                        format: value_native_format,
+                        period_frames: value_native_period_frames,
+                        transfer_mode: value_native_transfer_mode,
+                        exclusive_mode: value_native_exclusive_mode,
+                        period_jitter_ns: value_native_period_jitter_ns,
+                        backend_id: value_native_backend_id,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -1158,6 +3292,106 @@ fn destack_audio_stream_read_replay(
 }
 
 #[inline]
+fn destack_audio_stream_set_mute_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    muted: bool,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &muted);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_SET_MUTE,
+        context.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_set_mute(context, handle, muted)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_set_mute(context, handle, muted)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamSetMuteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamSetMuteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_set_volume_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    lineargain: f64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &lineargain);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_SET_VOLUME,
+        context.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_set_volume(context, handle, lineargain)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_set_volume(
+                    context, handle, lineargain,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioStreamSetVolumeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamSetVolumeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_audio_stream_start_replay(
     context: &RuntimeCallContext,
     world: RuntimeWorld,
@@ -1233,13 +3467,17 @@ fn destack_audio_stream_state_replay(
                     }
                     *out
                 };
+                let result_recorded_state = result_value.state;
                 let result_recorded_running = result_value.running;
                 let result_recorded_buffered_frames = result_value.buffered_frames;
                 let result_recorded_latency_ns = result_value.latency_ns;
+                let result_recorded_xrun_count = result_value.xrun_count;
                 let result_recorded = AudioStreamState {
+                    state: result_recorded_state,
                     running: result_recorded_running,
                     buffered_frames: result_recorded_buffered_frames,
                     latency_ns: result_recorded_latency_ns,
+                    xrun_count: result_recorded_xrun_count,
                 };
                 let payload = AudioStreamStateReplay {
                     result: Ok(result_recorded),
@@ -1261,13 +3499,17 @@ fn destack_audio_stream_state_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
+                    let value_native_state = value.state;
                     let value_native_running = value.running;
                     let value_native_buffered_frames = value.buffered_frames;
                     let value_native_latency_ns = value.latency_ns;
+                    let value_native_xrun_count = value.xrun_count;
                     let value_native = AudioStreamState {
+                        state: value_native_state,
                         running: value_native_running,
                         buffered_frames: value_native_buffered_frames,
                         latency_ns: value_native_latency_ns,
+                        xrun_count: value_native_xrun_count,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -1322,6 +3564,224 @@ fn destack_audio_stream_stop_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_timing_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioStreamTiming,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_TIMING,
+        context.replay_payload_for(AUDIO_STREAM_TIMING)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_timing(context, out, handle)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_timing(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_stream_frames = result_value.stream_frames;
+                let result_recorded_device_clock_ns = result_value.device_clock_ns;
+                let result_recorded_monotonic_clock_ns = result_value.monotonic_clock_ns;
+                let result_recorded_drift_ppm = result_value.drift_ppm;
+                let result_recorded = AudioStreamTiming {
+                    stream_frames: result_recorded_stream_frames,
+                    device_clock_ns: result_recorded_device_clock_ns,
+                    monotonic_clock_ns: result_recorded_monotonic_clock_ns,
+                    drift_ppm: result_recorded_drift_ppm,
+                };
+                let payload = AudioStreamTimingReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamTimingReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_stream_frames = value.stream_frames;
+                    let value_native_device_clock_ns = value.device_clock_ns;
+                    let value_native_monotonic_clock_ns = value.monotonic_clock_ns;
+                    let value_native_drift_ppm = value.drift_ppm;
+                    let value_native = AudioStreamTiming {
+                        stream_frames: value_native_stream_frames,
+                        device_clock_ns: value_native_device_clock_ns,
+                        monotonic_clock_ns: value_native_monotonic_clock_ns,
+                        drift_ppm: value_native_drift_ppm,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_try_read_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<u8>,
+    handle: resource::AudioStreamHandle,
+    maxbytes: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxbytes);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_TRY_READ,
+        context.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_try_read(context, out, handle, maxbytes)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_try_read(
+                    context, out, handle, maxbytes,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioStreamTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_stream_try_write_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::AudioStreamHandle,
+    data: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &data);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_TRY_WRITE,
+        context.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_try_write(context, out, handle, data)
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_try_write(
+                    context, out, handle, data,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = AudioStreamTryWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamTryWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -1390,7 +3850,117 @@ fn destack_audio_stream_write_replay(
     )
 }
 
+#[inline]
+fn destack_audio_stream_write_at_replay(
+    context: &RuntimeCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+    handle: resource::AudioStreamHandle,
+    data: NativeSlice<u8>,
+    presentationtimens: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &data, &presentationtimens);
+
+    context.replay().run_binding_with_payload_policy(
+        AUDIO_STREAM_WRITE_AT,
+        context.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_write_at(
+                    context,
+                    out,
+                    handle,
+                    data,
+                    presentationtimens,
+                )
+            },
+            RuntimeWorld::Simulated => unsafe {
+                platform_simulated_native::destack_audio_stream_write_at(
+                    context,
+                    out,
+                    handle,
+                    data,
+                    presentationtimens,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = AudioStreamWriteAtReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamWriteAtReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
 /// Native export wrappers for audio bindings.
+#[unsafe(export_name = "destack.audio.clock.now")]
+pub unsafe extern "C" fn destack_audio_clock_now(
+    out: *mut u64,
+    domain: AudioClockDomain,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &domain);
+
+        context.check_policy(AUDIO_CLOCK_NOW)?;
+        let world = context.check_and_resolve_world(AUDIO_CLOCK_NOW)?;
+        destack_audio_clock_now_replay(context, world, out, domain)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.clock.stream")]
+pub unsafe extern "C" fn destack_audio_clock_stream(
+    out: *mut AudioClockSnapshot,
+    handle: resource::AudioStreamHandle,
+    domain: AudioClockDomain,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &domain);
+
+        context.check_policy(AUDIO_CLOCK_STREAM)?;
+        let world = context.check_and_resolve_world(AUDIO_CLOCK_STREAM)?;
+        destack_audio_clock_stream_replay(context, world, out, handle, domain)
+    })
+}
+
 #[unsafe(export_name = "destack.audio.device.close")]
 pub unsafe extern "C" fn destack_audio_device_close(
     handle: resource::AudioDeviceHandle,
@@ -1404,19 +3974,54 @@ pub unsafe extern "C" fn destack_audio_device_close(
     })
 }
 
-#[unsafe(export_name = "destack.audio.device.list")]
-pub unsafe extern "C" fn destack_audio_device_list(
-    out: *mut NativeSlice<AudioDeviceInfo>,
+#[unsafe(export_name = "destack.audio.device.default")]
+pub unsafe extern "C" fn destack_audio_device_default(
+    out: *mut NativeStringRef,
+    direction: AudioDeviceDirection,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = &out;
+        let _ = (&out, &direction);
+
+        context.check_policy(AUDIO_DEVICE_DEFAULT)?;
+        let world = context.check_and_resolve_world(AUDIO_DEVICE_DEFAULT)?;
+        destack_audio_device_default_replay(context, world, out, direction)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.device.info")]
+pub unsafe extern "C" fn destack_audio_device_info(
+    out: *mut AudioDeviceInfo,
+    handle: resource::AudioDeviceHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(AUDIO_DEVICE_INFO)?;
+        let world = context.check_and_resolve_world(AUDIO_DEVICE_INFO)?;
+        destack_audio_device_info_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.device.list")]
+pub unsafe extern "C" fn destack_audio_device_list(
+    out: *mut NativeSlice<AudioDeviceInfo>,
+    request: AudioDeviceListRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &request);
 
         context.check_policy(AUDIO_DEVICE_LIST)?;
         let world = context.check_and_resolve_world(AUDIO_DEVICE_LIST)?;
-        destack_audio_device_list_replay(context, world, out)
+        destack_audio_device_list_replay(context, world, out, request)
     })
 }
 
@@ -1424,17 +4029,98 @@ pub unsafe extern "C" fn destack_audio_device_list(
 pub unsafe extern "C" fn destack_audio_device_open(
     out: *mut resource::AudioDeviceHandle,
     id: NativeStringRef,
-    direction: AudioDeviceDirection,
+    options: AudioDeviceOpenOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &id, &direction);
+        let _ = (&out, &id, &options);
 
         context.check_policy(AUDIO_DEVICE_OPEN)?;
         let world = context.check_and_resolve_world(AUDIO_DEVICE_OPEN)?;
-        destack_audio_device_open_replay(context, world, out, id, direction)
+        destack_audio_device_open_replay(context, world, out, id, options)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.event.close")]
+pub unsafe extern "C" fn destack_audio_event_close(
+    handle: resource::AudioEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(AUDIO_EVENT_CLOSE)?;
+        let world = context.check_and_resolve_world(AUDIO_EVENT_CLOSE)?;
+        destack_audio_event_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.event.open")]
+pub unsafe extern "C" fn destack_audio_event_open(
+    out: *mut resource::AudioEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        context.check_policy(AUDIO_EVENT_OPEN)?;
+        let world = context.check_and_resolve_world(AUDIO_EVENT_OPEN)?;
+        destack_audio_event_open_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.event.read")]
+pub unsafe extern "C" fn destack_audio_event_read(
+    out: *mut AudioDeviceEvent,
+    handle: resource::AudioEventHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        context.check_policy(AUDIO_EVENT_READ)?;
+        let world = context.check_and_resolve_world(AUDIO_EVENT_READ)?;
+        destack_audio_event_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.event.tryRead")]
+pub unsafe extern "C" fn destack_audio_event_try_read(
+    out: *mut AudioDeviceEvent,
+    handle: resource::AudioEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(AUDIO_EVENT_TRY_READ)?;
+        let world = context.check_and_resolve_world(AUDIO_EVENT_TRY_READ)?;
+        destack_audio_event_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.availability")]
+pub unsafe extern "C" fn destack_audio_stream_availability(
+    out: *mut AudioStreamAvailability,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(AUDIO_STREAM_AVAILABILITY)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
+        destack_audio_stream_availability_replay(context, world, out, handle)
     })
 }
 
@@ -1448,6 +4134,50 @@ pub unsafe extern "C" fn destack_audio_stream_close(
         context.check_policy(AUDIO_STREAM_CLOSE)?;
         let world = context.check_and_resolve_world(AUDIO_STREAM_CLOSE)?;
         destack_audio_stream_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.drain")]
+pub unsafe extern "C" fn destack_audio_stream_drain(
+    handle: resource::AudioStreamHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &timeoutns);
+
+        context.check_policy(AUDIO_STREAM_DRAIN)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_DRAIN)?;
+        destack_audio_stream_drain_replay(context, world, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.flush")]
+pub unsafe extern "C" fn destack_audio_stream_flush(
+    handle: resource::AudioStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        context.check_policy(AUDIO_STREAM_FLUSH)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_FLUSH)?;
+        destack_audio_stream_flush_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.info")]
+pub unsafe extern "C" fn destack_audio_stream_info(
+    out: *mut AudioStreamInfo,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(AUDIO_STREAM_INFO)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_INFO)?;
+        destack_audio_stream_info_replay(context, world, out, handle)
     })
 }
 
@@ -1484,6 +4214,34 @@ pub unsafe extern "C" fn destack_audio_stream_read(
         context.check_policy(AUDIO_STREAM_READ)?;
         let world = context.check_and_resolve_world(AUDIO_STREAM_READ)?;
         destack_audio_stream_read_replay(context, world, out, handle, maxbytes)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.setMute")]
+pub unsafe extern "C" fn destack_audio_stream_set_mute(
+    handle: resource::AudioStreamHandle,
+    muted: bool,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &muted);
+
+        context.check_policy(AUDIO_STREAM_SET_MUTE)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_SET_MUTE)?;
+        destack_audio_stream_set_mute_replay(context, world, handle, muted)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.setVolume")]
+pub unsafe extern "C" fn destack_audio_stream_set_volume(
+    handle: resource::AudioStreamHandle,
+    lineargain: f64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &lineargain);
+
+        context.check_policy(AUDIO_STREAM_SET_VOLUME)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
+        destack_audio_stream_set_volume_replay(context, world, handle, lineargain)
     })
 }
 
@@ -1530,6 +4288,59 @@ pub unsafe extern "C" fn destack_audio_stream_stop(
     })
 }
 
+#[unsafe(export_name = "destack.audio.stream.timing")]
+pub unsafe extern "C" fn destack_audio_stream_timing(
+    out: *mut AudioStreamTiming,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        context.check_policy(AUDIO_STREAM_TIMING)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_TIMING)?;
+        destack_audio_stream_timing_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.tryRead")]
+pub unsafe extern "C" fn destack_audio_stream_try_read(
+    out: *mut NativeSlice<u8>,
+    handle: resource::AudioStreamHandle,
+    maxbytes: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxbytes);
+
+        context.check_policy(AUDIO_STREAM_TRY_READ)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_TRY_READ)?;
+        destack_audio_stream_try_read_replay(context, world, out, handle, maxbytes)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.tryWrite")]
+pub unsafe extern "C" fn destack_audio_stream_try_write(
+    out: *mut u64,
+    handle: resource::AudioStreamHandle,
+    data: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &data);
+
+        context.check_policy(AUDIO_STREAM_TRY_WRITE)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
+        destack_audio_stream_try_write_replay(context, world, out, handle, data)
+    })
+}
+
 #[unsafe(export_name = "destack.audio.stream.write")]
 pub unsafe extern "C" fn destack_audio_stream_write(
     out: *mut u64,
@@ -1548,7 +4359,157 @@ pub unsafe extern "C" fn destack_audio_stream_write(
     })
 }
 
+#[unsafe(export_name = "destack.audio.stream.writeAt")]
+pub unsafe extern "C" fn destack_audio_stream_write_at(
+    out: *mut u64,
+    handle: resource::AudioStreamHandle,
+    data: NativeSlice<u8>,
+    presentationtimens: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &data, &presentationtimens);
+
+        context.check_policy(AUDIO_STREAM_WRITE_AT)?;
+        let world = context.check_and_resolve_world(AUDIO_STREAM_WRITE_AT)?;
+        destack_audio_stream_write_at_replay(context, world, out, handle, data, presentationtimens)
+    })
+}
+
 /// VM replay implementations for audio bindings.
+#[inline]
+fn destack_audio_clock_now_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    domain: AudioClockDomain,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_CLOCK_NOW,
+            runtime.replay_payload_for(AUDIO_CLOCK_NOW)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_clock_now(runtime, context, domain)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_clock_now(runtime, context, domain)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = AudioClockNowReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioClockNowReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_clock_now_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_clock_stream_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    domain: AudioClockDomain,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_CLOCK_STREAM,
+            runtime.replay_payload_for(AUDIO_CLOCK_STREAM)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_clock(runtime, context, handle, domain)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_clock(
+                    runtime, context, handle, domain,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: AudioClockSnapshotVm = value.clone();
+                    let result_recorded_stream_frames = result_value.stream_frames;
+                    let result_recorded_clock_ns = result_value.clock_ns;
+                    let result_recorded_monotonic_ns = result_value.monotonic_ns;
+                    let result_recorded = AudioClockSnapshot {
+                        stream_frames: result_recorded_stream_frames,
+                        clock_ns: result_recorded_clock_ns,
+                        monotonic_ns: result_recorded_monotonic_ns,
+                    };
+                    let payload = AudioClockStreamReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioClockStreamReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_stream_frames = value.stream_frames;
+                        let vm_result_clock_ns = value.clock_ns;
+                        let vm_result_monotonic_ns = value.monotonic_ns;
+                        let vm_result = AudioClockSnapshotVm {
+                            stream_frames: vm_result_stream_frames,
+                            clock_ns: vm_result_clock_ns,
+                            monotonic_ns: vm_result_monotonic_ns,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_clock_stream_result(context, result)?;
+    Ok(result)
+}
+
 #[inline]
 fn destack_audio_device_close_vm_replay(
     runtime: &RuntimeCallContext,
@@ -1604,10 +4565,221 @@ fn destack_audio_device_close_vm_replay(
 }
 
 #[inline]
+fn destack_audio_device_default_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    direction: AudioDeviceDirection,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_DEVICE_DEFAULT,
+            runtime.replay_payload_for(AUDIO_DEVICE_DEFAULT)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_device_default(runtime, context, direction)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_device_default(runtime, context, direction)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: vm::StringHandle = value.clone();
+                    let result_recorded = {
+                        let result_recorded_ref = context
+                            .string_ref(result_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_ref.as_str().to_string()
+                    };
+                    let payload = AudioDeviceDefaultReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioDeviceDefaultReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_value = context.intern_string(value.as_str());
+                        let vm_result = vm::StringHandle::new(vm_result_value);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_device_default_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_device_info_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioDeviceHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_DEVICE_INFO,
+            runtime.replay_payload_for(AUDIO_DEVICE_INFO)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_device_info(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_device_info(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: AudioDeviceInfoVm = value.clone();
+                    let result_recorded_id = {
+                        let result_recorded_id_ref = context
+                            .string_ref(result_value.id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_name = {
+                        let result_recorded_name_ref = context
+                            .string_ref(result_value.name)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_name_ref.as_str().to_string()
+                    };
+                    let result_recorded_backend = result_value.backend;
+                    let result_recorded_direction = result_value.direction;
+                    let result_recorded_connected = result_value.connected;
+                    let result_recorded_is_default_playback = result_value.is_default_playback;
+                    let result_recorded_is_default_capture = result_value.is_default_capture;
+                    let result_recorded_preferred_sample_rate = result_value.preferred_sample_rate;
+                    let result_recorded_min_sample_rate = result_value.min_sample_rate;
+                    let result_recorded_max_sample_rate = result_value.max_sample_rate;
+                    let result_recorded_min_channels = result_value.min_channels;
+                    let result_recorded_max_channels = result_value.max_channels;
+                    let result_recorded_preferred_layout = result_value.preferred_layout;
+                    let result_recorded_preferred_channel_mask =
+                        result_value.preferred_channel_mask;
+                    let result_recorded_supported_channel_mask =
+                        result_value.supported_channel_mask;
+                    let result_recorded_min_period_frames = result_value.min_period_frames;
+                    let result_recorded_max_period_frames = result_value.max_period_frames;
+                    let result_recorded_format_mask = result_value.format_mask;
+                    let result_recorded = AudioDeviceInfoReplayRecord {
+                        id: result_recorded_id,
+                        name: result_recorded_name,
+                        backend: result_recorded_backend,
+                        direction: result_recorded_direction,
+                        connected: result_recorded_connected,
+                        is_default_playback: result_recorded_is_default_playback,
+                        is_default_capture: result_recorded_is_default_capture,
+                        preferred_sample_rate: result_recorded_preferred_sample_rate,
+                        min_sample_rate: result_recorded_min_sample_rate,
+                        max_sample_rate: result_recorded_max_sample_rate,
+                        min_channels: result_recorded_min_channels,
+                        max_channels: result_recorded_max_channels,
+                        preferred_layout: result_recorded_preferred_layout,
+                        preferred_channel_mask: result_recorded_preferred_channel_mask,
+                        supported_channel_mask: result_recorded_supported_channel_mask,
+                        min_period_frames: result_recorded_min_period_frames,
+                        max_period_frames: result_recorded_max_period_frames,
+                        format_mask: result_recorded_format_mask,
+                    };
+                    let payload = AudioDeviceInfoReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioDeviceInfoReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_id_value = context.intern_string(value.id.as_str());
+                        let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                        let vm_result_name_value = context.intern_string(value.name.as_str());
+                        let vm_result_name = vm::StringHandle::new(vm_result_name_value);
+                        let vm_result_backend = value.backend;
+                        let vm_result_direction = value.direction;
+                        let vm_result_connected = value.connected;
+                        let vm_result_is_default_playback = value.is_default_playback;
+                        let vm_result_is_default_capture = value.is_default_capture;
+                        let vm_result_preferred_sample_rate = value.preferred_sample_rate;
+                        let vm_result_min_sample_rate = value.min_sample_rate;
+                        let vm_result_max_sample_rate = value.max_sample_rate;
+                        let vm_result_min_channels = value.min_channels;
+                        let vm_result_max_channels = value.max_channels;
+                        let vm_result_preferred_layout = value.preferred_layout;
+                        let vm_result_preferred_channel_mask = value.preferred_channel_mask;
+                        let vm_result_supported_channel_mask = value.supported_channel_mask;
+                        let vm_result_min_period_frames = value.min_period_frames;
+                        let vm_result_max_period_frames = value.max_period_frames;
+                        let vm_result_format_mask = value.format_mask;
+                        let vm_result = AudioDeviceInfoVm {
+                            id: vm_result_id,
+                            name: vm_result_name,
+                            backend: vm_result_backend,
+                            direction: vm_result_direction,
+                            connected: vm_result_connected,
+                            is_default_playback: vm_result_is_default_playback,
+                            is_default_capture: vm_result_is_default_capture,
+                            preferred_sample_rate: vm_result_preferred_sample_rate,
+                            min_sample_rate: vm_result_min_sample_rate,
+                            max_sample_rate: vm_result_max_sample_rate,
+                            min_channels: vm_result_min_channels,
+                            max_channels: vm_result_max_channels,
+                            preferred_layout: vm_result_preferred_layout,
+                            preferred_channel_mask: vm_result_preferred_channel_mask,
+                            supported_channel_mask: vm_result_supported_channel_mask,
+                            min_period_frames: vm_result_min_period_frames,
+                            max_period_frames: vm_result_max_period_frames,
+                            format_mask: vm_result_format_mask,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_device_info_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_audio_device_list_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
+    request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -1616,9 +4788,11 @@ fn destack_audio_device_list_vm_replay(
             runtime.replay_payload_for(AUDIO_DEVICE_LIST)?,
             context,
             |context| match world {
-                RuntimeWorld::Host => platform_vm::destack_audio_device_list(runtime, context),
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_device_list(runtime, context, request)
+                }
                 RuntimeWorld::Simulated => {
-                    platform_simulated_vm::destack_audio_device_list(runtime, context)
+                    platform_simulated_vm::destack_audio_device_list(runtime, context, request)
                 }
             },
             |context, result| {
@@ -1641,11 +4815,11 @@ fn destack_audio_device_list_vm_replay(
                             let slots = context
                                 .aggregate_slots(result_recorded_item_value)
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 7 {
+                            if slots.len() != 18 {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(
                                         "result_recorded_item",
-                                        "expected 7 fields",
+                                        "expected 18 fields",
                                     ),
                                 )
                                 .boxed());
@@ -1654,8 +4828,35 @@ fn destack_audio_device_list_vm_replay(
                                 decode_string(slots[0], "result_recorded_item_id", "id")?;
                             let result_recorded_item_name =
                                 decode_string(slots[1], "result_recorded_item_name", "name")?;
-                            let result_recorded_item_direction_raw = decode_uint8(
+                            let result_recorded_item_backend_raw = decode_uint8(
                                 slots[2],
+                                "result_recorded_item_backend_raw",
+                                "backend",
+                            )?;
+                            let result_recorded_item_backend =
+                                match result_recorded_item_backend_raw {
+                                    0u8 => AudioBackend::Auto,
+                                    1u8 => AudioBackend::Alsa,
+                                    2u8 => AudioBackend::PulseAudio,
+                                    3u8 => AudioBackend::PipeWire,
+                                    4u8 => AudioBackend::CoreAudio,
+                                    5u8 => AudioBackend::Wasapi,
+                                    6u8 => AudioBackend::AAudio,
+                                    7u8 => AudioBackend::OpenSLES,
+                                    8u8 => AudioBackend::WebAudio,
+                                    255u8 => AudioBackend::Null,
+                                    _ => {
+                                        return Err(RuntimeError::from(
+                                            PlatformError::invalid_argument_value(
+                                                "result_recorded_item_backend",
+                                                "unknown AudioBackend value",
+                                            ),
+                                        )
+                                        .boxed());
+                                    }
+                                };
+                            let result_recorded_item_direction_raw = decode_uint8(
+                                slots[3],
                                 "result_recorded_item_direction_raw",
                                 "direction",
                             )?;
@@ -1674,34 +4875,114 @@ fn destack_audio_device_list_vm_replay(
                                         .boxed());
                                     }
                                 };
-                            let result_recorded_item_sample_rate = decode_uint32(
-                                slots[3],
-                                "result_recorded_item_sample_rate",
-                                "sampleRate",
+                            let result_recorded_item_connected = decode_bool(
+                                slots[4],
+                                "result_recorded_item_connected",
+                                "connected",
+                            )?;
+                            let result_recorded_item_is_default_playback = decode_bool(
+                                slots[5],
+                                "result_recorded_item_is_default_playback",
+                                "isDefaultPlayback",
+                            )?;
+                            let result_recorded_item_is_default_capture = decode_bool(
+                                slots[6],
+                                "result_recorded_item_is_default_capture",
+                                "isDefaultCapture",
+                            )?;
+                            let result_recorded_item_preferred_sample_rate = decode_uint32(
+                                slots[7],
+                                "result_recorded_item_preferred_sample_rate",
+                                "preferredSampleRate",
+                            )?;
+                            let result_recorded_item_min_sample_rate = decode_uint32(
+                                slots[8],
+                                "result_recorded_item_min_sample_rate",
+                                "minSampleRate",
+                            )?;
+                            let result_recorded_item_max_sample_rate = decode_uint32(
+                                slots[9],
+                                "result_recorded_item_max_sample_rate",
+                                "maxSampleRate",
                             )?;
                             let result_recorded_item_min_channels = decode_uint16(
-                                slots[4],
+                                slots[10],
                                 "result_recorded_item_min_channels",
                                 "minChannels",
                             )?;
                             let result_recorded_item_max_channels = decode_uint16(
-                                slots[5],
+                                slots[11],
                                 "result_recorded_item_max_channels",
                                 "maxChannels",
                             )?;
-                            let result_recorded_item_default_period_frames = decode_uint32(
-                                slots[6],
-                                "result_recorded_item_default_period_frames",
-                                "defaultPeriodFrames",
+                            let result_recorded_item_preferred_layout_raw = decode_uint8(
+                                slots[12],
+                                "result_recorded_item_preferred_layout_raw",
+                                "preferredLayout",
+                            )?;
+                            let result_recorded_item_preferred_layout =
+                                match result_recorded_item_preferred_layout_raw {
+                                    0u8 => AudioChannelLayout::Unknown,
+                                    1u8 => AudioChannelLayout::Mono,
+                                    2u8 => AudioChannelLayout::Stereo,
+                                    3u8 => AudioChannelLayout::Quad,
+                                    4u8 => AudioChannelLayout::Surround51,
+                                    5u8 => AudioChannelLayout::Surround71,
+                                    255u8 => AudioChannelLayout::Custom,
+                                    _ => {
+                                        return Err(RuntimeError::from(
+                                            PlatformError::invalid_argument_value(
+                                                "result_recorded_item_preferred_layout",
+                                                "unknown AudioChannelLayout value",
+                                            ),
+                                        )
+                                        .boxed());
+                                    }
+                                };
+                            let result_recorded_item_preferred_channel_mask = decode_uint64(
+                                slots[13],
+                                "result_recorded_item_preferred_channel_mask",
+                                "preferredChannelMask",
+                            )?;
+                            let result_recorded_item_supported_channel_mask = decode_uint64(
+                                slots[14],
+                                "result_recorded_item_supported_channel_mask",
+                                "supportedChannelMask",
+                            )?;
+                            let result_recorded_item_min_period_frames = decode_uint32(
+                                slots[15],
+                                "result_recorded_item_min_period_frames",
+                                "minPeriodFrames",
+                            )?;
+                            let result_recorded_item_max_period_frames = decode_uint32(
+                                slots[16],
+                                "result_recorded_item_max_period_frames",
+                                "maxPeriodFrames",
+                            )?;
+                            let result_recorded_item_format_mask = decode_uint32(
+                                slots[17],
+                                "result_recorded_item_format_mask",
+                                "formatMask",
                             )?;
                             AudioDeviceInfoVm {
                                 id: result_recorded_item_id,
                                 name: result_recorded_item_name,
+                                backend: result_recorded_item_backend,
                                 direction: result_recorded_item_direction,
-                                sample_rate: result_recorded_item_sample_rate,
+                                connected: result_recorded_item_connected,
+                                is_default_playback: result_recorded_item_is_default_playback,
+                                is_default_capture: result_recorded_item_is_default_capture,
+                                preferred_sample_rate: result_recorded_item_preferred_sample_rate,
+                                min_sample_rate: result_recorded_item_min_sample_rate,
+                                max_sample_rate: result_recorded_item_max_sample_rate,
                                 min_channels: result_recorded_item_min_channels,
                                 max_channels: result_recorded_item_max_channels,
-                                default_period_frames: result_recorded_item_default_period_frames,
+                                preferred_layout: result_recorded_item_preferred_layout,
+                                preferred_channel_mask: result_recorded_item_preferred_channel_mask,
+                                supported_channel_mask: result_recorded_item_supported_channel_mask,
+                                min_period_frames: result_recorded_item_min_period_frames,
+                                max_period_frames: result_recorded_item_max_period_frames,
+                                format_mask: result_recorded_item_format_mask,
                             }
                         };
                         let result_recorded_item_recorded_id = {
@@ -1716,25 +4997,59 @@ fn destack_audio_device_list_vm_replay(
                                 .map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_item_recorded_name_ref.as_str().to_string()
                         };
+                        let result_recorded_item_recorded_backend = result_recorded_item.backend;
                         let result_recorded_item_recorded_direction =
                             result_recorded_item.direction;
-                        let result_recorded_item_recorded_sample_rate =
-                            result_recorded_item.sample_rate;
+                        let result_recorded_item_recorded_connected =
+                            result_recorded_item.connected;
+                        let result_recorded_item_recorded_is_default_playback =
+                            result_recorded_item.is_default_playback;
+                        let result_recorded_item_recorded_is_default_capture =
+                            result_recorded_item.is_default_capture;
+                        let result_recorded_item_recorded_preferred_sample_rate =
+                            result_recorded_item.preferred_sample_rate;
+                        let result_recorded_item_recorded_min_sample_rate =
+                            result_recorded_item.min_sample_rate;
+                        let result_recorded_item_recorded_max_sample_rate =
+                            result_recorded_item.max_sample_rate;
                         let result_recorded_item_recorded_min_channels =
                             result_recorded_item.min_channels;
                         let result_recorded_item_recorded_max_channels =
                             result_recorded_item.max_channels;
-                        let result_recorded_item_recorded_default_period_frames =
-                            result_recorded_item.default_period_frames;
+                        let result_recorded_item_recorded_preferred_layout =
+                            result_recorded_item.preferred_layout;
+                        let result_recorded_item_recorded_preferred_channel_mask =
+                            result_recorded_item.preferred_channel_mask;
+                        let result_recorded_item_recorded_supported_channel_mask =
+                            result_recorded_item.supported_channel_mask;
+                        let result_recorded_item_recorded_min_period_frames =
+                            result_recorded_item.min_period_frames;
+                        let result_recorded_item_recorded_max_period_frames =
+                            result_recorded_item.max_period_frames;
+                        let result_recorded_item_recorded_format_mask =
+                            result_recorded_item.format_mask;
                         let result_recorded_item_recorded = AudioDeviceInfoReplayRecord {
                             id: result_recorded_item_recorded_id,
                             name: result_recorded_item_recorded_name,
+                            backend: result_recorded_item_recorded_backend,
                             direction: result_recorded_item_recorded_direction,
-                            sample_rate: result_recorded_item_recorded_sample_rate,
+                            connected: result_recorded_item_recorded_connected,
+                            is_default_playback: result_recorded_item_recorded_is_default_playback,
+                            is_default_capture: result_recorded_item_recorded_is_default_capture,
+                            preferred_sample_rate:
+                                result_recorded_item_recorded_preferred_sample_rate,
+                            min_sample_rate: result_recorded_item_recorded_min_sample_rate,
+                            max_sample_rate: result_recorded_item_recorded_max_sample_rate,
                             min_channels: result_recorded_item_recorded_min_channels,
                             max_channels: result_recorded_item_recorded_max_channels,
-                            default_period_frames:
-                                result_recorded_item_recorded_default_period_frames,
+                            preferred_layout: result_recorded_item_recorded_preferred_layout,
+                            preferred_channel_mask:
+                                result_recorded_item_recorded_preferred_channel_mask,
+                            supported_channel_mask:
+                                result_recorded_item_recorded_supported_channel_mask,
+                            min_period_frames: result_recorded_item_recorded_min_period_frames,
+                            max_period_frames: result_recorded_item_recorded_max_period_frames,
+                            format_mask: result_recorded_item_recorded_format_mask,
                         };
                         result_recorded.push(result_recorded_item_recorded);
                     }
@@ -1770,38 +5085,106 @@ fn destack_audio_device_list_vm_replay(
                                 context.intern_string(vm_result_item.name.as_str());
                             let vm_result_item_value_name =
                                 vm::StringHandle::new(vm_result_item_value_name_value);
+                            let vm_result_item_value_backend = vm_result_item.backend;
                             let vm_result_item_value_direction = vm_result_item.direction;
-                            let vm_result_item_value_sample_rate = vm_result_item.sample_rate;
+                            let vm_result_item_value_connected = vm_result_item.connected;
+                            let vm_result_item_value_is_default_playback =
+                                vm_result_item.is_default_playback;
+                            let vm_result_item_value_is_default_capture =
+                                vm_result_item.is_default_capture;
+                            let vm_result_item_value_preferred_sample_rate =
+                                vm_result_item.preferred_sample_rate;
+                            let vm_result_item_value_min_sample_rate =
+                                vm_result_item.min_sample_rate;
+                            let vm_result_item_value_max_sample_rate =
+                                vm_result_item.max_sample_rate;
                             let vm_result_item_value_min_channels = vm_result_item.min_channels;
                             let vm_result_item_value_max_channels = vm_result_item.max_channels;
-                            let vm_result_item_value_default_period_frames =
-                                vm_result_item.default_period_frames;
+                            let vm_result_item_value_preferred_layout =
+                                vm_result_item.preferred_layout;
+                            let vm_result_item_value_preferred_channel_mask =
+                                vm_result_item.preferred_channel_mask;
+                            let vm_result_item_value_supported_channel_mask =
+                                vm_result_item.supported_channel_mask;
+                            let vm_result_item_value_min_period_frames =
+                                vm_result_item.min_period_frames;
+                            let vm_result_item_value_max_period_frames =
+                                vm_result_item.max_period_frames;
+                            let vm_result_item_value_format_mask = vm_result_item.format_mask;
                             let vm_result_item_value = AudioDeviceInfoVm {
                                 id: vm_result_item_value_id,
                                 name: vm_result_item_value_name,
+                                backend: vm_result_item_value_backend,
                                 direction: vm_result_item_value_direction,
-                                sample_rate: vm_result_item_value_sample_rate,
+                                connected: vm_result_item_value_connected,
+                                is_default_playback: vm_result_item_value_is_default_playback,
+                                is_default_capture: vm_result_item_value_is_default_capture,
+                                preferred_sample_rate: vm_result_item_value_preferred_sample_rate,
+                                min_sample_rate: vm_result_item_value_min_sample_rate,
+                                max_sample_rate: vm_result_item_value_max_sample_rate,
                                 min_channels: vm_result_item_value_min_channels,
                                 max_channels: vm_result_item_value_max_channels,
-                                default_period_frames: vm_result_item_value_default_period_frames,
+                                preferred_layout: vm_result_item_value_preferred_layout,
+                                preferred_channel_mask: vm_result_item_value_preferred_channel_mask,
+                                supported_channel_mask: vm_result_item_value_supported_channel_mask,
+                                min_period_frames: vm_result_item_value_min_period_frames,
+                                max_period_frames: vm_result_item_value_max_period_frames,
+                                format_mask: vm_result_item_value_format_mask,
                             };
                             let vm_result_item_value_encoded = {
                                 let field_0 = vm_result_item_value.id.value();
                                 let field_1 = vm_result_item_value.name.value();
                                 let field_2 =
-                                    vm::Value::uint(vm_result_item_value.direction as u8 as u64, 8);
+                                    vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
                                 let field_3 =
-                                    vm::Value::uint(vm_result_item_value.sample_rate as u64, 32);
-                                let field_4 =
-                                    vm::Value::uint(vm_result_item_value.min_channels as u64, 16);
+                                    vm::Value::uint(vm_result_item_value.direction as u8 as u64, 8);
+                                let field_4 = vm::Value::bool(vm_result_item_value.connected);
                                 let field_5 =
-                                    vm::Value::uint(vm_result_item_value.max_channels as u64, 16);
-                                let field_6 = vm::Value::uint(
-                                    vm_result_item_value.default_period_frames as u64,
+                                    vm::Value::bool(vm_result_item_value.is_default_playback);
+                                let field_6 =
+                                    vm::Value::bool(vm_result_item_value.is_default_capture);
+                                let field_7 = vm::Value::uint(
+                                    vm_result_item_value.preferred_sample_rate as u64,
                                     32,
                                 );
+                                let field_8 = vm::Value::uint(
+                                    vm_result_item_value.min_sample_rate as u64,
+                                    32,
+                                );
+                                let field_9 = vm::Value::uint(
+                                    vm_result_item_value.max_sample_rate as u64,
+                                    32,
+                                );
+                                let field_10 =
+                                    vm::Value::uint(vm_result_item_value.min_channels as u64, 16);
+                                let field_11 =
+                                    vm::Value::uint(vm_result_item_value.max_channels as u64, 16);
+                                let field_12 = vm::Value::uint(
+                                    vm_result_item_value.preferred_layout as u8 as u64,
+                                    8,
+                                );
+                                let field_13 = vm::Value::uint(
+                                    vm_result_item_value.preferred_channel_mask,
+                                    64,
+                                );
+                                let field_14 = vm::Value::uint(
+                                    vm_result_item_value.supported_channel_mask,
+                                    64,
+                                );
+                                let field_15 = vm::Value::uint(
+                                    vm_result_item_value.min_period_frames as u64,
+                                    32,
+                                );
+                                let field_16 = vm::Value::uint(
+                                    vm_result_item_value.max_period_frames as u64,
+                                    32,
+                                );
+                                let field_17 =
+                                    vm::Value::uint(vm_result_item_value.format_mask as u64, 32);
                                 context.allocate_aggregate(vec![
                                     field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                    field_7, field_8, field_9, field_10, field_11, field_12,
+                                    field_13, field_14, field_15, field_16, field_17,
                                 ])
                             };
                             vm_result_values.push(vm_result_item_value_encoded);
@@ -1828,7 +5211,7 @@ fn destack_audio_device_open_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     id: vm::StringHandle,
-    direction: AudioDeviceDirection,
+    options: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime
         .replay()
@@ -1838,11 +5221,11 @@ fn destack_audio_device_open_vm_replay(
             context,
             |context| match world {
                 RuntimeWorld::Host => {
-                    platform_vm::destack_audio_device_open(runtime, context, id, direction)
+                    platform_vm::destack_audio_device_open(runtime, context, id, options)
                 }
-                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_device_open(
-                    runtime, context, id, direction,
-                ),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_device_open(runtime, context, id, options)
+                }
             },
             |context, result| {
                 let _ = &context;
@@ -1878,6 +5261,356 @@ fn destack_audio_device_open_vm_replay(
             },
         );
     let result = encode_destack_audio_device_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_event_close_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_EVENT_CLOSE,
+            runtime.replay_payload_for(AUDIO_EVENT_CLOSE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_event_close(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_event_close(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = AudioEventCloseReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioEventCloseReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_event_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_event_open_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_EVENT_OPEN,
+            runtime.replay_payload_for(AUDIO_EVENT_OPEN)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_audio_event_open(runtime, context),
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_event_open(runtime, context)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: resource::AudioEventHandle = value.clone();
+                    let result_recorded = result_value;
+                    let payload = AudioEventOpenReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioEventOpenReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_event_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_event_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_EVENT_READ,
+            runtime.replay_payload_for(AUDIO_EVENT_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_event_read(runtime, context, handle, timeoutns)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_event_read(
+                    runtime, context, handle, timeoutns,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: AudioDeviceEventVm = value.clone();
+                    let result_recorded_kind = result_value.kind;
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_device_id = {
+                        let result_recorded_device_id_ref = context
+                            .string_ref(result_value.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_device_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_flags = result_value.flags;
+                    let result_recorded = AudioDeviceEventReplayRecord {
+                        kind: result_recorded_kind,
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        device_id: result_recorded_device_id,
+                        flags: result_recorded_flags,
+                    };
+                    let payload = AudioEventReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioEventReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_kind = value.kind;
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_device_id_value =
+                            context.intern_string(value.device_id.as_str());
+                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                        let vm_result_flags = value.flags;
+                        let vm_result = AudioDeviceEventVm {
+                            kind: vm_result_kind,
+                            timestamp_ns: vm_result_timestamp_ns,
+                            device_id: vm_result_device_id,
+                            flags: vm_result_flags,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_event_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_event_try_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_EVENT_TRY_READ,
+            runtime.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_event_try_read(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_event_try_read(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: AudioDeviceEventVm = value.clone();
+                    let result_recorded_kind = result_value.kind;
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded_device_id = {
+                        let result_recorded_device_id_ref = context
+                            .string_ref(result_value.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_device_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_flags = result_value.flags;
+                    let result_recorded = AudioDeviceEventReplayRecord {
+                        kind: result_recorded_kind,
+                        timestamp_ns: result_recorded_timestamp_ns,
+                        device_id: result_recorded_device_id,
+                        flags: result_recorded_flags,
+                    };
+                    let payload = AudioEventTryReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioEventTryReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_kind = value.kind;
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result_device_id_value =
+                            context.intern_string(value.device_id.as_str());
+                        let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                        let vm_result_flags = value.flags;
+                        let vm_result = AudioDeviceEventVm {
+                            kind: vm_result_kind,
+                            timestamp_ns: vm_result_timestamp_ns,
+                            device_id: vm_result_device_id,
+                            flags: vm_result_flags,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_event_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_stream_availability_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_AVAILABILITY,
+            runtime.replay_payload_for(AUDIO_STREAM_AVAILABILITY)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_availability(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_stream_availability(
+                        runtime, context, handle,
+                    )
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: AudioStreamAvailabilityVm = value.clone();
+                    let result_recorded_readable_frames = result_value.readable_frames;
+                    let result_recorded_writable_frames = result_value.writable_frames;
+                    let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                    let result_recorded = AudioStreamAvailability {
+                        readable_frames: result_recorded_readable_frames,
+                        writable_frames: result_recorded_writable_frames,
+                        timestamp_ns: result_recorded_timestamp_ns,
+                    };
+                    let payload = AudioStreamAvailabilityReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamAvailabilityReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_readable_frames = value.readable_frames;
+                        let vm_result_writable_frames = value.writable_frames;
+                        let vm_result_timestamp_ns = value.timestamp_ns;
+                        let vm_result = AudioStreamAvailabilityVm {
+                            readable_frames: vm_result_readable_frames,
+                            writable_frames: vm_result_writable_frames,
+                            timestamp_ns: vm_result_timestamp_ns,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_availability_result(context, result)?;
     Ok(result)
 }
 
@@ -1932,6 +5665,223 @@ fn destack_audio_stream_close_vm_replay(
             },
         );
     let result = encode_destack_audio_stream_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_stream_drain_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_DRAIN,
+            runtime.replay_payload_for(AUDIO_STREAM_DRAIN)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_drain(runtime, context, handle, timeoutns)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_drain(
+                    runtime, context, handle, timeoutns,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = AudioStreamDrainReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamDrainReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_drain_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_stream_flush_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_FLUSH,
+            runtime.replay_payload_for(AUDIO_STREAM_FLUSH)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_flush(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_stream_flush(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = AudioStreamFlushReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamFlushReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_flush_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_stream_info_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_INFO,
+            runtime.replay_payload_for(AUDIO_STREAM_INFO)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_info(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_stream_info(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: AudioStreamInfoVm = value.clone();
+                    let result_recorded_sample_rate = result_value.sample_rate;
+                    let result_recorded_channels = result_value.channels;
+                    let result_recorded_channel_layout = result_value.channel_layout;
+                    let result_recorded_channel_mask = result_value.channel_mask;
+                    let result_recorded_format = result_value.format;
+                    let result_recorded_period_frames = result_value.period_frames;
+                    let result_recorded_transfer_mode = result_value.transfer_mode;
+                    let result_recorded_exclusive_mode = result_value.exclusive_mode;
+                    let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
+                    let result_recorded_backend_id = {
+                        let result_recorded_backend_id_ref = context
+                            .string_ref(result_value.backend_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_backend_id_ref.as_str().to_string()
+                    };
+                    let result_recorded = AudioStreamInfoReplayRecord {
+                        sample_rate: result_recorded_sample_rate,
+                        channels: result_recorded_channels,
+                        channel_layout: result_recorded_channel_layout,
+                        channel_mask: result_recorded_channel_mask,
+                        format: result_recorded_format,
+                        period_frames: result_recorded_period_frames,
+                        transfer_mode: result_recorded_transfer_mode,
+                        exclusive_mode: result_recorded_exclusive_mode,
+                        period_jitter_ns: result_recorded_period_jitter_ns,
+                        backend_id: result_recorded_backend_id,
+                    };
+                    let payload = AudioStreamInfoReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamInfoReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_sample_rate = value.sample_rate;
+                        let vm_result_channels = value.channels;
+                        let vm_result_channel_layout = value.channel_layout;
+                        let vm_result_channel_mask = value.channel_mask;
+                        let vm_result_format = value.format;
+                        let vm_result_period_frames = value.period_frames;
+                        let vm_result_transfer_mode = value.transfer_mode;
+                        let vm_result_exclusive_mode = value.exclusive_mode;
+                        let vm_result_period_jitter_ns = value.period_jitter_ns;
+                        let vm_result_backend_id_value =
+                            context.intern_string(value.backend_id.as_str());
+                        let vm_result_backend_id =
+                            vm::StringHandle::new(vm_result_backend_id_value);
+                        let vm_result = AudioStreamInfoVm {
+                            sample_rate: vm_result_sample_rate,
+                            channels: vm_result_channels,
+                            channel_layout: vm_result_channel_layout,
+                            channel_mask: vm_result_channel_mask,
+                            format: vm_result_format,
+                            period_frames: vm_result_period_frames,
+                            transfer_mode: vm_result_transfer_mode,
+                            exclusive_mode: vm_result_exclusive_mode,
+                            period_jitter_ns: vm_result_period_jitter_ns,
+                            backend_id: vm_result_backend_id,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_info_result(context, result)?;
     Ok(result)
 }
 
@@ -2054,6 +6004,116 @@ fn destack_audio_stream_read_vm_replay(
 }
 
 #[inline]
+fn destack_audio_stream_set_mute_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    muted: bool,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_SET_MUTE,
+            runtime.replay_payload_for(AUDIO_STREAM_SET_MUTE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_set_mute(runtime, context, handle, muted)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_set_mute(
+                    runtime, context, handle, muted,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = AudioStreamSetMuteReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamSetMuteReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_set_mute_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_stream_set_volume_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    lineargain: f64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_SET_VOLUME,
+            runtime.replay_payload_for(AUDIO_STREAM_SET_VOLUME)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_audio_stream_set_volume(
+                    runtime, context, handle, lineargain,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_set_volume(
+                    runtime, context, handle, lineargain,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(()) = result {
+                    let result_recorded = ();
+                    let payload = AudioStreamSetVolumeReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamSetVolumeReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_set_volume_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_audio_stream_start_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -2132,13 +6192,17 @@ fn destack_audio_stream_state_vm_replay(
                 let _ = &context;
                 if let Ok(value) = result {
                     let result_value: AudioStreamStateVm = value.clone();
+                    let result_recorded_state = result_value.state;
                     let result_recorded_running = result_value.running;
                     let result_recorded_buffered_frames = result_value.buffered_frames;
                     let result_recorded_latency_ns = result_value.latency_ns;
+                    let result_recorded_xrun_count = result_value.xrun_count;
                     let result_recorded = AudioStreamState {
+                        state: result_recorded_state,
                         running: result_recorded_running,
                         buffered_frames: result_recorded_buffered_frames,
                         latency_ns: result_recorded_latency_ns,
+                        xrun_count: result_recorded_xrun_count,
                     };
                     let payload = AudioStreamStateReplay {
                         result: Ok(result_recorded),
@@ -2161,13 +6225,17 @@ fn destack_audio_stream_state_vm_replay(
                 // replay result
                 match payload.result {
                     Ok(value) => {
+                        let vm_result_state = value.state;
                         let vm_result_running = value.running;
                         let vm_result_buffered_frames = value.buffered_frames;
                         let vm_result_latency_ns = value.latency_ns;
+                        let vm_result_xrun_count = value.xrun_count;
                         let vm_result = AudioStreamStateVm {
+                            state: vm_result_state,
                             running: vm_result_running,
                             buffered_frames: vm_result_buffered_frames,
                             latency_ns: vm_result_latency_ns,
+                            xrun_count: vm_result_xrun_count,
                         };
                         Ok(vm_result)
                     }
@@ -2234,6 +6302,200 @@ fn destack_audio_stream_stop_vm_replay(
 }
 
 #[inline]
+fn destack_audio_stream_timing_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_TIMING,
+            runtime.replay_payload_for(AUDIO_STREAM_TIMING)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_timing(runtime, context, handle)
+                }
+                RuntimeWorld::Simulated => {
+                    platform_simulated_vm::destack_audio_stream_timing(runtime, context, handle)
+                }
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: AudioStreamTimingVm = value.clone();
+                    let result_recorded_stream_frames = result_value.stream_frames;
+                    let result_recorded_device_clock_ns = result_value.device_clock_ns;
+                    let result_recorded_monotonic_clock_ns = result_value.monotonic_clock_ns;
+                    let result_recorded_drift_ppm = result_value.drift_ppm;
+                    let result_recorded = AudioStreamTiming {
+                        stream_frames: result_recorded_stream_frames,
+                        device_clock_ns: result_recorded_device_clock_ns,
+                        monotonic_clock_ns: result_recorded_monotonic_clock_ns,
+                        drift_ppm: result_recorded_drift_ppm,
+                    };
+                    let payload = AudioStreamTimingReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamTimingReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_stream_frames = value.stream_frames;
+                        let vm_result_device_clock_ns = value.device_clock_ns;
+                        let vm_result_monotonic_clock_ns = value.monotonic_clock_ns;
+                        let vm_result_drift_ppm = value.drift_ppm;
+                        let vm_result = AudioStreamTimingVm {
+                            stream_frames: vm_result_stream_frames,
+                            device_clock_ns: vm_result_device_clock_ns,
+                            monotonic_clock_ns: vm_result_monotonic_clock_ns,
+                            drift_ppm: vm_result_drift_ppm,
+                        };
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_timing_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_stream_try_read_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    maxbytes: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_TRY_READ,
+            runtime.replay_payload_for(AUDIO_STREAM_TRY_READ)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_try_read(runtime, context, handle, maxbytes)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_try_read(
+                    runtime, context, handle, maxbytes,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: VmSlice<u8> = value.clone();
+                    let result_recorded = result_value.read_bytes(context)?;
+                    let payload = AudioStreamTryReadReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamTryReadReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_stream_try_write_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    data: VmSlice<u8>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_TRY_WRITE,
+            runtime.replay_payload_for(AUDIO_STREAM_TRY_WRITE)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => {
+                    platform_vm::destack_audio_stream_try_write(runtime, context, handle, data)
+                }
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_try_write(
+                    runtime, context, handle, data,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = AudioStreamTryWriteReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamTryWriteReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_try_write_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_audio_stream_write_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -2292,8 +6554,109 @@ fn destack_audio_stream_write_vm_replay(
     Ok(result)
 }
 
+#[inline]
+fn destack_audio_stream_write_at_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+    data: VmSlice<u8>,
+    presentationtimens: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime
+        .replay()
+        .run_binding_with_context_and_payload_policy(
+            AUDIO_STREAM_WRITE_AT,
+            runtime.replay_payload_for(AUDIO_STREAM_WRITE_AT)?,
+            context,
+            |context| match world {
+                RuntimeWorld::Host => platform_vm::destack_audio_stream_write_at(
+                    runtime,
+                    context,
+                    handle,
+                    data,
+                    presentationtimens,
+                ),
+                RuntimeWorld::Simulated => platform_simulated_vm::destack_audio_stream_write_at(
+                    runtime,
+                    context,
+                    handle,
+                    data,
+                    presentationtimens,
+                ),
+            },
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value: u64 = value.clone();
+                    let result_recorded = result_value;
+                    let payload = AudioStreamWriteAtReplay {
+                        result: Ok(result_recorded),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        AudioStreamWriteAtReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result = value;
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_audio_stream_write_at_result(context, result)?;
+    Ok(result)
+}
+
 /// Register VM bindings for audio.
 pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    {
+        binding!(registry, isolate, AUDIO_CLOCK_NOW, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (domain,) = decode_destack_audio_clock_now_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(AUDIO_CLOCK_NOW)?;
+                let world = runtime.check_and_resolve_world(AUDIO_CLOCK_NOW)?;
+                destack_audio_clock_now_vm_replay(runtime, context, world, domain)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_CLOCK_STREAM,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, domain) = decode_destack_audio_clock_stream_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_CLOCK_STREAM)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_CLOCK_STREAM)?;
+                    destack_audio_clock_stream_vm_replay(runtime, context, world, handle, domain)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
     {
         binding!(
             registry,
@@ -2317,13 +6680,54 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         binding!(
             registry,
             isolate,
-            AUDIO_DEVICE_LIST,
-            move |context, _args| {
+            AUDIO_DEVICE_DEFAULT,
+            move |context, args| {
                 with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (direction,) = decode_destack_audio_device_default_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_DEVICE_DEFAULT)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_DEFAULT)?;
+                    destack_audio_device_default_vm_replay(runtime, context, world, direction)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_DEVICE_INFO,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_device_info_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_DEVICE_INFO)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_INFO)?;
+                    destack_audio_device_info_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_DEVICE_LIST,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (request,) = decode_destack_audio_device_list_args(context, args)?;
+
                     // execute binding
                     runtime.check_policy(AUDIO_DEVICE_LIST)?;
                     let world = runtime.check_and_resolve_world(AUDIO_DEVICE_LIST)?;
-                    destack_audio_device_list_vm_replay(runtime, context, world)
+                    destack_audio_device_list_vm_replay(runtime, context, world, request)
                 })
                 .map_err(Into::into)
             }
@@ -2337,12 +6741,99 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, args| {
                 with_runtime_call_context(|runtime| {
                     // decode args
-                    let (id, direction) = decode_destack_audio_device_open_args(context, args)?;
+                    let (id, options) = decode_destack_audio_device_open_args(context, args)?;
 
                     // execute binding
                     runtime.check_policy(AUDIO_DEVICE_OPEN)?;
                     let world = runtime.check_and_resolve_world(AUDIO_DEVICE_OPEN)?;
-                    destack_audio_device_open_vm_replay(runtime, context, world, id, direction)
+                    destack_audio_device_open_vm_replay(runtime, context, world, id, options)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_EVENT_CLOSE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_event_close_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_EVENT_CLOSE)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_CLOSE)?;
+                    destack_audio_event_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_EVENT_OPEN,
+            move |context, _args| {
+                with_runtime_call_context(|runtime| {
+                    // execute binding
+                    runtime.check_policy(AUDIO_EVENT_OPEN)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_OPEN)?;
+                    destack_audio_event_open_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, AUDIO_EVENT_READ, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // decode args
+                let (handle, timeoutns) = decode_destack_audio_event_read_args(context, args)?;
+
+                // execute binding
+                runtime.check_policy(AUDIO_EVENT_READ)?;
+                let world = runtime.check_and_resolve_world(AUDIO_EVENT_READ)?;
+                destack_audio_event_read_vm_replay(runtime, context, world, handle, timeoutns)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_EVENT_TRY_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_event_try_read_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_EVENT_TRY_READ)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_TRY_READ)?;
+                    destack_audio_event_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_AVAILABILITY,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_stream_availability_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_AVAILABILITY)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
+                    destack_audio_stream_availability_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2362,6 +6853,64 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     runtime.check_policy(AUDIO_STREAM_CLOSE)?;
                     let world = runtime.check_and_resolve_world(AUDIO_STREAM_CLOSE)?;
                     destack_audio_stream_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_DRAIN,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_audio_stream_drain_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_DRAIN)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_DRAIN)?;
+                    destack_audio_stream_drain_vm_replay(runtime, context, world, handle, timeoutns)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_FLUSH,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_stream_flush_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_FLUSH)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_FLUSH)?;
+                    destack_audio_stream_flush_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_INFO,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_stream_info_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_INFO)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_INFO)?;
+                    destack_audio_stream_info_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
             }
@@ -2400,6 +6949,47 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     runtime.check_policy(AUDIO_STREAM_READ)?;
                     let world = runtime.check_and_resolve_world(AUDIO_STREAM_READ)?;
                     destack_audio_stream_read_vm_replay(runtime, context, world, handle, maxbytes)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_SET_MUTE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, muted) = decode_destack_audio_stream_set_mute_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_SET_MUTE)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SET_MUTE)?;
+                    destack_audio_stream_set_mute_vm_replay(runtime, context, world, handle, muted)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_SET_VOLUME,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, lineargain) =
+                        decode_destack_audio_stream_set_volume_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_SET_VOLUME)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
+                    destack_audio_stream_set_volume_vm_replay(
+                        runtime, context, world, handle, lineargain,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -2466,6 +7056,66 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         binding!(
             registry,
             isolate,
+            AUDIO_STREAM_TIMING,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_stream_timing_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_TIMING)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TIMING)?;
+                    destack_audio_stream_timing_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_TRY_READ,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxbytes) =
+                        decode_destack_audio_stream_try_read_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_TRY_READ)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TRY_READ)?;
+                    destack_audio_stream_try_read_vm_replay(
+                        runtime, context, world, handle, maxbytes,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_TRY_WRITE,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, data) = decode_destack_audio_stream_try_write_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_TRY_WRITE)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
+                    destack_audio_stream_try_write_vm_replay(runtime, context, world, handle, data)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             AUDIO_STREAM_WRITE,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
@@ -2476,6 +7126,33 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     runtime.check_policy(AUDIO_STREAM_WRITE)?;
                     let world = runtime.check_and_resolve_world(AUDIO_STREAM_WRITE)?;
                     destack_audio_stream_write_vm_replay(runtime, context, world, handle, data)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_WRITE_AT,
+            move |context, args| {
+                with_runtime_call_context(|runtime| {
+                    // decode args
+                    let (handle, data, presentationtimens) =
+                        decode_destack_audio_stream_write_at_args(context, args)?;
+
+                    // execute binding
+                    runtime.check_policy(AUDIO_STREAM_WRITE_AT)?;
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_WRITE_AT)?;
+                    destack_audio_stream_write_at_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        data,
+                        presentationtimens,
+                    )
                 })
                 .map_err(Into::into)
             }

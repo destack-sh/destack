@@ -6,7 +6,10 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, random as platform_random};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    random as platform_random,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -136,6 +139,49 @@ impl Clone for RandomStreamStateAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "RandomStreamState",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_version = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            version: field_version,
+            bytes: field_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u32 as VmAggregateCodec>::encode_with_context(self.version, context)?,
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SecureRandomInfo.
 #[repr(C)]
 pub struct SecureRandomInfoAbi<A: BindingAbi> {
@@ -176,6 +222,71 @@ impl Copy for SecureRandomInfoAbi<VmAbi> {}
 impl Clone for SecureRandomInfoAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for SecureRandomInfoAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SecureRandomInfo",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_source =
+            <SecureRandomSource as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_may_block = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_cryptographic =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_is_seeded = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_is_fips_approved =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_entropy_bits_per_byte =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            source: field_source,
+            backend_name: field_backend_name,
+            may_block: field_may_block,
+            is_cryptographic: field_is_cryptographic,
+            is_seeded: field_is_seeded,
+            is_fips_approved: field_is_fips_approved,
+            entropy_bits_per_byte: field_entropy_bits_per_byte,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <SecureRandomSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.backend_name,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.may_block, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_cryptographic, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_seeded, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_fips_approved, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.entropy_bits_per_byte, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

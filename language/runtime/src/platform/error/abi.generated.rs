@@ -6,7 +6,10 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, error as platform_error};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    error as platform_error,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -510,6 +513,68 @@ impl Clone for PlatformErrorAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformError",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_code =
+            <PlatformErrorCode as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_op =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_source =
+            <PlatformSystemSourceVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_context =
+            <PlatformErrorContextVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_message =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            code: field_code,
+            op: field_op,
+            source: field_source,
+            context: field_context,
+            message: field_message,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <PlatformErrorCode as VmAggregateCodec>::encode_with_context(self.code, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.op, context)?,
+            <PlatformSystemSourceVm as VmAggregateCodec>::encode_with_context(
+                self.source,
+                context,
+            )?,
+            <PlatformErrorContextVm as VmAggregateCodec>::encode_with_context(
+                self.context,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for PlatformErrorContext.
 #[repr(C)]
 pub struct PlatformErrorContextAbi<A: BindingAbi> {
@@ -589,6 +654,139 @@ impl Clone for PlatformErrorContextAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContext",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 25 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 25 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <PlatformErrorContextKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path =
+            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_dest =
+            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_path_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_dest_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_fd = <i32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_address =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_port = <u16 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_hostname =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_pid = <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_signal =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_exit_code = <i32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_timer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_deadline_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_resource_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_resource_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_capability =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_policy =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+        let field_library =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+        let field_symbol =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+        let field_thread_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[21])?;
+        let field_argument =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[22])?;
+        let field_pointer =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[23])?;
+        let field_feature =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[24])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            path: field_path,
+            dest: field_dest,
+            path_text: field_path_text,
+            dest_text: field_dest_text,
+            fd: field_fd,
+            address: field_address,
+            port: field_port,
+            hostname: field_hostname,
+            pid: field_pid,
+            signal: field_signal,
+            exit_code: field_exit_code,
+            timer_id: field_timer_id,
+            deadline_ns: field_deadline_ns,
+            resource_id: field_resource_id,
+            resource_kind: field_resource_kind,
+            capability: field_capability,
+            policy: field_policy,
+            library: field_library,
+            symbol: field_symbol,
+            thread_id: field_thread_id,
+            argument: field_argument,
+            pointer: field_pointer,
+            feature: field_feature,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <PlatformErrorContextKind as VmAggregateCodec>::encode_with_context(
+                self.kind, context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.dest, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.dest_text, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.fd, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <u16 as VmAggregateCodec>::encode_with_context(self.port, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.hostname, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.signal, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timer_id, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.deadline_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.resource_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.resource_kind,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.policy, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.library, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.symbol, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.thread_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.argument, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.pointer, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for PlatformPathPayload.
 #[repr(C)]
 pub struct PlatformPathPayloadAbi<A: BindingAbi> {
@@ -619,6 +817,52 @@ impl Copy for PlatformPathPayloadAbi<VmAbi> {}
 impl Clone for PlatformPathPayloadAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformPathPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_encoding =
+            <PlatformPathEncoding as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_data = <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            encoding: field_encoding,
+            data: field_data,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <PlatformPathEncoding as VmAggregateCodec>::encode_with_context(
+                self.encoding,
+                context,
+            )?,
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -654,6 +898,55 @@ impl Copy for PlatformSystemSourceAbi<VmAbi> {}
 impl Clone for PlatformSystemSourceAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <PlatformSystemSourceKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            value: field_value,
+            name: field_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <PlatformSystemSourceKind as VmAggregateCodec>::encode_with_context(
+                self.kind, context,
+            )?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

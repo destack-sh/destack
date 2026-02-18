@@ -7,7 +7,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
-    PlatformError as AbiPlatformError, VmValueCodec, security as platform_security,
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    security as platform_security,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,24 @@ pub struct PlatformCapabilityAbi<A: BindingAbi>(
 
 pub type PlatformCapability = PlatformCapabilityAbi<NativeAbi>;
 pub type PlatformCapabilityVm = PlatformCapabilityAbi<VmAbi>;
+
+impl VmAggregateCodec for PlatformCapabilityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
 
 /// ABI enum for SecurityFilterKind.
 #[repr(u8)]
@@ -142,6 +161,60 @@ impl Clone for SecurityFilterAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for SecurityFilterAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SecurityFilter",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <SecurityFilterKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_payload =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_profile_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            payload: field_payload,
+            flags: field_flags,
+            profile_name: field_profile_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <SecurityFilterKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.profile_name,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SecurityPolicyRule.
 #[repr(C)]
 pub struct SecurityPolicyRuleAbi<A: BindingAbi> {
@@ -172,6 +245,53 @@ impl Copy for SecurityPolicyRuleAbi<VmAbi> {}
 impl Clone for SecurityPolicyRuleAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SecurityPolicyRule",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_capability =
+            <PlatformCapabilityVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_mode =
+            <SecurityPolicyMode as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            capability: field_capability,
+            mode: field_mode,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <PlatformCapabilityVm as VmAggregateCodec>::encode_with_context(
+                self.capability,
+                context,
+            )?,
+            <SecurityPolicyMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

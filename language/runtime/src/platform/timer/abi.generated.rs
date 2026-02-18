@@ -5,7 +5,10 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, timer as platform_timer};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    timer as platform_timer,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -148,6 +151,48 @@ pub struct TimerFdSpec {
 
 pub type TimerFdSpecVm = TimerFdSpec;
 
+impl VmAggregateCodec for TimerFdSpec {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "TimerFdSpec",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_initial_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_interval_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            initial_ns: field_initial_ns,
+            interval_ns: field_interval_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.initial_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for TimerOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -159,3 +204,45 @@ pub struct TimerOptions {
 }
 
 pub type TimerOptionsVm = TimerOptions;
+
+impl VmAggregateCodec for TimerOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "TimerOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_clock = <TimerClock as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_flags = <TimerFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            clock: field_clock,
+            flags: field_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <TimerClock as VmAggregateCodec>::encode_with_context(self.clock, context)?,
+            <TimerFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}

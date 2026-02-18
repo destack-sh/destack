@@ -2,21 +2,83 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioDeviceDirection, AudioDeviceInfoVm, AudioSampleFormat, AudioStreamConfigVm,
-    AudioStreamStateVm,
+    AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshotVm, AudioDeviceDirection,
+    AudioDeviceEventKind, AudioDeviceEventVm, AudioDeviceInfoVm, AudioDeviceListRequestVm,
+    AudioDeviceOpenOptionsVm, AudioSampleFormat, AudioShareMode, AudioStreamAvailabilityVm,
+    AudioStreamConfigVm, AudioStreamInfoVm, AudioStreamStateKind, AudioStreamStateVm,
+    AudioStreamTimingVm, AudioStreamTransferMode,
 };
 use crate::platform::{PlatformError, VmSlice, resource};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
 
+/// Read one timestamp in one selected clock domain.
+///
+/// Read one clock timestamp for the selected domain.
+/// Domain availability and precision follow host backend behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock or runtime-clock query APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_clock_now(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    domain: AudioClockDomain,
+) -> RuntimeResult<u64> {
+    let _ = domain;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.clock.now is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read one stream clock snapshot.
+///
+/// Read one synchronized stream-position and clock timestamp snapshot.
+/// Snapshot values are advisory and can change immediately after read.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-position and clock correlation APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_clock(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+    domain: AudioClockDomain,
+) -> RuntimeResult<AudioClockSnapshotVm> {
+    let _ = (handle, domain);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.clock.stream is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Close one audio device endpoint.
 ///
-/// Close one opened audio endpoint and release host stream resources.
+/// Close one opened audio endpoint and release host resources.
 /// Close semantics follow host backend teardown behavior.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific stream close operations on both Unix-like hosts and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint close operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -38,14 +100,72 @@ pub(crate) fn destack_audio_device_close(
     .boxed())
 }
 
-/// List available audio devices.
+/// Read one default device identifier for the selected direction.
 ///
-/// Enumerate host audio endpoints and return stable identifiers for later open operations.
-/// Device visibility and ordering follow host audio backend semantics.
+/// Resolve one default host audio endpoint for the selected direction.
+/// Default selection can change asynchronously as host policy changes.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA or PulseAudio or CoreAudio enumeration on Unix-like hosts and WASAPI or MMDevice on Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES default-endpoint query APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.device`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_device_default(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    direction: AudioDeviceDirection,
+) -> RuntimeResult<vm::StringHandle> {
+    let _ = direction;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.default is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read metadata for one opened device endpoint.
+///
+/// Read one normalized snapshot for one opened device handle.
+/// Snapshot values are advisory and can change as host routes are updated.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint information query APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.device`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_device_info(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioDeviceHandle,
+) -> RuntimeResult<AudioDeviceInfoVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.device.info is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// List available audio devices.
+///
+/// Enumerate host audio endpoints and return stable identifiers for later open operations.
+/// Device visibility and ordering follow host backend semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device enumeration.
 ///
 /// # Errors
 /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -58,7 +178,9 @@ pub(crate) fn destack_audio_device_close(
 pub(crate) fn destack_audio_device_list(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    request: AudioDeviceListRequestVm,
 ) -> RuntimeResult<VmSlice<AudioDeviceInfoVm>> {
+    let _ = request;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.audio.device.list is not available in the VM yet",
     ))
@@ -72,7 +194,7 @@ pub(crate) fn destack_audio_device_list(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA or CoreAudio or PulseAudio device open on Unix-like hosts and WASAPI endpoint open on Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint open operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -86,11 +208,155 @@ pub(crate) fn destack_audio_device_open(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
-    direction: AudioDeviceDirection,
+    options: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<resource::AudioDeviceHandle> {
-    let _ = (id, direction);
+    let _ = (id, options);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.audio.device.open is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Close one audio device event subscription.
+///
+/// Close one event subscription and release backend notification resources.
+/// Pending events are discarded.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES notification unregistration APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.device.monitor`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_event_close(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioEventHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.event.close is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Open one audio device event subscription.
+///
+/// Open one backend event subscription for hotplug and default-route changes.
+/// Subscription routing and queue depth follow host backend behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device-notification registration APIs.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.device.monitor`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_event_open(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::AudioEventHandle> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.event.open is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Wait for one audio device event.
+///
+/// Wait for one pending device event from one subscription queue.
+/// Timeout uses nanoseconds in the runtime monotonic domain.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES event wait or callback-queue drain operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.device.monitor`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_event_read(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<AudioDeviceEventVm> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.event.read is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Poll one audio device event without blocking.
+///
+/// Poll one pending device event from one subscription queue.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking event queue reads.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.device.monitor`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_event_try_read(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioEventHandle,
+) -> RuntimeResult<AudioDeviceEventVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.event.tryRead is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read one stream immediate availability snapshot.
+///
+/// Read one point-in-time snapshot of immediately readable and writable frame counts.
+/// Values are advisory and can change immediately after read.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-space query operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_availability(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<AudioStreamAvailabilityVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.availability is not available in the VM yet",
     ))
     .boxed())
 }
@@ -102,13 +368,13 @@ pub(crate) fn destack_audio_device_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific stream close operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream close operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `audio.playback`.
+/// Requires `audio.stream`.
 ///
 /// # Replay
 /// External, recordable.
@@ -124,20 +390,108 @@ pub(crate) fn destack_audio_stream_close(
     .boxed())
 }
 
-/// Open one audio stream on a device.
+/// Drain one playback stream.
+///
+/// Wait for one playback stream to consume currently queued samples.
+/// Drain timeout is expressed in nanoseconds in the runtime monotonic domain.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES drain or synchronized-stop operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.playback`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_drain(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.drain is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Flush buffered stream data.
+///
+/// Drop pending buffered data for one stream without closing it.
+/// Flushing semantics are backend-defined for capture and duplex streams.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream flush or reset operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_flush(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.flush is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Read one stream negotiated configuration snapshot.
+///
+/// Read one normalized snapshot of negotiated stream parameters and backend mode.
+/// Values reflect backend negotiation outcomes and can differ from open-time requests.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-parameter query operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_info(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<AudioStreamInfoVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.info is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Open one audio stream on one device.
 ///
 /// Create one host audio stream with explicit sample format, channel, and period configuration.
 /// Buffering and latency behavior follow host backend contracts.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA or PulseAudio or CoreAudio stream creation on Unix-like hosts and WASAPI stream creation on Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream creation APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `audio.playback`.
+/// Requires `audio.stream`.
 ///
 /// # Replay
 /// External, recordable.
@@ -161,7 +515,7 @@ pub(crate) fn destack_audio_stream_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend stream read or capture client operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream read or capture-client operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -184,20 +538,80 @@ pub(crate) fn destack_audio_stream_read(
     .boxed())
 }
 
+/// Set one stream mute state.
+///
+/// Apply one mute state for one stream where backend controls are available.
+/// Mute behavior can be backend-local and independent of global endpoint mute.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream mute controls when available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_set_mute(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+    muted: bool,
+) -> RuntimeResult<()> {
+    let _ = (handle, muted);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.setMute is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Set one stream gain multiplier.
+///
+/// Apply one linear gain multiplier for one stream where backend controls are available.
+/// Gain handling can be backend-local and independent of global mixer volume.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream volume controls when available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_set_volume(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+    lineargain: f64,
+) -> RuntimeResult<()> {
+    let _ = (handle, lineargain);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.setVolume is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Start one audio stream.
 ///
-/// Transition one opened stream to running state and begin host callback or DMA processing.
+/// Transition one opened stream to running state and begin host DMA or scheduler processing.
 /// Start timing follows host backend scheduling semantics.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific stream start operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream start operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `audio.playback`.
+/// Requires `audio.stream`.
 ///
 /// # Replay
 /// External, recordable.
@@ -220,7 +634,7 @@ pub(crate) fn destack_audio_stream_start(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific stream query primitives.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream query primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -245,17 +659,17 @@ pub(crate) fn destack_audio_stream_state(
 /// Stop one audio stream.
 ///
 /// Transition one running stream to stopped state and flush host backend scheduling.
-/// Buffered frames may be discarded based on host backend semantics.
+/// Buffered frames can be discarded based on host backend semantics.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend-specific stream stop operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream stop operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `audio.playback`.
+/// Requires `audio.stream`.
 ///
 /// # Replay
 /// External, recordable.
@@ -271,6 +685,95 @@ pub(crate) fn destack_audio_stream_stop(
     .boxed())
 }
 
+/// Read one stream timing snapshot.
+///
+/// Read one timing snapshot that correlates stream position and host device time.
+/// Timing values are intended for drift correction and synchronization.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock query operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_timing(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<AudioStreamTimingVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.timing is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Try to read one packet of captured audio frames without blocking.
+///
+/// Read one packet of captured interleaved audio frames without waiting.
+/// Empty input state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking stream read operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.capture`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_try_read(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+    maxbytes: u32,
+) -> RuntimeResult<VmSlice<u8>> {
+    let _ = (handle, maxbytes);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.tryRead is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Try to write one packet of audio frames without blocking.
+///
+/// Submit one packet of interleaved audio frames to the playback stream without waiting.
+/// Empty output space is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking stream write operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.playback`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_try_write(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+    data: VmSlice<u8>,
+) -> RuntimeResult<u64> {
+    let _ = (handle, data);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.tryWrite is not available in the VM yet",
+    ))
+    .boxed())
+}
+
 /// Write one packet of audio frames.
 ///
 /// Submit one packet of interleaved audio frames to the playback stream.
@@ -278,7 +781,7 @@ pub(crate) fn destack_audio_stream_stop(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses backend stream write or render client operations.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream write or render-client operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -297,6 +800,37 @@ pub(crate) fn destack_audio_stream_write(
     let _ = (handle, data);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.audio.stream.write is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Write one packet for one target presentation time.
+///
+/// Submit one packet of interleaved audio frames for one target presentation timestamp.
+/// Scheduling precision depends on host backend timing guarantees.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES scheduled-render operations when available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `audio.playback`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_write_at(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioStreamHandle,
+    data: VmSlice<u8>,
+    presentationtimens: u64,
+) -> RuntimeResult<u64> {
+    let _ = (handle, data, presentationtimens);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.writeAt is not available in the VM yet",
     ))
     .boxed())
 }

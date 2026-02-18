@@ -7,8 +7,13 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioDeviceDirection, AudioDeviceInfo, AudioDeviceInfoVm, AudioSampleFormat, AudioStreamConfig,
-    AudioStreamConfigVm, AudioStreamState, AudioStreamStateVm, native as audio_native,
+    AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioClockSnapshotVm,
+    AudioDeviceDirection, AudioDeviceEvent, AudioDeviceEventKind, AudioDeviceEventVm,
+    AudioDeviceInfo, AudioDeviceInfoVm, AudioDeviceListRequest, AudioDeviceListRequestVm,
+    AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioSampleFormat, AudioShareMode,
+    AudioStreamAvailability, AudioStreamAvailabilityVm, AudioStreamConfig, AudioStreamConfigVm,
+    AudioStreamInfo, AudioStreamInfoVm, AudioStreamState, AudioStreamStateKind, AudioStreamStateVm,
+    AudioStreamTiming, AudioStreamTimingVm, AudioStreamTransferMode, native as audio_native,
     vm as audio_vm,
 };
 use crate::platform::{
@@ -34,14 +39,103 @@ impl<'call> AudioHarnessContext<'call> {
         HarnessValue::Vm(vm)
     }
 
+    /// Read one timestamp in one selected clock domain.
+    ///
+    /// Read one clock timestamp for the selected domain.
+    /// Domain availability and precision follow host backend behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock or runtime-clock query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_clock_now(
+        &mut self,
+        domain: AudioClockDomain,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_clock_now(self.call_context, context, domain)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    audio_native::destack_audio_clock_now(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        domain,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read one stream clock snapshot.
+    ///
+    /// Read one synchronized stream-position and clock timestamp snapshot.
+    /// Snapshot values are advisory and can change immediately after read.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-position and clock correlation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_clock(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+        domain: AudioClockDomain,
+    ) -> RuntimeResult<HarnessValue<AudioClockSnapshot, AudioClockSnapshotVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_stream_clock(
+                    self.call_context,
+                    context,
+                    handle,
+                    domain,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioClockSnapshot>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_clock(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        domain,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Close one audio device endpoint.
     ///
-    /// Close one opened audio endpoint and release host stream resources.
+    /// Close one opened audio endpoint and release host resources.
     /// Close semantics follow host backend teardown behavior.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific stream close operations on both Unix-like hosts and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint close operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -63,14 +157,97 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// List available audio devices.
+    /// Read one default device identifier for the selected direction.
     ///
-    /// Enumerate host audio endpoints and return stable identifiers for later open operations.
-    /// Device visibility and ordering follow host audio backend semantics.
+    /// Resolve one default host audio endpoint for the selected direction.
+    /// Default selection can change asynchronously as host policy changes.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA or PulseAudio or CoreAudio enumeration on Unix-like hosts and WASAPI or MMDevice on Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES default-endpoint query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_device_default(
+        &mut self,
+        direction: AudioDeviceDirection,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    audio_vm::destack_audio_device_default(self.call_context, context, direction)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    audio_native::destack_audio_device_default(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        direction,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read metadata for one opened device endpoint.
+    ///
+    /// Read one normalized snapshot for one opened device handle.
+    /// Snapshot values are advisory and can change as host routes are updated.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint information query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_device_info(
+        &mut self,
+        handle: resource::AudioDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<AudioDeviceInfo, AudioDeviceInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_device_info(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioDeviceInfo>::uninit();
+                unsafe {
+                    audio_native::destack_audio_device_info(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List available audio devices.
+    ///
+    /// Enumerate host audio endpoints and return stable identifiers for later open operations.
+    /// Device visibility and ordering follow host backend semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device enumeration.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -82,16 +259,23 @@ impl<'call> AudioHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_audio_device_list(
         &mut self,
+        request: HarnessValue<AudioDeviceListRequest, AudioDeviceListRequestVm>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<AudioDeviceInfo>, VmSlice<AudioDeviceInfoVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = audio_vm::destack_audio_device_list(self.call_context, context)?;
+                let request = request.into_vm("request")?;
+                let out = audio_vm::destack_audio_device_list(self.call_context, context, request)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let request = request.into_native("request")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<AudioDeviceInfo>>::uninit();
                 unsafe {
-                    audio_native::destack_audio_device_list(self.call_context, out.as_mut_ptr())?;
+                    audio_native::destack_audio_device_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        request,
+                    )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -106,7 +290,7 @@ impl<'call> AudioHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA or CoreAudio or PulseAudio device open on Unix-like hosts and WASAPI endpoint open on Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint open operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -119,28 +303,228 @@ impl<'call> AudioHarnessContext<'call> {
     pub(crate) fn destack_audio_device_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
-        direction: AudioDeviceDirection,
+        options: HarnessValue<AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm>,
     ) -> RuntimeResult<resource::AudioDeviceHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let id = id.into_vm("id")?;
+                let options = options.into_vm("options")?;
                 let out =
-                    audio_vm::destack_audio_device_open(self.call_context, context, id, direction)?;
+                    audio_vm::destack_audio_device_open(self.call_context, context, id, options)?;
                 Ok(out)
             }
             None => {
                 let id = id.into_native("id")?;
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::AudioDeviceHandle>::uninit();
                 unsafe {
                     audio_native::destack_audio_device_open(
                         self.call_context,
                         out.as_mut_ptr(),
                         id,
-                        direction,
+                        options,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
+            }
+        }
+    }
+
+    /// Close one audio device event subscription.
+    ///
+    /// Close one event subscription and release backend notification resources.
+    /// Pending events are discarded.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES notification unregistration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_event_close(
+        &mut self,
+        handle: resource::AudioEventHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                audio_vm::destack_audio_event_close(self.call_context, context, handle)
+            }
+            None => unsafe { audio_native::destack_audio_event_close(self.call_context, handle) },
+        }
+    }
+
+    /// Open one audio device event subscription.
+    ///
+    /// Open one backend event subscription for hotplug and default-route changes.
+    /// Subscription routing and queue depth follow host backend behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device-notification registration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_event_open(&mut self) -> RuntimeResult<resource::AudioEventHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_event_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::AudioEventHandle>::uninit();
+                unsafe {
+                    audio_native::destack_audio_event_open(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one audio device event.
+    ///
+    /// Wait for one pending device event from one subscription queue.
+    /// Timeout uses nanoseconds in the runtime monotonic domain.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES event wait or callback-queue drain operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_event_read(
+        &mut self,
+        handle: resource::AudioEventHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<AudioDeviceEvent, AudioDeviceEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_event_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioDeviceEvent>::uninit();
+                unsafe {
+                    audio_native::destack_audio_event_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one audio device event without blocking.
+    ///
+    /// Poll one pending device event from one subscription queue.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_event_try_read(
+        &mut self,
+        handle: resource::AudioEventHandle,
+    ) -> RuntimeResult<HarnessValue<AudioDeviceEvent, AudioDeviceEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    audio_vm::destack_audio_event_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioDeviceEvent>::uninit();
+                unsafe {
+                    audio_native::destack_audio_event_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one stream immediate availability snapshot.
+    ///
+    /// Read one point-in-time snapshot of immediately readable and writable frame counts.
+    /// Values are advisory and can change immediately after read.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-space query operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_availability(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+    ) -> RuntimeResult<HarnessValue<AudioStreamAvailability, AudioStreamAvailabilityVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_stream_availability(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioStreamAvailability>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_availability(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             }
         }
     }
@@ -152,13 +536,13 @@ impl<'call> AudioHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific stream close operations.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream close operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `audio.playback`.
+    /// Requires `audio.stream`.
     ///
     /// # Replay
     /// External, recordable.
@@ -174,20 +558,122 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// Open one audio stream on a device.
+    /// Drain one playback stream.
+    ///
+    /// Wait for one playback stream to consume currently queued samples.
+    /// Drain timeout is expressed in nanoseconds in the runtime monotonic domain.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES drain or synchronized-stop operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_drain(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                audio_vm::destack_audio_stream_drain(self.call_context, context, handle, timeoutns)
+            }
+            None => unsafe {
+                audio_native::destack_audio_stream_drain(self.call_context, handle, timeoutns)
+            },
+        }
+    }
+
+    /// Flush buffered stream data.
+    ///
+    /// Drop pending buffered data for one stream without closing it.
+    /// Flushing semantics are backend-defined for capture and duplex streams.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream flush or reset operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_flush(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                audio_vm::destack_audio_stream_flush(self.call_context, context, handle)
+            }
+            None => unsafe { audio_native::destack_audio_stream_flush(self.call_context, handle) },
+        }
+    }
+
+    /// Read one stream negotiated configuration snapshot.
+    ///
+    /// Read one normalized snapshot of negotiated stream parameters and backend mode.
+    /// Values reflect backend negotiation outcomes and can differ from open-time requests.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-parameter query operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_info(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+    ) -> RuntimeResult<HarnessValue<AudioStreamInfo, AudioStreamInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_stream_info(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioStreamInfo>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_info(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open one audio stream on one device.
     ///
     /// Create one host audio stream with explicit sample format, channel, and period configuration.
     /// Buffering and latency behavior follow host backend contracts.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA or PulseAudio or CoreAudio stream creation on Unix-like hosts and WASAPI stream creation on Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream creation APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `audio.playback`.
+    /// Requires `audio.stream`.
     ///
     /// # Replay
     /// External, recordable.
@@ -231,7 +717,7 @@ impl<'call> AudioHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend stream read or capture client operations.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream read or capture-client operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -272,20 +758,87 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
+    /// Set one stream mute state.
+    ///
+    /// Apply one mute state for one stream where backend controls are available.
+    /// Mute behavior can be backend-local and independent of global endpoint mute.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream mute controls when available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_set_mute(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+        muted: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                audio_vm::destack_audio_stream_set_mute(self.call_context, context, handle, muted)
+            }
+            None => unsafe {
+                audio_native::destack_audio_stream_set_mute(self.call_context, handle, muted)
+            },
+        }
+    }
+
+    /// Set one stream gain multiplier.
+    ///
+    /// Apply one linear gain multiplier for one stream where backend controls are available.
+    /// Gain handling can be backend-local and independent of global mixer volume.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream volume controls when available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_set_volume(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+        lineargain: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => audio_vm::destack_audio_stream_set_volume(
+                self.call_context,
+                context,
+                handle,
+                lineargain,
+            ),
+            None => unsafe {
+                audio_native::destack_audio_stream_set_volume(self.call_context, handle, lineargain)
+            },
+        }
+    }
+
     /// Start one audio stream.
     ///
-    /// Transition one opened stream to running state and begin host callback or DMA processing.
+    /// Transition one opened stream to running state and begin host DMA or scheduler processing.
     /// Start timing follows host backend scheduling semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific stream start operations.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream start operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `audio.playback`.
+    /// Requires `audio.stream`.
     ///
     /// # Replay
     /// External, recordable.
@@ -308,7 +861,7 @@ impl<'call> AudioHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific stream query primitives.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream query primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -345,17 +898,17 @@ impl<'call> AudioHarnessContext<'call> {
     /// Stop one audio stream.
     ///
     /// Transition one running stream to stopped state and flush host backend scheduling.
-    /// Buffered frames may be discarded based on host backend semantics.
+    /// Buffered frames can be discarded based on host backend semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific stream stop operations.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream stop operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `audio.playback`.
+    /// Requires `audio.stream`.
     ///
     /// # Replay
     /// External, recordable.
@@ -371,6 +924,146 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
+    /// Read one stream timing snapshot.
+    ///
+    /// Read one timing snapshot that correlates stream position and host device time.
+    /// Timing values are intended for drift correction and synchronization.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock query operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_timing(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+    ) -> RuntimeResult<HarnessValue<AudioStreamTiming, AudioStreamTimingVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    audio_vm::destack_audio_stream_timing(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioStreamTiming>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_timing(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Try to read one packet of captured audio frames without blocking.
+    ///
+    /// Read one packet of captured interleaved audio frames without waiting.
+    /// Empty input state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking stream read operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.capture`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_try_read(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+        maxbytes: u32,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_stream_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxbytes,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxbytes,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Try to write one packet of audio frames without blocking.
+    ///
+    /// Submit one packet of interleaved audio frames to the playback stream without waiting.
+    /// Empty output space is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking stream write operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_try_write(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+        data: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let data = data.into_vm("data")?;
+                let out = audio_vm::destack_audio_stream_try_write(
+                    self.call_context,
+                    context,
+                    handle,
+                    data,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let data = data.into_native("data")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_try_write(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        data,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
     /// Write one packet of audio frames.
     ///
     /// Submit one packet of interleaved audio frames to the playback stream.
@@ -378,7 +1071,7 @@ impl<'call> AudioHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend stream write or render client operations.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream write or render-client operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -409,6 +1102,59 @@ impl<'call> AudioHarnessContext<'call> {
                         out.as_mut_ptr(),
                         handle,
                         data,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Write one packet for one target presentation time.
+    ///
+    /// Submit one packet of interleaved audio frames for one target presentation timestamp.
+    /// Scheduling precision depends on host backend timing guarantees.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES scheduled-render operations when available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.playback`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_write_at(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+        data: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        presentationtimens: u64,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let data = data.into_vm("data")?;
+                let out = audio_vm::destack_audio_stream_write_at(
+                    self.call_context,
+                    context,
+                    handle,
+                    data,
+                    presentationtimens,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let data = data.into_native("data")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_write_at(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        data,
+                        presentationtimens,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };

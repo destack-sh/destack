@@ -64,8 +64,8 @@ pub mod tls;
 pub mod tty;
 
 pub use abi::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, RuntimeStatus, VmArray, VmSlice,
-    VmValueCodec,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, VmValueCodec,
 };
 pub use bindings::{BindingPolicy, BindingRegistry, ExecutionMode, VmBindingSet};
 pub use context::PlatformContext;

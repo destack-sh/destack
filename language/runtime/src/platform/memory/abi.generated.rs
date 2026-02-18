@@ -4,7 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::memory as platform_memory;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice,
+    memory as platform_memory,
+};
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI struct for MemoryRange.
@@ -19,6 +24,48 @@ pub struct MemoryRange {
 
 pub type MemoryRangeVm = MemoryRange;
 
+impl VmAggregateCodec for MemoryRange {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MemoryRange",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_address = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_length = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            address: field_address,
+            length: field_length,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for ProtectedMemoryRange.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -30,3 +77,45 @@ pub struct ProtectedMemoryRange {
 }
 
 pub type ProtectedMemoryRangeVm = ProtectedMemoryRange;
+
+impl VmAggregateCodec for ProtectedMemoryRange {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ProtectedMemoryRange",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_address = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_length = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            address: field_address,
+            length: field_length,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
