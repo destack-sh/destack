@@ -1,0 +1,13 @@
+pub(crate) use std::collections::{HashMap, HashSet};
+
+pub(crate) use crate::analyze::common::{
+    CanonicalSymbolMode, NormalizationMode, RelationMode, TypeRewriteCache,
+};
+pub(crate) use crate::{AnalyzeResult, Compiler};
+pub(crate) use destack_builtin::LanguageSymbol;
+pub(crate) use destack_dir::{
+    EnumBackingType, LocalNodeIdAny, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, StaticProperty, SymbolSpaceOrder, SymbolTable,
+    SymbolType, Type, TypeField, TypeLiteral, TypeMappedParameter, TypeTable, WellKnownSymbol,
+};
+pub(crate) use destack_workspace::{Module, ProfileId};

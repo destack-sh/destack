@@ -9,9 +9,8 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::{CanonicalSymbolMode, RelationMode};
-use crate::analyze::infer::Assignability;
 use crate::timing::tags;
-use crate::{AnalyzeError, Compiler};
+use crate::{AnalyzeError, Assignability, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -1420,13 +1419,11 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &TypeTable,
     ) -> Option<Vec<StaticArgument>> {
-        // return resolved instance arguments when available
-        let instance_id = types.get_instance_for_node(source_id.into_global(module.id))?;
-        let instance = types.get_instance(instance_id);
-        if instance.symbol_id != symbol {
-            return None;
-        }
-        Some(instance.static_arguments.clone())
+        self.query_instance_arguments_for_node(
+            source_id.into_global(module.id),
+            Some(symbol),
+            types,
+        )
     }
 
     /// Resolve the instance type id used for alias normalization.
