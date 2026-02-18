@@ -2522,8 +2522,16 @@ fn abi_newtype_inner_type(domain: &str, binding_type: &BindingType) -> String {
             domain: type_domain,
             ..
         } => named_type_path(domain, type_domain, name),
-        BindingType::Struct { name, .. } => {
-            panic!("struct newtypes are not supported in platform bindings: {name}");
+        BindingType::Struct {
+            name,
+            domain: type_domain,
+            ..
+        } => {
+            if binding_type_requires_abi(binding_type) {
+                struct_abi_path(domain, type_domain, name, "A")
+            } else {
+                named_type_path(domain, type_domain, name)
+            }
         }
         BindingType::Void
         | BindingType::String
