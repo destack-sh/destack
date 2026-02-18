@@ -7,7 +7,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
-    PlatformError as AbiPlatformError, VmValueCodec, resource as platform_resource,
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    resource as platform_resource,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,26 @@ pub struct AudioDeviceHandle(
 pub type AudioDeviceHandleVm = AudioDeviceHandle;
 
 impl VmValueCodec for AudioDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for AudioEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AudioEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type AudioEventHandleVm = AudioEventHandle;
+
+impl VmValueCodec for AudioEventHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -272,6 +293,46 @@ impl VmValueCodec for GpuAdapterHandle {
     }
 }
 
+/// ABI newtype for GpuBindGroupHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuBindGroupHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuBindGroupHandleVm = GpuBindGroupHandle;
+
+impl VmValueCodec for GpuBindGroupHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for GpuBindGroupLayoutHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuBindGroupLayoutHandleVm = GpuBindGroupLayoutHandle;
+
+impl VmValueCodec for GpuBindGroupLayoutHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for GpuBufferHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -332,17 +393,17 @@ impl VmValueCodec for GpuDeviceHandle {
     }
 }
 
-/// ABI newtype for GpuMemoryHandle.
+/// ABI newtype for GpuFenceHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GpuMemoryHandle(
+pub struct GpuFenceHandle(
     /// Inner value.
     pub ResourceId,
 );
 
-pub type GpuMemoryHandleVm = GpuMemoryHandle;
+pub type GpuFenceHandleVm = GpuFenceHandle;
 
-impl VmValueCodec for GpuMemoryHandle {
+impl VmValueCodec for GpuFenceHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -372,6 +433,46 @@ impl VmValueCodec for GpuPipelineHandle {
     }
 }
 
+/// ABI newtype for GpuPipelineLayoutHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuPipelineLayoutHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuPipelineLayoutHandleVm = GpuPipelineLayoutHandle;
+
+impl VmValueCodec for GpuPipelineLayoutHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for GpuQuerySetHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuQuerySetHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuQuerySetHandleVm = GpuQuerySetHandle;
+
+impl VmValueCodec for GpuQuerySetHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for GpuQueueHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -383,6 +484,46 @@ pub struct GpuQueueHandle(
 pub type GpuQueueHandleVm = GpuQueueHandle;
 
 impl VmValueCodec for GpuQueueHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for GpuRenderBundleEncoderHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuRenderBundleEncoderHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuRenderBundleEncoderHandleVm = GpuRenderBundleEncoderHandle;
+
+impl VmValueCodec for GpuRenderBundleEncoderHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for GpuRenderBundleHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuRenderBundleHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuRenderBundleHandleVm = GpuRenderBundleHandle;
+
+impl VmValueCodec for GpuRenderBundleHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -432,6 +573,26 @@ impl VmValueCodec for GpuShaderHandle {
     }
 }
 
+/// ABI newtype for GpuSurfaceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuSurfaceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuSurfaceHandleVm = GpuSurfaceHandle;
+
+impl VmValueCodec for GpuSurfaceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for GpuTextureHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -452,6 +613,26 @@ impl VmValueCodec for GpuTextureHandle {
     }
 }
 
+/// ABI newtype for GpuTextureViewHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GpuTextureViewHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type GpuTextureViewHandleVm = GpuTextureViewHandle;
+
+impl VmValueCodec for GpuTextureViewHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for InputDeviceHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -463,6 +644,26 @@ pub struct InputDeviceHandle(
 pub type InputDeviceHandleVm = InputDeviceHandle;
 
 impl VmValueCodec for InputDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for InputMonitorHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InputMonitorHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type InputMonitorHandleVm = InputMonitorHandle;
+
+impl VmValueCodec for InputMonitorHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -722,6 +923,24 @@ pub struct ResourceKindAbi<A: BindingAbi>(
 
 pub type ResourceKind = ResourceKindAbi<NativeAbi>;
 pub type ResourceKindVm = ResourceKindAbi<VmAbi>;
+
+impl VmAggregateCodec for ResourceKindAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
 
 /// ABI newtype for RwLockHandle.
 #[repr(transparent)]

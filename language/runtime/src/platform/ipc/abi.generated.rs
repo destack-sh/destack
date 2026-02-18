@@ -4,8 +4,13 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{ipc as platform_ipc, resource, resource as platform_resource};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, ipc as platform_ipc,
+    resource, resource as platform_resource,
+};
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI struct for MessageQueueReceive.
@@ -20,6 +25,48 @@ pub struct MessageQueueReceive {
 
 pub type MessageQueueReceiveVm = MessageQueueReceive;
 
+impl VmAggregateCodec for MessageQueueReceive {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MessageQueueReceive",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_bytes = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_priority = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            bytes: field_bytes,
+            priority: field_priority,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u32 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for PipePair.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -32,6 +79,49 @@ pub struct PipePair {
 
 pub type PipePairVm = PipePair;
 
+impl VmAggregateCodec for PipePair {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "PipePair",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_read =
+            <resource::PipeHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_write =
+            <resource::PipeHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            read: field_read,
+            write: field_write,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <resource::PipeHandle as VmAggregateCodec>::encode_with_context(self.read, context)?,
+            <resource::PipeHandle as VmAggregateCodec>::encode_with_context(self.write, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SharedMemoryMapping.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -43,6 +133,48 @@ pub struct SharedMemoryMapping {
 }
 
 pub type SharedMemoryMappingVm = SharedMemoryMapping;
+
+impl VmAggregateCodec for SharedMemoryMapping {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SharedMemoryMapping",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_address = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_length = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            address: field_address,
+            length: field_length,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.length, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
 
 /// ABI struct for UnixPeerCredentials.
 #[repr(C)]
@@ -57,6 +189,51 @@ pub struct UnixPeerCredentials {
 }
 
 pub type UnixPeerCredentialsVm = UnixPeerCredentials;
+
+impl VmAggregateCodec for UnixPeerCredentials {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UnixPeerCredentials",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_pid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_uid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_gid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            pid: field_pid,
+            uid: field_uid,
+            gid: field_gid,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u32 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
 
 /// ABI struct for UnixReceiveAncillary.
 #[repr(C)]
@@ -90,6 +267,61 @@ impl Copy for UnixReceiveAncillaryAbi<VmAbi> {}
 impl Clone for UnixReceiveAncillaryAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UnixReceiveAncillary",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_handles =
+            <VmArray<resource::TransferredHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_credentials =
+            <UnixPeerCredentialsVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            bytes: field_bytes,
+            handles: field_handles,
+            credentials: field_credentials,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+            <VmArray<resource::TransferredHandle> as VmAggregateCodec>::encode_with_context(
+                self.handles,
+                context,
+            )?,
+            <UnixPeerCredentialsVm as VmAggregateCodec>::encode_with_context(
+                self.credentials,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

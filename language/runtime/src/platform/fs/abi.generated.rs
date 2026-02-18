@@ -6,7 +6,10 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, fs as platform_fs};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    fs as platform_fs,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -321,6 +324,24 @@ pub struct PathBytesAbi<A: BindingAbi>(
 pub type PathBytes = PathBytesAbi<NativeAbi>;
 pub type PathBytesVm = PathBytesAbi<VmAbi>;
 
+impl VmAggregateCodec for PathBytesAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
+
 /// ABI newtype for PathUtf16.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -331,6 +352,24 @@ pub struct PathUtf16Abi<A: BindingAbi>(
 
 pub type PathUtf16 = PathUtf16Abi<NativeAbi>;
 pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
+
+impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        Ok(Self(
+            <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, value)?,
+        ))
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
+    }
+}
 
 /// ABI newtype for ReadWriteFlags.
 #[repr(transparent)]
@@ -844,6 +883,47 @@ impl Clone for DirentAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for DirentAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "Dirent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_name = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <DirentKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            name: field_name,
+            kind: field_kind,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <DirentKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for DirentNext.
 #[repr(C)]
 pub struct DirentNextAbi<A: BindingAbi> {
@@ -877,6 +957,48 @@ impl Clone for DirentNextAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for DirentNextAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DirentNext",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_has_entry = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_entry = <DirentVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            has_entry: field_has_entry,
+            entry: field_entry,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.has_entry, context)?,
+            <DirentVm as VmAggregateCodec>::encode_with_context(self.entry, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for OpenOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -890,6 +1012,52 @@ pub struct OpenOptions {
 }
 
 pub type OpenOptionsVm = OpenOptions;
+
+impl VmAggregateCodec for OpenOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_flags = <OpenFlags as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_mode = <FileMode as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_resolve =
+            <OpenResolveFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            flags: field_flags,
+            mode: field_mode,
+            resolve: field_resolve,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <OpenFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <FileMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <OpenResolveFlags as VmAggregateCodec>::encode_with_context(self.resolve, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
 
 /// ABI struct for OsPath.
 #[repr(C)]
@@ -924,6 +1092,53 @@ impl Clone for OsPathAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for OsPathAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "OsPath",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_encoding =
+            <PathEncoding as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_utf16 =
+            <PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            encoding: field_encoding,
+            bytes: field_bytes,
+            utf16: field_utf16,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <PathEncoding as VmAggregateCodec>::encode_with_context(self.encoding, context)?,
+            <PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+            <PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SpliceCursor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -935,6 +1150,49 @@ pub struct SpliceCursor {
 }
 
 pub type SpliceCursorVm = SpliceCursor;
+
+impl VmAggregateCodec for SpliceCursor {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SpliceCursor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_has_offset = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_offset =
+            <FileOffset as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            has_offset: field_has_offset,
+            offset: field_offset,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.has_offset, context)?,
+            <FileOffset as VmAggregateCodec>::encode_with_context(self.offset, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
 
 /// ABI struct for Stat.
 #[repr(C)]
@@ -972,6 +1230,84 @@ pub struct Stat {
 
 pub type StatVm = Stat;
 
+impl VmAggregateCodec for Stat {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "Stat",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 14 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 14 fields",
+            ))
+            .boxed());
+        }
+        let field_dev = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_ino = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_mode = <FileMode as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_nlink = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_uid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_gid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_rdev = <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_size = <FileSize as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_blksize = <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_blocks = <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_atime_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_mtime_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_ctime_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_birthtime_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        Ok(Self {
+            dev: field_dev,
+            ino: field_ino,
+            mode: field_mode,
+            nlink: field_nlink,
+            uid: field_uid,
+            gid: field_gid,
+            rdev: field_rdev,
+            size: field_size,
+            blksize: field_blksize,
+            blocks: field_blocks,
+            atime_ns: field_atime_ns,
+            mtime_ns: field_mtime_ns,
+            ctime_ns: field_ctime_ns,
+            birthtime_ns: field_birthtime_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.dev, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.ino, context)?,
+            <FileMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.nlink, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.rdev, context)?,
+            <FileSize as VmAggregateCodec>::encode_with_context(self.size, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.blksize, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.blocks, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.atime_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.mtime_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.ctime_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.birthtime_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for StatFs.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -999,6 +1335,72 @@ pub struct StatFs {
 }
 
 pub type StatFsVm = StatFs;
+
+impl VmAggregateCodec for StatFs {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "StatFs",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 10 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 10 fields",
+            ))
+            .boxed());
+        }
+        let field_bsize = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_frsize = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_blocks = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_bfree = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_bavail = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_files = <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_ffree = <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_fsid = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_flags =
+            <StatFsFlags as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_namelen = <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        Ok(Self {
+            bsize: field_bsize,
+            frsize: field_frsize,
+            blocks: field_blocks,
+            bfree: field_bfree,
+            bavail: field_bavail,
+            files: field_files,
+            ffree: field_ffree,
+            fsid: field_fsid,
+            flags: field_flags,
+            namelen: field_namelen,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.bsize, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.frsize, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.blocks, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.bfree, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.bavail, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.files, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.ffree, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.fsid, context)?,
+            <StatFsFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.namelen, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
 
 /// ABI struct for Statx.
 #[repr(C)]
@@ -1044,6 +1446,95 @@ pub struct Statx {
 
 pub type StatxVm = Statx;
 
+impl VmAggregateCodec for Statx {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "Statx",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 18 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 18 fields",
+            ))
+            .boxed());
+        }
+        let field_mask = <StatxMask as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_blksize = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_mount_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_dev_major = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_dev_minor = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_ino = <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_mode = <FileMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_nlink = <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_uid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_gid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_rdev_major = <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_rdev_minor = <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_size = <FileSize as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_blocks = <u64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_atime_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_btime_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_ctime_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_mtime_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        Ok(Self {
+            mask: field_mask,
+            blksize: field_blksize,
+            mount_id: field_mount_id,
+            dev_major: field_dev_major,
+            dev_minor: field_dev_minor,
+            ino: field_ino,
+            mode: field_mode,
+            nlink: field_nlink,
+            uid: field_uid,
+            gid: field_gid,
+            rdev_major: field_rdev_major,
+            rdev_minor: field_rdev_minor,
+            size: field_size,
+            blocks: field_blocks,
+            atime_ns: field_atime_ns,
+            btime_ns: field_btime_ns,
+            ctime_ns: field_ctime_ns,
+            mtime_ns: field_mtime_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <StatxMask as VmAggregateCodec>::encode_with_context(self.mask, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.blksize, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.mount_id, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.dev_major, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.dev_minor, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.ino, context)?,
+            <FileMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.nlink, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.rdev_major, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.rdev_minor, context)?,
+            <FileSize as VmAggregateCodec>::encode_with_context(self.size, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.blocks, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.atime_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.btime_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.ctime_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.mtime_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for WatchBatch.
 #[repr(C)]
 pub struct WatchBatchAbi<A: BindingAbi> {
@@ -1074,6 +1565,49 @@ impl Copy for WatchBatchAbi<VmAbi> {}
 impl Clone for WatchBatchAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchBatch",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_events =
+            <VmArray<WatchEventVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_overflowed = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            events: field_events,
+            overflowed: field_overflowed,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <VmArray<WatchEventVm> as VmAggregateCodec>::encode_with_context(self.events, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.overflowed, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -1114,6 +1648,56 @@ impl Clone for WatchEventAbi<VmAbi> {
     }
 }
 
+impl VmAggregateCodec for WatchEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <WatchEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_related_path =
+            <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_cookie = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            path: field_path,
+            related_path: field_related_path,
+            cookie: field_cookie,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <WatchEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.related_path, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.cookie, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for WatchOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -1127,6 +1711,52 @@ pub struct WatchOptions {
 }
 
 pub type WatchOptionsVm = WatchOptions;
+
+impl VmAggregateCodec for WatchOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_mask = <WatchMask as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_recursive = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_follow_symlinks =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            mask: field_mask,
+            recursive: field_recursive,
+            follow_symlinks: field_follow_symlinks,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <WatchMask as VmAggregateCodec>::encode_with_context(self.mask, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.recursive, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.follow_symlinks, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
 
 /// Replay struct for Dirent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

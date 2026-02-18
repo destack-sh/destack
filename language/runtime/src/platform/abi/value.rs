@@ -12,6 +12,37 @@ pub trait VmValueCodec: Copy {
     fn encode(self) -> vm::Value;
 }
 
+/// Context-aware codec for VM values that can require heap access.
+pub trait VmAggregateCodec: Copy {
+    /// Decode a value from a VM slot with context access.
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self>;
+
+    /// Encode a value into a VM slot with context access.
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value>;
+}
+
+impl<T: VmValueCodec> VmAggregateCodec for T {
+    fn decode_with_context(
+        _context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        T::decode(value)
+    }
+
+    fn encode_with_context(
+        self,
+        _context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        Ok(T::encode(self))
+    }
+}
+
 /// Decode an integer value with an expected width.
 fn decode_int(value: vm::Value, bits: u8) -> RuntimeResult<i64> {
     let (raw, width) = value.as_int_with_width().ok_or_else(|| {

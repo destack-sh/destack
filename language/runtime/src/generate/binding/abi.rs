@@ -157,17 +157,32 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
     if needs_abi {
         output.push_str("use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};\n");
     }
-    let needs_vm_codec = newtypes.values().any(|binding_type| {
+    let needs_vm_value_codec = newtypes.values().any(|binding_type| {
         let BindingType::Newtype { inner, .. } = binding_type else {
             return false;
         };
         !binding_type_requires_abi(inner)
     }) || !enums.is_empty();
-    if needs_vm_codec {
+    let needs_vm_aggregate_codec = !structs.is_empty()
+        || newtypes.values().any(|binding_type| {
+            let BindingType::Newtype { inner, .. } = binding_type else {
+                return false;
+            };
+            binding_type_requires_abi(inner)
+        });
+    if needs_vm_value_codec || needs_vm_aggregate_codec {
         output.push_str("use crate::diagnostic::RuntimeError;\n");
         output.push_str("use crate::diagnostic::RuntimeResult;\n");
         output.push_str("use crate::platform::PlatformError as AbiPlatformError;\n");
+    }
+    if needs_vm_value_codec {
         output.push_str("use crate::platform::VmValueCodec;\n");
+    }
+    if needs_vm_aggregate_codec {
+        output.push_str("use crate::platform::VmAggregateCodec;\n");
+        output.push_str("use crate::platform::{VmArray, VmSlice};\n");
+    }
+    if needs_vm_value_codec || needs_vm_aggregate_codec {
         output.push_str("use destack_vm as vm;\n");
     }
     if !newtypes.is_empty() || !enums.is_empty() || !structs.is_empty() {
@@ -211,6 +226,23 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
             output.push_str(");\n\n");
             output.push_str(&format!("pub type {name} = {name}Abi<NativeAbi>;\n"));
             output.push_str(&format!("pub type {name}Vm = {name}Abi<VmAbi>;\n\n"));
+            let inner_vm_type = vm_type_for_binding(domain, inner);
+            output.push_str(&format!("impl VmAggregateCodec for {name}Abi<VmAbi> {{\n"));
+            output.push_str(
+                "    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+            );
+            output.push_str(&format!(
+                "        Ok(Self(<{inner_vm_type} as VmAggregateCodec>::decode_with_context(context, value)?))\n"
+            ));
+            output.push_str("    }\n\n");
+            output.push_str(
+                "    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {\n",
+            );
+            output.push_str(&format!(
+                "        <{inner_vm_type} as VmAggregateCodec>::encode_with_context(self.0, context)\n"
+            ));
+            output.push_str("    }\n");
+            output.push_str("}\n\n");
             continue;
         }
 
@@ -335,8 +367,110 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
             output.push_str(&format!(
                 "impl Clone for {struct_name}Abi<VmAbi> {{\n    fn clone(&self) -> Self {{ *self }}\n}}\n\n"
             ));
+
+            output.push_str(&format!(
+                "impl VmAggregateCodec for {struct_name}Abi<VmAbi> {{\n"
+            ));
+            output.push_str(
+                "    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+            );
+            output.push_str("        if value.tag() != vm::ValueTag::Aggregate {\n");
+            output.push_str(&format!(
+                "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(\"value\", \"{struct_name}\")).boxed());\n"
+            ));
+            output.push_str("        }\n");
+            output.push_str(
+                "        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
+            );
+            output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+            output.push_str(&format!(
+                "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
+                fields.len()
+            ));
+            output.push_str("        }\n");
+            for (index, field) in fields.iter().enumerate() {
+                let field_name = to_snake_case(&field.name);
+                let field_type = vm_type_for_binding(domain, &field.binding_type);
+                let local_name = format!("field_{field_name}");
+                output.push_str(&format!(
+                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_with_context(context, slots[{index}])?;\n"
+                ));
+            }
+            output.push_str("        Ok(Self {\n");
+            for field in fields {
+                let field_name = to_snake_case(&field.name);
+                let local_name = format!("field_{field_name}");
+                output.push_str(&format!("            {field_name}: {local_name},\n"));
+            }
+            output.push_str("        })\n");
+            output.push_str("    }\n\n");
+            output.push_str(
+                "    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {\n",
+            );
+            output.push_str("        let slots = vec![\n");
+            for field in fields {
+                let field_name = to_snake_case(&field.name);
+                let field_type = vm_type_for_binding(domain, &field.binding_type);
+                output.push_str(&format!(
+                    "            <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?,\n"
+                ));
+            }
+            output.push_str("        ];\n");
+            output.push_str("        Ok(context.allocate_aggregate(slots))\n");
+            output.push_str("    }\n");
+            output.push_str("}\n\n");
         } else {
             output.push_str(&format!("pub type {struct_name}Vm = {struct_name};\n\n"));
+
+            output.push_str(&format!("impl VmAggregateCodec for {struct_name} {{\n"));
+            output.push_str(
+                "    fn decode_with_context(context: &vm::ExternalCallContext<'_>, value: vm::Value) -> RuntimeResult<Self> {\n",
+            );
+            output.push_str("        if value.tag() != vm::ValueTag::Aggregate {\n");
+            output.push_str(&format!(
+                "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(\"value\", \"{struct_name}\")).boxed());\n"
+            ));
+            output.push_str("        }\n");
+            output.push_str(
+                "        let slots = context.aggregate_slots(value).map_err(|error| RuntimeError::from(error).boxed())?;\n",
+            );
+            output.push_str(&format!("        if slots.len() != {} {{\n", fields.len()));
+            output.push_str(&format!(
+                "            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(\"value\", \"expected {} fields\")).boxed());\n",
+                fields.len()
+            ));
+            output.push_str("        }\n");
+            for (index, field) in fields.iter().enumerate() {
+                let field_name = to_snake_case(&field.name);
+                let field_type = vm_type_for_binding(domain, &field.binding_type);
+                let local_name = format!("field_{field_name}");
+                output.push_str(&format!(
+                    "        let {local_name} = <{field_type} as VmAggregateCodec>::decode_with_context(context, slots[{index}])?;\n"
+                ));
+            }
+            output.push_str("        Ok(Self {\n");
+            for field in fields {
+                let field_name = to_snake_case(&field.name);
+                let local_name = format!("field_{field_name}");
+                output.push_str(&format!("            {field_name}: {local_name},\n"));
+            }
+            output.push_str("        })\n");
+            output.push_str("    }\n\n");
+            output.push_str(
+                "    fn encode_with_context(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<vm::Value> {\n",
+            );
+            output.push_str("        let slots = vec![\n");
+            for field in fields {
+                let field_name = to_snake_case(&field.name);
+                let field_type = vm_type_for_binding(domain, &field.binding_type);
+                output.push_str(&format!(
+                    "            <{field_type} as VmAggregateCodec>::encode_with_context(self.{field_name}, context)?,\n"
+                ));
+            }
+            output.push_str("        ];\n");
+            output.push_str("        Ok(context.allocate_aggregate(slots))\n");
+            output.push_str("    }\n");
+            output.push_str("}\n\n");
         }
     }
 

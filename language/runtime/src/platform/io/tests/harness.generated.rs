@@ -14,7 +14,7 @@ use crate::platform::io::{
     native as io_native, vm as io_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, resource,
+    NativeArray, NativeSlice, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -445,6 +445,219 @@ impl<'call> IoHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close one raw device endpoint.
+    ///
+    /// Close one previously opened raw device handle.
+    /// Close semantics for in-flight operations follow host backend behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses close(2) on Unix and CloseHandle on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `io.device.read`, `io.device.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_io_device_close(
+        &mut self,
+        handle: resource::DeviceHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => io_vm::destack_io_device_close(self.call_context, context, handle),
+            None => unsafe { io_native::destack_io_device_close(self.call_context, handle) },
+        }
+    }
+
+    /// Run one device-specific control request.
+    ///
+    /// Execute one opaque control request with caller-provided bytes and return host output bytes.
+    /// Request code semantics and payload layout are device-specific by design.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ioctl(2) on Unix and DeviceIoControl on Windows.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `io.device.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_io_device_control(
+        &mut self,
+        handle: resource::DeviceHandle,
+        request: HarnessValue<DescriptorRequest, DescriptorRequestVm>,
+    ) -> RuntimeResult<HarnessValue<DescriptorResult, DescriptorResultVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out =
+                    io_vm::destack_io_device_control(self.call_context, context, handle, request)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<DescriptorResult>::uninit();
+                unsafe {
+                    io_native::destack_io_device_control(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open one raw device endpoint.
+    ///
+    /// Open one host device node or device path with explicit open flags.
+    /// Access checks and device availability are enforced by the host kernel and device policy.
+    ///
+    /// # Platform
+    /// Unix and Windows, with operation-level `notSupported` on hosts without a compatible raw-device namespace.
+    /// Uses open(2) on Unix and CreateFileW on Windows device paths.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `io.device.read`, `io.device.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_io_device_open(
+        &mut self,
+        path: HarnessValue<fs::OsPath, fs::OsPathVm>,
+        flags: u32,
+        mode: u32,
+    ) -> RuntimeResult<resource::DeviceHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let path = path.into_vm("path")?;
+                let out =
+                    io_vm::destack_io_device_open(self.call_context, context, path, flags, mode)?;
+                Ok(out)
+            }
+            None => {
+                let path = path.into_native("path")?;
+                let mut out = std::mem::MaybeUninit::<resource::DeviceHandle>::uninit();
+                unsafe {
+                    io_native::destack_io_device_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        path,
+                        flags,
+                        mode,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read bytes from one raw device endpoint.
+    ///
+    /// Read bytes into caller-provided memory and return the number of bytes transferred.
+    /// Partial reads are preserved exactly as reported by the host.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses read(2) on Unix and ReadFile on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `io.device.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_io_device_read(
+        &mut self,
+        handle: resource::DeviceHandle,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffer = buffer.into_vm("buffer")?;
+                let out =
+                    io_vm::destack_io_device_read(self.call_context, context, handle, buffer)?;
+                Ok(out)
+            }
+            None => {
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    io_native::destack_io_device_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        buffer,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Write bytes to one raw device endpoint.
+    ///
+    /// Write bytes from caller-provided memory and return the number of bytes transferred.
+    /// Partial writes are preserved exactly as reported by the host.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses write(2) on Unix and WriteFile on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `io.device.write`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_io_device_write(
+        &mut self,
+        handle: resource::DeviceHandle,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffer = buffer.into_vm("buffer")?;
+                let out =
+                    io_vm::destack_io_device_write(self.call_context, context, handle, buffer)?;
+                Ok(out)
+            }
+            None => {
+                let buffer = buffer.into_native("buffer")?;
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    io_native::destack_io_device_write(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        buffer,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
             }
         }
     }

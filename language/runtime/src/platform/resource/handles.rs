@@ -143,16 +143,57 @@ define_handle!(
 define_handle!("The handle for one message queue.", MessageQueueHandle);
 define_handle!("The handle for one audio device.", AudioDeviceHandle);
 define_handle!("The handle for one audio stream.", AudioStreamHandle);
+define_handle!(
+    "The handle for one audio event subscription endpoint.",
+    AudioEventHandle
+);
 define_handle!("The handle for one display device.", DisplayHandle);
 define_handle!("The handle for one window object.", WindowHandle);
 define_handle!("The handle for one input device.", InputDeviceHandle);
+define_handle!(
+    "The handle for one global input monitor stream.",
+    InputMonitorHandle
+);
 define_handle!("The handle for one gpu adapter.", GpuAdapterHandle);
 define_handle!("The handle for one gpu device.", GpuDeviceHandle);
 define_handle!("The handle for one gpu queue.", GpuQueueHandle);
+define_handle!("The handle for one gpu surface endpoint.", GpuSurfaceHandle);
 define_handle!("The handle for one gpu command list.", GpuCommandListHandle);
+define_handle!(
+    "The handle for one gpu render bundle endpoint.",
+    GpuRenderBundleHandle
+);
+define_handle!(
+    "The handle for one gpu render bundle encoder endpoint.",
+    GpuRenderBundleEncoderHandle
+);
+define_handle!(
+    "The handle for one gpu pipeline layout endpoint.",
+    GpuPipelineLayoutHandle
+);
+define_handle!(
+    "The handle for one gpu bind group layout endpoint.",
+    GpuBindGroupLayoutHandle
+);
+define_handle!(
+    "The handle for one gpu bind group endpoint.",
+    GpuBindGroupHandle
+);
+define_handle!(
+    "The handle for one gpu synchronization fence endpoint.",
+    GpuFenceHandle
+);
+define_handle!(
+    "The handle for one gpu query set endpoint.",
+    GpuQuerySetHandle
+);
 define_handle!("The handle for one gpu memory allocation.", GpuMemoryHandle);
 define_handle!("The handle for one gpu buffer.", GpuBufferHandle);
 define_handle!("The handle for one gpu texture.", GpuTextureHandle);
+define_handle!(
+    "The handle for one gpu texture view endpoint.",
+    GpuTextureViewHandle
+);
 define_handle!("The handle for one gpu sampler.", GpuSamplerHandle);
 define_handle!("The handle for one gpu shader module.", GpuShaderHandle);
 define_handle!("The handle for one gpu pipeline.", GpuPipelineHandle);

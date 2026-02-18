@@ -7,16 +7,42 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::gpu::{
-    GpuAdapterInfo, GpuAdapterInfoVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType,
-    GpuBackend, GpuBufferCopy, GpuBufferCopyLayout, GpuBufferCopyLayoutVm, GpuBufferCopyVm,
-    GpuBufferOptions, GpuBufferOptionsVm, GpuCommandEncoderOptions, GpuCommandEncoderOptionsVm,
-    GpuComputePipelineOptions, GpuComputePipelineOptionsVm, GpuDeviceInfo, GpuDeviceInfoVm,
-    GpuDeviceLimits, GpuDeviceLimitsVm, GpuDeviceOptions, GpuDeviceOptionsVm, GpuExtent3D,
-    GpuExtent3DVm, GpuMappedMemory, GpuMappedMemoryVm, GpuPowerPreference, GpuPresentOptions,
-    GpuPresentOptionsVm, GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions,
-    GpuRenderPipelineOptionsVm, GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderOptions,
-    GpuShaderOptionsVm, GpuShaderStage, GpuSubmitOptions, GpuSubmitOptionsVm, GpuSurfaceOptions,
-    GpuSurfaceOptionsVm, GpuTextureCopy, GpuTextureCopyVm, GpuTextureOptions, GpuTextureOptionsVm,
+    GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm, GpuAdapterInfo, GpuAdapterInfoVm,
+    GpuAdapterLimits, GpuAdapterLimitsVm, GpuAdapterRequest, GpuAdapterRequestVm, GpuAdapterType,
+    GpuBackend, GpuBindGroupEntry, GpuBindGroupEntryVm, GpuBindGroupLayoutEntry,
+    GpuBindGroupLayoutEntryVm, GpuBindingResourceKind, GpuBlendComponent, GpuBlendComponentVm,
+    GpuBlendFactor, GpuBlendOperation, GpuBlendState, GpuBlendStateVm, GpuBufferBindingType,
+    GpuBufferCopy, GpuBufferCopyLayout, GpuBufferCopyLayoutVm, GpuBufferCopyVm, GpuBufferInfo,
+    GpuBufferInfoVm, GpuBufferMapState, GpuBufferOptions, GpuBufferOptionsVm, GpuCapturedError,
+    GpuCapturedErrorVm, GpuColorTargetState, GpuColorTargetStateVm, GpuColorWriteMask,
+    GpuCommandEncoderOptions, GpuCommandEncoderOptionsVm, GpuCompareFunction, GpuCompilationInfo,
+    GpuCompilationInfoVm, GpuCompilationMessage, GpuCompilationMessageKind,
+    GpuCompilationMessageVm, GpuComputePassOptions, GpuComputePassOptionsVm,
+    GpuComputePipelineOptions, GpuComputePipelineOptionsVm, GpuComputeState, GpuComputeStateVm,
+    GpuCullMode, GpuDepthStencilState, GpuDepthStencilStateVm, GpuDeviceInfo, GpuDeviceInfoVm,
+    GpuDeviceLossReason, GpuDeviceOptions, GpuDeviceOptionsVm, GpuDeviceStatus, GpuDeviceStatusVm,
+    GpuErrorFilter, GpuExtent3D, GpuExtent3DVm, GpuFeatureId, GpuFenceMode, GpuFenceOptions,
+    GpuFenceOptionsVm, GpuFragmentState, GpuFragmentStateVm, GpuFrontFace, GpuIndexFormat,
+    GpuLoadOp, GpuMapMode, GpuMappedBufferRange, GpuMappedBufferRangeVm, GpuMultisampleState,
+    GpuMultisampleStateVm, GpuPassTimestampWrites, GpuPassTimestampWritesVm, GpuPipelineConstant,
+    GpuPipelineConstantVm, GpuPipelineLayoutOptions, GpuPipelineLayoutOptionsVm,
+    GpuPipelineMetadata, GpuPipelineMetadataVm, GpuPipelineStatisticsMask, GpuPowerPreference,
+    GpuPresentMode, GpuPresentOptions, GpuPresentOptionsVm, GpuPrimitiveState, GpuPrimitiveStateVm,
+    GpuPrimitiveTopology, GpuQuerySetInfo, GpuQuerySetInfoVm, GpuQuerySetOptions,
+    GpuQuerySetOptionsVm, GpuQueryType, GpuRenderBundleEncoderOptions,
+    GpuRenderBundleEncoderOptionsVm, GpuRenderPassColorAttachment, GpuRenderPassColorAttachmentVm,
+    GpuRenderPassDepthStencilAttachment, GpuRenderPassDepthStencilAttachmentVm,
+    GpuRenderPassOptions, GpuRenderPassOptionsVm, GpuRenderPipelineOptions,
+    GpuRenderPipelineOptionsVm, GpuRenderState, GpuRenderStateVm, GpuSamplerBindingType,
+    GpuSamplerOptions, GpuSamplerOptionsVm, GpuShaderOptions, GpuShaderOptionsVm,
+    GpuShaderVisibilityMask, GpuStencilFaceState, GpuStencilFaceStateVm, GpuStencilOperation,
+    GpuStorageTextureAccess, GpuStoreOp, GpuSubmitOptions, GpuSubmitOptionsVm,
+    GpuSurfaceAcquireStatus, GpuSurfaceAlphaMode, GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm,
+    GpuSurfaceFrame, GpuSurfaceFrameVm, GpuSurfaceOptions, GpuSurfaceOptionsVm, GpuTextureCopy,
+    GpuTextureCopyVm, GpuTextureDimension, GpuTextureInfo, GpuTextureInfoVm, GpuTextureOptions,
+    GpuTextureOptionsVm, GpuTextureSampleType, GpuTextureViewDimension, GpuTextureViewOptions,
+    GpuTextureViewOptionsVm, GpuVertexAttribute, GpuVertexAttributeVm, GpuVertexBufferLayout,
+    GpuVertexBufferLayoutVm, GpuVertexState, GpuVertexStateVm, GpuVertexStepMode,
     native as gpu_native, vm as gpu_vm,
 };
 use crate::platform::{
@@ -50,7 +76,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific release or destroy operations.
+    /// Uses WebGPU-style release or destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -70,6 +96,144 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Read one adapter feature snapshot.
+    ///
+    /// Read one feature identifier snapshot from one opened adapter.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_adapter_features(
+        &mut self,
+        handle: resource::GpuAdapterHandle,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<GpuFeatureId>, VmSlice<GpuFeatureId>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_adapter_features(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<GpuFeatureId>>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_adapter_features(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Query one adapter texture-format capability snapshot.
+    ///
+    /// Query one texture format on one adapter and return normalized format capability data.
+    /// Capabilities can vary by backend and device generation.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter format-capability query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_adapter_format_capabilities(
+        &mut self,
+        handle: resource::GpuAdapterHandle,
+        format: u32,
+    ) -> RuntimeResult<HarnessValue<GpuAdapterFormatCapabilities, GpuAdapterFormatCapabilitiesVm>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_adapter_format_capabilities(
+                    self.call_context,
+                    context,
+                    handle,
+                    format,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuAdapterFormatCapabilities>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_adapter_format_capabilities(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        format,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Check whether one adapter supports one feature.
+    ///
+    /// Check one feature identifier against one opened adapter feature set.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_adapter_has_feature(
+        &mut self,
+        handle: resource::GpuAdapterHandle,
+        feature: GpuFeatureId,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_adapter_has_feature(
+                    self.call_context,
+                    context,
+                    handle,
+                    feature,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_adapter_has_feature(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        feature,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
     /// Read metadata for one opened adapter.
     ///
     /// Query the current normalized adapter metadata through an opened adapter handle.
@@ -77,7 +241,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend adapter property and feature query operations.
+    /// Uses WebGPU-style adapter property and feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -111,6 +275,47 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Read one adapter limits snapshot.
+    ///
+    /// Read one normalized limits snapshot from one opened adapter.
+    /// Limits remain stable for the adapter lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter limits query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_adapter_limits(
+        &mut self,
+        handle: resource::GpuAdapterHandle,
+    ) -> RuntimeResult<HarnessValue<GpuAdapterLimits, GpuAdapterLimitsVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_adapter_limits(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuAdapterLimits>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_adapter_limits(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// List available GPU adapters.
     ///
     /// Enumerate host GPU adapters and return stable identifiers with normalized capability metadata.
@@ -118,7 +323,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses Vulkan, Metal, D3D12, OpenGL, and backend discovery APIs.
+    /// Uses WebGPU-style adapter discovery and enumeration on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -161,7 +366,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific adapter open or retain operations.
+    /// Uses WebGPU-style adapter open or retain operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -193,6 +398,261 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Create one bind group.
+    ///
+    /// Create one bind group from one layout and explicit resource entries.
+    /// Resource compatibility is validated against the target layout.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bind-group or descriptor-set allocation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_bind_group_create(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        layout: resource::GpuBindGroupLayoutHandle,
+        entries: HarnessValue<NativeSlice<GpuBindGroupEntry>, VmSlice<GpuBindGroupEntryVm>>,
+        flags: u32,
+    ) -> RuntimeResult<resource::GpuBindGroupHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let entries = entries.into_vm("entries")?;
+                let out = gpu_vm::destack_gpu_bind_group_create(
+                    self.call_context,
+                    context,
+                    device,
+                    layout,
+                    entries,
+                    flags,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let entries = entries.into_native("entries")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_bind_group_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        layout,
+                        entries,
+                        flags,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Destroy one bind group.
+    ///
+    /// Destroy one bind group and release backend descriptor allocation resources.
+    /// The bind group handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bind-group destroy or free operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_bind_group_destroy(
+        &mut self,
+        handle: resource::GpuBindGroupHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_bind_group_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_bind_group_destroy(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Create one bind group layout.
+    ///
+    /// Create one bind group layout descriptor from ordered binding entries.
+    /// Validation rules follow backend pipeline-layout contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bind-group or descriptor-set layout creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_bind_group_layout_create(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        entries: HarnessValue<
+            NativeSlice<GpuBindGroupLayoutEntry>,
+            VmSlice<GpuBindGroupLayoutEntryVm>,
+        >,
+        flags: u32,
+    ) -> RuntimeResult<resource::GpuBindGroupLayoutHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let entries = entries.into_vm("entries")?;
+                let out = gpu_vm::destack_gpu_bind_group_layout_create(
+                    self.call_context,
+                    context,
+                    device,
+                    entries,
+                    flags,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let entries = entries.into_native("entries")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupLayoutHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_bind_group_layout_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        entries,
+                        flags,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Destroy one bind group layout.
+    ///
+    /// Destroy one bind group layout and release backend descriptor-layout resources.
+    /// The layout handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style layout destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_bind_group_layout_destroy(
+        &mut self,
+        handle: resource::GpuBindGroupLayoutHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_bind_group_layout_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_bind_group_layout_destroy(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Create one pipeline layout.
+    ///
+    /// Create one pipeline layout from ordered bind group layouts.
+    /// Backend layout compatibility checks occur during creation.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style pipeline-layout creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_pipeline_layout_create(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        options: HarnessValue<GpuPipelineLayoutOptions, GpuPipelineLayoutOptionsVm>,
+    ) -> RuntimeResult<resource::GpuPipelineLayoutHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_pipeline_layout_create(
+                    self.call_context,
+                    context,
+                    device,
+                    options,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuPipelineLayoutHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_pipeline_layout_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Destroy one pipeline layout.
+    ///
+    /// Destroy one pipeline layout and release backend layout resources.
+    /// The layout handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style pipeline-layout destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_pipeline_layout_destroy(
+        &mut self,
+        handle: resource::GpuPipelineLayoutHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_pipeline_layout_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_pipeline_layout_destroy(self.call_context, handle)
+            },
+        }
+    }
+
     /// Bind one compute pipeline.
     ///
     /// Bind one compute pipeline to one command encoder for subsequent dispatch operations.
@@ -200,7 +660,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend compute pipeline bind commands.
+    /// Uses WebGPU-style compute pipeline bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -239,7 +699,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend render pipeline bind commands.
+    /// Uses WebGPU-style render pipeline bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -271,14 +731,59 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Clear one buffer range.
+    ///
+    /// Encode one clear operation that writes zero to one buffer range.
+    /// Offset and size alignment follow backend clear-buffer constraints.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style clear-buffer commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_clear_buffer(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        size: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_clear_buffer(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                size,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_clear_buffer(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    size,
+                )
+            },
+        }
+    }
+
     /// Begin one compute pass.
     ///
-    /// Begin compute-pass encoding on one command encoder.
+    /// Begin compute-pass encoding on one command encoder with optional timestamp writes.
     /// Nested pass semantics follow backend command recording rules.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend begin compute pass commands.
+    /// Uses WebGPU-style begin compute pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -291,14 +796,28 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_command_compute_pass_begin(
         &mut self,
         handle: resource::GpuCommandListHandle,
+        options: HarnessValue<GpuComputePassOptions, GpuComputePassOptionsVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                gpu_vm::destack_gpu_command_compute_pass_begin(self.call_context, context, handle)
+                let options = options.into_vm("options")?;
+                gpu_vm::destack_gpu_command_compute_pass_begin(
+                    self.call_context,
+                    context,
+                    handle,
+                    options,
+                )
             }
-            None => unsafe {
-                gpu_native::destack_gpu_command_compute_pass_begin(self.call_context, handle)
-            },
+            None => {
+                let options = options.into_native("options")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_compute_pass_begin(
+                        self.call_context,
+                        handle,
+                        options,
+                    )
+                }
+            }
         }
     }
 
@@ -309,7 +828,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend end compute pass commands.
+    /// Uses WebGPU-style end compute pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -340,7 +859,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend copy buffer commands.
+    /// Uses WebGPU-style copy buffer commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -391,7 +910,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend copy buffer to texture commands.
+    /// Uses WebGPU-style copy buffer to texture commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -446,7 +965,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend copy texture to buffer commands.
+    /// Uses WebGPU-style copy texture to buffer commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -501,7 +1020,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend copy texture commands.
+    /// Uses WebGPU-style copy texture commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -556,7 +1075,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend dispatch commands.
+    /// Uses WebGPU-style dispatch commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -594,6 +1113,48 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Dispatch one compute workload from one indirect buffer argument.
+    ///
+    /// Dispatch one compute workload using dispatch dimensions loaded from one buffer.
+    /// Buffer layout must match backend indirect-dispatch argument encoding.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style dispatch-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.compute`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_dispatch_indirect(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_dispatch_indirect(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_dispatch_indirect(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                )
+            },
+        }
+    }
+
     /// Draw one non-indexed primitive range.
     ///
     /// Encode one non-indexed draw call with explicit vertex and instance ranges.
@@ -601,7 +1162,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend draw commands.
+    /// Uses WebGPU-style draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -649,7 +1210,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend indexed draw commands.
+    /// Uses WebGPU-style indexed draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -693,6 +1254,102 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Draw one indirect indexed command range.
+    ///
+    /// Encode one or more indexed draw calls loaded from one argument buffer.
+    /// Indirect argument layout and alignment follow backend indexed draw-indirect contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style indexed draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_draw_indexed_indirect(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        drawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_draw_indexed_indirect(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                drawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_draw_indexed_indirect(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    drawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
+    /// Draw one indirect non-indexed command range.
+    ///
+    /// Encode one or more non-indexed draw calls loaded from one argument buffer.
+    /// Indirect argument layout and alignment follow backend draw-indirect contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_draw_indirect(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        drawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_draw_indirect(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                drawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_draw_indirect(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    drawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
     /// Close one command encoder.
     ///
     /// Close one command encoder object and release backend recording resources.
@@ -700,7 +1357,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend command encoder destroy operations.
+    /// Uses WebGPU-style command encoder destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -731,7 +1388,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend end command recording calls.
+    /// Uses WebGPU-style end command recording calls on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
@@ -762,7 +1419,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend command encoder or command buffer creation APIs.
+    /// Uses WebGPU-style command encoder or command buffer creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -805,6 +1462,379 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Execute one batch of render bundles in the active render pass.
+    ///
+    /// Execute recorded render bundles in-order within one active render pass.
+    /// Bundle compatibility is validated against current render-pass configuration.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style execute-bundle commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_execute_bundles(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        bundles: HarnessValue<
+            NativeSlice<resource::GpuRenderBundleHandle>,
+            VmSlice<resource::GpuRenderBundleHandle>,
+        >,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let bundles = bundles.into_vm("bundles")?;
+                gpu_vm::destack_gpu_command_execute_bundles(
+                    self.call_context,
+                    context,
+                    handle,
+                    bundles,
+                )
+            }
+            None => {
+                let bundles = bundles.into_native("bundles")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_execute_bundles(
+                        self.call_context,
+                        handle,
+                        bundles,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Insert one debug marker in the active encoding scope.
+    ///
+    /// Insert one lightweight debug marker in one active command or pass scope.
+    /// Marker visibility is backend-defined and intended for tooling.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_insert_debug_marker(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        marker: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let marker = marker.into_vm("marker")?;
+                gpu_vm::destack_gpu_command_insert_debug_marker(
+                    self.call_context,
+                    context,
+                    handle,
+                    marker,
+                )
+            }
+            None => {
+                let marker = marker.into_native("marker")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_insert_debug_marker(
+                        self.call_context,
+                        handle,
+                        marker,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Draw multiple indirect indexed command ranges.
+    ///
+    /// Encode multiple indexed draws loaded from one argument buffer.
+    /// Draw-count and argument layout follow backend multi-draw contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style multi-draw-indexed-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        drawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indexed_indirect(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                drawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_multi_draw_indexed_indirect(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    drawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
+    /// Draw multiple indirect indexed command ranges with one host-visible count buffer.
+    ///
+    /// Encode multiple indexed draws loaded from one argument buffer with draw count read from one count buffer.
+    /// This operation requires one backend feature lane that enables indirect-count draws.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style multi-draw-indexed-indirect-count commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_multi_draw_indexed_indirect_count(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        countbuffer: resource::GpuBufferHandle,
+        countoffset: u64,
+        maxdrawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indexed_indirect_count(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                countbuffer,
+                countoffset,
+                maxdrawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_multi_draw_indexed_indirect_count(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    countbuffer,
+                    countoffset,
+                    maxdrawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
+    /// Draw multiple indirect non-indexed command ranges.
+    ///
+    /// Encode multiple non-indexed draws loaded from one argument buffer.
+    /// Draw-count and argument layout follow backend multi-draw contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style multi-draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_multi_draw_indirect(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        drawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indirect(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                drawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_multi_draw_indirect(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    drawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
+    /// Draw multiple indirect non-indexed command ranges with one host-visible count buffer.
+    ///
+    /// Encode multiple non-indexed draws loaded from one argument buffer with draw count read from one count buffer.
+    /// This operation requires one backend feature lane that enables indirect-count draws.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style multi-draw-indirect-count commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_multi_draw_indirect_count(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        countbuffer: resource::GpuBufferHandle,
+        countoffset: u64,
+        maxdrawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_multi_draw_indirect_count(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                countbuffer,
+                countoffset,
+                maxdrawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_multi_draw_indirect_count(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    countbuffer,
+                    countoffset,
+                    maxdrawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
+    /// Pop one debug group in the active encoding scope.
+    ///
+    /// Pop one previously pushed debug group in one active scope.
+    /// Pop fails when no matching group exists.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_pop_debug_group(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_command_pop_debug_group(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_command_pop_debug_group(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Push one debug group in the active encoding scope.
+    ///
+    /// Push one nested debug group in one active command or pass scope.
+    /// Groups must be balanced with matching pop operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_push_debug_group(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        label: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let label = label.into_vm("label")?;
+                gpu_vm::destack_gpu_command_push_debug_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    label,
+                )
+            }
+            None => {
+                let label = label.into_native("label")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_push_debug_group(
+                        self.call_context,
+                        handle,
+                        label,
+                    )
+                }
+            }
+        }
+    }
+
     /// Submit one command encoder batch to one queue.
     ///
     /// Submit one batch of finalized command encoders to one queue with explicit submit options.
@@ -812,7 +1842,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend queue submit APIs.
+    /// Uses WebGPU-style queue submit APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -865,7 +1895,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend queue wait-idle or fence wait APIs.
+    /// Uses WebGPU-style queue wait-idle or fence wait APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -897,7 +1927,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend queue write-buffer operations.
+    /// Uses WebGPU-style queue write-buffer operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -954,7 +1984,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend queue write-texture operations.
+    /// Uses WebGPU-style queue write-texture operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -1007,14 +2037,676 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Begin one render pass.
+    /// Destroy one render bundle.
     ///
-    /// Begin render-pass encoding on one command encoder with explicit color and depth attachments.
-    /// Attachment load and clear behavior follow backend render pass semantics.
+    /// Destroy one render-bundle object and release backend command storage.
+    /// The bundle handle becomes invalid after destroy.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend begin render pass commands.
+    /// Uses WebGPU-style render-bundle destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_destroy(
+        &mut self,
+        handle: resource::GpuRenderBundleHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_destroy(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Encode one non-indexed draw in one bundle encoder.
+    ///
+    /// Encode one non-indexed draw call with explicit vertex and instance ranges.
+    /// Draw semantics follow backend bundle-encoding contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_draw(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        vertexcount: u32,
+        instancecount: u32,
+        firstvertex: u32,
+        firstinstance: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_draw(
+                self.call_context,
+                context,
+                handle,
+                vertexcount,
+                instancecount,
+                firstvertex,
+                firstinstance,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_draw(
+                    self.call_context,
+                    handle,
+                    vertexcount,
+                    instancecount,
+                    firstvertex,
+                    firstinstance,
+                )
+            },
+        }
+    }
+
+    /// Encode one indexed draw in one bundle encoder.
+    ///
+    /// Encode one indexed draw call with explicit index and instance ranges.
+    /// Draw semantics follow backend bundle-encoding contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle indexed draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_draw_indexed(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        indexcount: u32,
+        instancecount: u32,
+        firstindex: u32,
+        basevertex: i32,
+        firstinstance: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_draw_indexed(
+                self.call_context,
+                context,
+                handle,
+                indexcount,
+                instancecount,
+                firstindex,
+                basevertex,
+                firstinstance,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_draw_indexed(
+                    self.call_context,
+                    handle,
+                    indexcount,
+                    instancecount,
+                    firstindex,
+                    basevertex,
+                    firstinstance,
+                )
+            },
+        }
+    }
+
+    /// Encode one indirect indexed draw range in one bundle encoder.
+    ///
+    /// Encode one or more indexed draws loaded from one argument buffer.
+    /// Indirect argument layout and alignment follow backend contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle indexed draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_draw_indexed_indirect(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        drawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_draw_indexed_indirect(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                drawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_draw_indexed_indirect(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    drawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
+    /// Encode one indirect non-indexed draw range in one bundle encoder.
+    ///
+    /// Encode one or more non-indexed draws loaded from one argument buffer.
+    /// Indirect argument layout and alignment follow backend contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_draw_indirect(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        drawcount: u32,
+        stride: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_draw_indirect(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                offset,
+                drawcount,
+                stride,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_draw_indirect(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    offset,
+                    drawcount,
+                    stride,
+                )
+            },
+        }
+    }
+
+    /// Close one render-bundle encoder without producing a bundle.
+    ///
+    /// Close one opened bundle encoder and release recording resources.
+    /// Any recorded commands are discarded.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bundle-encoder destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_encoder_close(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_render_bundle_encoder_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_encoder_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Finish one render-bundle encoder.
+    ///
+    /// Finalize one render-bundle encoder and produce one reusable render bundle.
+    /// The encoder handle becomes invalid after successful finish.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bundle finalize operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_encoder_finish(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+    ) -> RuntimeResult<resource::GpuRenderBundleHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_render_bundle_encoder_finish(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::GpuRenderBundleHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_render_bundle_encoder_finish(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Open one render-bundle encoder.
+    ///
+    /// Open one render-bundle encoder object for pre-recording reusable draw commands.
+    /// Bundle-encoder configuration defines attachment compatibility requirements.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle or secondary-command-buffer creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_encoder_open(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        options: HarnessValue<GpuRenderBundleEncoderOptions, GpuRenderBundleEncoderOptionsVm>,
+    ) -> RuntimeResult<resource::GpuRenderBundleEncoderHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_render_bundle_encoder_open(
+                    self.call_context,
+                    context,
+                    device,
+                    options,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out =
+                    std::mem::MaybeUninit::<resource::GpuRenderBundleEncoderHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_render_bundle_encoder_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Insert one debug marker in one bundle encoder.
+    ///
+    /// Insert one lightweight marker in one active render-bundle encoding scope.
+    /// Marker visibility is backend-defined and intended for tooling.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle marker commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_insert_debug_marker(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        marker: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let marker = marker.into_vm("marker")?;
+                gpu_vm::destack_gpu_render_bundle_insert_debug_marker(
+                    self.call_context,
+                    context,
+                    handle,
+                    marker,
+                )
+            }
+            None => {
+                let marker = marker.into_native("marker")?;
+                unsafe {
+                    gpu_native::destack_gpu_render_bundle_insert_debug_marker(
+                        self.call_context,
+                        handle,
+                        marker,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Pop one debug group in one bundle encoder.
+    ///
+    /// Pop one previously pushed debug group in one bundle-encoder scope.
+    /// Pop fails when no matching group exists.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_pop_debug_group(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_pop_debug_group(
+                self.call_context,
+                context,
+                handle,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_pop_debug_group(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Push one debug group in one bundle encoder.
+    ///
+    /// Push one nested debug group in one render-bundle encoder scope.
+    /// Groups must be balanced with matching pop operations.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_push_debug_group(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        label: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let label = label.into_vm("label")?;
+                gpu_vm::destack_gpu_render_bundle_push_debug_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    label,
+                )
+            }
+            None => {
+                let label = label.into_native("label")?;
+                unsafe {
+                    gpu_native::destack_gpu_render_bundle_push_debug_group(
+                        self.call_context,
+                        handle,
+                        label,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Bind one bind group in one bundle encoder.
+    ///
+    /// Bind one bind group at the requested index for bundle recording.
+    /// Dynamic offsets are interpreted in backend-defined binding order.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle bind-group commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_set_bind_group(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        index: u32,
+        bindgroup: resource::GpuBindGroupHandle,
+        dynamicoffsets: HarnessValue<NativeSlice<u32>, VmSlice<u32>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
+                gpu_vm::destack_gpu_render_bundle_set_bind_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            }
+            None => {
+                let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
+                unsafe {
+                    gpu_native::destack_gpu_render_bundle_set_bind_group(
+                        self.call_context,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Bind one index buffer in one bundle encoder.
+    ///
+    /// Bind one index buffer with explicit format and byte range metadata.
+    /// Index fetch semantics follow backend draw-indexed contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle index-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_set_index_buffer(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        buffer: resource::GpuBufferHandle,
+        format: GpuIndexFormat,
+        offset: u64,
+        size: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_set_index_buffer(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                format,
+                offset,
+                size,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_set_index_buffer(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    format,
+                    offset,
+                    size,
+                )
+            },
+        }
+    }
+
+    /// Bind one render pipeline for one bundle encoder.
+    ///
+    /// Bind one render pipeline in one render-bundle encoder.
+    /// Binding state remains active for subsequent bundle draw commands.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle pipeline bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_set_pipeline(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        pipeline: resource::GpuPipelineHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_set_pipeline(
+                self.call_context,
+                context,
+                handle,
+                pipeline,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_set_pipeline(
+                    self.call_context,
+                    handle,
+                    pipeline,
+                )
+            },
+        }
+    }
+
+    /// Bind one vertex buffer in one bundle encoder.
+    ///
+    /// Bind one vertex buffer slot with explicit byte range metadata.
+    /// Vertex fetch semantics follow the bound render pipeline.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style render-bundle vertex-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_render_bundle_set_vertex_buffer(
+        &mut self,
+        handle: resource::GpuRenderBundleEncoderHandle,
+        slot: u32,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        size: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_render_bundle_set_vertex_buffer(
+                self.call_context,
+                context,
+                handle,
+                slot,
+                buffer,
+                offset,
+                size,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_render_bundle_set_vertex_buffer(
+                    self.call_context,
+                    handle,
+                    slot,
+                    buffer,
+                    offset,
+                    size,
+                )
+            },
+        }
+    }
+
+    /// Begin one render pass.
+    ///
+    /// Begin render-pass encoding on one command encoder with explicit attachments and optional query wiring.
+    /// Attachment load, clear, timestamp, and occlusion behavior follow backend render pass semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style begin render pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -1059,7 +2751,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend end render pass commands.
+    /// Uses WebGPU-style end render pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -1083,6 +2775,376 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Bind one bind group for subsequent commands.
+    ///
+    /// Bind one bind group at the requested index for the current pass state.
+    /// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bind-group or descriptor-set bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_bind_group(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        index: u32,
+        bindgroup: resource::GpuBindGroupHandle,
+        dynamicoffsets: HarnessValue<NativeSlice<u32>, VmSlice<u32>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let dynamicoffsets = dynamicoffsets.into_vm("dynamicoffsets")?;
+                gpu_vm::destack_gpu_command_set_bind_group(
+                    self.call_context,
+                    context,
+                    handle,
+                    index,
+                    bindgroup,
+                    dynamicoffsets,
+                )
+            }
+            None => {
+                let dynamicoffsets = dynamicoffsets.into_native("dynamicoffsets")?;
+                unsafe {
+                    gpu_native::destack_gpu_command_set_bind_group(
+                        self.call_context,
+                        handle,
+                        index,
+                        bindgroup,
+                        dynamicoffsets,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Set one blend constant for the active render pass.
+    ///
+    /// Set one blend constant used by blend factors that reference constant color.
+    /// Constant color remains active until changed or render pass ends.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style blend-constant state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_blend_constant(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        r: f64,
+        g: f64,
+        b: f64,
+        a: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_set_blend_constant(
+                self.call_context,
+                context,
+                handle,
+                r,
+                g,
+                b,
+                a,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_set_blend_constant(
+                    self.call_context,
+                    handle,
+                    r,
+                    g,
+                    b,
+                    a,
+                )
+            },
+        }
+    }
+
+    /// Bind one index buffer for subsequent indexed draw commands.
+    ///
+    /// Bind one index buffer with explicit format and byte range metadata.
+    /// Index fetch semantics follow backend draw-indexed contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style index-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_index_buffer(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        buffer: resource::GpuBufferHandle,
+        format: GpuIndexFormat,
+        offset: u64,
+        size: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_set_index_buffer(
+                self.call_context,
+                context,
+                handle,
+                buffer,
+                format,
+                offset,
+                size,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_set_index_buffer(
+                    self.call_context,
+                    handle,
+                    buffer,
+                    format,
+                    offset,
+                    size,
+                )
+            },
+        }
+    }
+
+    /// Set one scissor rectangle for the active render pass.
+    ///
+    /// Set one scissor rectangle that clips subsequent draw calls.
+    /// Rectangle coordinates are expressed in framebuffer pixels.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style scissor state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_scissor(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_set_scissor(
+                self.call_context,
+                context,
+                handle,
+                x,
+                y,
+                width,
+                height,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_set_scissor(
+                    self.call_context,
+                    handle,
+                    x,
+                    y,
+                    width,
+                    height,
+                )
+            },
+        }
+    }
+
+    /// Set one stencil-reference value for the active render pass.
+    ///
+    /// Set one stencil-reference value consumed by stencil compare operations.
+    /// The reference value remains active until changed or render pass ends.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style stencil-reference state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_stencil_reference(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        reference: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_set_stencil_reference(
+                self.call_context,
+                context,
+                handle,
+                reference,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_set_stencil_reference(
+                    self.call_context,
+                    handle,
+                    reference,
+                )
+            },
+        }
+    }
+
+    /// Bind one vertex buffer for subsequent draw commands.
+    ///
+    /// Bind one vertex buffer slot with explicit byte range metadata.
+    /// Vertex fetch semantics follow the active render pipeline state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style vertex-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_vertex_buffer(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        slot: u32,
+        buffer: resource::GpuBufferHandle,
+        offset: u64,
+        size: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_set_vertex_buffer(
+                self.call_context,
+                context,
+                handle,
+                slot,
+                buffer,
+                offset,
+                size,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_set_vertex_buffer(
+                    self.call_context,
+                    handle,
+                    slot,
+                    buffer,
+                    offset,
+                    size,
+                )
+            },
+        }
+    }
+
+    /// Set one viewport state for the active render pass.
+    ///
+    /// Set one viewport rectangle and depth range for subsequent draw calls.
+    /// Coordinate interpretation follows backend clip-space conventions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style viewport state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.render`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_set_viewport(
+        &mut self,
+        handle: resource::GpuCommandListHandle,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        mindepth: f64,
+        maxdepth: f64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_set_viewport(
+                self.call_context,
+                context,
+                handle,
+                x,
+                y,
+                width,
+                height,
+                mindepth,
+                maxdepth,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_set_viewport(
+                    self.call_context,
+                    handle,
+                    x,
+                    y,
+                    width,
+                    height,
+                    mindepth,
+                    maxdepth,
+                )
+            },
+        }
+    }
+
+    /// Set one debug label on one GPU resource object.
+    ///
+    /// Set one human-readable label on one GPU resource or pipeline object.
+    /// Label visibility and truncation behavior are backend-defined.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style object-label operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.debug`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_set_label(
+        &mut self,
+        handle: resource::ResourceId,
+        label: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let label = label.into_vm("label")?;
+                gpu_vm::destack_gpu_set_label(self.call_context, context, handle, label)
+            }
+            None => {
+                let label = label.into_native("label")?;
+                unsafe { gpu_native::destack_gpu_set_label(self.call_context, handle, label) }
+            }
+        }
+    }
+
     /// Close one logical GPU device.
     ///
     /// Close one logical device and release backend device resources.
@@ -1090,7 +3152,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific device destroy or release operations.
+    /// Uses WebGPU-style device destroy or release operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1110,14 +3172,103 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Read one device feature snapshot.
+    ///
+    /// Read one enabled feature identifier snapshot from one logical device.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_device_features(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<GpuFeatureId>, VmSlice<GpuFeatureId>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_device_features(self.call_context, context, device)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<GpuFeatureId>>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_device_features(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Check whether one device supports one feature.
+    ///
+    /// Check one feature identifier against one logical device enabled feature set.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_device_has_feature(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        feature: GpuFeatureId,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_device_has_feature(
+                    self.call_context,
+                    context,
+                    device,
+                    feature,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_device_has_feature(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        feature,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
     /// Read metadata for one logical device.
     ///
-    /// Query effective features and limits of one created logical device.
+    /// Query effective features and limits for one created logical device.
     /// Results reflect backend feature enablement and negotiation outcomes.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend device feature and limits query paths.
+    /// Uses WebGPU-style device feature and limits query paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -1151,10 +3302,51 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Read one device limits snapshot.
+    ///
+    /// Read one effective limits snapshot from one logical device.
+    /// Limits remain stable for the device lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device limits query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_device_limits(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<GpuAdapterLimits, GpuAdapterLimitsVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_device_limits(self.call_context, context, device)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuAdapterLimits>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_device_limits(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Open one logical GPU device.
     ///
     /// Create one logical device from one adapter using required features and limits.
-    /// Device creation fails when host backend cannot satisfy the requested contract.
+    /// Device creation fails when the backend cannot satisfy the requested contract.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1200,11 +3392,11 @@ impl<'call> GpuHarnessContext<'call> {
     /// Poll one logical device for completion progress.
     ///
     /// Poll one device and optionally wait for work completion until the timeout expires.
-    /// Returned value is backend defined progress count for completed submission units.
+    /// Returned value is a backend-defined count of completed submission units.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend device poll or fence polling operations.
+    /// Uses WebGPU-style device poll or fence polling operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -1248,14 +3440,97 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Resolve the default queue for one logical device.
+    /// Pop one device error scope.
+    ///
+    /// Pop one previously pushed error scope and return captured error details.
+    /// Pop fails when no scope exists on the device scope stack.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device error-scope pop operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_device_pop_error_scope(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<GpuCapturedError, GpuCapturedErrorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_device_pop_error_scope(
+                    self.call_context,
+                    context,
+                    device,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuCapturedError>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_device_pop_error_scope(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Push one device error scope.
+    ///
+    /// Push one error scope to capture asynchronous validation and runtime errors.
+    /// Scopes are popped in last-in-first-out order.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device error-scope push operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_device_push_error_scope(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        filter: GpuErrorFilter,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_device_push_error_scope(
+                self.call_context,
+                context,
+                device,
+                filter,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_device_push_error_scope(self.call_context, device, filter)
+            },
+        }
+    }
+
+    /// Resolve one default queue for one logical device.
     ///
     /// Resolve one queue endpoint for command submission from one logical device.
     /// Queue identity follows backend default-queue semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend queue lookup operations.
+    /// Uses WebGPU-style queue lookup operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -1289,14 +3564,103 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
+    /// Read health status for one logical device.
+    ///
+    /// Return one snapshot of device-loss and backend health state.
+    /// Status can transition asynchronously as backend work progresses.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device-lost and status query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_device_status(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+    ) -> RuntimeResult<HarnessValue<GpuDeviceStatus, GpuDeviceStatusVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_device_status(self.call_context, context, device)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuDeviceStatus>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_device_status(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Resolve one bind-group layout from one pipeline.
+    ///
+    /// Resolve one bind-group layout at the requested group index from one pipeline object.
+    /// This follows pipeline-layout reflection rules of the selected backend.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style pipeline bind-group-layout query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_pipeline_bind_group_layout(
+        &mut self,
+        pipeline: resource::GpuPipelineHandle,
+        groupindex: u32,
+    ) -> RuntimeResult<resource::GpuBindGroupLayoutHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_pipeline_bind_group_layout(
+                    self.call_context,
+                    context,
+                    pipeline,
+                    groupindex,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::GpuBindGroupLayoutHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_pipeline_bind_group_layout(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        pipeline,
+                        groupindex,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
     /// Create one compute pipeline.
     ///
-    /// Create one compute pipeline with one explicit compute stage descriptor.
+    /// Create one compute pipeline from one compute stage descriptor and one explicit or inferred layout.
     /// Pipeline compilation and cache behavior follow host backend semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend compute pipeline creation APIs.
+    /// Uses WebGPU-style compute pipeline creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -1342,11 +3706,11 @@ impl<'call> GpuHarnessContext<'call> {
     /// Destroy one pipeline object.
     ///
     /// Destroy one pipeline object and release backend compiled state.
-    /// Outstanding command lists referencing the pipeline should be synchronized by callers.
+    /// Outstanding command lists referencing the pipeline must be synchronized by callers.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend pipeline destroy operations.
+    /// Uses WebGPU-style pipeline destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1370,12 +3734,12 @@ impl<'call> GpuHarnessContext<'call> {
 
     /// Create one render pipeline.
     ///
-    /// Create one render pipeline with explicit vertex and fragment stages and attachment formats.
-    /// Pipeline compilation and backend render state linkage follow host API semantics.
+    /// Create one render pipeline with explicit shader stages, one explicit or inferred layout, and render-state descriptors.
+    /// Pipeline compilation and backend render-state linkage follow host API semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend render pipeline creation APIs.
+    /// Uses WebGPU-style render pipeline creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -1418,14 +3782,62 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Create one shader module.
+    /// Read one shader-compilation diagnostics snapshot.
     ///
-    /// Create one shader module from one binary payload and explicit stage metadata.
-    /// Shader validation and backend translation follow host compiler rules.
+    /// Read one snapshot of compilation diagnostics for one shader module.
+    /// Diagnostics are backend-defined and can include warnings and informational messages.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend shader module creation APIs.
+    /// Uses WebGPU-style shader compilation-info query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.shader`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_shader_compilation_info(
+        &mut self,
+        handle: resource::GpuShaderHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<GpuCompilationInfo, GpuCompilationInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_shader_compilation_info(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuCompilationInfo>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_shader_compilation_info(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Create one shader module.
+    ///
+    /// Create one shader module from one source or binary payload and module metadata.
+    /// Stage and entry-point selection are defined by pipeline stage descriptors, not by shader-module creation.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style shader module creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1480,7 +3892,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend shader module destroy operations.
+    /// Uses WebGPU-style shader module destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1500,14 +3912,15 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Present one frame to one window surface.
+    /// Acquire one presentable surface texture.
     ///
-    /// Present one rendered frame from one queue to one configured window surface.
-    /// Swap behavior and presentation latency follow host compositor and backend contracts.
+    /// Acquire one surface texture for rendering the next frame.
+    /// Returned status indicates whether presentation can proceed or whether reconfiguration is required.
+    /// When `hasTexture` is false, `texture` and `frameId` are unspecified.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses swapchain present APIs on Vulkan, Metal layer present, or DXGI present.
+    /// Uses WebGPU-style next-image acquisition APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
@@ -1517,36 +3930,116 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_gpu_queue_present(
+    pub(crate) fn destack_gpu_surface_acquire(
         &mut self,
-        queue: resource::GpuQueueHandle,
-        window: resource::WindowHandle,
-        options: HarnessValue<GpuPresentOptions, GpuPresentOptionsVm>,
-    ) -> RuntimeResult<()> {
+        surface: resource::GpuSurfaceHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<GpuSurfaceFrame, GpuSurfaceFrameVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let options = options.into_vm("options")?;
-                gpu_vm::destack_gpu_queue_present(
+                let out = gpu_vm::destack_gpu_surface_acquire(
                     self.call_context,
                     context,
-                    queue,
-                    window,
-                    options,
-                )
+                    surface,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
             }
             None => {
-                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<GpuSurfaceFrame>::uninit();
                 unsafe {
-                    gpu_native::destack_gpu_queue_present(self.call_context, queue, window, options)
+                    gpu_native::destack_gpu_surface_acquire(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        surface,
+                        timeoutns,
+                    )?;
                 }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             }
         }
     }
 
-    /// Configure one window surface for one device.
+    /// Read surface capabilities for one adapter.
     ///
-    /// Configure one presentable window surface with explicit dimensions and swap behavior.
-    /// Surface configuration must precede frame presentation for that window.
+    /// Query one surface and adapter pair for compatible formats and present modes.
+    /// Capabilities can change when the window or monitor configuration changes.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style surface capabilities query APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_capabilities(
+        &mut self,
+        surface: resource::GpuSurfaceHandle,
+        adapter: resource::GpuAdapterHandle,
+    ) -> RuntimeResult<HarnessValue<GpuSurfaceCapabilities, GpuSurfaceCapabilitiesVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_surface_capabilities(
+                    self.call_context,
+                    context,
+                    surface,
+                    adapter,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuSurfaceCapabilities>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_capabilities(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        surface,
+                        adapter,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close one present surface.
+    ///
+    /// Close one present surface and release host compositor resources.
+    /// Surface handle becomes invalid after close.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses surface destroy operations on host backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_close(
+        &mut self,
+        surface: resource::GpuSurfaceHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_surface_close(self.call_context, context, surface),
+            None => unsafe { gpu_native::destack_gpu_surface_close(self.call_context, surface) },
+        }
+    }
+
+    /// Configure one present surface.
+    ///
+    /// Configure one present surface with explicit dimensions and swap behavior.
+    /// Surface configuration must precede frame acquisition and presentation.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1563,7 +4056,7 @@ impl<'call> GpuHarnessContext<'call> {
     pub(crate) fn destack_gpu_surface_configure(
         &mut self,
         device: resource::GpuDeviceHandle,
-        window: resource::WindowHandle,
+        surface: resource::GpuSurfaceHandle,
         options: HarnessValue<GpuSurfaceOptions, GpuSurfaceOptionsVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -1573,7 +4066,7 @@ impl<'call> GpuHarnessContext<'call> {
                     self.call_context,
                     context,
                     device,
-                    window,
+                    surface,
                     options,
                 )
             }
@@ -1583,11 +4076,120 @@ impl<'call> GpuHarnessContext<'call> {
                     gpu_native::destack_gpu_surface_configure(
                         self.call_context,
                         device,
-                        window,
+                        surface,
                         options,
                     )
                 }
             }
+        }
+    }
+
+    /// Open one present surface.
+    ///
+    /// Open one present surface bound to one window host object.
+    /// Surface lifetime is independent from device lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses swapchain-surface or layer surface creation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_open(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<resource::GpuSurfaceHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_surface_open(self.call_context, context, window)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::GpuSurfaceHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_surface_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        window,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Present one acquired frame to one surface.
+    ///
+    /// Present one previously acquired frame on one configured surface.
+    /// The `frameId` must match one outstanding successful `surfaceAcquire` result.
+    /// Presentation timing and tearing behavior follow compositor and backend contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses swapchain present APIs on Vulkan, Metal layer present, or DXGI present.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_present(
+        &mut self,
+        surface: resource::GpuSurfaceHandle,
+        options: HarnessValue<GpuPresentOptions, GpuPresentOptionsVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                gpu_vm::destack_gpu_surface_present(self.call_context, context, surface, options)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                unsafe {
+                    gpu_native::destack_gpu_surface_present(self.call_context, surface, options)
+                }
+            }
+        }
+    }
+
+    /// Remove active configuration from one present surface.
+    ///
+    /// Remove swapchain configuration from one surface and release configured present resources.
+    /// Surface must be configured again before the next frame acquisition.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style surface unconfigure operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.present`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_gpu_surface_unconfigure(
+        &mut self,
+        surface: resource::GpuSurfaceHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_surface_unconfigure(self.call_context, context, surface)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_surface_unconfigure(self.call_context, surface)
+            },
         }
     }
 
@@ -1598,7 +4200,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend buffer creation operations.
+    /// Uses WebGPU-style buffer creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1640,11 +4242,11 @@ impl<'call> GpuHarnessContext<'call> {
     /// Destroy one GPU buffer.
     ///
     /// Destroy one buffer resource and release host backend memory references.
-    /// Outstanding use of the buffer is host-undefined and should be synchronized by callers.
+    /// Outstanding use of the buffer is host-undefined and must be synchronized by callers.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend buffer destroy operations.
+    /// Uses WebGPU-style buffer destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1664,14 +4266,109 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Read one byte range from a GPU buffer.
+    /// Read one buffer metadata snapshot.
+    ///
+    /// Read one metadata snapshot for one buffer resource.
+    /// Snapshot values remain stable except map state, which can change asynchronously.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style buffer property query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_buffer_info(
+        &mut self,
+        handle: resource::GpuBufferHandle,
+    ) -> RuntimeResult<HarnessValue<GpuBufferInfo, GpuBufferInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_buffer_info(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuBufferInfo>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_buffer_info(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Map one buffer range.
+    ///
+    /// Map one host-visible byte range for direct CPU access.
+    /// Mapping coherence and cache behavior follow host backend memory rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style buffer map operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_buffer_map(
+        &mut self,
+        handle: resource::GpuBufferHandle,
+        offset: u64,
+        length: u64,
+        mode: GpuMapMode,
+    ) -> RuntimeResult<HarnessValue<GpuMappedBufferRange, GpuMappedBufferRangeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_buffer_map(
+                    self.call_context,
+                    context,
+                    handle,
+                    offset,
+                    length,
+                    mode,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuMappedBufferRange>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_buffer_map(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        offset,
+                        length,
+                        mode,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one byte range from one GPU buffer.
     ///
     /// Read one byte range from one buffer resource into host-visible memory.
     /// Readback can stall based on backend synchronization and transfer state.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend readback or mapped-read paths.
+    /// Uses WebGPU-style readback or mapped-read paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -1715,14 +4412,41 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Write one byte range to a GPU buffer.
+    /// Unmap one mapped buffer.
+    ///
+    /// Unmap one previously mapped buffer range and flush host synchronization as required.
+    /// Visibility of writes follows backend memory model semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style buffer unmap operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_buffer_unmap(
+        &mut self,
+        handle: resource::GpuBufferHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_buffer_unmap(self.call_context, context, handle),
+            None => unsafe { gpu_native::destack_gpu_buffer_unmap(self.call_context, handle) },
+        }
+    }
+
+    /// Write one byte range to one GPU buffer.
     ///
     /// Write one byte range into one buffer resource from host memory.
     /// Host staging and synchronization behavior follow backend upload semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend upload or mapped-write paths.
+    /// Uses WebGPU-style upload or mapped-write paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -1763,84 +4487,6 @@ impl<'call> GpuHarnessContext<'call> {
         }
     }
 
-    /// Map one memory allocation.
-    ///
-    /// Map one host-visible memory allocation for direct CPU access.
-    /// Mapping coherence and cache behavior follow host backend memory rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend memory map operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `gpu.memory`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_gpu_memory_map(
-        &mut self,
-        handle: resource::GpuMemoryHandle,
-        offset: u64,
-        length: u64,
-    ) -> RuntimeResult<HarnessValue<GpuMappedMemory, GpuMappedMemoryVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = gpu_vm::destack_gpu_memory_map(
-                    self.call_context,
-                    context,
-                    handle,
-                    offset,
-                    length,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<GpuMappedMemory>::uninit();
-                unsafe {
-                    gpu_native::destack_gpu_memory_map(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                        offset,
-                        length,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Unmap one memory allocation.
-    ///
-    /// Unmap one previously mapped memory allocation and flush host synchronization as required.
-    /// Visibility of writes follows backend memory model semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend memory unmap operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `gpu.memory`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_gpu_memory_unmap(
-        &mut self,
-        handle: resource::GpuMemoryHandle,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => gpu_vm::destack_gpu_memory_unmap(self.call_context, context, handle),
-            None => unsafe { gpu_native::destack_gpu_memory_unmap(self.call_context, handle) },
-        }
-    }
-
     /// Create one sampler resource.
     ///
     /// Create one sampler resource with explicit filter and address mode selections.
@@ -1848,7 +4494,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend sampler creation operations.
+    /// Uses WebGPU-style sampler creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1898,7 +4544,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend sampler destroy operations.
+    /// Uses WebGPU-style sampler destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1927,7 +4573,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend texture creation operations.
+    /// Uses WebGPU-style texture creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1973,11 +4619,11 @@ impl<'call> GpuHarnessContext<'call> {
     /// Destroy one texture resource.
     ///
     /// Destroy one texture resource and release host backend memory references.
-    /// Outstanding use of the texture should be synchronized by callers.
+    /// Outstanding use of the texture must be synchronized by callers.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend texture destroy operations.
+    /// Uses WebGPU-style texture destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -1996,6 +4642,728 @@ impl<'call> GpuHarnessContext<'call> {
                 gpu_vm::destack_gpu_texture_destroy(self.call_context, context, handle)
             }
             None => unsafe { gpu_native::destack_gpu_texture_destroy(self.call_context, handle) },
+        }
+    }
+
+    /// Read one texture metadata snapshot.
+    ///
+    /// Read one metadata snapshot for one texture resource.
+    /// Snapshot values remain stable for the texture lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style texture property query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_texture_info(
+        &mut self,
+        handle: resource::GpuTextureHandle,
+    ) -> RuntimeResult<HarnessValue<GpuTextureInfo, GpuTextureInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_texture_info(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuTextureInfo>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_texture_info(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Create one texture view.
+    ///
+    /// Create one view of one texture resource for bindings and render attachments.
+    /// View range and dimension are validated against the source texture descriptor.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style texture-view creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_texture_view_create(
+        &mut self,
+        texture: resource::GpuTextureHandle,
+        options: HarnessValue<GpuTextureViewOptions, GpuTextureViewOptionsVm>,
+    ) -> RuntimeResult<resource::GpuTextureViewHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_texture_view_create(
+                    self.call_context,
+                    context,
+                    texture,
+                    options,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuTextureViewHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_texture_view_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        texture,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Destroy one texture view.
+    ///
+    /// Destroy one texture-view endpoint and release backend view resources.
+    /// The texture-view handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style texture-view destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_texture_view_destroy(
+        &mut self,
+        handle: resource::GpuTextureViewHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_texture_view_destroy(self.call_context, context, handle)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_texture_view_destroy(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Begin one occlusion query.
+    ///
+    /// Begin one occlusion query in the active render pass.
+    /// Query nesting and pass compatibility follow backend semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style begin-occlusion-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_begin_occlusion_query(
+        &mut self,
+        commandlist: resource::GpuCommandListHandle,
+        queryset: resource::GpuQuerySetHandle,
+        queryindex: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_begin_occlusion_query(
+                self.call_context,
+                context,
+                commandlist,
+                queryset,
+                queryindex,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_begin_occlusion_query(
+                    self.call_context,
+                    commandlist,
+                    queryset,
+                    queryindex,
+                )
+            },
+        }
+    }
+
+    /// Begin one pipeline-statistics query.
+    ///
+    /// Begin one pipeline-statistics query in the active render or compute pass.
+    /// Pipeline-statistics queries cannot be nested and require one matching end call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style begin-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_begin_pipeline_statistics_query(
+        &mut self,
+        commandlist: resource::GpuCommandListHandle,
+        queryset: resource::GpuQuerySetHandle,
+        queryindex: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_begin_pipeline_statistics_query(
+                self.call_context,
+                context,
+                commandlist,
+                queryset,
+                queryindex,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_begin_pipeline_statistics_query(
+                    self.call_context,
+                    commandlist,
+                    queryset,
+                    queryindex,
+                )
+            },
+        }
+    }
+
+    /// End one occlusion query.
+    ///
+    /// End one occlusion query in the active render pass.
+    /// The current query must match the last begin call for this pass.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style end-occlusion-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_end_occlusion_query(
+        &mut self,
+        commandlist: resource::GpuCommandListHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_end_occlusion_query(
+                self.call_context,
+                context,
+                commandlist,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_end_occlusion_query(self.call_context, commandlist)
+            },
+        }
+    }
+
+    /// End one pipeline-statistics query.
+    ///
+    /// End one active pipeline-statistics query in the current pass.
+    /// The active query must match the most recent begin call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style end-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_end_pipeline_statistics_query(
+        &mut self,
+        commandlist: resource::GpuCommandListHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_end_pipeline_statistics_query(
+                self.call_context,
+                context,
+                commandlist,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_end_pipeline_statistics_query(
+                    self.call_context,
+                    commandlist,
+                )
+            },
+        }
+    }
+
+    /// Resolve one query range into one destination buffer.
+    ///
+    /// Resolve one query range and write results into one destination buffer.
+    /// Destination alignment and encoding follow backend query-result rules.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style resolve-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_resolve_queries(
+        &mut self,
+        commandlist: resource::GpuCommandListHandle,
+        queryset: resource::GpuQuerySetHandle,
+        firstquery: u32,
+        querycount: u32,
+        destination: resource::GpuBufferHandle,
+        destinationoffset: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_resolve_queries(
+                self.call_context,
+                context,
+                commandlist,
+                queryset,
+                firstquery,
+                querycount,
+                destination,
+                destinationoffset,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_resolve_queries(
+                    self.call_context,
+                    commandlist,
+                    queryset,
+                    firstquery,
+                    querycount,
+                    destination,
+                    destinationoffset,
+                )
+            },
+        }
+    }
+
+    /// Write one timestamp query from one command list.
+    ///
+    /// Emit one timestamp query at the current command-list position.
+    /// Query availability and timestamp period follow backend semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style write-timestamp commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_command_write_timestamp(
+        &mut self,
+        commandlist: resource::GpuCommandListHandle,
+        queryset: resource::GpuQuerySetHandle,
+        queryindex: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_command_write_timestamp(
+                self.call_context,
+                context,
+                commandlist,
+                queryset,
+                queryindex,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_command_write_timestamp(
+                    self.call_context,
+                    commandlist,
+                    queryset,
+                    queryindex,
+                )
+            },
+        }
+    }
+
+    /// Create one synchronization fence.
+    ///
+    /// Create one fence object for queue wait and signal coordination.
+    /// Timeline mode availability depends on backend feature support.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style fence or timeline semaphore creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_fence_create(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        options: HarnessValue<GpuFenceOptions, GpuFenceOptionsVm>,
+    ) -> RuntimeResult<resource::GpuFenceHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out =
+                    gpu_vm::destack_gpu_fence_create(self.call_context, context, device, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuFenceHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_fence_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Destroy one synchronization fence.
+    ///
+    /// Destroy one fence object and release backend synchronization resources.
+    /// The fence handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style fence destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_fence_destroy(
+        &mut self,
+        handle: resource::GpuFenceHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_fence_destroy(self.call_context, context, handle),
+            None => unsafe { gpu_native::destack_gpu_fence_destroy(self.call_context, handle) },
+        }
+    }
+
+    /// Create one query set.
+    ///
+    /// Create one query set for timestamp, occlusion, or pipeline-statistics queries.
+    /// Query set size and type are fixed for the object lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style query-pool creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_query_set_create(
+        &mut self,
+        device: resource::GpuDeviceHandle,
+        options: HarnessValue<GpuQuerySetOptions, GpuQuerySetOptionsVm>,
+    ) -> RuntimeResult<resource::GpuQuerySetHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = gpu_vm::destack_gpu_query_set_create(
+                    self.call_context,
+                    context,
+                    device,
+                    options,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::GpuQuerySetHandle>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_query_set_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Destroy one query set.
+    ///
+    /// Destroy one query set and release backend query resources.
+    /// The query set handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style query-pool destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_query_set_destroy(
+        &mut self,
+        handle: resource::GpuQuerySetHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_query_set_destroy(self.call_context, context, handle)
+            }
+            None => unsafe { gpu_native::destack_gpu_query_set_destroy(self.call_context, handle) },
+        }
+    }
+
+    /// Read one query-set metadata snapshot.
+    ///
+    /// Read one query-set type and count snapshot from one query-set handle.
+    /// Values remain stable for the query-set lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style query-set metadata operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_query_set_info(
+        &mut self,
+        handle: resource::GpuQuerySetHandle,
+    ) -> RuntimeResult<HarnessValue<GpuQuerySetInfo, GpuQuerySetInfoVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = gpu_vm::destack_gpu_query_set_info(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<GpuQuerySetInfo>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_query_set_info(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Signal one fence value from one queue.
+    ///
+    /// Signal one fence from one queue after prior submissions complete.
+    /// Value handling follows backend binary or timeline semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style queue signal operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_queue_signal(
+        &mut self,
+        queue: resource::GpuQueueHandle,
+        fence: resource::GpuFenceHandle,
+        argument_value: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_queue_signal(
+                self.call_context,
+                context,
+                queue,
+                fence,
+                argument_value,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_queue_signal(
+                    self.call_context,
+                    queue,
+                    fence,
+                    argument_value,
+                )
+            },
+        }
+    }
+
+    /// Read one queue timestamp period.
+    ///
+    /// Read the queue timestamp period in nanoseconds per hardware timestamp tick.
+    /// Multiply timestamp query deltas by this value to convert to nanoseconds.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style queue timestamp-period query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_queue_timestamp_period(
+        &mut self,
+        queue: resource::GpuQueueHandle,
+    ) -> RuntimeResult<f64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    gpu_vm::destack_gpu_queue_timestamp_period(self.call_context, context, queue)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<f64>::uninit();
+                unsafe {
+                    gpu_native::destack_gpu_queue_timestamp_period(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        queue,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one fence value.
+    ///
+    /// Wait for one fence to reach or exceed one requested value.
+    /// Timeout uses nanoseconds in the runtime monotonic domain.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style fence wait operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_queue_wait(
+        &mut self,
+        queue: resource::GpuQueueHandle,
+        fence: resource::GpuFenceHandle,
+        argument_value: u64,
+        timeoutns: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => gpu_vm::destack_gpu_queue_wait(
+                self.call_context,
+                context,
+                queue,
+                fence,
+                argument_value,
+                timeoutns,
+            ),
+            None => unsafe {
+                gpu_native::destack_gpu_queue_wait(
+                    self.call_context,
+                    queue,
+                    fence,
+                    argument_value,
+                    timeoutns,
+                )
+            },
+        }
+    }
+
+    /// Wait for all previously submitted queue work.
+    ///
+    /// Wait for one queue to complete all prior submissions.
+    /// Timeout uses nanoseconds in the runtime monotonic domain.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style queue completion wait operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_gpu_queue_work_done(
+        &mut self,
+        queue: resource::GpuQueueHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                gpu_vm::destack_gpu_queue_work_done(self.call_context, context, queue, timeoutns)
+            }
+            None => unsafe {
+                gpu_native::destack_gpu_queue_work_done(self.call_context, queue, timeoutns)
+            },
         }
     }
 }

@@ -6,7 +6,10 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, tls as platform_tls};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    tls as platform_tls,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -250,6 +253,63 @@ impl Copy for TlsContextOptionsAbi<VmAbi> {}
 impl Clone for TlsContextOptionsAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "TlsContextOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_role = <TlsRole as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_min_version =
+            <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_max_version =
+            <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_verify_peer = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_alpn_protocols =
+            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            role: field_role,
+            min_version: field_min_version,
+            max_version: field_max_version,
+            verify_peer: field_verify_peer,
+            alpn_protocols: field_alpn_protocols,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <TlsRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
+            <TlsVersion as VmAggregateCodec>::encode_with_context(self.min_version, context)?,
+            <TlsVersion as VmAggregateCodec>::encode_with_context(self.max_version, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.verify_peer, context)?,
+            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+                self.alpn_protocols,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 

@@ -502,7 +502,7 @@ fn render_native_like_stub(
 
         let function_name = binding.implementation_fn_name.clone();
         let mut params = Vec::new();
-        let mut unused = Vec::new();
+        let mut unused = vec!["context".to_string()];
 
         if entry.return_binding != BindingType::Void {
             let out_type = native_type_for_binding(domain, &entry.return_binding);

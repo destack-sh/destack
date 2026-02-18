@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError, VmSlice, VmValueCodec};
+use crate::platform::{PlatformError, VmAggregateCodec, VmSlice};
 
 /// FFI array for raw native bindings.
 #[repr(C)]
@@ -71,7 +71,7 @@ pub struct VmArray<T> {
 impl<T> VmArray<T> {
     /// Decode a VM array from an aggregate value.
     pub fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
         name: &str,
         expected: &str,
@@ -146,7 +146,7 @@ impl<T> VmArray<T> {
     }
 }
 
-impl<T: VmValueCodec> VmArray<T> {
+impl<T: VmAggregateCodec> VmArray<T> {
     /// Allocate a VM array from decoded values.
     pub fn from_values(
         context: &mut vm::ExternalCallContext<'_>,
@@ -183,6 +183,22 @@ impl<T: VmValueCodec> VmArray<T> {
             _marker: PhantomData::<T>,
         }
         .write_values(context, values)
+    }
+}
+
+impl<T: Copy> VmAggregateCodec for VmArray<T> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        VmArray::from_value(context, value, "value", "array")
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        Ok(self.to_value(context))
     }
 }
 

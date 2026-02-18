@@ -4,7 +4,12 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-use crate::platform::{resource, resource as platform_resource, tty as platform_tty};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, resource,
+    resource as platform_resource, tty as platform_tty,
+};
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI struct for PtyPair.
@@ -18,6 +23,52 @@ pub struct PtyPair {
 }
 
 pub type PtyPairVm = PtyPair;
+
+impl VmAggregateCodec for PtyPair {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "PtyPair",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_controller =
+            <resource::PtyHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_worker =
+            <resource::TtyHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            controller: field_controller,
+            worker: field_worker,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <resource::PtyHandle as VmAggregateCodec>::encode_with_context(
+                self.controller,
+                context,
+            )?,
+            <resource::TtyHandle as VmAggregateCodec>::encode_with_context(self.worker, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
 
 /// ABI struct for TtyMode.
 #[repr(C)]
@@ -35,6 +86,54 @@ pub struct TtyMode {
 
 pub type TtyModeVm = TtyMode;
 
+impl VmAggregateCodec for TtyMode {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "TtyMode",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_input_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_output_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_control_flags =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_local_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            input_flags: field_input_flags,
+            output_flags: field_output_flags,
+            control_flags: field_control_flags,
+            local_flags: field_local_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_flags, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_flags, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.control_flags, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.local_flags, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for TtySize.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -50,3 +149,50 @@ pub struct TtySize {
 }
 
 pub type TtySizeVm = TtySize;
+
+impl VmAggregateCodec for TtySize {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "TtySize",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_rows = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_columns = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_x_pixels = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_y_pixels = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            rows: field_rows,
+            columns: field_columns,
+            x_pixels: field_x_pixels,
+            y_pixels: field_y_pixels,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u32 as VmAggregateCodec>::encode_with_context(self.rows, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.columns, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.x_pixels, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.y_pixels, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}

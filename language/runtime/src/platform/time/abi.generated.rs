@@ -5,7 +5,10 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{PlatformError as AbiPlatformError, VmValueCodec, time as platform_time};
+use crate::platform::{
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
+    time as platform_time,
+};
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
@@ -138,3 +141,54 @@ pub struct ClockInfo {
 }
 
 pub type ClockInfoVm = ClockInfo;
+
+impl VmAggregateCodec for ClockInfo {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ClockInfo",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_id = <ClockId as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_source =
+            <ClockSource as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_resolution_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_is_monotonic =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            id: field_id,
+            source: field_source,
+            resolution_ns: field_resolution_ns,
+            is_monotonic: field_is_monotonic,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <ClockId as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <ClockSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.resolution_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_monotonic, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
