@@ -543,11 +543,12 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let index = self.unbind_expression(
+                let index = self.unbind_type_expression(
                     module,
                     *count,
                     tree,
                     symbols,
+                    types,
                     ast_tree,
                     ast_strings,
                     context,

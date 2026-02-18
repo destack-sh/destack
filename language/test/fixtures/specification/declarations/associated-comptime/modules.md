@@ -104,8 +104,8 @@ export class SegmentPlan<Row> {
 ```ds:main.ds
 import { SegmentPlan } from "./plan";
 
-function unresolved<Row>(): number {
-    SegmentPlan<Row>.SegmentBytes
+function unresolved<Row>() {
+    SegmentPlan<Row>.SegmentBytes;
 }
 ```
 

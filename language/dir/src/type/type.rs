@@ -207,7 +207,7 @@ pub enum Type {
     /// Array type with fixed size (like `T[N]`).
     ArraySized {
         element: LocalTypeId,
-        count: LocalNodeId<Expression>,
+        count: LocalTypeId,
         is_readonly: bool,
     },
     /// Array type with dynamically sized elements (like `T[]`).

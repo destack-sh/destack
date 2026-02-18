@@ -848,7 +848,7 @@ impl<'a> SignatureHasher<'a> {
                 is_readonly.hash(&mut hasher);
                 self.hash_type_id_in_tables(module_id, *element, types)
                     .hash(&mut hasher);
-                self.hash_node(count.into_global_any(module_id))
+                self.hash_type_id_in_tables(module_id, *count, types)
                     .hash(&mut hasher);
             }
             Type::Array {

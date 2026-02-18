@@ -4,8 +4,8 @@ use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase,
     MatchSelector, NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType,
-    ScalarLiteral, StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type, TypeField,
-    TypeLiteral, TypeTable,
+    ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, Type, TypeField, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1060,8 +1060,7 @@ impl Compiler {
                 Some(types)
             }
             Type::ArraySized { element, count, .. } => {
-                let length =
-                    self.fixed_array_count_value(module, profile, count, tree, symbols, types)?;
+                let length = self.fixed_array_count_value(count, types)?;
                 let mut elements = Vec::with_capacity(length);
                 for _ in 0..length {
                     elements.push(element);
@@ -1085,38 +1084,10 @@ impl Compiler {
     }
 
     /// Resolve a fixed array count to a literal length.
-    fn fixed_array_count_value(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        count: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<usize> {
-        // prefer static evaluation for real count expressions
-        if tree.has_node_id(count.id)
-            && let Ok(Some(StaticExpression::ScalarLiteral {
-                value: ScalarLiteral::Integer(value),
-            })) = self.evaluate_static_expression_value(
-                module, profile, count, tree, symbols, types, None,
-            )
-        {
-            return usize::try_from(value).ok();
-        }
-
-        // fall back to inferred literal types when static evaluation is missing
-        let count_global = count.into_global_any(types.module_id);
-        let count_id = types.get_inferred_type_id(count_global)?;
-        let count_ty = types.get_type(count_id);
-        let Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
-        } = count_ty
-        else {
-            return None;
-        };
-
-        usize::try_from(*value).ok()
+    fn fixed_array_count_value(&self, count: LocalTypeId, types: &TypeTable) -> Option<usize> {
+        let count_id = types.unwrap_value_type_id(count);
+        let value = self.integer_literal_value_for_type_id(count_id, types)?;
+        usize::try_from(value).ok()
     }
 
     /// Resolve a structural object field map for a value type.

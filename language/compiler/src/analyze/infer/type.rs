@@ -15,11 +15,11 @@ use destack_dir::{
     Asynchrony, BinaryOperator, Declaration, DependencyItem, EnumBackingType, Expression,
     Extension, ExtensionKind, FloatType, FunctionCardinality, GlobalSymbolId, InferTable, IntType,
     LocalNodeId, LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType,
-    NormalizationMode, PrimitiveType, Resolution, ResolutionCandidate, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, StaticProperty, StringId, SymbolSpaceOrder,
-    SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature,
-    TypeLiteral, TypeMappedParameter, TypeRewriter, TypeRewriterOptions, TypeTable,
-    TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
+    NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    StaticProperty, StringId, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeBinaryOperator,
+    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeRewriter,
+    TypeRewriterOptions, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -2872,23 +2872,6 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Build a stable local expression id for imported fixed-array counts.
-    fn imported_array_sized_count_expression_id(
-        &self,
-        node_id: LocalNodeIdAny,
-        remote_count: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
-    ) -> LocalNodeId<Expression> {
-        // synthesize an expression id in a high range to avoid colliding with real tree nodes
-        let symbol_bits = target_symbol.local_id.id;
-        let mixed = node_id.id
-            ^ remote_count.id.rotate_left(11)
-            ^ symbol_bits.rotate_left(21)
-            ^ 0x6a09_e667;
-        let synthetic = 0x8000_0000 | (mixed & 0x7fff_fffe);
-        LocalNodeId::new(synthetic)
-    }
-
     /// Import a type from a remote module into the current module's TypeTable.
     /// For structural types (arrays, objects, ..): recursively copy the type structure.
     /// For nominal types (Type::Reference): keep them as references to the original symbol.
@@ -3540,7 +3523,7 @@ impl Compiler {
                 },
                 node_id,
             ),
-            // import fixed arrays with a local synthetic count id and inferred count type
+            // import fixed arrays by recursively importing the count type
             Type::ArraySized {
                 element,
                 count,
@@ -3553,41 +3536,13 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                let local_count =
-                    self.imported_array_sized_count_expression_id(node_id, *count, target_symbol);
-
-                let remote_count_global = count.into_global_any(remote_types.module_id);
-                if let Some(remote_count_type_id) = remote_types
-                    .get_declared_type_id(remote_count_global)
-                    .or_else(|| remote_types.get_inferred_type_id(remote_count_global))
-                {
-                    let local_count_type_id = self.import_type_from_remote_for_node(
-                        node_id,
-                        remote_types.get_type(remote_count_type_id),
-                        remote_types,
-                        target_symbol,
-                        types,
-                    );
-                    let local_count_global = local_count.into_global_any(types.module_id);
-                    types.set_inferred_type(local_count_global, local_count_type_id);
-                    if let Some(remote_resolution_id) =
-                        remote_types.get_resolution_for_node(remote_count_global)
-                        && let Resolution::Static { candidate, .. } =
-                            remote_types.get_resolution(remote_resolution_id)
-                    {
-                        let local_resolution = Resolution::Static {
-                            receiver: None,
-                            candidate: ResolutionCandidate {
-                                key: None,
-                                target_symbol: candidate.target_symbol,
-                                instance: None,
-                                resolved_signature: None,
-                            },
-                        };
-                        let local_resolution_id = types.insert_resolution(local_resolution);
-                        types.set_resolution_for_node(local_count_global, local_resolution_id);
-                    }
-                }
+                let local_count = self.import_type_from_remote_for_node(
+                    node_id,
+                    remote_types.get_type(*count),
+                    remote_types,
+                    target_symbol,
+                    types,
+                );
 
                 types.insert_imported_type_from_any(
                     Type::ArraySized {

@@ -1,8 +1,7 @@
 use destack_dir::{
-    Expression, GlobalSymbolId, IntType, Lineage, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticParameterKind,
-    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
-    VarianceModifier, WellKnownSymbol,
+    GlobalSymbolId, IntType, Lineage, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticParameterKind, SymbolTable, SymbolType, Type,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeTable, VarianceModifier, WellKnownSymbol,
 };
 use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -2434,8 +2433,8 @@ impl Compiler {
     /// Check whether two fixed array counts match.
     fn array_sized_counts_match(
         &self,
-        target_count: LocalNodeId<Expression>,
-        source_count: LocalNodeId<Expression>,
+        target_count: LocalTypeId,
+        source_count: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
         if target_count == source_count {
@@ -2454,7 +2453,7 @@ impl Compiler {
     /// Check whether a fixed array count matches a literal length.
     fn array_sized_count_matches_length(
         &self,
-        count: LocalNodeId<Expression>,
+        count: LocalTypeId,
         length: usize,
         types: &TypeTable,
     ) -> bool {
@@ -2465,16 +2464,13 @@ impl Compiler {
         value == length as i64
     }
 
-    /// Extract an integer literal value for a fixed-array count expression.
+    /// Extract an integer literal value for a fixed-array count type.
     fn array_sized_count_literal_value(
         &self,
-        count: LocalNodeId<Expression>,
+        count: LocalTypeId,
         types: &TypeTable,
     ) -> Option<i64> {
-        let count_global = count.into_global_any(types.module_id);
-        let count_ty_id = types
-            .get_inferred_type_id(count_global)
-            .or_else(|| types.get_declared_type_id(count_global))?;
+        let count_ty_id = types.unwrap_value_type_id(count);
         self.integer_literal_value_for_type_id(count_ty_id, types)
     }
 

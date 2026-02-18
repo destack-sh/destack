@@ -1953,6 +1953,13 @@ impl Compiler {
                 let Some((element, count, is_readonly)) = array_parts else {
                     return local_type_id;
                 };
+                let mut substitution_cache = HashMap::new();
+                let mut mapped_count = self.substitute_static_parameters(
+                    count,
+                    substitutions,
+                    types,
+                    &mut substitution_cache,
+                );
 
                 if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
                     module,
@@ -1963,9 +1970,40 @@ impl Compiler {
                 ) && let Some(substitution) =
                     self.projection_substitution_type_for_symbol(target_symbol, substitutions)
                 {
-                    let substitution =
+                    mapped_count =
                         self.normalized_projection_substitution_type(substitution, types);
-                    types.set_inferred_type(count.into_global_any(types.module_id), substitution);
+                }
+
+                // map direct count references through projection substitutions
+                if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone()
+                    && let Some(substitution) =
+                        self.projection_substitution_type_for_symbol(symbol, substitutions)
+                {
+                    mapped_count =
+                        self.normalized_projection_substitution_type(substitution, types);
+                }
+
+                // materialize remaining comptime references using projection substitutions
+                if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone() {
+                    let mut visited_symbols = HashSet::new();
+                    if let Ok(Some(value)) = self.static_expression_from_constant_reference(
+                        module,
+                        profile,
+                        symbol,
+                        owner_tree,
+                        owner_symbols,
+                        types,
+                        Some(substitutions),
+                        &mut visited_symbols,
+                    ) && let Some(value_type_id) = self
+                        .static_expression_type_id_for_substitution(
+                            expression_id.into_any(),
+                            &value,
+                            types,
+                        )
+                    {
+                        mapped_count = value_type_id;
+                    }
                 }
 
                 let mapped_element = self.apply_projection_substitutions_from_expression(
@@ -1978,14 +2016,14 @@ impl Compiler {
                     substitutions,
                     types,
                 );
-                if mapped_element == element {
+                if mapped_element == element && mapped_count == count {
                     return local_type_id;
                 }
 
                 return types.insert_type_from_type(
                     Type::ArraySized {
                         element: mapped_element,
-                        count,
+                        count: mapped_count,
                         is_readonly,
                     },
                     local_type_id,

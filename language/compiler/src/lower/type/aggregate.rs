@@ -6,6 +6,9 @@ use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::lower::static_key_to_field_name;
 use crate::{LowerError, LowerResult};
 
+/// Maximum unwrap depth when resolving array count literals.
+const MAX_ARRAY_COUNT_UNWRAP_STEPS: usize = 16;
+
 /// Compute aggregate copyability from element types.
 fn compute_aggregate_copyability(
     element_types: &[mir::LocalNodeId<mir::Type>],
@@ -20,6 +23,28 @@ fn compute_aggregate_copyability(
 }
 
 impl TypeLowerer {
+    /// Resolve an integer literal length from one DIR type id.
+    fn array_sized_length_from_type(
+        &self,
+        types: &dir::TypeTable,
+        mut type_id: dir::LocalTypeId,
+    ) -> Option<u64> {
+        for _ in 0..MAX_ARRAY_COUNT_UNWRAP_STEPS {
+            match types.get_type(type_id) {
+                dir::Type::TypeLiteral {
+                    value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Integer(value)),
+                } => return u64::try_from(*value).ok(),
+                dir::Type::Value { value } => type_id = *value,
+                dir::Type::Reference { symbol, .. } => {
+                    type_id = types.get_value_type_id(*symbol)?;
+                }
+                _ => return None,
+            }
+        }
+
+        None
+    }
+
     /// Lower a DIR object type to a MIR struct type.
     ///
     /// This computes the layout for the struct fields and creates the MIR type.
@@ -99,7 +124,7 @@ impl TypeLowerer {
         &mut self,
         types: &dir::TypeTable,
         element: dir::LocalTypeId,
-        count: dir::LocalNodeId<dir::Expression>,
+        count: dir::LocalTypeId,
         module_id: ModuleId,
         node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
@@ -115,19 +140,10 @@ impl TypeLowerer {
             });
         }
 
-        // get the inferred type of the count expression
-        let count_node = count.into_global_any(module_id);
-        let length = types
-            .get_declared_or_inferred_type_id(count_node)
-            .and_then(|type_id| {
-                let ty = types.get_type(type_id);
-                match ty {
-                    dir::Type::TypeLiteral {
-                        value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Integer(n)),
-                    } => Some(*n as u64),
-                    _ => None,
-                }
-            })
+        // get the integer literal length from the count type
+        let count_type_id = types.unwrap_value_type_id(count);
+        let length = self
+            .array_sized_length_from_type(types, count_type_id)
             .ok_or_else(|| LowerError::UnsupportedType {
                 node,
                 ty: element.into_global(module_id),

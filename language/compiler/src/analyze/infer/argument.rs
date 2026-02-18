@@ -10,7 +10,7 @@ use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
     DynamicKey, EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    Mutability, NodeTree, Resolution, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    Mutability, NodeTree, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
     StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type,
     TypeElement, TypeField, TypeLiteral, TypeMappedParameter, TypeRewriter, TypeRewriterOptions,
     TypeTable, rewrite_type,
@@ -3220,15 +3220,7 @@ impl Compiler {
 
             // infer array sizes from literal arguments
             if let Type::ArraySized { count, .. } = &param_ty
-                && let Some(target_symbol) = types
-                    .get_inferred_type_id(count.into_global_any(types.module_id))
-                    .and_then(|type_id| match types.get_type(type_id) {
-                        Type::Reference { symbol, .. } => Some(*symbol),
-                        _ => None,
-                    })
-                    .or_else(|| {
-                        self.reference_symbol_for_expression(module, *count, profile, tree, symbols)
-                    })
+                && let Some(target_symbol) = self.unwrap_type_value_symbol(types, *count)
                 && target_symbol == static_parameter.symbol
             {
                 let elements = match &value {
@@ -4080,39 +4072,17 @@ impl Compiler {
                 // substitute the array element type
                 let mapped_element =
                     self.substitute_static_parameters(element, substitutions, types, cache);
-
-                // update array size inferred types when the count is a substituted parameter
-                let count_global = count.into_global_any(types.module_id);
-                if let Some(count_type_id) = types
-                    .get_inferred_type_id(count_global)
-                    .or_else(|| types.get_declared_type_id(count_global))
-                    && let Some(symbol) = self.unwrap_type_value_symbol(types, count_type_id)
-                    && let Some(substitution) = substitutions.get(&symbol).copied()
-                {
-                    let substitution = self.unwrap_type_value(substitution, types);
-                    if substitution != count_type_id {
-                        types.set_inferred_type(count_global, substitution);
-                    }
-                }
-
-                // also map unresolved static candidates recorded on the count node
-                if let Some(resolution_id) = types.get_resolution_for_node(count_global)
-                    && let Resolution::Static { candidate, .. } =
-                        types.get_resolution(resolution_id)
-                    && let Some(substitution) = substitutions.get(&candidate.target_symbol).copied()
-                {
-                    let substitution = self.unwrap_type_value(substitution, types);
-                    types.set_inferred_type(count_global, substitution);
-                }
+                let mapped_count =
+                    self.substitute_static_parameters(count, substitutions, types, cache);
 
                 // reuse the existing type if substitutions were no-ops
-                if mapped_element == element {
+                if mapped_element == element && mapped_count == count {
                     ty_id
                 } else {
                     types.insert_type_from_type(
                         Type::ArraySized {
                             element: mapped_element,
-                            count,
+                            count: mapped_count,
                             is_readonly,
                         },
                         ty_id,

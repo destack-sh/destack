@@ -354,13 +354,14 @@ pub fn rewrite_type<V: TypeRewriter + ?Sized>(
             is_readonly,
         } => {
             let mapped_element = rewriter.rewrite_type_id(types, *element);
-            if mapped_element == *element {
+            let mapped_count = rewriter.rewrite_type_id(types, *count);
+            if mapped_element == *element && mapped_count == *count {
                 type_id
             } else {
                 types.insert_type_from_type(
                     Type::ArraySized {
                         element: mapped_element,
-                        count: *count,
+                        count: mapped_count,
                         is_readonly: *is_readonly,
                     },
                     type_id,
