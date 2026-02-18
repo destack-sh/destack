@@ -193,11 +193,11 @@ impl Compiler {
             // TODO #Performance: register instances incrementally to avoid full table scans
             let has_instantiable_symbols = symbols
                 .active_symbol_ids()
-                .any(|symbol_id| self.is_instantiable_symbol(symbol_id.into_global(module.id)));
+                .any(|symbol_id| self.symbol_is_instantiable(symbol_id.into_global(module.id)));
             if has_instantiable_symbols {
                 self.collect(
                     &mut collector,
-                    self.register_instances(&module, profile, &tree, &symbols, &mut types),
+                    self.commit_reference_instances(&module, profile, &tree, &symbols, &mut types),
                 );
             }
         }

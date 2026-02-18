@@ -1,3 +1,4 @@
+mod assign;
 mod capture;
 mod common;
 mod declare;
@@ -6,9 +7,11 @@ mod export;
 mod infer;
 mod options;
 mod process;
+mod r#type;
 mod validate;
 mod warning;
 
+pub use assign::*;
 pub(crate) use common::{
     StaticArgumentResolver, evaluate_binary_scalar, evaluate_numeric_literal, evaluate_unary_scalar,
 };

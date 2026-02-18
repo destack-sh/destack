@@ -1,43 +1,26 @@
-mod argument;
-mod assign;
-mod call;
+mod commit;
+mod common;
 mod constraint;
-mod context;
 mod declaration;
-mod r#enum;
-mod expected;
 mod expression;
-mod flow;
-mod instance;
-mod key;
-mod known;
-mod member;
-mod merge;
+pub(crate) mod member;
 mod operator;
-mod parameter;
-mod pattern;
 mod process;
-mod resolution;
-mod session;
-mod solve;
-mod template;
 mod r#type;
 
-use key::*;
+pub(crate) use expression::{argument, call};
 
 /// Mode used when resolving call signatures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum SignatureResolutionMode {
+pub(crate) enum SignatureResolutionMode {
     /// Resolve signatures for inference (preserve inference variables).
     Inference,
     /// Resolve signatures for assignability and diagnostics.
     Checking,
 }
 
-pub use assign::*;
-pub use context::*;
-pub use session::*;
-pub use solve::*;
+pub use common::*;
+pub use constraint::*;
 
 #[cfg(test)]
 mod tests;
