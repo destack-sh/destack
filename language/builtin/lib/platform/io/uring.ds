@@ -50,7 +50,7 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.uring"],
+            capabilities: ["io.uring"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -80,7 +80,7 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.uring"],
+            capabilities: ["io.uring"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -110,7 +110,7 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.uring"],
+            capabilities: ["io.uring"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -140,7 +140,7 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.register"],
+            capabilities: ["io.register"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -170,7 +170,7 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.register"],
+            capabilities: ["io.register"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -200,7 +200,7 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.register"],
+            capabilities: ["io.register"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -234,7 +234,7 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.register"],
+            capabilities: ["io.register"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",

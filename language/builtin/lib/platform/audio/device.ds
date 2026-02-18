@@ -68,8 +68,8 @@ declare namespace audio {
     @binding("destack.audio.device.list", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.device"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.device"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -95,8 +95,8 @@ declare namespace audio {
     @binding("destack.audio.device.open", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.device"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.device"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -125,8 +125,8 @@ declare namespace audio {
     @binding("destack.audio.device.close", {
         effect: "external",
         replay: "recordable",
-        requires: ["audio.device"],
-        platforms: ["unix", "windows"],
+        capabilities: ["audio.device"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

@@ -27,8 +27,8 @@ declare namespace ffi {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["ffi.pointer"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["ffi.pointer"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -57,8 +57,8 @@ declare namespace ffi {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["ffi.pointer"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["ffi.pointer"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },

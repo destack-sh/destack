@@ -32,7 +32,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.setNoDelay", { effect: "external", replay: "recordable", requires: ["net.control"], platforms: ["unix", "windows"], scope: "os", blocking: "never" })
+    @binding("destack.net.tcp.setNoDelay", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "os", blocking: "never" })
     export function setNoDelay(
         handle: SocketHandle,
         enabled: boolean,
@@ -55,7 +55,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.getNoDelay", { effect: "external", replay: "recordable", requires: ["net.control"], platforms: ["unix", "windows"], scope: "os", blocking: "never" })
+    @binding("destack.net.tcp.getNoDelay", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "os", blocking: "never" })
     export function getNoDelay(handle: SocketHandle): Result<boolean, PlatformError>;
 
     /// Write full TCP keepalive parameters.
@@ -75,7 +75,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.setKeepAlive", { effect: "external", replay: "recordable", requires: ["net.control"], platforms: ["unix", "windows"], scope: "os", blocking: "never" })
+    @binding("destack.net.tcp.setKeepAlive", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "os", blocking: "never" })
     export function setKeepAlive(
         handle: SocketHandle,
         config: KeepAliveConfig,
@@ -98,6 +98,6 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.tcp.getKeepAlive", { effect: "external", replay: "recordable", requires: ["net.control"], platforms: ["unix", "windows"], scope: "os", blocking: "never" })
+    @binding("destack.net.tcp.getKeepAlive", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "os", blocking: "never" })
     export function getKeepAlive(handle: SocketHandle): Result<KeepAliveConfig, PlatformError>;
 }

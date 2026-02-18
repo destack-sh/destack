@@ -26,12 +26,12 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.exec.exec",
+        "destack.process.exec.path",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.exec"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.exec"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },
@@ -60,12 +60,12 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.exec.execat",
+        "destack.process.exec.pathat",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.exec"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.exec"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },
@@ -100,8 +100,8 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.exec"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.exec"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },

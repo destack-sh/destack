@@ -142,7 +142,7 @@ pub enum PollerBackend {
     Kqueue,
     /// Use poll (portable Unix fallback).
     Poll,
-    /// Use the Windows IOCP backend.
+    /// Use the Windows readiness backend.
     Windows,
 }
 
@@ -156,7 +156,7 @@ impl std::str::FromStr for PollerBackend {
             "epoll" => Ok(Self::Epoll),
             "kqueue" => Ok(Self::Kqueue),
             "poll" => Ok(Self::Poll),
-            "windows" | "iocp" => Ok(Self::Windows),
+            "windows" => Ok(Self::Windows),
             _ => Err(()),
         }
     }
@@ -1817,7 +1817,7 @@ pub enum PollerBackendJson {
     Kqueue,
     /// Use poll (portable Unix fallback).
     Poll,
-    /// Use the Windows IOCP backend.
+    /// Use the Windows readiness backend.
     Windows,
 }
 

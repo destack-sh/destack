@@ -57,8 +57,8 @@ declare namespace gpu {
     @binding("destack.gpu.device.open", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.device"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -87,8 +87,8 @@ declare namespace gpu {
     @binding("destack.gpu.device.info", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.device"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -114,8 +114,8 @@ declare namespace gpu {
     @binding("destack.gpu.device.queue", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -141,8 +141,8 @@ declare namespace gpu {
     @binding("destack.gpu.device.poll", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.queue"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.queue"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -172,8 +172,8 @@ declare namespace gpu {
     @binding("destack.gpu.device.close", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.device"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

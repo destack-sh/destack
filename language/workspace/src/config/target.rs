@@ -810,6 +810,32 @@ impl std::str::FromStr for Platform {
 }
 
 impl Platform {
+    /// Return the canonical lowercase tag for this platform.
+    pub fn canonical_tag(&self) -> &'static str {
+        match self {
+            Self::Web => "web",
+            Self::Windows => "windows",
+            Self::MacOS => "macos",
+            Self::Linux => "linux",
+            Self::FreeBsd => "freebsd",
+            Self::OpenBsd => "openbsd",
+            Self::NetBsd => "netbsd",
+            Self::DragonFly => "dragonfly",
+            Self::Solaris => "solaris",
+            Self::Illumos => "illumos",
+            Self::Haiku => "haiku",
+            Self::Fuchsia => "fuchsia",
+            Self::Redox => "redox",
+            Self::Hermit => "hermit",
+            Self::IOS => "ios",
+            Self::Android => "android",
+            Self::Wasi => "wasi",
+            Self::Emscripten => "emscripten",
+            Self::BareMetal => "baremetal",
+            Self::Universal => "universal",
+        }
+    }
+
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()

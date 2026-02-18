@@ -17,9 +17,37 @@ FIELD_ORDER = [
     "payload",
     "scope",
     "blocking",
-    "requires",
+    "capabilities",
     "platforms",
 ]
+
+PLATFORM_ENUM_PATTERN = re.compile(
+    r"pub enum Platform \{(.*?)\n\}",
+    re.DOTALL,
+)
+ENUM_VARIANT_PATTERN = re.compile(r"^\s*([A-Za-z][A-Za-z0-9]*)\s*,", re.MULTILINE)
+
+
+def load_canonical_platform_tags() -> set[str]:
+    """Load canonical platform tags from workspace target enum variants."""
+    root = Path(__file__).resolve().parents[1]
+    target_config_path = root / "workspace" / "src" / "config" / "target.rs"
+    source = target_config_path.read_text(encoding="utf-8")
+    match = PLATFORM_ENUM_PATTERN.search(source)
+    if match is None:
+        raise RuntimeError("missing Platform enum in workspace target config")
+
+    variants = ENUM_VARIANT_PATTERN.findall(match.group(1))
+    if not variants:
+        raise RuntimeError("missing Platform variants in workspace target config")
+
+    return {variant.lower() for variant in variants}
+
+
+CANONICAL_PLATFORM_TAGS = load_canonical_platform_tags()
+PLATFORM_SELECTOR_TAGS = {"unix", "bsd"}
+
+SEGMENT_PATTERN = re.compile(r"^[a-z][a-zA-Z0-9]*$")
 
 
 @dataclass
@@ -38,7 +66,7 @@ class BindingRecord:
     payload: str | None
     scope: str | None
     blocking: str | None
-    requires: list[str]
+    capabilities: list[str]
     platforms: list[str]
 
 
@@ -67,6 +95,11 @@ def parse_arguments() -> argparse.Namespace:
         "--no-color",
         action="store_true",
         help="disable ansi colors",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="validate binding metadata and exit nonzero on violations",
     )
     return parser.parse_args()
 
@@ -116,15 +149,15 @@ def parse_option_value(block: str, key: str) -> str | None:
     return match.group(1)
 
 
-def parse_requires(block: str) -> list[str]:
-    """Parse the requires array from one @binding block."""
-    match = re.search(r"requires\s*:\s*\[([^\]]*)\]", block, re.DOTALL)
+def parse_capabilities(block: str) -> list[str]:
+    """Parse the capabilities array from one @binding block."""
+    match = re.search(r"capabilities\s*:\s*\[([^\]]*)\]", block, re.DOTALL)
     if match is None:
         return []
 
-    requires_body = match.group(1)
-    requires = re.findall(r'"([^"]+)"', requires_body)
-    return requires
+    capabilities_body = match.group(1)
+    capabilities = re.findall(r'"([^"]+)"', capabilities_body)
+    return capabilities
 
 
 def parse_platforms(block: str) -> list[str]:
@@ -239,7 +272,7 @@ def collect_records(root: Path, allowed_modules: set[str]) -> list[BindingRecord
                     payload=parse_option_value(block, "payload"),
                     scope=parse_option_value(block, "scope"),
                     blocking=parse_option_value(block, "blocking"),
-                    requires=parse_requires(block),
+                    capabilities=parse_capabilities(block),
                     platforms=parse_platforms(block),
                 )
             )
@@ -255,7 +288,7 @@ def render_record_metadata(record: BindingRecord) -> str:
         "payload": record.payload or "-",
         "scope": record.scope or "-",
         "blocking": record.blocking or "-",
-        "requires": ",".join(record.requires) if record.requires else "-",
+        "capabilities": ",".join(record.capabilities) if record.capabilities else "-",
         "platforms": ",".join(record.platforms) if record.platforms else "-",
     }
     return " ".join(f"{field}={metadata[field]}" for field in FIELD_ORDER)
@@ -311,6 +344,79 @@ def render_text(records: list[BindingRecord], root: Path, use_color: bool) -> st
     return "\n".join(lines) + "\n"
 
 
+def validate_records(records: list[BindingRecord]) -> list[str]:
+    """Validate binding records against canonical surface rules."""
+    issues: list[str] = []
+
+    # detect duplicate binding ids
+    seen_ids: dict[str, BindingRecord] = {}
+    for record in records:
+        previous = seen_ids.get(record.binding_id)
+        if previous is not None:
+            issues.append(
+                "duplicate binding id "
+                f"{record.binding_id}: {previous.relative_file}:{previous.line} "
+                f"and {record.relative_file}:{record.line}"
+            )
+        else:
+            seen_ids[record.binding_id] = record
+
+    for record in records:
+        # binding id shape
+        segments = record.binding_id.split(".")
+        if len(segments) < 4:
+            issues.append(
+                f"{record.relative_file}:{record.line}: binding id must have >=4 segments: "
+                f"{record.binding_id}"
+            )
+            continue
+        if segments[0] != "destack":
+            issues.append(
+                f"{record.relative_file}:{record.line}: binding id must start with 'destack': "
+                f"{record.binding_id}"
+            )
+        if segments[1] != record.module:
+            issues.append(
+                f"{record.relative_file}:{record.line}: binding module segment mismatch: "
+                f"{record.binding_id} vs module {record.module}"
+            )
+        for segment in segments:
+            if not SEGMENT_PATTERN.match(segment):
+                issues.append(
+                    f"{record.relative_file}:{record.line}: invalid binding id segment '{segment}' "
+                    f"in {record.binding_id}"
+                )
+
+        # capability shape
+        for capability in record.capabilities:
+            capability_segments = capability.split(".")
+            if len(capability_segments) < 2:
+                issues.append(
+                    f"{record.relative_file}:{record.line}: capability must have >=2 segments: "
+                    f"{capability}"
+                )
+                continue
+            for segment in capability_segments:
+                if not SEGMENT_PATTERN.match(segment):
+                    issues.append(
+                        f"{record.relative_file}:{record.line}: invalid capability segment "
+                        f"'{segment}' in {capability}"
+                    )
+
+        # platform tags
+        for platform in record.platforms:
+            if (
+                platform not in CANONICAL_PLATFORM_TAGS
+                and platform not in PLATFORM_SELECTOR_TAGS
+            ):
+                issues.append(
+                    f"{record.relative_file}:{record.line}: unsupported platform tag '{platform}' "
+                    f"in {record.binding_id}"
+                )
+
+    return issues
+
+
 def main() -> int:
     """Run the binding overview command."""
     arguments = parse_arguments()
@@ -322,6 +428,16 @@ def main() -> int:
         raise SystemExit(f"root does not exist: {root}")
 
     records = collect_records(root, allowed_modules)
+    if arguments.check:
+        issues = validate_records(records)
+        if issues:
+            print("Binding metadata validation failed:")
+            for issue in issues:
+                print(f" - {issue}")
+            return 1
+        print("Binding metadata validation passed.")
+        return 0
+
     if arguments.json:
         output = json.dumps([asdict(record) for record in records], indent=2)
         print(output)

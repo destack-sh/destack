@@ -88,12 +88,12 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.spawn.spawn",
+        "destack.process.spawn.start",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.spawn"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.spawn"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -127,8 +127,8 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.spawn", "process.spawn.actions"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.spawn", "process.spawn.actions"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

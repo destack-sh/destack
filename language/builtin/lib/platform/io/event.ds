@@ -13,7 +13,7 @@ declare namespace io {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses eventfd or kqueue user events on Unix and event objects on Windows.
+    /// Uses eventfd on Linux, pipe-backed events on other Unix hosts, and event objects on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -28,8 +28,8 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.event"],
-            platforms: ["unix", "windows"],
+            capabilities: ["io.event"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -43,7 +43,7 @@ declare namespace io {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses close semantics for eventfd, kqueue user events, or event objects.
+    /// Uses close semantics for eventfd, pipe-backed events, or event objects.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -58,8 +58,8 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.event"],
-            platforms: ["unix", "windows"],
+            capabilities: ["io.event"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -69,11 +69,12 @@ declare namespace io {
     /// Signal a user-event token.
     ///
     /// Increment one user-event token and wake waiters.
+    /// Value must be greater than zero.
     /// Counter saturation and coalescing are host-backend defined.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses eventfd write, kqueue trigger, or SetEvent on Windows.
+    /// Uses eventfd writes on Linux, pipe writes on other Unix hosts, and SetEvent on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -88,8 +89,8 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.event"],
-            platforms: ["unix", "windows"],
+            capabilities: ["io.event"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -118,8 +119,8 @@ declare namespace io {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["io.event"],
-            platforms: ["unix", "windows"],
+            capabilities: ["io.event"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

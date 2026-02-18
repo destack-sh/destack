@@ -44,8 +44,8 @@ declare namespace security {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["security.policy.read"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.policy.read"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -74,8 +74,8 @@ declare namespace security {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["security.policy.read"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.policy.read"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -106,8 +106,8 @@ declare namespace security {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["security.policy.write"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.policy.write"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -136,8 +136,8 @@ declare namespace security {
         {
             effect: "deterministic",
             replay: "nonrecordable",
-            requires: ["security.policy.write"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["security.policy.write"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },

@@ -30,8 +30,8 @@ declare namespace os {
     /// Topology and capacity fields are sampled from host APIs at call time.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses sysconf/sysinfo-style APIs on Unix, GlobalMemoryStatusEx and processor APIs on Windows, and wasi sysinfo support.
+    /// Unix and Windows.
+    /// Uses sysconf/sysinfo-style APIs on Unix and GlobalMemoryStatusEx plus processor APIs on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -46,8 +46,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.sysinfo"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["os.sysinfo"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -60,8 +60,8 @@ declare namespace os {
     /// Uptime source follows host monotonic uptime facilities.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses clock_gettime style uptime on Unix, GetTickCount64 style uptime on Windows, and wasi clocks when available.
+    /// Unix and Windows.
+    /// Uses clock_gettime style uptime on Unix and GetTickCount64 style uptime on Windows.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -76,8 +76,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.sysinfo"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["os.sysinfo"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },
@@ -106,7 +106,7 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.sysinfo"],
+            capabilities: ["os.sysinfo"],
             platforms: ["unix"],
             scope: "os",
             blocking: "never",
@@ -136,8 +136,8 @@ declare namespace os {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["os.sysinfo"],
-            platforms: ["unix", "windows"],
+            capabilities: ["os.sysinfo"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },

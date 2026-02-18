@@ -16,7 +16,7 @@ declare namespace time {
     /// Wakeup precision depends on host timer granularity and scheduler latency.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses nanosleep(2) on Unix and waitable timers or Sleep on Windows.
     ///
     /// # Errors
@@ -32,8 +32,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.wall.sleep"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.wall.sleep"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "sometimes",
         },
@@ -46,7 +46,7 @@ declare namespace time {
     /// Deadline interpretation follows runtime wall-clock policy.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses clock_nanosleep on Unix when available and waitable deadline timers on Windows.
     ///
     /// # Errors
@@ -62,8 +62,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.wall.sleep"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.wall.sleep"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "sometimes",
         },
@@ -76,7 +76,7 @@ declare namespace time {
     /// Wakeup precision depends on host timer granularity and scheduler latency.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses host sleep primitives selected by runtime for the requested clock domain.
     ///
     /// # Errors
@@ -92,8 +92,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.wall.sleep"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.wall.sleep"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "sometimes",
         },
@@ -106,7 +106,7 @@ declare namespace time {
     /// Deadline interpretation follows runtime policy and host clock behavior.
     ///
     /// # Platform
-    /// Runtime-integrated sleep available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated sleep available on Unix and Windows targets.
     /// Uses host deadline sleep primitives selected by runtime for the requested clock domain.
     ///
     /// # Errors
@@ -122,8 +122,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.wall.sleep"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.wall.sleep"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "sometimes",
         },

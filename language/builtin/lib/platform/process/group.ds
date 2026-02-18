@@ -27,7 +27,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["process.cgroup"],
+            capabilities: ["process.cgroup"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -57,7 +57,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["process.cgroup"],
+            capabilities: ["process.cgroup"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -90,7 +90,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["process.cgroup"],
+            capabilities: ["process.cgroup"],
             platforms: ["linux"],
             scope: "os",
             blocking: "sometimes",
@@ -124,7 +124,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["process.cgroup"],
+            capabilities: ["process.cgroup"],
             platforms: ["windows"],
             scope: "os",
             blocking: "sometimes",
@@ -154,7 +154,7 @@ declare namespace process {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["process.cgroup"],
+            capabilities: ["process.cgroup"],
             platforms: ["windows"],
             scope: "os",
             blocking: "sometimes",

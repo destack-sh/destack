@@ -35,8 +35,8 @@ declare namespace debug {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["debug.profile"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["debug.profile"],
+            platforms: ["windows", "unix", "wasi"],
             scope: "runtime",
             blocking: "sometimes",
         },
@@ -65,8 +65,8 @@ declare namespace debug {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["debug.profile"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["debug.profile"],
+            platforms: ["windows", "unix", "wasi"],
             scope: "runtime",
             blocking: "sometimes",
         },
@@ -95,8 +95,8 @@ declare namespace debug {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["debug.profile"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["debug.profile"],
+            platforms: ["windows", "unix", "wasi"],
             scope: "runtime",
             blocking: "sometimes",
         },

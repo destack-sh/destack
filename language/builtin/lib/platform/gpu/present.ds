@@ -45,8 +45,8 @@ declare namespace gpu {
     @binding("destack.gpu.present.surfaceConfigure", {
         effect: "external",
         replay: "nonrecordable",
-        requires: ["gpu.present"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.present"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -76,8 +76,8 @@ declare namespace gpu {
     @binding("destack.gpu.present.queuePresent", {
         effect: "external",
         replay: "nonrecordable",
-        requires: ["gpu.present"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.present"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

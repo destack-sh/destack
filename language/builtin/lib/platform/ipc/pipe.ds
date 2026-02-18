@@ -18,8 +18,8 @@ declare namespace ipc {
     /// Endpoint inheritance and blocking mode follow host pipe semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pipe2 or pipe on Unix, CreatePipe on Windows, and wasi pipe primitives where available.
+    /// Unix and Windows.
+    /// Uses pipe2 or pipe on Unix and CreatePipe on Windows.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -34,8 +34,8 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.pipe"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["ipc.pipe"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -48,8 +48,8 @@ declare namespace ipc {
     /// Pending readers and writers observe host close semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses close(2) on Unix and Wasi and CloseHandle on Windows.
+    /// Unix and Windows.
+    /// Uses close(2) on Unix and CloseHandle on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -64,8 +64,8 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.pipe"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["ipc.pipe"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -78,8 +78,8 @@ declare namespace ipc {
     /// Partial reads are preserved exactly as reported by the host.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses read(2) on Unix and Wasi and ReadFile on Windows.
+    /// Unix and Windows.
+    /// Uses read(2) on Unix and ReadFile on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -94,8 +94,8 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.pipe"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["ipc.pipe"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -108,8 +108,8 @@ declare namespace ipc {
     /// Partial writes are preserved exactly as reported by the host.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses write(2) on Unix and Wasi and WriteFile on Windows.
+    /// Unix and Windows.
+    /// Uses write(2) on Unix and WriteFile on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -124,8 +124,8 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["ipc.pipe"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["ipc.pipe"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

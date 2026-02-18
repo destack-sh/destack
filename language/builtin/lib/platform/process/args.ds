@@ -21,12 +21,12 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.args.args",
+        "destack.process.args.list",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.run"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["process.run"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },

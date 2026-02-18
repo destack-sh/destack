@@ -43,8 +43,8 @@ declare namespace timer {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.timer"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.timer"],
+            platforms: ["windows", "unix", "wasi"],
             scope: "runtime",
             blocking: "never",
         },
@@ -73,8 +73,8 @@ declare namespace timer {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.timer"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.timer"],
+            platforms: ["windows", "unix", "wasi"],
             scope: "runtime",
             blocking: "never",
         },
@@ -103,8 +103,8 @@ declare namespace timer {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.timer"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.timer"],
+            platforms: ["windows", "unix", "wasi"],
             scope: "runtime",
             blocking: "never",
         },

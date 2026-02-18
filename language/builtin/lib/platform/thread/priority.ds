@@ -25,8 +25,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.priority"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.priority"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -55,8 +55,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.priority"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.priority"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -85,8 +85,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.priority"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.priority"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -115,8 +115,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.priority"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.priority"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

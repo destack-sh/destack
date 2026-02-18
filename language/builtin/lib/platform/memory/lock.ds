@@ -20,12 +20,12 @@ declare namespace memory {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.memory.lock.lock",
+        "destack.memory.lock.lockRange",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.lock"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.lock"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -54,8 +54,8 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.lock"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.lock"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

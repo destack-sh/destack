@@ -15,8 +15,8 @@ declare namespace thread {
     /// Mutex ownership and recursion behavior follow host primitive configuration.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread mutexes on Unix, SRW or critical section primitives on Windows, and wasi mutex support where available.
+    /// Unix and Windows.
+    /// Uses pthread mutexes on Unix and SRW or critical section primitives on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -31,8 +31,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -45,7 +45,7 @@ declare namespace thread {
     /// Wait ordering and fairness follow host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host mutex wait primitives.
     ///
     /// # Errors
@@ -61,8 +61,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -75,7 +75,7 @@ declare namespace thread {
     /// Wakeup behavior for waiters follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host mutex unlock primitives.
     ///
     /// # Errors
@@ -91,8 +91,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -105,7 +105,7 @@ declare namespace thread {
     /// Reader and writer preference is host-primitive defined.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses pthread rwlock on Unix and SRW lock abstractions on Windows.
     ///
     /// # Errors
@@ -121,8 +121,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -135,7 +135,7 @@ declare namespace thread {
     /// Read acquisition ordering follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host rwlock read-lock primitives.
     ///
     /// # Errors
@@ -151,8 +151,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -165,7 +165,7 @@ declare namespace thread {
     /// Write acquisition ordering follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host rwlock write-lock primitives.
     ///
     /// # Errors
@@ -181,8 +181,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -195,7 +195,7 @@ declare namespace thread {
     /// Wakeup behavior for waiters follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host rwlock unlock primitives.
     ///
     /// # Errors
@@ -211,8 +211,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -225,7 +225,7 @@ declare namespace thread {
     /// Condition variable association with mutexes is validated on wait calls.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses pthread condition variables on Unix and condition variable APIs on Windows.
     ///
     /// # Errors
@@ -241,8 +241,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -255,7 +255,7 @@ declare namespace thread {
     /// Mutex is reacquired before returning from wait according to host semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host condition-variable wait primitives.
     ///
     /// # Errors
@@ -271,8 +271,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -285,7 +285,7 @@ declare namespace thread {
     /// Waiter selection order follows host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host condition-variable notify primitives.
     ///
     /// # Errors
@@ -301,8 +301,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -315,7 +315,7 @@ declare namespace thread {
     /// Wake ordering and runnable scheduling follow host synchronization semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host condition-variable broadcast primitives.
     ///
     /// # Errors
@@ -331,8 +331,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -345,7 +345,7 @@ declare namespace thread {
     /// Semaphore bounds and fairness follow host primitive semantics.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses semaphores or equivalent host synchronization primitives.
     ///
     /// # Errors
@@ -361,8 +361,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -379,7 +379,7 @@ declare namespace thread {
     /// Wake ordering follows host scheduler behavior.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host semaphore wait primitives.
     ///
     /// # Errors
@@ -395,8 +395,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -412,7 +412,7 @@ declare namespace thread {
     /// Wake behavior follows host semaphore primitives.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses host semaphore post primitives.
     ///
     /// # Errors
@@ -428,8 +428,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -461,8 +461,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -494,8 +494,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.sync"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.sync"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -524,8 +524,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.wait"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.wait"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -558,8 +558,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.wait"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.wait"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -588,8 +588,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.wait"],
-            platforms: ["unix", "windows"],
+            capabilities: ["thread.wait"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

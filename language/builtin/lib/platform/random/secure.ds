@@ -41,7 +41,7 @@ declare namespace random {
     /// Entropy quality and blocking behavior follow host kernel guarantees.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi where host entropy APIs are available.
+    /// Unix and Windows where host entropy APIs are available.
     /// Uses getrandom(2) or getentropy on Unix and BCryptGenRandom on Windows.
     ///
     /// # Errors
@@ -57,8 +57,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.secure"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.secure"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "sometimes",
         },
@@ -71,7 +71,7 @@ declare namespace random {
     /// Fails with `ioWouldBlock` when the host source requires blocking.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi where host entropy APIs are available.
+    /// Unix and Windows where host entropy APIs are available.
     /// Uses nonblocking host entropy APIs when available and runtime fallbacks otherwise.
     ///
     /// # Errors
@@ -87,8 +87,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.secure"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.secure"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "never",
         },
@@ -101,7 +101,7 @@ declare namespace random {
     /// Metadata values are normalized across host operating systems.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi where host entropy APIs are available.
+    /// Unix and Windows where host entropy APIs are available.
     /// Uses runtime source selection metadata.
     ///
     /// # Errors
@@ -117,8 +117,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.secure"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.secure"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "never",
         },

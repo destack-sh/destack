@@ -17,8 +17,8 @@ declare namespace thread {
     /// Entry dispatch and argument passing are runtime ABI contracts.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread_create on Unix, CreateThread on Windows, and wasi thread support when available.
+    /// Unix and Windows.
+    /// Uses pthread_create on Unix and CreateThread on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -29,12 +29,12 @@ declare namespace thread {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.thread.spawn.spawn",
+        "destack.thread.spawn.start",
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.spawn"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.spawn"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -47,8 +47,8 @@ declare namespace thread {
     /// Join behavior follows host thread lifecycle rules.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
-    /// Uses pthread_join on Unix, WaitForSingleObject plus exit code on Windows, and wasi equivalents where available.
+    /// Unix and Windows.
+    /// Uses pthread_join on Unix and WaitForSingleObject plus exit code on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -63,8 +63,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.spawn"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.spawn"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -77,7 +77,7 @@ declare namespace thread {
     /// Detached thread lifecycle and cleanup are host-managed.
     ///
     /// # Platform
-    /// Unix, Windows, and Wasi.
+    /// Unix and Windows.
     /// Uses pthread_detach on Unix and handle-release semantics on Windows.
     ///
     /// # Errors
@@ -93,8 +93,8 @@ declare namespace thread {
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["thread.spawn"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["thread.spawn"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

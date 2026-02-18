@@ -48,7 +48,7 @@ declare namespace time {
     /// Epoch choice and leap-second behavior follow the active runtime time policy.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses clock_gettime(CLOCK_REALTIME) on Unix and GetSystemTimePreciseAsFileTime on Windows.
     ///
     /// # Errors
@@ -64,8 +64,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.wall.read"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.wall.read"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "never",
         },
@@ -78,7 +78,7 @@ declare namespace time {
     /// Resolution and origin are platform-specific.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses clock_gettime(CLOCK_MONOTONIC) on Unix and QueryPerformanceCounter on Windows.
     ///
     /// # Errors
@@ -94,8 +94,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.monotonic.read"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.monotonic.read"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "never",
         },
@@ -124,8 +124,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.monotonic.read"],
-            platforms: ["unix", "windows"],
+            capabilities: ["time.monotonic.read"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },
@@ -154,8 +154,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.monotonic.read"],
-            platforms: ["unix", "windows"],
+            capabilities: ["time.monotonic.read"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "never",
         },
@@ -168,7 +168,7 @@ declare namespace time {
     /// Clock identifier support varies by host and runtime configuration.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses host clock APIs selected by clock identifier and runtime policy.
     ///
     /// # Errors
@@ -184,8 +184,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.monotonic.read"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.monotonic.read"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "never",
         },
@@ -198,7 +198,7 @@ declare namespace time {
     /// Metadata is normalized by runtime policy across host operating systems.
     ///
     /// # Platform
-    /// Runtime-integrated clock available on Unix, Windows, and Wasi targets.
+    /// Runtime-integrated clock available on Unix and Windows targets.
     /// Uses runtime clock registry metadata and host clock probes.
     ///
     /// # Errors
@@ -214,8 +214,8 @@ declare namespace time {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["time.monotonic.read"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["time.monotonic.read"],
+            platforms: ["windows", "unix"],
             scope: "hybrid",
             blocking: "never",
         },

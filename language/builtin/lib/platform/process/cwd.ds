@@ -21,12 +21,12 @@ declare namespace process {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.process.cwd.cwd",
+        "destack.process.cwd.get",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.workdir.read"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.workdir.read"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -55,8 +55,8 @@ declare namespace process {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["process.workdir.write"],
-            platforms: ["unix", "windows"],
+            capabilities: ["process.workdir.write"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },

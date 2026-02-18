@@ -40,12 +40,12 @@ declare namespace random {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.random.stream.stream",
+        "destack.random.stream.create",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -74,8 +74,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -104,8 +104,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -134,8 +134,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -164,8 +164,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -194,8 +194,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -227,8 +227,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -257,8 +257,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -287,8 +287,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },
@@ -317,8 +317,8 @@ declare namespace random {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["random.deterministic"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["random.deterministic"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "never",
         },

@@ -22,12 +22,12 @@ declare namespace ffi {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.ffi.call.call",
+        "destack.ffi.call.invoke",
         {
             effect: "external",
             replay: "nonrecordable",
-            requires: ["ffi.call"],
-            platforms: ["unix", "windows", "wasi"],
+            capabilities: ["ffi.call"],
+            platforms: ["windows", "unix"],
             scope: "runtime",
             blocking: "sometimes",
         },

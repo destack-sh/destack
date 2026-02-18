@@ -49,11 +49,11 @@ declare namespace input {
     /// Event ordering follows host event queue delivery semantics.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host input queue reads via evdev or window-system event queues and raw input APIs.
+    /// Linux and Windows.
+    /// Uses evdev event reads on Linux and ReadConsoleInputW queue reads on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -63,8 +63,8 @@ declare namespace input {
     @binding("destack.input.event.read", {
         effect: "external",
         replay: "recordable",
-        requires: ["input.read"],
-        platforms: ["unix", "windows"],
+        capabilities: ["input.read"],
+        platforms: ["windows", "linux"],
         scope: "hybrid",
         blocking: "sometimes",
     })
@@ -76,11 +76,11 @@ declare namespace input {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses nonblocking host input queue reads.
+    /// Linux and Windows.
+    /// Uses nonblocking evdev reads on Linux and nonblocking console queue reads on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -90,8 +90,8 @@ declare namespace input {
     @binding("destack.input.event.tryRead", {
         effect: "external",
         replay: "recordable",
-        requires: ["input.read"],
-        platforms: ["unix", "windows"],
+        capabilities: ["input.read"],
+        platforms: ["windows", "linux"],
         scope: "hybrid",
         blocking: "never",
     })
@@ -103,8 +103,8 @@ declare namespace input {
     /// Grabs can prevent event delivery to other clients.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses EVIOCGRAB on Linux and raw-input capture equivalents on Windows where available.
+    /// Linux and Windows.
+    /// Uses EVIOCGRAB on Linux and SetConsoleMode capture toggles on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -117,8 +117,8 @@ declare namespace input {
     @binding("destack.input.event.setGrab", {
         effect: "external",
         replay: "recordable",
-        requires: ["input.control"],
-        platforms: ["unix", "windows"],
+        capabilities: ["input.control"],
+        platforms: ["windows", "linux"],
         scope: "os",
         blocking: "sometimes",
     })

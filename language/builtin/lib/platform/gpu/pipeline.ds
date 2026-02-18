@@ -78,8 +78,8 @@ declare namespace gpu {
     @binding("destack.gpu.pipeline.shaderCreate", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.shader"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.shader"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -109,8 +109,8 @@ declare namespace gpu {
     @binding("destack.gpu.pipeline.shaderDestroy", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.shader"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.shader"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -136,8 +136,8 @@ declare namespace gpu {
     @binding("destack.gpu.pipeline.computeCreate", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.compute"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.compute"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -166,8 +166,8 @@ declare namespace gpu {
     @binding("destack.gpu.pipeline.renderCreate", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.render"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.render"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -196,8 +196,8 @@ declare namespace gpu {
     @binding("destack.gpu.pipeline.destroy", {
         effect: "external",
         replay: "recordable",
-        requires: ["gpu.compute", "gpu.render"],
-        platforms: ["unix", "windows"],
+        capabilities: ["gpu.compute", "gpu.render"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

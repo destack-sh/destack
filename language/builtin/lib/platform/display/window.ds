@@ -51,8 +51,8 @@ declare namespace display {
     @binding("destack.display.window.open", {
         effect: "external",
         replay: "recordable",
-        requires: ["display.window"],
-        platforms: ["unix", "windows"],
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -81,8 +81,8 @@ declare namespace display {
     @binding("destack.display.window.close", {
         effect: "external",
         replay: "recordable",
-        requires: ["display.window"],
-        platforms: ["unix", "windows"],
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -108,8 +108,8 @@ declare namespace display {
     @binding("destack.display.window.tryEvent", {
         effect: "external",
         replay: "recordable",
-        requires: ["display.window"],
-        platforms: ["unix", "windows"],
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
@@ -135,8 +135,8 @@ declare namespace display {
     @binding("destack.display.window.event", {
         effect: "external",
         replay: "recordable",
-        requires: ["display.window"],
-        platforms: ["unix", "windows"],
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -162,8 +162,8 @@ declare namespace display {
     @binding("destack.display.window.setTitle", {
         effect: "external",
         replay: "recordable",
-        requires: ["display.window"],
-        platforms: ["unix", "windows"],
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })
@@ -189,8 +189,8 @@ declare namespace display {
     @binding("destack.display.window.vsyncWait", {
         effect: "external",
         replay: "recordable",
-        requires: ["display.vsync"],
-        platforms: ["unix", "windows"],
+        capabilities: ["display.vsync"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

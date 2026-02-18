@@ -20,12 +20,12 @@ declare namespace memory {
     /// # Replay
     /// External, recordable.
     @binding(
-        "destack.memory.advise.advise",
+        "destack.memory.advise.adviseRange",
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.advise"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.advise"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -54,8 +54,8 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.advise"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.advise"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
@@ -84,8 +84,8 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            requires: ["memory.hugePage"],
-            platforms: ["unix", "windows"],
+            capabilities: ["memory.hugePage"],
+            platforms: ["windows", "unix"],
             scope: "os",
             blocking: "sometimes",
         },
