@@ -1,166 +1,105 @@
 use std::ffi::CString;
+use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
 
 #[cfg(target_os = "linux")]
-use std::fs;
-#[cfg(target_os = "linux")]
-use std::mem::MaybeUninit;
-#[cfg(target_os = "linux")]
-use std::path::Path;
-
+use super::linux as input_linux;
+#[cfg(target_os = "macos")]
+use super::macos as input_macos;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::input::{InputDeviceInfo, InputDeviceKind, InputEvent, InputEventKind};
+use crate::platform::input::{
+    InputDeviceInfo, InputDeviceKind, InputEvent, InputEventAction, InputEventKind, InputReadMode,
+};
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::RuntimeCallContext;
 
+/// Resource-table label for opened input-device entries.
 pub(super) const INPUT_RESOURCE_LABEL: &str = "input.device";
+/// Canonical tty path used for terminal-backed input streams.
 pub(super) const UNIX_INPUT_TTY_PATH: &str = "/dev/tty";
+/// Stable runtime identifier for tty-backed input streams.
 const UNIX_INPUT_TTY_ID: &str = "tty:stdin";
+/// Alias accepted for tty-backed input streams.
 const UNIX_INPUT_TTY_ALIAS: &str = "tty";
+/// Alias accepted for stdin-backed input streams.
 const UNIX_INPUT_STDIN_ALIAS: &str = "stdin";
+/// Display name for tty-backed input streams.
 const UNIX_INPUT_TTY_NAME: &str = "unix terminal input";
+/// Empty text payload for non-text events.
+pub(super) const UNIX_INPUT_EMPTY_TEXT: &str = "";
 
-#[cfg(target_os = "linux")]
-const INPUT_DEVICE_DIRECTORY: &str = "/dev/input";
-#[cfg(target_os = "linux")]
-const INPUT_EVENT_PREFIX: &str = "event";
-#[cfg(target_os = "linux")]
-const EV_SYN: u16 = 0x00;
-#[cfg(target_os = "linux")]
-const EV_KEY: u16 = 0x01;
-#[cfg(target_os = "linux")]
-const EV_REL: u16 = 0x02;
-#[cfg(target_os = "linux")]
-const EV_ABS: u16 = 0x03;
-#[cfg(target_os = "linux")]
-const REL_X: u16 = 0x00;
-#[cfg(target_os = "linux")]
-const REL_Y: u16 = 0x01;
-#[cfg(target_os = "linux")]
-const REL_WHEEL: u16 = 0x08;
-#[cfg(target_os = "linux")]
-const REL_HWHEEL: u16 = 0x06;
-#[cfg(target_os = "linux")]
-const ABS_X: u16 = 0x00;
-#[cfg(target_os = "linux")]
-const ABS_Y: u16 = 0x01;
-#[cfg(target_os = "linux")]
-const KEY_A: usize = 30;
-#[cfg(target_os = "linux")]
-const BTN_MOUSE_LEFT: usize = 0x110;
-#[cfg(target_os = "linux")]
-const BTN_TOUCH: usize = 0x14a;
-#[cfg(target_os = "linux")]
-const BTN_STYLUS: usize = 0x14b;
-#[cfg(target_os = "linux")]
-const BTN_GAMEPAD: usize = 0x130;
-#[cfg(target_os = "linux")]
-const MAX_EVENT_BITS: usize = 64;
-#[cfg(target_os = "linux")]
-const MAX_KEY_BITS: usize = 256;
-#[cfg(target_os = "linux")]
-const EVIOCGID_REQUEST: libc::c_ulong =
-    ior_request(b'E', 0x02, std::mem::size_of::<LinuxInputId>());
-#[cfg(target_os = "linux")]
-const EVIOCGRAB_REQUEST: libc::c_ulong =
-    iow_request(b'E', 0x90, std::mem::size_of::<libc::c_int>());
-
-#[cfg(target_os = "linux")]
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct LinuxInputId {
-    bustype: u16,
-    vendor: u16,
-    product: u16,
-    version: u16,
-}
-
-#[cfg(target_os = "linux")]
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct LinuxInputEvent {
-    time: libc::timeval,
-    kind: u16,
-    code: u16,
-    value: i32,
-}
-
-#[cfg(target_os = "linux")]
-#[derive(Clone)]
-struct InputDeviceMetadata {
-    name: String,
-    kind: InputDeviceKind,
-    vendor_id: u16,
-    product_id: u16,
-}
-
-#[derive(Clone, Copy, Debug)]
+/// Backend kind for one Unix input binding.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum UnixInputBackend {
-    #[cfg(target_os = "linux")]
-    LinuxEvdev,
+    /// Platform-specific host input backend.
+    Platform,
+    /// Unix tty byte-stream input endpoint.
     UnixTerminal,
 }
 
-#[derive(Debug, Clone, Copy)]
+/// Resource payload for one opened Unix input endpoint.
+#[derive(Debug)]
 pub(super) struct UnixInputBinding {
+    /// Descriptor when backend is file-descriptor based.
+    pub(super) descriptor: Option<RawFd>,
+    /// Active backend kind.
     pub(super) backend: UnixInputBackend,
+    /// Current read mode.
+    pub(super) read_mode: InputReadMode,
+    /// Stable runtime device identifier used in emitted events.
+    pub(super) device_id: String,
+    /// Next per-handle event sequence number.
+    pub(super) next_sequence: u64,
+    /// Current Linux modifier-state bitset for this stream.
+    #[cfg(target_os = "linux")]
+    pub(super) linux_modifiers: u32,
+    /// Original terminal mode snapshot for tty-backed streams.
+    pub(super) terminal_original_mode: Option<libc::termios>,
+    /// Cached macOS session polling state.
+    #[cfg(target_os = "macos")]
+    pub(super) macos_state: Option<input_macos::MacosInputState>,
 }
 
+/// Normalized open specification for Unix input identifiers.
 #[derive(Debug, Clone)]
 pub(super) struct UnixInputOpenSpec {
+    /// Canonical input path or logical identifier.
     pub(super) path: String,
+    /// Backend kind selected for the identifier.
     pub(super) backend: UnixInputBackend,
+    /// Stable runtime device identifier.
+    pub(super) device_id: String,
 }
 
+/// Finalizer payload for descriptor-backed Unix input resources.
 #[derive(Debug)]
 pub(super) struct InputDeviceFinalizer {
+    /// Descriptor that must be closed when the resource is removed.
     pub(super) fd: RawFd,
+    /// Terminal mode snapshot to restore before closing the descriptor.
+    pub(super) restore_terminal_mode: Option<libc::termios>,
 }
 
 impl ResourceFinalizer for InputDeviceFinalizer {
     /// Close one input device descriptor during resource finalization.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
+        // restore terminal mode before close when a tty snapshot is available
+        if let Some(restore_mode) = self.restore_terminal_mode {
+            unsafe {
+                libc::tcsetattr(self.fd, libc::TCSANOW, &restore_mode);
+            }
+        }
+
+        // close the descriptor regardless of restore result
         unsafe {
             libc::close(self.fd);
         }
     }
 }
 
-#[cfg(target_os = "linux")]
-const fn ior_request(type_byte: u8, number: u8, size: usize) -> libc::c_ulong {
-    ioc_request(2, type_byte, number, size)
-}
-
-#[cfg(target_os = "linux")]
-const fn iow_request(type_byte: u8, number: u8, size: usize) -> libc::c_ulong {
-    ioc_request(1, type_byte, number, size)
-}
-
-#[cfg(target_os = "linux")]
-const fn ioc_request(direction: u8, type_byte: u8, number: u8, size: usize) -> libc::c_ulong {
-    const IOC_NR_SHIFT: u64 = 0;
-    const IOC_TYPE_SHIFT: u64 = IOC_NR_SHIFT + 8;
-    const IOC_SIZE_SHIFT: u64 = IOC_TYPE_SHIFT + 8;
-    const IOC_DIR_SHIFT: u64 = IOC_SIZE_SHIFT + 14;
-
-    (((direction as u64) << IOC_DIR_SHIFT)
-        | ((type_byte as u64) << IOC_TYPE_SHIFT)
-        | ((number as u64) << IOC_NR_SHIFT)
-        | ((size as u64) << IOC_SIZE_SHIFT)) as libc::c_ulong
-}
-
-#[cfg(target_os = "linux")]
-fn eviocgname_request(length: usize) -> libc::c_ulong {
-    ior_request(b'E', 0x06, length)
-}
-
-#[cfg(target_os = "linux")]
-fn eviocgbit_request(event: u16, length: usize) -> libc::c_ulong {
-    ior_request(b'E', 0x20 + event as u8, length)
-}
-
+/// Build io-not-found for one missing Unix input handle.
 pub(super) fn input_not_found(
     operation: &'static str,
     handle: resource::InputDeviceHandle,
@@ -176,11 +115,13 @@ pub(super) fn input_not_found(
     .boxed()
 }
 
+/// Resolve one Unix input binding from the resource table.
 pub(super) fn resolve_unix_input_binding(
     context: &RuntimeCallContext,
     handle: resource::InputDeviceHandle,
     operation: &'static str,
-) -> RuntimeResult<(RawFd, UnixInputBackend)> {
+) -> RuntimeResult<UnixInputBinding> {
+    // resolve resource entry and validate payload shape
     let binding = context.runtime().resources.with_entry(handle.0, |entry| {
         if entry.kind != ResourceKind::Input {
             return None;
@@ -190,24 +131,24 @@ pub(super) fn resolve_unix_input_binding(
             return None;
         }
 
-        let descriptor = entry.fd()?;
-        let backend = entry
+        let binding = entry
             .payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<UnixInputBinding>())
-            .map(|binding| binding.backend)
-            .unwrap_or({
+            .map(|binding| UnixInputBinding {
+                descriptor: binding.descriptor,
+                backend: binding.backend,
+                read_mode: binding.read_mode,
+                device_id: binding.device_id.clone(),
+                next_sequence: binding.next_sequence,
                 #[cfg(target_os = "linux")]
-                {
-                    UnixInputBackend::LinuxEvdev
-                }
-                #[cfg(not(target_os = "linux"))]
-                {
-                    UnixInputBackend::UnixTerminal
-                }
-            });
+                linux_modifiers: binding.linux_modifiers,
+                terminal_original_mode: binding.terminal_original_mode,
+                #[cfg(target_os = "macos")]
+                macos_state: None,
+            })?;
 
-        Some((descriptor, backend))
+        Some(binding)
     });
 
     match binding.flatten() {
@@ -216,40 +157,9 @@ pub(super) fn resolve_unix_input_binding(
     }
 }
 
-#[cfg(target_os = "linux")]
-fn normalize_input_path(id: &str) -> RuntimeResult<String> {
-    if id.is_empty() {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "id",
-            "id cannot be empty",
-        ))
-        .boxed());
-    }
-
-    if id.contains('\0') {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "id",
-            "id contains nul byte",
-        ))
-        .boxed());
-    }
-
-    if id.starts_with("/dev/input/event") {
-        return Ok(id.to_string());
-    }
-
-    if id.starts_with(INPUT_EVENT_PREFIX) {
-        return Ok(format!("{INPUT_DEVICE_DIRECTORY}/{id}"));
-    }
-
-    Err(RuntimeError::from(PlatformError::invalid_argument_value(
-        "id",
-        "id must be one /dev/input/event path or event node name",
-    ))
-    .boxed())
-}
-
+/// Normalize one Unix input identifier into one backend open spec.
 pub(super) fn normalize_unix_input_spec(id: &str) -> RuntimeResult<UnixInputOpenSpec> {
+    // reject invalid identifiers up front
     if id.is_empty() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
@@ -257,7 +167,6 @@ pub(super) fn normalize_unix_input_spec(id: &str) -> RuntimeResult<UnixInputOpen
         ))
         .boxed());
     }
-
     if id.contains('\0') {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
@@ -266,6 +175,7 @@ pub(super) fn normalize_unix_input_spec(id: &str) -> RuntimeResult<UnixInputOpen
         .boxed());
     }
 
+    // map tty aliases to one canonical terminal endpoint
     let id_lower = id.to_ascii_lowercase();
     if id == UNIX_INPUT_TTY_PATH
         || id == UNIX_INPUT_TTY_ID
@@ -275,68 +185,23 @@ pub(super) fn normalize_unix_input_spec(id: &str) -> RuntimeResult<UnixInputOpen
         return Ok(UnixInputOpenSpec {
             path: UNIX_INPUT_TTY_PATH.to_string(),
             backend: UnixInputBackend::UnixTerminal,
+            device_id: UNIX_INPUT_TTY_ID.to_string(),
         });
     }
 
-    #[cfg(target_os = "linux")]
-    {
-        let path = normalize_input_path(id)?;
-        return Ok(UnixInputOpenSpec {
-            path,
-            backend: UnixInputBackend::LinuxEvdev,
-        });
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    {
-        Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "id",
-            "id must be one terminal alias (tty:stdin, tty, stdin, /dev/tty)",
-        ))
-        .boxed())
-    }
+    normalize_platform_input_spec(id, &id_lower)
 }
 
+/// Enumerate Unix input devices for the active platform.
 pub(super) fn list_unix_devices(
     context: &RuntimeCallContext,
 ) -> RuntimeResult<Vec<InputDeviceInfo>> {
-    #[cfg(target_os = "linux")]
-    {
-        let devices = list_linux_devices(context)?;
-        if !devices.is_empty() {
-            return Ok(devices);
-        }
-    }
-
-    let tty_device = list_terminal_device(context)?;
-    Ok(tty_device.into_iter().collect())
+    list_platform_devices(context)
 }
 
-#[cfg(target_os = "linux")]
-fn list_linux_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
-    let paths = list_linux_device_paths()?;
-    let mut devices = Vec::with_capacity(paths.len());
-    for path in paths {
-        let fallback_name = Path::new(&path)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or(INPUT_EVENT_PREFIX);
-        let metadata = query_device_metadata(&path, fallback_name);
-
-        devices.push(InputDeviceInfo {
-            id: context.store_string(&path),
-            name: context.store_string(&metadata.name),
-            kind: metadata.kind,
-            vendor_id: metadata.vendor_id,
-            product_id: metadata.product_id,
-            connected: true,
-        });
-    }
-
-    Ok(devices)
-}
-
+/// Open one Unix input descriptor with nonblocking flags.
 pub(super) fn open_input_descriptor(path: &str) -> RuntimeResult<RawFd> {
+    // encode path for host open call
     let path_cstring = CString::new(path).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
@@ -345,7 +210,13 @@ pub(super) fn open_input_descriptor(path: &str) -> RuntimeResult<RawFd> {
         .boxed()
     })?;
 
-    let descriptor = unsafe { libc::open(path_cstring.as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC) };
+    // open one read-only nonblocking descriptor
+    let descriptor = unsafe {
+        libc::open(
+            path_cstring.as_ptr(),
+            libc::O_RDONLY | libc::O_NONBLOCK | libc::O_CLOEXEC,
+        )
+    };
     if descriptor < 0 {
         return Err(core_platform::io_error("open", Some(path)));
     }
@@ -353,104 +224,107 @@ pub(super) fn open_input_descriptor(path: &str) -> RuntimeResult<RawFd> {
     Ok(descriptor)
 }
 
+/// Read one terminal mode snapshot from one tty descriptor.
+pub(super) fn read_terminal_mode(descriptor: RawFd) -> RuntimeResult<libc::termios> {
+    // query current terminal attributes from the host descriptor
+    let mut termios = MaybeUninit::<libc::termios>::uninit();
+    let status = unsafe { libc::tcgetattr(descriptor, termios.as_mut_ptr()) };
+    if status < 0 {
+        return Err(core_platform::io_error("tcgetattr", None));
+    }
+
+    let termios = unsafe { termios.assume_init() };
+    Ok(termios)
+}
+
+/// Apply one terminal mode snapshot to one tty descriptor.
+fn apply_terminal_mode(descriptor: RawFd, mode: &libc::termios) -> RuntimeResult<()> {
+    let status = unsafe { libc::tcsetattr(descriptor, libc::TCSANOW, mode) };
+    if status < 0 {
+        return Err(core_platform::io_error("tcsetattr", None));
+    }
+
+    Ok(())
+}
+
+/// Build one raw tty mode from one baseline cooked mode snapshot.
+fn raw_terminal_mode(mut mode: libc::termios) -> libc::termios {
+    // apply standard raw terminal flags and one-byte read semantics
+    unsafe {
+        libc::cfmakeraw(&mut mode);
+    }
+    mode.c_cc[libc::VMIN] = 1;
+    mode.c_cc[libc::VTIME] = 0;
+    mode
+}
+
+/// Wait until one descriptor becomes readable.
+pub(super) fn wait_for_readable_descriptor(descriptor: RawFd) -> RuntimeResult<()> {
+    // block in poll until the descriptor reports readable data
+    let mut pollfd = libc::pollfd {
+        fd: descriptor,
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    loop {
+        let status = unsafe { libc::poll(&mut pollfd as *mut libc::pollfd, 1, -1) };
+        if status > 0 {
+            return Ok(());
+        }
+        if status == 0 {
+            continue;
+        }
+
+        let errno = core_platform::get_errno();
+        if errno == libc::EINTR {
+            continue;
+        }
+
+        return Err(core_platform::io_error("poll", None));
+    }
+}
+
+/// Read one Unix input event from the selected backend.
 pub(super) fn read_unix_event(
-    descriptor: RawFd,
-    backend: UnixInputBackend,
+    context: &RuntimeCallContext,
+    binding: &UnixInputBinding,
     handle: resource::InputDeviceHandle,
     nonblocking: bool,
+    operation: &'static str,
 ) -> RuntimeResult<InputEvent> {
-    match backend {
-        #[cfg(target_os = "linux")]
-        UnixInputBackend::LinuxEvdev => read_linux_event(descriptor, handle, nonblocking),
-        UnixInputBackend::UnixTerminal => read_terminal_event(descriptor, handle, nonblocking),
-    }
+    let mut event = match binding.backend {
+        UnixInputBackend::Platform => {
+            read_platform_event(context, binding, handle, nonblocking, operation)
+        }
+        UnixInputBackend::UnixTerminal => {
+            let Some(descriptor) = binding.descriptor else {
+                return Err(input_not_found(operation, handle));
+            };
+            read_terminal_event(
+                context,
+                descriptor,
+                &binding.device_id,
+                nonblocking,
+                binding.read_mode,
+            )
+        }
+    }?;
+
+    // stamp the event with one per-handle sequence number
+    let sequence = next_unix_event_sequence(context, handle, operation)?;
+    event.sequence = sequence;
+
+    Ok(event)
 }
 
-#[cfg(target_os = "linux")]
-fn read_linux_event(
-    descriptor: RawFd,
-    handle: resource::InputDeviceHandle,
-    nonblocking: bool,
-) -> RuntimeResult<InputEvent> {
-    if nonblocking {
-        let mut pollfd = libc::pollfd {
-            fd: descriptor,
-            events: libc::POLLIN,
-            revents: 0,
-        };
-
-        let poll_status = unsafe { libc::poll(&mut pollfd as *mut libc::pollfd, 1, 0) };
-        if poll_status < 0 {
-            return Err(core_platform::io_error("poll", None));
-        }
-        if poll_status == 0 {
-            return Err(RuntimeError::from(PlatformError::io_with(
-                Some(PlatformErrorCode::IoWouldBlock),
-                None,
-                Some(libc::EWOULDBLOCK),
-                Some("poll".to_string()),
-                None,
-                "input queue is empty",
-            ))
-            .boxed());
-        }
-    }
-
-    let mut event = MaybeUninit::<LinuxInputEvent>::uninit();
-    let total_bytes = std::mem::size_of::<LinuxInputEvent>();
-    let mut read_offset = 0usize;
-
-    while read_offset < total_bytes {
-        let read_ptr = unsafe { (event.as_mut_ptr() as *mut u8).add(read_offset) };
-        let read_len = total_bytes - read_offset;
-        let read_status =
-            unsafe { libc::read(descriptor, read_ptr as *mut libc::c_void, read_len) };
-        if read_status == 0 {
-            return Err(RuntimeError::from(PlatformError::io_with(
-                Some(PlatformErrorCode::IoNotFound),
-                None,
-                None,
-                Some("read".to_string()),
-                None,
-                "input device reached end of stream",
-            ))
-            .boxed());
-        }
-        if read_status < 0 {
-            let errno = core_platform::get_errno();
-            if errno == libc::EINTR {
-                continue;
-            }
-            if errno == libc::EAGAIN || errno == libc::EWOULDBLOCK {
-                return Err(RuntimeError::from(PlatformError::io_with(
-                    Some(PlatformErrorCode::IoWouldBlock),
-                    None,
-                    Some(errno),
-                    Some("read".to_string()),
-                    None,
-                    "input queue is empty",
-                ))
-                .boxed());
-            }
-
-            return Err(core_platform::io_error("read", None));
-        }
-
-        read_offset += read_status as usize;
-    }
-
-    let event = unsafe { event.assume_init() };
-    Ok(map_linux_event(event, handle))
-}
-
+/// Set exclusive-grab mode for one Unix input backend.
 pub(super) fn set_unix_grab(
-    _descriptor: RawFd,
+    descriptor: Option<RawFd>,
     backend: UnixInputBackend,
-    _enable: bool,
+    enable: bool,
 ) -> RuntimeResult<()> {
     match backend {
-        #[cfg(target_os = "linux")]
-        UnixInputBackend::LinuxEvdev => set_linux_grab(_descriptor, _enable),
+        UnixInputBackend::Platform => set_platform_grab(descriptor, enable),
         UnixInputBackend::UnixTerminal => Err(RuntimeError::from(PlatformError::not_supported(
             "destack.input.event.setGrab",
         ))
@@ -458,26 +332,313 @@ pub(super) fn set_unix_grab(
     }
 }
 
-#[cfg(target_os = "linux")]
-fn set_linux_grab(descriptor: RawFd, enable: bool) -> RuntimeResult<()> {
-    let grab_value = if enable { 1 } else { 0 } as libc::c_int;
-    let status = unsafe { libc::ioctl(descriptor, EVIOCGRAB_REQUEST, grab_value) };
-    if status < 0 {
-        let errno = core_platform::get_errno();
-        if errno == libc::ENOTTY {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.input.event.setGrab",
-            ))
-            .boxed());
-        }
+/// Set read mode for one Unix input binding.
+pub(super) fn set_unix_read_mode(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    mode: InputReadMode,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let result = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
 
-        return Err(core_platform::io_error("ioctl(EVIOCGRAB)", None));
+            // resolve mutable binding payload
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+
+            // apply backend-specific mode transitions
+            let update = match binding.backend {
+                UnixInputBackend::Platform => set_platform_read_mode(mode),
+                UnixInputBackend::UnixTerminal => {
+                    let Some(descriptor) = binding.descriptor else {
+                        return Some(Err(input_not_found(operation, handle)));
+                    };
+
+                    // capture one baseline terminal mode for later restoration
+                    let original_mode = match binding.terminal_original_mode {
+                        Some(mode) => mode,
+                        None => match read_terminal_mode(descriptor) {
+                            Ok(mode) => {
+                                binding.terminal_original_mode = Some(mode);
+                                mode
+                            }
+                            Err(error) => return Some(Err(error)),
+                        },
+                    };
+
+                    // select raw or cooked terminal mode
+                    if mode == InputReadMode::Raw {
+                        let raw_mode = raw_terminal_mode(original_mode);
+                        apply_terminal_mode(descriptor, &raw_mode)
+                    } else {
+                        apply_terminal_mode(descriptor, &original_mode)
+                    }
+                }
+            };
+
+            if update.is_ok() {
+                binding.read_mode = mode;
+            }
+            Some(update)
+        });
+
+    match result.flatten() {
+        Some(result) => result,
+        None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Return one default read mode for platform-backed inputs.
+pub(super) fn platform_default_read_mode() -> InputReadMode {
+    InputReadMode::Raw
+}
+
+/// Return one initialized macOS platform state for one backend.
+#[cfg(target_os = "macos")]
+pub(super) fn initial_macos_state(
+    backend: UnixInputBackend,
+) -> Option<input_macos::MacosInputState> {
+    if backend == UnixInputBackend::Platform {
+        return Some(input_macos::MacosInputState::new());
+    }
+
+    None
+}
+
+/// Release one macOS platform subscription for one handle before close.
+#[cfg(target_os = "macos")]
+pub(super) fn release_macos_subscription(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+) {
+    input_macos::release_macos_session_subscription(context, handle);
+}
+
+/// Normalize one platform-specific identifier into one input open spec on Linux.
+#[cfg(target_os = "linux")]
+fn normalize_platform_input_spec(id: &str, _id_lower: &str) -> RuntimeResult<UnixInputOpenSpec> {
+    let path = input_linux::normalize_input_path(id)?;
+    Ok(UnixInputOpenSpec {
+        device_id: path.clone(),
+        path,
+        backend: UnixInputBackend::Platform,
+    })
+}
+
+/// Normalize one platform-specific identifier into one input open spec on macOS.
+#[cfg(target_os = "macos")]
+fn normalize_platform_input_spec(id: &str, id_lower: &str) -> RuntimeResult<UnixInputOpenSpec> {
+    if input_macos::is_macos_session_identifier(id, id_lower) {
+        return Ok(UnixInputOpenSpec {
+            path: String::new(),
+            backend: UnixInputBackend::Platform,
+            device_id: input_macos::MACOS_INPUT_SESSION_ID.to_string(),
+        });
+    }
+
+    Err(RuntimeError::from(PlatformError::invalid_argument_value(
+        "id",
+        "id must be one supported input identifier for this host",
+    ))
+    .boxed())
+}
+
+/// Normalize one platform-specific identifier into one input open spec on other Unix hosts.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn normalize_platform_input_spec(_id: &str, _id_lower: &str) -> RuntimeResult<UnixInputOpenSpec> {
+    Err(RuntimeError::from(PlatformError::invalid_argument_value(
+        "id",
+        "id must be one supported input identifier for this host",
+    ))
+    .boxed())
+}
+
+/// Enumerate platform-specific devices on Linux with terminal fallback.
+#[cfg(target_os = "linux")]
+fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
+    let devices = input_linux::list_linux_devices(context)?;
+    if !devices.is_empty() {
+        return Ok(devices);
+    }
+
+    let tty_device = list_terminal_device(context)?;
+    Ok(tty_device.into_iter().collect())
+}
+
+/// Enumerate platform-specific devices on macOS and include terminal fallback.
+#[cfg(target_os = "macos")]
+fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
+    let mut devices = Vec::new();
+    devices.push(InputDeviceInfo {
+        id: context.store_string(input_macos::MACOS_INPUT_SESSION_ID),
+        name: context.store_string(input_macos::MACOS_INPUT_SESSION_NAME),
+        kind: InputDeviceKind::Raw,
+        vendor_id: 0,
+        product_id: 0,
+        key_count: input_macos::MACOS_SESSION_KEY_COUNT,
+        button_count: input_macos::MACOS_SESSION_BUTTON_COUNT,
+        axis_count: input_macos::MACOS_SESSION_AXIS_COUNT,
+        connected: true,
+        supports_grab: false,
+        supports_raw: true,
+        supports_text: false,
+        supports_rumble: false,
+    });
+
+    if let Some(tty_device) = list_terminal_device(context)? {
+        devices.push(tty_device);
+    }
+
+    Ok(devices)
+}
+
+/// Enumerate platform-specific devices on other Unix hosts with terminal-only discovery.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn list_platform_devices(context: &RuntimeCallContext) -> RuntimeResult<Vec<InputDeviceInfo>> {
+    let tty_device = list_terminal_device(context)?;
+    Ok(tty_device.into_iter().collect())
+}
+
+/// Read one platform-specific event from one opened platform backend on Linux.
+#[cfg(target_os = "linux")]
+fn read_platform_event(
+    context: &RuntimeCallContext,
+    _binding: &UnixInputBinding,
+    handle: resource::InputDeviceHandle,
+    nonblocking: bool,
+    operation: &'static str,
+) -> RuntimeResult<InputEvent> {
+    let result = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
+            }
+
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
+            }
+
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            if binding.backend != UnixInputBackend::Platform {
+                return None;
+            }
+
+            let Some(descriptor) = binding.descriptor else {
+                return Some(Err(input_not_found(operation, handle)));
+            };
+
+            let event = input_linux::read_linux_event(
+                context,
+                descriptor,
+                nonblocking,
+                &binding.device_id,
+                binding.linux_modifiers,
+            );
+            match event {
+                Ok((event, modifiers)) => {
+                    binding.linux_modifiers = modifiers;
+                    Some(Ok(event))
+                }
+                Err(error) => Some(Err(error)),
+            }
+        });
+
+    match result {
+        Some(Some(Ok(event))) => Ok(event),
+        Some(Some(Err(error))) => Err(error),
+        Some(None) | None => Err(input_not_found(operation, handle)),
+    }
+}
+
+/// Read one platform-specific event from one opened platform backend on macOS.
+#[cfg(target_os = "macos")]
+fn read_platform_event(
+    context: &RuntimeCallContext,
+    binding: &UnixInputBinding,
+    handle: resource::InputDeviceHandle,
+    nonblocking: bool,
+    operation: &'static str,
+) -> RuntimeResult<InputEvent> {
+    let _ = (binding, operation);
+    input_macos::read_macos_session_event(context, handle, nonblocking, binding.read_mode)
+}
+
+/// Read one platform-specific event from one opened platform backend on other Unix hosts.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn read_platform_event(
+    _context: &RuntimeCallContext,
+    _binding: &UnixInputBinding,
+    _handle: resource::InputDeviceHandle,
+    _nonblocking: bool,
+    _operation: &'static str,
+) -> RuntimeResult<InputEvent> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.read")).boxed())
+}
+
+/// Set exclusive-grab mode for one platform backend on Linux.
+#[cfg(target_os = "linux")]
+fn set_platform_grab(descriptor: Option<RawFd>, enable: bool) -> RuntimeResult<()> {
+    let Some(descriptor) = descriptor else {
+        return Err(RuntimeError::from(PlatformError::io_with(
+            Some(PlatformErrorCode::IoNotFound),
+            None,
+            None,
+            Some("destack.input.event.setGrab".to_string()),
+            None,
+            "input device handle is missing one descriptor".to_string(),
+        ))
+        .boxed());
+    };
+
+    input_linux::set_linux_grab(descriptor, enable)
+}
+
+/// Set exclusive-grab mode for one platform backend on non-Linux Unix hosts.
+#[cfg(all(unix, not(target_os = "linux")))]
+fn set_platform_grab(_descriptor: Option<RawFd>, _enable: bool) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.input.event.setGrab")).boxed())
+}
+
+/// Set read mode for one platform backend on Linux and macOS.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+fn set_platform_read_mode(mode: InputReadMode) -> RuntimeResult<()> {
+    if mode == InputReadMode::Cooked {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.input.event.setReadMode",
+        ))
+        .boxed());
     }
 
     Ok(())
 }
 
+/// Set read mode for one platform backend on other Unix hosts.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn set_platform_read_mode(_mode: InputReadMode) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.input.event.setReadMode",
+    ))
+    .boxed())
+}
+
+/// Build terminal input metadata when `/dev/tty` is available.
 fn list_terminal_device(context: &RuntimeCallContext) -> RuntimeResult<Option<InputDeviceInfo>> {
+    // encode terminal path for one open probe
     let path = CString::new(UNIX_INPUT_TTY_PATH).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "id",
@@ -485,6 +646,8 @@ fn list_terminal_device(context: &RuntimeCallContext) -> RuntimeResult<Option<In
         ))
         .boxed()
     })?;
+
+    // probe tty availability with one read-only descriptor open
     let descriptor = unsafe { libc::open(path.as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC) };
     if descriptor < 0 {
         let errno = core_platform::get_errno();
@@ -510,15 +673,26 @@ fn list_terminal_device(context: &RuntimeCallContext) -> RuntimeResult<Option<In
         kind: InputDeviceKind::Keyboard,
         vendor_id: 0,
         product_id: 0,
+        key_count: 0,
+        button_count: 0,
+        axis_count: 0,
         connected: true,
+        supports_grab: false,
+        supports_raw: true,
+        supports_text: true,
+        supports_rumble: false,
     }))
 }
 
+/// Read one byte-oriented event from terminal input.
 fn read_terminal_event(
+    context: &RuntimeCallContext,
     descriptor: RawFd,
-    handle: resource::InputDeviceHandle,
+    device_id: &str,
     nonblocking: bool,
+    read_mode: InputReadMode,
 ) -> RuntimeResult<InputEvent> {
+    // probe readiness in nonblocking mode
     if nonblocking {
         let mut pollfd = libc::pollfd {
             fd: descriptor,
@@ -542,6 +716,7 @@ fn read_terminal_event(
         }
     }
 
+    // read one byte with interrupt and would-block handling
     let mut byte = 0u8;
     loop {
         let read_status = unsafe {
@@ -568,24 +743,30 @@ fn read_terminal_event(
                 continue;
             }
             if errno == libc::EAGAIN || errno == libc::EWOULDBLOCK {
-                return Err(RuntimeError::from(PlatformError::io_with(
-                    Some(PlatformErrorCode::IoWouldBlock),
-                    None,
-                    Some(errno),
-                    Some("read".to_string()),
-                    None,
-                    "input queue is empty",
-                ))
-                .boxed());
+                if nonblocking {
+                    return Err(RuntimeError::from(PlatformError::io_with(
+                        Some(PlatformErrorCode::IoWouldBlock),
+                        None,
+                        Some(errno),
+                        Some("read".to_string()),
+                        None,
+                        "input queue is empty",
+                    ))
+                    .boxed());
+                }
+
+                wait_for_readable_descriptor(descriptor)?;
+                continue;
             }
 
             return Err(core_platform::io_error("read", None));
         }
-
         break;
     }
 
-    let kind = if byte.is_ascii_graphic() || matches!(byte, b' ' | b'\n' | b'\r' | b'\t') {
+    // map byte stream into text or key semantics
+    let is_text_byte = byte.is_ascii_graphic() || matches!(byte, b' ' | b'\n' | b'\r' | b'\t');
+    let kind = if read_mode == InputReadMode::Cooked && is_text_byte {
         InputEventKind::Text
     } else {
         InputEventKind::Key
@@ -598,302 +779,79 @@ fn read_terminal_event(
 
     Ok(InputEvent {
         kind,
-        timestamp_ns: current_unix_timestamp_ns(),
-        device: handle,
+        timestamp_ns: monotonic_timestamp_ns(),
+        sequence: 0,
+        device_id: context.store_string(device_id),
+        action: if kind == InputEventKind::Text {
+            InputEventAction::Text
+        } else {
+            InputEventAction::Press
+        },
         code: byte as u32,
+        scan_code: byte as u32,
         value,
         x: 0.0,
         y: 0.0,
+        wheel_x: 0.0,
+        wheel_y: 0.0,
         modifiers: 0,
+        repeat: false,
+        text: if kind == InputEventKind::Text {
+            let text = [byte];
+            let text = String::from_utf8_lossy(&text);
+            context.store_string(text.as_ref())
+        } else {
+            context.store_string(UNIX_INPUT_EMPTY_TEXT)
+        },
     })
 }
 
-fn current_unix_timestamp_ns() -> u64 {
+/// Return one monotonic host timestamp in nanoseconds.
+pub(super) fn monotonic_timestamp_ns() -> u64 {
+    // query one monotonic timespec from the host
     let mut timestamp = libc::timespec {
         tv_sec: 0,
         tv_nsec: 0,
     };
-    let status = unsafe { libc::clock_gettime(libc::CLOCK_REALTIME, &mut timestamp) };
+    let status = unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut timestamp) };
     if status < 0 || timestamp.tv_sec < 0 || timestamp.tv_nsec < 0 {
         return 0;
     }
 
+    // convert one timespec payload to nanoseconds
     (timestamp.tv_sec as u64)
         .saturating_mul(1_000_000_000)
         .saturating_add(timestamp.tv_nsec as u64)
 }
 
-#[cfg(target_os = "linux")]
-fn bit_is_set(bits: &[u8], index: usize) -> bool {
-    let byte_index = index / 8;
-    if byte_index >= bits.len() {
-        return false;
-    }
-
-    let bit_mask = 1u8 << (index % 8);
-    (bits[byte_index] & bit_mask) != 0
-}
-
-#[cfg(target_os = "linux")]
-fn input_event_kind(raw_kind: u16, code: u16) -> InputEventKind {
-    match raw_kind {
-        EV_KEY => {
-            if code as usize == BTN_TOUCH {
-                InputEventKind::Touch
-            } else if (BTN_MOUSE_LEFT..=(BTN_MOUSE_LEFT + 2)).contains(&(code as usize)) {
-                InputEventKind::PointerButton
-            } else {
-                InputEventKind::Key
+/// Allocate the next sequence number for one Unix input stream.
+fn next_unix_event_sequence(
+    context: &RuntimeCallContext,
+    handle: resource::InputDeviceHandle,
+    operation: &'static str,
+) -> RuntimeResult<u64> {
+    let sequence = context
+        .runtime()
+        .resources
+        .with_entry_mut(handle.0, |entry| {
+            if entry.kind != ResourceKind::Input {
+                return None;
             }
-        }
-        EV_REL => {
-            if code == REL_WHEEL || code == REL_HWHEEL {
-                InputEventKind::Scroll
-            } else {
-                InputEventKind::PointerMotion
-            }
-        }
-        EV_ABS => {
-            if code == ABS_X || code == ABS_Y {
-                InputEventKind::PointerMotion
-            } else {
-                InputEventKind::Touch
-            }
-        }
-        EV_SYN => InputEventKind::Device,
-        _ => InputEventKind::Device,
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn timestamp_ns(time: libc::timeval) -> u64 {
-    if time.tv_sec < 0 || time.tv_usec < 0 {
-        return 0;
-    }
-
-    let seconds = time.tv_sec as u64;
-    let micros = time.tv_usec as u64;
-    seconds
-        .saturating_mul(1_000_000_000)
-        .saturating_add(micros.saturating_mul(1_000))
-}
-
-#[cfg(target_os = "linux")]
-fn map_linux_event(raw: LinuxInputEvent, device: resource::InputDeviceHandle) -> InputEvent {
-    let kind = input_event_kind(raw.kind, raw.code);
-
-    let mut x = 0.0_f64;
-    let mut y = 0.0_f64;
-    if raw.code == REL_X || raw.code == ABS_X {
-        x = raw.value as f64;
-    } else if raw.code == REL_Y
-        || raw.code == ABS_Y
-        || raw.code == REL_WHEEL
-        || raw.code == REL_HWHEEL
-    {
-        y = raw.value as f64;
-    }
-
-    InputEvent {
-        kind,
-        timestamp_ns: timestamp_ns(raw.time),
-        device,
-        code: raw.code as u32,
-        value: raw.value as i64,
-        x,
-        y,
-        modifiers: 0,
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn classify_device_kind(name: &str, descriptor: RawFd) -> InputDeviceKind {
-    let name_lower = name.to_lowercase();
-    if name_lower.contains("keyboard") {
-        return InputDeviceKind::Keyboard;
-    }
-    if name_lower.contains("mouse") || name_lower.contains("trackpad") {
-        return InputDeviceKind::Mouse;
-    }
-    if name_lower.contains("touch") {
-        return InputDeviceKind::Touch;
-    }
-    if name_lower.contains("gamepad") || name_lower.contains("controller") {
-        return InputDeviceKind::Gamepad;
-    }
-    if name_lower.contains("stylus") || name_lower.contains("pen") {
-        return InputDeviceKind::Pen;
-    }
-
-    let mut event_bits = [0u8; MAX_EVENT_BITS];
-    let event_status = unsafe {
-        libc::ioctl(
-            descriptor,
-            eviocgbit_request(0, event_bits.len()),
-            event_bits.as_mut_ptr(),
-        )
-    };
-    if event_status < 0 {
-        return InputDeviceKind::Raw;
-    }
-
-    let has_relative = bit_is_set(&event_bits, EV_REL as usize);
-    let has_absolute = bit_is_set(&event_bits, EV_ABS as usize);
-    let has_keys = bit_is_set(&event_bits, EV_KEY as usize);
-    if !has_keys {
-        return InputDeviceKind::Raw;
-    }
-
-    let mut key_bits = [0u8; MAX_KEY_BITS];
-    let key_status = unsafe {
-        libc::ioctl(
-            descriptor,
-            eviocgbit_request(EV_KEY, key_bits.len()),
-            key_bits.as_mut_ptr(),
-        )
-    };
-    if key_status < 0 {
-        if has_relative {
-            return InputDeviceKind::Mouse;
-        }
-        if has_absolute {
-            return InputDeviceKind::Touch;
-        }
-
-        return InputDeviceKind::Raw;
-    }
-
-    if bit_is_set(&key_bits, BTN_STYLUS) {
-        return InputDeviceKind::Pen;
-    }
-    if bit_is_set(&key_bits, BTN_GAMEPAD) {
-        return InputDeviceKind::Gamepad;
-    }
-    if bit_is_set(&key_bits, BTN_MOUSE_LEFT) || has_relative {
-        return InputDeviceKind::Mouse;
-    }
-    if bit_is_set(&key_bits, BTN_TOUCH) || has_absolute {
-        return InputDeviceKind::Touch;
-    }
-    if bit_is_set(&key_bits, KEY_A) {
-        return InputDeviceKind::Keyboard;
-    }
-
-    InputDeviceKind::Raw
-}
-
-#[cfg(target_os = "linux")]
-fn query_device_metadata(path: &str, fallback_name: &str) -> InputDeviceMetadata {
-    let mut metadata = InputDeviceMetadata {
-        name: fallback_name.to_string(),
-        kind: InputDeviceKind::Raw,
-        vendor_id: 0,
-        product_id: 0,
-    };
-
-    let Ok(path_cstring) = CString::new(path) else {
-        return metadata;
-    };
-
-    let descriptor = unsafe {
-        libc::open(
-            path_cstring.as_ptr(),
-            libc::O_RDONLY | libc::O_NONBLOCK | libc::O_CLOEXEC,
-        )
-    };
-    if descriptor < 0 {
-        return metadata;
-    }
-
-    let mut name_bytes = [0u8; 256];
-    let name_status = unsafe {
-        libc::ioctl(
-            descriptor,
-            eviocgname_request(name_bytes.len()),
-            name_bytes.as_mut_ptr(),
-        )
-    };
-    if name_status > 0 {
-        let raw_len = name_status as usize;
-        let trunc_len = raw_len.min(name_bytes.len());
-        let zero_index = name_bytes[..trunc_len]
-            .iter()
-            .position(|byte| *byte == 0)
-            .unwrap_or(trunc_len);
-        if zero_index > 0 {
-            let name = String::from_utf8_lossy(&name_bytes[..zero_index]).to_string();
-            if !name.is_empty() {
-                metadata.name = name;
-            }
-        }
-    }
-
-    let mut input_id = MaybeUninit::<LinuxInputId>::uninit();
-    let id_status = unsafe { libc::ioctl(descriptor, EVIOCGID_REQUEST, input_id.as_mut_ptr()) };
-    if id_status == 0 {
-        let input_id = unsafe { input_id.assume_init() };
-        metadata.vendor_id = input_id.vendor;
-        metadata.product_id = input_id.product;
-    }
-
-    metadata.kind = classify_device_kind(&metadata.name, descriptor);
-
-    unsafe {
-        libc::close(descriptor);
-    }
-
-    metadata
-}
-
-#[cfg(target_os = "linux")]
-fn list_linux_device_paths() -> RuntimeResult<Vec<String>> {
-    let entries = match fs::read_dir(INPUT_DEVICE_DIRECTORY) {
-        Ok(entries) => entries,
-        Err(error) => {
-            if error.kind() == std::io::ErrorKind::NotFound {
-                return Ok(Vec::new());
+            if entry.label.as_deref() != Some(INPUT_RESOURCE_LABEL) {
+                return None;
             }
 
-            return Err(RuntimeError::from(PlatformError::io_with(
-                None,
-                None,
-                error.raw_os_error(),
-                Some("read_dir".to_string()),
-                Some(INPUT_DEVICE_DIRECTORY.to_string()),
-                format!("failed to read {INPUT_DEVICE_DIRECTORY}: {error}"),
-            ))
-            .boxed());
-        }
-    };
+            let binding = entry
+                .payload
+                .as_mut()
+                .and_then(|payload| payload.downcast_mut::<UnixInputBinding>())?;
+            let next = binding.next_sequence;
+            binding.next_sequence = binding.next_sequence.saturating_add(1);
+            Some(next)
+        });
 
-    let mut paths = Vec::new();
-    for entry in entries {
-        let entry = entry.map_err(|error| {
-            RuntimeError::from(PlatformError::io_with(
-                None,
-                None,
-                error.raw_os_error(),
-                Some("read_dir".to_string()),
-                Some(INPUT_DEVICE_DIRECTORY.to_string()),
-                format!("failed to read directory entry: {error}"),
-            ))
-            .boxed()
-        })?;
-
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else {
-            continue;
-        };
-        if !name.starts_with(INPUT_EVENT_PREFIX) {
-            continue;
-        }
-
-        let path = format!("{INPUT_DEVICE_DIRECTORY}/{name}");
-        if Path::new(&path).exists() {
-            paths.push(path);
-        }
+    match sequence.flatten() {
+        Some(sequence) => Ok(sequence),
+        None => Err(input_not_found(operation, handle)),
     }
-
-    paths.sort_unstable();
-    Ok(paths)
 }

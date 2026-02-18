@@ -10,6 +10,7 @@ use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.rs"]
 mod harness;
+pub(crate) use harness::InputEventRecord;
 
 /// Test harness context used by tests.
 pub(crate) struct InputHarnessContext<'call> {

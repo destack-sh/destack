@@ -3,7 +3,8 @@ use destack_vm as vm;
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputDeviceInfo, InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventVm,
+    InputDeviceInfo, InputDeviceInfoVm, InputDeviceKind, InputEvent, InputEventAction,
+    InputEventKind, InputEventVm,
 };
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, VmSlice};
 
@@ -26,14 +27,46 @@ pub(crate) struct InputDeviceRecord {
     pub vendor_id: u16,
     /// USB or bus product identifier when available.
     pub product_id: u16,
+    /// Number of logical keys when reported by backend metadata.
+    pub key_count: u16,
+    /// Number of logical buttons when reported by backend metadata.
+    pub button_count: u16,
+    /// Number of logical axes when reported by backend metadata.
+    pub axis_count: u16,
     /// Connected state at enumeration time.
     pub connected: bool,
+    /// Whether this endpoint supports exclusive-grab mode.
+    pub supports_grab: bool,
+    /// Whether this endpoint supports raw event streams.
+    pub supports_raw: bool,
+    /// Whether this endpoint supports text events.
+    pub supports_text: bool,
+    /// Whether this endpoint supports haptic output.
+    pub supports_rumble: bool,
+}
+
+/// Decoded input event metadata used by tests.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InputEventRecord {
+    /// Stable runtime device identifier.
+    pub device_id: String,
+    /// Event kind selector.
+    pub kind: InputEventKind,
+    /// Event action selector.
+    pub action: InputEventAction,
+    /// Event code value.
+    pub code: u32,
+    /// Event scalar payload value.
+    pub value: i64,
+    /// Monotonic event sequence number.
+    pub sequence: u64,
 }
 
 impl<'call> InputHarnessContext<'call> {
     /// Return the vm context when this harness executes vm bindings.
     #[allow(clippy::mut_from_ref)]
     fn vm_context_mut(&self) -> Option<&mut vm::ExternalCallContext<'_>> {
+        // recover mutable vm context from stored raw pointer
         self.vm_context
             .map(|context| unsafe { &mut *(context as *mut vm::ExternalCallContext<'_>) })
     }
@@ -43,6 +76,7 @@ impl<'call> InputHarnessContext<'call> {
         &self,
         value: &str,
     ) -> HarnessValue<NativeStringRef, vm::StringHandle> {
+        // build vm or native string payload based on active harness kind
         match self.vm_context_mut() {
             Some(context) => {
                 let value = vm::StringHandle::new(context.intern_string(value));
@@ -59,6 +93,7 @@ impl<'call> InputHarnessContext<'call> {
     ) -> RuntimeResult<Vec<InputDeviceRecord>> {
         match value {
             HarnessValue::Native(value) => {
+                // decode native slice payload into normalized records
                 let values = unsafe { value.as_slice()? };
                 let mut records = Vec::with_capacity(values.len());
                 for value in values {
@@ -68,13 +103,21 @@ impl<'call> InputHarnessContext<'call> {
                         kind: value.kind,
                         vendor_id: value.vendor_id,
                         product_id: value.product_id,
+                        key_count: value.key_count,
+                        button_count: value.button_count,
+                        axis_count: value.axis_count,
                         connected: value.connected,
+                        supports_grab: value.supports_grab,
+                        supports_raw: value.supports_raw,
+                        supports_text: value.supports_text,
+                        supports_rumble: value.supports_rumble,
                     });
                 }
 
                 Ok(records)
             }
             HarnessValue::Vm(value) => {
+                // decode vm slice payload into normalized records
                 let context = self.vm_context_mut().ok_or_else(|| {
                     RuntimeError::from(PlatformError::invalid_argument_value(
                         "context",
@@ -82,7 +125,36 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                decode_vm_device_records(context, value)
+                let values = value.read_values(context)?;
+                let mut records = Vec::with_capacity(values.len());
+                for value in values {
+                    let id = context
+                        .string_ref(value.id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?
+                        .as_str()
+                        .to_string();
+                    let name = context
+                        .string_ref(value.name)
+                        .map_err(|error| RuntimeError::from(error).boxed())?
+                        .as_str()
+                        .to_string();
+                    records.push(InputDeviceRecord {
+                        id,
+                        name,
+                        kind: value.kind,
+                        vendor_id: value.vendor_id,
+                        product_id: value.product_id,
+                        key_count: value.key_count,
+                        button_count: value.button_count,
+                        axis_count: value.axis_count,
+                        connected: value.connected,
+                        supports_grab: value.supports_grab,
+                        supports_raw: value.supports_raw,
+                        supports_text: value.supports_text,
+                        supports_rumble: value.supports_rumble,
+                    });
+                }
+                Ok(records)
             }
         }
     }
@@ -91,136 +163,43 @@ impl<'call> InputHarnessContext<'call> {
     pub(crate) fn event_from_value(
         &self,
         value: HarnessValue<InputEvent, InputEventVm>,
-    ) -> InputEvent {
+    ) -> RuntimeResult<InputEventRecord> {
         match value {
-            HarnessValue::Native(value) => value,
-            HarnessValue::Vm(value) => value,
-        }
-    }
-}
-
-/// Decode one VM input-device slice into normalized harness records.
-fn decode_vm_device_records(
-    context: &mut vm::ExternalCallContext<'_>,
-    values: VmSlice<InputDeviceInfoVm>,
-) -> RuntimeResult<Vec<InputDeviceRecord>> {
-    // decode vm slice payload
-    let values = values.raw_values(context)?;
-    let mut records = Vec::with_capacity(values.len());
-
-    for value in values {
-        // validate aggregate shape
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "device",
-                "InputDeviceInfo",
-            ))
-            .boxed());
-        }
-
-        // decode aggregate fields
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "device",
-                "expected InputDeviceInfo aggregate with 6 fields",
-            ))
-            .boxed());
-        }
-
-        let id_handle = vm::StringHandle::new(slots[0]);
-        let name_handle = vm::StringHandle::new(slots[1]);
-        let id = context
-            .string_ref(id_handle)
-            .map_err(|error| RuntimeError::from(error).boxed())?
-            .as_str()
-            .to_string();
-        let name = context
-            .string_ref(name_handle)
-            .map_err(|error| RuntimeError::from(error).boxed())?
-            .as_str()
-            .to_string();
-
-        // decode device kind
-        let (kind_raw, kind_width) = slots[2].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type("device.kind", "uint8")).boxed()
-        })?;
-        if kind_width != 8 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "device.kind",
-                "uint8",
-            ))
-            .boxed());
-        }
-        let kind = match kind_raw as u8 {
-            1 => InputDeviceKind::Keyboard,
-            2 => InputDeviceKind::Mouse,
-            3 => InputDeviceKind::Touch,
-            4 => InputDeviceKind::Gamepad,
-            5 => InputDeviceKind::Pen,
-            255 => InputDeviceKind::Raw,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "device.kind",
-                    "unknown InputDeviceKind value",
-                ))
-                .boxed());
+            HarnessValue::Native(value) => {
+                // decode native event strings
+                let device_id = unsafe { value.device_id.as_str()? }.to_string();
+                Ok(InputEventRecord {
+                    device_id,
+                    kind: value.kind,
+                    action: value.action,
+                    code: value.code,
+                    value: value.value,
+                    sequence: value.sequence,
+                })
             }
-        };
-
-        // decode vendor and product ids
-        let (vendor_id_raw, vendor_id_width) = slots[3].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "device.vendorId",
-                "uint16",
-            ))
-            .boxed()
-        })?;
-        if vendor_id_width != 16 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "device.vendorId",
-                "uint16",
-            ))
-            .boxed());
+            HarnessValue::Vm(value) => {
+                // decode vm event strings
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm input-event values",
+                    ))
+                    .boxed()
+                })?;
+                let device_id = context
+                    .string_ref(value.device_id)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                Ok(InputEventRecord {
+                    device_id,
+                    kind: value.kind,
+                    action: value.action,
+                    code: value.code,
+                    value: value.value,
+                    sequence: value.sequence,
+                })
+            }
         }
-
-        let (product_id_raw, product_id_width) =
-            slots[4].as_uint_with_width().ok_or_else(|| {
-                RuntimeError::from(PlatformError::invalid_argument_type(
-                    "device.productId",
-                    "uint16",
-                ))
-                .boxed()
-            })?;
-        if product_id_width != 16 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "device.productId",
-                "uint16",
-            ))
-            .boxed());
-        }
-
-        // decode connected flag
-        let connected = slots[5].as_bool().ok_or_else(|| {
-            RuntimeError::from(PlatformError::invalid_argument_type(
-                "device.connected",
-                "boolean",
-            ))
-            .boxed()
-        })?;
-
-        // normalize decoded record
-        records.push(InputDeviceRecord {
-            id,
-            name,
-            kind,
-            vendor_id: vendor_id_raw as u16,
-            product_id: product_id_raw as u16,
-            connected,
-        });
     }
-
-    Ok(records)
 }

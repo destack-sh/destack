@@ -27,14 +27,19 @@ export struct InputDeviceInfo {
     /// Device kind.
     kind: InputDeviceKind;
     /// Vendor identifier when available.
+    /// Zero when the backend does not report one vendor id.
     vendorId: uint16;
     /// Product identifier when available.
+    /// Zero when the backend does not report one product id.
     productId: uint16;
     /// Number of logical keys when reported by the backend.
+    /// Zero when the backend does not report key topology.
     keyCount: uint16;
     /// Number of logical buttons when reported by the backend.
+    /// Zero when the backend does not report button topology.
     buttonCount: uint16;
     /// Number of logical axes when reported by the backend.
+    /// Zero when the backend does not report axis topology.
     axisCount: uint16;
     /// Whether this device is currently connected.
     connected: boolean;
