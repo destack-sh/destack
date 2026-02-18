@@ -11,11 +11,25 @@ import {
 /// GPU shader module options.
 export struct GpuShaderOptions {
     /// Shader binary format selector.
-    format: uint32;
+    format: GpuShaderFormat;
     /// Shader option flags.
     flags: uint32;
     /// Human-readable debug label, empty when unspecified.
     label: string;
+}
+
+/// Shader binary format selector.
+export enum GpuShaderFormat {
+    /// WGSL shader source text.
+    Wgsl = 1,
+    /// SPIR-V shader binary.
+    SpirV = 2,
+    /// Metal shading language source text.
+    Msl = 3,
+    /// HLSL or DXIL shader payload.
+    HlslOrDxil = 4,
+    /// GLSL shader source text.
+    Glsl = 5,
 }
 
 /// Shader-compilation message kind.

@@ -47,7 +47,7 @@ export enum GpuPowerPreference {
 }
 
 /// Stable GPU feature identifier.
-export type GpuFeatureId = uint32;
+export newtype GpuFeatureId = uint32;
 
 /// Adapter discovery options.
 export struct GpuAdapterRequest {
@@ -69,20 +69,36 @@ export struct GpuAdapterRequest {
 export struct GpuAdapterLimits {
     /// Maximum bind groups.
     maxBindGroups: uint32;
+    /// Maximum bindings allowed in one bind group.
+    maxBindingsPerBindGroup: uint32;
     /// Maximum push constant bytes.
     maxPushConstantBytes: uint32;
+    /// Maximum 1D texture dimension.
+    maxTextureDimension1D: uint32;
     /// Maximum 2D texture dimension.
     maxTextureDimension2D: uint32;
+    /// Maximum 3D texture dimension.
+    maxTextureDimension3D: uint32;
+    /// Maximum texture array layers.
+    maxTextureArrayLayers: uint32;
     /// Maximum color attachments in one render pass.
     maxColorAttachments: uint32;
+    /// Maximum color-attachment bytes written per sample.
+    maxColorAttachmentBytesPerSample: uint32;
     /// Maximum sampled textures per shader stage.
     maxSampledTexturesPerStage: uint32;
     /// Maximum samplers per shader stage.
     maxSamplersPerStage: uint32;
     /// Maximum storage buffers per shader stage.
     maxStorageBuffersPerStage: uint32;
+    /// Maximum storage textures per shader stage.
+    maxStorageTexturesPerStage: uint32;
     /// Maximum uniform buffers per shader stage.
     maxUniformBuffersPerStage: uint32;
+    /// Maximum dynamic uniform buffers per pipeline layout.
+    maxDynamicUniformBuffersPerPipelineLayout: uint32;
+    /// Maximum dynamic storage buffers per pipeline layout.
+    maxDynamicStorageBuffersPerPipelineLayout: uint32;
     /// Maximum uniform buffer binding size.
     maxUniformBufferBindingSize: uint64;
     /// Maximum storage buffer binding size.
@@ -91,6 +107,30 @@ export struct GpuAdapterLimits {
     minStorageBufferOffsetAlignment: uint32;
     /// Minimum uniform buffer offset alignment.
     minUniformBufferOffsetAlignment: uint32;
+    /// Maximum vertex buffers.
+    maxVertexBuffers: uint32;
+    /// Maximum vertex attributes.
+    maxVertexAttributes: uint32;
+    /// Maximum vertex-buffer array stride in bytes.
+    maxVertexBufferArrayStride: uint32;
+    /// Maximum storage for one GPU buffer in bytes.
+    maxBufferSize: uint64;
+    /// Maximum inter-stage shader components.
+    maxInterStageShaderComponents: uint32;
+    /// Maximum inter-stage shader variables.
+    maxInterStageShaderVariables: uint32;
+    /// Maximum compute workgroup storage in bytes.
+    maxComputeWorkgroupStorageSize: uint32;
+    /// Maximum compute invocations per workgroup.
+    maxComputeInvocationsPerWorkgroup: uint32;
+    /// Maximum compute workgroup size on x axis.
+    maxComputeWorkgroupSizeX: uint32;
+    /// Maximum compute workgroup size on y axis.
+    maxComputeWorkgroupSizeY: uint32;
+    /// Maximum compute workgroup size on z axis.
+    maxComputeWorkgroupSizeZ: uint32;
+    /// Maximum compute workgroups per dispatch dimension.
+    maxComputeWorkgroupsPerDimension: uint32;
 }
 
 /// GPU adapter information.

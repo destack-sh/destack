@@ -3,7 +3,19 @@ export type PlatformCapability =
     | "audio.capture"
     | "audio.control"
     | "audio.device"
+    | "audio.device.monitor"
     | "audio.playback"
+    | "audio.playback.schedule"
+    | "audio.stream"
+    | "crypto.certificate.read"
+    | "crypto.certificate.write"
+    | "crypto.key.decrypt"
+    | "crypto.key.encrypt"
+    | "crypto.key.generate"
+    | "crypto.key.sign"
+    | "crypto.key.verify"
+    | "crypto.store.read"
+    | "crypto.store.write"
     | "display.mode"
     | "display.read"
     | "display.vsync"
@@ -37,15 +49,25 @@ export type PlatformCapability =
     | "fs.write"
     | "fs.xattr"
     | "gpu.adapter"
+    | "gpu.bind"
     | "gpu.compute"
+    | "gpu.debug"
     | "gpu.device"
     | "gpu.memory"
     | "gpu.present"
     | "gpu.queue"
+    | "gpu.render"
+    | "gpu.render.multiDraw"
+    | "gpu.render.multiDrawCount"
     | "gpu.shader"
     | "gpu.surface"
+    | "gpu.sync"
+    | "gpu.sync.pipelineStatistics"
     | "input.control"
+    | "input.grab"
+    | "input.haptics"
     | "input.read"
+    | "input.text"
     | "input.write"
     | "ipc.event"
     | "ipc.fdPass"
@@ -56,11 +78,16 @@ export type PlatformCapability =
     | "ipc.sharedMemory"
     | "ipc.unix"
     | "io.completion"
+    | "io.control"
+    | "io.device.control"
+    | "io.device.read"
+    | "io.device.write"
     | "io.event"
     | "io.poll"
     | "io.register"
     | "io.submit"
     | "io.uring"
+    | "io.zero.copy"
     | "memory.advise"
     | "memory.execute"
     | "memory.hugePage"
@@ -91,7 +118,10 @@ export type PlatformCapability =
     | "process.identity.write"
     | "process.namespace"
     | "process.priority"
+    | "process.scheduler"
     | "process.spawn"
+    | "process.spawn.actions"
+    | "process.stdio"
     | "process.cgroup"
     | "process.run"
     | "process.session"
@@ -118,13 +148,35 @@ export type PlatformCapability =
     | "thread.sync"
     | "thread.wait"
     | "time.monotonic.read"
+    | "time.timerfd"
     | "time.timer"
     | "time.wall.read"
     | "time.wall.sleep"
+    | "tls.certificate.read"
+    | "tls.context"
+    | "tls.exporter"
+    | "tls.handshake"
+    | "tls.hostname.verify"
+    | "tls.identity.use"
+    | "tls.identity.write"
+    | "tls.keylog"
+    | "tls.policy"
+    | "tls.resumption"
+    | "tls.session"
+    | "tls.trust.write"
     | "tty.mode"
     | "tty.read"
     | "tty.size"
     | "tty.write";
+
+/// Platform selector tags for runtime binding availability.
+export type PlatformTag =
+    | "windows"
+    | "unix"
+    | "wasi"
+    | "linux"
+    | "macos"
+    | "bsd";
 
 /// Options for runtime bindings.
 export type BindingOptions = {
@@ -135,7 +187,9 @@ export type BindingOptions = {
     /// Replay payload policy for the binding.
     payload?: "results" | "argumentsAndResults",
     /// Capability requirements for this binding.
-    requires?: PlatformCapability[],
+    capabilities?: PlatformCapability[],
+    /// Platform availability tags for this binding.
+    platforms?: PlatformTag[],
     /// Platform scope for this binding.
     scope?: "os" | "runtime" | "hybrid",
     /// Blocking behavior classification for this binding.

@@ -1,6 +1,7 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { InputDeviceHandle, InputMonitorHandle } from "../resource/index.ds";
+import { InputDeviceKind } from "./device.ds";
 
 /// Input event kind.
 export enum InputEventKind {
@@ -22,6 +23,8 @@ export enum InputEventKind {
     Device = 8,
     /// Sensor event.
     Sensor = 9,
+    /// Text composition lifecycle event.
+    Composition = 10,
 }
 
 /// Input event action.
@@ -46,6 +49,14 @@ export enum InputEventAction {
     Disconnect = 9,
     /// One active gesture or contact was canceled.
     Cancel = 10,
+    /// One composite operation started.
+    Begin = 11,
+    /// One composite operation updated.
+    Update = 12,
+    /// One composite operation committed.
+    Commit = 13,
+    /// One composite operation ended.
+    End = 14,
 }
 
 /// Input read mode.
@@ -55,6 +66,147 @@ export enum InputReadMode {
     /// Read raw hardware-style events where available.
     Raw = 2,
 }
+
+/// Key event payload.
+export struct InputKeyEventPayload {
+    /// Key action.
+    action: InputEventAction;
+    /// Backend-native key code.
+    backendCode: uint32;
+    /// Backend-native scan code when available.
+    backendScanCode: uint32;
+    /// Backend-native key value.
+    backendValue: int64;
+    /// Backend modifier bitset.
+    modifiers: uint32;
+    /// Whether this key event is a repeat.
+    repeat: boolean;
+}
+
+/// Pointer motion event payload.
+export struct InputPointerMotionEventPayload {
+    /// Pointer x coordinate or delta.
+    x: float64;
+    /// Pointer y coordinate or delta.
+    y: float64;
+    /// Backend button bitset.
+    buttons: uint32;
+    /// Backend modifier bitset.
+    modifiers: uint32;
+}
+
+/// Pointer button event payload.
+export struct InputPointerButtonEventPayload {
+    /// Button action.
+    action: InputEventAction;
+    /// Backend-native button code.
+    backendCode: uint32;
+    /// Backend-native button value.
+    backendValue: int64;
+    /// Pointer x coordinate.
+    x: float64;
+    /// Pointer y coordinate.
+    y: float64;
+    /// Backend modifier bitset.
+    modifiers: uint32;
+}
+
+/// Scroll event payload.
+export struct InputScrollEventPayload {
+    /// Horizontal wheel delta.
+    wheelX: float64;
+    /// Vertical wheel delta.
+    wheelY: float64;
+    /// Pointer x coordinate.
+    x: float64;
+    /// Pointer y coordinate.
+    y: float64;
+    /// Backend modifier bitset.
+    modifiers: uint32;
+}
+
+/// Touch event payload.
+export struct InputTouchEventPayload {
+    /// Touch action.
+    action: InputEventAction;
+    /// Backend contact identifier.
+    contactId: uint32;
+    /// Contact x coordinate.
+    x: float64;
+    /// Contact y coordinate.
+    y: float64;
+    /// Contact pressure when available.
+    pressure: float64;
+}
+
+/// Gamepad event payload.
+export struct InputGamepadEventPayload {
+    /// Gamepad action.
+    action: InputEventAction;
+    /// Backend-native control code.
+    backendCode: uint32;
+    /// Backend-native control value.
+    backendValue: int64;
+}
+
+/// Text event payload.
+export struct InputTextEventPayload {
+    /// UTF-8 text payload.
+    text: string;
+}
+
+/// Device event payload.
+export struct InputDeviceEventPayload {
+    /// Device action.
+    action: InputEventAction;
+    /// Backend-native device code.
+    backendCode: uint32;
+    /// Backend-native device value.
+    backendValue: int64;
+}
+
+/// Sensor event payload.
+export struct InputSensorEventPayload {
+    /// Sensor action.
+    action: InputEventAction;
+    /// Backend-native sensor code.
+    backendCode: uint32;
+    /// Backend-native sensor value.
+    backendValue: int64;
+    /// Sensor x component when available.
+    x: float64;
+    /// Sensor y component when available.
+    y: float64;
+    /// Sensor z component when available.
+    z: float64;
+}
+
+/// Composition event payload.
+export struct InputCompositionEventPayload {
+    /// Composition action.
+    action: InputEventAction;
+    /// UTF-8 composition text.
+    text: string;
+    /// Selection start offset when available.
+    selectionStart: int32;
+    /// Selection end offset when available.
+    selectionEnd: int32;
+}
+
+/// Typed payload for one input event.
+/// Exactly one payload field should be set according to `InputEvent.kind`.
+export newtype InputEventPayload = {
+    key?: InputKeyEventPayload,
+    pointerMotion?: InputPointerMotionEventPayload,
+    pointerButton?: InputPointerButtonEventPayload,
+    scroll?: InputScrollEventPayload,
+    touch?: InputTouchEventPayload,
+    gamepad?: InputGamepadEventPayload,
+    text?: InputTextEventPayload,
+    device?: InputDeviceEventPayload,
+    sensor?: InputSensorEventPayload,
+    composition?: InputCompositionEventPayload,
+};
 
 /// Input event payload.
 export struct InputEvent {
@@ -66,28 +218,34 @@ export struct InputEvent {
     sequence: uint64;
     /// Stable source device identifier.
     deviceId: string;
-    /// Event action.
-    action: InputEventAction;
-    /// Backend-native event code value.
-    code: uint32;
-    /// Backend-native hardware scan code value when available.
-    scanCode: uint32;
-    /// Event value payload.
-    value: int64;
-    /// Event x coordinate when applicable.
-    x: float64;
-    /// Event y coordinate when applicable.
-    y: float64;
-    /// Event scroll delta on the horizontal axis.
-    wheelX: float64;
-    /// Event scroll delta on the vertical axis.
-    wheelY: float64;
-    /// Event modifiers bitset.
-    modifiers: uint32;
-    /// Whether this event represents a repeat.
-    repeat: boolean;
-    /// UTF-8 text payload for text events.
-    text: string;
+    /// Typed event payload for this event kind.
+    payload: InputEventPayload;
+}
+
+/// Monitor event kind.
+export enum InputMonitorEventKind {
+    /// One device was connected.
+    Connect = 1,
+    /// One device was disconnected.
+    Disconnect = 2,
+    /// One device metadata set changed.
+    Change = 3,
+}
+
+/// Device monitor event payload.
+export struct InputMonitorEvent {
+    /// Monitor event kind.
+    kind: InputMonitorEventKind;
+    /// Monotonic event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number generated by the monitor stream.
+    sequence: uint64;
+    /// Stable source device identifier.
+    deviceId: string;
+    /// Device kind when available.
+    deviceKind: InputDeviceKind;
+    /// Whether the device is connected after this event.
+    connected: boolean;
 }
 
 /// Input event bindings.
@@ -149,7 +307,7 @@ declare namespace input {
     /// Read one global input monitor event.
     ///
     /// Read one pending monitor event from the global input monitor stream.
-    /// This stream is the canonical source for device connect and disconnect events.
+    /// This stream is the canonical source for device connect, disconnect, and metadata-change events.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
@@ -171,7 +329,7 @@ declare namespace input {
         scope: "hybrid",
         blocking: "sometimes",
     })
-    export function monitorRead(handle: InputMonitorHandle): Result<InputEvent, PlatformError>;
+    export function monitorRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
 
     /// Poll one global input monitor event without blocking.
     ///
@@ -198,14 +356,14 @@ declare namespace input {
         scope: "hybrid",
         blocking: "never",
     })
-    export function monitorTryRead(handle: InputMonitorHandle): Result<InputEvent, PlatformError>;
+    export function monitorTryRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>;
 
     /// Read one input event.
     ///
     /// Read one pending input event from one opened device stream.
     /// Per-device streams report control and motion events for that device and exclude global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -234,7 +392,7 @@ declare namespace input {
     /// Poll one pending input event from one opened device stream and return immediately when no event is queued.
     /// Empty queue state is reported through ioWouldBlock.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -263,7 +421,7 @@ declare namespace input {
     /// Read up to `maxEvents` events from one opened device stream in one call.
     /// Batch ordering matches backend delivery order and excludes global device topology events.
     /// Backend framing packets are filtered from this semantic stream.
-    /// Queue pressure can report one device cancel packet that carries overflow details in code and value.
+    /// Queue pressure can report one device cancel packet through the typed payload.
     ///
     /// # Platform
     /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
@@ -293,6 +451,7 @@ declare namespace input {
     /// Enable or disable exclusive device grab.
     ///
     /// Toggle exclusive-grab mode for one input device when the host backend supports it.
+    /// This is one device-wide exclusivity control and is distinct from pointer confinement or locking modes.
     /// Grabs can prevent event delivery to other clients.
     ///
     /// # Platform
@@ -307,7 +466,7 @@ declare namespace input {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.input.event.setGrab", {
+    @binding("destack.input.event.setExclusiveGrab", {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.grab"],
@@ -315,7 +474,7 @@ declare namespace input {
         scope: "os",
         blocking: "sometimes",
     })
-    export function setGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>;
+    export function setExclusiveGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>;
 
     /// Select event decoding mode for one input stream.
     ///

@@ -156,6 +156,12 @@ export newtype GpuSurfaceHandle = ResourceId;
 /// Handle for one GPU command list endpoint.
 export newtype GpuCommandListHandle = ResourceId;
 
+/// Handle for one active GPU compute-pass endpoint.
+export newtype GpuComputePassHandle = ResourceId;
+
+/// Handle for one active GPU render-pass endpoint.
+export newtype GpuRenderPassHandle = ResourceId;
+
 /// Handle for one GPU render-bundle endpoint.
 export newtype GpuRenderBundleHandle = ResourceId;
 

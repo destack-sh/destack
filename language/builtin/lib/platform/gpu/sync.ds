@@ -2,10 +2,12 @@ import type { PlatformError } from "../error/index.ds";
 import {
     GpuBufferHandle,
     GpuCommandListHandle,
+    GpuComputePassHandle,
     GpuDeviceHandle,
     GpuFenceHandle,
     GpuQuerySetHandle,
     GpuQueueHandle,
+    GpuRenderPassHandle,
 } from "../resource/index.ds";
 
 /// Fence mode selector.
@@ -25,6 +27,7 @@ export enum GpuQueryType {
     /// Occlusion query type.
     Occlusion = 2,
     /// Pipeline statistics query type.
+    /// This is one optional feature lane and can return `notSupported` per device.
     PipelineStatistics = 3,
 }
 
@@ -262,6 +265,7 @@ declare namespace gpu {
     ///
     /// Create one query set for timestamp, occlusion, or pipeline-statistics queries.
     /// Query set size and type are fixed for the object lifetime.
+    /// Pipeline-statistics queries are one optional lane and require feature support.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -399,7 +403,7 @@ declare namespace gpu {
         blocking: "never",
     })
     export function commandBeginOcclusionQuery(
-        commandList: GpuCommandListHandle,
+        renderPass: GpuRenderPassHandle,
         querySet: GpuQuerySetHandle,
         queryIndex: uint32,
     ): Result<void, PlatformError>;
@@ -429,66 +433,126 @@ declare namespace gpu {
         scope: "os",
         blocking: "never",
     })
-    export function commandEndOcclusionQuery(commandList: GpuCommandListHandle): Result<void, PlatformError>;
+    export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>;
 
-    /// Begin one pipeline-statistics query.
+    /// Begin one pipeline-statistics query in one render pass.
     ///
-    /// Begin one pipeline-statistics query in the active render or compute pass.
+    /// Begin one pipeline-statistics query in one active render pass.
     /// Pipeline-statistics queries cannot be nested and require one matching end call.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style begin-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync`.
+    /// Requires `gpu.sync.pipelineStatistics`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.sync.commandBeginPipelineStatisticsQuery", {
+    @binding("destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.sync"],
+        capabilities: ["gpu.sync.pipelineStatistics"],
         platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
-    export function commandBeginPipelineStatisticsQuery(
-        commandList: GpuCommandListHandle,
+    export function commandBeginRenderPipelineStatisticsQuery(
+        renderPass: GpuRenderPassHandle,
         querySet: GpuQuerySetHandle,
         queryIndex: uint32,
     ): Result<void, PlatformError>;
 
-    /// End one pipeline-statistics query.
+    /// End one pipeline-statistics query in one render pass.
     ///
-    /// End one active pipeline-statistics query in the current pass.
+    /// End one active pipeline-statistics query in one render pass.
     /// The active query must match the most recent begin call.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses WebGPU-style end-pipeline-statistics-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync`.
+    /// Requires `gpu.sync.pipelineStatistics`.
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.sync.commandEndPipelineStatisticsQuery", {
+    @binding("destack.gpu.sync.commandEndRenderPipelineStatisticsQuery", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.sync"],
+        capabilities: ["gpu.sync.pipelineStatistics"],
         platforms: ["windows", "unix"],
         scope: "os",
         blocking: "never",
     })
-    export function commandEndPipelineStatisticsQuery(
-        commandList: GpuCommandListHandle,
+    export function commandEndRenderPipelineStatisticsQuery(
+        renderPass: GpuRenderPassHandle,
+    ): Result<void, PlatformError>;
+
+    /// Begin one pipeline-statistics query in one compute pass.
+    ///
+    /// Begin one pipeline-statistics query in one active compute pass.
+    /// Pipeline-statistics queries cannot be nested and require one matching end call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync.pipelineStatistics`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.sync.commandBeginComputePipelineStatisticsQuery", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.sync.pipelineStatistics"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandBeginComputePipelineStatisticsQuery(
+        computePass: GpuComputePassHandle,
+        querySet: GpuQuerySetHandle,
+        queryIndex: uint32,
+    ): Result<void, PlatformError>;
+
+    /// End one pipeline-statistics query in one compute pass.
+    ///
+    /// End one active pipeline-statistics query in one compute pass.
+    /// The active query must match the most recent begin call.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific pipeline-statistics query commands where exposed.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.sync.pipelineStatistics`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.sync.commandEndComputePipelineStatisticsQuery", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.sync.pipelineStatistics"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function commandEndComputePipelineStatisticsQuery(
+        computePass: GpuComputePassHandle,
     ): Result<void, PlatformError>;
 
     /// Resolve one query range into one destination buffer.

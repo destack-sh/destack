@@ -1,4 +1,4 @@
-import { Slice } from "native";
+import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { InputDeviceHandle } from "../resource/index.ds";
 
@@ -22,8 +22,14 @@ export enum InputDeviceKind {
 export struct InputDeviceInfo {
     /// Stable runtime input device identifier.
     id: string;
+    /// Stable runtime instance identifier for this connection.
+    instanceId: string;
+    /// Stable backend hardware identifier when available.
+    hardwareId: string;
     /// Host device name.
     name: string;
+    /// Backend transport name when available.
+    transport: string;
     /// Device kind.
     kind: InputDeviceKind;
     /// Vendor identifier when available.
@@ -44,13 +50,103 @@ export struct InputDeviceInfo {
     /// Whether this device is currently connected.
     connected: boolean;
     /// Whether this endpoint supports exclusive-grab mode.
-    supportsGrab: boolean;
+    supportsExclusiveGrab: boolean;
     /// Whether this endpoint can emit raw host-native events.
     supportsRaw: boolean;
     /// Whether this endpoint can emit text events.
     supportsText: boolean;
     /// Whether this endpoint can provide haptic output.
     supportsRumble: boolean;
+    /// Whether this endpoint reports battery metadata.
+    supportsBattery: boolean;
+    /// Whether this endpoint supports light-control output.
+    supportsLight: boolean;
+    /// Whether this endpoint supports raw-hid reports.
+    supportsRawHid: boolean;
+    /// Whether this endpoint is virtual or emulated.
+    isVirtual: boolean;
+    /// Whether this endpoint is provided by the system stack.
+    isSystem: boolean;
+}
+
+/// Input device capability kind.
+export enum InputDeviceCapabilityKind {
+    /// Keyboard key and modifier capabilities.
+    Keyboard = 1,
+    /// Pointer motion, button, and wheel capabilities.
+    Pointer = 2,
+    /// Touch contact capabilities.
+    Touch = 3,
+    /// Pen and stylus capabilities.
+    Pen = 4,
+    /// Gamepad and joystick capabilities.
+    Gamepad = 5,
+    /// Sensor capabilities.
+    Sensor = 6,
+    /// Haptic actuator capabilities.
+    Haptics = 7,
+    /// Text input and composition capabilities.
+    TextInput = 8,
+}
+
+/// Input axis capability entry.
+export struct InputAxisInfo {
+    /// Backend-native axis code.
+    code: uint32;
+    /// Minimum normalized axis value.
+    minimum: float64;
+    /// Maximum normalized axis value.
+    maximum: float64;
+    /// Neutral deadzone width when reported by backend.
+    flat: float64;
+    /// Noise threshold when reported by backend.
+    fuzz: float64;
+    /// Unit resolution when reported by backend.
+    resolution: float64;
+}
+
+/// Input button capability entry.
+export struct InputButtonInfo {
+    /// Backend-native button code.
+    code: uint32;
+    /// Whether this button reports analog values.
+    analog: boolean;
+}
+
+/// Full input device capability descriptor.
+export struct InputDeviceCapabilities {
+    /// High-level capability categories for the device.
+    kinds: Array<InputDeviceCapabilityKind>;
+    /// Axis capability entries when reported by backend.
+    axes: Array<InputAxisInfo>;
+    /// Button capability entries when reported by backend.
+    buttons: Array<InputButtonInfo>;
+    /// Whether relative-pointer mode can be enabled.
+    supportsRelativePointer: boolean;
+    /// Whether pointer confinement or locking is supported.
+    supportsPointerGrab: boolean;
+    /// Whether pointer capture outside one window is supported.
+    supportsPointerCapture: boolean;
+    /// Whether pointer warping is supported.
+    supportsPointerWarp: boolean;
+    /// Whether text input activation is supported.
+    supportsTextInput: boolean;
+    /// Whether composition events are supported.
+    supportsComposition: boolean;
+    /// Whether whole-device rumble is supported.
+    supportsRumble: boolean;
+    /// Whether trigger rumble is supported.
+    supportsTriggerRumble: boolean;
+    /// Whether device-side sensors are supported.
+    supportsSensors: boolean;
+    /// Whether gamepad or controller battery state is supported.
+    supportsBatteryState: boolean;
+    /// Whether controller or device light-control output is supported.
+    supportsLightControl: boolean;
+    /// Whether raw-hid reports are supported.
+    supportsRawHid: boolean;
+    /// Whether player-index assignment is supported.
+    supportsPlayerIndex: boolean;
 }
 
 /// Input device bindings.
@@ -135,4 +231,31 @@ declare namespace input {
         blocking: "sometimes",
     })
     export function close(handle: InputDeviceHandle): Result<void, PlatformError>;
+
+    /// Query capabilities for one opened input device.
+    ///
+    /// Return detailed axis, button, and feature capability metadata for one opened device.
+    /// Metadata values are backend-derived and may be partially unavailable.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses evdev and libinput-style capability tables on Linux, HID and raw-input capability queries on Windows, and backend-specific capability synthesis on other Unix hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `input.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.input.device.capabilities", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["input.read"],
+        platforms: ["windows", "unix"],
+        scope: "hybrid",
+        blocking: "sometimes",
+    })
+    export function capabilities(handle: InputDeviceHandle): Result<InputDeviceCapabilities, PlatformError>;
 }
