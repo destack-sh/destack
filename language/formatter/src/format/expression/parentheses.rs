@@ -1,10 +1,11 @@
-use super::super::timing::tags;
 use super::*;
-use crate::scan::next_non_whitespace_after_span;
+use crate::analysis::scan::next_non_whitespace_after_span;
+use crate::analysis::timing::tags;
+use crate::operator::{is_simple_type_binary_left_expression, is_type_context};
 
 /// Parenthesized unwrap policy for expression contexts.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) enum ParenthesizedUnwrapPolicy {
+pub(crate) enum ParenthesizedUnwrapPolicy {
     /// Unwrap when the value is used as a member object.
     MemberObject,
     /// Unwrap when the value is a `new` callee wrapper.
@@ -13,7 +14,7 @@ pub(super) enum ParenthesizedUnwrapPolicy {
 
 /// Parenthesized drop policy for type contexts.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) enum ParenthesizedDropPolicy {
+pub(crate) enum ParenthesizedDropPolicy {
     /// Drop wrappers in generic expression contexts.
     ExpressionWrapper,
     /// Drop wrappers around type-binary left operands.
@@ -21,7 +22,7 @@ pub(super) enum ParenthesizedDropPolicy {
 }
 
 /// Decide whether a parenthesized expression should unwrap under a policy.
-pub(super) fn parenthesized_should_unwrap(
+pub(crate) fn parenthesized_should_unwrap(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
@@ -44,7 +45,7 @@ pub(super) fn parenthesized_should_unwrap(
 }
 
 /// Decide whether a parenthesized expression should drop wrappers under a policy.
-pub(super) fn parenthesized_should_drop(
+pub(crate) fn parenthesized_should_drop(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
@@ -68,7 +69,7 @@ pub(super) fn parenthesized_should_drop(
 }
 
 /// Return whether `new` callee formatting should keep member-object parentheses.
-pub(super) fn parenthesized_prefers_new_member_callee_parentheses(
+pub(crate) fn parenthesized_prefers_new_member_callee_parentheses(
     context: &DestackFormatContext<'_>,
     object_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -76,7 +77,7 @@ pub(super) fn parenthesized_prefers_new_member_callee_parentheses(
 }
 
 /// Collect postfix star comments from an inner expression that should render after `)`.
-pub(super) fn collect_parenthesized_boundary_comments(
+pub(crate) fn collect_parenthesized_boundary_comments(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
@@ -94,8 +95,8 @@ pub(super) fn collect_parenthesized_boundary_comments(
         return Vec::new();
     }
 
-    let parenthesized_span = context.get_span(parenthesized_id);
-    let inner_span = context.get_span(inner_expression_id);
+    let parenthesized_span = context.span(parenthesized_id);
+    let inner_span = context.span(inner_expression_id);
     if parenthesized_span.file != inner_span.file || inner_span.end >= parenthesized_span.end {
         return Vec::new();
     }
@@ -130,7 +131,7 @@ pub(super) fn collect_parenthesized_boundary_comments(
             continue;
         }
 
-        let comment_source = context.get_token_str(comment_token).trim();
+        let comment_source = context.token_str(comment_token).trim();
         if comment_source.is_empty() {
             continue;
         }
@@ -146,7 +147,7 @@ pub(super) fn collect_parenthesized_boundary_comments(
 }
 
 /// Return whether source contains leading trivia between `(` and the inner expression.
-pub(super) fn parenthesized_has_leading_inner_trivia(
+pub(crate) fn parenthesized_has_leading_inner_trivia(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
@@ -155,7 +156,7 @@ pub(super) fn parenthesized_has_leading_inner_trivia(
 }
 
 /// Return whether source contains leading comments between `(` and the inner expression.
-pub(super) fn parenthesized_has_leading_inner_comments(
+pub(crate) fn parenthesized_has_leading_inner_comments(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
@@ -164,13 +165,13 @@ pub(super) fn parenthesized_has_leading_inner_comments(
 }
 
 /// Return whether source contains a newline between `(` and the inner expression.
-pub(super) fn parenthesized_has_leading_inner_newline(
+pub(crate) fn parenthesized_has_leading_inner_newline(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let parenthesized_span = context.get_span(parenthesized_id);
-    let inner_span = context.get_span(inner_expression_id);
+    let parenthesized_span = context.span(parenthesized_id);
+    let inner_span = context.span(inner_expression_id);
 
     let leading_start = parenthesized_span.start.saturating_add(1);
     if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
@@ -189,8 +190,8 @@ fn parenthesized_has_leading_inner_pattern(
     include_newline: bool,
 ) -> bool {
     let _timing = context.timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_LEADING_TRIVIA);
-    let parenthesized_span = context.get_span(parenthesized_id);
-    let inner_span = context.get_span(inner_expression_id);
+    let parenthesized_span = context.span(parenthesized_id);
+    let inner_span = context.span(inner_expression_id);
 
     let leading_start = parenthesized_span.start.saturating_add(1);
     if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
@@ -230,7 +231,7 @@ fn expression_chain_has_optional_maybe(
 }
 
 /// Return whether one member expression contains optional chaining semantics.
-pub(super) fn member_expression_has_optional_chain(
+pub(crate) fn member_expression_has_optional_chain(
     context: &DestackFormatContext<'_>,
     member_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -238,7 +239,7 @@ pub(super) fn member_expression_has_optional_chain(
 }
 
 /// Decide whether a parenthesized expression can be unwrapped in member object position.
-pub(super) fn should_unwrap_parenthesized_member_object(
+pub(crate) fn should_unwrap_parenthesized_member_object(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
@@ -278,7 +279,7 @@ pub(super) fn should_unwrap_parenthesized_member_object(
 }
 
 /// Return whether a member object should keep parentheses as a `new` callee.
-pub(super) fn member_object_prefers_new_callee_parentheses(
+pub(crate) fn member_object_prefers_new_callee_parentheses(
     context: &DestackFormatContext<'_>,
     object_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -300,7 +301,7 @@ pub(super) fn member_object_prefers_new_callee_parentheses(
 }
 
 /// Return whether a member object is simple enough for `new a.b()` style callee formatting.
-pub(super) fn is_simple_new_member_object(
+pub(crate) fn is_simple_new_member_object(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -318,7 +319,7 @@ pub(super) fn is_simple_new_member_object(
 }
 
 /// Decide whether `new (<member>)()` can unwrap outer parentheses.
-pub(super) fn should_unwrap_parenthesized_new_member_callee(
+pub(crate) fn should_unwrap_parenthesized_new_member_callee(
     context: &DestackFormatContext<'_>,
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
@@ -345,7 +346,7 @@ pub(super) fn should_unwrap_parenthesized_new_member_callee(
 }
 
 /// Remove one surrounding pair of parentheses from text when present.
-pub(super) fn strip_one_wrapping_parentheses(source: &str) -> &str {
+pub(crate) fn strip_one_wrapping_parentheses(source: &str) -> &str {
     let trimmed = source.trim();
     if trimmed.len() < 2 || !trimmed.starts_with('(') || !trimmed.ends_with(')') {
         return trimmed;
@@ -354,11 +355,11 @@ pub(super) fn strip_one_wrapping_parentheses(source: &str) -> &str {
 }
 
 /// Keep parentheses for cast or satisfies expressions in statement position.
-pub(super) fn type_binary_is_statement_expression(
+pub(crate) fn type_binary_is_statement_expression(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
     if parent_type != NodeType::Expression {
@@ -373,11 +374,11 @@ pub(super) fn type_binary_is_statement_expression(
 }
 
 /// Return whether a type-binary expression is wrapped by one statement parenthesized node.
-pub(super) fn type_binary_is_parenthesized_statement_expression(
+pub(crate) fn type_binary_is_parenthesized_statement_expression(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
     if parent_type != NodeType::Expression {
@@ -392,7 +393,7 @@ pub(super) fn type_binary_is_parenthesized_statement_expression(
         return false;
     }
 
-    let Some((grandparent_id, grandparent_type)) = context.get_parent(parent_id) else {
+    let Some((grandparent_id, grandparent_type)) = context.parent(parent_id) else {
         return false;
     };
     if grandparent_type != NodeType::Expression {
@@ -407,13 +408,13 @@ pub(super) fn type_binary_is_parenthesized_statement_expression(
 }
 
 /// Return whether any parenthesized expression ancestor has leading inner trivia.
-pub(super) fn has_parenthesized_ancestor_with_leading_inner_trivia(
+pub(crate) fn has_parenthesized_ancestor_with_leading_inner_trivia(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let mut current_id = node_id;
 
-    while let Some((parent_id, parent_type)) = context.get_parent(current_id) {
+    while let Some((parent_id, parent_type)) = context.parent(current_id) {
         if parent_type != NodeType::Expression {
             break;
         }
@@ -433,11 +434,11 @@ pub(super) fn has_parenthesized_ancestor_with_leading_inner_trivia(
 }
 
 /// Return whether cast or satisfies appears as the parenthesized callee of a `new` expression.
-pub(super) fn type_binary_is_parenthesized_new_callee(
+pub(crate) fn type_binary_is_parenthesized_new_callee(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
     if parent_type != NodeType::Expression {
@@ -452,7 +453,7 @@ pub(super) fn type_binary_is_parenthesized_new_callee(
         return false;
     }
 
-    let Some((grandparent_id, grandparent_type)) = context.get_parent(parent_id) else {
+    let Some((grandparent_id, grandparent_type)) = context.parent(parent_id) else {
         return false;
     };
     if grandparent_type != NodeType::Expression {
@@ -467,7 +468,7 @@ pub(super) fn type_binary_is_parenthesized_new_callee(
 }
 
 /// Decide whether cast or satisfies can drop a parenthesized left side.
-pub(super) fn should_drop_type_binary_left_parentheses(
+pub(crate) fn should_drop_type_binary_left_parentheses(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     parenthesized_id: LocalNodeId<Expression>,
@@ -510,11 +511,11 @@ pub(super) fn should_drop_type_binary_left_parentheses(
 }
 
 /// Return whether this parenthesized expression is a top-level type alias value.
-pub(super) fn parenthesized_is_top_level_type_alias_value(
+pub(crate) fn parenthesized_is_top_level_type_alias_value(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
     if parent_type != NodeType::Declaration {
@@ -529,7 +530,7 @@ pub(super) fn parenthesized_is_top_level_type_alias_value(
 }
 
 /// Return whether an expression starts with a type union or intersection chain.
-pub(super) fn expression_is_type_binary_chain_head(
+pub(crate) fn expression_is_type_binary_chain_head(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -548,7 +549,7 @@ pub(super) fn expression_is_type_binary_chain_head(
 }
 
 /// Return whether parenthesized source starts with a leading `|` or `&` operator.
-pub(super) fn parenthesized_source_leading_type_grouping_operator(
+pub(crate) fn parenthesized_source_leading_type_grouping_operator(
     source: &str,
 ) -> Option<BinaryOperator> {
     let mut remaining = source.trim_start();
@@ -584,7 +585,7 @@ pub(super) fn parenthesized_source_leading_type_grouping_operator(
 }
 
 /// Decide whether a parenthesized type expression can drop wrappers.
-pub(super) fn should_drop_parenthesized_type_expression(
+pub(crate) fn should_drop_parenthesized_type_expression(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     inner_id: LocalNodeId<Expression>,
@@ -606,7 +607,7 @@ pub(super) fn should_drop_parenthesized_type_expression(
     }
 
     // drop redundant simple wrappers in array element position: `(number)[]` -> `number[]`
-    if let Some((parent_id, parent_type)) = context.get_parent(node_id)
+    if let Some((parent_id, parent_type)) = context.parent(node_id)
         && parent_type == NodeType::Expression
     {
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
@@ -635,8 +636,8 @@ pub(super) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
-    let node_span = context.get_span(node_id);
-    let node_source = context.get_span_str(node_span);
+    let node_span = context.span(node_id);
+    let node_source = context.span_str(node_span);
     let leading_grouping_operator =
         parenthesized_source_leading_type_grouping_operator(node_source);
     let has_leading_union_source = node_source.trim_start().starts_with('|');
@@ -681,7 +682,7 @@ fn parenthesized_type_grouping_drop_is_safe_in_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return true;
     };
     if parent_type != NodeType::Expression {
@@ -696,7 +697,7 @@ fn parenthesized_type_grouping_drop_is_safe_in_parent(
 }
 
 /// Return whether a binary operator is associative in type contexts.
-pub(super) fn is_associative_type_binary_operator(operator: BinaryOperator) -> bool {
+pub(crate) fn is_associative_type_binary_operator(operator: BinaryOperator) -> bool {
     matches!(
         operator,
         BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
@@ -704,7 +705,7 @@ pub(super) fn is_associative_type_binary_operator(operator: BinaryOperator) -> b
 }
 
 /// Decide whether an associative type binary can drop redundant wrappers.
-pub(super) fn parenthesized_associative_type_binary_can_drop(
+pub(crate) fn parenthesized_associative_type_binary_can_drop(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     inner_id: LocalNodeId<Expression>,
@@ -720,7 +721,7 @@ pub(super) fn parenthesized_associative_type_binary_can_drop(
         return false;
     }
 
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
     if parent_type != NodeType::Expression {
@@ -767,7 +768,7 @@ fn should_drop_parenthesized_expression_wrapper(
     let should_drop_type_parentheses =
         should_drop_parenthesized_type_expression(context, node_id, inner_expression_id);
 
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return should_drop_type_parentheses;
     };
     if parent_type != NodeType::Expression {
@@ -841,10 +842,10 @@ fn expression_is_decorated_class_declaration(
         return false;
     };
 
-    let expression_has_decorator = context.with_annotations(expression_id, |annotations| {
+    let expression_has_decorator = context.visit_annotations(expression_id, |annotations| {
         annotations.iter().any(|annotation_id| {
             matches!(
-                context.get_annotation(*annotation_id),
+                context.annotation(*annotation_id),
                 Annotation::Decorator { .. }
             )
         })
@@ -854,10 +855,10 @@ fn expression_is_decorated_class_declaration(
     }
 
     context
-        .with_annotations(*declaration_id, |annotations| {
+        .visit_annotations(*declaration_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.get_annotation(*annotation_id),
+                    context.annotation(*annotation_id),
                     Annotation::Decorator { .. }
                 )
             })
@@ -871,7 +872,7 @@ fn parenthesized_wraps_decorated_class_extends_head(
     node_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
     if parent_type != NodeType::Declaration {
@@ -897,7 +898,7 @@ fn parenthesized_wraps_prefix_annotated_class_extends_head(
     node_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
     if parent_type != NodeType::Declaration {
@@ -925,11 +926,11 @@ fn expression_has_only_prefix_comment_or_doc_annotations(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     context
-        .with_annotations(expression_id, |annotations| {
+        .visit_annotations(expression_id, |annotations| {
             !annotations.is_empty()
                 && annotations.iter().all(|annotation_id| {
                     matches!(
-                        context.get_annotation(*annotation_id),
+                        context.annotation(*annotation_id),
                         Annotation::Comment {
                             position: AnnotationPosition::LinePrefix
                                 | AnnotationPosition::BlockPrefix,

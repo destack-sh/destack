@@ -1,6 +1,6 @@
 use super::*;
+use crate::analysis::scan::previous_non_whitespace_before_span as previous_non_whitespace_before_source_span;
 use crate::directive::is_ignore_directive_comment;
-use crate::scan::previous_non_whitespace_before_span as previous_non_whitespace_before_source_span;
 
 /// Return a compact lower bound for one-line width from source text.
 #[inline]
@@ -75,17 +75,17 @@ pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     context
-        .with_annotations(expression_id, |annotations| {
+        .visit_annotations(expression_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let annotation = context.get_annotation(*annotation_id);
+                let annotation = context.annotation(*annotation_id);
                 if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
                     || !matches!(annotation, Annotation::Comment { .. })
                 {
                     return false;
                 }
 
-                let annotation_span = context.get_annotation_span(*annotation_id);
-                let annotation_source = context.get_span_str(annotation_span);
+                let annotation_span = context.annotation_span(*annotation_id);
+                let annotation_source = context.span_str(annotation_span);
                 let trimmed = annotation_source.trim_start();
 
                 annotation_source.contains('\n') && !trimmed.starts_with("/**")
@@ -100,7 +100,7 @@ pub(crate) fn span_inline_char_bounds(
     context: &DestackFormatContext<'_>,
     span: Span,
 ) -> (usize, usize) {
-    let source = context.get_span_str(span);
+    let source = context.span_str(span);
     let min_len = source_min_inline_char_len(source);
     let max_len = context.span_char_len(span);
     (min_len, max_len)
@@ -119,7 +119,7 @@ pub(super) fn expression_source_has_outer_parentheses(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let source = context.get_span_str(context.get_span(node_id));
+    let source = context.span_str(context.span(node_id));
     let source = source.trim();
     source.starts_with('(') && source.ends_with(')')
 }
@@ -130,10 +130,10 @@ pub(super) fn expression_has_prefix_comment_annotation(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     context
-        .with_annotations(expression_id, |annotations| {
+        .visit_annotations(expression_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.get_annotation(*annotation_id),
+                    context.annotation(*annotation_id),
                     Annotation::Comment {
                         position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
                         ..
@@ -150,9 +150,9 @@ pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     context
-        .with_annotations(expression_id, |annotations| {
+        .visit_annotations(expression_id, |annotations| {
             annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { position, node } = context.get_annotation(*annotation_id)
+                let Annotation::Comment { position, node } = context.annotation(*annotation_id)
                 else {
                     return false;
                 };
@@ -164,7 +164,7 @@ pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
                     return false;
                 }
 
-                let comment_source = context.get_comment_text(node);
+                let comment_source = context.comment_text(node);
                 if is_ignore_directive_comment(comment_source.as_ref()) {
                     return true;
                 }
@@ -175,7 +175,7 @@ pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
 }
 
 /// Return whether an expression has a leading prefix comment in its left spine.
-pub(super) fn expression_has_leading_prefix_comment(
+pub(crate) fn expression_has_leading_prefix_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -231,25 +231,24 @@ pub(super) fn should_hoist_parenthesized_inner_cast_prefix_comments(
     node_id: LocalNodeId<Expression>,
     inner_id: LocalNodeId<Expression>,
 ) -> bool {
-    let is_parent_yield_value =
-        context
-            .get_parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                parent_type == NodeType::Expression
-                    && matches!(
-                        context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                        Expression::Yield { value: Some(value_id), .. } if *value_id == node_id
-                    )
-            });
+    let is_parent_yield_value = context
+        .parent(node_id)
+        .is_some_and(|(parent_id, parent_type)| {
+            parent_type == NodeType::Expression
+                && matches!(
+                    context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                    Expression::Yield { value: Some(value_id), .. } if *value_id == node_id
+                )
+        });
     if is_parent_yield_value {
         return false;
     }
 
     let has_doc_like_prefix_annotation = context
-        .with_annotations(inner_id, |annotations| {
+        .visit_annotations(inner_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.get_annotation(*annotation_id),
+                    context.annotation(*annotation_id),
                     Annotation::Doc {
                         position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
                         ..
@@ -269,7 +268,7 @@ pub(super) fn sequence_expression_needs_parens(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
 

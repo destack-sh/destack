@@ -1,5 +1,6 @@
-use super::super::timing::tags;
 use super::*;
+use crate::analysis::timing::tags;
+use crate::operator::format_operator_expression;
 use destack_fir::write;
 
 enum ExpressionFormatRoute {

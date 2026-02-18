@@ -1,5 +1,5 @@
 use super::*;
-use crate::r#match::{MatchCaseStyle, format_match_case_with_style};
+use crate::declaration::r#match::{MatchCaseStyle, format_match_case_with_style};
 use destack_ast::BlockFormat;
 use destack_fir::{format_args, write};
 
@@ -91,8 +91,8 @@ pub(super) fn detect_for_each_binding_keyword<'ast>(
     _for_each_id: LocalNodeId<Expression>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> Option<Keyword> {
-    let pattern_span = context.get_span(pattern_id);
-    let pattern_source = context.get_span_str(pattern_span);
+    let pattern_span = context.span(pattern_id);
+    let pattern_source = context.span_str(pattern_span);
     let pattern_source = pattern_source.trim_start();
     if pattern_source.starts_with("let ") {
         return Some(Keyword::Let);
@@ -128,13 +128,13 @@ fn expression_has_block_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = context.get_annotations(expression_id) else {
+    let Some(annotations) = context.annotations(expression_id) else {
         return false;
     };
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.get_annotation(annotation_id),
+            context.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::BlockPrefix,
                 ..
@@ -157,13 +157,13 @@ fn expression_has_line_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = context.get_annotations(expression_id) else {
+    let Some(annotations) = context.annotations(expression_id) else {
         return false;
     };
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.get_annotation(annotation_id),
+            context.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::LinePrefix,
                 ..
@@ -186,13 +186,13 @@ fn expression_has_effective_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotations) = context.get_annotations(expression_id) else {
+    let Some(annotations) = context.annotations(expression_id) else {
         return false;
     };
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.get_annotation(annotation_id).position(),
+            context.annotation(annotation_id).position(),
             AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
         )
     })

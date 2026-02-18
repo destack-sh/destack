@@ -27,11 +27,12 @@ The printer handles line breaking.
 
 ## Module Layout Rules
 
-Formatter modules are grouped by reuse scope, not only by syntax kind.
-Top-level files in `format/` handle cross-domain formatting units that are reused by declaration and expression and statement paths.
-Examples are `operator.rs`, `where.rs`, `block.rs`, `imports.rs`, and `signature.rs`.
-Expression-specific policy and layout heuristics live under `format/expression/` and its submodules.
-Submodule splits are optional and should only happen when they improve correctness or performance or readability.
+Formatter modules are grouped by domain ownership first.
+Top-level domains are `analysis`, `annotation`, `call`, `chain`, `collection`, `declaration`, `directive`, `expression`, and `tree`.
+Engine internals are under `context` and `comments`.
+Cross-domain helpers should live in neutral owners and not under syntax-specific domains.
+Node formatting impls should live with semantic owners, not convenience owners.
+Wildcard cross-domain imports are discouraged because they hide ownership and increase coupling.
 
 ```ds
 extension for Expression {

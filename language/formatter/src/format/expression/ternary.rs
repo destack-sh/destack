@@ -2,7 +2,7 @@ use super::*;
 use destack_fir::{format_args, write};
 
 /// Return the value expression for an argument.
-pub(super) fn get_argument_value(
+pub(crate) fn argument_value(
     tree: &NodeTree,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
@@ -15,7 +15,7 @@ pub(super) fn get_argument_value(
 /// Collect ternary chain into a flat list of (condition, then) pairs plus final else.
 /// Collect nested ternary branches into a linear chain.
 #[allow(clippy::type_complexity)]
-pub(super) fn collect_ternary_chain(
+pub(crate) fn collect_ternary_chain(
     tree: &NodeTree,
     node_id: LocalNodeId<Expression>,
 ) -> (
@@ -65,19 +65,19 @@ pub(super) fn collect_ternary_chain(
 }
 
 /// Collect trailing boundary comments that belong after `catch (<pattern>)`.
-pub(super) fn collect_catch_pattern_trailing_boundary_comments(
+pub(crate) fn collect_catch_pattern_trailing_boundary_comments(
     context: &DestackFormatContext<'_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> Vec<String> {
-    let Some(annotations) = context.get_annotations(pattern_id) else {
+    let Some(annotations) = context.annotations(pattern_id) else {
         return Vec::new();
     };
 
-    let pattern_span = context.get_span(pattern_id);
+    let pattern_span = context.span(pattern_id);
     let mut comments: Vec<(u32, String)> = Vec::new();
 
     for annotation_id in annotations {
-        let Annotation::Comment { node, position } = context.get_annotation(annotation_id) else {
+        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
             continue;
         };
         if !matches!(
@@ -92,12 +92,12 @@ pub(super) fn collect_catch_pattern_trailing_boundary_comments(
             continue;
         }
 
-        let annotation_span = context.get_annotation_span(annotation_id);
+        let annotation_span = context.annotation_span(annotation_id);
         if annotation_span.start <= pattern_span.end {
             continue;
         }
 
-        let annotation_text = context.get_span_str(annotation_span).trim().to_string();
+        let annotation_text = context.span_str(annotation_span).trim().to_string();
         if annotation_text.is_empty() {
             continue;
         }
@@ -109,11 +109,11 @@ pub(super) fn collect_catch_pattern_trailing_boundary_comments(
 }
 
 /// Return whether a ternary expression appears in statement position.
-pub(super) fn ternary_requires_terminator(
+pub(crate) fn ternary_requires_terminator(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.get_parent(node_id) else {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
 
@@ -134,7 +134,7 @@ pub(super) fn ternary_requires_terminator(
 }
 
 /// Return whether a ternary branch expression is tree-like and prefers compact separators.
-pub(super) fn ternary_branch_is_tree_like(
+pub(crate) fn ternary_branch_is_tree_like(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -267,7 +267,7 @@ fn format_nested_ternary_branches<'ast>(
 
 /// Format a ternary expression with Prettier-style breaking.
 /// Nested ternaries get progressive indentation when they break.
-pub(super) fn format_ternary(
+pub(crate) fn format_ternary(
     f: &mut DestackFormatter<'_, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {

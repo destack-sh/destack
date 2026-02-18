@@ -1,4 +1,7 @@
 use super::*;
+use crate::operator::{
+    binary_rhs_prefers_break_after_operator, is_type_context, union_source_has_leading_pipe,
+};
 use destack_fir::{format_args, write};
 
 // declarator inline width constants
@@ -361,13 +364,13 @@ fn value_is_inline_closure_cast_type_binary(
 
     let mut current_id = value_id;
     loop {
-        let current_span = context.get_span(current_id);
+        let current_span = context.span(current_id);
         let has_prefix = context
-            .with_annotations(current_id, |annotations| {
+            .visit_annotations(current_id, |annotations| {
                 !annotations.is_empty()
                     && annotations.iter().all(|annotation_id| {
                         let annotation_is_prefix = matches!(
-                            context.get_annotation(*annotation_id),
+                            context.annotation(*annotation_id),
                             Annotation::Comment {
                                 position: AnnotationPosition::LinePrefix
                                     | AnnotationPosition::BlockPrefix,
@@ -382,7 +385,7 @@ fn value_is_inline_closure_cast_type_binary(
                             return false;
                         }
 
-                        let annotation_span = context.get_annotation_span(*annotation_id);
+                        let annotation_span = context.annotation_span(*annotation_id);
                         annotation_span.start < current_span.start
                     })
             })
@@ -582,7 +585,7 @@ pub(super) fn format_declarator<'ast>(
 
     // width budget
     let line_width = usize::from(f.context().options.line_width);
-    let pattern_span = f.context().get_span(*pattern);
+    let pattern_span = f.context().span(*pattern);
     let pattern_source_len = f.context().span_char_len(pattern_span);
     let type_source_len = ty.map(|ty_id| expression_source_len(f.context(), ty_id));
     let header_source_len = type_source_len.map_or(pattern_source_len, |type_len| {
@@ -614,9 +617,9 @@ pub(super) fn format_declarator<'ast>(
         .saturating_add(DECLARATOR_ASSIGNMENT_SEPARATOR_INLINE_WIDTH)
         .saturating_add(value_source_len);
     let header_end = ty
-        .map(|type_id| f.context().get_span(type_id).end)
+        .map(|type_id| f.context().span(type_id).end)
         .unwrap_or(pattern_span.end);
-    let value_span = f.context().get_span(*value_id);
+    let value_span = f.context().span(*value_id);
     let between_span = if header_end < value_span.start {
         Some(Span::new(value_span.file, header_end, value_span.start))
     } else {

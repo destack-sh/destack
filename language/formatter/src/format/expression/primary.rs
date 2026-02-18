@@ -1,5 +1,5 @@
-use super::super::timing::tags;
 use super::*;
+use crate::analysis::timing::tags;
 use crate::collection::{collection_nodes_have_annotations, collection_range_is_inline};
 use destack_fir::{format_args, write};
 
@@ -27,10 +27,10 @@ fn expression_has_effective_decorator_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let expression_has_decorator = context.with_annotations(expression_id, |annotations| {
+    let expression_has_decorator = context.visit_annotations(expression_id, |annotations| {
         annotations.iter().any(|annotation_id| {
             matches!(
-                context.get_annotation(*annotation_id),
+                context.annotation(*annotation_id),
                 Annotation::Decorator {
                     position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
                     ..
@@ -46,10 +46,10 @@ fn expression_has_effective_decorator_prefix_annotation(
         return false;
     };
     context
-        .with_annotations(*declaration_id, |annotations| {
+        .visit_annotations(*declaration_id, |annotations| {
             annotations.iter().any(|annotation_id| {
                 matches!(
-                    context.get_annotation(*annotation_id),
+                    context.annotation(*annotation_id),
                     Annotation::Decorator {
                         position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
                         ..
@@ -405,7 +405,7 @@ pub(super) fn format_primary_expression<'ast>(
             // try hugged format for single object/array elements
             if !format_hugged(f, elements_ids, HugOptions::ARRAY, None, false)? {
                 if array_has_sparse_holes(f.context(), elements_ids) {
-                    let span = f.context().get_span(node_id);
+                    let span = f.context().span(node_id);
                     let has_newline_in_source = f.context().has_newline(span);
                     let has_sparse_annotations = f.context().has_infix_annotation(node_id)
                         || collection_nodes_have_annotations(f.context(), elements_ids);
@@ -424,7 +424,7 @@ pub(super) fn format_primary_expression<'ast>(
                     return Ok(true);
                 }
 
-                let span = f.context().get_span(node_id);
+                let span = f.context().span(node_id);
                 let has_newline_in_source = f.context().has_newline(span);
                 let has_annotations = f.context().has_infix_annotation(node_id)
                     || collection_nodes_have_annotations(f.context(), elements_ids);
@@ -443,7 +443,7 @@ pub(super) fn format_primary_expression<'ast>(
                     let has_line_comment_annotations =
                         elements_ids.iter().copied().any(|element_id| {
                             let annotation_profile =
-                                f.context().argument_annotation_profile(element_id);
+                                f.context().ensure_argument_annotation_facts(element_id);
                             annotation_profile.has_line_comment
                         });
 
@@ -496,7 +496,7 @@ pub(super) fn format_primary_expression<'ast>(
                 write!(f, [token("()")])?;
             } else if !format_hugged(f, elements_ids, HugOptions::TUPLE, None, false)? {
                 // not a single huggable element: use regular formatting
-                let span = f.context().get_span(node_id);
+                let span = f.context().span(node_id);
 
                 // check for annotations that require expansion
                 let has_annotations = f.context().has_infix_annotation(node_id)

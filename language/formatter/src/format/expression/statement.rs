@@ -1,6 +1,6 @@
-use super::super::timing::tags;
 use super::*;
-use crate::imports::sort_dependency_items;
+use crate::analysis::timing::tags;
+use crate::declaration::imports::sort_dependency_items;
 use destack_ast::ImportTarget;
 use destack_fir::write;
 
@@ -440,13 +440,13 @@ fn block_has_block_prefix_annotation(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
-    let Some(annotations) = context.get_annotations(block_id) else {
+    let Some(annotations) = context.annotations(block_id) else {
         return false;
     };
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.get_annotation(annotation_id),
+            context.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::BlockPrefix,
                 ..
@@ -469,13 +469,13 @@ fn block_has_line_prefix_annotation(
     context: &DestackFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
-    let Some(annotations) = context.get_annotations(block_id) else {
+    let Some(annotations) = context.annotations(block_id) else {
         return false;
     };
 
     annotations.into_iter().any(|annotation_id| {
         matches!(
-            context.get_annotation(annotation_id),
+            context.annotation(annotation_id),
             Annotation::Blank {
                 position: AnnotationPosition::LinePrefix,
                 ..
@@ -708,9 +708,7 @@ fn format_try_expression<'ast>(
                 }
                 write!(f, [token(")"), space()])?;
             } else {
-                let pattern_source = f
-                    .context()
-                    .get_span_str(f.context().get_span(catch_pattern));
+                let pattern_source = f.context().span_str(f.context().span(catch_pattern));
                 let pattern_source = strip_one_wrapping_parentheses(pattern_source);
                 write!(f, [token("("), text(pattern_source), token(")")])?;
                 for comment in trailing_boundary_comments {
@@ -739,7 +737,7 @@ fn format_return_expression<'ast>(
     let tree = f.context().tree;
     let return_parent_is_block = f
         .context()
-        .get_parent(node_id)
+        .parent(node_id)
         .is_some_and(|(_, parent_type)| parent_type == NodeType::Block);
 
     // return keyword

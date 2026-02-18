@@ -1,0 +1,786 @@
+use destack_fir::format::{FormatResult, hard_line_break};
+use destack_fir::prelude::*;
+use destack_fir::write;
+
+use crate::{Annotation, DestackFormatter, FormatNode};
+use destack_ast::{
+    Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Expression, LocalNodeId, NodeTree,
+};
+
+impl<'ast> FormatNode<'ast, Annotation> for Annotation {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<Annotation>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        match self {
+            Annotation::Blank { node, .. } => {
+                // skip trailing blanks at the end of the source
+                let annotation_span = f.context().annotation_span(node_id);
+                if annotation_span.end >= f.context().file.len.saturating_sub(1) {
+                    return Ok(());
+                }
+
+                node.format(f)
+            }
+            Annotation::Doc { node, .. } => node.format(f),
+            Annotation::Comment { node, .. } => node.format(f),
+            Annotation::Decorator { node, .. } => node.format(f),
+        }
+    }
+}
+
+impl<'ast> FormatNode<'ast, Blank> for Blank {
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<Blank>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        // reduce any number of blank lines to a single one
+        write!(f, [empty_line()])?;
+        Ok(())
+    }
+}
+
+impl<'ast> FormatNode<'ast, Doc> for Doc {
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<Doc>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        let string = f.context().strings.get(self.string);
+        let is_multi_line = string.contains('\n');
+        match self.style {
+            DocStyle::Star => {
+                if is_multi_line {
+                    let total_lines = string.lines().count();
+                    for (i, line) in string.lines().enumerate() {
+                        let is_last_line = i == total_lines - 1;
+                        let is_last_blank_line = is_last_line && line.trim().is_empty();
+
+                        if is_last_blank_line {
+                            // keep a trailing empty line compact as plain closing delimiter
+                        } else if i == 0 {
+                            write!(f, [token("/**")])?;
+                        } else {
+                            write!(f, [token(" *")])?;
+                        }
+
+                        if !line.is_empty() && !is_last_blank_line {
+                            write!(f, [space(), text(line)])?;
+                        } else if i == 0 {
+                            write!(f, [space()])?;
+                        }
+
+                        if !is_last_line {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    }
+                    if string.ends_with('\n') {
+                        write!(f, [hard_line_break()])?;
+                    }
+                    write!(f, [token(" */")])?;
+                } else {
+                    let content = normalize_inline_block_comment_content(string);
+                    if content.is_empty() {
+                        write!(f, [token("/**/")])?;
+                    } else {
+                        write!(
+                            f,
+                            [token("/**"), space(), text(content), space(), token("*/")]
+                        )?;
+                    }
+                }
+            }
+            DocStyle::Slash => {
+                format_line_comment_lines(f, "///", string)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'ast> FormatNode<'ast, Comment> for Comment {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<Comment>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        let string = f.context().comment_text(node_id);
+        let is_multi_line = string.contains('\n');
+        match self.style {
+            CommentStyle::Star => {
+                if is_multi_line {
+                    let lines: Vec<&str> = string.lines().collect();
+                    let aligns_with_stars = lines
+                        .iter()
+                        .skip(1)
+                        .filter(|line| !line.trim().is_empty())
+                        .all(|line| line.trim_start().starts_with('*'));
+
+                    if aligns_with_stars {
+                        for (i, line) in lines.iter().enumerate() {
+                            if i == 0 {
+                                write!(f, [token("/*")])?;
+                            } else {
+                                write!(f, [token(" *")])?;
+                            }
+                            if !line.is_empty() {
+                                write!(f, [space(), text(line.trim_end_matches('\r'))])?;
+                            }
+                            if i != lines.len() - 1 {
+                                write!(f, [hard_line_break()])?;
+                            }
+                        }
+                        if string.ends_with('\n') {
+                            write!(f, [hard_line_break()])?;
+                        }
+                        write!(f, [token(" */")])?;
+                    } else {
+                        let source = f.context().span_str(f.context().span(node_id));
+                        let source = source.replace("\r\n", "\n");
+                        write!(f, [text(source.trim_end_matches('\n'))])?;
+                    }
+                } else {
+                    let content = normalize_inline_block_comment_content(string.as_ref());
+                    if is_compact_hint_comment(content) {
+                        write!(f, [token("/*"), text(content), token("*/")])?;
+                    } else if is_all_asterisks_comment(content) {
+                        let source = f.context().span_str(f.context().span(node_id));
+                        write!(f, [text(source.trim())])?;
+                    } else if content.is_empty() {
+                        let source = f.context().span_str(f.context().span(node_id));
+                        if source.contains("/**/") {
+                            write!(f, [token("/**/")])?;
+                        } else {
+                            write!(f, [token("/* */")])?;
+                        }
+                    } else {
+                        write!(
+                            f,
+                            [token("/*"), space(), text(content), space(), token("*/")]
+                        )?;
+                    }
+                }
+            }
+            CommentStyle::Slash => {
+                format_line_comment_lines(f, "//", string.as_ref())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Format slash style comment lines, preserving empty comment lines.
+fn format_line_comment_lines<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    prefix: &'static str,
+    content: &str,
+) -> FormatResult<()> {
+    if content.is_empty() {
+        write!(f, [token(prefix)])?;
+        return Ok(());
+    }
+
+    let mut lines = content.split('\n').peekable();
+    while let Some(line) = lines.next() {
+        if line.is_empty() {
+            write!(f, [token(prefix)])?;
+        } else {
+            let first_character = line.chars().next();
+            let should_insert_space = first_character
+                .is_some_and(|character| !character.is_ascii_digit() && !line.starts_with("<-"));
+            if should_insert_space {
+                write!(f, [token(prefix), space(), text(line)])?;
+            } else {
+                write!(f, [token(prefix), text(line)])?;
+            }
+        }
+
+        if lines.peek().is_some() {
+            write!(f, [hard_line_break()])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Normalize inline block comment content for stable output.
+fn normalize_inline_block_comment_content(content: &str) -> &str {
+    let content = content.trim();
+
+    if let Some(stripped_doc) = content.strip_prefix("/**")
+        && let Some(inner) = stripped_doc.strip_suffix("*/")
+    {
+        return inner.trim();
+    }
+
+    if let Some(stripped_comment) = content.strip_prefix("/*")
+        && let Some(inner) = stripped_comment.strip_suffix("*/")
+    {
+        return inner.trim();
+    }
+
+    content
+}
+
+/// Return whether a comment is a compact formatting hint.
+fn is_compact_hint_comment(content: &str) -> bool {
+    matches!(
+        content,
+        "#__PURE__" | "@__PURE__" | "#__NO_SIDE_EFFECTS__" | "@__NO_SIDE_EFFECTS__"
+    )
+}
+
+/// Return whether a block comment body is a run of asterisks.
+fn is_all_asterisks_comment(content: &str) -> bool {
+    !content.is_empty() && content.chars().all(|character| character == '*')
+}
+
+impl<'ast> FormatNode<'ast, Decorator> for Decorator {
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<Decorator>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        let tree = f.context().tree;
+        let expression_span = f.context().span(self.expression);
+        let expression_source = f.context().span_str(expression_span);
+        let expression_contains_inline_comment = f.context().has_comment(expression_span);
+        if expression_contains_inline_comment {
+            write!(f, [token("@"), text(expression_source.trim())])?;
+            return Ok(());
+        }
+
+        let needs_parentheses = decorator_needs_parentheses(tree, self.expression);
+        write!(f, [token("@")])?;
+        if needs_parentheses {
+            write!(f, [token("(")])?;
+        }
+        write!(f, [self.expression])?;
+        if needs_parentheses {
+            write!(f, [token(")")])?;
+        }
+        Ok(())
+    }
+}
+
+/// Return whether a decorator expression requires parentheses.
+fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+    match tree.get(expression_id) {
+        Expression::Parenthesized { .. } => false,
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments.is_some(),
+        Expression::Call { left, .. } => !is_identifier_or_static_member_only(tree, *left),
+        Expression::Member {
+            left,
+            static_arguments,
+            ..
+        } => static_arguments.is_some() || !is_identifier_or_static_member_only(tree, *left),
+        _ => true,
+    }
+}
+
+/// Return whether an expression is an identifier or static-member-only path.
+fn is_identifier_or_static_member_only(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments.is_none(),
+        Expression::Member {
+            left,
+            static_arguments,
+            ..
+        } => static_arguments.is_none() && is_identifier_or_static_member_only(tree, *left),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
+        TestFormatter, assert_format,
+    };
+    use destack_ast::{AnnotationPosition, DeclarationDescriptor, LocalNodeId, NodeParentIndex};
+    use destack_source::FileType;
+
+    /// Build a formatter context for annotation routing assertions.
+    fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
+        DestackFormatContext::new(
+            DestackFormatOptions::default(),
+            DestackFormatArtifacts {
+                file: &formatter.file,
+                tree: &formatter.tree,
+                tokens: &formatter.tokens,
+                side_tokens: &formatter.side_tokens,
+                side_span: &formatter.side_span,
+                strings: &formatter.strings,
+                parents: NodeParentIndex::from_tree(&formatter.tree),
+            },
+        )
+    }
+
+    /// Find an annotation node by source marker text.
+    fn find_annotation_by_marker(
+        context: &DestackFormatContext<'_>,
+        marker: &str,
+    ) -> Option<LocalNodeId<Annotation>> {
+        for (entry_index, entry) in context.formatter_annotation_entries.iter().enumerate() {
+            let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
+            let annotation_source = context.span_str(entry.span);
+            if annotation_source.contains(marker) {
+                return Some(annotation_id);
+            }
+        }
+
+        None
+    }
+
+    /// Single call argument trailing line comments stay discoverable with stable positions.
+    #[test]
+    fn test_annotation_single_call_argument_trailing_line_comment_attachment() {
+        let source = "{
+    someFunction(
+        value,
+        // trailing-argument-marker
+    );
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse trailing call argument marker source");
+        let context = context_from_formatter(&formatter);
+
+        let annotation_id = find_annotation_by_marker(&context, "trailing-argument-marker")
+            .expect("expected trailing marker annotation");
+        let position = context.annotation(annotation_id).position();
+
+        assert!(matches!(
+            position,
+            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPostfix
+        ));
+    }
+    /// Type-binary block comments between operator and right type must stay attached and render.
+    #[test]
+    fn test_type_binary_block_comment_between_operator_and_right_type_renders() {
+        let source = "{\n    const value = left as /* between */ Foo;\n}";
+        let (formatter, block_id) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse type-binary block seam source");
+        let context = context_from_formatter(&formatter);
+        let annotation_id =
+            find_annotation_by_marker(&context, "between").expect("expected between annotation");
+        let annotation = context.annotation(annotation_id);
+        assert_eq!(annotation.position(), AnnotationPosition::LinePrefix);
+
+        let formatted = formatter.format(&block_id, DestackFormatOptions::default());
+        assert!(
+            formatted.contains("as /* between */ Foo"),
+            "expected formatted output to preserve operator seam block comment, got:\n{formatted}"
+        );
+    }
+
+    /// Type-binary block seam comments on expression statements must not be dropped.
+    #[test]
+    fn test_type_binary_block_comment_between_operator_and_right_type_expression_statement() {
+        let source = "{\n    1 as /* between */ Foo;\n    1 satisfies /* sat-between */ Foo;\n}";
+        let (formatter, block_id) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse type-binary block seam statement source");
+        let context = context_from_formatter(&formatter);
+        let first_annotation_id =
+            find_annotation_by_marker(&context, "between").expect("expected between annotation");
+        let second_annotation_id = find_annotation_by_marker(&context, "sat-between")
+            .expect("expected sat-between annotation");
+        assert_eq!(
+            context.annotation(first_annotation_id).position(),
+            AnnotationPosition::LinePrefix
+        );
+        assert_eq!(
+            context.annotation(second_annotation_id).position(),
+            AnnotationPosition::LinePrefix
+        );
+
+        let formatted = formatter.format(&block_id, DestackFormatOptions::default());
+        assert!(
+            formatted.contains("1 as /* between */ Foo;"),
+            "expected formatted output to preserve as seam block comment, got:\n{formatted}"
+        );
+        assert!(
+            formatted.contains("1 satisfies /* sat-between */ Foo;"),
+            "expected formatted output to preserve satisfies seam block comment, got:\n{formatted}"
+        );
+    }
+
+    /// Prefix cast comments before parenthesized values should keep one separating space.
+    #[test]
+    fn test_prefix_cast_comment_keeps_space_before_parenthesized_value() {
+        let source = "{\n    target(/** @type {{id: string}} */ (entry), second);\n}";
+        let expected = "{\n    target(/** @type {{id: string}} */ (entry), second);\n}";
+        let (formatter, block_id) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse parenthesized cast argument source");
+
+        let formatted = formatter.format(&block_id, DestackFormatOptions::default());
+        assert_eq!(formatted, expected);
+    }
+
+    /// Condition boundary comments should detect closing delimiter separators.
+    #[test]
+    fn test_annotation_render_facts_condition_comment_precedes_separator() {
+        let source = "{
+    if (true /* separator-marker */ ) {}
+}";
+        let (formatter, _) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse separator marker source");
+        let context = context_from_formatter(&formatter);
+        let annotation_id = find_annotation_by_marker(&context, "separator-marker")
+            .expect("expected marker-tagged separator annotation");
+        let annotation = context.annotation(annotation_id);
+        let facts =
+            super::super::render::annotation_render_facts(&context, &annotation, annotation_id);
+
+        assert!(facts.precedes_separator);
+    }
+
+    /// Block comments should retain all their newlines (including leading and trailing newlines).
+    #[test]
+    fn test_format_block_comment_retain_newlines() {
+        let source = r#"{
+    /*
+     * Comment 1
+     */
+    let x;
+
+    /*
+     * Comment 2.1
+     * Comment 2.2
+     * Comment 2.3
+     */
+    let y;
+}"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Decorators should be preserved in order with other annotations.
+    #[test]
+    fn test_format_decorators_on_struct() {
+        let source = r#"{
+    // comment before entity
+    @entity
+    // comment after entity
+    // comment before foo
+    @foo(1, 2, 3)
+    // comment after foo
+    struct Entity {}
+}"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Decorator expressions should not grow extra parentheses across formatting.
+    #[test]
+    fn test_format_decorator_parentheses_are_stable() {
+        let source = r#"{
+    @(chain.first().second())
+    function chained() {}
+}"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Decorator prefixed type annotations should stay inline after a colon when simple.
+    #[test]
+    fn test_format_decorator_type_annotation_stays_inline_after_colon() {
+        assert_format!(
+            "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
+            "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Multiple comments around an expression should retain their order.
+    #[test]
+    fn test_format_multiple_comments_around_expression() {
+        let source = "{
+    // comment part 1
+    // comment part 2
+    const A = 1;
+    // comment part 3
+    // comment part 4
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Multiple comments around an expression should retain their order across successive blocks.
+    #[test]
+    fn test_format_multiple_comments_around_expression_in_successive_blocks() {
+        let source = "{
+    // comment part 0
+    a: {
+        // comment part 1
+        // comment part 2
+        const A = 1;
+        // comment part 3
+        // comment part 4
+    }
+    // comment part 5
+    // comment part 6
+    b: {
+        // comment part 7
+        // comment part 8
+        const B = 2;
+        // comment part 9
+        // comment part 10
+    }
+    // comment part 11
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Inline expression comments should be preserved with proper spacing.
+    #[test]
+    fn test_format_inline_expression_comment() {
+        assert_format!(
+            "/* Pre-X comment */const X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
+            "/* Pre-X comment */ const X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default_with_line_width(200)
+        );
+    }
+
+    /// Keep multiline block doc comments as block comments.
+    #[test]
+    fn test_format_multi_line_block_doc_comment_stays_block() {
+        assert_format!(
+            "{
+    /** some multiline
+     * doc comment
+     * over multiple lines */
+    const X = 1 
+}",
+            "{
+    /** some multiline
+     * doc comment
+     * over multiple lines */
+    const X = 1;
+}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Keep multiline postfix comments as block comments.
+    #[test]
+    fn test_format_multi_line_block_comment_stays_block() {
+        assert_format!(
+            "{
+    const X = 1 /* some comment
+    * over multiple lines yo       */
+}",
+            "{
+    const X = 1;
+    /* some comment
+    * over multiple lines yo       */
+}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Excessive whitespace in line comments should be preserved.
+    #[test]
+    fn test_format_excessive_whitespace_in_line_comment() {
+        let source = r"{
+    // /// An Identity is globally unique identifier for an Entity.
+    // struct Identity {
+    //     /// The universally unique identifier of this Entity.
+    //     id: Uuid
+    // }
+    const X = 1;
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Comments inside function call arguments cause expansion.
+    #[test]
+    fn test_format_comment_in_call_arguments() {
+        assert_format!(
+            "foo(/* first */ a, /* second */ b)",
+            "foo(/* first */ a, /* second */ b)",
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Inline array comments stay inline when the array still fits.
+    #[test]
+    fn test_format_comment_in_array() {
+        assert_format!(
+            "[/* first */ 1, /* second */ 2, /* third */ 3]",
+            "[/* first */ 1, /* second */ 2, /* third */ 3]",
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Comments inside object literals cause expansion.
+    #[test]
+    fn test_format_comment_in_object() {
+        assert_format!(
+            "{ /* key */ a: 1, /* another */ b: 2 }",
+            "{
+    /* key */ a: 1,
+    /* another */ b: 2,
+}",
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Format trailing comments on array elements to stay with the comma.
+    #[test]
+    fn test_format_trailing_comment_array() {
+        assert_format!(
+            "{
+    const arr = [
+        1,
+        2,
+        3, // last element
+    ];
+}",
+            "{
+    const arr = [
+        1,
+        2,
+        3, // last element
+    ];
+}",
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Comment inside function body.
+    #[test]
+    fn test_format_comment_in_function_body() {
+        assert_format!(
+            "function foo() { /* empty */ }",
+            "function foo() {\n    /* empty */\n}",
+            |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Empty slash star doc comments should stay stable on arrows.
+    #[test]
+    fn test_format_empty_doc_comment_on_arrow() {
+        assert_format!(
+            "() /**/ => 1",
+            "/**/ () => 1",
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Pure hint comments should keep compact style.
+    #[test]
+    fn test_format_compact_pure_hint_comment() {
+        assert_format!(
+            "/*#__PURE__*/factory()",
+            "/*#__PURE__*/ factory()",
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Blank lines between array elements should be preserved.
+    #[test]
+    fn test_format_blank_in_array() {
+        assert_format!(
+            "[
+    1,
+
+    2,
+]",
+            "[
+    1,
+
+    2,
+]",
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Inline block comments before arrow bodies should keep one separating space and remain idempotent.
+    #[test]
+    fn test_format_inline_block_comment_before_arrow_body_call_is_idempotent() {
+        let source = "{
+    const fn = () =>
+        /* event, data */doSomething();
+
+    const fn2 = () =>
+        /* event, data */doSomething(anything);
+}";
+        let (first_formatter, first_block_id) = TestFormatter::parse_with_file_type(
+            source,
+            destack_source::FileType::JavaScript,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+        )
+        .expect("parse first arrow comment statement");
+        let first = first_formatter.format(&first_block_id, DestackFormatOptions::default());
+
+        let (second_formatter, second_block_id) = TestFormatter::parse_with_file_type(
+            first.as_str(),
+            destack_source::FileType::JavaScript,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+        )
+        .expect("parse second arrow comment statement");
+        let second = second_formatter.format(&second_block_id, DestackFormatOptions::default());
+
+        assert_eq!(first, second);
+    }
+}

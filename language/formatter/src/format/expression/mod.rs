@@ -1,6 +1,6 @@
-use std::borrow::Cow;
+pub(crate) use std::borrow::Cow;
 
-use destack_ast::{
+pub(crate) use destack_ast::{
     AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
     DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, FunctionKind,
@@ -10,56 +10,50 @@ use destack_ast::{
     TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, WhereClause, WhileKind,
     YieldCardinality,
 };
-use destack_base::StringId;
-use destack_fir::format::{FormatError, GroupId, text};
-use destack_fir::prelude::*;
-use destack_source::Span;
-use destack_workspace::TrailingComma;
-use smallvec::SmallVec;
+pub(crate) use destack_base::StringId;
+pub(crate) use destack_fir::format::{FormatError, GroupId, text};
+pub(crate) use destack_fir::prelude::*;
+pub(crate) use destack_source::Span;
+pub(crate) use destack_workspace::TrailingComma;
+pub(crate) use smallvec::SmallVec;
 
-use self::binary::*;
-use self::call::*;
-use self::chain::*;
-use self::classify::{
+pub(crate) use self::classify::{
     array_elements_are_fill_candidates, array_has_only_boundary_comments, span_has_comment,
 };
-use self::control::*;
-use self::declarator::*;
-use self::generic::*;
-use self::jsx::*;
-use self::member::*;
-use self::object::*;
-use self::operator::*;
-use self::parentheses::*;
-use self::primary::*;
-use self::scan::*;
-use self::sort::*;
-use self::statement::*;
-use self::ternary::*;
-use crate::argument::list_like;
-use crate::directive::{
+pub(crate) use self::control::*;
+pub(self) use self::declarator::*;
+pub(crate) use self::generic::*;
+pub(crate) use self::member::*;
+pub(crate) use self::object::*;
+pub(crate) use self::parentheses::*;
+pub(self) use self::primary::*;
+pub(crate) use self::scan::*;
+pub(self) use self::sort::*;
+pub(self) use self::statement::*;
+pub(crate) use self::ternary::*;
+pub(crate) use crate::analysis::*;
+pub(crate) use crate::call::*;
+pub(crate) use crate::chain::*;
+pub(crate) use crate::collection::list_like;
+pub(crate) use crate::collection::literal::{format_scalar_literal, format_template_literal};
+pub(crate) use crate::collection::property::format_block_of_properties;
+pub(crate) use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
     ignored_node_source,
 };
-use crate::literal::{format_scalar_literal, format_template_literal};
-use crate::property::format_block_of_properties;
-use crate::{
+pub(crate) use crate::tree::*;
+pub(crate) use crate::{
     Annotation, DestackFormatContext, DestackFormatter, FormatNode,
     empty_block_with_infix_annotations,
 };
 
-mod binary;
-mod call;
-mod chain;
 mod classify;
 mod control;
 mod core;
 mod declarator;
 mod generic;
-mod jsx;
 mod member;
 mod object;
-mod operator;
 mod parentheses;
 mod primary;
 mod scan;
@@ -67,11 +61,6 @@ mod sort;
 mod statement;
 mod ternary;
 
-pub(crate) use self::binary::is_type_context;
-pub(crate) use self::chain::{
-    format_expression_chain, is_chain_root, is_expression_chain, is_poorly_breakable_chain,
-    lambda_expression_should_break,
-};
 pub use self::classify::{
     is_complex_argument, is_complex_expression, is_expression_breakable, is_pattern_breakable,
     is_trivial_argument, is_trivial_expression, is_trivial_property,

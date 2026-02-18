@@ -7,16 +7,16 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-use super::function_like::format_function_declaration;
-use super::module_like::{
+use super::function::format_function_declaration;
+use super::module::{
     format_extension_declaration, format_global_declaration, format_import_alias_declaration,
     format_namespace_declaration,
 };
-use super::type_alias::format_type_alias_declaration;
-use super::type_like::{
+use super::r#type::{
     EnumDeclarationFormatData, format_enum_declaration, format_interface_declaration,
     format_struct_or_class_declaration,
 };
+use super::type_alias::format_type_alias_declaration;
 
 /// Format one declaration export modifier and export-head seam comments.
 pub(super) fn format_declaration_export_modifier<'ast>(
@@ -117,7 +117,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
         );
         let declaration_expression_id =
-            if let Some((parent_id, parent_type)) = f.context().get_parent(node_id) {
+            if let Some((parent_id, parent_type)) = f.context().parent(node_id) {
                 if parent_type == NodeType::Expression {
                     let expression_id = LocalNodeId::<Expression>::new(parent_id);
                     match f.context().tree.get(expression_id) {
@@ -280,9 +280,9 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
         let should_skip_blank_postfix_annotations =
             is_lambda_declaration && declaration_expression_id.is_some();
         if should_skip_blank_postfix_annotations {
-            if let Some(annotation_ids) = f.context().get_annotations(node_id) {
+            if let Some(annotation_ids) = f.context().annotations(node_id) {
                 for annotation_id in annotation_ids {
-                    let annotation = f.context().get_annotation(annotation_id);
+                    let annotation = f.context().annotation(annotation_id);
                     if matches!(annotation, Annotation::Blank { .. }) {
                         continue;
                     }

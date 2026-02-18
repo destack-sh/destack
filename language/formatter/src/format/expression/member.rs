@@ -3,7 +3,7 @@ use destack_fir::{format_args, write};
 use smallvec::SmallVec;
 
 /// Format a member expression.
-pub(super) fn format_member_expression<'ast>(
+pub(crate) fn format_member_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -104,7 +104,7 @@ pub(super) fn format_member_expression<'ast>(
 
 /// Format a type index expression without considering chaining.
 #[inline]
-pub(super) fn format_type_index_expression<'ast>(
+pub(crate) fn format_type_index_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: LocalNodeId<Expression>,
     index: LocalNodeId<Expression>,
@@ -125,7 +125,7 @@ pub(super) fn format_type_index_expression<'ast>(
 }
 
 /// Format a type template literal expression.
-pub(super) fn format_type_template_literal<'ast>(
+pub(crate) fn format_type_template_literal<'ast>(
     strings: &[StringId],
     spans: &[LocalNodeId<Expression>],
     f: &mut DestackFormatter<'ast, '_>,
@@ -140,7 +140,7 @@ pub(super) fn format_type_template_literal<'ast>(
     }
 
     for (span, segment) in spans.iter().zip(string_segments) {
-        let should_expand_span = span_has_comment(f.context(), f.context().get_span(*span));
+        let should_expand_span = span_has_comment(f.context(), f.context().span(*span));
 
         write!(
             f,
@@ -160,7 +160,7 @@ pub(super) fn format_type_template_literal<'ast>(
 
 /// Format an index expression without considering chaining.
 #[inline]
-pub(super) fn format_index_expression<'ast>(
+pub(crate) fn format_index_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -176,8 +176,8 @@ pub(super) fn format_index_expression<'ast>(
         }
         if let Some(index) = index {
             let should_parenthesize = should_parenthesize_index_expression(f.context(), *index);
-            let left_span = f.context().get_span(*left);
-            let index_span = f.context().get_span(*index);
+            let left_span = f.context().span(*left);
+            let index_span = f.context().span(*index);
             let has_break_after_open = left_span.file == index_span.file
                 && left_span.end < index_span.start
                 && f.context().has_newline(Span::new(
@@ -221,25 +221,25 @@ pub(super) fn format_index_expression<'ast>(
 }
 
 /// Hugging configuration for different delimiter contexts.
-pub(super) struct HugOptions {
+pub(crate) struct HugOptions {
     /// The opening delimiter.
-    pub(super) open: &'static str,
+    pub(crate) open: &'static str,
     /// The closing delimiter.
-    pub(super) close: &'static str,
+    pub(crate) close: &'static str,
     /// Whether to force a trailing comma.
-    pub(super) force_trailing: bool,
+    pub(crate) force_trailing: bool,
     /// Whether to include a trailing comma when the group breaks.
-    pub(super) trailing_if_breaks: bool,
+    pub(crate) trailing_if_breaks: bool,
     /// Whether to allow arrow functions.
-    pub(super) allow_arrow_functions: bool,
+    pub(crate) allow_arrow_functions: bool,
     /// Whether to handle annotations.
-    pub(super) handle_annotations: bool,
+    pub(crate) handle_annotations: bool,
     /// Whether multiline object and array values can still use hugging.
-    pub(super) allow_multiline_collection: bool,
+    pub(crate) allow_multiline_collection: bool,
 }
 
 impl HugOptions {
-    pub(super) const CALL: Self = Self {
+    pub(crate) const CALL: Self = Self {
         open: "(",
         close: ")",
         force_trailing: false,
@@ -249,7 +249,7 @@ impl HugOptions {
         allow_multiline_collection: true,
     };
 
-    pub(super) const ARRAY: Self = Self {
+    pub(crate) const ARRAY: Self = Self {
         open: "[",
         close: "]",
         force_trailing: false,
@@ -259,7 +259,7 @@ impl HugOptions {
         allow_multiline_collection: false,
     };
 
-    pub(super) const TUPLE: Self = Self {
+    pub(crate) const TUPLE: Self = Self {
         open: "(",
         close: ")",
         force_trailing: true,
@@ -287,20 +287,20 @@ fn should_flatten_binary(left_operator: BinaryOperator, right_operator: BinaryOp
 }
 
 /// Represents a flattened binary expression operand with its preceding operator.
-pub(super) struct BinaryOperand {
+pub(crate) struct BinaryOperand {
     /// The operator before this operand (None for first).
-    pub(super) operator: Option<BinaryOperator>,
+    pub(crate) operator: Option<BinaryOperator>,
     /// The expression node.
-    pub(super) expression: LocalNodeId<Expression>,
+    pub(crate) expression: LocalNodeId<Expression>,
 }
 
 /// Store flattened binary operands with an inline-first buffer.
-pub(super) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
+pub(crate) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
 
 /// Flattens a binary expression chain into a list of operands.
 ///
 /// For `a + b + c`, returns [(None, a), (Some(+), b), (Some(+), c)].
-pub(super) fn flatten_binary_expression(
+pub(crate) fn flatten_binary_expression(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
@@ -311,7 +311,7 @@ pub(super) fn flatten_binary_expression(
 }
 
 /// Flattens associative type binary chains while unwrapping redundant parentheses.
-pub(super) fn flatten_type_binary_expression(
+pub(crate) fn flatten_type_binary_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
@@ -322,7 +322,7 @@ pub(super) fn flatten_type_binary_expression(
 }
 
 /// Return the operand count for a flattened binary expression chain.
-pub(super) fn flattened_binary_operand_count(
+pub(crate) fn flattened_binary_operand_count(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
@@ -366,7 +366,7 @@ fn flatten_type_binary_recursive(
 }
 
 /// Remove redundant parenthesized wrappers around associative type operands.
-pub(super) fn normalize_type_binary_operand_expression(
+pub(crate) fn normalize_type_binary_operand_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
@@ -455,7 +455,7 @@ fn count_flattened_binary_recursive(
 /// Whether an expression variant is type specific.
 /// Return precedence value for an expression.
 #[inline]
-pub(super) fn expression_precedence(expr: &Expression) -> u16 {
+pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
     match expr {
         // postfix operators (2000)
         Expression::Call { .. }
@@ -514,7 +514,7 @@ pub(super) fn expression_precedence(expr: &Expression) -> u16 {
 /// So when formatting `Maybe { left: Await { expr } }`, we need to output `(await expr)?`.
 /// Return whether postfix formatting requires parentheses.
 #[inline]
-pub(super) fn needs_parens_in_postfix_position(
+pub(crate) fn needs_parens_in_postfix_position(
     tree: &NodeTree,
     expr_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -522,7 +522,7 @@ pub(super) fn needs_parens_in_postfix_position(
 }
 
 /// Format an expression used as the receiver/base of a postfix operation.
-pub(super) fn write_postfix_base_expression<'ast>(
+pub(crate) fn write_postfix_base_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -563,7 +563,7 @@ fn postfix_parent_expression_id(
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     // direct parent chain receiver
-    if let Some((parent_id, parent_type)) = context.get_parent(expression_id)
+    if let Some((parent_id, parent_type)) = context.parent(expression_id)
         && parent_type == NodeType::Expression
     {
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
@@ -585,7 +585,7 @@ fn postfix_parent_expression_id(
     }
 
     // parenthesized wrapper chain receiver
-    let Some((parent_id, parent_type)) = context.get_parent(expression_id) else {
+    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
         return None;
     };
     if parent_type != NodeType::Expression {
@@ -600,7 +600,7 @@ fn postfix_parent_expression_id(
         return None;
     }
 
-    let Some((grandparent_id, grandparent_type)) = context.get_parent(parent_expression_id) else {
+    let Some((grandparent_id, grandparent_type)) = context.parent(parent_expression_id) else {
         return None;
     };
     if grandparent_type != NodeType::Expression {
@@ -628,7 +628,7 @@ fn postfix_parent_expression_id(
 }
 
 /// Check whether a parenthesized cast or satisfies left side is simple enough to unwrap.
-pub(super) fn is_chain_expression(expression: &Expression) -> bool {
+pub(crate) fn is_chain_expression(expression: &Expression) -> bool {
     matches!(
         expression,
         Expression::Member { .. }

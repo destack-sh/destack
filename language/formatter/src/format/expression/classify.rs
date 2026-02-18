@@ -182,12 +182,12 @@ pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -
 }
 
 /// Check if a span includes any comment tokens.
-pub(super) fn span_has_comment(context: &DestackFormatContext<'_>, span: Span) -> bool {
+pub(crate) fn span_has_comment(context: &DestackFormatContext<'_>, span: Span) -> bool {
     context.has_comment(span)
 }
 
 /// Return whether array elements are simple enough for concise fill formatting.
-pub(super) fn array_elements_are_fill_candidates(
+pub(crate) fn array_elements_are_fill_candidates(
     tree: &NodeTree,
     elements: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -197,7 +197,7 @@ pub(super) fn array_elements_are_fill_candidates(
 }
 
 /// Return whether comments in an array appear only before the first or after the last element.
-pub(super) fn array_has_only_boundary_comments(
+pub(crate) fn array_has_only_boundary_comments(
     context: &DestackFormatContext<'_>,
     array_span: Span,
     elements: &[LocalNodeId<Argument>],
@@ -206,8 +206,8 @@ pub(super) fn array_has_only_boundary_comments(
         return false;
     };
 
-    let first_span = context.get_span(*first_element);
-    let last_span = context.get_span(*last_element);
+    let first_span = context.span(*first_element);
+    let last_span = context.span(*last_element);
 
     let has_internal_comment =
         context

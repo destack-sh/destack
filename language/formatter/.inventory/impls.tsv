@@ -1,0 +1,68 @@
+file	line	header
+language/formatter/src/format/declaration/dependency.rs	31	impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
+language/formatter/src/format/declaration/signature.rs	77	impl<'ast> FormatNode<'ast, Parameter> for Parameter {
+language/formatter/src/format/declaration/enum.rs	8	impl<'ast> FormatNode<'ast, EnumField> for EnumField {
+language/formatter/src/format/declaration/match.rs	143	impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
+language/formatter/src/format/declaration/statement.rs	39	impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
+language/formatter/src/format/declaration/statement.rs	688	impl<'ast> FormatNode<'ast, Block> for Block {
+language/formatter/src/format/declaration/where.rs	48	impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
+language/formatter/src/format/declaration/dispatch.rs	89	impl<'ast> Format<DestackFormatContext<'ast>> for Visibility {
+language/formatter/src/format/declaration/dispatch.rs	99	impl<'ast> Format<DestackFormatContext<'ast>> for DependencyMode {
+language/formatter/src/format/declaration/dispatch.rs	109	impl<'ast> FormatNode<'ast, Declaration> for Declaration {
+language/formatter/src/format/tree.rs	84	impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
+language/formatter/src/format/collection/path.rs	7	impl<'ast> Format<DestackFormatContext<'ast>> for Path {
+language/formatter/src/format/context/source.rs	3	impl<'a> DestackFormatContext<'a> {
+language/formatter/src/format/call/argument/node.rs	318	impl<'ast> FormatNode<'ast, Argument> for Argument {
+language/formatter/src/format/collection/literal.rs	499	impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
+language/formatter/src/format/collection/literal.rs	526	impl<'ast> Format<DestackFormatContext<'ast>> for IntType {
+language/formatter/src/format/collection/literal.rs	557	impl<'ast> Format<DestackFormatContext<'ast>> for FloatType {
+language/formatter/src/tests/tests.rs	22	impl TestFormatter {
+language/formatter/src/format/expression/declarator.rs	844	impl<'ast> FormatNode<'ast, Declarator> for Declarator {
+language/formatter/src/format/context/annotation.rs	3	impl<'a> DestackFormatContext<'a> {
+language/formatter/src/format/collection/property.rs	538	impl<'ast> FormatNode<'ast, Property> for Property {
+language/formatter/src/format/collection/property.rs	594	impl<'ast> FormatNode<'ast, Member> for Member {
+language/formatter/src/format/collection/render.rs	16	impl CollectionBreakScore {
+language/formatter/src/format/context/node.rs	33	impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
+language/formatter/src/format/context/options.rs	52	impl DestackFormatOptions {
+language/formatter/src/format/context/options.rs	140	impl From<FormatterOptions> for DestackFormatOptions {
+language/formatter/src/format/context/options.rs	146	impl FormatOptions for DestackFormatOptions {
+language/formatter/src/format/analysis/timing.rs	14	impl FormatterTimingTag {
+language/formatter/src/format/analysis/timing.rs	43	impl FormatterTimings {
+language/formatter/src/format/analysis/timing.rs	78	impl FormatterTimingScope {
+language/formatter/src/format/analysis/timing.rs	92	impl Drop for FormatterTimingScope {
+language/formatter/src/format/collection/list.rs	24	impl ListKind {
+language/formatter/src/format/context/cache.rs	61	impl FormatterCountersCollector {
+language/formatter/src/format/context/cache.rs	105	impl AnnotationData {
+language/formatter/src/format/context/cache.rs	286	impl FormatterNodeCaches {
+language/formatter/src/format/collection/key.rs	9	impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
+language/formatter/src/format/collection/key.rs	17	impl<'ast> Format<DestackFormatContext<'ast>> for Name {
+language/formatter/src/format/collection/key.rs	24	impl<'ast> Format<DestackFormatContext<'ast>> for Key {
+language/formatter/src/format/collection/key.rs	31	impl<'ast> Format<DestackFormatContext<'ast>> for Keyword {
+language/formatter/src/format/expression/member.rs	241	impl HugOptions {
+language/formatter/src/format/annotation/node.rs	10	impl<'ast> FormatNode<'ast, Annotation> for Annotation {
+language/formatter/src/format/annotation/node.rs	33	impl<'ast> FormatNode<'ast, Blank> for Blank {
+language/formatter/src/format/annotation/node.rs	45	impl<'ast> FormatNode<'ast, Doc> for Doc {
+language/formatter/src/format/annotation/node.rs	103	impl<'ast> FormatNode<'ast, Comment> for Comment {
+language/formatter/src/format/annotation/node.rs	240	impl<'ast> FormatNode<'ast, Decorator> for Decorator {
+language/formatter/src/format/context/model.rs	36	impl Node for Annotation {
+language/formatter/src/format/context/model.rs	40	impl Annotation {
+language/formatter/src/format/context/model.rs	151	impl<'a> DestackFormatContext<'a> {
+language/formatter/src/format/context/model.rs	257	impl FormatContext for DestackFormatContext<'_> {
+language/formatter/src/format/context/metric.rs	3	impl<'a> DestackFormatContext<'a> {
+language/formatter/src/format/analysis/call/analyze.rs	26	impl From<CallArgumentExpansionProfileFacts> for CallArgumentExpansionProfile {
+language/formatter/src/format/analysis/call/analyze.rs	36	impl From<CallArgumentExpansionProfile> for CallArgumentExpansionProfileFacts {
+language/formatter/src/format/analysis/call/analyze.rs	55	impl From<CallArgumentExpansionProfilesFacts> for CallArgumentExpansionProfiles {
+language/formatter/src/format/analysis/call/analyze.rs	64	impl From<CallArgumentExpansionProfiles> for CallArgumentExpansionProfilesFacts {
+language/formatter/src/format/collection/pattern.rs	15	impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
+language/formatter/src/format/collection/pattern.rs	226	impl<'ast> FormatNode<'ast, Pattern> for Pattern {
+language/formatter/src/format/collection/pattern.rs	384	impl<'ast> FormatNode<'ast, PatternField> for PatternField {
+language/formatter/src/format/analysis/call/layout.rs	121	impl CallArgumentLayoutScanState {
+language/formatter/src/format/expression/operator/token.rs	10	impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
+language/formatter/src/format/expression/operator/token.rs	33	impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
+language/formatter/src/format/expression/operator/token.rs	52	impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
+language/formatter/src/format/expression/operator/token.rs	109	impl<'ast> Format<DestackFormatContext<'ast>> for TypeBinaryOperator {
+language/formatter/src/format/expression/operator/token.rs	126	impl<'ast> Format<DestackFormatContext<'ast>> for AssignOperator {
+language/formatter/src/format/expression/core.rs	127	impl<'ast> FormatNode<'ast, Expression> for Expression {
+language/formatter/src/format/comments/seam.rs	112	impl CommentSeamFacts {
+language/formatter/src/format/annotation/render.rs	24	impl<'ast> DestackFormatContext<'ast> {
+language/formatter/src/format/comments/comment/facts.rs	28	impl CommentFallbackFacts {
