@@ -2,7 +2,7 @@ use super::*;
 use destack_fir::write;
 
 /// Format static type arguments without multiline trailing commas.
-pub(super) fn format_static_argument_list<'ast>(
+pub(crate) fn format_static_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     static_arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {

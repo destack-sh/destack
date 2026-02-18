@@ -1,0 +1,928 @@
+file	line	visibility	kind	name	signature
+language/formatter/src/format/declaration/dependency.rs	32	private	function	format_node	fn format_node(
+language/formatter/src/format/declaration/dependency.rs	75	private	function	test_format_import	fn test_format_import() {
+language/formatter/src/format/declaration/dependency.rs	85	private	function	test_format_import_with_alias	fn test_format_import_with_alias() {
+language/formatter/src/format/declaration/dependency.rs	95	private	function	test_format_import_with_items_from	fn test_format_import_with_items_from() {
+language/formatter/src/format/declaration/dependency.rs	105	private	function	test_format_import_with_overflow	fn test_format_import_with_overflow() {
+language/formatter/src/format/declaration/dependency.rs	121	private	function	test_format_export_glob	fn test_format_export_glob() {
+language/formatter/src/format/declaration/dependency.rs	131	private	function	test_format_import_with_default_and_block	fn test_format_import_with_default_and_block() {
+language/formatter/src/format/declaration/dependency.rs	141	private	function	test_format_import_type_equals_require	fn test_format_import_type_equals_require() {
+language/formatter/src/format/declaration/dependency.rs	151	private	function	test_format_export_import_type_equals_require	fn test_format_export_import_type_equals_require() {
+language/formatter/src/format/declaration/dependency.rs	161	private	function	test_format_export_with_default_and_block	fn test_format_export_with_default_and_block() {
+language/formatter/src/format/declaration/dependency.rs	171	private	function	test_format_export_with_attributes	fn test_format_export_with_attributes() {
+language/formatter/src/format/declaration/signature.rs	48	private	function	parameter_prefix_annotations_follow_spread	fn parameter_prefix_annotations_follow_spread(
+language/formatter/src/format/declaration/signature.rs	78	private	function	format_node	fn format_node(
+language/formatter/src/format/declaration/signature.rs	203	private	function	parameter_is_static	fn parameter_is_static(
+language/formatter/src/format/declaration/signature.rs	255	pub	function	parameter_is_variadic	pub(crate) fn parameter_is_variadic(
+language/formatter/src/format/declaration/signature.rs	266	pub	function	parameter_has_modifier	pub(crate) fn parameter_has_modifier(
+language/formatter/src/format/declaration/signature.rs	279	pub	function	constructor_parameters_should_expand	pub(crate) fn constructor_parameters_should_expand(
+language/formatter/src/format/declaration/signature.rs	292	private	function	parameter_has_line_comment_annotation	fn parameter_has_line_comment_annotation(
+language/formatter/src/format/declaration/signature.rs	315	private	function	parameter_has_prefix_annotation	fn parameter_has_prefix_annotation(
+language/formatter/src/format/declaration/signature.rs	383	pub	function	single_parameter_should_hug	pub(crate) fn single_parameter_should_hug(
+language/formatter/src/format/declaration/signature.rs	414	pub	function	write_function_abstraction_prefix	pub(crate) fn write_function_abstraction_prefix(
+language/formatter/src/format/declaration/signature.rs	435	pub	function	write_function_asynchrony_prefix	pub(crate) fn write_function_asynchrony_prefix(
+language/formatter/src/format/declaration/signature.rs	456	pub	function	write_function_header_prefix	pub(crate) fn write_function_header_prefix(
+language/formatter/src/format/declaration/signature.rs	501	private	function	parameter_object_pattern_should_expand	fn parameter_object_pattern_should_expand(
+language/formatter/src/format/declaration/signature.rs	554	pub	function	parameter_should_force_expand_in_signature	pub(crate) fn parameter_should_force_expand_in_signature(
+language/formatter/src/format/declaration/signature.rs	580	pub	function	signature_return_type_is_multiline	pub(crate) fn signature_return_type_is_multiline(
+language/formatter/src/format/declaration/signature.rs	588	pub	function	signature_return_type_has_line_postfix_boundary_annotation	pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
+language/formatter/src/format/declaration/signature.rs	611	pub	function	signature_should_elide_space_before_body	pub(crate) fn signature_should_elide_space_before_body(
+language/formatter/src/format/declaration/signature.rs	619	pub	function	signature_parameters_should_expand	pub(crate) fn signature_parameters_should_expand(
+language/formatter/src/format/declaration/signature.rs	653	pub	function	write_signature_dynamic_parameter_list	pub(crate) fn write_signature_dynamic_parameter_list(
+language/formatter/src/format/declaration/signature.rs	674	private	function	test_format_parameter	fn test_format_parameter() {
+language/formatter/src/format/declaration/signature.rs	684	private	function	test_format_parameter_with_default	fn test_format_parameter_with_default() {
+language/formatter/src/format/declaration/signature.rs	694	private	function	test_format_parameter_comment_between_name_and_type	fn test_format_parameter_comment_between_name_and_type() {
+language/formatter/src/format/declaration/signature.rs	704	private	function	test_format_optional_parameter_comment_between_name_and_type	fn test_format_optional_parameter_comment_between_name_and_type() {
+language/formatter/src/format/declaration/signature.rs	714	private	function	test_format_parameter_comment_before_name	fn test_format_parameter_comment_before_name() {
+language/formatter/src/format/declaration/type_alias.rs	30	private	function	single_line_type_grouping_prefix_comment_cluster	fn single_line_type_grouping_prefix_comment_cluster(
+language/formatter/src/format/declaration/type_alias.rs	111	private	function	expression_has_doc_like_block_prefix_annotation	fn expression_has_doc_like_block_prefix_annotation(
+language/formatter/src/format/declaration/type_alias.rs	140	private	function	expression_has_prefix_annotation_in_left_spine	fn expression_has_prefix_annotation_in_left_spine(
+language/formatter/src/format/declaration/enum.rs	10	private	function	format_node	fn format_node(
+language/formatter/src/format/declaration/enum.rs	40	private	function	test_format_enum_empty	fn test_format_enum_empty() {
+language/formatter/src/format/declaration/enum.rs	50	private	function	test_format_enum_with_simple_fields	fn test_format_enum_with_simple_fields() {
+language/formatter/src/format/declaration/enum.rs	60	private	function	test_format_enum_with_annotations	fn test_format_enum_with_annotations() {
+language/formatter/src/format/declaration/enum.rs	70	private	function	test_format_enum_with_static_parameters	fn test_format_enum_with_static_parameters() {
+language/formatter/src/format/declaration/function.rs	21	private	function	is_module_typescript_source	fn is_module_typescript_source(file_name: &str) -> bool {
+language/formatter/src/format/declaration/function.rs	26	private	function	lambda_parameter_should_expand	fn lambda_parameter_should_expand(
+language/formatter/src/format/declaration/function.rs	47	private	function	lambda_parameter_is_simple_tail	fn lambda_parameter_is_simple_tail(
+language/formatter/src/format/declaration/match.rs	19	private	function	format_selector_with_style	fn format_selector_with_style(
+language/formatter/src/format/declaration/match.rs	135	private	function	switch_case_expression_body_should_break	fn switch_case_expression_body_should_break(
+language/formatter/src/format/declaration/match.rs	144	private	function	format_node	fn format_node(
+language/formatter/src/format/declaration/match.rs	158	private	function	test_format_match_expression_cases	fn test_format_match_expression_cases() {
+language/formatter/src/format/declaration/match.rs	168	private	function	test_format_match_with_block_case_and_guard	fn test_format_match_with_block_case_and_guard() {
+language/formatter/src/format/declaration/match.rs	178	private	function	test_format_switch_expression_cases	fn test_format_switch_expression_cases() {
+language/formatter/src/format/declaration/match.rs	188	private	function	test_format_switch_with_default_case	fn test_format_switch_with_default_case() {
+language/formatter/src/format/declaration/match.rs	198	private	function	test_format_switch_with_block	fn test_format_switch_with_block() {
+language/formatter/src/format/declaration/match.rs	208	private	function	test_format_switch_case_implicit_block_without_extra_braces	fn test_format_switch_case_implicit_block_without_extra_braces() {
+language/formatter/src/format/declaration/type.rs	23	private	function	super_type_clause_has_line_postfix_boundary_annotation	fn super_type_clause_has_line_postfix_boundary_annotation(
+language/formatter/src/format/declaration/type.rs	45	private	function	is_parenthesized_class_extends_type	fn is_parenthesized_class_extends_type(
+language/formatter/src/format/declaration/type.rs	94	private	function	extends_expression_needs_closure_cast_wrapper	fn extends_expression_needs_closure_cast_wrapper(
+language/formatter/src/format/context/model.rs	43	pub	method	position	pub fn position(self) -> AnnotationPosition {
+language/formatter/src/format/context/model.rs	153	pub	function	new	pub fn new(options: DestackFormatOptions, artifacts: DestackFormatArtifacts<'a>) -> Self {
+language/formatter/src/format/context/model.rs	158	pub	function	new_with_timings	pub fn new_with_timings(
+language/formatter/src/format/context/model.rs	261	private	method	options	fn options(&self) -> &Self::Options {
+language/formatter/src/format/context/model.rs	266	private	method	file	fn file(&self) -> &File {
+language/formatter/src/tests/legacy_format_nodes.rs	6	private	function	test_format_extension_empty	fn test_format_extension_empty() {
+language/formatter/src/tests/legacy_format_nodes.rs	16	private	function	test_format_extension_with_implements	fn test_format_extension_with_implements() {
+language/formatter/src/tests/legacy_format_nodes.rs	26	private	function	test_format_extension_with_static_arguments	fn test_format_extension_with_static_arguments() {
+language/formatter/src/tests/legacy_format_nodes.rs	41	private	function	test_format_function_lambda_empty	fn test_format_function_lambda_empty() {
+language/formatter/src/tests/legacy_format_nodes.rs	51	private	function	test_format_function_lambda_with_parameters	fn test_format_function_lambda_with_parameters() {
+language/formatter/src/tests/legacy_format_nodes.rs	62	private	function	test_format_function_simple	fn test_format_function_simple() {
+language/formatter/src/tests/legacy_format_nodes.rs	73	private	function	test_format_function_with_parameters	fn test_format_function_with_parameters() {
+language/formatter/src/tests/legacy_format_nodes.rs	82	private	function	test_format_function_with_parameters_overflow	fn test_format_function_with_parameters_overflow() {
+language/formatter/src/tests/legacy_format_nodes.rs	92	private	function	test_format_function_with_return_type	fn test_format_function_with_return_type() {
+language/formatter/src/tests/legacy_format_nodes.rs	101	private	function	test_format_function_with_static_parameters	fn test_format_function_with_static_parameters() {
+language/formatter/src/tests/legacy_format_nodes.rs	110	private	function	test_format_function_declaration	fn test_format_function_declaration() {
+language/formatter/src/tests/legacy_format_nodes.rs	119	private	function	test_format_function_with_self_parameter	fn test_format_function_with_self_parameter() {
+language/formatter/src/tests/legacy_format_nodes.rs	131	private	function	test_format_function_with_this_parameter	fn test_format_function_with_this_parameter() {
+language/formatter/src/tests/legacy_format_nodes.rs	143	private	function	test_format_function_with_type_predicate	fn test_format_function_with_type_predicate() {
+language/formatter/src/tests/legacy_format_nodes.rs	153	private	function	test_format_function_with_type_predicate_asserts_value	fn test_format_function_with_type_predicate_asserts_value() {
+language/formatter/src/tests/legacy_format_nodes.rs	163	private	function	test_format_function_with_type_predicate_this	fn test_format_function_with_type_predicate_this() {
+language/formatter/src/tests/legacy_format_nodes.rs	173	private	function	test_format_function_with_type_predicate_this_no_target	fn test_format_function_with_type_predicate_this_no_target() {
+language/formatter/src/tests/legacy_format_nodes.rs	183	private	function	test_format_function_with_self_return_type	fn test_format_function_with_self_return_type() {
+language/formatter/src/tests/legacy_format_nodes.rs	217	private	function	test_format_if_with_body	fn test_format_if_with_body() {
+language/formatter/src/tests/legacy_format_nodes.rs	227	private	function	test_format_if_else_breaks_together	fn test_format_if_else_breaks_together() {
+language/formatter/src/tests/legacy_format_nodes.rs	243	private	function	test_format_if_else_if_with_comments	fn test_format_if_else_if_with_comments() {
+language/formatter/src/tests/legacy_format_nodes.rs	265	private	function	test_format_if_empty_blocks_stay_expanded	fn test_format_if_empty_blocks_stay_expanded() {
+language/formatter/src/tests/legacy_format_nodes.rs	275	private	function	test_format_if_let	fn test_format_if_let() {
+language/formatter/src/tests/legacy_format_nodes.rs	298	private	function	test_format_interface_empty	fn test_format_interface_empty() {
+language/formatter/src/tests/legacy_format_nodes.rs	312	private	function	test_format_interface_with_supers	fn test_format_interface_with_supers() {
+language/formatter/src/tests/legacy_format_nodes.rs	326	private	function	test_format_interface_with_body	fn test_format_interface_with_body() {
+language/formatter/src/tests/legacy_format_nodes.rs	340	private	function	test_format_newtype_interface_empty	fn test_format_newtype_interface_empty() {
+language/formatter/src/tests/legacy_format_nodes.rs	354	private	function	test_format_newtype_interface_with_method	fn test_format_newtype_interface_with_method() {
+language/formatter/src/tests/legacy_format_nodes.rs	374	private	function	test_format_let_with_value	fn test_format_let_with_value() {
+language/formatter/src/tests/legacy_format_nodes.rs	380	private	function	test_format_using_with_value	fn test_format_using_with_value() {
+language/formatter/src/tests/legacy_format_nodes.rs	389	private	function	test_format_await_using_with_value	fn test_format_await_using_with_value() {
+language/formatter/src/tests/legacy_format_nodes.rs	402	private	function	test_format_let_breaks_if_too_long	fn test_format_let_breaks_if_too_long() {
+language/formatter/src/tests/legacy_format_nodes.rs	412	private	function	test_format_let_retain_multiline_tuple_literal	fn test_format_let_retain_multiline_tuple_literal() {
+language/formatter/src/tests/legacy_format_nodes.rs	428	private	function	test_format_let_break_multiline_tuple_literal	fn test_format_let_break_multiline_tuple_literal() {
+language/formatter/src/tests/legacy_format_nodes.rs	443	private	function	test_format_let_retain_multiline_array_literal	fn test_format_let_retain_multiline_array_literal() {
+language/formatter/src/tests/legacy_format_nodes.rs	459	private	function	test_format_let_break_multiline_array_literal	fn test_format_let_break_multiline_array_literal() {
+language/formatter/src/tests/legacy_format_nodes.rs	474	private	function	test_format_let_multiline_if_else	fn test_format_let_multiline_if_else() {
+language/formatter/src/tests/legacy_format_nodes.rs	499	private	function	test_format_let_destructuring_pattern_expanded	fn test_format_let_destructuring_pattern_expanded() {
+language/formatter/src/tests/legacy_format_nodes.rs	513	private	function	test_format_let_ignored_binding_field_is_idempotent	fn test_format_let_ignored_binding_field_is_idempotent() {
+language/formatter/src/tests/legacy_format_nodes.rs	540	private	function	test_format_let_multiline_chain_rhs_is_idempotent	fn test_format_let_multiline_chain_rhs_is_idempotent() {
+language/formatter/src/tests/legacy_format_nodes.rs	570	private	function	test_format_try_expression	fn test_format_try_expression() {
+language/formatter/src/tests/legacy_format_nodes.rs	580	private	function	test_format_try_block	fn test_format_try_block() {
+language/formatter/src/tests/legacy_format_nodes.rs	590	private	function	test_format_try_expression_with_catch_match	fn test_format_try_expression_with_catch_match() {
+language/formatter/src/tests/legacy_format_nodes.rs	609	private	function	test_format_try_expression_with_catch_pattern_and_finally	fn test_format_try_expression_with_catch_pattern_and_finally() {
+language/formatter/src/format/context/metric.rs	6	pub	method	timing_scope	pub fn timing_scope(&self, tag: FormatterTimingTag) -> FormatterTimingScope {
+language/formatter/src/format/context/metric.rs	12	pub	method	timing_snapshot	pub fn timing_snapshot(&self) -> Option<Vec<FormatterTimingEntry>> {
+language/formatter/src/format/context/metric.rs	18	pub	method	cache_stats_snapshot	pub fn cache_stats_snapshot(&self) -> FormatterCacheStatsSnapshot {
+language/formatter/src/format/context/metric.rs	33	pub	method	increment_counter	pub fn increment_counter(&self, name: &'static str, delta: usize) {
+language/formatter/src/format/context/metric.rs	42	pub	method	record_best_fitting	pub fn record_best_fitting(&self, label: &'static str, variants: usize) {
+language/formatter/src/format/context/metric.rs	50	pub	method	counter_snapshot	pub fn counter_snapshot(&self) -> Vec<FormatterCounterEntry> {
+language/formatter/src/format/tree.rs	6	pub	function	has_multiline_jsx_argument	pub(crate) fn has_multiline_jsx_argument(
+language/formatter/src/format/tree.rs	85	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/tree.rs	182	pub	function	tree_attribute_value_id	pub(crate) fn tree_attribute_value_id(
+language/formatter/src/format/tree.rs	195	private	function	argument_transparent_value_id	fn argument_transparent_value_id(
+language/formatter/src/format/tree.rs	204	private	function	expression_function_declaration_id	fn expression_function_declaration_id(
+language/formatter/src/format/tree.rs	220	private	function	declaration_is_lambda	fn declaration_is_lambda(tree: &NodeTree, declaration_id: LocalNodeId<Declaration>) -> bool {
+language/formatter/src/format/tree.rs	228	private	function	lambda_body_expression_id	fn lambda_body_expression_id(
+language/formatter/src/format/tree.rs	248	private	function	argument_lambda_declaration_id	fn argument_lambda_declaration_id(
+language/formatter/src/format/tree.rs	258	private	function	expression_postfix_receiver_id	fn expression_postfix_receiver_id(expression: &Expression) -> Option<LocalNodeId<Expression>> {
+language/formatter/src/format/tree.rs	272	pub	function	property_has_complex_value	pub(crate) fn property_has_complex_value(
+language/formatter/src/format/tree.rs	317	pub	function	property_has_complex_type_value	pub(crate) fn property_has_complex_type_value(
+language/formatter/src/format/tree.rs	345	pub	function	should_force_break_tree_attributes	pub(crate) fn should_force_break_tree_attributes(
+language/formatter/src/format/tree.rs	446	pub	function	is_huggable_expression	pub(crate) fn is_huggable_expression(
+language/formatter/src/format/tree.rs	480	private	function	collect_hugged_arrow_layout_signals	fn collect_hugged_arrow_layout_signals(
+language/formatter/src/format/tree.rs	1036	pub	function	tree_text_span_str	pub(crate) fn tree_text_span_str(
+language/formatter/src/format/tree.rs	1055	pub	function	tree_text_is_whitespace_only	pub(crate) fn tree_text_is_whitespace_only(
+language/formatter/src/format/tree.rs	1097	pub	function	tree_text_boundary_separator_space	pub(crate) fn tree_text_boundary_separator_space(
+language/formatter/src/format/tree.rs	1147	pub	function	tree_children_have_blank_line_between	pub(crate) fn tree_children_have_blank_line_between(
+language/formatter/src/format/tree.rs	1167	pub	function	tree_child_should_inline_braced_expression	pub(crate) fn tree_child_should_inline_braced_expression(
+language/formatter/src/format/tree.rs	1248	private	function	expression_has_line_comment_annotation	fn expression_has_line_comment_annotation(
+language/formatter/src/format/tree.rs	1277	private	function	argument_has_line_comment_annotation	fn argument_has_line_comment_annotation(
+language/formatter/src/format/tree.rs	1306	pub	function	tree_child_breaks_element	pub(crate) fn tree_child_breaks_element(
+language/formatter/src/format/tree.rs	1349	pub	function	lambda_body_is_complex_for_tree	pub(crate) fn lambda_body_is_complex_for_tree(
+language/formatter/src/format/tree.rs	1364	pub	function	argument_is_complex_callback	pub(crate) fn argument_is_complex_callback(
+language/formatter/src/format/tree.rs	1376	pub	function	argument_is_block_callback	pub(crate) fn argument_is_block_callback(
+language/formatter/src/format/tree.rs	1389	pub	function	argument_is_object_literal	pub(crate) fn argument_is_object_literal(
+language/formatter/src/format/tree.rs	1402	pub	function	argument_is_array_literal	pub(crate) fn argument_is_array_literal(
+language/formatter/src/format/tree.rs	1415	pub	function	argument_is_template_literal	pub(crate) fn argument_is_template_literal(
+language/formatter/src/format/tree.rs	1428	pub	function	argument_is_lambda_expression	pub(crate) fn argument_is_lambda_expression(
+language/formatter/src/format/tree.rs	1436	pub	function	argument_is_function_expression	pub(crate) fn argument_is_function_expression(
+language/formatter/src/format/tree.rs	1451	pub	function	expression_has_complex_callback	pub(crate) fn expression_has_complex_callback(
+language/formatter/src/format/tree.rs	1504	pub	function	tree_literal_should_break	pub(crate) fn tree_literal_should_break(
+language/formatter/src/format/tree.rs	1545	pub	function	tree_literal_wraps_on_break	pub(crate) fn tree_literal_wraps_on_break(
+language/formatter/src/format/declaration/imports.rs	9	pub	function	import_expression	pub fn import_expression(expr_id: LocalNodeId<Expression>, tree: &NodeTree) -> Option<&Expression> {
+language/formatter/src/format/declaration/imports.rs	43	pub	function	is_import	pub fn is_import(expr_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
+language/formatter/src/format/declaration/imports.rs	50	pub	function	sort_imports	pub fn sort_imports(
+language/formatter/src/format/declaration/imports.rs	83	pub	function	sort_dependency_items	pub fn sort_dependency_items(
+language/formatter/src/format/declaration/imports.rs	97	pub	function	should_insert_blank_between	pub fn should_insert_blank_between(
+language/formatter/src/format/context/annotation.rs	6	pub	method	annotation	pub fn annotation(&self, annotation_id: LocalNodeId<Annotation>) -> Annotation {
+language/formatter/src/format/context/annotation.rs	12	pub	method	annotation_span	pub fn annotation_span(&self, annotation_id: LocalNodeId<Annotation>) -> Span {
+language/formatter/src/format/context/annotation.rs	213	pub	function	ensure_argument_annotation_facts	pub fn ensure_argument_annotation_facts(
+language/formatter/src/format/context/annotation.rs	237	pub	function	lookup_argument_compact_simple_unannotated	pub fn lookup_argument_compact_simple_unannotated(
+language/formatter/src/format/context/annotation.rs	249	pub	function	store_argument_compact_simple_unannotated	pub fn store_argument_compact_simple_unannotated(
+language/formatter/src/format/context/annotation.rs	263	pub	function	lookup_argument_plain_call_argument	pub fn lookup_argument_plain_call_argument(
+language/formatter/src/format/context/annotation.rs	275	pub	function	store_argument_plain_call_argument	pub fn store_argument_plain_call_argument(
+language/formatter/src/format/context/annotation.rs	289	pub	function	lookup_call_argument_layout_facts	pub fn lookup_call_argument_layout_facts(
+language/formatter/src/format/context/annotation.rs	301	pub	function	store_call_argument_layout_facts	pub fn store_call_argument_layout_facts(
+language/formatter/src/format/context/annotation.rs	315	pub	function	lookup_call_argument_boundary_comments	pub fn lookup_call_argument_boundary_comments(
+language/formatter/src/format/context/annotation.rs	327	pub	function	store_call_argument_boundary_comments	pub fn store_call_argument_boundary_comments(
+language/formatter/src/format/context/annotation.rs	341	pub	function	lookup_call_argument_chain_force_expand	pub fn lookup_call_argument_chain_force_expand(
+language/formatter/src/format/context/annotation.rs	353	pub	function	store_call_argument_chain_force_expand	pub fn store_call_argument_chain_force_expand(
+language/formatter/src/format/context/annotation.rs	367	pub	function	lookup_call_argument_expansion_facts	pub fn lookup_call_argument_expansion_facts(
+language/formatter/src/format/context/annotation.rs	379	pub	function	store_call_argument_expansion_facts	pub fn store_call_argument_expansion_facts(
+language/formatter/src/format/context/annotation.rs	393	pub	function	lookup_call_inline_len_without_static_arguments	pub fn lookup_call_inline_len_without_static_arguments(
+language/formatter/src/format/context/annotation.rs	405	pub	function	store_call_inline_len_without_static_arguments	pub fn store_call_inline_len_without_static_arguments(
+language/formatter/src/format/context/annotation.rs	418	private	function	compute_argument_annotation_facts	fn compute_argument_annotation_facts(
+language/formatter/src/format/declaration/where.rs	49	private	function	format_node	fn format_node(
+language/formatter/src/format/context/node.rs	9	private	function	format_node	fn format_node(
+language/formatter/src/format/context/node.rs	24	private	method	format	fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+language/formatter/src/format/context/node.rs	35	private	method	format	fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+language/formatter/src/format/chain/break.rs	5	private	function	annotation_next_token_is_on_same_line	fn annotation_next_token_is_on_same_line(
+language/formatter/src/format/chain/break.rs	28	private	function	chain_annotation_is_inline_non_breaking	fn chain_annotation_is_inline_non_breaking(
+language/formatter/src/format/chain/break.rs	65	private	function	chain_annotation_is_internal_call_argument_infix	fn chain_annotation_is_internal_call_argument_infix(
+language/formatter/src/format/chain/break.rs	81	pub	function	split_chain_head_operations	pub(crate) fn split_chain_head_operations(
+language/formatter/src/format/chain/break.rs	333	pub	function	summarize_chain_calls	pub(crate) fn summarize_chain_calls(
+language/formatter/src/format/chain/break.rs	369	pub	function	analyze_chain_break	pub(crate) fn analyze_chain_break(
+language/formatter/src/format/chain/break.rs	501	pub	function	chain_node_has_breaking_annotation	pub(crate) fn chain_node_has_breaking_annotation(
+language/formatter/src/format/chain/break.rs	535	pub	function	chain_node_has_non_inline_annotation	pub(crate) fn chain_node_has_non_inline_annotation(
+language/formatter/src/format/chain/break.rs	574	pub	function	chain_line_starts_with_block_prefix_annotation	pub(crate) fn chain_line_starts_with_block_prefix_annotation(
+language/formatter/src/format/chain/break.rs	603	pub	function	chain_overflows_in_type_binary_left	pub(crate) fn chain_overflows_in_type_binary_left(
+language/formatter/src/format/chain/break.rs	668	pub	function	expression_is_in_template_literal_interpolation	pub(crate) fn expression_is_in_template_literal_interpolation(
+language/formatter/src/format/chain/break.rs	676	pub	function	should_break_chain	pub(crate) fn should_break_chain(
+language/formatter/src/format/chain/break.rs	684	pub	function	chain_has_intervening_break_or_comment	pub(crate) fn chain_has_intervening_break_or_comment(
+language/formatter/src/format/chain/break.rs	704	private	function	chain_has_intervening_comment	fn chain_has_intervening_comment(
+language/formatter/src/format/chain/break.rs	724	private	function	chain_has_parent_intervening_comment	fn chain_has_parent_intervening_comment(
+language/formatter/src/format/chain/break.rs	781	pub	function	chain_has_nonhead_nonlambda_function_call_argument	pub(crate) fn chain_has_nonhead_nonlambda_function_call_argument(
+language/formatter/src/format/chain/break.rs	811	pub	function	should_split_chain_root_path_segments	pub(crate) fn should_split_chain_root_path_segments(
+language/formatter/src/format/chain/break.rs	860	pub	function	path_chain_has_optional_or_must_tail	pub(crate) fn path_chain_has_optional_or_must_tail(
+language/formatter/src/format/chain/break.rs	910	pub	function	is_factory_like_path_head	pub(crate) fn is_factory_like_path_head(name: &str) -> bool {
+language/formatter/src/format/chain/break.rs	920	pub	function	expression_is_in_conditional_branch	pub(crate) fn expression_is_in_conditional_branch(
+language/formatter/src/format/chain/break.rs	939	pub	function	is_assignment_chain_tail_lambda	pub(crate) fn is_assignment_chain_tail_lambda(
+language/formatter/src/format/declaration/statement.rs	24	private	function	is_directive_expression	fn is_directive_expression(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+language/formatter/src/format/declaration/statement.rs	40	private	method	format	fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+language/formatter/src/format/declaration/statement.rs	67	pub	function	statement_list	pub fn statement_list(expressions: &[LocalNodeId<Expression>]) -> StatementList<'_> {
+language/formatter/src/format/declaration/statement.rs	72	private	function	statement_list_is_file_root	fn statement_list_is_file_root(
+language/formatter/src/format/declaration/statement.rs	93	private	method	format	fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+language/formatter/src/format/declaration/statement.rs	128	private	function	expressions_have_blank_line_between	fn expressions_have_blank_line_between(
+language/formatter/src/format/declaration/statement.rs	149	private	function	source_has_blank_line_between_offsets	fn source_has_blank_line_between_offsets(
+language/formatter/src/format/declaration/statement.rs	169	private	function	source_has_blank_line_in_trivia	fn source_has_blank_line_in_trivia(source: &str) -> bool {
+language/formatter/src/format/declaration/statement.rs	196	private	function	expression_prefix_start	fn expression_prefix_start(
+language/formatter/src/format/declaration/statement.rs	225	private	function	expression_has_effective_prefix_annotation	fn expression_has_effective_prefix_annotation(
+language/formatter/src/format/declaration/statement.rs	243	private	function	expression_has_effective_blank_prefix_annotation	fn expression_has_effective_blank_prefix_annotation(
+language/formatter/src/format/declaration/statement.rs	263	private	function	expression_has_effective_postfix_annotation	fn expression_has_effective_postfix_annotation(
+language/formatter/src/format/declaration/statement.rs	689	private	function	format_node	fn format_node(
+language/formatter/src/format/declaration/statement.rs	726	private	function	test_format_block_insert_semicolon	fn test_format_block_insert_semicolon() {
+language/formatter/src/format/declaration/statement.rs	791	private	function	test_block_insert_semicolon_annotation_contract_after_loop	fn test_block_insert_semicolon_annotation_contract_after_loop() {
+language/formatter/src/format/declaration/statement.rs	940	private	function	test_format_block_loop_blank_line_before_let	fn test_format_block_loop_blank_line_before_let() {
+language/formatter/src/format/declaration/statement.rs	963	private	function	test_block_loop_blank_line_annotation_contract_minimal	fn test_block_loop_blank_line_annotation_contract_minimal() {
+language/formatter/src/format/declaration/statement.rs	1031	private	function	test_format_empty_block_with_comment	fn test_format_empty_block_with_comment() {
+language/formatter/src/format/declaration/statement.rs	1044	private	function	test_format_mixed_block_with_prefix_postfix_comment	fn test_format_mixed_block_with_prefix_postfix_comment() {
+language/formatter/src/format/declaration/statement.rs	1059	private	function	test_format_mixed_block_with_postfix_comment	fn test_format_mixed_block_with_postfix_comment() {
+language/formatter/src/format/declaration/statement.rs	1074	private	function	test_format_mixed_block_with_postfix_annotations_mixed	fn test_format_mixed_block_with_postfix_annotations_mixed() {
+language/formatter/src/format/declaration/statement.rs	1090	private	function	test_format_block_inline	fn test_format_block_inline() {
+language/formatter/src/format/declaration/statement.rs	1101	private	function	test_format_block_statement_like	fn test_format_block_statement_like() {
+language/formatter/src/format/declaration/statement.rs	1112	private	function	test_format_block_statement_retain_newline	fn test_format_block_statement_retain_newline() {
+language/formatter/src/format/declaration/statement.rs	1124	private	function	test_format_block_declaration_after_expression_no_forced_blank_line	fn test_format_block_declaration_after_expression_no_forced_blank_line() {
+language/formatter/src/format/declaration/statement.rs	1135	private	function	test_format_block_import_sorting	fn test_format_block_import_sorting() {
+language/formatter/src/format/declaration/statement.rs	1160	private	function	test_format_block_import_sorting_preserves_side_effect_order	fn test_format_block_import_sorting_preserves_side_effect_order() {
+language/formatter/src/format/declaration/statement.rs	1188	private	function	test_format_block_import_sorting_inserts_group_blank_lines	fn test_format_block_import_sorting_inserts_group_blank_lines() {
+language/formatter/src/format/declaration/statement.rs	1217	private	function	test_statement_list_directive_comment_adjacency_keeps_single_blank_line	fn test_statement_list_directive_comment_adjacency_keeps_single_blank_line() {
+language/formatter/src/format/comments/projection.rs	11	pub	function	build_formatter_annotation_projection	pub(crate) fn build_formatter_annotation_projection(
+language/formatter/src/format/comments/index.rs	28	private	function	is_attachable_semantic_token_for_trivia	fn is_attachable_semantic_token_for_trivia(token_type: TokenType) -> bool {
+language/formatter/src/format/comments/index.rs	33	private	function	build_formatter_token_neighbor_index	fn build_formatter_token_neighbor_index(
+language/formatter/src/format/comments/index.rs	64	private	function	update_best_formatter_owner_slot	fn update_best_formatter_owner_slot(
+language/formatter/src/format/comments/index.rs	89	private	function	build_formatter_owner_start_end_by_token	fn build_formatter_owner_start_end_by_token(
+language/formatter/src/format/comments/index.rs	160	private	function	build_formatter_nearest_owner_start_by_token	fn build_formatter_nearest_owner_start_by_token(
+language/formatter/src/format/comments/index.rs	185	private	function	build_formatter_nearest_owner_end_by_token	fn build_formatter_nearest_owner_end_by_token(
+language/formatter/src/format/comments/index.rs	210	pub	function	build_formatter_trivia_owner_index	pub(super) fn build_formatter_trivia_owner_index(
+language/formatter/src/format/comments/index.rs	238	pub	function	encode_trivia_seam	pub(super) fn encode_trivia_seam(token_before: u32, token_after: u32) -> u64 {
+language/formatter/src/format/comments/index.rs	243	pub	function	build_formatter_trivia_seam_index	pub(super) fn build_formatter_trivia_seam_index(tree: &NodeTree) -> FormatterTriviaSeamIndex {
+language/formatter/src/format/comments/index.rs	260	pub	function	decode_token_index	pub(super) fn decode_token_index(token_index: u32) -> Option<usize> {
+language/formatter/src/format/declaration/dispatch.rs	90	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/declaration/dispatch.rs	100	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/declaration/dispatch.rs	110	private	function	format_node	fn format_node(
+language/formatter/src/format/context/options.rs	54	pub	function	default_with_line_width	pub fn default_with_line_width(line_width: u16) -> Self {
+language/formatter/src/format/context/options.rs	62	pub	function	default_tab	pub fn default_tab() -> Self {
+language/formatter/src/format/context/options.rs	70	pub	function	default_tab_with_line_width	pub fn default_tab_with_line_width(line_width: u16) -> Self {
+language/formatter/src/format/context/options.rs	79	pub	method	with_line_ending	pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
+language/formatter/src/format/context/options.rs	85	pub	method	with_indent_style	pub fn with_indent_style(mut self, indent_style: IndentStyle) -> Self {
+language/formatter/src/format/context/options.rs	91	pub	method	with_indent_width	pub fn with_indent_width(mut self, indent_width: u8) -> Self {
+language/formatter/src/format/context/options.rs	97	pub	method	with_line_width	pub fn with_line_width(mut self, line_width: u16) -> Self {
+language/formatter/src/format/context/options.rs	103	pub	method	with_respect_file_ignore	pub fn with_respect_file_ignore(mut self, respect_file_ignore: bool) -> Self {
+language/formatter/src/format/context/options.rs	109	pub	method	as_print_options	pub fn as_print_options(&self) -> PrintOptions {
+language/formatter/src/format/context/options.rs	119	pub	function	from_formatter_options	pub fn from_formatter_options(options: FormatterOptions, language_type: LanguageType) -> Self {
+language/formatter/src/format/context/options.rs	141	private	function	from	fn from(options: FormatterOptions) -> Self {
+language/formatter/src/format/context/options.rs	148	private	method	indent_style	fn indent_style(&self) -> IndentStyle {
+language/formatter/src/format/context/options.rs	153	private	method	indent_width	fn indent_width(&self) -> u8 {
+language/formatter/src/format/context/options.rs	158	private	method	line_width	fn line_width(&self) -> u8 {
+language/formatter/src/format/context/options.rs	163	private	method	as_print_options	fn as_print_options(&self) -> PrintOptions {
+language/formatter/src/format/comments/token.rs	7	pub	function	is_open_delimiter_token	pub(super) fn is_open_delimiter_token(token_type: TokenType) -> bool {
+language/formatter/src/format/comments/token.rs	16	pub	function	is_close_delimiter_token	pub(super) fn is_close_delimiter_token(token_type: TokenType) -> bool {
+language/formatter/src/format/comments/token.rs	25	pub	function	delimiters_match	pub(super) fn delimiters_match(open: TokenType, close: TokenType) -> bool {
+language/formatter/src/format/comments/token.rs	36	pub	function	token_after_prefers_left_ownership	pub(super) fn token_after_prefers_left_ownership(token_type: TokenType) -> bool {
+language/formatter/src/format/comments/token.rs	80	pub	function	previous_non_newline_token_index	pub(super) fn previous_non_newline_token_index(
+language/formatter/src/format/comments/token.rs	100	pub	function	token_is_control_head_close_paren	pub(super) fn token_is_control_head_close_paren(
+language/formatter/src/format/comments/comment/rule.rs	11	pub	function	normalize_owner_with_shared_end	pub(super) fn normalize_owner_with_shared_end(
+language/formatter/src/format/comments/comment/rule.rs	24	pub	function	promote_rhs_expression_owner	pub(super) fn promote_rhs_expression_owner(
+language/formatter/src/format/comments/seam.rs	36	private	function	classify_comment_seam_keyword	fn classify_comment_seam_keyword(file: &File, token: Option<TokenSpan>) -> CommentSeamKeyword {
+language/formatter/src/format/comments/seam.rs	114	pub	function	build	pub(super) fn build(context: &CommentSeamContext<'_>) -> Self {
+language/formatter/src/format/comments/seam.rs	169	pub	method	token_before_is	pub(super) fn token_before_is(self, token_type: TokenType) -> bool {
+language/formatter/src/format/comments/seam.rs	175	pub	method	token_after_is	pub(super) fn token_after_is(self, token_type: TokenType) -> bool {
+language/formatter/src/format/comments/seam.rs	181	pub	method	token_before_is_keyword	pub(super) fn token_before_is_keyword(self, keyword: CommentSeamKeyword) -> bool {
+language/formatter/src/format/comments/seam.rs	187	pub	method	token_after_is_keyword	pub(super) fn token_after_is_keyword(self, keyword: CommentSeamKeyword) -> bool {
+language/formatter/src/format/comments/seam.rs	193	pub	method	token_after_is_case_or_default	pub(super) fn token_after_is_case_or_default(self) -> bool {
+language/formatter/src/format/comments/seam.rs	209	pub	function	resolve_comment_seam_owner	pub(super) fn resolve_comment_seam_owner(
+language/formatter/src/format/comments/owner.rs	11	pub	function	is_trivia_excluded_owner_node_id	pub(super) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
+language/formatter/src/format/comments/owner.rs	23	pub	function	normalize_formatter_trivia_target_owner	pub(super) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u32 {
+language/formatter/src/format/comments/owner.rs	53	pub	function	find_preferred_owner_starting_at	pub(super) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> Option<u32> {
+language/formatter/src/format/comments/owner.rs	94	pub	function	find_smallest_owner_enclosing_token	pub(super) fn find_smallest_owner_enclosing_token(tree: &NodeTree, span: Span) -> Option<u32> {
+language/formatter/src/format/comments/owner.rs	118	pub	function	find_smallest_owner_enclosing_range	pub(super) fn find_smallest_owner_enclosing_range(
+language/formatter/src/format/comments/owner.rs	150	pub	function	promote_owner_by_shared_end	pub(super) fn promote_owner_by_shared_end(
+language/formatter/src/format/comments/owner.rs	176	pub	function	promote_owner_by_shared_start	pub(super) fn promote_owner_by_shared_start(
+language/formatter/src/format/comments/owner.rs	202	pub	function	resolve_block_leading_comment_target	pub(super) fn resolve_block_leading_comment_target(
+language/formatter/src/format/comments/owner.rs	219	pub	function	promote_owner_to_declaration_ancestor	pub(super) fn promote_owner_to_declaration_ancestor(
+language/formatter/src/format/comments/owner.rs	237	pub	function	promote_owner_to_node_type_ancestor	pub(super) fn promote_owner_to_node_type_ancestor(
+language/formatter/src/format/comments/owner.rs	256	pub	function	promote_owner_to_satisfies_expression_ancestor	pub(super) fn promote_owner_to_satisfies_expression_ancestor(
+language/formatter/src/format/comments/owner.rs	283	pub	function	find_next_declaration_owner_from_token	pub(super) fn find_next_declaration_owner_from_token(
+language/formatter/src/format/comments/owner.rs	311	pub	function	find_next_member_owner_from_token	pub(super) fn find_next_member_owner_from_token(
+language/formatter/src/format/comments/owner.rs	338	pub	function	lowest_common_owner_ancestor	pub(super) fn lowest_common_owner_ancestor(
+language/formatter/src/format/context/source.rs	4	pub	method	has_ignore_directive_markers	pub fn has_ignore_directive_markers(&self) -> bool {
+language/formatter/src/format/context/source.rs	10	pub	method	has_template_literal_markers	pub fn has_template_literal_markers(&self) -> bool {
+language/formatter/src/format/context/source.rs	16	pub	method	mark_file_ignore_applied	pub fn mark_file_ignore_applied(&self) {
+language/formatter/src/format/context/source.rs	22	pub	method	file_ignore_applied	pub fn file_ignore_applied(&self) -> bool {
+language/formatter/src/format/context/source.rs	28	pub	method	span_str	pub fn span_str(&self, span: Span) -> &'a str {
+language/formatter/src/format/context/source.rs	57	pub	method	token_str	pub fn token_str(&self, token: TokenSpan) -> &'a str {
+language/formatter/src/format/context/source.rs	63	pub	method	comment_text	pub fn comment_text(&self, comment_id: LocalNodeId<Comment>) -> Cow<'a, str> {
+language/formatter/src/format/context/source.rs	70	pub	method	comment_tokens	pub fn comment_tokens(&self) -> &[TokenSpan] {
+language/formatter/src/format/context/source.rs	94	pub	method	span_char_len	pub fn span_char_len(&self, span: Span) -> usize {
+language/formatter/src/format/context/source.rs	195	pub	method	parent_by_id	pub fn parent_by_id(&self, node_id: u32) -> Option<(u32, NodeType)> {
+language/formatter/src/format/context/source.rs	244	pub	function	transparent_inner_expression	pub fn transparent_inner_expression(
+language/formatter/src/format/context/source.rs	298	pub	method	lookup_expression_type_context	pub fn lookup_expression_type_context(&self, node_id: LocalNodeId<Expression>) -> Option<bool> {
+language/formatter/src/format/context/source.rs	319	pub	function	store_expression_type_context	pub fn store_expression_type_context(
+language/formatter/src/format/context/source.rs	337	pub	function	expression_is_in_template_literal_interpolation	pub fn expression_is_in_template_literal_interpolation(
+language/formatter/src/format/context/source.rs	401	pub	function	expression_has_type_conditional_ancestor	pub fn expression_has_type_conditional_ancestor(
+language/formatter/src/format/context/source.rs	496	pub	method	span_by_id	pub fn span_by_id(&self, node_id: u32) -> Span {
+language/formatter/src/format/context/source.rs	502	pub	method	has_newline	pub fn has_newline(&self, span: Span) -> bool {
+language/formatter/src/format/context/source.rs	544	pub	method	has_comment	pub fn has_comment(&self, span: Span) -> bool {
+language/formatter/src/format/context/source.rs	587	pub	method	is_at_line_start	pub fn is_at_line_start(&self, node_id: u32) -> bool {
+language/formatter/src/format/comments/comment/assignment.rs	10	pub	function	resolve_comment_assignment_rules	pub(super) fn resolve_comment_assignment_rules(
+language/formatter/src/format/context/cache.rs	63	pub	method	increment	pub fn increment(&self, name: &'static str, delta: usize) {
+language/formatter/src/format/context/cache.rs	70	pub	method	snapshot	pub fn snapshot(&self) -> Vec<FormatterCounterEntry> {
+language/formatter/src/format/context/cache.rs	107	pub	function	from_ids	pub fn from_ids(
+language/formatter/src/format/context/cache.rs	288	pub	function	new	pub(super) fn new(node_count: usize) -> Self {
+language/formatter/src/format/directive.rs	203	private	function	comment_token_is_line_leading	fn comment_token_is_line_leading(context: &DestackFormatContext<'_>, token: TokenSpan) -> bool {
+language/formatter/src/format/directive.rs	216	private	function	extend_span_with_trailing_tokens	fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Span) -> Span {
+language/formatter/src/format/directive.rs	259	private	function	extend_span_with_trailing_statement_terminator	fn extend_span_with_trailing_statement_terminator(
+language/formatter/src/format/directive.rs	309	pub	function	collect_comment_tokens	pub fn collect_comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
+language/formatter/src/format/directive.rs	314	pub	function	has_file_ignore_directive	pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
+language/formatter/src/format/directive.rs	353	pub	function	ignored_span_source	pub fn ignored_span_source(context: &DestackFormatContext<'_>, span: Span) -> String {
+language/formatter/src/format/directive.rs	399	private	function	dedent_common_leading_whitespace	fn dedent_common_leading_whitespace(raw: &str) -> String {
+language/formatter/src/format/directive.rs	477	private	function	find_ignore_range_end	fn find_ignore_range_end(
+language/formatter/src/format/directive.rs	498	private	function	parse_directive_token_from_raw	fn parse_directive_token_from_raw(raw: &str) -> Option<FormatterDirectiveToken> {
+language/formatter/src/format/directive.rs	504	pub	function	is_ignore_directive_comment	pub(crate) fn is_ignore_directive_comment(raw: &str) -> bool {
+language/formatter/src/format/directive.rs	512	pub	function	is_any_ignore_directive_comment	pub(crate) fn is_any_ignore_directive_comment(raw: &str) -> bool {
+language/formatter/src/format/directive.rs	525	private	function	strip_comment_markers	fn strip_comment_markers(raw: &str) -> Cow<'_, str> {
+language/formatter/src/format/directive.rs	538	private	function	parse_directive_token	fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
+language/formatter/src/format/directive.rs	582	private	function	test_format_ignore_range_for_statement	fn test_format_ignore_range_for_statement() {
+language/formatter/src/format/directive.rs	624	private	function	test_ignore_range_for_call_arguments_uses_comment_column_start	fn test_ignore_range_for_call_arguments_uses_comment_column_start() {
+language/formatter/src/format/comments/blank.rs	9	pub	function	resolve_formatter_blank_trivia_attachment	pub(super) fn resolve_formatter_blank_trivia_attachment(
+language/formatter/src/format/chain/line_group.rs	5	pub	function	expression_has_line_postfix_boundary_comment	pub(super) fn expression_has_line_postfix_boundary_comment(
+language/formatter/src/format/chain/line_group.rs	25	private	function	chain_call_has_single_template_literal_argument	fn chain_call_has_single_template_literal_argument(
+language/formatter/src/format/chain/line_group.rs	40	pub	function	group_chain_expression_lines	pub(super) fn group_chain_expression_lines(
+language/formatter/src/format/chain/line_group.rs	73	private	function	line_starts_with_mergeable_direct_index	fn line_starts_with_mergeable_direct_index(
+language/formatter/src/format/chain/line_group.rs	90	private	function	merge_direct_index_lines	fn merge_direct_index_lines(
+language/formatter/src/format/chain/line_group.rs	111	private	function	extend_maybe_line	fn extend_maybe_line(
+language/formatter/src/format/chain/line_group.rs	166	private	function	extend_member_line	fn extend_member_line(
+language/formatter/src/format/chain/line_group.rs	241	private	function	extend_call_like_line	fn extend_call_like_line(
+language/formatter/src/format/chain/line_group.rs	266	private	function	extend_must_line	fn extend_must_line(iter: &mut ChainOperationIter, line: &mut SmallVec<[ChainExpression; 2]>) {
+language/formatter/src/format/chain/line_group.rs	284	private	function	should_merge_member_run_with_call	fn should_merge_member_run_with_call(
+language/formatter/src/format/chain/line_group.rs	335	private	function	push_next_chain_operation	fn push_next_chain_operation(
+language/formatter/src/format/collection/render.rs	18	pub	method	should_expand_multiline	pub(crate) fn should_expand_multiline(self) -> bool {
+language/formatter/src/format/collection/render.rs	80	pub	function	collection_value_should_force_break	pub(crate) fn collection_value_should_force_break(
+language/formatter/src/format/comments/comment/expression.rs	15	pub	function	resolve_comment_expression_rules	pub(super) fn resolve_comment_expression_rules(
+language/formatter/src/format/collection/property.rs	131	private	function	method_signature_source_is_multiline	fn method_signature_source_is_multiline(
+language/formatter/src/format/collection/property.rs	539	private	function	format_node	fn format_node(
+language/formatter/src/format/collection/property.rs	595	private	function	format_node	fn format_node(
+language/formatter/src/format/collection/property.rs	747	private	function	test_format_struct_empty	fn test_format_struct_empty() {
+language/formatter/src/format/collection/property.rs	757	private	function	test_format_struct_with_fields	fn test_format_struct_with_fields() {
+language/formatter/src/format/collection/property.rs	767	private	function	test_format_struct_with_modified_fields	fn test_format_struct_with_modified_fields() {
+language/formatter/src/format/collection/property.rs	777	private	function	test_format_struct_with_name	fn test_format_struct_with_name() {
+language/formatter/src/format/collection/property.rs	787	private	function	test_format_struct_with_fields_and_defaults	fn test_format_struct_with_fields_and_defaults() {
+language/formatter/src/format/collection/property.rs	797	private	function	test_format_class_with_abstract_override_field	fn test_format_class_with_abstract_override_field() {
+language/formatter/src/format/collection/property.rs	810	private	function	test_format_struct_with_static_parameters_and_inheritance	fn test_format_struct_with_static_parameters_and_inheritance() {
+language/formatter/src/format/collection/list.rs	26	pub	method	should_add_trailing_comma	pub(crate) fn should_add_trailing_comma(&self, option: TrailingComma) -> bool {
+language/formatter/src/format/collection/list.rs	62	pub	method	force_expand	pub(crate) fn force_expand(&mut self) -> &mut Self {
+language/formatter/src/format/collection/list.rs	67	pub	method	should_expand	pub(crate) fn should_expand(&mut self, should_expand: bool) -> &mut Self {
+language/formatter/src/format/collection/list.rs	72	pub	method	include_space	pub(crate) fn include_space(&mut self) -> &mut Self {
+language/formatter/src/format/collection/list.rs	77	pub	method	force_trailing_separator	pub(crate) fn force_trailing_separator(&mut self) -> &mut Self {
+language/formatter/src/format/collection/list.rs	82	pub	method	disallow_trailing_separator	pub(crate) fn disallow_trailing_separator(&mut self) -> &mut Self {
+language/formatter/src/format/collection/list.rs	88	pub	method	as_collection	pub(crate) fn as_collection(&mut self) -> &mut Self {
+language/formatter/src/format/collection/list.rs	93	pub	method	with_group_id	pub(crate) fn with_group_id(&mut self, group_id: Option<GroupId>) -> &mut Self {
+language/formatter/src/format/collection/list.rs	105	private	method	format	fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+language/formatter/src/format/collection/list.rs	391	pub	function	raw_ends_with_separator	pub(crate) fn raw_ends_with_separator(raw: &str, separator: &str) -> bool {
+language/formatter/src/format/collection/list.rs	397	pub	function	strip_trailing_comments	pub(crate) fn strip_trailing_comments(raw: &str) -> &str {
+language/formatter/src/format/collection/literal.rs	205	private	function	template_argument_expression_id	fn template_argument_expression_id(
+language/formatter/src/format/collection/literal.rs	219	private	function	template_argument_should_force_inline	fn template_argument_should_force_inline(
+language/formatter/src/format/collection/literal.rs	282	private	function	template_argument_should_expand	fn template_argument_should_expand(
+language/formatter/src/format/collection/literal.rs	355	private	function	template_expression_is_complex	fn template_expression_is_complex(
+language/formatter/src/format/collection/literal.rs	415	private	function	unwrap_template_expression	fn unwrap_template_expression(
+language/formatter/src/format/collection/literal.rs	453	private	function	normalize_jsx_text	fn normalize_jsx_text(text: &str) -> String {
+language/formatter/src/format/collection/literal.rs	477	private	function	jsx_boundary_spaces	fn jsx_boundary_spaces(text: &str) -> (bool, bool) {
+language/formatter/src/format/collection/literal.rs	500	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/collection/literal.rs	527	private	method	format	fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+language/formatter/src/format/collection/literal.rs	558	private	method	format	fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+language/formatter/src/format/collection/literal.rs	570	private	function	normalize_int	fn normalize_int(input: &str, _is_bigint: bool) -> Cow<'_, str> {
+language/formatter/src/format/collection/literal.rs	615	private	function	normalize_float	fn normalize_float(input: &str) -> Cow<'_, str> {
+language/formatter/src/format/collection/literal.rs	689	private	function	test_format_string_literal_multi_char	fn test_format_string_literal_multi_char() {
+language/formatter/src/format/collection/literal.rs	696	private	function	test_format_string_literal_single_char	fn test_format_string_literal_single_char() {
+language/formatter/src/format/collection/literal.rs	702	private	function	test_format_string_literal_empty	fn test_format_string_literal_empty() {
+language/formatter/src/format/collection/literal.rs	708	private	function	test_format_template_literal_plain	fn test_format_template_literal_plain() {
+language/formatter/src/format/collection/literal.rs	715	private	function	test_format_template_literal_one_interpolation	fn test_format_template_literal_one_interpolation() {
+language/formatter/src/format/collection/literal.rs	722	private	function	test_format_template_literal_all_interpolation	fn test_format_template_literal_all_interpolation() {
+language/formatter/src/format/collection/literal.rs	729	private	function	test_format_template_literal_adjacent_interpolations	fn test_format_template_literal_adjacent_interpolations() {
+language/formatter/src/format/collection/literal.rs	736	private	function	test_format_template_literal_complex_sql	fn test_format_template_literal_complex_sql() {
+language/formatter/src/format/collection/literal.rs	743	private	function	test_format_long_string_not_broken	fn test_format_long_string_not_broken() {
+language/formatter/src/format/collection/literal.rs	756	private	function	test_format_long_template_literal_not_broken	fn test_format_long_template_literal_not_broken() {
+language/formatter/src/format/chain/format.rs	9	private	function	call_operation_should_emit_prefix_annotations	fn call_operation_should_emit_prefix_annotations(
+language/formatter/src/format/chain/format.rs	323	pub	function	should_parenthesize_index_expression	pub(crate) fn should_parenthesize_index_expression(
+language/formatter/src/format/chain/base.rs	20	pub	function	extract_parenthesized_index_chain	pub(crate) fn extract_parenthesized_index_chain(
+language/formatter/src/format/chain/base.rs	132	pub	function	chain_node_left_id	pub(crate) fn chain_node_left_id(
+language/formatter/src/format/chain/base.rs	149	pub	function	collect_chain_nodes	pub(crate) fn collect_chain_nodes(
+language/formatter/src/format/chain/base.rs	170	pub	function	chain_expression_from_node	pub(crate) fn chain_expression_from_node(
+language/formatter/src/format/chain/base.rs	240	pub	function	is_expression_chain	pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
+language/formatter/src/format/chain/base.rs	245	pub	function	is_chain_root	pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
+language/formatter/src/format/chain/base.rs	250	pub	function	has_chain_parent	pub(crate) fn has_chain_parent(
+language/formatter/src/format/chain/base.rs	275	pub	function	assignment_like_parent	pub(crate) fn assignment_like_parent(
+language/formatter/src/format/chain/base.rs	325	pub	function	transparent_inner_expression	pub(crate) fn transparent_inner_expression(
+language/formatter/src/format/chain/base.rs	333	pub	function	assign_operator_len	pub(crate) fn assign_operator_len(operator: &AssignOperator) -> usize {
+language/formatter/src/format/chain/base.rs	364	pub	function	binary_operator_len	pub(crate) fn binary_operator_len(operator: &BinaryOperator) -> usize {
+language/formatter/src/format/chain/base.rs	403	pub	function	should_use_trailing_coalesce	pub(crate) fn should_use_trailing_coalesce(
+language/formatter/src/format/chain/base.rs	445	pub	function	assignment_like_remaining_width	pub(crate) fn assignment_like_remaining_width(
+language/formatter/src/format/chain/base.rs	495	pub	function	expression_prefix_annotation_source_len	pub(crate) fn expression_prefix_annotation_source_len(
+language/formatter/src/format/chain/base.rs	521	pub	function	declarator_leading_prefix_len	pub(crate) fn declarator_leading_prefix_len(
+language/formatter/src/format/chain/base.rs	591	pub	function	has_newline_between_expressions	pub(crate) fn has_newline_between_expressions(
+language/formatter/src/format/chain/base.rs	606	pub	function	has_comment_between_expressions	pub(crate) fn has_comment_between_expressions(
+language/formatter/src/format/chain/base.rs	624	pub	function	line_comment_between_expressions	pub(crate) fn line_comment_between_expressions(
+language/formatter/src/format/chain/base.rs	648	pub	function	expression_source_len	pub(crate) fn expression_source_len(
+language/formatter/src/format/chain/base.rs	656	pub	function	should_expand_static_argument_list	pub(crate) fn should_expand_static_argument_list(
+language/formatter/src/format/chain/base.rs	693	pub	function	should_hug_static_argument_list	pub(crate) fn should_hug_static_argument_list(
+language/formatter/src/format/chain/base.rs	728	pub	function	should_force_multiline_mapped_type	pub(crate) fn should_force_multiline_mapped_type(
+language/formatter/src/format/comments/comment/fallback.rs	12	pub	function	resolve_formatter_comment_trivia_fallback	pub(super) fn resolve_formatter_comment_trivia_fallback(
+language/formatter/src/format/chain/classify.rs	5	pub	function	chain_head_id	pub(crate) fn chain_head_id(
+language/formatter/src/format/chain/classify.rs	25	pub	function	is_simple_chain_head	pub(crate) fn is_simple_chain_head(
+language/formatter/src/format/chain/classify.rs	46	pub	function	is_short_chain_argument	pub(crate) fn is_short_chain_argument(
+language/formatter/src/format/chain/classify.rs	63	private	function	chain_call_has_breakable_dynamic_arguments	fn chain_call_has_breakable_dynamic_arguments(
+language/formatter/src/format/chain/classify.rs	80	pub	function	is_poorly_breakable_chain	pub(crate) fn is_poorly_breakable_chain(
+language/formatter/src/format/chain/classify.rs	162	pub	function	argument_value_id	pub(crate) fn argument_value_id(
+language/formatter/src/format/chain/classify.rs	175	pub	function	is_lambda_expression	pub(crate) fn is_lambda_expression(
+language/formatter/src/format/chain/classify.rs	192	pub	function	is_nested_lambda_expression	pub(crate) fn is_nested_lambda_expression(
+language/formatter/src/format/chain/classify.rs	219	pub	function	lambda_body_forces_multiline	pub(crate) fn lambda_body_forces_multiline(
+language/formatter/src/format/chain/classify.rs	252	pub	function	expression_callback_depth	pub(crate) fn expression_callback_depth(
+language/formatter/src/format/chain/classify.rs	302	pub	function	expression_chain_should_break	pub(crate) fn expression_chain_should_break(
+language/formatter/src/format/chain/classify.rs	331	pub	function	expression_is_in_tree_literal_child	pub(crate) fn expression_is_in_tree_literal_child(
+language/formatter/src/format/chain/classify.rs	371	pub	function	lambda_expression_should_break	pub(crate) fn lambda_expression_should_break(
+language/formatter/src/format/chain/classify.rs	429	pub	function	argument_forces_multiline	pub(crate) fn argument_forces_multiline(
+language/formatter/src/format/chain/classify.rs	449	pub	function	is_block_lambda_argument	pub(crate) fn is_block_lambda_argument(
+language/formatter/src/format/chain/classify.rs	477	pub	function	is_simple_chain_argument	pub(crate) fn is_simple_chain_argument(
+language/formatter/src/format/chain/classify.rs	494	pub	function	arguments_total_len	pub(crate) fn arguments_total_len(
+language/formatter/src/format/chain/classify.rs	518	pub	function	arguments_rendered_len	pub(crate) fn arguments_rendered_len(
+language/formatter/src/format/chain/classify.rs	532	pub	function	is_numeric_scalar_literal	pub(crate) fn is_numeric_scalar_literal(expression: &Expression) -> bool {
+language/formatter/src/format/chain/classify.rs	542	pub	function	is_numeric_index_expression	pub(crate) fn is_numeric_index_expression(
+language/formatter/src/format/chain/classify.rs	556	pub	function	is_numeric_index	pub(crate) fn is_numeric_index(
+language/formatter/src/format/chain/classify.rs	567	pub	function	is_simple_chain_static_arguments	pub(crate) fn is_simple_chain_static_arguments(
+language/formatter/src/format/chain/classify.rs	584	pub	function	is_simple_chain_static_argument_list	pub(crate) fn is_simple_chain_static_argument_list(
+language/formatter/src/format/chain/classify.rs	596	pub	function	is_simple_chain_call	pub(crate) fn is_simple_chain_call(
+language/formatter/src/format/chain/classify.rs	623	pub	function	is_simple_chain_operation	pub(crate) fn is_simple_chain_operation(
+language/formatter/src/format/chain/classify.rs	668	private	function	chain_member_has_promotable_boundary_comment	fn chain_member_has_promotable_boundary_comment(
+language/formatter/src/format/chain/classify.rs	698	private	function	member_receiver_property_gap_span	fn member_receiver_property_gap_span(
+language/formatter/src/format/chain/classify.rs	724	private	function	path_has_newline_before_first_separator	fn path_has_newline_before_first_separator(
+language/formatter/src/format/chain/classify.rs	745	pub	function	member_has_intervening_comment	pub(crate) fn member_has_intervening_comment(
+language/formatter/src/format/chain/classify.rs	754	pub	function	member_has_intervening_break_or_comment	pub(crate) fn member_has_intervening_break_or_comment(
+language/formatter/src/format/chain/classify.rs	774	pub	function	expression_trivia_anchor_end	pub(crate) fn expression_trivia_anchor_end(
+language/formatter/src/format/chain/classify.rs	797	pub	function	chain_has_parent_intervening_break_or_comment	pub(crate) fn chain_has_parent_intervening_break_or_comment(
+language/formatter/src/format/chain/normalize.rs	9	private	function	chain_root_has_inline_prefix_comment_or_doc	fn chain_root_has_inline_prefix_comment_or_doc(
+language/formatter/src/format/chain/normalize.rs	53	private	function	resolve_chain_base_root_id	fn resolve_chain_base_root_id(
+language/formatter/src/format/chain/normalize.rs	110	private	function	collect_chain_root_parts	fn collect_chain_root_parts(
+language/formatter/src/format/chain/normalize.rs	173	private	function	append_chain_operations	fn append_chain_operations(
+language/formatter/src/format/chain/normalize.rs	186	private	function	chain_body_has_breaking_member_annotation	fn chain_body_has_breaking_member_annotation(
+language/formatter/src/format/chain/normalize.rs	200	private	function	chain_should_avoid_head_promotion_for_boundary_comment	fn chain_should_avoid_head_promotion_for_boundary_comment(
+language/formatter/src/format/chain/normalize.rs	223	private	function	chain_base_has_leading_call_like	fn chain_base_has_leading_call_like(
+language/formatter/src/format/chain/normalize.rs	242	private	function	chain_head_promotion_remaining_width	fn chain_head_promotion_remaining_width(
+language/formatter/src/format/chain/normalize.rs	256	private	function	chain_should_avoid_head_promotion_for_nonhead_callbacks	fn chain_should_avoid_head_promotion_for_nonhead_callbacks(
+language/formatter/src/format/chain/normalize.rs	266	private	function	promote_chain_head_operations	fn promote_chain_head_operations(
+language/formatter/src/format/chain/normalize.rs	304	private	function	promote_curried_call_tail_line	fn promote_curried_call_tail_line(
+language/formatter/src/format/chain/normalize.rs	348	private	function	promote_argument_member_call_head_line	fn promote_argument_member_call_head_line(
+language/formatter/src/format/chain/normalize.rs	392	private	function	promote_argument_member_call_pair_line	fn promote_argument_member_call_pair_line(
+language/formatter/src/format/chain/normalize.rs	444	private	function	merge_argument_short_member_hop_lines	fn merge_argument_short_member_hop_lines(
+language/formatter/src/format/chain/normalize.rs	477	private	function	promote_leading_direct_index_line	fn promote_leading_direct_index_line(
+language/formatter/src/format/chain/normalize.rs	506	private	function	apply_argument_chain_line_promotions	fn apply_argument_chain_line_promotions(
+language/formatter/src/format/chain/normalize.rs	527	private	function	normalize_chain_layout	fn normalize_chain_layout(
+language/formatter/src/format/chain/normalize.rs	572	pub	function	plan_chain_layout	pub(super) fn plan_chain_layout(
+language/formatter/src/format/annotation/node.rs	11	private	function	format_node	fn format_node(
+language/formatter/src/format/annotation/node.rs	34	private	function	format_node	fn format_node(
+language/formatter/src/format/annotation/node.rs	46	private	function	format_node	fn format_node(
+language/formatter/src/format/annotation/node.rs	104	private	function	format_node	fn format_node(
+language/formatter/src/format/annotation/node.rs	209	private	function	normalize_inline_block_comment_content	fn normalize_inline_block_comment_content(content: &str) -> &str {
+language/formatter/src/format/annotation/node.rs	228	private	function	is_compact_hint_comment	fn is_compact_hint_comment(content: &str) -> bool {
+language/formatter/src/format/annotation/node.rs	236	private	function	is_all_asterisks_comment	fn is_all_asterisks_comment(content: &str) -> bool {
+language/formatter/src/format/annotation/node.rs	241	private	function	format_node	fn format_node(
+language/formatter/src/format/annotation/node.rs	269	private	function	decorator_needs_parentheses	fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+language/formatter/src/format/annotation/node.rs	286	private	function	is_identifier_or_static_member_only	fn is_identifier_or_static_member_only(
+language/formatter/src/format/annotation/node.rs	313	private	function	context_from_formatter	fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
+language/formatter/src/format/annotation/node.rs	329	private	function	find_annotation_by_marker	fn find_annotation_by_marker(
+language/formatter/src/format/annotation/node.rs	346	private	function	test_annotation_single_call_argument_trailing_line_comment_attachment	fn test_annotation_single_call_argument_trailing_line_comment_attachment() {
+language/formatter/src/format/annotation/node.rs	370	private	function	test_type_binary_block_comment_between_operator_and_right_type_renders	fn test_type_binary_block_comment_between_operator_and_right_type_renders() {
+language/formatter/src/format/annotation/node.rs	392	private	function	test_type_binary_block_comment_between_operator_and_right_type_expression_statement	fn test_type_binary_block_comment_between_operator_and_right_type_expression_statement() {
+language/formatter/src/format/annotation/node.rs	426	private	function	test_prefix_cast_comment_keeps_space_before_parenthesized_value	fn test_prefix_cast_comment_keeps_space_before_parenthesized_value() {
+language/formatter/src/format/annotation/node.rs	441	private	function	test_annotation_render_facts_condition_comment_precedes_separator	fn test_annotation_render_facts_condition_comment_precedes_separator() {
+language/formatter/src/format/annotation/node.rs	461	private	function	test_format_block_comment_retain_newlines	fn test_format_block_comment_retain_newlines() {
+language/formatter/src/format/annotation/node.rs	485	private	function	test_format_decorators_on_struct	fn test_format_decorators_on_struct() {
+language/formatter/src/format/annotation/node.rs	505	private	function	test_format_decorator_parentheses_are_stable	fn test_format_decorator_parentheses_are_stable() {
+language/formatter/src/format/annotation/node.rs	520	private	function	test_format_decorator_type_annotation_stays_inline_after_colon	fn test_format_decorator_type_annotation_stays_inline_after_colon() {
+language/formatter/src/format/annotation/node.rs	531	private	function	test_format_multiple_comments_around_expression	fn test_format_multiple_comments_around_expression() {
+language/formatter/src/format/annotation/node.rs	549	private	function	test_format_multiple_comments_around_expression_in_successive_blocks	fn test_format_multiple_comments_around_expression_in_successive_blocks() {
+language/formatter/src/format/annotation/node.rs	580	private	function	test_format_inline_expression_comment	fn test_format_inline_expression_comment() {
+language/formatter/src/format/annotation/node.rs	591	private	function	test_format_multi_line_block_doc_comment_stays_block	fn test_format_multi_line_block_doc_comment_stays_block() {
+language/formatter/src/format/annotation/node.rs	612	private	function	test_format_multi_line_block_comment_stays_block	fn test_format_multi_line_block_comment_stays_block() {
+language/formatter/src/format/annotation/node.rs	630	private	function	test_format_excessive_whitespace_in_line_comment	fn test_format_excessive_whitespace_in_line_comment() {
+language/formatter/src/format/annotation/node.rs	649	private	function	test_format_comment_in_call_arguments	fn test_format_comment_in_call_arguments() {
+language/formatter/src/format/annotation/node.rs	660	private	function	test_format_comment_in_array	fn test_format_comment_in_array() {
+language/formatter/src/format/annotation/node.rs	671	private	function	test_format_comment_in_object	fn test_format_comment_in_object() {
+language/formatter/src/format/annotation/node.rs	685	private	function	test_format_trailing_comment_array	fn test_format_trailing_comment_array() {
+language/formatter/src/format/annotation/node.rs	708	private	function	test_format_comment_in_function_body	fn test_format_comment_in_function_body() {
+language/formatter/src/format/annotation/node.rs	719	private	function	test_format_empty_doc_comment_on_arrow	fn test_format_empty_doc_comment_on_arrow() {
+language/formatter/src/format/annotation/node.rs	730	private	function	test_format_compact_pure_hint_comment	fn test_format_compact_pure_hint_comment() {
+language/formatter/src/format/annotation/node.rs	741	private	function	test_format_blank_in_array	fn test_format_blank_in_array() {
+language/formatter/src/format/annotation/node.rs	760	private	function	test_format_inline_block_comment_before_arrow_body_call_is_idempotent	fn test_format_inline_block_comment_before_arrow_body_call_is_idempotent() {
+language/formatter/src/format/analysis/timing.rs	16	pub	function	new	pub const fn new(name: &'static str) -> Self {
+language/formatter/src/format/analysis/timing.rs	21	pub	method	name	pub const fn name(self) -> &'static str {
+language/formatter/src/format/analysis/timing.rs	45	pub	method	record	pub fn record(&self, tag: FormatterTimingTag, duration: Duration) {
+language/formatter/src/format/analysis/timing.rs	57	pub	method	snapshot	pub fn snapshot(&self) -> Vec<FormatterTimingEntry> {
+language/formatter/src/format/analysis/timing.rs	80	pub	function	new	pub fn new(timings: Option<&Rc<FormatterTimings>>, tag: FormatterTimingTag) -> Self {
+language/formatter/src/format/analysis/timing.rs	93	private	method	drop	fn drop(&mut self) {
+language/formatter/src/format/analysis/timing.rs	109	pub	function	timings_enabled_from_env	pub fn timings_enabled_from_env() -> bool {
+language/formatter/src/format/analysis/timing.rs	124	pub	function	tag_for_node_type	pub fn tag_for_node_type(node_type: NodeType) -> FormatterTimingTag {
+language/formatter/src/format/collection/key.rs	11	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/collection/key.rs	19	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/collection/key.rs	26	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/collection/key.rs	33	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/collection/key.rs	70	pub	function	is_identifier_for_quotes	pub(crate) fn is_identifier_for_quotes(content: &str) -> bool {
+language/formatter/src/format/collection/key.rs	78	private	function	contains_katakana_middle_dot	fn contains_katakana_middle_dot(content: &str) -> bool {
+language/formatter/src/format/comments/comment/facts.rs	30	pub	function	from_seam_facts	pub(super) fn from_seam_facts(facts: CommentSeamFacts) -> Self {
+language/formatter/src/format/analysis/scan.rs	7	private	function	is_ignored_span_neighbor_token	fn is_ignored_span_neighbor_token(token_type: TokenType) -> bool {
+language/formatter/src/format/analysis/scan.rs	12	pub	function	previous_non_whitespace_token_before_span	pub(crate) fn previous_non_whitespace_token_before_span(
+language/formatter/src/format/analysis/scan.rs	33	pub	function	next_non_whitespace_token_after_span	pub(crate) fn next_non_whitespace_token_after_span(
+language/formatter/src/format/analysis/scan.rs	53	pub	function	previous_non_whitespace_token_before_annotation	pub(crate) fn previous_non_whitespace_token_before_annotation(
+language/formatter/src/format/analysis/scan.rs	62	pub	function	next_non_whitespace_token_after_annotation	pub(crate) fn next_non_whitespace_token_after_annotation(
+language/formatter/src/format/analysis/scan.rs	71	pub	function	previous_non_whitespace_before_span	pub(crate) fn previous_non_whitespace_before_span(
+language/formatter/src/format/analysis/scan.rs	88	pub	function	next_non_whitespace_after_span	pub(crate) fn next_non_whitespace_after_span(
+language/formatter/src/format/analysis/scan.rs	104	pub	function	previous_non_whitespace_before_annotation	pub(crate) fn previous_non_whitespace_before_annotation(
+language/formatter/src/format/analysis/scan.rs	113	pub	function	next_non_whitespace_after_annotation	pub(crate) fn next_non_whitespace_after_annotation(
+language/formatter/src/format/expression/core.rs	11	private	function	expression_format_route	fn expression_format_route(expression: &Expression) -> ExpressionFormatRoute {
+language/formatter/src/format/expression/core.rs	128	private	function	format_node	fn format_node(
+language/formatter/src/format/expression/object.rs	66	pub	function	is_assignment_left_target	pub(super) fn is_assignment_left_target(
+language/formatter/src/format/expression/object.rs	99	private	function	is_multiline_pattern_field_default_object	fn is_multiline_pattern_field_default_object(
+language/formatter/src/format/expression/object.rs	135	private	function	object_has_leading_newline_before_first_property	fn object_has_leading_newline_before_first_property(
+language/formatter/src/format/expression/sort.rs	6	pub	function	format_export_import_equals	pub(super) fn format_export_import_equals(
+language/formatter/src/format/expression/declarator.rs	13	private	function	pattern_has_default_assignment	fn pattern_has_default_assignment(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+language/formatter/src/format/expression/declarator.rs	44	private	function	pattern_field_has_default_assignment	fn pattern_field_has_default_assignment(
+language/formatter/src/format/expression/declarator.rs	119	private	function	choose_declarator_layout	fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout {
+language/formatter/src/format/expression/declarator.rs	293	private	function	declaration_has_generic_heritage	fn declaration_has_generic_heritage(
+language/formatter/src/format/expression/declarator.rs	320	private	function	value_has_generic_class_heritage	fn value_has_generic_class_heritage(
+language/formatter/src/format/expression/declarator.rs	344	private	function	value_is_inline_closure_cast_type_binary	fn value_is_inline_closure_cast_type_binary(
+language/formatter/src/format/expression/declarator.rs	845	private	function	format_node	fn format_node(
+language/formatter/src/format/collection/path.rs	9	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/collection/path.rs	30	private	function	test_format_path_short	fn test_format_path_short() {
+language/formatter/src/format/collection/path.rs	40	private	function	test_format_path_multiple_segments	fn test_format_path_multiple_segments() {
+language/formatter/src/format/collection/path.rs	50	private	function	test_format_path_with_overlong_line	fn test_format_path_with_overlong_line() {
+language/formatter/src/format/comments/comment/resolve.rs	27	pub	function	resolve_formatter_comment_trivia_attachment	pub(in super::super) fn resolve_formatter_comment_trivia_attachment(
+language/formatter/src/format/expression/operator/common.rs	4	pub	function	expression_is_trivial_inline_without_annotations	pub(super) fn expression_is_trivial_inline_without_annotations(
+language/formatter/src/format/expression/member.rs	276	private	function	binary_operator_precedence_group	fn binary_operator_precedence_group(operator: BinaryOperator) -> u8 {
+language/formatter/src/format/expression/member.rs	284	private	function	should_flatten_binary	fn should_flatten_binary(left_operator: BinaryOperator, right_operator: BinaryOperator) -> bool {
+language/formatter/src/format/expression/member.rs	303	pub	function	flatten_binary_expression	pub(crate) fn flatten_binary_expression(
+language/formatter/src/format/expression/member.rs	314	pub	function	flatten_type_binary_expression	pub(crate) fn flatten_type_binary_expression(
+language/formatter/src/format/expression/member.rs	325	pub	function	flattened_binary_operand_count	pub(crate) fn flattened_binary_operand_count(
+language/formatter/src/format/expression/member.rs	334	private	function	flatten_type_binary_recursive	fn flatten_type_binary_recursive(
+language/formatter/src/format/expression/member.rs	369	pub	function	normalize_type_binary_operand_expression	pub(crate) fn normalize_type_binary_operand_expression(
+language/formatter/src/format/expression/member.rs	402	private	function	flatten_binary_recursive	fn flatten_binary_recursive(
+language/formatter/src/format/expression/member.rs	435	private	function	count_flattened_binary_recursive	fn count_flattened_binary_recursive(
+language/formatter/src/format/expression/member.rs	458	pub	function	expression_precedence	pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
+language/formatter/src/format/expression/member.rs	517	pub	function	needs_parens_in_postfix_position	pub(crate) fn needs_parens_in_postfix_position(
+language/formatter/src/format/expression/member.rs	561	private	function	postfix_parent_expression_id	fn postfix_parent_expression_id(
+language/formatter/src/format/expression/member.rs	631	pub	function	is_chain_expression	pub(crate) fn is_chain_expression(expression: &Expression) -> bool {
+language/formatter/src/format/analysis/call/analyze.rs	27	private	function	from	fn from(cached: CallArgumentExpansionProfileFacts) -> Self {
+language/formatter/src/format/analysis/call/analyze.rs	37	private	function	from	fn from(profile: CallArgumentExpansionProfile) -> Self {
+language/formatter/src/format/analysis/call/analyze.rs	56	private	function	from	fn from(cached: CallArgumentExpansionProfilesFacts) -> Self {
+language/formatter/src/format/analysis/call/analyze.rs	65	private	function	from	fn from(profiles: CallArgumentExpansionProfiles) -> Self {
+language/formatter/src/format/analysis/call/analyze.rs	83	pub	function	collect_call_argument_comment_profile	pub(crate) fn collect_call_argument_comment_profile(
+language/formatter/src/format/analysis/call/analyze.rs	110	pub	function	collect_single_call_argument_facts	pub(crate) fn collect_single_call_argument_facts(
+language/formatter/src/format/analysis/call/analyze.rs	132	pub	function	argument_has_callback_blocking_comment_annotation	pub(crate) fn argument_has_callback_blocking_comment_annotation(
+language/formatter/src/format/analysis/call/analyze.rs	143	pub	function	call_force_expand_single_long_with_static_arguments	pub(crate) fn call_force_expand_single_long_with_static_arguments(
+language/formatter/src/format/analysis/call/analyze.rs	168	pub	function	call_force_expand_single_collection_for_type_binary_callee	pub(crate) fn call_force_expand_single_collection_for_type_binary_callee(
+language/formatter/src/format/analysis/call/analyze.rs	179	pub	function	single_argument_requires_expanded_list	pub(crate) fn single_argument_requires_expanded_list(
+language/formatter/src/format/analysis/call/analyze.rs	202	pub	function	build_call_argument_expansion_profiles	pub(crate) fn build_call_argument_expansion_profiles(
+language/formatter/src/format/analysis/call/analyze.rs	393	pub	function	resolve_regular_call_argument_expansion_profile	pub(crate) fn resolve_regular_call_argument_expansion_profile(
+language/formatter/src/format/analysis/call/analyze.rs	432	pub	function	resolve_chain_call_argument_force_expand	pub(crate) fn resolve_chain_call_argument_force_expand(
+language/formatter/src/format/analysis/call/analyze.rs	471	pub	function	call_should_force_hugged_expand	pub(crate) fn call_should_force_hugged_expand(
+language/formatter/src/format/analysis/call/analyze.rs	478	pub	function	call_inline_len_without_static_arguments	pub(crate) fn call_inline_len_without_static_arguments(
+language/formatter/src/format/analysis/call/analyze.rs	528	pub	function	argument_is_plain_call_argument	pub(crate) fn argument_is_plain_call_argument(
+language/formatter/src/format/chain/policy.rs	40	private	function	for_each_chain_operation	fn for_each_chain_operation(
+language/formatter/src/format/chain/policy.rs	56	private	function	collect_chain_operation_facts	fn collect_chain_operation_facts(
+language/formatter/src/format/chain/policy.rs	131	pub	function	build_chain_render_inputs	pub(super) fn build_chain_render_inputs(
+language/formatter/src/format/chain/policy.rs	186	pub	function	decide_chain_render	pub(super) fn decide_chain_render(
+language/formatter/src/format/comments/comment/statement.rs	17	pub	function	resolve_comment_statement_prefix_rules	pub(super) fn resolve_comment_statement_prefix_rules(
+language/formatter/src/format/comments/comment/statement.rs	79	pub	function	resolve_comment_statement_suffix_rules	pub(super) fn resolve_comment_statement_suffix_rules(
+language/formatter/src/format/comments/comment/statement.rs	190	pub	function	resolve_comment_block_body_rules	pub(super) fn resolve_comment_block_body_rules(
+language/formatter/src/format/expression/control.rs	127	private	function	expression_has_block_prefix_annotation	fn expression_has_block_prefix_annotation(
+language/formatter/src/format/expression/control.rs	156	private	function	expression_has_line_prefix_annotation	fn expression_has_line_prefix_annotation(
+language/formatter/src/format/expression/control.rs	185	private	function	expression_has_effective_prefix_annotation	fn expression_has_effective_prefix_annotation(
+language/formatter/src/format/expression/control.rs	202	private	function	if_branch_head_requires_space	fn if_branch_head_requires_space(
+language/formatter/src/format/comments/comment/declaration.rs	12	pub	function	resolve_comment_declaration_rules	pub(super) fn resolve_comment_declaration_rules(
+language/formatter/src/format/expression/ternary.rs	5	pub	function	argument_value	pub(crate) fn argument_value(
+language/formatter/src/format/expression/ternary.rs	18	pub	function	collect_ternary_chain	pub(crate) fn collect_ternary_chain(
+language/formatter/src/format/expression/ternary.rs	68	pub	function	collect_catch_pattern_trailing_boundary_comments	pub(crate) fn collect_catch_pattern_trailing_boundary_comments(
+language/formatter/src/format/expression/ternary.rs	112	pub	function	ternary_requires_terminator	pub(crate) fn ternary_requires_terminator(
+language/formatter/src/format/expression/ternary.rs	137	pub	function	ternary_branch_is_tree_like	pub(crate) fn ternary_branch_is_tree_like(
+language/formatter/src/format/expression/ternary.rs	149	private	function	ternary_should_use_compact_tree_layout	fn ternary_should_use_compact_tree_layout(
+language/formatter/src/format/expression/ternary.rs	270	pub	function	format_ternary	pub(crate) fn format_ternary(
+language/formatter/src/format/analysis/call/classify.rs	19	private	function	expression_is_lambda_declaration	fn expression_is_lambda_declaration(
+language/formatter/src/format/analysis/call/classify.rs	35	pub	function	argument_is_simple_with_options	pub(crate) fn argument_is_simple_with_options(
+language/formatter/src/format/analysis/call/classify.rs	62	pub	function	is_call_like_argument	pub(crate) fn is_call_like_argument(
+language/formatter/src/format/analysis/call/classify.rs	88	pub	function	is_tree_attribute_expression	pub(crate) fn is_tree_attribute_expression(
+language/formatter/src/format/analysis/call/classify.rs	114	pub	function	is_simple_static_argument	pub(crate) fn is_simple_static_argument(
+language/formatter/src/format/analysis/call/classify.rs	131	pub	function	argument_is_string_like	pub(crate) fn argument_is_string_like(
+language/formatter/src/format/analysis/call/classify.rs	145	pub	function	argument_is_interpolated_template_literal	pub(crate) fn argument_is_interpolated_template_literal(
+language/formatter/src/format/analysis/call/classify.rs	161	pub	function	argument_is_collection_literal	pub(crate) fn argument_is_collection_literal(
+language/formatter/src/format/analysis/call/classify.rs	170	pub	function	argument_is_reference_like	pub(crate) fn argument_is_reference_like(
+language/formatter/src/format/analysis/call/classify.rs	192	pub	function	call_callee_has_test_like_member_name	pub(crate) fn call_callee_has_test_like_member_name(
+language/formatter/src/format/analysis/call/classify.rs	246	pub	function	call_should_force_hug_test_like_callback	pub(crate) fn call_should_force_hug_test_like_callback(
+language/formatter/src/format/analysis/call/classify.rs	269	pub	function	call_arguments_are_multiline_in_source	pub(crate) fn call_arguments_are_multiline_in_source(
+language/formatter/src/format/analysis/call/classify.rs	287	private	function	span_has_line_comment_token	fn span_has_line_comment_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
+language/formatter/src/format/analysis/call/classify.rs	314	pub	function	call_arguments_have_boundary_comments	pub(crate) fn call_arguments_have_boundary_comments(
+language/formatter/src/format/analysis/call/classify.rs	389	pub	function	call_arguments_preserve_blank_line_between	pub(crate) fn call_arguments_preserve_blank_line_between(
+language/formatter/src/format/analysis/call/classify.rs	427	pub	function	call_has_non_blank_infix_annotation	pub(crate) fn call_has_non_blank_infix_annotation(
+language/formatter/src/format/analysis/call/classify.rs	435	pub	function	argument_has_non_blank_annotation	pub(crate) fn argument_has_non_blank_annotation(
+language/formatter/src/format/analysis/call/classify.rs	443	pub	function	argument_has_multiline_prefix_annotation	pub(crate) fn argument_has_multiline_prefix_annotation(
+language/formatter/src/format/analysis/call/classify.rs	457	pub	function	argument_has_leading_prefix_annotation_outside_span	pub(crate) fn argument_has_leading_prefix_annotation_outside_span(
+language/formatter/src/format/analysis/call/classify.rs	487	pub	function	argument_has_line_comment_annotation	pub(crate) fn argument_has_line_comment_annotation(
+language/formatter/src/format/analysis/call/classify.rs	497	pub	function	argument_is_inline_closure_cast_object	pub(crate) fn argument_is_inline_closure_cast_object(
+language/formatter/src/format/analysis/call/classify.rs	571	pub	function	argument_has_source_separator_line_comment_annotation	pub(crate) fn argument_has_source_separator_line_comment_annotation(
+language/formatter/src/format/analysis/call/classify.rs	606	pub	function	call_has_static_arguments	pub(crate) fn call_has_static_arguments(
+language/formatter/src/format/analysis/call/classify.rs	624	pub	function	call_like_has_type_binary_callee	pub(crate) fn call_like_has_type_binary_callee(
+language/formatter/src/format/analysis/call/classify.rs	644	pub	function	call_has_leading_block_callback_with_simple_tail	pub(crate) fn call_has_leading_block_callback_with_simple_tail(
+language/formatter/src/format/call/argument/node.rs	18	private	function	argument_should_emit_prefix_annotations	fn argument_should_emit_prefix_annotations(
+language/formatter/src/format/call/argument/node.rs	46	pub	function	argument_satisfies_static_seam_comment_source	pub(in crate::format) fn argument_satisfies_static_seam_comment_source(
+language/formatter/src/format/call/argument/node.rs	56	pub	function	argument_satisfies_static_seam_comment_id	pub(super) fn argument_satisfies_static_seam_comment_id(
+language/formatter/src/format/call/argument/node.rs	91	private	function	argument_is_first_static_argument_of_satisfies_right_path	fn argument_is_first_static_argument_of_satisfies_right_path(
+language/formatter/src/format/call/argument/node.rs	133	private	function	argument_is_first_static_argument_of_multi_argument_path	fn argument_is_first_static_argument_of_multi_argument_path(
+language/formatter/src/format/call/argument/node.rs	167	private	function	argument_has_satisfies_static_seam_prefix_line_comment	fn argument_has_satisfies_static_seam_prefix_line_comment(
+language/formatter/src/format/call/argument/node.rs	175	private	function	argument_is_call_or_new	fn argument_is_call_or_new(
+language/formatter/src/format/call/argument/node.rs	191	private	function	argument_is_first_in_call_or_new	fn argument_is_first_in_call_or_new(
+language/formatter/src/format/call/argument/node.rs	217	private	function	argument_has_non_blank_prefix_annotation	fn argument_has_non_blank_prefix_annotation(
+language/formatter/src/format/call/argument/node.rs	239	private	function	argument_has_blank_prefix_annotation	fn argument_has_blank_prefix_annotation(
+language/formatter/src/format/call/argument/node.rs	259	private	function	argument_has_blank_prefix_annotation_before_separator	fn argument_has_blank_prefix_annotation_before_separator(
+language/formatter/src/format/call/argument/node.rs	282	private	function	argument_prefix_lambda_comment_needs_forced_break	fn argument_prefix_lambda_comment_needs_forced_break(
+language/formatter/src/format/call/argument/node.rs	319	private	function	format_node	fn format_node(
+language/formatter/src/format/call/argument/node.rs	484	private	function	argument_has_prefix_comment_annotation	fn argument_has_prefix_comment_annotation(
+language/formatter/src/format/call/argument/node.rs	504	private	function	argument_prefix_comment_has_leading_blank_line_after_separator	fn argument_prefix_comment_has_leading_blank_line_after_separator(
+language/formatter/src/format/call/argument/node.rs	539	private	function	first_prefix_comment_annotation_start_for_argument	fn first_prefix_comment_annotation_start_for_argument(
+language/formatter/src/format/call/argument/node.rs	595	private	function	previous_dynamic_argument_in_call_or_new	fn previous_dynamic_argument_in_call_or_new(
+language/formatter/src/format/call/argument/node.rs	624	private	function	argument_contains_lambda_value	fn argument_contains_lambda_value(context: &DestackFormatContext<'_>, argument: &Argument) -> bool {
+language/formatter/src/format/call/argument/node.rs	648	private	function	test_format_argument_named	fn test_format_argument_named() {
+language/formatter/src/format/call/argument/node.rs	658	private	function	test_format_argument_named_shorthand	fn test_format_argument_named_shorthand() {
+language/formatter/src/format/call/argument/node.rs	668	private	function	test_format_argument_positional	fn test_format_argument_positional() {
+language/formatter/src/format/call/argument/node.rs	678	private	function	test_strip_trailing_comments_keeps_leading_ignore_block_comment	fn test_strip_trailing_comments_keeps_leading_ignore_block_comment() {
+language/formatter/src/format/call/argument/node.rs	686	private	function	test_raw_ends_with_separator_for_ignored_field_with_leading_comment	fn test_raw_ends_with_separator_for_ignored_field_with_leading_comment() {
+language/formatter/src/format/call/argument/node.rs	692	private	function	test_raw_ends_with_separator_with_trailing_line_comment	fn test_raw_ends_with_separator_with_trailing_line_comment() {
+language/formatter/src/format/comments/comment/operator.rs	15	pub	function	resolve_comment_expression_operator_rules	pub(super) fn resolve_comment_expression_operator_rules(
+language/formatter/src/format/expression/binary.rs	5	pub	function	is_type_expression_variant	pub(crate) fn is_type_expression_variant(expression: &Expression) -> bool {
+language/formatter/src/format/expression/binary.rs	21	pub	function	expression_static_arguments	pub(crate) fn expression_static_arguments(
+language/formatter/src/format/expression/binary.rs	51	pub	function	is_static_type_argument_context	pub(crate) fn is_static_type_argument_context(
+language/formatter/src/format/expression/binary.rs	76	pub	function	is_type_context	pub(crate) fn is_type_context(
+language/formatter/src/format/expression/binary.rs	92	private	function	is_type_context_uncached	fn is_type_context_uncached(
+language/formatter/src/format/expression/binary.rs	268	pub	function	is_parameter_type_annotation	pub(crate) fn is_parameter_type_annotation(
+language/formatter/src/format/expression/binary.rs	289	pub	function	is_simple_type_binary_left_expression	pub(crate) fn is_simple_type_binary_left_expression(
+language/formatter/src/format/expression/binary.rs	321	pub	function	is_object_like_type_expression	pub(crate) fn is_object_like_type_expression(
+language/formatter/src/format/expression/binary.rs	333	pub	function	is_nullable_union_member	pub(crate) fn is_nullable_union_member(
+language/formatter/src/format/expression/binary.rs	345	pub	function	is_type_reference_expression	pub(crate) fn is_type_reference_expression(
+language/formatter/src/format/expression/binary.rs	357	pub	function	should_hug_nullable_union_type	pub(crate) fn should_hug_nullable_union_type(
+language/formatter/src/format/expression/binary.rs	397	pub	function	should_hug_static_argument_union_type	pub(crate) fn should_hug_static_argument_union_type(
+language/formatter/src/format/expression/binary.rs	447	pub	function	union_source_has_leading_pipe	pub(crate) fn union_source_has_leading_pipe(
+language/formatter/src/format/expression/binary.rs	488	pub	function	is_type_grouping_binary_operator	pub(crate) fn is_type_grouping_binary_operator(operator: BinaryOperator) -> bool {
+language/formatter/src/format/expression/binary.rs	496	pub	function	binary_rhs_prefers_break_after_operator	pub(crate) fn binary_rhs_prefers_break_after_operator(
+language/formatter/src/format/expression/binary.rs	504	pub	function	type_binary_operand_needs_grouping_parentheses	pub(crate) fn type_binary_operand_needs_grouping_parentheses(
+language/formatter/src/format/expression/binary.rs	589	private	function	redundant_parenthesized_closure_cast_operand_can_drop	fn redundant_parenthesized_closure_cast_operand_can_drop(
+language/formatter/src/format/expression/binary.rs	631	private	function	redundant_parenthesized_binary_operand_can_drop	fn redundant_parenthesized_binary_operand_can_drop(
+language/formatter/src/format/expression/scan.rs	7	pub	function	source_min_inline_char_len	pub(crate) fn source_min_inline_char_len(source: &str) -> usize {
+language/formatter/src/format/expression/scan.rs	19	pub	function	expression_has_static_type_arguments	pub(crate) fn expression_has_static_type_arguments(
+language/formatter/src/format/expression/scan.rs	73	pub	function	expression_has_non_doc_multiline_block_prefix_comment_annotation	pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
+language/formatter/src/format/expression/scan.rs	99	pub	function	span_inline_char_bounds	pub(crate) fn span_inline_char_bounds(
+language/formatter/src/format/expression/scan.rs	110	pub	function	previous_non_whitespace_before_span	pub(super) fn previous_non_whitespace_before_span(
+language/formatter/src/format/expression/scan.rs	118	pub	function	expression_source_has_outer_parentheses	pub(super) fn expression_source_has_outer_parentheses(
+language/formatter/src/format/expression/scan.rs	128	pub	function	expression_has_prefix_comment_annotation	pub(super) fn expression_has_prefix_comment_annotation(
+language/formatter/src/format/expression/scan.rs	148	pub	function	expression_has_prefix_ignore_directive_comment_annotation	pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
+language/formatter/src/format/expression/scan.rs	178	pub	function	expression_has_leading_prefix_comment	pub(super) fn expression_has_leading_prefix_comment(
+language/formatter/src/format/expression/scan.rs	221	pub	function	yield_value_has_leading_prefix_comment	pub(super) fn yield_value_has_leading_prefix_comment(
+language/formatter/src/format/expression/scan.rs	229	pub	function	should_hoist_parenthesized_inner_cast_prefix_comments	pub(super) fn should_hoist_parenthesized_inner_cast_prefix_comments(
+language/formatter/src/format/expression/scan.rs	267	pub	function	sequence_expression_needs_parens	pub(super) fn sequence_expression_needs_parens(
+language/formatter/src/format/expression/parentheses.rs	24	pub	function	parenthesized_should_unwrap	pub(crate) fn parenthesized_should_unwrap(
+language/formatter/src/format/expression/parentheses.rs	47	pub	function	parenthesized_should_drop	pub(crate) fn parenthesized_should_drop(
+language/formatter/src/format/expression/parentheses.rs	71	pub	function	parenthesized_prefers_new_member_callee_parentheses	pub(crate) fn parenthesized_prefers_new_member_callee_parentheses(
+language/formatter/src/format/expression/parentheses.rs	79	pub	function	collect_parenthesized_boundary_comments	pub(crate) fn collect_parenthesized_boundary_comments(
+language/formatter/src/format/expression/parentheses.rs	149	pub	function	parenthesized_has_leading_inner_trivia	pub(crate) fn parenthesized_has_leading_inner_trivia(
+language/formatter/src/format/expression/parentheses.rs	158	pub	function	parenthesized_has_leading_inner_comments	pub(crate) fn parenthesized_has_leading_inner_comments(
+language/formatter/src/format/expression/parentheses.rs	167	pub	function	parenthesized_has_leading_inner_newline	pub(crate) fn parenthesized_has_leading_inner_newline(
+language/formatter/src/format/expression/parentheses.rs	185	private	function	parenthesized_has_leading_inner_pattern	fn parenthesized_has_leading_inner_pattern(
+language/formatter/src/format/expression/parentheses.rs	209	private	function	expression_chain_has_optional_maybe	fn expression_chain_has_optional_maybe(
+language/formatter/src/format/expression/parentheses.rs	233	pub	function	member_expression_has_optional_chain	pub(crate) fn member_expression_has_optional_chain(
+language/formatter/src/format/expression/parentheses.rs	241	pub	function	should_unwrap_parenthesized_member_object	pub(crate) fn should_unwrap_parenthesized_member_object(
+language/formatter/src/format/expression/parentheses.rs	281	pub	function	member_object_prefers_new_callee_parentheses	pub(crate) fn member_object_prefers_new_callee_parentheses(
+language/formatter/src/format/expression/parentheses.rs	303	pub	function	is_simple_new_member_object	pub(crate) fn is_simple_new_member_object(
+language/formatter/src/format/expression/parentheses.rs	321	pub	function	should_unwrap_parenthesized_new_member_callee	pub(crate) fn should_unwrap_parenthesized_new_member_callee(
+language/formatter/src/format/expression/parentheses.rs	348	pub	function	strip_one_wrapping_parentheses	pub(crate) fn strip_one_wrapping_parentheses(source: &str) -> &str {
+language/formatter/src/format/expression/parentheses.rs	357	pub	function	type_binary_is_statement_expression	pub(crate) fn type_binary_is_statement_expression(
+language/formatter/src/format/expression/parentheses.rs	376	pub	function	type_binary_is_parenthesized_statement_expression	pub(crate) fn type_binary_is_parenthesized_statement_expression(
+language/formatter/src/format/expression/parentheses.rs	410	pub	function	has_parenthesized_ancestor_with_leading_inner_trivia	pub(crate) fn has_parenthesized_ancestor_with_leading_inner_trivia(
+language/formatter/src/format/expression/parentheses.rs	436	pub	function	type_binary_is_parenthesized_new_callee	pub(crate) fn type_binary_is_parenthesized_new_callee(
+language/formatter/src/format/expression/parentheses.rs	470	pub	function	should_drop_type_binary_left_parentheses	pub(crate) fn should_drop_type_binary_left_parentheses(
+language/formatter/src/format/expression/parentheses.rs	513	pub	function	parenthesized_is_top_level_type_alias_value	pub(crate) fn parenthesized_is_top_level_type_alias_value(
+language/formatter/src/format/expression/parentheses.rs	532	pub	function	expression_is_type_binary_chain_head	pub(crate) fn expression_is_type_binary_chain_head(
+language/formatter/src/format/expression/parentheses.rs	551	pub	function	parenthesized_source_leading_type_grouping_operator	pub(crate) fn parenthesized_source_leading_type_grouping_operator(
+language/formatter/src/format/expression/parentheses.rs	587	pub	function	should_drop_parenthesized_type_expression	pub(crate) fn should_drop_parenthesized_type_expression(
+language/formatter/src/format/expression/parentheses.rs	680	private	function	parenthesized_type_grouping_drop_is_safe_in_parent	fn parenthesized_type_grouping_drop_is_safe_in_parent(
+language/formatter/src/format/expression/parentheses.rs	699	pub	function	is_associative_type_binary_operator	pub(crate) fn is_associative_type_binary_operator(operator: BinaryOperator) -> bool {
+language/formatter/src/format/expression/parentheses.rs	707	pub	function	parenthesized_associative_type_binary_can_drop	pub(crate) fn parenthesized_associative_type_binary_can_drop(
+language/formatter/src/format/expression/parentheses.rs	747	private	function	should_drop_parenthesized_expression_wrapper	fn should_drop_parenthesized_expression_wrapper(
+language/formatter/src/format/expression/parentheses.rs	833	private	function	expression_is_decorated_class_declaration	fn expression_is_decorated_class_declaration(
+language/formatter/src/format/expression/parentheses.rs	869	private	function	parenthesized_wraps_decorated_class_extends_head	fn parenthesized_wraps_decorated_class_extends_head(
+language/formatter/src/format/expression/parentheses.rs	895	private	function	parenthesized_wraps_prefix_annotated_class_extends_head	fn parenthesized_wraps_prefix_annotated_class_extends_head(
+language/formatter/src/format/expression/parentheses.rs	923	private	function	expression_has_only_prefix_comment_or_doc_annotations	fn expression_has_only_prefix_comment_or_doc_annotations(
+language/formatter/src/format/expression/parentheses.rs	949	private	function	expression_has_prefix_comment_or_doc_annotation_in_left_spine	fn expression_has_prefix_comment_or_doc_annotation_in_left_spine(
+language/formatter/src/format/expression/operator/assign.rs	19	private	function	is_assignment_operator_token	fn is_assignment_operator_token(token_type: TokenType) -> bool {
+language/formatter/src/format/expression/operator/assign.rs	24	private	function	span_contains_assignment_operator_token	fn span_contains_assignment_operator_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
+language/formatter/src/format/expression/operator/assign.rs	41	private	function	expression_has_assignment_seam_line_prefix_comment	fn expression_has_assignment_seam_line_prefix_comment(
+language/formatter/src/format/expression/operator/assign.rs	69	private	function	assignment_seam_has_line_comment_between	fn assignment_seam_has_line_comment_between(
+language/formatter/src/format/chain/length.rs	4	private	function	annotation_content_span	fn annotation_content_span(
+language/formatter/src/format/chain/length.rs	11	pub	function	member_is_private_hash	pub(crate) fn member_is_private_hash(
+language/formatter/src/format/chain/length.rs	42	pub	function	path_postfix_annotations_emit_on_tail	pub(crate) fn path_postfix_annotations_emit_on_tail(
+language/formatter/src/format/chain/length.rs	85	pub	function	path_last_segment_start	pub(crate) fn path_last_segment_start(
+language/formatter/src/format/chain/length.rs	115	pub	function	static_arguments_len	pub(crate) fn static_arguments_len(
+language/formatter/src/format/chain/length.rs	126	pub	function	static_argument_list_len	pub(crate) fn static_argument_list_len(
+language/formatter/src/format/chain/length.rs	138	pub	function	chain_operation_len	pub(crate) fn chain_operation_len(
+language/formatter/src/format/chain/length.rs	210	pub	function	chain_call_can_expand_in_head	pub(crate) fn chain_call_can_expand_in_head(
+language/formatter/src/format/chain/length.rs	239	pub	function	chain_head_operation_len	pub(crate) fn chain_head_operation_len(
+language/formatter/src/format/chain/length.rs	264	pub	function	chain_base_len	pub(crate) fn chain_base_len(
+language/formatter/src/format/annotation/render.rs	17	private	function	annotation_content_span	fn annotation_content_span(
+language/formatter/src/format/annotation/render.rs	93	pub	function	declaration_prefix_annotations	pub fn declaration_prefix_annotations(
+language/formatter/src/format/annotation/render.rs	105	pub	function	declaration_export_head_annotations	pub fn declaration_export_head_annotations(
+language/formatter/src/format/annotation/render.rs	117	pub	function	declaration_generic_head_annotations	pub fn declaration_generic_head_annotations(
+language/formatter/src/format/annotation/render.rs	128	pub	function	has_declaration_generic_head_annotation	pub fn has_declaration_generic_head_annotation(
+language/formatter/src/format/annotation/render.rs	183	private	function	inline_block_comment_allows_tight_separator	fn inline_block_comment_allows_tight_separator(next_character: Option<char>) -> bool {
+language/formatter/src/format/annotation/render.rs	191	private	function	annotation_next_token_is_on_same_line	fn annotation_next_token_is_on_same_line(
+language/formatter/src/format/annotation/render.rs	229	private	function	is_opening_delimiter_character	fn is_opening_delimiter_character(character: char) -> bool {
+language/formatter/src/format/annotation/render.rs	311	private	function	annotation_is_slash_style	fn annotation_is_slash_style(context: &DestackFormatContext<'_>, annotation: &Annotation) -> bool {
+language/formatter/src/format/annotation/render.rs	326	private	function	annotation_is_star_style	fn annotation_is_star_style(context: &DestackFormatContext<'_>, annotation: &Annotation) -> bool {
+language/formatter/src/format/annotation/render.rs	360	pub	function	annotation_render_facts	pub(super) fn annotation_render_facts(
+language/formatter/src/format/annotation/render.rs	384	private	function	decorator_can_stay_inline_for_node_type	fn decorator_can_stay_inline_for_node_type(node_type: NodeType) -> bool {
+language/formatter/src/format/annotation/render.rs	418	private	function	annotation_capture_includes_position	fn annotation_capture_includes_position(
+language/formatter/src/format/annotation/render.rs	460	private	function	declaration_has_export_modifier	fn declaration_has_export_modifier(
+language/formatter/src/format/annotation/render.rs	480	private	function	declaration_has_static_parameters	fn declaration_has_static_parameters(
+language/formatter/src/format/annotation/render.rs	604	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/expression/classify.rs	9	pub	function	is_trivial_expression	pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
+language/formatter/src/format/expression/classify.rs	61	private	function	static_arguments_are_trivial	fn static_arguments_are_trivial(
+language/formatter/src/format/expression/classify.rs	71	pub	function	is_complex_expression	pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool {
+language/formatter/src/format/expression/classify.rs	83	pub	function	is_trivial_argument	pub fn is_trivial_argument(tree: &NodeTree, argument: &Argument) -> bool {
+language/formatter/src/format/expression/classify.rs	95	pub	function	is_trivial_property	pub fn is_trivial_property(tree: &NodeTree, property: &Property) -> bool {
+language/formatter/src/format/expression/classify.rs	109	pub	function	is_complex_argument	pub fn is_complex_argument(tree: &NodeTree, argument: &Argument) -> bool {
+language/formatter/src/format/expression/classify.rs	121	pub	function	is_expression_breakable	pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool {
+language/formatter/src/format/expression/classify.rs	173	pub	function	is_pattern_breakable	pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+language/formatter/src/format/expression/classify.rs	185	pub	function	span_has_comment	pub(crate) fn span_has_comment(context: &DestackFormatContext<'_>, span: Span) -> bool {
+language/formatter/src/format/expression/classify.rs	190	pub	function	array_elements_are_fill_candidates	pub(crate) fn array_elements_are_fill_candidates(
+language/formatter/src/format/expression/classify.rs	200	pub	function	array_has_only_boundary_comments	pub(crate) fn array_has_only_boundary_comments(
+language/formatter/src/format/expression/classify.rs	231	private	function	is_comment_token_type	fn is_comment_token_type(token_type: TokenType) -> bool {
+language/formatter/src/format/expression/classify.rs	242	private	function	array_element_is_fill_candidate	fn array_element_is_fill_candidate(tree: &NodeTree, element_id: LocalNodeId<Argument>) -> bool {
+language/formatter/src/format/analysis/call/layout.rs	11	pub	function	argument_is_compact_simple_unannotated	pub(crate) fn argument_is_compact_simple_unannotated(
+language/formatter/src/format/analysis/call/layout.rs	39	pub	function	call_has_call_chain_parent	pub(crate) fn call_has_call_chain_parent(
+language/formatter/src/format/analysis/call/layout.rs	90	pub	function	call_argument_shape_from_layout_facts	pub(crate) fn call_argument_shape_from_layout_facts(
+language/formatter/src/format/analysis/call/layout.rs	123	private	function	new	fn new() -> Self {
+language/formatter/src/format/analysis/call/layout.rs	134	private	function	build_empty_call_argument_layout_facts	fn build_empty_call_argument_layout_facts(
+language/formatter/src/format/analysis/call/layout.rs	149	private	function	call_argument_callback_flags	fn call_argument_callback_flags(
+language/formatter/src/format/analysis/call/layout.rs	175	private	function	scan_call_argument_layout_argument	fn scan_call_argument_layout_argument(
+language/formatter/src/format/analysis/call/layout.rs	271	private	function	scan_call_argument_layout_state	fn scan_call_argument_layout_state(
+language/formatter/src/format/analysis/call/layout.rs	297	private	function	build_scanned_call_argument_layout_facts	fn build_scanned_call_argument_layout_facts(
+language/formatter/src/format/analysis/call/layout.rs	342	pub	function	resolve_call_argument_layout_facts	pub(crate) fn resolve_call_argument_layout_facts(
+language/formatter/src/format/analysis/call/layout.rs	377	pub	function	leading_dynamic_arguments	pub(crate) fn leading_dynamic_arguments(
+language/formatter/src/format/analysis/call/layout.rs	388	pub	function	call_argument_layout_facts_are_simple_multi_unannotated	pub(crate) fn call_argument_layout_facts_are_simple_multi_unannotated(
+language/formatter/src/format/analysis/call/layout.rs	395	pub	function	leading_arguments_are_compact_simple_unannotated	pub(crate) fn leading_arguments_are_compact_simple_unannotated(
+language/formatter/src/format/analysis/call/layout.rs	406	pub	function	leading_arguments_are_compact_callback_tail_candidates	pub(crate) fn leading_arguments_are_compact_callback_tail_candidates(
+language/formatter/src/format/analysis/call/layout.rs	434	pub	function	call_arguments_use_single_simple_argument_fast_path	pub(crate) fn call_arguments_use_single_simple_argument_fast_path(
+language/formatter/src/format/analysis/call/layout.rs	469	pub	function	call_arguments_use_single_callback_argument_inline	pub(crate) fn call_arguments_use_single_callback_argument_inline(
+language/formatter/src/format/analysis/call/layout.rs	518	pub	function	call_arguments_use_single_simple_argument_inline	pub(crate) fn call_arguments_use_single_simple_argument_inline(
+language/formatter/src/format/analysis/call/layout.rs	586	pub	function	resolve_inline_call_len_without_static_arguments	pub(crate) fn resolve_inline_call_len_without_static_arguments(
+language/formatter/src/format/analysis/call/layout.rs	621	pub	function	can_consider_hug_last_call_arguments	pub(crate) fn can_consider_hug_last_call_arguments(
+language/formatter/src/format/analysis/call/layout.rs	639	pub	function	call_arguments_force_hug_last_inline	pub(crate) fn call_arguments_force_hug_last_inline(
+language/formatter/src/format/analysis/call/layout.rs	676	private	function	hug_last_tail_flags	fn hug_last_tail_flags(
+language/formatter/src/format/analysis/call/layout.rs	695	private	function	hug_last_can_inline_by_width	fn hug_last_can_inline_by_width(
+language/formatter/src/format/analysis/call/layout.rs	704	private	function	hug_last_can_inline_callback_tail	fn hug_last_can_inline_callback_tail(
+language/formatter/src/format/analysis/call/layout.rs	716	private	function	hug_last_can_inline_overflow_tail	fn hug_last_can_inline_overflow_tail(
+language/formatter/src/format/analysis/call/layout.rs	729	private	function	hug_last_should_skip_probe_collection	fn hug_last_should_skip_probe_collection(
+language/formatter/src/format/analysis/call/layout.rs	739	pub	function	resolve_hug_last_call_argument_layout	pub(crate) fn resolve_hug_last_call_argument_layout(
+language/formatter/src/format/analysis/call/layout.rs	855	pub	function	build_call_argument_planner_base_state	pub(crate) fn build_call_argument_planner_base_state(
+language/formatter/src/format/analysis/call/layout.rs	871	private	function	planner_force_expand_single_collection_for_type_binary_callee	fn planner_force_expand_single_collection_for_type_binary_callee(
+language/formatter/src/format/analysis/call/layout.rs	888	pub	function	build_call_argument_planner_state	pub(crate) fn build_call_argument_planner_state(
+language/formatter/src/format/call/layout.rs	9	private	function	list_default_call_argument_layout_decision	fn list_default_call_argument_layout_decision(
+language/formatter/src/format/call/layout.rs	20	private	function	call_argument_comments_force_expanded_layout	fn call_argument_comments_force_expanded_layout(
+language/formatter/src/format/call/layout.rs	32	private	function	call_argument_trailing_collection_comment_force_expand	fn call_argument_trailing_collection_comment_force_expand(
+language/formatter/src/format/call/layout.rs	55	private	function	trailing_collection_argument_has_comment_signal	fn trailing_collection_argument_has_comment_signal(
+language/formatter/src/format/call/layout.rs	75	private	function	resolve_call_argument_comment_profile	fn resolve_call_argument_comment_profile(
+language/formatter/src/format/call/layout.rs	92	private	function	decide_post_hugged_call_argument_layout	fn decide_post_hugged_call_argument_layout(
+language/formatter/src/format/call/layout.rs	443	private	function	call_arguments_use_no_annotation_multi_argument_fast_path	fn call_arguments_use_no_annotation_multi_argument_fast_path(
+language/formatter/src/format/call/layout.rs	500	private	function	call_arguments_use_forced_hug_last_inline_fast_path	fn call_arguments_use_forced_hug_last_inline_fast_path(
+language/formatter/src/format/call/layout.rs	509	private	function	empty_call_infix_requires_multiline	fn empty_call_infix_requires_multiline(
+language/formatter/src/format/call/layout.rs	850	pub	function	call_arguments_force_expand_for_chain	pub(crate) fn call_arguments_force_expand_for_chain(
+language/formatter/src/format/expression/operator/token.rs	12	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/expression/operator/token.rs	35	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/expression/operator/token.rs	54	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/expression/operator/token.rs	111	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/expression/operator/token.rs	128	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/expression/primary.rs	11	private	function	expression_has_effective_prefix_annotation	fn expression_has_effective_prefix_annotation(
+language/formatter/src/format/expression/primary.rs	26	private	function	expression_has_effective_decorator_prefix_annotation	fn expression_has_effective_decorator_prefix_annotation(
+language/formatter/src/format/expression/primary.rs	818	private	function	array_has_sparse_holes	fn array_has_sparse_holes(
+language/formatter/src/format/expression/primary.rs	829	private	function	argument_is_sparse_hole	fn argument_is_sparse_hole(
+language/formatter/src/format/expression/operator/binary.rs	13	private	function	leading_union_has_ancestor_block_prefix_annotation	fn leading_union_has_ancestor_block_prefix_annotation(
+language/formatter/src/format/expression/operator/binary.rs	40	private	function	expression_parent_is_parenthesized	fn expression_parent_is_parenthesized(
+language/formatter/src/format/expression/operator/binary.rs	57	private	function	is_logical_binary_operator	fn is_logical_binary_operator(operator: BinaryOperator) -> bool {
+language/formatter/src/format/expression/operator/binary.rs	65	private	function	expression_has_line_postfix_slash_comment	fn expression_has_line_postfix_slash_comment(
+language/formatter/src/format/expression/operator/binary.rs	93	private	function	is_mixed_logical_precedence_pair	fn is_mixed_logical_precedence_pair(
+language/formatter/src/format/expression/operator/binary.rs	107	private	function	should_preserve_mixed_logical_grouping_for_comments	fn should_preserve_mixed_logical_grouping_for_comments(
+language/formatter/src/format/expression/operator/binary.rs	118	private	function	preserve_source_operator_break	fn preserve_source_operator_break(
+language/formatter/src/format/expression/operator/binary.rs	127	private	function	operand_prefers_trailing_logical_operator	fn operand_prefers_trailing_logical_operator(
+language/formatter/src/format/expression/operator/binary.rs	136	private	function	logical_left_has_line_postfix_slash_comment	fn logical_left_has_line_postfix_slash_comment(
+language/formatter/src/format/expression/operator/binary.rs	160	private	function	type_binary_operands_have_nontrailing_slash_comment_pressure	fn type_binary_operands_have_nontrailing_slash_comment_pressure(
+language/formatter/src/format/expression/operator/binary.rs	191	private	function	expression_has_only_doc_like_prefix_annotations	fn expression_has_only_doc_like_prefix_annotations(
+language/formatter/src/format/expression/operator/binary.rs	215	private	function	expression_has_only_type_separator_line_boundary_comment	fn expression_has_only_type_separator_line_boundary_comment(
+language/formatter/src/format/expression/operator/binary.rs	421	private	function	flat_type_binary_operands_len	fn flat_type_binary_operands_len(
+language/formatter/src/format/expression/operator/binary.rs	440	private	function	operand_allows_flat_type_binary_render	fn operand_allows_flat_type_binary_render(
+language/formatter/src/format/expression/operator/binary.rs	688	private	function	should_use_leading_pipe_union_style	fn should_use_leading_pipe_union_style(
+language/formatter/src/format/expression/operator/binary.rs	703	private	function	type_binary_operands_have_non_doc_comments	fn type_binary_operands_have_non_doc_comments(
+language/formatter/src/format/expression/operator/binary.rs	722	private	function	leading_pipe_union_layout_policy	fn leading_pipe_union_layout_policy(
+language/formatter/src/format/expression/operator/binary.rs	1361	private	function	satisfies_seam_inline_left_source	fn satisfies_seam_inline_left_source(
+language/formatter/src/format/expression/operator/binary.rs	1381	private	function	satisfies_seam_comment_source	fn satisfies_seam_comment_source(
+language/formatter/src/format/expression/statement.rs	8	private	function	statement_expression_needs_semicolon	fn statement_expression_needs_semicolon(
+language/formatter/src/format/expression/statement.rs	439	private	function	block_has_block_prefix_annotation	fn block_has_block_prefix_annotation(
+language/formatter/src/format/expression/statement.rs	468	private	function	block_has_line_prefix_annotation	fn block_has_line_prefix_annotation(
+language/formatter/src/format/expression/statement.rs	497	private	function	statement_body_requires_head_space	fn statement_body_requires_head_space(
+language/formatter/src/format/collection/pattern.rs	16	private	method	format	fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+language/formatter/src/format/collection/pattern.rs	25	private	function	default_expression_prefers_multiline	fn default_expression_prefers_multiline(
+language/formatter/src/format/collection/pattern.rs	36	private	function	pattern_prefers_multiline	fn pattern_prefers_multiline(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+language/formatter/src/format/collection/pattern.rs	57	private	function	pattern_field_prefers_multiline	fn pattern_field_prefers_multiline(tree: &NodeTree, field_id: LocalNodeId<PatternField>) -> bool {
+language/formatter/src/format/collection/pattern.rs	87	private	function	source_between_delimiters_has_newline	fn source_between_delimiters_has_newline(source: &str, open: char, close: char) -> bool {
+language/formatter/src/format/collection/pattern.rs	103	private	function	pattern_has_multiline_source	fn pattern_has_multiline_source(
+language/formatter/src/format/collection/pattern.rs	151	private	function	should_expand_parameter_object_pattern	fn should_expand_parameter_object_pattern(
+language/formatter/src/format/collection/pattern.rs	227	private	function	format_node	fn format_node(
+language/formatter/src/format/collection/pattern.rs	385	private	function	format_node	fn format_node(
+language/formatter/src/format/collection/pattern.rs	532	private	function	test_format_pattern_wildcard	fn test_format_pattern_wildcard() {
+language/formatter/src/format/collection/pattern.rs	537	private	function	test_format_pattern_reference	fn test_format_pattern_reference() {
+language/formatter/src/format/collection/pattern.rs	544	private	function	test_format_pattern_must	fn test_format_pattern_must() {
+language/formatter/src/format/collection/pattern.rs	549	private	function	test_format_pattern_identifier	fn test_format_pattern_identifier() {
+language/formatter/src/format/collection/pattern.rs	554	private	function	test_format_pattern_path	fn test_format_pattern_path() {
+language/formatter/src/format/collection/pattern.rs	559	private	function	test_format_pattern_tuple	fn test_format_pattern_tuple() {
+language/formatter/src/format/collection/pattern.rs	564	private	function	test_format_pattern_tuple_with_path	fn test_format_pattern_tuple_with_path() {
+language/formatter/src/format/collection/pattern.rs	570	private	function	test_format_pattern_slice	fn test_format_pattern_slice() {
+language/formatter/src/format/collection/pattern.rs	575	private	function	test_format_pattern_union	fn test_format_pattern_union() {
+language/formatter/src/format/expression/operator/dispatch.rs	10	private	function	collect_type_unary_infix_comment_sources	fn collect_type_unary_infix_comment_sources(
+language/formatter/src/format/expression/tests.rs	12	private	function	context_from_formatter	fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
+language/formatter/src/format/expression/tests.rs	28	private	function	find_call_with_dynamic_argument_count	fn find_call_with_dynamic_argument_count(
+language/formatter/src/format/expression/tests.rs	54	private	function	find_parenthesized_expression_by_inner	fn find_parenthesized_expression_by_inner(
+language/formatter/src/format/expression/tests.rs	78	private	function	test_format_expression_simple	fn test_format_expression_simple() {
+language/formatter/src/format/expression/tests.rs	89	private	function	test_format_expression_parenthesized	fn test_format_expression_parenthesized() {
+language/formatter/src/format/expression/tests.rs	100	private	function	test_format_expression_nested_empty_parenthesis	fn test_format_expression_nested_empty_parenthesis() {
+language/formatter/src/format/expression/tests.rs	111	private	function	test_format_expression_nested_empty_arguments	fn test_format_expression_nested_empty_arguments() {
+language/formatter/src/format/expression/tests.rs	121	private	function	test_format_expression_struct_literal_trivial	fn test_format_expression_struct_literal_trivial() {
+language/formatter/src/format/expression/tests.rs	131	private	function	test_format_expression_struct_literal_spread	fn test_format_expression_struct_literal_spread() {
+language/formatter/src/format/expression/tests.rs	141	private	function	test_assignment_target_detection	fn test_assignment_target_detection() {
+language/formatter/src/format/expression/tests.rs	176	private	function	test_format_expression_if_ternary	fn test_format_expression_if_ternary() {
+language/formatter/src/format/expression/tests.rs	186	private	function	test_format_expression_index_call_mixed_postfix	fn test_format_expression_index_call_mixed_postfix() {
+language/formatter/src/format/expression/tests.rs	197	private	function	test_format_expression_instantiation	fn test_format_expression_instantiation() {
+language/formatter/src/format/expression/tests.rs	208	private	function	test_format_new_expression_drops_simple_member_parentheses	fn test_format_new_expression_drops_simple_member_parentheses() {
+language/formatter/src/format/expression/tests.rs	219	private	function	test_format_new_expression_keeps_optional_member_parentheses	fn test_format_new_expression_keeps_optional_member_parentheses() {
+language/formatter/src/format/expression/tests.rs	230	private	function	test_format_new_expression_wraps_call_member_callee	fn test_format_new_expression_wraps_call_member_callee() {
+language/formatter/src/format/expression/tests.rs	241	private	function	test_parenthesis_policy_rejects_member_object_boundary_comment	fn test_parenthesis_policy_rejects_member_object_boundary_comment() {
+language/formatter/src/format/expression/tests.rs	259	private	function	test_parenthesis_policy_allows_closure_cast_member_object_unwrap	fn test_parenthesis_policy_allows_closure_cast_member_object_unwrap() {
+language/formatter/src/format/expression/tests.rs	277	private	function	test_parenthesis_policy_allows_ordinary_comment_member_object_unwrap	fn test_parenthesis_policy_allows_ordinary_comment_member_object_unwrap() {
+language/formatter/src/format/expression/tests.rs	295	private	function	test_format_decorated_class_expression_keeps_extends_parentheses	fn test_format_decorated_class_expression_keeps_extends_parentheses() {
+language/formatter/src/format/expression/tests.rs	310	private	function	test_call_argument_profile_detects_decorated_class_argument	fn test_call_argument_profile_detects_decorated_class_argument() {
+language/formatter/src/format/expression/tests.rs	336	private	function	test_parenthesis_policy_rejects_optional_new_callee_unwrap	fn test_parenthesis_policy_rejects_optional_new_callee_unwrap() {
+language/formatter/src/format/expression/tests.rs	359	private	function	test_format_array_expression_sparse_elisions	fn test_format_array_expression_sparse_elisions() {
+language/formatter/src/format/expression/tests.rs	388	private	function	test_format_new_expression_empty_argument_comment	fn test_format_new_expression_empty_argument_comment() {
+language/formatter/src/format/expression/tests.rs	399	private	function	test_format_member_expression_unwraps_parenthesized_call_object	fn test_format_member_expression_unwraps_parenthesized_call_object() {
+language/formatter/src/format/expression/tests.rs	410	private	function	test_tree_child_map_callback_breaks	fn test_tree_child_map_callback_breaks() {
+language/formatter/src/format/expression/tests.rs	434	private	function	test_format_type_const_borrow_normalizes_to_readonly	fn test_format_type_const_borrow_normalizes_to_readonly() {
+language/formatter/src/format/expression/tests.rs	441	private	function	test_format_type_const_pointer_normalizes_to_readonly	fn test_format_type_const_pointer_normalizes_to_readonly() {
+language/formatter/src/format/expression/tests.rs	465	private	function	test_format_type_alias_preserves_borrowed_reference	fn test_format_type_alias_preserves_borrowed_reference() {
+language/formatter/src/format/expression/tests.rs	493	private	function	test_format_type_alias_preserves_readonly_borrowed_reference	fn test_format_type_alias_preserves_readonly_borrowed_reference() {
+language/formatter/src/format/expression/tests.rs	503	private	function	test_format_member_call_chain_line	fn test_format_member_call_chain_line() {
+language/formatter/src/format/expression/tests.rs	513	private	function	test_format_member_call_chain_retains_breaks	fn test_format_member_call_chain_retains_breaks() {
+language/formatter/src/format/expression/tests.rs	523	private	function	test_format_member_call_chain_breaks	fn test_format_member_call_chain_breaks() {
+language/formatter/src/format/expression/tests.rs	533	private	function	test_format_member_call_chain_breaks_with_maybe_and_index	fn test_format_member_call_chain_breaks_with_maybe_and_index() {
+language/formatter/src/format/expression/tests.rs	543	private	function	test_format_path_member_call_chain_breaks	fn test_format_path_member_call_chain_breaks() {
+language/formatter/src/format/expression/tests.rs	553	private	function	test_format_index_member_chain_breaks	fn test_format_index_member_chain_breaks() {
+language/formatter/src/format/expression/tests.rs	564	private	function	test_format_member_chain_breaks_before_long_boundary_comment_with_optional_call	fn test_format_member_chain_breaks_before_long_boundary_comment_with_optional_call() {
+language/formatter/src/format/expression/tests.rs	576	private	function	test_format_chain_planner_promotes_head_in_call_like_argument	fn test_format_chain_planner_promotes_head_in_call_like_argument() {
+language/formatter/src/format/expression/tests.rs	587	private	function	test_format_chain_planner_respects_assignment_rhs_width	fn test_format_chain_planner_respects_assignment_rhs_width() {
+language/formatter/src/format/expression/tests.rs	597	private	function	test_format_expression_tree_literal_without_arguments	fn test_format_expression_tree_literal_without_arguments() {
+language/formatter/src/format/expression/tests.rs	607	private	function	test_format_expression_tree_literal_with_arguments	fn test_format_expression_tree_literal_with_arguments() {
+language/formatter/src/format/expression/tests.rs	617	private	function	test_format_expression_tree_literal_parenthesized	fn test_format_expression_tree_literal_parenthesized() {
+language/formatter/src/format/expression/tests.rs	637	private	function	test_format_expression_tree_literal_nested	fn test_format_expression_tree_literal_nested() {
+language/formatter/src/format/expression/tests.rs	665	private	function	test_format_expression_tree_literal_with_array_of_struct_element	fn test_format_expression_tree_literal_with_array_of_struct_element() {
+language/formatter/src/format/expression/tests.rs	690	private	function	test_format_expression_call_with_struct_literal	fn test_format_expression_call_with_struct_literal() {
+language/formatter/src/format/expression/tests.rs	711	private	function	test_format_expression_let_call	fn test_format_expression_let_call() {
+language/formatter/src/format/expression/tests.rs	745	private	function	test_format_call_single_lambda_argument_with_prefix_comment_breaks	fn test_format_call_single_lambda_argument_with_prefix_comment_breaks() {
+language/formatter/src/format/expression/tests.rs	752	private	function	test_format_call_nested_arrow_boundary_comments	fn test_format_call_nested_arrow_boundary_comments() {
+language/formatter/src/format/expression/tests.rs	759	private	function	test_format_chained_assignment	fn test_format_chained_assignment() {
+language/formatter/src/format/expression/tests.rs	769	private	function	test_format_chained_assignment_long	fn test_format_chained_assignment_long() {
+language/formatter/src/format/expression/tests.rs	779	private	function	test_format_jsx_with_comment	fn test_format_jsx_with_comment() {
+language/formatter/src/format/expression/tests.rs	789	private	function	test_format_jsx_conditional_child	fn test_format_jsx_conditional_child() {
+language/formatter/src/format/expression/tests.rs	799	private	function	test_format_jsx_in_function_call	fn test_format_jsx_in_function_call() {
+language/formatter/src/format/expression/tests.rs	809	private	function	test_format_deeply_nested_callbacks	fn test_format_deeply_nested_callbacks() {
+language/formatter/src/format/expression/tests.rs	820	private	function	test_call_chain_classifier_expands_callback_heavy_arguments	fn test_call_chain_classifier_expands_callback_heavy_arguments() {
+language/formatter/src/format/expression/tests.rs	845	private	function	test_call_chain_classifier_expands_single_tree_child_argument	fn test_call_chain_classifier_expands_single_tree_child_argument() {
+language/formatter/src/format/expression/tests.rs	868	private	function	test_format_optional_chain_with_nullish	fn test_format_optional_chain_with_nullish() {
+language/formatter/src/format/expression/tests.rs	879	private	function	test_format_type_conditional_with_infer	fn test_format_type_conditional_with_infer() {
+language/formatter/src/format/expression/tests.rs	889	private	function	test_format_type_conditional_with_constrained_infer	fn test_format_type_conditional_with_constrained_infer() {
+language/formatter/src/format/expression/tests.rs	899	private	function	test_format_type_conditional_nested	fn test_format_type_conditional_nested() {
+language/formatter/src/format/expression/tests.rs	909	private	function	test_format_type_intersection_trailing_operator_destack	fn test_format_type_intersection_trailing_operator_destack() {
+language/formatter/src/format/expression/tests.rs	920	private	function	test_format_type_mapped_with_remap	fn test_format_type_mapped_with_remap() {
+language/formatter/src/format/expression/tests.rs	928	private	function	test_format_type_mapped_with_removals	fn test_format_type_mapped_with_removals() {
+language/formatter/src/format/expression/tests.rs	936	private	function	test_format_type_mapped_without_modifiers	fn test_format_type_mapped_without_modifiers() {
+language/formatter/src/format/expression/tests.rs	944	private	function	test_format_type_mapped_with_optional	fn test_format_type_mapped_with_optional() {
+language/formatter/src/format/expression/tests.rs	952	private	function	test_format_type_index	fn test_format_type_index() {
+language/formatter/src/format/expression/tests.rs	960	private	function	test_format_type_template_literal	fn test_format_type_template_literal() {
+language/formatter/src/format/expression/tests.rs	968	private	function	test_format_type_template_literal_multiple_spans	fn test_format_type_template_literal_multiple_spans() {
+language/formatter/src/format/expression/tests.rs	976	private	function	test_format_type_template_literal_union_with_leading_pipe	fn test_format_type_template_literal_union_with_leading_pipe() {
+language/formatter/src/format/expression/tests.rs	985	private	function	test_format_type_union_drops_redundant_parentheses	fn test_format_type_union_drops_redundant_parentheses() {
+language/formatter/src/format/expression/tests.rs	993	private	function	test_format_type_single_member_leading_union_parenthesized_array	fn test_format_type_single_member_leading_union_parenthesized_array() {
+language/formatter/src/format/expression/tests.rs	1001	private	function	test_format_type_single_member_leading_intersection_parenthesized_array	fn test_format_type_single_member_leading_intersection_parenthesized_array() {
+language/formatter/src/format/expression/tests.rs	1019	private	function	test_type_template_literal_union_is_in_type_context	fn test_type_template_literal_union_is_in_type_context() {
+language/formatter/src/format/expression/tests.rs	1059	private	function	test_format_type_import	fn test_format_type_import() {
+language/formatter/src/format/expression/tests.rs	1069	private	function	test_format_type_import_without_qualifier	fn test_format_type_import_without_qualifier() {
+language/formatter/src/format/expression/tests.rs	1079	private	function	test_format_type_infer_expression	fn test_format_type_infer_expression() {
+language/formatter/src/format/expression/tests.rs	1085	private	function	test_format_async_arrow	fn test_format_async_arrow() {
+language/formatter/src/format/expression/tests.rs	1095	private	function	test_format_return_jsx_inline	fn test_format_return_jsx_inline() {
+language/formatter/src/format/expression/tests.rs	1106	private	function	test_format_return_jsx_multiline	fn test_format_return_jsx_multiline() {
+language/formatter/src/format/expression/tests.rs	1116	private	function	test_format_nested_ternary	fn test_format_nested_ternary() {
+language/formatter/src/format/expression/tests.rs	1127	private	function	test_format_const_call_with_multiline_object_rhs	fn test_format_const_call_with_multiline_object_rhs() {
+language/formatter/src/format/expression/tests.rs	1138	private	function	test_format_export_const_chain_rhs_does_not_break_after_operator	fn test_format_export_const_chain_rhs_does_not_break_after_operator() {
+language/formatter/src/format/expression/tests.rs	1149	private	function	test_format_const_generic_call_rhs_breaks_after_operator	fn test_format_const_generic_call_rhs_breaks_after_operator() {
+language/formatter/src/format/expression/tests.rs	1161	private	function	test_format_const_generic_call_rhs_preserves_source_operator_break	fn test_format_const_generic_call_rhs_preserves_source_operator_break() {
+language/formatter/src/format/expression/tests.rs	1173	private	function	test_format_const_generic_call_with_multiline_type_argument_keeps_operator_inline	fn test_format_const_generic_call_with_multiline_type_argument_keeps_operator_inline() {
+language/formatter/src/format/expression/tests.rs	1184	private	function	test_format_jsx_bracket_same_line_true	fn test_format_jsx_bracket_same_line_true() {
+language/formatter/src/format/expression/tests.rs	1196	private	function	test_format_jsx_bracket_same_line_false	fn test_format_jsx_bracket_same_line_false() {
+language/formatter/src/format/expression/tests.rs	1209	private	function	test_format_await_inside_maybe_gets_parenthesized	fn test_format_await_inside_maybe_gets_parenthesized() {
+language/formatter/src/format/expression/tests.rs	1222	private	function	test_format_unary_inside_maybe_gets_parenthesized	fn test_format_unary_inside_maybe_gets_parenthesized() {
+language/formatter/src/format/expression/tests.rs	1232	private	function	test_format_unary_await_expression_parenthesizes_operand	fn test_format_unary_await_expression_parenthesizes_operand() {
+language/formatter/src/format/expression/tests.rs	1243	private	function	test_format_postfix_inside_maybe_no_extra_parens	fn test_format_postfix_inside_maybe_no_extra_parens() {
+language/formatter/src/format/expression/tests.rs	1254	private	function	test_format_call_inside_maybe_no_parens	fn test_format_call_inside_maybe_no_parens() {
+language/formatter/src/format/expression/tests.rs	1265	private	function	test_format_await_maybe_sugar	fn test_format_await_maybe_sugar() {
+language/formatter/src/format/expression/tests.rs	1275	private	function	test_format_call_argument_function_parameter_line_comment_is_idempotent	fn test_format_call_argument_function_parameter_line_comment_is_idempotent() {
+language/formatter/src/format/expression/tests.rs	1297	private	function	test_format_assignment_chain_with_member_call_is_idempotent	fn test_format_assignment_chain_with_member_call_is_idempotent() {
+language/formatter/src/format/expression/tests.rs	1319	private	function	test_format_assignment_chain_in_call_argument_is_idempotent	fn test_format_assignment_chain_in_call_argument_is_idempotent() {
+language/formatter/src/format/expression/tests.rs	1342	private	function	test_format_satisfies_seam_comment_keeps_qualified_type_argument_comment	fn test_format_satisfies_seam_comment_keeps_qualified_type_argument_comment() {
+language/formatter/src/format/expression/tests.rs	1357	private	function	test_format_satisfies_seam_comment_keeps_single_segment_compact_remap	fn test_format_satisfies_seam_comment_keeps_single_segment_compact_remap() {
+language/formatter/src/format/expression/tests.rs	1372	private	function	test_format_export_seam_comment_keeps_declare_declaration_head	fn test_format_export_seam_comment_keeps_declare_declaration_head() {
+language/formatter/src/format/expression/tests.rs	1387	private	function	test_format_export_seam_comment_keeps_async_declaration_head	fn test_format_export_seam_comment_keeps_async_declaration_head() {

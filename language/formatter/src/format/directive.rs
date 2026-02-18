@@ -59,7 +59,7 @@ where
         return None;
     }
 
-    let node_span = context.get_span(node_id);
+    let node_span = context.span(node_id);
 
     let comment_tokens = context.comment_tokens();
     let mut last_prefix_token: Option<TokenSpan> = None;
@@ -76,12 +76,12 @@ where
             return None;
         }
 
-        let raw = context.get_token_str(token);
+        let raw = context.token_str(token);
         let (between, newlines) = if token.span.end > node_span.start {
             ("", 0)
         } else {
             let between_span = Span::new(node_span.file, token.span.end, node_span.start);
-            let between = context.get_span_str(between_span);
+            let between = context.span_str(between_span);
             let newlines = between.chars().filter(|ch| *ch == '\n').count();
             (between, newlines)
         };
@@ -120,7 +120,7 @@ where
         return None;
     }
 
-    let node_span = context.get_span(node_id);
+    let node_span = context.span(node_id);
 
     let mut last_prefix_token: Option<TokenSpan> = None;
     for token in comment_tokens {
@@ -136,7 +136,7 @@ where
             return None;
         }
 
-        let raw = context.get_token_str(token);
+        let raw = context.token_str(token);
         let comment_line = context
             .file
             .get_position(token.span.start)
@@ -209,7 +209,7 @@ fn comment_token_is_line_leading(context: &DestackFormatContext<'_>, token: Toke
     };
 
     let prefix_span = Span::new(token.span.file, line_span.start, token.span.start);
-    context.get_span_str(prefix_span).trim().is_empty()
+    context.span_str(prefix_span).trim().is_empty()
 }
 
 /// Extend an ignored span to include trailing content on the same line.
@@ -230,7 +230,7 @@ fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Sp
 
         match token.token.ty {
             TokenType::Whitespace => {
-                let raw = context.get_token_str(token);
+                let raw = context.token_str(token);
                 if raw.contains(['\n', '\r']) {
                     break;
                 }
@@ -286,7 +286,7 @@ fn extend_span_with_trailing_statement_terminator(
     while let Some(token) = tokens.get(lookahead_index).copied() {
         match token.token.ty {
             TokenType::Whitespace => {
-                let raw = context.get_token_str(token);
+                let raw = context.token_str(token);
                 if raw.contains(['\n', '\r']) {
                     return Span::new(span.file, span.start, candidate.span.end);
                 }
@@ -333,7 +333,7 @@ pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
             | TokenType::BlockComment
             | TokenType::DocLineComment
             | TokenType::DocBlockComment => {
-                let raw_comment = context.get_token_str(token);
+                let raw_comment = context.token_str(token);
                 if matches!(
                     parse_directive_token_from_raw(raw_comment),
                     Some(FormatterDirectiveToken::IgnoreFile)
@@ -351,7 +351,7 @@ pub fn has_file_ignore_directive(context: &DestackFormatContext<'_>) -> bool {
 
 /// Extract the source for an ignored span.
 pub fn ignored_span_source(context: &DestackFormatContext<'_>, span: Span) -> String {
-    let raw = context.get_span_str(span);
+    let raw = context.span_str(span);
     let Some((line_index, column)) = context.file.get_position(span.start) else {
         return raw.to_owned();
     };
@@ -463,13 +463,13 @@ pub fn ignored_node_source<T: Node>(
 where
     NodeTree: NodeTreeImpl<T>,
 {
-    let span = context.get_span(node_id);
+    let span = context.span(node_id);
     let end = match directive.position {
         FormatterDirectivePosition::Prefix { .. } => span.end,
         FormatterDirectivePosition::Postfix { comment_span } => comment_span.end.max(span.end),
     };
     context
-        .get_span_str(Span::new(span.file, span.start, end))
+        .span_str(Span::new(span.file, span.start, end))
         .to_owned()
 }
 
@@ -483,7 +483,7 @@ fn find_ignore_range_end(
         .iter()
         .filter(|token| token.span.start >= start_offset)
         .find_map(|token| {
-            let raw_comment = context.get_token_str(*token);
+            let raw_comment = context.token_str(*token);
             if parse_directive_token_from_raw(raw_comment)
                 == Some(FormatterDirectiveToken::IgnoreEnd)
             {

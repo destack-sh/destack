@@ -1,3 +1,4 @@
+use crate::operator::{is_type_context, union_source_has_leading_pipe};
 use crate::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format,
@@ -324,7 +325,7 @@ fn test_call_argument_profile_detects_decorated_class_argument() {
     };
     assert_eq!(dynamic_arguments.len(), 1);
 
-    let profile = context.argument_annotation_profile(dynamic_arguments[0]);
+    let profile = context.ensure_argument_annotation_facts(dynamic_arguments[0]);
     assert!(
         profile.has_prefix_annotation,
         "expected decorated class argument to report prefix annotation"
@@ -1041,10 +1042,10 @@ fn test_type_template_literal_union_is_in_type_context() {
         }
 
         has_union = true;
-        if super::union_source_has_leading_pipe(&context, expression_id) {
+        if union_source_has_leading_pipe(&context, expression_id) {
             has_union_with_leading_pipe_source = true;
         }
-        if super::is_type_context(&context, expression_id) {
+        if is_type_context(&context, expression_id) {
             has_union_in_type_context = true;
         }
     }

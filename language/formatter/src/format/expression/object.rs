@@ -1,6 +1,9 @@
 use super::*;
 use crate::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
 use crate::directive::any_ignore_range_for_nodes;
+use crate::operator::{
+    is_parameter_type_annotation, is_static_type_argument_context, is_type_context,
+};
 use destack_fir::{format_args, write};
 
 // object literal shape thresholds
@@ -18,8 +21,8 @@ pub(super) fn format_boundary_comment_array<'ast>(
         return Ok(());
     };
 
-    let first_span = f.context().get_span(*first_element);
-    let last_span = f.context().get_span(*last_element);
+    let first_span = f.context().span(*first_element);
+    let last_span = f.context().span(*last_element);
     if first_span.file != last_span.file || first_span.start >= last_span.end {
         let fallback_elements = elements.to_vec();
         write!(
@@ -30,7 +33,7 @@ pub(super) fn format_boundary_comment_array<'ast>(
     }
 
     let value_span = Span::new(first_span.file, first_span.start, last_span.end);
-    let value_source = f.context().get_span_str(value_span);
+    let value_source = f.context().span_str(value_span);
     let value_source = value_source.trim();
     let needs_trailing_comma = matches!(
         f.context().options.trailing_comma,
@@ -63,12 +66,12 @@ pub(super) fn format_boundary_comment_array<'ast>(
 }
 
 /// Whether an expression is used as the left side of an assignment.
-pub(super) fn is_assignment_left_target(
+pub(crate) fn is_assignment_left_target(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let mut current_expression_id = expression_id;
-    while let Some((ancestor_id, ancestor_type)) = context.get_parent(current_expression_id) {
+    while let Some((ancestor_id, ancestor_type)) = context.parent(current_expression_id) {
         if ancestor_type != NodeType::Expression {
             return false;
         }
@@ -100,7 +103,7 @@ fn is_multiline_pattern_field_default_object(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((field_id, field_type)) = context.get_parent(expression_id) else {
+    let Some((field_id, field_type)) = context.parent(expression_id) else {
         return false;
     };
     if field_type != NodeType::PatternField {
@@ -120,7 +123,7 @@ fn is_multiline_pattern_field_default_object(
         return false;
     }
 
-    let Some((pattern_id, pattern_type)) = context.get_parent(field_id) else {
+    let Some((pattern_id, pattern_type)) = context.parent(field_id) else {
         return false;
     };
     if pattern_type != NodeType::Pattern {
@@ -141,8 +144,8 @@ fn object_has_leading_newline_before_first_property(
         return false;
     };
 
-    let object_span = context.get_span(expression_id);
-    let first_property_span = context.get_span(*first_property_id);
+    let object_span = context.span(expression_id);
+    let first_property_span = context.span(*first_property_id);
     if object_span.file != first_property_span.file
         || object_span.start >= first_property_span.start
     {
@@ -180,7 +183,7 @@ pub(crate) fn format_struct_literal<'ast>(
         .any(|property| matches!(property, Property::Method { body: Some(_), .. }));
     let has_annotations = f.context().has_infix_annotation(expression_id)
         || collection_nodes_have_annotations(f.context(), properties_ids);
-    let span = f.context().get_span(expression_id);
+    let span = f.context().span(expression_id);
     let has_newline_in_source = f.context().has_newline(span);
     let is_typescript = f.context().options.language_type.is_typescript();
     let is_static_type_argument = is_static_type_argument_context(f.context(), expression_id);
@@ -205,7 +208,7 @@ pub(crate) fn format_struct_literal<'ast>(
     let has_comments = span_has_comment(f.context(), span)
         || properties_ids
             .iter()
-            .any(|property_id| span_has_comment(f.context(), f.context().get_span(*property_id)));
+            .any(|property_id| span_has_comment(f.context(), f.context().span(*property_id)));
     let keep_single_inline_comment_object =
         has_comments && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
     let keep_single_inline_annotated_object =

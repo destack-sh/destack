@@ -1,12 +1,11 @@
 use super::dispatch::format_declaration_export_modifier;
-use crate::argument::list_like;
+use crate::analysis::scan::next_non_whitespace_after_annotation;
+use crate::collection::list_like;
 use crate::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::expression::{
-    format_expression, is_expression_breakable, is_type_context, source_min_inline_char_len,
-};
-use crate::scan::next_non_whitespace_after_annotation;
+use crate::expression::{format_expression, is_expression_breakable, source_min_inline_char_len};
+use crate::operator::is_type_context;
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
     AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind,
@@ -37,7 +36,7 @@ fn single_line_type_grouping_prefix_comment_cluster(
 
     let mut current_id = expression_id;
     loop {
-        let Some(annotations) = context.get_annotations(current_id) else {
+        let Some(annotations) = context.annotations(current_id) else {
             let next_id = match context.tree.get(current_id) {
                 Expression::Parenthesized { expression } | Expression::Statement(expression) => {
                     Some(*expression)
@@ -53,7 +52,7 @@ fn single_line_type_grouping_prefix_comment_cluster(
 
         let mut cluster = Vec::new();
         for annotation_id in annotations {
-            let annotation = context.get_annotation(annotation_id);
+            let annotation = context.annotation(annotation_id);
             let Annotation::Comment {
                 node: comment_id,
                 position,
@@ -73,15 +72,15 @@ fn single_line_type_grouping_prefix_comment_cluster(
             if comment.style != CommentStyle::Star {
                 break;
             }
-            let comment_span = context.get_annotation_span(annotation_id);
-            let comment_source = context.get_span_str(comment_span);
+            let comment_span = context.annotation_span(annotation_id);
+            let comment_source = context.span_str(comment_span);
             if comment_source.trim_start().starts_with("/**") || comment_source.contains('\n') {
                 return None;
             }
 
             if let Some(previous_annotation_id) = cluster.last().copied() {
-                let previous_span = context.get_annotation_span(previous_annotation_id);
-                let current_span = context.get_annotation_span(annotation_id);
+                let previous_span = context.annotation_span(previous_annotation_id);
+                let current_span = context.annotation_span(annotation_id);
                 let between_span =
                     Span::new(previous_span.file, previous_span.end, current_span.start);
                 if context.has_newline(between_span) {
@@ -112,12 +111,12 @@ fn expression_has_doc_like_block_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some(annotation_ids) = context.get_annotations(expression_id) else {
+    let Some(annotation_ids) = context.annotations(expression_id) else {
         return false;
     };
 
     annotation_ids.into_iter().any(|annotation_id| {
-        let annotation = context.get_annotation(annotation_id);
+        let annotation = context.annotation(annotation_id);
         match annotation {
             Annotation::Doc {
                 position: AnnotationPosition::BlockPrefix,
@@ -127,8 +126,8 @@ fn expression_has_doc_like_block_prefix_annotation(
                 position: AnnotationPosition::BlockPrefix,
                 ..
             } => {
-                let annotation_span = context.get_annotation_span(annotation_id);
-                let annotation_source = context.get_span_str(annotation_span);
+                let annotation_span = context.annotation_span(annotation_id);
+                let annotation_source = context.span_str(annotation_span);
                 annotation_source.trim_start().starts_with("/**")
             }
             _ => false,
@@ -244,8 +243,8 @@ pub(super) fn format_type_alias_declaration<'ast>(
                 if index > 0 {
                     write!(f, [space()])?;
                 }
-                let annotation_span = f.context().get_annotation_span(annotation_id);
-                let annotation_source = f.context().get_span_str(annotation_span);
+                let annotation_span = f.context().annotation_span(annotation_id);
+                let annotation_source = f.context().span_str(annotation_span);
                 write!(f, [text(annotation_source.trim())])?;
             }
             write!(f, [space()])?;
@@ -299,15 +298,15 @@ pub(super) fn format_type_alias_declaration<'ast>(
         expression_has_prefix_annotation_in_left_spine(f.context(), value_id);
     let value_has_doc_like_block_prefix_annotation =
         expression_has_doc_like_block_prefix_annotation(f.context(), value_id);
-    let declaration_span = f.context().get_span(node_id);
-    let value_span = f.context().get_span(value_id);
+    let declaration_span = f.context().span(node_id);
+    let value_span = f.context().span(value_id);
     let leading_value_span = Span::new(value_span.file, declaration_span.start, value_span.start);
     let inline_header_len = f.context().span_char_len(leading_value_span);
     let inline_value_len = f.context().span_char_len(value_span);
     let inline_total_len = inline_header_len.saturating_add(inline_value_len);
     let inline_header_min_len =
-        source_min_inline_char_len(f.context().get_span_str(leading_value_span));
-    let inline_value_min_len = source_min_inline_char_len(f.context().get_span_str(value_span));
+        source_min_inline_char_len(f.context().span_str(leading_value_span));
+    let inline_value_min_len = source_min_inline_char_len(f.context().span_str(value_span));
     let inline_total_min_len = inline_header_min_len.saturating_add(inline_value_min_len);
     let line_width = usize::from(f.context().options.line_width);
     let value_has_newline = f.context().has_newline(value_span);
