@@ -1,4 +1,6 @@
-#[path = "../unsupported.rs"]
-mod unsupported;
+mod core;
+mod device;
+mod event;
 
-pub(crate) use unsupported::*;
+pub(crate) use device::*;
+pub(crate) use event::*;

@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -488,7 +489,7 @@ impl<'call> IoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses close semantics for eventfd, kqueue user events, or event objects.
+    /// Uses close semantics for eventfd, pipe-backed events, or event objects.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -512,7 +513,7 @@ impl<'call> IoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses eventfd or kqueue user events on Unix and event objects on Windows.
+    /// Uses eventfd on Linux, pipe-backed events on other Unix hosts, and event objects on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -542,11 +543,12 @@ impl<'call> IoHarnessContext<'call> {
     /// Signal a user-event token.
     ///
     /// Increment one user-event token and wake waiters.
+    /// Value must be greater than zero.
     /// Counter saturation and coalescing are host-backend defined.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses eventfd write, kqueue trigger, or SetEvent on Windows.
+    /// Uses eventfd writes on Linux, pipe writes on other Unix hosts, and SetEvent on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -605,7 +607,7 @@ impl<'call> IoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses epoll_ctl del, kevent delete, poll table delete, or iocp teardown.
+    /// Uses epoll_ctl del, kevent delete, poll table delete, or Windows readiness teardown.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -637,7 +639,7 @@ impl<'call> IoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses epoll, kqueue, poll, or iocp depending on backend.
+    /// Uses epoll, kqueue, poll, or the Windows readiness backend depending on backend.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -674,7 +676,7 @@ impl<'call> IoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses epoll_ctl add, kevent add, poll table add, or iocp association.
+    /// Uses epoll_ctl add, kevent add, poll table add, or Windows readiness association.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -719,7 +721,7 @@ impl<'call> IoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses epoll_ctl mod, kevent update, poll table update, or iocp metadata update.
+    /// Uses epoll_ctl mod, kevent update, poll table update, or Windows readiness metadata update.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -758,7 +760,7 @@ impl<'call> IoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses epoll_wait, kevent wait, poll wait, or iocp get queued completion status.
+    /// Uses epoll_wait, kevent wait, poll wait, or Windows readiness wait operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::os::unix::io::RawFd;
+use std::sync::Arc;
 
 use libc::{c_int, epoll_create1, epoll_ctl, epoll_event, epoll_wait};
 
@@ -10,7 +11,7 @@ use crate::platform::diagnostic::{
 use crate::platform::poller::{
     PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
     PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PollerToken,
+    PlatformPollerWakeHandle, PollerToken,
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 
@@ -25,8 +26,23 @@ pub struct EpollPoller {
     epoll_fd: RawFd,
     /// Wake eventfd descriptor.
     wake_fd: RawFd,
+    /// Shared wake handle used by out-of-band wakeups.
+    wake_handle: Arc<EpollWakeHandle>,
     /// Event buffer reused across polls.
     events: Vec<epoll_event>,
+}
+
+/// Shared wake handle for one epoll poller.
+#[derive(Debug)]
+struct EpollWakeHandle {
+    /// Wake eventfd descriptor.
+    wake_fd: RawFd,
+}
+
+impl PlatformPollerWakeHandle for EpollWakeHandle {
+    fn wake(&self) -> RuntimeResult<()> {
+        wake_eventfd(self.wake_fd)
+    }
 }
 
 /// Epoll registration state for a resource.
@@ -72,6 +88,7 @@ impl EpollPoller {
             tokens: HashMap::new(),
             epoll_fd,
             wake_fd,
+            wake_handle: Arc::new(EpollWakeHandle { wake_fd }),
             events: Vec::new(),
         })
     }
@@ -222,24 +239,12 @@ impl PlatformPoller for EpollPoller {
         Ok(())
     }
 
-    fn wake(&mut self) -> RuntimeResult<()> {
-        // write a value to the wake eventfd
-        let value: u64 = 1;
-        let result = unsafe {
-            libc::write(
-                self.wake_fd,
-                &value as *const u64 as *const _,
-                std::mem::size_of::<u64>(),
-            )
-        };
-        if result < 0 {
-            let errno = core_platform::get_errno();
-            if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
-                return Err(io_error("poller.wake", None));
-            }
-        }
+    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+        Some(self.wake_handle.clone())
+    }
 
-        Ok(())
+    fn wake(&mut self) -> RuntimeResult<()> {
+        self.wake_handle.wake()
     }
 
     fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
@@ -334,6 +339,26 @@ impl PlatformPoller for EpollPoller {
 
         Ok(output)
     }
+}
+
+/// Write one wake value into one eventfd.
+fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
+    let value: u64 = 1;
+    let result = unsafe {
+        libc::write(
+            fd,
+            &value as *const u64 as *const _,
+            std::mem::size_of::<u64>(),
+        )
+    };
+    if result < 0 {
+        let errno = core_platform::get_errno();
+        if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
+            return Err(io_error("poller.wake", Some(fd)));
+        }
+    }
+
+    Ok(())
 }
 
 /// Convert interests and flags into epoll events.

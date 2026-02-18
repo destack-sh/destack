@@ -162,7 +162,7 @@ pub(crate) unsafe fn destack_process_get_priority(
 pub(crate) unsafe fn destack_process_get_scheduler(
     _context: &RuntimeCallContext,
     out: *mut ProcessSchedulerConfig,
-    _pid: ProcessId,
+    pid: ProcessId,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -202,6 +202,7 @@ pub(crate) unsafe fn destack_process_get_scheduler(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
+        let _ = pid;
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.process.sched.getScheduler",
         ))

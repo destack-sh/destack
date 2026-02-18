@@ -629,7 +629,6 @@ fn decode_destack_io_poll_open_args(
         1u8 => PollBackend::Epoll,
         2u8 => PollBackend::Kqueue,
         3u8 => PollBackend::Poll,
-        4u8 => PollBackend::Iocp,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "backend",
@@ -2825,11 +2824,11 @@ fn destack_io_poll_wait_replay(
                     let result_recorded_item = *result_recorded_item_value;
                     let result_recorded_item_recorded_key = result_recorded_item.key;
                     let result_recorded_item_recorded_ready = result_recorded_item.ready;
-                    let result_recorded_item_recorded_error = result_recorded_item.error;
+                    let result_recorded_item_recorded_data = result_recorded_item.data;
                     let result_recorded_item_recorded = PollEvent {
                         key: result_recorded_item_recorded_key,
                         ready: result_recorded_item_recorded_ready,
-                        error: result_recorded_item_recorded_error,
+                        data: result_recorded_item_recorded_data,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -2857,11 +2856,11 @@ fn destack_io_poll_wait_replay(
                     for value_native_item in value {
                         let value_native_item_native_key = value_native_item.key;
                         let value_native_item_native_ready = value_native_item.ready;
-                        let value_native_item_native_error = value_native_item.error;
+                        let value_native_item_native_data = value_native_item.data;
                         let value_native_item_native = PollEvent {
                             key: value_native_item_native_key,
                             ready: value_native_item_native_ready,
-                            error: value_native_item_native_error,
+                            data: value_native_item_native_data,
                         };
                         value_native_values.push(value_native_item_native);
                     }
@@ -4894,21 +4893,21 @@ fn destack_io_poll_wait_vm_replay(
                             )?;
                             let result_recorded_item_ready =
                                 PollInterest(result_recorded_item_ready_inner);
-                            let result_recorded_item_error =
-                                decode_int32(slots[2], "result_recorded_item_error", "error")?;
+                            let result_recorded_item_data =
+                                decode_int32(slots[2], "result_recorded_item_data", "data")?;
                             PollEventVm {
                                 key: result_recorded_item_key,
                                 ready: result_recorded_item_ready,
-                                error: result_recorded_item_error,
+                                data: result_recorded_item_data,
                             }
                         };
                         let result_recorded_item_recorded_key = result_recorded_item.key;
                         let result_recorded_item_recorded_ready = result_recorded_item.ready;
-                        let result_recorded_item_recorded_error = result_recorded_item.error;
+                        let result_recorded_item_recorded_data = result_recorded_item.data;
                         let result_recorded_item_recorded = PollEvent {
                             key: result_recorded_item_recorded_key,
                             ready: result_recorded_item_recorded_ready,
-                            error: result_recorded_item_recorded_error,
+                            data: result_recorded_item_recorded_data,
                         };
                         result_recorded.push(result_recorded_item_recorded);
                     }
@@ -4938,17 +4937,17 @@ fn destack_io_poll_wait_vm_replay(
                             let vm_result_item = *vm_result_item;
                             let vm_result_item_value_key = vm_result_item.key;
                             let vm_result_item_value_ready = vm_result_item.ready;
-                            let vm_result_item_value_error = vm_result_item.error;
+                            let vm_result_item_value_data = vm_result_item.data;
                             let vm_result_item_value = PollEventVm {
                                 key: vm_result_item_value_key,
                                 ready: vm_result_item_value_ready,
-                                error: vm_result_item_value_error,
+                                data: vm_result_item_value_data,
                             };
                             let vm_result_item_value_encoded = {
                                 let field_0 = vm::Value::uint(vm_result_item_value.key, 64);
                                 let field_1 =
                                     vm::Value::uint(vm_result_item_value.ready.0 as u64, 32);
-                                let field_2 = vm::Value::int(vm_result_item_value.error as i64, 32);
+                                let field_2 = vm::Value::int(vm_result_item_value.data as i64, 32);
                                 context.allocate_aggregate(vec![field_0, field_1, field_2])
                             };
                             vm_result_values.push(vm_result_item_value_encoded);

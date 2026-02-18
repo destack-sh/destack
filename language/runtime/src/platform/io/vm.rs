@@ -2,13 +2,111 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::io::{
-    CompletionEventVm, CompletionOperationKind, CompletionOperationVm, DescriptorControlCommand,
-    DescriptorControlFlags, DescriptorRequestVm, DescriptorResultVm, EventToken, PollBackend,
-    PollEventVm, PollInterest, UringFeaturesVm, UringParametersVm,
+    CompletionEvent, CompletionEventVm, CompletionOperation, CompletionOperationKind,
+    CompletionOperationVm, DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest,
+    DescriptorRequestVm, DescriptorResult, DescriptorResultVm, EventToken, PollBackend,
+    PollEventVm, PollInterest, UringFeaturesVm, UringParametersVm, core as core_io,
+    host as host_io,
 };
-use crate::platform::{PlatformError, VmArray, VmSlice, resource};
+use crate::platform::{NativeSlice, PlatformError, VmArray, VmSlice, VmValueCodec, resource};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
+
+/// Encode one poll event slice into one VM array.
+fn encode_poll_events_vm_array(
+    context: &mut vm::ExternalCallContext<'_>,
+    events: &[PollEventVm],
+) -> VmArray<PollEventVm> {
+    // encode each poll event aggregate payload
+    let mut values = Vec::with_capacity(events.len());
+    for event in events {
+        let field_0 = vm::Value::uint(event.key, 64);
+        let field_1 = vm::Value::uint(event.ready.0 as u64, 32);
+        let field_2 = vm::Value::int(event.data as i64, 32);
+        values.push(context.allocate_aggregate(vec![field_0, field_1, field_2]));
+    }
+
+    // allocate one vm raw value array for the encoded events
+    let data = context.allocate_raw_values(values);
+    VmArray {
+        data,
+        len: events.len() as u32,
+        capacity: events.len() as u32,
+        _marker: std::marker::PhantomData,
+    }
+}
+
+/// Encode one completion event slice into one VM array.
+fn encode_completion_events_vm_array(
+    context: &mut vm::ExternalCallContext<'_>,
+    events: &[CompletionEventVm],
+) -> VmArray<CompletionEventVm> {
+    // encode each completion event aggregate payload
+    let mut values = Vec::with_capacity(events.len());
+    for event in events {
+        let field_0 = vm::Value::uint(event.key, 64);
+        let field_1 = vm::Value::int(event.result, 64);
+        let field_2 = vm::Value::uint(event.flags as u64, 32);
+        values.push(context.allocate_aggregate(vec![field_0, field_1, field_2]));
+    }
+
+    // allocate one vm raw value array for the encoded events
+    let data = context.allocate_raw_values(values);
+    VmArray {
+        data,
+        len: events.len() as u32,
+        capacity: events.len() as u32,
+        _marker: std::marker::PhantomData,
+    }
+}
+
+/// Decode one VM slice into one runtime-owned native slice.
+fn slice_from_vm<T: VmValueCodec + 'static>(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    values: VmSlice<T>,
+) -> RuntimeResult<NativeSlice<T>> {
+    let values = values.read_values(context)?;
+    Ok(runtime.store_slice(values))
+}
+
+/// Encode one native slice into one VM slice.
+fn slice_to_vm<T: VmValueCodec>(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: NativeSlice<T>,
+) -> RuntimeResult<VmSlice<T>> {
+    let values = unsafe { values.as_slice()? };
+    VmSlice::from_values(context, values)
+}
+
+/// Decode one vm descriptor request into one native descriptor request.
+fn descriptor_request_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    request: DescriptorRequestVm,
+) -> RuntimeResult<DescriptorRequest> {
+    let input = request.input.read_bytes(context)?;
+    let input = runtime.store_slice(input);
+
+    Ok(DescriptorRequest {
+        code: request.code,
+        input,
+        output_size: request.output_size,
+        flags: request.flags,
+    })
+}
+
+/// Encode one native descriptor result into one vm descriptor result.
+fn descriptor_result_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: DescriptorResult,
+) -> RuntimeResult<DescriptorResultVm> {
+    let output = slice_to_vm(context, result.output)?;
+    Ok(DescriptorResultVm {
+        return_value: result.return_value,
+        output,
+    })
+}
 
 /// Cancel queued operations for one target.
 ///
@@ -28,16 +126,12 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_completion_cancel(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<u32> {
-    let _ = (handle, target);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.completion.cancel is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::completion_cancel(runtime, handle, target)
 }
 
 /// Close a completion queue.
@@ -58,15 +152,11 @@ pub(crate) fn destack_io_completion_cancel(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_completion_close(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.completion.close is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::completion_close(runtime, handle)
 }
 
 /// Enter the completion backend with submit and wait hints.
@@ -87,18 +177,14 @@ pub(crate) fn destack_io_completion_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_completion_enter(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     mincomplete: u32,
     timeoutns: u64,
     flags: u32,
 ) -> RuntimeResult<u32> {
-    let _ = (handle, mincomplete, timeoutns, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.completion.enter is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::completion_enter(runtime, handle, mincomplete, timeoutns, flags)
 }
 
 /// Open a completion queue.
@@ -119,15 +205,11 @@ pub(crate) fn destack_io_completion_enter(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_completion_open(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     entries: u32,
 ) -> RuntimeResult<resource::CompletionHandle> {
-    let _ = entries;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.completion.open is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::completion_open(runtime, entries)
 }
 
 /// Submit one completion operation.
@@ -148,16 +230,12 @@ pub(crate) fn destack_io_completion_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_completion_submit(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     operation: CompletionOperationVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, operation);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.completion.submit is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::completion_submit(runtime, handle, operation)
 }
 
 /// Submit a batch of completion operations.
@@ -178,18 +256,21 @@ pub(crate) fn destack_io_completion_submit(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_completion_submit_batch(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     operationwords: VmSlice<u64>,
     operationcount: u32,
     operationwordstride: u32,
 ) -> RuntimeResult<u32> {
-    let _ = (handle, operationwords, operationcount, operationwordstride);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.completion.submitBatch is not available in the VM yet",
-    ))
-    .boxed())
+    let operationwords = slice_from_vm(runtime, context, operationwords)?;
+    core_io::completion_submit_batch(
+        runtime,
+        handle,
+        operationwords,
+        operationcount,
+        operationwordstride,
+    )
 }
 
 /// Wait for completion events.
@@ -210,17 +291,14 @@ pub(crate) fn destack_io_completion_submit_batch(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_completion_wait(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::CompletionHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<CompletionEventVm>> {
-    let _ = (handle, timeoutns, maxevents);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.completion.wait is not available in the VM yet",
-    ))
-    .boxed())
+    let events = core_io::completion_wait(runtime, handle, timeoutns, maxevents)?;
+    Ok(encode_completion_events_vm_array(context, &events))
 }
 
 /// Execute one fcntl-style descriptor command.
@@ -241,18 +319,14 @@ pub(crate) fn destack_io_completion_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_control_fcntl(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ResourceId,
     command: DescriptorControlCommand,
     argument: u64,
     flags: DescriptorControlFlags,
 ) -> RuntimeResult<i64> {
-    let _ = (handle, command, argument, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.control.fcntl is not available in the VM yet",
-    ))
-    .boxed())
+    host_io::host_control_fcntl(runtime, handle, command, argument, flags)
 }
 
 /// Execute one ioctl-style descriptor request.
@@ -273,16 +347,14 @@ pub(crate) fn destack_io_control_fcntl(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_control_ioctl(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ResourceId,
     request: DescriptorRequestVm,
 ) -> RuntimeResult<DescriptorResultVm> {
-    let _ = (handle, request);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.control.ioctl is not available in the VM yet",
-    ))
-    .boxed())
+    let request = descriptor_request_from_vm(runtime, context, request)?;
+    let result = host_io::host_control_ioctl(runtime, handle, request)?;
+    descriptor_result_to_vm(context, result)
 }
 
 /// Attach an event token to a poll target key.
@@ -303,17 +375,13 @@ pub(crate) fn destack_io_control_ioctl(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_event_attach(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     token: EventToken,
     target: resource::ResourceId,
     key: u64,
 ) -> RuntimeResult<()> {
-    let _ = (token, target, key);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.attach is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::event_attach(runtime, token, target, key)
 }
 
 /// Close a user-event token.
@@ -323,7 +391,7 @@ pub(crate) fn destack_io_event_attach(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses close semantics for eventfd, kqueue user events, or event objects.
+/// Uses close semantics for eventfd, pipe-backed events, or event objects.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -334,15 +402,11 @@ pub(crate) fn destack_io_event_attach(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_event_close(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     token: EventToken,
 ) -> RuntimeResult<()> {
-    let _ = token;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.close is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::event_close(runtime, token)
 }
 
 /// Create a user-event token.
@@ -352,7 +416,7 @@ pub(crate) fn destack_io_event_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses eventfd or kqueue user events on Unix and event objects on Windows.
+/// Uses eventfd on Linux, pipe-backed events on other Unix hosts, and event objects on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -363,25 +427,22 @@ pub(crate) fn destack_io_event_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_event_open(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     initial: u64,
 ) -> RuntimeResult<EventToken> {
-    let _ = initial;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.open is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::event_open(runtime, initial)
 }
 
 /// Signal a user-event token.
 ///
 /// Increment one user-event token and wake waiters.
+/// Value must be greater than zero.
 /// Counter saturation and coalescing are host-backend defined.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses eventfd write, kqueue trigger, or SetEvent on Windows.
+/// Uses eventfd writes on Linux, pipe writes on other Unix hosts, and SetEvent on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -392,16 +453,12 @@ pub(crate) fn destack_io_event_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_event_signal(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     token: EventToken,
     argument_value: u64,
 ) -> RuntimeResult<()> {
-    let _ = (token, argument_value);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.event.signal is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::event_signal(runtime, token, argument_value)
 }
 
 /// Close a poll instance.
@@ -422,15 +479,11 @@ pub(crate) fn destack_io_event_signal(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_poll_close(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.poll.close is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::poll_close(runtime, handle)
 }
 
 /// Remove one target from a poll instance.
@@ -440,7 +493,7 @@ pub(crate) fn destack_io_poll_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_ctl del, kevent delete, poll table delete, or iocp teardown.
+/// Uses epoll_ctl del, kevent delete, poll table delete, or Windows readiness teardown.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -451,16 +504,12 @@ pub(crate) fn destack_io_poll_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_poll_deregister(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
 ) -> RuntimeResult<()> {
-    let _ = (handle, target);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.poll.deregister is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::poll_deregister(runtime, handle, target)
 }
 
 /// Open a poll instance.
@@ -470,7 +519,7 @@ pub(crate) fn destack_io_poll_deregister(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll, kqueue, poll, or iocp depending on backend.
+/// Uses epoll, kqueue, poll, or the Windows readiness backend depending on backend.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -481,15 +530,11 @@ pub(crate) fn destack_io_poll_deregister(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_poll_open(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     backend: PollBackend,
 ) -> RuntimeResult<resource::PollHandle> {
-    let _ = backend;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.poll.open is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::poll_open(runtime, backend)
 }
 
 /// Register one target with a poll instance.
@@ -499,7 +544,7 @@ pub(crate) fn destack_io_poll_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_ctl add, kevent add, poll table add, or iocp association.
+/// Uses epoll_ctl add, kevent add, poll table add, or Windows readiness association.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -510,18 +555,14 @@ pub(crate) fn destack_io_poll_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_poll_register(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    let _ = (handle, target, key, interest);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.poll.register is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::poll_register(runtime, handle, target, key, interest)
 }
 
 /// Update one target in a poll instance.
@@ -531,7 +572,7 @@ pub(crate) fn destack_io_poll_register(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_ctl mod, kevent update, poll table update, or iocp metadata update.
+/// Uses epoll_ctl mod, kevent update, poll table update, or Windows readiness metadata update.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -542,18 +583,14 @@ pub(crate) fn destack_io_poll_register(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_poll_update(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     target: resource::ResourceId,
     key: u64,
     interest: PollInterest,
 ) -> RuntimeResult<()> {
-    let _ = (handle, target, key, interest);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.poll.update is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::poll_update(runtime, handle, target, key, interest)
 }
 
 /// Wait for poll events.
@@ -563,7 +600,7 @@ pub(crate) fn destack_io_poll_update(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_wait, kevent wait, poll wait, or iocp get queued completion status.
+/// Uses epoll_wait, kevent wait, poll wait, or Windows readiness wait operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
@@ -574,17 +611,14 @@ pub(crate) fn destack_io_poll_update(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_poll_wait(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PollHandle,
     timeoutns: u64,
     maxevents: u32,
 ) -> RuntimeResult<VmArray<PollEventVm>> {
-    let _ = (handle, timeoutns, maxevents);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.poll.wait is not available in the VM yet",
-    ))
-    .boxed())
+    let events = core_io::poll_wait(runtime, handle, timeoutns, maxevents)?;
+    Ok(encode_poll_events_vm_array(context, &events))
 }
 
 /// Close one io_uring ring.
@@ -605,15 +639,11 @@ pub(crate) fn destack_io_poll_wait(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_uring_close(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.uring.close is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::uring_close(runtime, handle)
 }
 
 /// Query io_uring feature support.
@@ -634,15 +664,11 @@ pub(crate) fn destack_io_uring_close(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_uring_features(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<UringFeaturesVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.uring.features is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::uring_features(runtime, handle)
 }
 
 /// Open one io_uring ring.
@@ -663,15 +689,11 @@ pub(crate) fn destack_io_uring_features(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_uring_open(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     parameters: UringParametersVm,
 ) -> RuntimeResult<resource::UringHandle> {
-    let _ = parameters;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.uring.open is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::uring_open(runtime, parameters)
 }
 
 /// Register fixed buffers with a ring.
@@ -692,17 +714,15 @@ pub(crate) fn destack_io_uring_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_uring_register_buffers(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
     addresses: VmSlice<u64>,
     lengths: VmSlice<u32>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, addresses, lengths);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.uring.registerBuffers is not available in the VM yet",
-    ))
-    .boxed())
+    let addresses = slice_from_vm(runtime, context, addresses)?;
+    let lengths = slice_from_vm(runtime, context, lengths)?;
+    core_io::uring_register_buffers(runtime, handle, addresses, lengths)
 }
 
 /// Register fixed files with a ring.
@@ -723,16 +743,13 @@ pub(crate) fn destack_io_uring_register_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_uring_register_files(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &RuntimeCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
     files: VmSlice<resource::ResourceId>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, files);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.uring.registerFiles is not available in the VM yet",
-    ))
-    .boxed())
+    let files = slice_from_vm(runtime, context, files)?;
+    core_io::uring_register_files(runtime, handle, files)
 }
 
 /// Unregister fixed buffers for a ring.
@@ -753,15 +770,11 @@ pub(crate) fn destack_io_uring_register_files(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_uring_unregister_buffers(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.uring.unregisterBuffers is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::uring_unregister_buffers(runtime, handle)
 }
 
 /// Unregister fixed files for a ring.
@@ -782,13 +795,9 @@ pub(crate) fn destack_io_uring_unregister_buffers(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_io_uring_unregister_files(
-    _runtime: &RuntimeCallContext,
+    runtime: &RuntimeCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::UringHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.io.uring.unregisterFiles is not available in the VM yet",
-    ))
-    .boxed())
+    core_io::uring_unregister_files(runtime, handle)
 }

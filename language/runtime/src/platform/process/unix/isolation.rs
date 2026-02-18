@@ -208,14 +208,15 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
     _context: &RuntimeCallContext,
     path: fs::OsPath,
 ) -> RuntimeResult<()> {
-    let _path = core_fs::os_path_to_utf8_string(path, "path")?;
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
+        let path = core_fs::os_path_to_utf8_string(path, "path")?;
         process_setns_path(&path, libc::CLONE_NEWNET)
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
+        let _ = path;
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.process.isolation.setNetworkNamespace",
         ))
@@ -283,7 +284,7 @@ pub(crate) unsafe fn destack_process_setns(
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
     _context: &RuntimeCallContext,
-    _flags: ProcessUnshareFlags,
+    flags: ProcessUnshareFlags,
 ) -> RuntimeResult<()> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
@@ -307,6 +308,7 @@ pub(crate) unsafe fn destack_process_unshare(
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
+        let _ = flags;
         Err(RuntimeError::from(PlatformError::not_supported(
             "destack.process.isolation.unshare",
         ))

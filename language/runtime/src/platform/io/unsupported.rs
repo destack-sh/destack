@@ -1,19 +1,121 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::io::bindings_generated as bindings;
 use crate::platform::{NativeArray, NativeSlice, PlatformError};
 
 use crate::runtime::RuntimeCallContext;
-use bindings::*;
 
 use crate::platform::io::{
-    CompletionEvent, CompletionOperation, CompletionOperationKind, DescriptorControlCommand,
-    DescriptorControlFlags, DescriptorRequest, DescriptorResult, EventToken, PollBackend,
-    PollEvent, PollInterest, UringFeatures, UringParameters,
+    CompletionEvent, CompletionOperation, DescriptorControlCommand, DescriptorControlFlags,
+    DescriptorRequest, DescriptorResult, EventToken, PollBackend, PollEvent, PollInterest,
+    UringFeatures, UringParameters,
 };
-use crate::platform::resource;
+use crate::platform::poller::PlatformPollerBackend;
+use crate::platform::proactor::Proactor;
+use crate::platform::{PlatformHandle, resource};
+
+/// Return one unsupported error for completion backend creation.
+pub(crate) fn host_create_completion_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
+    let _ = entries;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.open")).boxed())
+}
+
+/// Return one unsupported error for fcntl descriptor controls.
+pub(crate) fn host_control_fcntl(
+    context: &RuntimeCallContext,
+    handle: resource::ResourceId,
+    command: DescriptorControlCommand,
+    argument: u64,
+    flags: DescriptorControlFlags,
+) -> RuntimeResult<i64> {
+    let _ = (context, handle, command, argument, flags);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.fcntl")).boxed())
+}
+
+/// Return one unsupported error for ioctl descriptor controls.
+pub(crate) fn host_control_ioctl(
+    context: &RuntimeCallContext,
+    handle: resource::ResourceId,
+    request: DescriptorRequest,
+) -> RuntimeResult<DescriptorResult> {
+    let _ = (context, handle, request);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.control.ioctl")).boxed())
+}
+
+/// Return one fallback poll backend mapping for unsupported hosts.
+pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> PlatformPollerBackend {
+    match backend {
+        PollBackend::Auto => PlatformPollerBackend::Auto,
+        PollBackend::Epoll => PlatformPollerBackend::Epoll,
+        PollBackend::Kqueue => PlatformPollerBackend::Kqueue,
+        PollBackend::Poll => PlatformPollerBackend::Poll,
+    }
+}
+
+/// Return one unsupported error for poll target handle resolution.
+pub(crate) fn host_resolve_poll_target_handle(
+    context: &RuntimeCallContext,
+    target: resource::ResourceId,
+) -> RuntimeResult<PlatformHandle> {
+    let _ = (context, target);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.poll.target")).boxed())
+}
+
+/// Return one unsupported error for completion target handle resolution.
+pub(crate) fn host_resolve_completion_target_handle(
+    context: &RuntimeCallContext,
+    target: resource::ResourceId,
+    operation: &'static str,
+) -> RuntimeResult<PlatformHandle> {
+    let _ = (context, target, operation);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.submit")).boxed())
+}
+
+/// Return one unsupported error for accepted handle registration.
+pub(crate) fn host_register_accepted_handle(
+    context: &RuntimeCallContext,
+    handle: PlatformHandle,
+) -> RuntimeResult<i64> {
+    let _ = (context, handle);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.wait")).boxed())
+}
+
+/// Return one unsupported error for event token open.
+pub(crate) fn host_event_open(
+    context: &RuntimeCallContext,
+    initial: u64,
+) -> RuntimeResult<EventToken> {
+    let _ = (context, initial);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.open")).boxed())
+}
+
+/// Return one unsupported error for event token close.
+pub(crate) fn host_event_close(
+    context: &RuntimeCallContext,
+    token: EventToken,
+) -> RuntimeResult<()> {
+    let _ = (context, token);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.close")).boxed())
+}
+
+/// Return one unsupported error for event token signal.
+pub(crate) fn host_event_signal(
+    context: &RuntimeCallContext,
+    token: EventToken,
+    value: u64,
+) -> RuntimeResult<()> {
+    let _ = (context, token, value);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.io.event.signal")).boxed())
+}
 
 /// Cancel queued operations for one target.
 ///
@@ -335,7 +437,7 @@ pub(crate) unsafe fn destack_io_event_attach(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses close semantics for eventfd, kqueue user events, or event objects.
+/// Uses close semantics for eventfd, pipe-backed events, or event objects.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -361,7 +463,7 @@ pub(crate) unsafe fn destack_io_event_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses eventfd or kqueue user events on Unix and event objects on Windows.
+/// Uses eventfd on Linux, pipe-backed events on other Unix hosts, and event objects on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -387,11 +489,12 @@ pub(crate) unsafe fn destack_io_event_open(
 /// Signal a user-event token.
 ///
 /// Increment one user-event token and wake waiters.
+/// Value must be greater than zero.
 /// Counter saturation and coalescing are host-backend defined.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses eventfd write, kqueue trigger, or SetEvent on Windows.
+/// Uses eventfd writes on Linux, pipe writes on other Unix hosts, and SetEvent on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -444,7 +547,7 @@ pub(crate) unsafe fn destack_io_poll_close(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_ctl del, kevent delete, poll table delete, or iocp teardown.
+/// Uses epoll_ctl del, kevent delete, poll table delete, or Windows readiness teardown.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -471,7 +574,7 @@ pub(crate) unsafe fn destack_io_poll_deregister(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll, kqueue, poll, or iocp depending on backend.
+/// Uses epoll, kqueue, poll, or the Windows readiness backend depending on backend.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -501,7 +604,7 @@ pub(crate) unsafe fn destack_io_poll_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_ctl add, kevent add, poll table add, or iocp association.
+/// Uses epoll_ctl add, kevent add, poll table add, or Windows readiness association.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -530,7 +633,7 @@ pub(crate) unsafe fn destack_io_poll_register(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_ctl mod, kevent update, poll table update, or iocp metadata update.
+/// Uses epoll_ctl mod, kevent update, poll table update, or Windows readiness metadata update.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -559,7 +662,7 @@ pub(crate) unsafe fn destack_io_poll_update(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses epoll_wait, kevent wait, poll wait, or iocp get queued completion status.
+/// Uses epoll_wait, kevent wait, poll wait, or Windows readiness wait operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.

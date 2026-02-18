@@ -155,8 +155,6 @@ pub enum PollBackend {
     Kqueue = 2,
     /// Poll.
     Poll = 3,
-    /// Iocp.
-    Iocp = 4,
 }
 
 impl VmValueCodec for PollBackend {
@@ -167,7 +165,6 @@ impl VmValueCodec for PollBackend {
             1u8 => Self::Epoll,
             2u8 => Self::Kqueue,
             3u8 => Self::Poll,
-            4u8 => Self::Iocp,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -300,8 +297,8 @@ pub struct PollEvent {
     pub key: u64,
     /// The ready field.
     pub ready: PollInterest,
-    /// The error field.
-    pub error: i32,
+    /// The data field.
+    pub data: i32,
 }
 
 pub type PollEventVm = PollEvent;

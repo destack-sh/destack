@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::os::unix::io::RawFd;
+use std::sync::Arc;
 
 use libc::{c_int, c_short, kevent as kevent_sys, timespec};
 
@@ -10,7 +11,7 @@ use crate::platform::diagnostic::{
 use crate::platform::poller::{
     PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
     PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PollerToken,
+    PlatformPollerWakeHandle, PollerToken,
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 
@@ -23,6 +24,8 @@ pub struct KqueuePoller {
     tokens: HashMap<PollerToken, ResourceId>,
     /// Kqueue file descriptor.
     kqueue_fd: RawFd,
+    /// Shared wake handle used by out-of-band wakeups.
+    wake_handle: Arc<KqueueWakeHandle>,
     /// Event buffer reused across polls.
     events: Vec<libc::kevent>,
 }
@@ -41,6 +44,19 @@ struct PollRegistration {
     interests: PlatformInterest,
     /// Poller configuration flags.
     flags: PlatformPollerFlags,
+}
+
+/// Shared wake handle for one kqueue poller.
+#[derive(Debug)]
+struct KqueueWakeHandle {
+    /// Kqueue descriptor used for user wake events.
+    kqueue_fd: RawFd,
+}
+
+impl PlatformPollerWakeHandle for KqueueWakeHandle {
+    fn wake(&self) -> RuntimeResult<()> {
+        wake_kqueue(self.kqueue_fd)
+    }
 }
 
 impl KqueuePoller {
@@ -75,6 +91,7 @@ impl KqueuePoller {
             registrations: HashMap::new(),
             tokens: HashMap::new(),
             kqueue_fd,
+            wake_handle: Arc::new(KqueueWakeHandle { kqueue_fd }),
             events: Vec::new(),
         })
     }
@@ -241,28 +258,12 @@ impl PlatformPoller for KqueuePoller {
         Ok(())
     }
 
-    fn wake(&mut self) -> RuntimeResult<()> {
-        // trigger the user wake event
-        let event = make_user_event(
-            WAKE_IDENT,
-            libc::EV_ADD | libc::EV_CLEAR,
-            libc::NOTE_TRIGGER,
-        );
-        let result = unsafe {
-            kevent_sys(
-                self.kqueue_fd,
-                &event,
-                1,
-                std::ptr::null_mut(),
-                0,
-                std::ptr::null(),
-            )
-        };
-        if result < 0 {
-            return Err(io_error("poller.wake", None));
-        }
+    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+        Some(self.wake_handle.clone())
+    }
 
-        Ok(())
+    fn wake(&mut self) -> RuntimeResult<()> {
+        self.wake_handle.wake()
     }
 
     fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
@@ -354,6 +355,30 @@ impl PlatformPoller for KqueuePoller {
     }
 }
 
+/// Trigger one user wake event on one kqueue descriptor.
+fn wake_kqueue(kqueue_fd: RawFd) -> RuntimeResult<()> {
+    let event = make_user_event(
+        WAKE_IDENT,
+        libc::EV_ADD | libc::EV_CLEAR,
+        libc::NOTE_TRIGGER,
+    );
+    let result = unsafe {
+        kevent_sys(
+            kqueue_fd,
+            &event,
+            1,
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null(),
+        )
+    };
+    if result < 0 {
+        return Err(io_error("poller.wake", Some(kqueue_fd)));
+    }
+
+    Ok(())
+}
+
 /// Convert registration flags into kqueue flags.
 fn kevent_flags(flags: PlatformPollerFlags) -> u16 {
     // map registration flags to kqueue flags
@@ -410,6 +435,9 @@ fn build_update_changes(
     flags: PlatformPollerFlags,
     token: PollerToken,
 ) -> RuntimeResult<Vec<libc::kevent>> {
+    // detect token updates that require reprogramming retained filters
+    let token_changed = entry.token != token;
+
     // collect filter changes for removed interests
     let mut changes = Vec::new();
     if entry.interests.contains(PlatformInterest::READABLE)
@@ -459,7 +487,7 @@ fn build_update_changes(
     // collect filter changes for modified flags
     if entry.interests.contains(PlatformInterest::READABLE)
         && interests.contains(PlatformInterest::READABLE)
-        && entry.flags != flags
+        && (entry.flags != flags || token_changed)
     {
         changes.push(make_kevent(
             entry.fd,
@@ -470,7 +498,7 @@ fn build_update_changes(
     }
     if entry.interests.contains(PlatformInterest::WRITABLE)
         && interests.contains(PlatformInterest::WRITABLE)
-        && entry.flags != flags
+        && (entry.flags != flags || token_changed)
     {
         changes.push(make_kevent(
             entry.fd,
