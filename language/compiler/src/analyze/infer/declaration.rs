@@ -1,17 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
-use crate::analyze::common::{AssociatedTypeRequirement, TypeRewriteCache};
+use crate::analyze::common::{
+    AssociatedComptimeRequirement, AssociatedTypeRequirement, TypeRewriteCache,
+};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_base::StringId;
 use destack_dir::{
-    Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
-    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyKind, DynamicKey,
-    Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree, NodeType, NormalizationMode,
-    Parameter, Pattern, PrimitiveType, StaticArgument, StaticKey, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
+    AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration,
+    DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
+    DependencyKind, DynamicKey, Expression, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
+    IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree, NodeType,
+    NormalizationMode, Parameter, Pattern, PrimitiveType, StaticArgument, StaticExpression,
+    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
+    WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -33,6 +36,24 @@ struct DeclarationAssociatedTypeMember<'a> {
     member_parameters: Option<&'a [LocalNodeId<Parameter>]>,
     /// The declaration associated type default expression.
     member_value: Option<LocalNodeId<Expression>>,
+}
+
+/// Declaration associated comptime member metadata.
+struct DeclarationAssociatedComptimeMember {
+    /// The declaration member node id.
+    member_id: LocalNodeId<Member>,
+    /// The declaration associated comptime annotation expression.
+    member_type: Option<LocalNodeId<Expression>>,
+    /// The declaration associated comptime value expression.
+    member_value: Option<LocalNodeId<Expression>>,
+}
+
+/// Resolved contract context for associated requirement checks.
+struct AssociatedContractContext {
+    /// The contract declaration symbol.
+    contract_symbol: GlobalSymbolId,
+    /// Substitutions for contract static parameters.
+    substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -231,6 +252,16 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
+                self.infer_declaration_associated_comptime(
+                    module,
+                    ctx.profile,
+                    heritage.implements_types.as_deref().unwrap_or(&[]),
+                    members,
+                    false,
+                    tree,
+                    symbols,
+                    types,
+                )?;
             }
 
             // class
@@ -286,6 +317,16 @@ impl Compiler {
                 }
 
                 self.infer_declaration_associated_types(
+                    module,
+                    ctx.profile,
+                    contract_types.as_slice(),
+                    members,
+                    is_abstract,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                self.infer_declaration_associated_comptime(
                     module,
                     ctx.profile,
                     contract_types.as_slice(),
@@ -414,6 +455,16 @@ impl Compiler {
                 }
 
                 self.infer_declaration_associated_types(
+                    module,
+                    ctx.profile,
+                    heritage.implements_types.as_deref().unwrap_or(&[]),
+                    members,
+                    false,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                self.infer_declaration_associated_comptime(
                     module,
                     ctx.profile,
                     heritage.implements_types.as_deref().unwrap_or(&[]),
@@ -592,6 +643,280 @@ impl Compiler {
         declaration_members
     }
 
+    /// Infer associated comptime contracts for declarations implementing interfaces.
+    fn infer_declaration_associated_comptime(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_types: &[LocalNodeId<Expression>],
+        members: &[LocalNodeId<Member>],
+        allows_deferred_associated_comptime: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        if !matches!(module.source, ModuleSource::User) {
+            return Ok(());
+        }
+
+        if contract_types.is_empty() {
+            return Ok(());
+        }
+
+        let declaration_members =
+            self.collect_declaration_associated_comptime_members(members, tree);
+        let mut inherited_defaults_by_name = HashMap::new();
+
+        for contract_expression_id in contract_types {
+            self.infer_associated_comptime_requirements_for_contract(
+                module,
+                profile,
+                *contract_expression_id,
+                &declaration_members,
+                &mut inherited_defaults_by_name,
+                allows_deferred_associated_comptime,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect associated comptime members for one declaration.
+    fn collect_declaration_associated_comptime_members(
+        &self,
+        members: &[LocalNodeId<Member>],
+        tree: &NodeTree,
+    ) -> HashMap<StringId, DeclarationAssociatedComptimeMember> {
+        let mut declaration_members = HashMap::new();
+        for member_id in members {
+            let Member::ComptimeConst {
+                name, ty, value, ..
+            } = tree.get(*member_id)
+            else {
+                continue;
+            };
+
+            declaration_members.insert(
+                *name,
+                DeclarationAssociatedComptimeMember {
+                    member_id: *member_id,
+                    member_type: *ty,
+                    member_value: *value,
+                },
+            );
+        }
+
+        declaration_members
+    }
+
+    /// Enforce associated comptime requirements for one inherited contract.
+    fn infer_associated_comptime_requirements_for_contract(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_expression_id: LocalNodeId<Expression>,
+        declaration_members: &HashMap<StringId, DeclarationAssociatedComptimeMember>,
+        inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
+        allows_deferred_associated_comptime: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        let Some(contract_context) = self.associated_contract_context_for_contract_expression(
+            module,
+            profile,
+            contract_expression_id,
+            tree,
+            symbols,
+            types,
+        )?
+        else {
+            return Ok(());
+        };
+        let requirements = self.collect_contract_associated_comptime_requirements(
+            module,
+            profile,
+            contract_context.contract_symbol,
+            tree,
+            symbols,
+        );
+
+        for requirement in requirements {
+            let Some(declaration_member) = declaration_members.get(&requirement.name) else {
+                // require explicit implementations for abstract members
+                if requirement.requires_implementation && !allows_deferred_associated_comptime {
+                    let node = contract_expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidStaticArgument {
+                        node,
+                        message: "missing associated comptime implementation".to_string(),
+                    });
+                    continue;
+                }
+
+                // validate that inherited defaults do not conflict by name
+                self.validate_inherited_associated_comptime_default_compatibility(
+                    module,
+                    profile,
+                    contract_expression_id,
+                    &requirement,
+                    &contract_context.substitutions,
+                    inherited_defaults_by_name,
+                    symbols,
+                    tree,
+                    types,
+                )?;
+                continue;
+            };
+
+            // skip members without any concrete information
+            if declaration_member.member_type.is_none() && declaration_member.member_value.is_none()
+            {
+                continue;
+            }
+
+            // resolve and substitute the contract requirement type
+            let Some(requirement_type_node) = requirement.type_node else {
+                continue;
+            };
+            let Some(mut requirement_type_id) = self.declared_type_for_node(
+                module,
+                profile,
+                requirement_type_node,
+                requirement.symbol,
+                types,
+            ) else {
+                continue;
+            };
+            requirement_type_id = self.substitute_and_materialize_contract_type(
+                module,
+                profile,
+                requirement_type_id,
+                &contract_context.substitutions,
+                tree,
+                symbols,
+                types,
+            );
+
+            // resolve the declaration member type from annotation or initializer
+            let Some(declaration_type_id) = self.associated_comptime_member_type_id(
+                module,
+                profile,
+                declaration_member,
+                tree,
+                symbols,
+                types,
+            )?
+            else {
+                continue;
+            };
+
+            // enforce assignability from declaration member type to contract requirement
+            let options = self.analyze_context_options_for_module(module.id);
+            let is_assignable = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                requirement_type_id,
+                declaration_type_id,
+                types,
+                &options,
+            );
+            if is_assignable == Assignability::NotAssignable {
+                self.error(AnalyzeError::UnassignableType {
+                    node: declaration_member.member_id.into_global(module.id).into(),
+                    expected_ty: requirement_type_id.into_global(module.id),
+                    actual_ty: declaration_type_id.into_global(module.id),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate that inherited associated comptime defaults agree across implemented interfaces.
+    fn validate_inherited_associated_comptime_default_compatibility(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_expression_id: LocalNodeId<Expression>,
+        requirement: &AssociatedComptimeRequirement,
+        interface_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
+        symbols: &SymbolTable,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // skip non default requirements
+        if requirement.requires_implementation {
+            return Ok(());
+        }
+
+        // resolve and substitute the inherited default value
+        let mut visited_symbols = HashSet::new();
+        let Some(default_value) = self.static_expression_from_constant_reference(
+            module,
+            profile,
+            requirement.symbol,
+            tree,
+            symbols,
+            types,
+            Some(interface_substitutions),
+            &mut visited_symbols,
+        )?
+        else {
+            return Ok(());
+        };
+        let Some(default_ty_id) = self.static_expression_type_id(
+            contract_expression_id.into_any(),
+            &default_value,
+            types,
+        ) else {
+            return Ok(());
+        };
+        self.register_or_validate_inherited_default(
+            module,
+            profile,
+            contract_expression_id,
+            requirement.name,
+            default_ty_id,
+            inherited_defaults_by_name,
+            symbols,
+            types,
+            "incompatible associated comptime defaults across inherited contracts",
+        );
+        Ok(())
+    }
+
+    /// Convert a static expression into a type id for relation checks.
+    fn static_expression_type_id(
+        &self,
+        source_id: LocalNodeIdAny,
+        value: &StaticExpression,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        match value {
+            StaticExpression::ScalarLiteral { value } => Some(types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(value.clone()),
+                },
+                source_id,
+            )),
+            StaticExpression::TypeLiteral { value } => Some(types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: value.clone(),
+                },
+                source_id,
+            )),
+            StaticExpression::Type { ty } => Some(*ty),
+            _ => None,
+        }
+    }
+
     /// Enforce associated type requirements for one inherited contract.
     #[allow(clippy::too_many_arguments)]
     fn infer_associated_type_requirements_for_contract(
@@ -606,62 +931,21 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        let contract_type_id = if let Some(type_id) = types
-            .get_inferred_type_id(contract_expression_id.into_global_any(module.id))
-            .or_else(|| {
-                types.get_declared_type_id(contract_expression_id.into_global_any(module.id))
-            }) {
-            type_id
-        } else {
-            self.try_evaluate_expression_to_type(
-                module,
-                profile,
-                contract_expression_id,
-                tree,
-                symbols,
-                types,
-                true,
-                true,
-            )?
-        };
-
-        let Some((contract_symbol, contract_arguments)) = self
-            .resolve_contract_reference_for_associated_type(
-                module,
-                profile,
-                symbols,
-                contract_type_id,
-                types,
-            )
-        else {
-            return Ok(());
-        };
-        let Some(contract_symbol) =
-            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
-        else {
-            return Ok(());
-        };
-        if !matches!(
-            contract_symbol.ty(),
-            SymbolType::Interface | SymbolType::Class
-        ) {
-            return Ok(());
-        }
-
-        let interface_substitutions = self.build_type_parameter_substitutions_for_symbol(
+        let Some(contract_context) = self.associated_contract_context_for_contract_expression(
             module,
             profile,
-            contract_symbol,
-            contract_expression_id.into_any(),
-            &contract_arguments,
+            contract_expression_id,
             tree,
             symbols,
             types,
-        );
+        )?
+        else {
+            return Ok(());
+        };
         let requirements = self.collect_contract_associated_type_requirements(
             module,
             profile,
-            contract_symbol,
+            contract_context.contract_symbol,
             tree,
             symbols,
         );
@@ -686,7 +970,7 @@ impl Compiler {
                     profile,
                     contract_expression_id,
                     &requirement,
-                    &interface_substitutions,
+                    &contract_context.substitutions,
                     inherited_defaults_by_name,
                     symbols,
                     tree,
@@ -723,7 +1007,7 @@ impl Compiler {
                 profile,
                 &requirement,
                 declaration_member,
-                &interface_substitutions,
+                &contract_context.substitutions,
                 symbols,
                 types,
             );
@@ -757,58 +1041,215 @@ impl Compiler {
         ) else {
             return;
         };
-        let mut default_ty_id = if interface_substitutions.is_empty() {
-            default_ty_id
-        } else {
-            let mut substitution_cache = HashMap::new();
-            self.substitute_static_parameters(
-                default_ty_id,
-                interface_substitutions,
-                types,
-                &mut substitution_cache,
-            )
-        };
-
-        // materialize static value arguments before relation checks
-        let mut materialize_cache = TypeRewriteCache::new();
-        default_ty_id = self.materialize_static_arguments_in_type(
+        let default_ty_id = self.substitute_and_materialize_contract_type(
             module,
             profile,
             default_ty_id,
+            interface_substitutions,
+            tree,
+            symbols,
+            types,
+        );
+        self.register_or_validate_inherited_default(
+            module,
+            profile,
+            contract_expression_id,
+            requirement.name,
+            default_ty_id,
+            inherited_defaults_by_name,
+            symbols,
+            types,
+            "incompatible associated type defaults across inherited contracts",
+        );
+    }
+
+    /// Resolve one associated contract context from one heritage contract expression.
+    fn associated_contract_context_for_contract_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<AssociatedContractContext>> {
+        let contract_type_id = self.inferred_or_evaluated_type_for_expression(
+            module,
+            profile,
+            contract_expression_id,
+            tree,
+            symbols,
+            types,
+        )?;
+        let Some((contract_symbol, contract_arguments)) = self
+            .resolve_contract_reference_for_associated_type(
+                module,
+                profile,
+                symbols,
+                contract_type_id,
+                types,
+            )
+        else {
+            return Ok(None);
+        };
+        let Some(contract_symbol) =
+            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+        else {
+            return Ok(None);
+        };
+        if !matches!(
+            contract_symbol.ty(),
+            SymbolType::Interface | SymbolType::Class
+        ) {
+            return Ok(None);
+        }
+
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            contract_symbol,
+            contract_expression_id.into_any(),
+            &contract_arguments,
+            tree,
+            symbols,
+            types,
+        );
+        Ok(Some(AssociatedContractContext {
+            contract_symbol,
+            substitutions,
+        }))
+    }
+
+    /// Resolve one expression type from inferred, declared, or evaluated data.
+    fn inferred_or_evaluated_type_for_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if let Some(type_id) = types
+            .get_inferred_type_id(expression_id.into_global_any(module.id))
+            .or_else(|| types.get_declared_type_id(expression_id.into_global_any(module.id)))
+        {
+            return Ok(type_id);
+        }
+
+        self.try_evaluate_expression_to_type(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            true,
+            true,
+        )
+    }
+
+    /// Apply contract substitutions and materialize static value arguments.
+    fn substitute_and_materialize_contract_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let mut type_id = type_id;
+        if !substitutions.is_empty() {
+            let mut substitution_cache = HashMap::new();
+            type_id = self.substitute_static_parameters(
+                type_id,
+                substitutions,
+                types,
+                &mut substitution_cache,
+            );
+        }
+
+        let mut materialize_cache = TypeRewriteCache::new();
+        self.materialize_static_arguments_in_type(
+            module,
+            profile,
+            type_id,
             tree,
             symbols,
             types,
             &mut materialize_cache,
-        );
+        )
+    }
 
-        // register the first inherited default for this associated name
-        let Some(existing_default_id) = inherited_defaults_by_name.get(&requirement.name).copied()
-        else {
-            inherited_defaults_by_name.insert(requirement.name, default_ty_id);
+    /// Resolve the effective type for one associated comptime declaration member.
+    fn associated_comptime_member_type_id(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declaration_member: &DeclarationAssociatedComptimeMember,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        if let Some(member_type_node) = declaration_member.member_type {
+            return self
+                .try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    member_type_node,
+                    tree,
+                    symbols,
+                    types,
+                    true,
+                    true,
+                )
+                .map(Some);
+        }
+        if let Some(member_value_node) = declaration_member.member_value {
+            return self
+                .try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    member_value_node,
+                    tree,
+                    symbols,
+                    types,
+                    true,
+                    true,
+                )
+                .map(Some);
+        }
+
+        Ok(None)
+    }
+
+    /// Register one inherited default or validate it against the existing default.
+    fn register_or_validate_inherited_default(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_expression_id: LocalNodeId<Expression>,
+        name: StringId,
+        default_ty_id: LocalTypeId,
+        inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        incompatibility_message: &str,
+    ) {
+        let Some(existing_default_id) = inherited_defaults_by_name.get(&name).copied() else {
+            inherited_defaults_by_name.insert(name, default_ty_id);
             return;
         };
-
-        // enforce bidirectional compatibility for inherited defaults
-        let options = self.analyze_context_options_for_module(module.id);
-        let left = self.is_type_assignable(
+        if self.types_are_bidirectionally_assignable(
             module,
             profile,
-            symbols,
             existing_default_id,
             default_ty_id,
-            types,
-            &options,
-        );
-        let right = self.is_type_assignable(
-            module,
-            profile,
             symbols,
-            default_ty_id,
-            existing_default_id,
             types,
-            &options,
-        );
-        if left != Assignability::NotAssignable && right != Assignability::NotAssignable {
+        ) {
             return;
         }
 
@@ -817,8 +1258,27 @@ impl Compiler {
             .into_anchored(Some(profile));
         self.error(AnalyzeError::InvalidStaticArgument {
             node,
-            message: "incompatible associated type defaults across inherited contracts".to_string(),
+            message: incompatibility_message.to_string(),
         });
+    }
+
+    /// Return true when two types are assignable to each other.
+    fn types_are_bidirectionally_assignable(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_id: LocalTypeId,
+        right_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let options = self.analyze_context_options_for_module(module.id);
+        let left_to_right =
+            self.is_type_assignable(module, profile, symbols, left_id, right_id, types, &options);
+        let right_to_left =
+            self.is_type_assignable(module, profile, symbols, right_id, left_id, types, &options);
+        left_to_right != Assignability::NotAssignable
+            && right_to_left != Assignability::NotAssignable
     }
 
     /// Resolve inherited contract references for associated type requirement checks.
@@ -1442,11 +1902,43 @@ impl Compiler {
                 ty,
                 value,
                 symbol,
-                modifiers: _,
+                modifiers,
                 name: _,
             } => {
                 // resolve the member symbol
                 let member_symbol = symbol.into_global(module.id);
+
+                // allow missing initializers only on interface members and abstract class members
+                let parent_declaration = tree
+                    .get_parent(member_id.id)
+                    .filter(|parent| parent.ty == NodeType::Declaration)
+                    .map(|parent| parent.into_typed::<Declaration>());
+                let is_interface_member = parent_declaration
+                    .map(|declaration_id| tree.get(declaration_id))
+                    .is_some_and(|declaration| {
+                        matches!(declaration, Declaration::Interface { .. })
+                    });
+                let is_abstract_member = modifiers
+                    .as_ref()
+                    .and_then(|modifier| modifier.abstraction)
+                    .is_some_and(|abstraction| {
+                        matches!(
+                            abstraction,
+                            AbstractionModifier::Abstract | AbstractionModifier::AbstractOverride
+                        )
+                    });
+                let allows_missing_initializer =
+                    is_interface_member || (ctx.in_abstract_class && is_abstract_member);
+
+                // reject declaration only members in concrete owners
+                if value.is_none() && !allows_missing_initializer {
+                    self.error(AnalyzeError::InvalidStaticArgument {
+                        node: member_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        message: "associated comptime constants require initializer".to_string(),
+                    });
+                }
 
                 // evaluate optional annotation
                 let constraint_type = if let Some(ty) = ty {
@@ -1466,16 +1958,48 @@ impl Compiler {
 
                 // evaluate optional initializer
                 let value_type = if let Some(value) = value {
-                    let value_type = self.try_evaluate_expression_to_type(
+                    // evaluate static value once and reuse it for validation and typing
+                    let static_value = self.evaluate_static_expression_value(
                         module,
                         ctx.profile,
                         *value,
                         tree,
                         symbols,
                         types,
-                        true,
-                        true,
+                        None,
                     )?;
+
+                    // require static expression initializers for associated comptime members
+                    if static_value.is_none() {
+                        self.error(AnalyzeError::InvalidComptimeExpression {
+                            node: value
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
+                        });
+                    }
+
+                    // prefer static evaluation output for value typing
+                    let mut value_type = static_value.as_ref().and_then(|value| {
+                        self.static_expression_type_id(member_id.into_any(), value, types)
+                    });
+
+                    // fall back to declaration evaluation when static typing is unavailable
+                    if value_type.is_none() {
+                        value_type = Some(self.try_evaluate_expression_to_type(
+                            module,
+                            ctx.profile,
+                            *value,
+                            tree,
+                            symbols,
+                            types,
+                            true,
+                            true,
+                        )?);
+                    }
+
+                    let Some(value_type) = value_type else {
+                        return Ok(());
+                    };
                     types.set_value_type(member_symbol, value_type);
                     Some(value_type)
                 } else {
@@ -1484,6 +2008,11 @@ impl Compiler {
 
                 // validate initializer against annotation
                 if let (Some(constraint_type), Some(value_type)) = (constraint_type, value_type) {
+                    // defer relation checks when the initializer type cannot be resolved yet
+                    if matches!(types.get_type(value_type), Type::Unevaluated(_)) {
+                        return Ok(());
+                    }
+
                     let options = self.analyze_context_options_for_module(module.id);
                     let is_assignable = self.is_type_assignable(
                         module,
@@ -2710,10 +3239,11 @@ impl Compiler {
         let Some(parameter_symbol) =
             self.static_parameter_symbol_for_where_clause(module, clause_id, tree, symbols)
         else {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::InvalidStaticArgument {
                 node: clause_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
+                message: "where clause must reference a static parameter".to_string(),
             });
             return Ok(());
         };

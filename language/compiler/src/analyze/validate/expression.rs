@@ -5,13 +5,24 @@ use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
     DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey, Expression,
     ForEachBinding, ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern,
-    PatternField, Property, RuntimeCheckKind, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolTable, SymbolType, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
-    TypeUnaryOperator, UnaryOperator,
+    LocalTypeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType,
+    Parameter, Path, Pattern, PatternField, Property, RuntimeCheckKind, ScalarLiteral, ScopeKind,
+    StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Type, TypeBinaryOperator,
+    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, WhereClause,
 };
 use destack_workspace::{Module, ProfileId};
 use std::str::FromStr;
+
+/// Step result when climbing expression parents for type-position classification.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypePositionStep {
+    /// The child expression is in a type slot.
+    TypePosition,
+    /// The child expression inherits type context from the parent.
+    Ascend,
+    /// The child expression is not in a type slot.
+    NotType,
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -131,7 +142,14 @@ impl Compiler {
             Expression::Member { .. }
             | Expression::PrivateMember { .. }
             | Expression::Index { .. } => {
-                self.validate_instantiation_access(module, profile, tree, expression_id);
+                self.validate_instantiation_access(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    expression_id,
+                );
                 self.validate_new_target_expression(module, profile, tree, expression_id);
                 self.validate_super_property_expression(module, profile, tree, expression_id);
             }
@@ -664,8 +682,31 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
     ) {
+        // type positions reuse member and index syntax for projections
+        if self.expression_is_type_position_for_instantiation_access(
+            module,
+            tree,
+            types,
+            expression_id,
+        ) {
+            return;
+        }
+
+        // allow projection-style access when the instantiation receiver is type-like
+        if self.expression_has_type_like_instantiation_receiver(
+            module,
+            profile,
+            tree,
+            symbols,
+            expression_id,
+        ) {
+            return;
+        }
+
         if !self.expression_has_invalid_instantiation_access_receiver(tree, expression_id) {
             return;
         }
@@ -691,6 +732,378 @@ impl Compiler {
         };
 
         self.expression_is_unparenthesized_instantiation_receiver(tree, left_expression_id)
+    }
+
+    /// Return true when a member-like expression follows an instantiation of a type-like symbol.
+    fn expression_has_type_like_instantiation_receiver(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // extract the receiver for member-like expressions
+        let left_expression_id = match tree.get(expression_id) {
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. } => *left,
+            _ => return false,
+        };
+        let receiver_expression_id = match tree.get(left_expression_id) {
+            Expression::Instantiation { left, .. } => *left,
+            Expression::UnresolvedPath {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::LocalReference {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::ModuleReference {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::GlobalReference {
+                static_arguments: Some(_),
+                ..
+            } => left_expression_id,
+            _ => return false,
+        };
+
+        // resolve the instantiated base symbol
+        let Some(mut lookup_symbol) = tree.get(receiver_expression_id).target_symbol() else {
+            return false;
+        };
+
+        lookup_symbol = self.forwarded_symbol_id(module, profile, lookup_symbol, symbols);
+        lookup_symbol = self
+            .declaration_symbol_id(module, symbols, profile, lookup_symbol)
+            .unwrap_or(lookup_symbol);
+
+        matches!(
+            lookup_symbol.ty(),
+            SymbolType::Class
+                | SymbolType::Struct
+                | SymbolType::Interface
+                | SymbolType::Enum
+                | SymbolType::TypeAlias
+                | SymbolType::Newtype
+        )
+    }
+
+    /// Return true when this expression is in a type position.
+    fn expression_is_type_position_for_instantiation_access(
+        &self,
+        module: &Module,
+        tree: &NodeTree,
+        types: &TypeTable,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let mut current_expression_id = expression_id;
+        loop {
+            let Some(parent) = tree.get_parent(current_expression_id.id) else {
+                return false;
+            };
+
+            match parent.ty {
+                // expression parents can either be type operators or wrappers
+                NodeType::Expression => {
+                    let parent_expression_id = parent.into_typed::<Expression>();
+                    let parent_expression = tree.get(parent_expression_id);
+
+                    match self.expression_type_position_step_for_parent_expression(
+                        parent_expression,
+                        current_expression_id,
+                    ) {
+                        TypePositionStep::TypePosition => return true,
+                        TypePositionStep::Ascend => {
+                            current_expression_id = parent_expression_id;
+                            continue;
+                        }
+                        TypePositionStep::NotType => return false,
+                    }
+                }
+
+                // declarator annotations are type positions
+                NodeType::Declarator => {
+                    let declarator = tree.get(parent.into_typed::<Declarator>());
+                    return declarator.ty == Some(current_expression_id);
+                }
+
+                // declaration type slots carry type context
+                NodeType::Declaration => {
+                    let declaration = tree.get(parent.into_typed::<Declaration>());
+                    return self.declaration_expression_is_type_position(
+                        declaration,
+                        current_expression_id,
+                    );
+                }
+
+                // member type slots carry type context
+                NodeType::Member => {
+                    let member = tree.get(parent.into_typed::<Member>());
+                    return self.member_expression_is_type_position(member, current_expression_id);
+                }
+
+                // property method return types carry type context
+                NodeType::Property => {
+                    let property = tree.get(parent.into_typed::<Property>());
+                    return self
+                        .property_expression_is_type_position(property, current_expression_id);
+                }
+
+                // parameter annotations are tracked through declared types
+                NodeType::Parameter => {
+                    return self.parameter_expression_is_type_position(
+                        module,
+                        tree,
+                        types,
+                        parent.into_typed::<Parameter>(),
+                        current_expression_id,
+                    );
+                }
+
+                // where clause right sides are type constraints
+                NodeType::WhereClause => {
+                    let where_clause = tree.get(parent.into_typed::<WhereClause>());
+                    return where_clause.right == current_expression_id;
+                }
+
+                _ => return false,
+            }
+        }
+    }
+
+    /// Classify one expression parent edge for type-position traversal.
+    fn expression_type_position_step_for_parent_expression(
+        &self,
+        parent_expression: &Expression,
+        child_expression_id: LocalNodeId<Expression>,
+    ) -> TypePositionStep {
+        match parent_expression {
+            Expression::TypeUnary { right, .. } => {
+                if *right == child_expression_id {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypeBinary { left, right, .. } => {
+                if *left == child_expression_id || *right == child_expression_id {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypeConditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                if *left == child_expression_id
+                    || *right == child_expression_id
+                    || *then_type == child_expression_id
+                    || *else_type == child_expression_id
+                {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypeMapped {
+                parameter, value, ..
+            } => {
+                if parameter.constraint == child_expression_id
+                    || parameter.key_remap == Some(child_expression_id)
+                    || *value == child_expression_id
+                {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypeIndex { left, index } => {
+                if *left == child_expression_id || *index == child_expression_id {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypeTemplateLiteral { spans, .. } => {
+                if spans.contains(&child_expression_id) {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypeImport { target, .. } => {
+                if *target == child_expression_id {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypeInfer { constraint, .. } => {
+                if *constraint == Some(child_expression_id) {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::TypePredicate { target, .. } => {
+                if *target == Some(child_expression_id) {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::Cast { target_type, .. } => {
+                if *target_type == child_expression_id {
+                    TypePositionStep::TypePosition
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            Expression::Parenthesized { expression } => {
+                if *expression == child_expression_id {
+                    TypePositionStep::Ascend
+                } else {
+                    TypePositionStep::NotType
+                }
+            }
+            _ => TypePositionStep::NotType,
+        }
+    }
+
+    /// Return true when a declaration expression slot is a type position.
+    fn declaration_expression_is_type_position(
+        &self,
+        declaration: &Declaration,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match declaration {
+            Declaration::Type { value, .. } => *value == expression_id,
+            Declaration::Struct { heritage, .. }
+            | Declaration::Class { heritage, .. }
+            | Declaration::Enum { heritage, .. }
+            | Declaration::Interface { heritage, .. } => {
+                self.declaration_heritage_expression_is_type_position(heritage, expression_id)
+            }
+            Declaration::Function {
+                signature, body, ..
+            } => signature.return_type == Some(expression_id) && *body != Some(expression_id),
+            Declaration::Extension {
+                target_type,
+                heritage,
+                ..
+            } => {
+                *target_type == expression_id
+                    || self
+                        .declaration_heritage_expression_is_type_position(heritage, expression_id)
+            }
+            Declaration::Global { .. }
+            | Declaration::Namespace { .. }
+            | Declaration::ImportAlias { .. } => false,
+        }
+    }
+
+    /// Return true when a member expression slot is a type position.
+    fn member_expression_is_type_position(
+        &self,
+        member: &Member,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match member {
+            Member::Type { ty, value, .. } => {
+                *ty == Some(expression_id) || *value == Some(expression_id)
+            }
+            Member::ComptimeConst { ty, .. } => *ty == Some(expression_id),
+            Member::Field { value, .. } => *value == Some(expression_id),
+            Member::Method { signature, .. } => signature.return_type == Some(expression_id),
+            Member::Embed { value, .. } => *value == expression_id,
+            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => false,
+        }
+    }
+
+    /// Return true when a property expression slot is a type position.
+    fn property_expression_is_type_position(
+        &self,
+        property: &Property,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match property {
+            Property::Method { signature, .. } => signature.return_type == Some(expression_id),
+            Property::Field { .. } | Property::Spread { .. } => false,
+        }
+    }
+
+    /// Return true when a parameter expression slot is a type position.
+    fn parameter_expression_is_type_position(
+        &self,
+        module: &Module,
+        tree: &NodeTree,
+        types: &TypeTable,
+        parameter_id: LocalNodeId<Parameter>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let Some(declared_type_id) =
+            types.get_declared_type_id(parameter_id.into_global_any(module.id))
+        else {
+            return false;
+        };
+        let Type::Unevaluated(type_root_expression_id) = types.get_type(declared_type_id) else {
+            return false;
+        };
+
+        self.expression_is_within_expression_subtree(tree, expression_id, *type_root_expression_id)
+    }
+
+    /// Return true when a child expression is inside an ancestor expression subtree.
+    fn expression_is_within_expression_subtree(
+        &self,
+        tree: &NodeTree,
+        child_expression_id: LocalNodeId<Expression>,
+        ancestor_expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let mut current_expression_id = Some(child_expression_id);
+        while let Some(expression_id) = current_expression_id {
+            if expression_id == ancestor_expression_id {
+                return true;
+            }
+
+            let Some(parent) = tree.get_parent(expression_id.id) else {
+                return false;
+            };
+            if parent.ty != NodeType::Expression {
+                return false;
+            }
+
+            current_expression_id = Some(parent.into_typed::<Expression>());
+        }
+
+        false
+    }
+
+    /// Return true when a declaration heritage type slot contains this expression.
+    fn declaration_heritage_expression_is_type_position(
+        &self,
+        heritage: &destack_dir::Heritage,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        heritage
+            .extends_types
+            .as_ref()
+            .is_some_and(|types| types.contains(&expression_id))
+            || heritage
+                .implements_types
+                .as_ref()
+                .is_some_and(|types| types.contains(&expression_id))
+            || heritage
+                .embedded_types
+                .as_ref()
+                .is_some_and(|types| types.contains(&expression_id))
     }
 
     /// Return true when an expression is an instantiation receiver without parentheses.
@@ -2676,6 +3089,45 @@ impl Compiler {
         false
     }
 
+    /// Read one expression type from existing analyze facts.
+    fn expression_type_id_for_validate(
+        &self,
+        module_id: destack_source::ModuleId,
+        expression_id: LocalNodeId<Expression>,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
+    }
+
+    /// Select a stable receiver type id for validate diagnostics.
+    fn diagnostic_receiver_type_id_for_validate(
+        &self,
+        module_id: destack_source::ModuleId,
+        expression_id: LocalNodeId<Expression>,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // prefer the expression type for local diagnostic context
+        if let Some(type_id) = self.expression_type_id_for_validate(module_id, expression_id, types)
+        {
+            return Some(type_id);
+        }
+
+        // otherwise reuse an existing unknown type id when available
+        if let Some(unknown_type_id) = types.iter_type_ids().find(|type_id| {
+            matches!(
+                types.get_type(*type_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                }
+            )
+        }) {
+            return Some(unknown_type_id);
+        }
+
+        // fall back to any existing type id to keep the diagnostic anchored
+        types.iter_type_ids().next()
+    }
+
     /// Validate type index access for missing members.
     fn validate_type_index_access(
         &self,
@@ -2690,24 +3142,9 @@ impl Compiler {
             return;
         };
 
-        // resolve operand types
-        let left_ty_id = match self.try_evaluate_expression_to_type(
-            module, profile, *left, tree, symbols, types, true, true,
-        ) {
-            Ok(type_id) => type_id,
-            Err(error) => {
-                self.error(error);
-                return;
-            }
-        };
-        let index_ty_id = match self.try_evaluate_expression_to_type(
-            module, profile, *index, tree, symbols, types, true, true,
-        ) {
-            Ok(type_id) => type_id,
-            Err(error) => {
-                self.error(error);
-                return;
-            }
+        // read operand types from existing declare or infer facts
+        let Some(left_ty_id) = self.expression_type_id_for_validate(module.id, *left, types) else {
+            return;
         };
 
         // skip missing checks for unresolved type parameters
@@ -2717,9 +3154,9 @@ impl Compiler {
             return;
         }
 
-        // skip index validation when the type index is an array size
-        let supports_index_access = match self
-            .type_supports_index_access(module, profile, left_ty_id, tree, symbols, types, false)
+        // skip missing checks when the type index builds a fixed-size array
+        let is_index_access = match self
+            .type_index_uses_index_access(module, profile, left_ty_id, *index, tree, symbols, types)
         {
             Ok(value) => value,
             Err(error) => {
@@ -2727,15 +3164,15 @@ impl Compiler {
                 return;
             }
         };
-        let is_primitive_literal = self.type_is_primitive_literal(left_ty_id, types);
-        let is_index_access = if module.language_type.is_declaration() {
-            true
-        } else {
-            supports_index_access && !is_primitive_literal
-        };
         if !is_index_access {
             return;
         }
+
+        // read index types only for true index-access expressions
+        let Some(index_ty_id) = self.expression_type_id_for_validate(module.id, *index, types)
+        else {
+            return;
+        };
 
         // skip missing checks for any or unknown receivers
         if matches!(
@@ -2860,12 +3297,11 @@ impl Compiler {
         }
 
         // emit missing member when the export is absent
-        let receiver_ty_id = types.insert_type_from_any(
-            Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
-            expression_id.into_any(),
-        );
+        let Some(receiver_ty_id) =
+            self.diagnostic_receiver_type_id_for_validate(module.id, expression_id, types)
+        else {
+            return;
+        };
         self.error(AnalyzeError::MissingMember {
             node: expression_id
                 .into_global_any(module.id)
@@ -3153,6 +3589,26 @@ const value = (f<T>).x;
         test.apply_dsconfig(
             module_id,
             r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA234");
+    }
+
+    /// Allow instantiation property access in type annotations.
+    #[test]
+    fn test_allow_instantiation_property_access_in_type_annotation() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Box<T> {
+    type Item = T;
+}
+
+const value: Box<string>.Item = "ok";
+value;
+"#,
         );
         test.analyze_module(module_id);
         test.compile();

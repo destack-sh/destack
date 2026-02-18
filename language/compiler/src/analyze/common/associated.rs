@@ -8,8 +8,9 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_base::StringId;
 use destack_dir::{
     Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, Heritage, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticKey,
-    SymbolTable, SymbolType, Type, TypeRewriter, TypeRewriterOptions, TypeTable,
+    LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticExpression,
+    StaticKey, SymbolTable, SymbolType, Type, TypeLiteral, TypeRewriter, TypeRewriterOptions,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -193,6 +194,32 @@ pub(crate) struct AssociatedTypeRequirement {
     pub(crate) bound_node: Option<GlobalNodeIdAny>,
     /// Whether the contract member requires an explicit implementation.
     pub(crate) requires_implementation: bool,
+}
+
+/// Requirements for one associated comptime member from an inherited contract.
+#[derive(Clone, Debug)]
+pub(crate) struct AssociatedComptimeRequirement {
+    /// The associated comptime member name.
+    pub(crate) name: StringId,
+    /// The contract member symbol.
+    pub(crate) symbol: GlobalSymbolId,
+    /// The optional type expression node on the contract member.
+    pub(crate) type_node: Option<GlobalNodeIdAny>,
+    /// Whether the contract member requires an explicit implementation.
+    pub(crate) requires_implementation: bool,
+}
+
+/// Classification for static symbols used in associated projection paths.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StaticMemberSymbolKind {
+    /// An associated type member.
+    AssociatedType,
+    /// An associated comptime member.
+    AssociatedComptimeConst,
+    /// An enum field member.
+    EnumField,
+    /// Any other static member kind.
+    Other,
 }
 
 /// Selection result for an associated projection member lookup.
@@ -386,6 +413,167 @@ impl Compiler {
         requirements
     }
 
+    /// Collect contract associated comptime requirements for one contract symbol.
+    pub(crate) fn collect_contract_associated_comptime_requirements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Vec<AssociatedComptimeRequirement> {
+        // normalize contract references to declaration owners
+        let Some(contract_symbol) =
+            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+        else {
+            return Vec::new();
+        };
+
+        // collect requirements with cycle protection
+        let mut visited_contracts = HashSet::new();
+        self.collect_contract_associated_comptime_requirements_inner(
+            module,
+            profile,
+            contract_symbol,
+            tree,
+            symbols,
+            &mut visited_contracts,
+        )
+    }
+
+    /// Collect contract associated comptime requirements through declaration heritage.
+    fn collect_contract_associated_comptime_requirements_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        contract_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        visited_contracts: &mut HashSet<GlobalSymbolId>,
+    ) -> Vec<AssociatedComptimeRequirement> {
+        // normalize contract declarations and break recursive cycles
+        let Some(contract_symbol) =
+            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+        else {
+            return Vec::new();
+        };
+        if !visited_contracts.insert(contract_symbol) {
+            return Vec::new();
+        }
+
+        // collect local requirements and direct parent contracts
+        let (local_requirements, parent_contracts) = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            contract_symbol.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                let mut requirements = Vec::new();
+                let mut parents = Vec::new();
+
+                // resolve the contract declaration node
+                let symbol_entry = owner_symbols.get_symbol(contract_symbol.local_id);
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return (requirements, parents);
+                };
+                if primary_declaration.local_id.ty != NodeType::Declaration {
+                    return (requirements, parents);
+                }
+
+                let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
+                let (members, heritage) = match owner_tree.get(declaration_id) {
+                    Declaration::Interface {
+                        members, heritage, ..
+                    }
+                    | Declaration::Class {
+                        members, heritage, ..
+                    }
+                    | Declaration::Struct {
+                        members, heritage, ..
+                    } => (members, heritage),
+                    _ => return (requirements, parents),
+                };
+
+                // collect local associated requirements
+                for member_id in members {
+                    let Member::ComptimeConst {
+                        name,
+                        ty,
+                        value,
+                        symbol,
+                        ..
+                    } = owner_tree.get(*member_id)
+                    else {
+                        continue;
+                    };
+
+                    requirements.push(AssociatedComptimeRequirement {
+                        name: *name,
+                        symbol: symbol.into_global(owner_module.id),
+                        type_node: ty.map(|ty| ty.into_global_any(owner_module.id)),
+                        requires_implementation: value.is_none(),
+                    });
+                }
+
+                // collect parent contracts from extends and implements
+                let mut parent_types = Vec::new();
+                if let Some(extends_types) = heritage.extends_types.as_ref() {
+                    parent_types.extend(extends_types.iter().copied());
+                }
+                if let Some(implements_types) = heritage.implements_types.as_ref() {
+                    parent_types.extend(implements_types.iter().copied());
+                }
+                for parent_type_id in parent_types {
+                    let Some(parent_symbol) = owner_tree.get(parent_type_id).target_symbol() else {
+                        continue;
+                    };
+
+                    let canonical_parent = self.canonical_symbol_id(
+                        owner_module,
+                        owner_symbols,
+                        profile,
+                        parent_symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
+                    let Some(parent_symbol) = self.declaration_symbol_id(
+                        owner_module,
+                        owner_symbols,
+                        profile,
+                        canonical_parent,
+                    ) else {
+                        continue;
+                    };
+                    parents.push(parent_symbol);
+                }
+
+                (requirements, parents)
+            },
+        );
+
+        // collect inherited requirements before local overrides
+        let mut requirements = Vec::new();
+        for parent_contract in parent_contracts {
+            let inherited = self.collect_contract_associated_comptime_requirements_inner(
+                module,
+                profile,
+                parent_contract,
+                tree,
+                symbols,
+                visited_contracts,
+            );
+            requirements.extend(inherited);
+        }
+
+        // apply local overrides by associated comptime name
+        for local_requirement in local_requirements {
+            requirements.retain(|requirement| requirement.name != local_requirement.name);
+            requirements.push(local_requirement);
+        }
+
+        requirements
+    }
+
     /// Select a projected static member symbol from a nominal receiver.
     pub(crate) fn select_associated_projection_member_symbol(
         &self,
@@ -412,27 +600,43 @@ impl Compiler {
             enforce_implicit_managed,
         )?;
         let left_ty = types.get_type(left_ty_id).clone();
-        let receiver_reference = match left_ty {
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => Some((symbol, static_arguments.unwrap_or_default())),
-            Type::Value { value } => {
-                if let Type::Reference {
-                    symbol,
-                    static_arguments,
-                } = types.get_type(value)
-                {
-                    Some((*symbol, static_arguments.clone().unwrap_or_default()))
-                } else {
-                    None
+        let receiver_reference = self
+            .unwrap_type_symbol(types, left_ty_id)
+            .map(|(symbol, static_arguments, _)| (symbol, static_arguments.unwrap_or_default()))
+            .or_else(|| match left_ty {
+                Type::Intersection { elements } | Type::Union { elements } => {
+                    elements.iter().find_map(|element_id| {
+                        self.unwrap_type_symbol(types, *element_id).map(
+                            |(symbol, static_arguments, _)| {
+                                (symbol, static_arguments.unwrap_or_default())
+                            },
+                        )
+                    })
                 }
-            }
-            _ => None,
+                Type::This => {
+                    self.owner_symbol_for_this_expression(module, profile, left, tree, symbols)
+                }
+                _ => None,
+            });
+        let receiver_reference = match receiver_reference {
+            Some(reference) => Some(reference),
+            None => self.associated_projection_receiver_from_expression(
+                module, profile, left, tree, symbols, types,
+            )?,
         };
         let Some((mut lookup_symbol, mut lookup_arguments)) = receiver_reference else {
             return Ok(None);
         };
+        lookup_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            lookup_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        lookup_symbol = self
+            .declaration_symbol_id(module, symbols, profile, lookup_symbol)
+            .unwrap_or(lookup_symbol);
 
         // follow static parameter constraints for projected members
         if self.symbol_is_static_parameter(module, profile, lookup_symbol, symbols, types)
@@ -530,12 +734,95 @@ impl Compiler {
         let Some(projected_symbol) = projected_symbol else {
             return Ok(None);
         };
+        let projected_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            projected_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
 
         Ok(Some(AssociatedProjectionSelection {
             target_symbol: projected_symbol,
             receiver_symbol: lookup_symbol,
             receiver_arguments: lookup_arguments,
         }))
+    }
+
+    /// Build a projection receiver from one expression when type evaluation is unavailable.
+    fn associated_projection_receiver_from_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
+        let expression = tree.get(expression_id);
+        let Some(target_symbol) = expression.target_symbol() else {
+            return Ok(None);
+        };
+        let static_argument_nodes = expression.static_arguments();
+        let static_arguments = self.evaluate_static_arguments(
+            module,
+            profile,
+            static_argument_nodes,
+            tree,
+            symbols,
+            types,
+        )?;
+        let static_arguments = static_arguments.unwrap_or_default();
+
+        let mut target_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            target_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        target_symbol = self
+            .declaration_symbol_id(module, symbols, profile, target_symbol)
+            .unwrap_or(target_symbol);
+
+        Ok(Some((target_symbol, static_arguments)))
+    }
+
+    /// Resolve a declaration owner symbol for one `this` receiver expression.
+    pub(crate) fn owner_symbol_for_this_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
+        // walk parent nodes until we find a declaration owner
+        let mut current_id = expression_id.id;
+        while let Some(parent) = tree.get_parent(current_id) {
+            if parent.ty == NodeType::Declaration {
+                let declaration_id = parent.into_typed::<Declaration>();
+                let owner_symbol = match tree.get(declaration_id) {
+                    Declaration::Class { descriptor, .. }
+                    | Declaration::Struct { descriptor, .. }
+                    | Declaration::Interface { descriptor, .. }
+                    | Declaration::Enum { descriptor, .. } => {
+                        Some(descriptor.symbol.into_global(module.id))
+                    }
+                    Declaration::Extension { target_symbol, .. } => *target_symbol,
+                    _ => None,
+                }?;
+
+                let owner_symbol = self
+                    .declaration_symbol_id(module, symbols, profile, owner_symbol)
+                    .unwrap_or(owner_symbol);
+                return Some((owner_symbol, Vec::new()));
+            }
+
+            current_id = parent.id;
+        }
+
+        None
     }
 
     /// Rewrite owner-scoped associated aliases in one type id with known substitutions.
@@ -591,6 +878,12 @@ impl Compiler {
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+        let canonical_receiver_symbol = self
+            .declaration_symbol_id(module, symbols, profile, canonical_receiver_symbol)
+            .unwrap_or(canonical_receiver_symbol);
+        let owner_symbol = self
+            .declaration_symbol_id(module, symbols, profile, owner_symbol)
+            .unwrap_or(owner_symbol);
         let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
             module,
             profile,
@@ -1153,7 +1446,6 @@ impl Compiler {
     }
 
     /// Resolve substitutions for an associated projection member.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn associated_projection_substitutions_for_member(
         &self,
         module: &Module,
@@ -1163,6 +1455,7 @@ impl Compiler {
         receiver_symbol: Option<GlobalSymbolId>,
         receiver_arguments: &[StaticArgument],
         options: &AnalyzeOptions,
+        static_eval_visited_symbols: Option<&HashSet<GlobalSymbolId>>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1209,6 +1502,26 @@ impl Compiler {
             substitutions.extend(interface_substitutions);
         }
 
+        // map owner associated comptime members onto receiver concrete values
+        if let Some(receiver_symbol) = receiver_symbol
+            && let Some(owner_symbol) = owner_symbol
+            && let Some(owner_comptime_substitutions) = self
+                .owner_comptime_substitutions_for_receiver(
+                    module,
+                    profile,
+                    source_id,
+                    receiver_symbol,
+                    receiver_arguments,
+                    owner_symbol,
+                    static_eval_visited_symbols,
+                    tree,
+                    symbols,
+                    types,
+                )?
+        {
+            substitutions.extend(owner_comptime_substitutions);
+        }
+
         // map extension substitutions when the member is extension-owned
         if let Ok(Some(extension_context)) = self.resolve_extension_member_context(
             module,
@@ -1225,6 +1538,672 @@ impl Compiler {
         }
 
         Ok(substitutions)
+    }
+
+    /// Build owner associated comptime substitutions for one projected receiver.
+    fn owner_comptime_substitutions_for_receiver(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        receiver_symbol: GlobalSymbolId,
+        receiver_arguments: &[StaticArgument],
+        owner_symbol: GlobalSymbolId,
+        static_eval_visited_symbols: Option<&HashSet<GlobalSymbolId>>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
+        if !matches!(
+            owner_symbol.ty(),
+            SymbolType::Interface | SymbolType::Class | SymbolType::Struct
+        ) {
+            return Ok(None);
+        }
+        let owner_symbol = self
+            .declaration_symbol_id(module, symbols, profile, owner_symbol)
+            .unwrap_or(owner_symbol);
+
+        // normalize the receiver symbol for lookup
+        let canonical_receiver_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            receiver_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let canonical_receiver_symbol = self
+            .declaration_symbol_id(module, symbols, profile, canonical_receiver_symbol)
+            .unwrap_or(canonical_receiver_symbol);
+
+        // avoid recursive default evaluation when projecting on interface owners
+        if owner_symbol.ty() == SymbolType::Interface && canonical_receiver_symbol == owner_symbol {
+            return Ok(None);
+        }
+
+        // resolve receiver substitutions through heritage edges
+        let Some(receiver_substitutions) = self
+            .associated_projection_receiver_substitutions_for_owner_symbol(
+                module,
+                profile,
+                source_id,
+                canonical_receiver_symbol,
+                receiver_arguments,
+                owner_symbol,
+                tree,
+                symbols,
+                types,
+            )?
+        else {
+            return Ok(None);
+        };
+
+        // collect owner associated comptime member symbols by name
+        let owner_members = self
+            .with_module_tree_symbols_or_local_for_stage(
+                module,
+                profile,
+                owner_symbol.module_id,
+                tree,
+                symbols,
+                AnalyzeReadStage::Declare,
+                |owner_module, owner_tree, owner_symbols| {
+                    let mut members = Vec::new();
+                    let symbol_entry = owner_symbols.get_symbol(owner_symbol.local_id);
+                    let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                        return members;
+                    };
+                    if primary_declaration.local_id.ty != NodeType::Declaration {
+                        return members;
+                    }
+
+                    let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
+                    let declaration = owner_tree.get(declaration_id);
+                    let Some(member_ids) = declaration.member_ids() else {
+                        return members;
+                    };
+
+                    for member_id in member_ids {
+                        let Member::ComptimeConst {
+                            name,
+                            symbol,
+                            value,
+                            ..
+                        } = owner_tree.get(*member_id)
+                        else {
+                            continue;
+                        };
+                        members.push((
+                            StaticKey::Name(*name),
+                            symbol.into_global(owner_module.id),
+                            value.is_none(),
+                        ));
+                    }
+
+                    members
+                },
+            )
+            .map_err(AnalyzeError::from)?;
+        if owner_members.is_empty() {
+            return Ok(None);
+        }
+
+        // resolve concrete receiver values for owner associated comptime members
+        let mut substitutions = HashMap::new();
+        for (member_key, owner_member_symbol, requires_implementation) in owner_members {
+            let resolved_member_symbol = self
+                .with_module_tree_symbols_or_local_for_stage(
+                    module,
+                    profile,
+                    canonical_receiver_symbol.module_id,
+                    tree,
+                    symbols,
+                    AnalyzeReadStage::Declare,
+                    |receiver_module, receiver_tree, receiver_symbols| {
+                        self.resolve_static_member_symbol_in_tables(
+                            receiver_module,
+                            profile,
+                            canonical_receiver_symbol,
+                            member_key,
+                            receiver_tree,
+                            receiver_symbols,
+                        )
+                    },
+                )
+                .map_err(AnalyzeError::from)?
+                .unwrap_or(owner_member_symbol);
+            let should_skip_interface_owner_default = owner_symbol.ty() == SymbolType::Interface
+                && resolved_member_symbol == owner_member_symbol
+                && requires_implementation;
+            if should_skip_interface_owner_default {
+                let should_report_missing =
+                    requires_implementation && canonical_receiver_symbol != owner_symbol;
+                if should_report_missing {
+                    self.error(AnalyzeError::InvalidStaticArgument {
+                        node: source_id
+                            .into_global(module.id)
+                            .into_anchored(Some(profile)),
+                        message: "missing associated comptime implementation".to_string(),
+                    });
+                }
+                continue;
+            }
+
+            let mut visited_symbols = static_eval_visited_symbols.cloned().unwrap_or_default();
+            let Some(value) = self.static_expression_from_constant_reference(
+                module,
+                profile,
+                resolved_member_symbol,
+                tree,
+                symbols,
+                types,
+                Some(&receiver_substitutions),
+                &mut visited_symbols,
+            )?
+            else {
+                let should_report_missing =
+                    requires_implementation && canonical_receiver_symbol != owner_symbol;
+                if should_report_missing {
+                    self.error(AnalyzeError::InvalidStaticArgument {
+                        node: source_id
+                            .into_global(module.id)
+                            .into_anchored(Some(profile)),
+                        message: "missing associated comptime implementation".to_string(),
+                    });
+                }
+                continue;
+            };
+
+            let Some(type_id) =
+                self.static_expression_type_id_for_substitution(source_id, &value, types)
+            else {
+                continue;
+            };
+            substitutions.insert(owner_member_symbol, type_id);
+        }
+
+        if substitutions.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(substitutions))
+    }
+
+    /// Convert a static expression to a local type id for substitution.
+    fn static_expression_type_id_for_substitution(
+        &self,
+        source_id: LocalNodeIdAny,
+        value: &StaticExpression,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        match value {
+            StaticExpression::ScalarLiteral { value } => Some(types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(value.clone()),
+                },
+                source_id,
+            )),
+            StaticExpression::TypeLiteral { value } => Some(types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: value.clone(),
+                },
+                source_id,
+            )),
+            StaticExpression::Type { ty } => Some(*ty),
+            _ => None,
+        }
+    }
+
+    /// Import one alias target without requiring pre-materialized static value arguments.
+    fn relaxed_alias_target_type_id_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let typed_symbol = self
+            .with_module_tree_symbols_or_local_for_stage(
+                module,
+                profile,
+                symbol.module_id,
+                tree,
+                symbols,
+                AnalyzeReadStage::Declare,
+                |_, _, owner_symbols| {
+                    let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
+                    if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                        return None;
+                    }
+
+                    Some(GlobalSymbolId::new(
+                        symbol.module_id,
+                        symbol.local_id.with_type(symbol_entry.ty),
+                    ))
+                },
+            )
+            .map_err(AnalyzeError::from)
+            .ok()??;
+
+        if typed_symbol.module_id == module.id {
+            types.record_normalization_symbol_dependency(typed_symbol);
+            return types
+                .get_alias_target_type_id(typed_symbol)
+                .or_else(|| types.get_alias_target_type_id(symbol));
+        }
+
+        self.with_module_tree_symbols_or_local_for_stage(
+            module,
+            profile,
+            typed_symbol.module_id,
+            tree,
+            symbols,
+            AnalyzeReadStage::Declare,
+            |owner_module, _owner_tree, _owner_symbols| {
+                let owner_types = owner_module.dir(profile).types.read();
+                let remote_target_id = owner_types.get_alias_target_type_id(typed_symbol)?;
+                let remote_target_ty = owner_types.get_type(remote_target_id);
+                let local_target_id = self.import_type_from_remote_for_node(
+                    source_id,
+                    remote_target_ty,
+                    &owner_types,
+                    typed_symbol,
+                    types,
+                );
+                types.record_normalization_symbol_dependency(typed_symbol);
+                types.set_alias_target_type_id(typed_symbol, local_target_id);
+                Some(local_target_id)
+            },
+        )
+        .map_err(AnalyzeError::from)
+        .ok()?
+    }
+
+    /// Find one projection substitution for a symbol, tolerating placeholder symbol types.
+    fn projection_substitution_type_for_symbol(
+        &self,
+        symbol: GlobalSymbolId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+    ) -> Option<LocalTypeId> {
+        if let Some(substitution) = substitutions.get(&symbol) {
+            return Some(*substitution);
+        }
+
+        substitutions.iter().find_map(|(candidate, type_id)| {
+            let matches_symbol = candidate.module_id == symbol.module_id
+                && candidate.local_id.id == symbol.local_id.id;
+            if matches_symbol { Some(*type_id) } else { None }
+        })
+    }
+
+    /// Convert one projection substitution type into a static expression.
+    fn static_expression_from_projection_substitution_type(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> StaticExpression {
+        match types.get_type(type_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(value),
+            } => StaticExpression::ScalarLiteral {
+                value: value.clone(),
+            },
+            Type::TypeLiteral { value } => StaticExpression::TypeLiteral {
+                value: value.clone(),
+            },
+            _ => StaticExpression::Type { ty: type_id },
+        }
+    }
+
+    /// Normalize one projection substitution type for static argument replacement.
+    fn normalized_projection_substitution_type(
+        &self,
+        mut type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> LocalTypeId {
+        // unwrap value wrappers so static arguments receive the underlying type
+        while let Type::Value { value } = types.get_type(type_id) {
+            type_id = *value;
+        }
+
+        type_id
+    }
+
+    /// Return the projected substitution symbol referenced by one expression.
+    fn projection_substitution_symbol_from_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        owner_tree: &NodeTree,
+        owner_symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        let mut expression_id = expression_id;
+
+        // peel wrappers used around projection arguments
+        loop {
+            match owner_tree.get(expression_id) {
+                Expression::Parenthesized { expression } => {
+                    expression_id = *expression;
+                }
+                Expression::TypeUnary {
+                    operator: destack_dir::TypeUnaryOperator::AsComptime,
+                    right,
+                } => {
+                    expression_id = *right;
+                }
+                _ => break,
+            }
+        }
+
+        if let Some(target_symbol) = owner_tree.get(expression_id).target_symbol() {
+            return Some(target_symbol);
+        }
+
+        if let Expression::Member { left, name, .. } = owner_tree.get(expression_id)
+            && matches!(owner_tree.get(*left), Expression::This)
+            && let Some((owner_symbol, _)) = self.owner_symbol_for_this_expression(
+                module,
+                profile,
+                *left,
+                owner_tree,
+                owner_symbols,
+            )
+            && let Some(member_symbol) = self.resolve_static_member_symbol_in_tables(
+                module,
+                profile,
+                owner_symbol,
+                StaticKey::Name(*name),
+                owner_tree,
+                owner_symbols,
+            )
+        {
+            return Some(member_symbol);
+        }
+
+        None
+    }
+
+    /// Apply associated projection substitutions by alias expression shape.
+    fn apply_projection_substitutions_from_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        local_type_id: LocalTypeId,
+        owner_tree: &NodeTree,
+        owner_symbols: &SymbolTable,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // recurse through nested index expressions and set count inferred types from substitutions
+        match owner_tree.get(expression_id).clone() {
+            Expression::TypeIndex { left, index } => {
+                let array_parts = match types.get_type(local_type_id) {
+                    Type::ArraySized {
+                        element,
+                        count,
+                        is_readonly,
+                    } => Some((*element, *count, *is_readonly)),
+                    _ => None,
+                };
+                let Some((element, count, is_readonly)) = array_parts else {
+                    return local_type_id;
+                };
+
+                if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
+                    module,
+                    profile,
+                    index,
+                    owner_tree,
+                    owner_symbols,
+                ) && let Some(substitution) =
+                    self.projection_substitution_type_for_symbol(target_symbol, substitutions)
+                {
+                    let substitution =
+                        self.normalized_projection_substitution_type(substitution, types);
+                    types.set_inferred_type(count.into_global_any(types.module_id), substitution);
+                }
+
+                let mapped_element = self.apply_projection_substitutions_from_expression(
+                    module,
+                    profile,
+                    left,
+                    element,
+                    owner_tree,
+                    owner_symbols,
+                    substitutions,
+                    types,
+                );
+                if mapped_element == element {
+                    return local_type_id;
+                }
+
+                return types.insert_type_from_type(
+                    Type::ArraySized {
+                        element: mapped_element,
+                        count,
+                        is_readonly,
+                    },
+                    local_type_id,
+                );
+            }
+            Expression::Parenthesized { expression } => {
+                return self.apply_projection_substitutions_from_expression(
+                    module,
+                    profile,
+                    expression,
+                    local_type_id,
+                    owner_tree,
+                    owner_symbols,
+                    substitutions,
+                    types,
+                );
+            }
+            Expression::TypeUnary {
+                operator: destack_dir::TypeUnaryOperator::AsComptime,
+                right,
+            } => {
+                return self.apply_projection_substitutions_from_expression(
+                    module,
+                    profile,
+                    right,
+                    local_type_id,
+                    owner_tree,
+                    owner_symbols,
+                    substitutions,
+                    types,
+                );
+            }
+            _ => {}
+        }
+
+        // map reference static arguments that originate from owner projections
+        let (symbol, static_arguments) = match types.get_type(local_type_id).clone() {
+            Type::Reference {
+                symbol,
+                static_arguments: Some(static_arguments),
+            } => (symbol, static_arguments),
+            _ => return local_type_id,
+        };
+        let Some(argument_nodes) = owner_tree.get(expression_id).static_arguments() else {
+            return local_type_id;
+        };
+
+        // walk static arguments in lock-step with the alias expression arguments
+        let mut changed = false;
+        let mut mapped_arguments = static_arguments;
+        for (argument_index, argument_node) in argument_nodes.iter().enumerate() {
+            let Some(current_argument) = mapped_arguments.get(argument_index).cloned() else {
+                continue;
+            };
+            let argument_expression_id = owner_tree.get(*argument_node).value();
+
+            // replace direct symbol references with projection substitutions
+            if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
+                module,
+                profile,
+                argument_expression_id,
+                owner_tree,
+                owner_symbols,
+            ) && let Some(substitution) =
+                self.projection_substitution_type_for_symbol(target_symbol, substitutions)
+            {
+                let substitution =
+                    self.normalized_projection_substitution_type(substitution, types);
+                let substitution_value =
+                    self.static_expression_from_projection_substitution_type(substitution, types);
+                let argument_name = match current_argument {
+                    StaticArgument::Evaluated { name, .. } => name,
+                    StaticArgument::Unevaluated { .. } => None,
+                };
+                let replacement = StaticArgument::Evaluated {
+                    name: argument_name,
+                    value: substitution_value,
+                };
+                if replacement != current_argument {
+                    mapped_arguments[argument_index] = replacement;
+                    changed = true;
+                }
+                continue;
+            }
+
+            // recurse into nested type arguments to keep fixed-array substitutions aligned
+            let StaticArgument::Evaluated { name, value } = current_argument else {
+                continue;
+            };
+            let StaticExpression::Type { ty } = value else {
+                continue;
+            };
+            let mapped_type = self.apply_projection_substitutions_from_expression(
+                module,
+                profile,
+                argument_expression_id,
+                ty,
+                owner_tree,
+                owner_symbols,
+                substitutions,
+                types,
+            );
+            if mapped_type == ty {
+                continue;
+            }
+
+            mapped_arguments[argument_index] = StaticArgument::Evaluated {
+                name,
+                value: StaticExpression::Type { ty: mapped_type },
+            };
+            changed = true;
+        }
+
+        if !changed {
+            return local_type_id;
+        }
+
+        types.insert_type_from_type(
+            Type::Reference {
+                symbol,
+                static_arguments: Some(mapped_arguments),
+            },
+            local_type_id,
+        )
+    }
+
+    /// Apply associated projection substitutions to imported alias targets when needed.
+    fn apply_associated_projection_substitutions(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target_symbol: GlobalSymbolId,
+        alias_target_id: LocalTypeId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if substitutions.is_empty() {
+            return Ok(alias_target_id);
+        }
+
+        let mapped_alias_target = self
+            .with_module_tree_symbols_or_local_for_stage(
+                module,
+                profile,
+                target_symbol.module_id,
+                tree,
+                symbols,
+                AnalyzeReadStage::Declare,
+                |owner_module, owner_tree, owner_symbols| {
+                    let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
+                    let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                        return alias_target_id;
+                    };
+                    if primary_declaration.local_id.ty != NodeType::Member {
+                        return alias_target_id;
+                    }
+
+                    let member_id = primary_declaration.local_id.into_typed::<Member>();
+                    let Member::Type {
+                        value: Some(alias_expression),
+                        ..
+                    } = owner_tree.get(member_id)
+                    else {
+                        return alias_target_id;
+                    };
+
+                    self.apply_projection_substitutions_from_expression(
+                        owner_module,
+                        profile,
+                        *alias_expression,
+                        alias_target_id,
+                        owner_tree,
+                        owner_symbols,
+                        substitutions,
+                        types,
+                    )
+                },
+            )
+            .map_err(AnalyzeError::from)?;
+
+        Ok(mapped_alias_target)
+    }
+
+    /// Select one deterministic argument source for projection member substitutions.
+    fn projection_member_argument_source_for_materialization<'a>(
+        &self,
+        target_symbol: GlobalSymbolId,
+        explicit_static_arguments: Option<&'a [StaticArgument]>,
+        resolved_static_arguments: Option<&'a [StaticArgument]>,
+        member_ty: &'a Type,
+    ) -> Option<(GlobalSymbolId, &'a [StaticArgument])> {
+        // use resolved arguments from explicit projection expressions when available
+        if let Some(arguments) = resolved_static_arguments
+            && !arguments.is_empty()
+        {
+            return Some((target_symbol, arguments));
+        }
+
+        // otherwise use explicit arguments directly
+        if let Some(arguments) = explicit_static_arguments
+            && !arguments.is_empty()
+        {
+            return Some((target_symbol, arguments));
+        }
+
+        // otherwise use reference carried arguments from the projected member type
+        if let Type::Reference {
+            symbol,
+            static_arguments: Some(arguments),
+        } = member_ty
+            && !arguments.is_empty()
+        {
+            return Some((*symbol, arguments));
+        }
+
+        None
     }
 
     /// Materialize associated member projections with receiver substitutions.
@@ -1251,6 +2230,7 @@ impl Compiler {
             receiver_symbol,
             receiver_arguments,
             &options,
+            None,
             tree,
             symbols,
             types,
@@ -1307,29 +2287,18 @@ impl Compiler {
             symbols,
             types,
         )?;
-        if let Some(member_arguments) = resolved_member_arguments.as_deref().or(static_arguments) {
-            let member_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                module,
-                profile,
+        if let Some((member_argument_symbol, member_arguments)) = self
+            .projection_member_argument_source_for_materialization(
                 target_symbol,
-                source_id,
-                member_arguments,
-                tree,
-                symbols,
-                types,
-            );
-            substitutions.extend(member_substitutions);
-        }
-        // fall back to reference-carried arguments when present
-        else if let Type::Reference {
-            symbol,
-            static_arguments: Some(member_arguments),
-        } = &member_ty
+                static_arguments,
+                resolved_member_arguments.as_deref(),
+                &member_ty,
+            )
         {
             let member_substitutions = self.build_type_parameter_substitutions_for_symbol(
                 module,
                 profile,
-                *symbol,
+                member_argument_symbol,
                 source_id,
                 member_arguments,
                 tree,
@@ -1340,24 +2309,148 @@ impl Compiler {
         }
 
         // materialize associated type alias targets with merged substitutions
-        let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+        let mut alias_target_id = if let Some(alias_target_id) = self
+            .alias_target_type_id_for_symbol(
+                module,
+                profile,
+                target_symbol,
+                source_id,
+                symbols,
+                types,
+            ) {
+            alias_target_id
+        } else if let Some(alias_target_id) = self.relaxed_alias_target_type_id_for_symbol(
             module,
             profile,
             target_symbol,
             source_id,
+            tree,
             symbols,
             types,
-        ) else {
-            return Ok(member_ty);
-        };
-
-        let mapped_alias = if substitutions.is_empty() {
+        ) {
             alias_target_id
         } else {
-            let mut cache = HashMap::new();
-            self.substitute_static_parameters(alias_target_id, &substitutions, types, &mut cache)
+            return Ok(member_ty);
         };
+        let is_self_alias_target = matches!(
+            types.get_type(alias_target_id),
+            Type::Reference {
+                symbol,
+                static_arguments: None,
+            } if *symbol == target_symbol
+        );
+
+        // refresh local alias targets from source expressions once projection context is available
+        if target_symbol.module_id == module.id {
+            let alias_source = types.get_type_source(alias_target_id);
+            if let Ok(alias_expression_id) = alias_source.try_into_typed::<Expression>()
+                && tree.has_node_id(alias_expression_id.id)
+            {
+                alias_target_id = self.reevaluate_expression_to_type(
+                    module,
+                    profile,
+                    alias_expression_id,
+                    tree,
+                    symbols,
+                    types,
+                    true,
+                    true,
+                )?;
+            }
+        }
+        // refresh remote self-referential aliases in their owner module with remote tree ids
+        else if is_self_alias_target {
+            let reevaluated_remote_target = self
+                .with_module_tree_symbols_for_stage(
+                    module,
+                    profile,
+                    target_symbol.module_id,
+                    AnalyzeReadStage::Declare,
+                    |owner_module,
+                     owner_tree,
+                     owner_symbols|
+                     -> AnalyzeResult<Option<LocalTypeId>> {
+                        let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
+                        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                            return Ok(None);
+                        };
+                        if primary_declaration.local_id.ty != NodeType::Member {
+                            return Ok(None);
+                        }
+
+                        let member_id = primary_declaration.local_id.into_typed::<Member>();
+                        let Member::Type {
+                            value: Some(alias_value_expression),
+                            ..
+                        } = owner_tree.get(member_id)
+                        else {
+                            return Ok(None);
+                        };
+
+                        let mut owner_types = owner_module.dir(profile).types.write();
+                        let reevaluated_remote_id = self.reevaluate_expression_to_type(
+                            owner_module,
+                            profile,
+                            *alias_value_expression,
+                            owner_tree,
+                            owner_symbols,
+                            &mut owner_types,
+                            true,
+                            true,
+                        )?;
+                        let reevaluated_remote_ty = owner_types.get_type(reevaluated_remote_id);
+                        let local_target_id = self.import_type_from_remote_for_node(
+                            source_id,
+                            reevaluated_remote_ty,
+                            &owner_types,
+                            target_symbol,
+                            types,
+                        );
+                        Ok(Some(local_target_id))
+                    },
+                )
+                .map_err(AnalyzeError::from)??;
+            if let Some(reevaluated_remote_target) = reevaluated_remote_target {
+                alias_target_id = reevaluated_remote_target;
+            }
+        }
+
+        alias_target_id = self.apply_associated_projection_substitutions(
+            module,
+            profile,
+            target_symbol,
+            alias_target_id,
+            &substitutions,
+            tree,
+            symbols,
+            types,
+        )?;
+
         let mut materialize_cache = TypeRewriteCache::new();
+        let materialized_alias = self.materialize_static_arguments_in_type(
+            module,
+            profile,
+            alias_target_id,
+            tree,
+            symbols,
+            types,
+            &mut materialize_cache,
+        );
+
+        // substitute after materialization so owner scoped references are concrete first
+        let mapped_alias = if substitutions.is_empty() {
+            materialized_alias
+        } else {
+            let mut substitution_cache = HashMap::new();
+            self.substitute_static_parameters(
+                materialized_alias,
+                &substitutions,
+                types,
+                &mut substitution_cache,
+            )
+        };
+
+        // rematerialize after substitution to normalize mapped references
         let mapped_alias = self.materialize_static_arguments_in_type(
             module,
             profile,
@@ -1367,6 +2460,7 @@ impl Compiler {
             types,
             &mut materialize_cache,
         );
+
         let mapped_alias = if let Some(owner_symbol) = owner_symbol {
             let mut rewriter = AssociatedAliasProjectionRewriter::new(
                 self,
@@ -1475,6 +2569,46 @@ impl Compiler {
                         .with_type(owner_entry.ty)
                         .into_global(owner_module.id),
                 )
+            },
+        )
+    }
+
+    /// Classify one static symbol for associated projection paths.
+    pub(crate) fn static_member_symbol_kind_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<StaticMemberSymbolKind> {
+        self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            tree,
+            symbols,
+            |_owner_module, owner_tree, owner_symbols| {
+                let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return None;
+                };
+
+                match primary_declaration.local_id.ty {
+                    NodeType::EnumField => Some(StaticMemberSymbolKind::EnumField),
+                    NodeType::Member => {
+                        let member_id = primary_declaration.local_id.into_typed::<Member>();
+                        let member_kind = match owner_tree.get(member_id) {
+                            Member::Type { .. } => StaticMemberSymbolKind::AssociatedType,
+                            Member::ComptimeConst { .. } => {
+                                StaticMemberSymbolKind::AssociatedComptimeConst
+                            }
+                            _ => StaticMemberSymbolKind::Other,
+                        };
+                        Some(member_kind)
+                    }
+                    _ => None,
+                }
             },
         )
     }

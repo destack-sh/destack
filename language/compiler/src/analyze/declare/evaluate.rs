@@ -1,6 +1,6 @@
 use crate::analyze::common::{
     AnalyzeReadStage, AssociatedProjectionSelection, CanonicalSymbolMode, RelationMode,
-    TypeRewriteCache,
+    StaticMemberSymbolKind, TypeRewriteCache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
@@ -29,6 +29,15 @@ enum TypeMemberSelectionForTypeEvaluation {
     },
     /// An associated projection member.
     Associated(AssociatedProjectionSelection),
+}
+
+/// Classification for `TypeIndex` disambiguation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TypeIndexInterpretation {
+    /// Interpret `T[K]` as indexed access.
+    IndexAccess,
+    /// Interpret `T[N]` as fixed-size array construction.
+    ArraySized,
 }
 
 /// Visitor for validating static value parameter usage in type expressions.
@@ -136,28 +145,23 @@ impl NodeVisitor for StaticValueParameterValidator<'_> {
                 }
             };
 
-            let (_, is_explicit_comptime) =
-                self.compiler.unwrap_as_comptime_expression(*index, tree);
-            let supports_index_access = match self.compiler.type_supports_index_access(
+            let interpretation = match self.compiler.type_index_interpretation(
                 self.module,
                 self.profile,
                 left_id,
+                *index,
                 tree,
                 self.symbols,
                 self.types,
-                true,
             ) {
-                Ok(supports) => supports,
+                Ok(value) => value,
                 Err(error) => {
                     self.record_result(Err(error));
                     return;
                 }
             };
-            let is_primitive_literal = self.compiler.type_is_primitive_literal(left_id, self.types);
-            let is_index_access =
-                !is_explicit_comptime && supports_index_access && !is_primitive_literal;
 
-            if !is_index_access {
+            if interpretation == TypeIndexInterpretation::ArraySized {
                 let is_array_size_candidate =
                     match self.compiler.expression_is_array_size_candidate(
                         self.module,
@@ -368,6 +372,22 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<i64>> {
+        // prefer existing type facts before re-evaluating the expression tree
+        let expression_global = expression_id.into_global_any(module.id);
+        if let Some(type_id) = types
+            .get_inferred_type_id(expression_global)
+            .or_else(|| types.get_declared_type_id(expression_global))
+        {
+            if let Some(value) = self.integer_literal_value_for_type_id(type_id, types) {
+                return Ok(Some(value));
+            }
+        }
+
+        // synthetic count nodes do not exist in the syntax tree, so only cached type facts apply
+        if !tree.has_node_id(expression_id.id) {
+            return Ok(None);
+        }
+
         let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, tree);
         let value = self.evaluate_static_expression_value(
             module,
@@ -504,7 +524,46 @@ impl Compiler {
                 validate_static_argument_bounds,
                 enforce_implicit_managed,
             )?;
-            let Type::Reference { symbol, .. } = types.get_type(index_ty_id) else {
+            let symbol = match types.get_type(index_ty_id) {
+                Type::Reference { symbol, .. } => Some(*symbol),
+                Type::Value { value } => match types.get_type(*value) {
+                    Type::Reference { symbol, .. } => Some(*symbol),
+                    _ => None,
+                },
+                _ => None,
+            };
+            let symbol = if symbol.is_none() {
+                if let Expression::Member { left, name, .. } = tree.get(candidate_expression_id)
+                    && matches!(tree.get(*left), Expression::This)
+                    && let Some((owner_symbol, _)) =
+                        self.owner_symbol_for_this_expression(module, profile, *left, tree, symbols)
+                    && let Some(member_symbol) = self.resolve_static_member_symbol_in_tables(
+                        module,
+                        profile,
+                        owner_symbol,
+                        StaticKey::Name(*name),
+                        tree,
+                        symbols,
+                    )
+                    && matches!(
+                        self.static_member_symbol_kind_for_symbol(
+                            module,
+                            profile,
+                            member_symbol,
+                            tree,
+                            symbols,
+                        ),
+                        Some(StaticMemberSymbolKind::AssociatedComptimeConst)
+                    )
+                {
+                    Some(member_symbol)
+                } else {
+                    None
+                }
+            } else {
+                symbol
+            };
+            let Some(symbol) = symbol else {
                 if is_explicit_comptime {
                     self.error(AnalyzeError::InvalidComptimeExpression {
                         node: expression_id
@@ -515,9 +574,11 @@ impl Compiler {
                 return Ok(None);
             };
             let is_static_parameter =
-                self.symbol_is_static_parameter(module, profile, *symbol, symbols, types);
-            let is_associated_comptime =
-                self.symbol_is_associated_comptime_member(module, profile, *symbol, tree, symbols);
+                self.symbol_is_static_parameter(module, profile, symbol, symbols, types);
+            let is_associated_comptime = matches!(
+                self.static_member_symbol_kind_for_symbol(module, profile, symbol, tree, symbols),
+                Some(StaticMemberSymbolKind::AssociatedComptimeConst)
+            );
             if !is_static_parameter && !is_associated_comptime {
                 if is_explicit_comptime {
                     self.error(AnalyzeError::InvalidComptimeExpression {
@@ -531,7 +592,7 @@ impl Compiler {
             if is_associated_comptime {
                 // keep associated comptime references as symbols so substitution can resolve counts
                 let reference_type = Type::Reference {
-                    symbol: *symbol,
+                    symbol,
                     static_arguments: None,
                 };
                 let reference_type_id =
@@ -540,7 +601,7 @@ impl Compiler {
                     .set_inferred_type(expression_id.into_global_any(module.id), reference_type_id);
                 return Ok(Some(reference_type_id));
             }
-            self.static_parameter_kind_for_symbol(module, profile, *symbol, tree, symbols, types)
+            self.static_parameter_kind_for_symbol(module, profile, symbol, tree, symbols, types)
         };
 
         // require comptime for value usage
@@ -564,8 +625,13 @@ impl Compiler {
             validate_static_argument_bounds,
             enforce_implicit_managed,
         )?;
-        types.set_inferred_type(expression_id.into_global_any(module.id), index_id);
-        Ok(Some(index_id))
+        let inferred_id = if let Type::Value { value } = types.get_type(index_id) {
+            *value
+        } else {
+            index_id
+        };
+        types.set_inferred_type(expression_id.into_global_any(module.id), inferred_id);
+        Ok(Some(inferred_id))
     }
 
     /// Check whether an expression can be used as an array size candidate.
@@ -584,7 +650,56 @@ impl Compiler {
             return Ok(true);
         }
 
-        let Some(target_symbol) = tree.get(expression_id).target_symbol() else {
+        if let Expression::Member { left, name, .. } = tree.get(expression_id)
+            && matches!(tree.get(*left), Expression::This)
+            && let Some((owner_symbol, _)) =
+                self.owner_symbol_for_this_expression(module, profile, *left, tree, symbols)
+            && let Some(member_symbol) = self.resolve_static_member_symbol_in_tables(
+                module,
+                profile,
+                owner_symbol,
+                StaticKey::Name(*name),
+                tree,
+                symbols,
+            )
+            && matches!(
+                self.static_member_symbol_kind_for_symbol(
+                    module,
+                    profile,
+                    member_symbol,
+                    tree,
+                    symbols,
+                ),
+                Some(StaticMemberSymbolKind::AssociatedComptimeConst)
+            )
+        {
+            return Ok(true);
+        }
+
+        let target_symbol = if let Some(target_symbol) = tree.get(expression_id).target_symbol() {
+            Some(target_symbol)
+        } else {
+            let index_type_id = self.try_evaluate_expression_to_type(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            )?;
+            match types.get_type(index_type_id) {
+                Type::Reference { symbol, .. } => Some(*symbol),
+                Type::Value { value } => match types.get_type(*value) {
+                    Type::Reference { symbol, .. } => Some(*symbol),
+                    _ => None,
+                },
+                _ => None,
+            }
+        };
+
+        let Some(target_symbol) = target_symbol else {
             return Ok(false);
         };
 
@@ -600,45 +715,132 @@ impl Compiler {
             return Ok(matches!(kind, StaticParameterKind::Value));
         }
 
-        let is_associated_comptime = self.symbol_is_associated_comptime_member(
-            module,
-            profile,
-            target_symbol,
-            tree,
-            symbols,
+        let is_associated_comptime = matches!(
+            self.static_member_symbol_kind_for_symbol(
+                module,
+                profile,
+                target_symbol,
+                tree,
+                symbols,
+            ),
+            Some(StaticMemberSymbolKind::AssociatedComptimeConst)
         );
 
         Ok(is_associated_comptime)
     }
 
-    /// Check whether a symbol references an associated comptime member.
-    fn symbol_is_associated_comptime_member(
+    /// Classify one `TypeIndex` expression as index-access or fixed-array construction.
+    pub(crate) fn type_index_interpretation(
         &self,
         module: &Module,
         profile: ProfileId,
-        symbol: GlobalSymbolId,
+        left_type_id: LocalTypeId,
+        index_expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
-    ) -> bool {
-        self.with_module_tree_symbols_or_local(
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<TypeIndexInterpretation> {
+        let (_, is_explicit_comptime) =
+            self.unwrap_as_comptime_expression(index_expression_id, tree);
+        if module.language_type.is_declaration() {
+            return Ok(if is_explicit_comptime {
+                TypeIndexInterpretation::ArraySized
+            } else {
+                TypeIndexInterpretation::IndexAccess
+            });
+        }
+
+        let index_is_array_size_candidate = self.expression_is_array_size_candidate(
             module,
             profile,
-            symbol.module_id,
+            index_expression_id,
             tree,
             symbols,
-            |_owner_module, owner_tree, owner_symbols| {
-                let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
-                let Some(primary_declaration) = symbol_entry.primary_declaration else {
-                    return false;
-                };
-                if primary_declaration.local_id.ty != NodeType::Member {
-                    return false;
-                }
+            types,
+        )?;
+        let left_is_array_sized = matches!(types.get_type(left_type_id), Type::ArraySized { .. });
+        let supports_index_access = self.type_supports_index_access(
+            module,
+            profile,
+            left_type_id,
+            tree,
+            symbols,
+            types,
+            true,
+        )?;
+        let is_primitive_literal = self.type_is_primitive_literal(left_type_id, types);
+        let force_array_size_from_value_candidate = index_is_array_size_candidate;
+        let force_array_size_from_nested_sized =
+            left_is_array_sized && self.type_index_is_integer_literal(index_expression_id, tree);
+        let force_array_size =
+            force_array_size_from_value_candidate || force_array_size_from_nested_sized;
 
-                let member_id = primary_declaration.local_id.into_typed::<Member>();
-                matches!(owner_tree.get(member_id), Member::ComptimeConst { .. })
-            },
-        )
+        let is_index_access = !is_explicit_comptime
+            && supports_index_access
+            && !is_primitive_literal
+            && !force_array_size;
+
+        Ok(if is_index_access {
+            TypeIndexInterpretation::IndexAccess
+        } else {
+            TypeIndexInterpretation::ArraySized
+        })
+    }
+
+    /// Decide whether one `TypeIndex` expression should use index-access semantics.
+    pub(crate) fn type_index_uses_index_access(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_type_id: LocalTypeId,
+        index_expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<bool> {
+        Ok(self.type_index_interpretation(
+            module,
+            profile,
+            left_type_id,
+            index_expression_id,
+            tree,
+            symbols,
+            types,
+        )? == TypeIndexInterpretation::IndexAccess)
+    }
+
+    /// Check whether a type-index expression is a plain integer literal.
+    fn type_index_is_integer_literal(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, tree);
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
+
+        if matches!(
+            tree.get(expression_id),
+            Expression::ScalarLiteral {
+                value: ScalarLiteral::Integer(_),
+            }
+        ) {
+            return true;
+        }
+
+        if let Expression::Unary {
+            operator: UnaryOperator::Negate,
+            right,
+        } = tree.get(expression_id)
+        {
+            return matches!(
+                tree.get(*right),
+                Expression::ScalarLiteral {
+                    value: ScalarLiteral::Integer(_),
+                }
+            );
+        }
+
+        false
     }
 
     /// Unwrap parenthesized expressions and explicit `as comptime` markers.
@@ -1009,6 +1211,41 @@ impl Compiler {
         Ok(ty_id)
     }
 
+    /// Re-evaluate an expression as a type, bypassing declared/expression caches.
+    pub(crate) fn reevaluate_expression_to_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<LocalTypeId> {
+        let ty = self
+            .evaluate_expression_to_type(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+                validate_static_argument_bounds,
+                enforce_implicit_managed,
+                true,
+            )?
+            .unwrap_or(Type::Unevaluated(expression_id));
+        let ty_id = types.insert_type_from(ty, expression_id);
+        let global_node_id = expression_id.into_global_any(module.id);
+        types.set_declared_type(global_node_id, ty_id);
+
+        let type_value_id = types.insert_type_from(Type::Value { value: ty_id }, expression_id);
+        types.set_inferred_type(global_node_id, type_value_id);
+
+        Ok(ty_id)
+    }
+
     /// Evaluate a function signature into a Type.
     pub(super) fn evaluate_function_signature_to_type(
         &self,
@@ -1368,6 +1605,8 @@ impl Compiler {
 
         // walk scopes from inner to outer
         while let Some((_scope_id, scope)) = scope_cursor {
+            let mut best_preferred = None;
+
             for (candidate_key, candidate_symbol_id) in scope.named_symbols.iter().rev() {
                 if *candidate_key != key {
                     continue;
@@ -1376,17 +1615,38 @@ impl Compiler {
                 if !candidate.is_active {
                     continue;
                 }
+                let candidate_symbol = candidate_symbol_id.into_global(module.id);
 
+                // type-value symbols satisfy all space orders
                 let candidate_space = candidate.space;
-                if candidate_space == SymbolSpace::TypeValue
-                    || preferred_spaces.contains(&candidate_space)
-                {
-                    return Some(candidate_symbol_id.into_global(module.id));
+                if candidate_space == SymbolSpace::TypeValue {
+                    return Some(candidate_symbol);
                 }
 
-                if fallback.is_none() {
-                    fallback = Some(candidate_symbol_id.into_global(module.id));
+                // track the best preferred-space candidate for this scope
+                if let Some(space_index) = preferred_spaces
+                    .iter()
+                    .position(|preferred_space| *preferred_space == candidate_space)
+                {
+                    let replace_best = match best_preferred {
+                        Some((best_index, _)) => space_index < best_index,
+                        None => true,
+                    };
+                    if replace_best {
+                        best_preferred = Some((space_index, candidate_symbol));
+                    }
+                    continue;
                 }
+
+                // keep the nearest fallback only when no preferred symbol exists anywhere
+                if fallback.is_none() {
+                    fallback = Some(candidate_symbol);
+                }
+            }
+
+            // prefer this scope's best matching symbol space before checking parent scopes
+            if let Some((_, preferred_symbol)) = best_preferred {
+                return Some(preferred_symbol);
             }
 
             scope_cursor = scope
@@ -1800,6 +2060,7 @@ impl Compiler {
                         Some(selection.receiver_symbol),
                         &selection.receiver_arguments,
                         &options,
+                        Some(visited),
                         tree,
                         symbols,
                         types,
@@ -2268,6 +2529,23 @@ impl Compiler {
                     AnalyzeReadStage::Infer,
                     |owner_module, owner_tree, owner_symbols| {
                         let mut owner_types = owner_module.dir(profile).types.write();
+                        let mapped_substitutions = substitutions.map(|substitutions| {
+                            let mut mapped = HashMap::new();
+                            for (substitution_symbol, substitution_type_id) in substitutions {
+                                let substitution_ty = types.get_type(*substitution_type_id);
+                                let substitution_source =
+                                    types.get_type_source(*substitution_type_id);
+                                let mapped_type_id = self.import_type_from_remote_for_node(
+                                    substitution_source,
+                                    substitution_ty,
+                                    types,
+                                    *substitution_symbol,
+                                    &mut owner_types,
+                                );
+                                mapped.insert(*substitution_symbol, mapped_type_id);
+                            }
+                            mapped
+                        });
                         self.static_expression_from_constant_reference(
                             owner_module,
                             profile,
@@ -2275,7 +2553,7 @@ impl Compiler {
                             owner_tree,
                             owner_symbols,
                             &mut owner_types,
-                            substitutions,
+                            mapped_substitutions.as_ref(),
                             visited,
                         )
                     },
@@ -2795,10 +3073,23 @@ impl Compiler {
                 )?
                 else {
                     if is_user_module {
-                        self.error(AnalyzeError::MissingType {
+                        // evaluate the receiver type for a precise missing member diagnostic
+                        let receiver_ty_id = self.try_evaluate_expression_to_type(
+                            module,
+                            profile,
+                            left,
+                            tree,
+                            symbols,
+                            types,
+                            validate_static_argument_bounds,
+                            enforce_implicit_managed,
+                        )?;
+                        self.error(AnalyzeError::MissingMember {
                             node: expression_id
                                 .into_global_any(module.id)
                                 .into_anchored(Some(profile)),
+                            receiver_ty: receiver_ty_id.into_global(module.id),
+                            member_key,
                         });
                         return Ok(Some(Type::Error));
                     }
@@ -2872,6 +3163,72 @@ impl Compiler {
                     &receiver_arguments,
                     static_arguments.as_deref(),
                     member_ty,
+                    tree,
+                    symbols,
+                    types,
+                )?
+            }
+            Expression::Instantiation {
+                left,
+                static_arguments,
+            } => {
+                // evaluate the left side to a type reference before applying instantiation arguments
+                let receiver_type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+
+                // extract a nominal receiver symbol from direct references and merge intersections
+                let receiver_symbol = self
+                    .unwrap_type_symbol(types, receiver_type_id)
+                    .map(|(symbol, _, _)| symbol)
+                    .or_else(|| match types.get_type(receiver_type_id).clone() {
+                        Type::Intersection { elements } | Type::Union { elements } => {
+                            elements.iter().find_map(|element_id| {
+                                self.unwrap_type_symbol(types, *element_id)
+                                    .map(|(symbol, _, _)| symbol)
+                            })
+                        }
+                        _ => None,
+                    });
+                let Some(target_symbol) = receiver_symbol else {
+                    return Ok(None);
+                };
+                let target_symbol = self.resolve_type_reference_symbol_for_evaluation(
+                    module,
+                    profile,
+                    target_symbol,
+                    tree,
+                    symbols,
+                );
+
+                // evaluate explicit instantiation static arguments
+                let static_arguments = self.evaluate_static_arguments(
+                    module,
+                    profile,
+                    Some(static_arguments.as_slice()),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let resolve_static_arguments =
+                    resolve_static_arguments && !defer_reference_resolution;
+
+                self.evaluate_type_reference_for_symbol(
+                    module,
+                    profile,
+                    expression_id,
+                    target_symbol,
+                    static_arguments,
+                    resolve_static_arguments,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
                     tree,
                     symbols,
                     types,
@@ -3327,7 +3684,6 @@ impl Compiler {
             }
             Expression::TypeIndex { left, index } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_INDEX);
-                let (_, is_explicit_comptime) = self.unwrap_as_comptime_expression(index, tree);
 
                 // resolve the left type
                 let left_id = self.try_evaluate_expression_to_type(
@@ -3341,24 +3697,19 @@ impl Compiler {
                     enforce_implicit_managed,
                 )?;
 
-                // treat declaration modules as index access only
-                let is_index_access = if module.language_type.is_declaration() {
-                    !is_explicit_comptime
-                } else {
-                    // check whether the left type supports index access
-                    let supports_index_access = self.type_supports_index_access(
-                        module, profile, left_id, tree, symbols, types, true,
-                    )?;
-                    let is_primitive_literal = self.type_is_primitive_literal(left_id, types);
-                    !is_explicit_comptime && supports_index_access && !is_primitive_literal
-                };
+                // disambiguate between type indexing and fixed-size arrays
+                let interpretation = self.type_index_interpretation(
+                    module, profile, left_id, index, tree, symbols, types,
+                )?;
 
                 // compute the type index result
-                if !is_index_access {
-                    // treat static integer literals as array sizes
-                    if let Some(value) = self.evaluate_integer_static_literal(
+                if interpretation == TypeIndexInterpretation::ArraySized {
+                    let integer_array_size = self.evaluate_integer_static_literal(
                         module, profile, index, tree, symbols, types,
-                    )? {
+                    )?;
+
+                    // treat static integer literals as array sizes
+                    if let Some(value) = integer_array_size {
                         if value < 0 {
                             return Err(AnalyzeError::InvalidArraySize {
                                 node: index
@@ -3374,8 +3725,8 @@ impl Compiler {
                         }
                     } else if self.expression_is_array_size_candidate(
                         module, profile, index, tree, symbols, types,
-                    )? && self
-                        .resolve_array_size_parameter_type(
+                    )? {
+                        let _ = self.resolve_array_size_parameter_type(
                             module,
                             profile,
                             index,
@@ -3384,9 +3735,7 @@ impl Compiler {
                             types,
                             validate_static_argument_bounds,
                             enforce_implicit_managed,
-                        )?
-                        .is_some()
-                    {
+                        )?;
                         Type::ArraySized {
                             element: left_id,
                             count: index,
@@ -4313,11 +4662,33 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Expression, LocalScopeMark, PrimitiveType, ScalarLiteral, StaticKey, Type, TypeLiteral,
+        Expression, LocalNodeId, LocalScopeMark, PrimitiveType, ScalarLiteral, StaticKey, Type,
+        TypeLiteral, TypeTable,
     };
-    use destack_source::ProfileId;
+    use destack_source::{ModuleId, ProfileId};
 
     use crate::TestProgram;
+
+    /// Resolve an inferred integer literal value for one fixed-array count node.
+    fn inferred_integer_count(
+        module_id: ModuleId,
+        count: LocalNodeId<Expression>,
+        types: &TypeTable,
+    ) -> i64 {
+        let count_type_id = types
+            .get_inferred_type_id(count.into_global_any(module_id))
+            .expect("expected inferred count type");
+        let Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
+        } = types.get_type(count_type_id)
+        else {
+            panic!(
+                "expected integer literal count type, got {:?}",
+                types.get_type(count_type_id)
+            );
+        };
+        *value
+    }
 
     #[test]
     fn test_analyze_evaluate_type_on_let_expression() {
@@ -4475,5 +4846,155 @@ declare const rows: MessagePage.Rows;
                 "expected rows binding type to be evaluated in profile #{profile_index}, got {binding_type:?}"
             );
         }
+    }
+
+    /// Preserve nested fixed-size array literals in type positions.
+    #[test]
+    fn test_nested_fixed_array_literals_in_type_position() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+declare const grid: float32[16][16];
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let types = dir.types.read();
+
+        let grid_key = StaticKey::Name(test.program.strings.intern("grid"));
+        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let grid_symbol = symbols
+            .find_active_symbol_up_to(namespace_scope, grid_key, LocalScopeMark::end())
+            .map(|symbol| symbol.into_global(module.id))
+            .expect("expected grid symbol");
+        let grid_type_id = types
+            .get_value_type_id(grid_symbol)
+            .expect("expected grid value type");
+
+        let Type::ArraySized {
+            element: outer_element,
+            ..
+        } = types.get_type(grid_type_id)
+        else {
+            panic!(
+                "expected outer fixed array type, got {:?}",
+                types.get_type(grid_type_id)
+            );
+        };
+
+        let Type::ArraySized { .. } = types.get_type(*outer_element) else {
+            panic!(
+                "expected inner fixed array type, got {:?}",
+                types.get_type(*outer_element)
+            );
+        };
+
+        // ensure the type expression tree remains addressable for diagnostics
+        let statement_id = dir.roots[0];
+        let Expression::Statement { statement } = tree.get(statement_id) else {
+            panic!("expected statement root");
+        };
+        let Expression::Let { declarators, .. } = tree.get(*statement) else {
+            panic!("expected let declaration");
+        };
+        let declarator_id = declarators[0];
+        let declared_type_id = types
+            .get_declared_type_id(declarator_id.into_global_any(module.id))
+            .expect("expected declared type id for grid");
+        let declared_type = types.get_type(declared_type_id);
+        assert!(
+            !declared_type.is_unevaluated(),
+            "expected declared type to be evaluated, got {declared_type:?}"
+        );
+    }
+
+    /// Materialize interface associated comptime members in projected alias counts.
+    #[test]
+    fn test_interface_associated_alias_projection_materializes_comptime_counts() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+interface PartitionedStore<Row> {
+    comptime const SegmentBytes: number;
+    type Segment = Row[this.SegmentBytes];
+}
+
+class AuditStore implements PartitionedStore<string> {
+    comptime const SegmentBytes: number = 1024;
+}
+
+declare const segment: AuditStore.Segment;
+"#,
+        );
+        test.analyze_module(module_id);
+        test.compile_check_clean();
+
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        let profile = test.default_profile_id(module_id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+
+        let segment_key = StaticKey::Name(test.program.strings.intern("segment"));
+        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let segment_symbol = symbols
+            .find_active_symbol_up_to(namespace_scope, segment_key, LocalScopeMark::end())
+            .map(|symbol| symbol.into_global(module.id))
+            .expect("expected segment symbol");
+
+        let audit_key = StaticKey::Name(test.program.strings.intern("AuditStore"));
+        let audit_symbol = symbols
+            .find_active_symbol_up_to(namespace_scope, audit_key, LocalScopeMark::end())
+            .map(|symbol| symbol.into_global(module.id))
+            .expect("expected AuditStore symbol");
+        let segment_member_key = StaticKey::Name(test.program.strings.intern("Segment"));
+        let segment_member_symbol = test
+            .compiler
+            .resolve_static_member_symbol_in_tables(
+                &module,
+                profile,
+                audit_symbol,
+                segment_member_key,
+                &tree,
+                &symbols,
+            )
+            .expect("expected Segment member symbol");
+        let alias_target_id = test
+            .compiler
+            .alias_target_type_id_for_symbol(
+                &module,
+                profile,
+                segment_member_symbol,
+                dir.roots[0].into_any(),
+                &symbols,
+                &mut types,
+            )
+            .expect("expected alias target for Segment member");
+        let alias_count = match types.get_type(alias_target_id) {
+            Type::ArraySized { count, .. } => *count,
+            other => panic!("expected fixed-size alias target, got {other:?}"),
+        };
+        assert_eq!(inferred_integer_count(module.id, alias_count, &types), 1024);
+
+        let segment_type_id = types
+            .get_value_type_id(segment_symbol)
+            .expect("expected segment value type");
+
+        let count = match types.get_type(segment_type_id) {
+            Type::ArraySized { count, .. } => *count,
+            other => panic!("expected fixed-size segment projection, got {other:?}"),
+        };
+        assert_eq!(inferred_integer_count(module.id, count, &types), 1024);
     }
 }

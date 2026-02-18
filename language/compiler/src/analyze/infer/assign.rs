@@ -2442,23 +2442,9 @@ impl Compiler {
             return true;
         }
 
-        let target_id = types.get_inferred_type_id(target_count.into_global_any(types.module_id));
-        let source_id = types.get_inferred_type_id(source_count.into_global_any(types.module_id));
-        let (Some(target_id), Some(source_id)) = (target_id, source_id) else {
-            return false;
-        };
-
-        let target_ty = types.get_type(target_id);
-        let source_ty = types.get_type(source_id);
-        let (
-            Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(target_value)),
-            },
-            Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(source_value)),
-            },
-        ) = (target_ty, source_ty)
-        else {
+        let target_value = self.array_sized_count_literal_value(target_count, types);
+        let source_value = self.array_sized_count_literal_value(source_count, types);
+        let (Some(target_value), Some(source_value)) = (target_value, source_value) else {
             return false;
         };
 
@@ -2472,20 +2458,24 @@ impl Compiler {
         length: usize,
         types: &TypeTable,
     ) -> bool {
+        let Some(value) = self.array_sized_count_literal_value(count, types) else {
+            return false;
+        };
+
+        value == length as i64
+    }
+
+    /// Extract an integer literal value for a fixed-array count expression.
+    fn array_sized_count_literal_value(
+        &self,
+        count: LocalNodeId<Expression>,
+        types: &TypeTable,
+    ) -> Option<i64> {
         let count_global = count.into_global_any(types.module_id);
-        let Some(count_ty_id) = types.get_inferred_type_id(count_global) else {
-            return false;
-        };
-
-        let count_ty = types.get_type(count_ty_id);
-        let Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
-        } = count_ty
-        else {
-            return false;
-        };
-
-        *value == length as i64
+        let count_ty_id = types
+            .get_inferred_type_id(count_global)
+            .or_else(|| types.get_declared_type_id(count_global))?;
+        self.integer_literal_value_for_type_id(count_ty_id, types)
     }
 
     /// Check assignability of static arguments on the same reference symbol.

@@ -160,7 +160,7 @@ Destack generalizes TSX syntax for any tree-shaped data:
 
 Destack's tree literals work with any tree-compatible type, not just UI component systems, and not just any _single_ JSX/TSX-style per project. 
 Because we have real type analysis you can mix and match.
-Types can opt into custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are supported
+Types can opt into custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`. 
 
 ## Annotations
 

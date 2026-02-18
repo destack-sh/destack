@@ -1,7 +1,5 @@
 # Associated Comptime Constants: Type Composition
 
-Type composition tests for associated comptime constants live here.
-
 ## composition
 
 ### service profile composes batching with mapped envelopes

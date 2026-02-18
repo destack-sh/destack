@@ -117,10 +117,11 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
+                receiver_ty: right_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -440,10 +441,11 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
+                receiver_ty: left_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -1338,10 +1340,11 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
+                receiver_ty: receiver_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -1650,10 +1653,11 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
+                receiver_ty: receiver_ty_id.into_global(module.id),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
@@ -2431,11 +2435,6 @@ impl Compiler {
             infer,
         )?
         else {
-            self.error(AnalyzeError::MissingType {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-            });
             return Ok(TryBranchMember {
                 resolved: ResolvedMemberFunction {
                     signature: ResolvedSignature {

@@ -10,7 +10,7 @@ use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
     DynamicKey, EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    Mutability, NodeTree, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    Mutability, NodeTree, Resolution, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
     StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type,
     TypeElement, TypeField, TypeLiteral, TypeMappedParameter, TypeRewriter, TypeRewriterOptions,
     TypeTable, rewrite_type,
@@ -309,8 +309,9 @@ impl Compiler {
         let argument_id = match argument_node.try_into_local_typed::<Argument>() {
             Ok(argument_id) => argument_id,
             Err(_) => {
-                self.error(AnalyzeError::MissingType {
+                self.error(AnalyzeError::InvalidStaticArgument {
                     node: argument_node.into_anchored(Some(profile)),
+                    message: "static argument does not resolve to an argument node".to_string(),
                 });
                 return Ok(None);
             }
@@ -326,8 +327,9 @@ impl Compiler {
         let argument_module = argument_module.read();
         let argument_tree = argument_module.dir(profile).tree.read();
         if !argument_tree.has_node_id(argument_node.local_id.id) {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::InvalidStaticArgument {
                 node: argument_node.into_anchored(Some(profile)),
+                message: "static argument node is missing".to_string(),
             });
             return Ok(None);
         }
@@ -353,7 +355,7 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> Vec<Option<StaticArgument>> {
         // precompute argument names and detect mixed styles
-        let mut has_named_syntax = false;
+        let mut has_named_arguments = false;
         let mut argument_infos = Vec::with_capacity(static_arguments.len());
         for argument in static_arguments {
             let (argument_name, is_spread) = match argument {
@@ -370,7 +372,7 @@ impl Compiler {
                             let argument = owner_tree.get(argument_id);
                             info = Some(match argument {
                                 Argument::Named { name, .. } => {
-                                    has_named_syntax = true;
+                                    has_named_arguments = true;
                                     (Some(*name), false)
                                 }
                                 Argument::Spread { .. } => (None, true),
@@ -400,7 +402,7 @@ impl Compiler {
         }
 
         // reject named static arguments while we only support positional syntax
-        if has_named_syntax {
+        if has_named_arguments {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: node_id
                     .into_global(module.id)
@@ -4081,12 +4083,26 @@ impl Compiler {
 
                 // update array size inferred types when the count is a substituted parameter
                 let count_global = count.into_global_any(types.module_id);
-                if let Some(count_type_id) = types.get_inferred_type_id(count_global)
-                    && let Type::Reference { symbol, .. } = types.get_type(count_type_id)
-                    && let Some(substitution) = substitutions.get(symbol)
-                    && *substitution != count_type_id
+                if let Some(count_type_id) = types
+                    .get_inferred_type_id(count_global)
+                    .or_else(|| types.get_declared_type_id(count_global))
+                    && let Some(symbol) = self.unwrap_type_value_symbol(types, count_type_id)
+                    && let Some(substitution) = substitutions.get(&symbol).copied()
                 {
-                    types.set_inferred_type(count_global, *substitution);
+                    let substitution = self.unwrap_type_value(substitution, types);
+                    if substitution != count_type_id {
+                        types.set_inferred_type(count_global, substitution);
+                    }
+                }
+
+                // also map unresolved static candidates recorded on the count node
+                if let Some(resolution_id) = types.get_resolution_for_node(count_global)
+                    && let Resolution::Static { candidate, .. } =
+                        types.get_resolution(resolution_id)
+                    && let Some(substitution) = substitutions.get(&candidate.target_symbol).copied()
+                {
+                    let substitution = self.unwrap_type_value(substitution, types);
+                    types.set_inferred_type(count_global, substitution);
                 }
 
                 // reuse the existing type if substitutions were no-ops

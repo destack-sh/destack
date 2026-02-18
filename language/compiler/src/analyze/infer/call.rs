@@ -1072,6 +1072,15 @@ impl Compiler {
     ) -> AnalyzeResult<Option<Vec<UnionMemberCallCandidate>>> {
         // collect candidates across union variants
         let mut candidates = Vec::new();
+        let receiver_union_ty = types.get_type(receiver_union_ty_id).clone();
+        let receiver_context = self.member_receiver_context_for_expression(
+            module,
+            receiver_expression_id,
+            &receiver_union_ty,
+            profile,
+            tree,
+            symbols,
+        );
 
         // resolve a candidate per union element
         for element_id in element_ids {
@@ -1158,14 +1167,8 @@ impl Compiler {
             };
 
             // decide how to filter member lookups for this receiver
-            let lookup_mode = self.member_lookup_mode_for_receiver_expression(
-                module,
-                receiver_expression_id,
-                &element_ty,
-                profile,
-                tree,
-                symbols,
-            );
+            let lookup_mode = self
+                .member_lookup_mode_for_receiver_type(receiver_context.nominal_symbol, &element_ty);
 
             // resolve the member type for this variant
             let mut member_type_visited = Vec::new();
@@ -1257,7 +1260,7 @@ impl Compiler {
                     infer,
                 )?;
                 let Some(resolved) = resolved else {
-                    self.error(AnalyzeError::MissingType {
+                    self.error(AnalyzeError::NonCallable {
                         node: expression_id
                             .into_global_any(module.id)
                             .into_anchored(Some(profile)),
@@ -1266,7 +1269,7 @@ impl Compiler {
                 };
                 (signature_ty_id, resolved)
             } else {
-                self.error(AnalyzeError::MissingType {
+                self.error(AnalyzeError::NonCallable {
                     node: expression_id
                         .into_global_any(module.id)
                         .into_anchored(Some(profile)),
@@ -1397,6 +1400,14 @@ impl Compiler {
                 };
                 let receiver_ty = types.get_type(receiver_ty_id).clone();
                 call_receiver_ty_id = Some(receiver_ty_id);
+                let receiver_context = self.member_receiver_context_for_expression(
+                    module,
+                    receiver_id,
+                    &receiver_ty,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                );
 
                 member_call_context = Some(MemberCallContext {
                     receiver_id,
@@ -1425,6 +1436,7 @@ impl Compiler {
                     module,
                     receiver_id,
                     &receiver_ty,
+                    &receiver_context,
                     &member_key,
                     ctx.profile,
                     tree,
@@ -2533,10 +2545,11 @@ impl Compiler {
         if static_parameters.is_empty() {
             if let Some(argument_ids) = static_argument_ids {
                 for argument_id in argument_ids {
-                    self.error(AnalyzeError::MissingType {
+                    self.error(AnalyzeError::InvalidStaticArgument {
                         node: argument_id
                             .into_global_any(module.id)
                             .into_anchored(Some(profile)),
+                        message: "too many static arguments".to_string(),
                     });
                 }
             }
@@ -2957,7 +2970,7 @@ impl Compiler {
         };
 
         // decide how to filter member lookups for this receiver
-        let lookup_mode = self.member_lookup_mode_for_receiver_expression(
+        let receiver_context = self.member_receiver_context_for_expression(
             module,
             receiver_expression_id,
             receiver_ty,
@@ -2965,6 +2978,7 @@ impl Compiler {
             tree,
             symbols,
         );
+        let lookup_mode = receiver_context.lookup_mode;
 
         // infer the member type
         let mut member_type_visited = Vec::new();

@@ -4,8 +4,8 @@ use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase,
     MatchSelector, NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType,
-    ScalarLiteral, StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type,
-    TypeElement, TypeField, TypeLiteral, TypeTable,
+    ScalarLiteral, StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type, TypeField,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -60,6 +60,15 @@ enum MatchExhaustiveTarget {
         index: usize,
         values: HashSet<MatchLiteral>,
     },
+}
+
+/// Rest sequence shapes used by irrefutable rest checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SequenceRestPatternKind {
+    /// Rest behaves like a fixed tuple suffix.
+    Tuple,
+    /// Rest behaves like an unsized array.
+    Array,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -464,10 +473,7 @@ impl Compiler {
                 fields,
                 value_type_id,
                 pattern_id.into_any(),
-                |rest_types| Type::Tuple {
-                    elements: rest_types.into_iter().map(TypeElement::new).collect(),
-                    is_readonly: false,
-                },
+                SequenceRestPatternKind::Tuple,
                 tree,
                 symbols,
                 types,
@@ -479,10 +485,7 @@ impl Compiler {
                 fields,
                 value_type_id,
                 pattern_id.into_any(),
-                |rest_types| Type::Array {
-                    element: rest_types.first().cloned(),
-                    is_readonly: false,
-                },
+                SequenceRestPatternKind::Array,
                 tree,
                 symbols,
                 types,
@@ -531,22 +534,19 @@ impl Compiler {
     }
 
     /// Check if a sequence pattern matches all values of a fixed-size sequence type.
-    fn is_irrefutable_sequence_pattern_for_type<F>(
+    fn is_irrefutable_sequence_pattern_for_type(
         &self,
         module: &Module,
         profile: ProfileId,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
-        to_rest_type: F,
+        rest_pattern_kind: SequenceRestPatternKind,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
-    ) -> bool
-    where
-        F: Fn(Vec<LocalTypeId>) -> Type,
-    {
+    ) -> bool {
         // resolve fixed element types for the matched value
         let Some(element_types) = self.fixed_sequence_element_types(
             module,
@@ -560,6 +560,32 @@ impl Compiler {
             return false;
         };
 
+        self.is_irrefutable_sequence_pattern_for_fixed_elements(
+            module,
+            profile,
+            fields,
+            &element_types,
+            rest_pattern_kind,
+            tree,
+            symbols,
+            types,
+            visited,
+        )
+    }
+
+    /// Check if a sequence pattern matches all values of fixed element types.
+    fn is_irrefutable_sequence_pattern_for_fixed_elements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        fields: &[LocalNodeId<PatternField>],
+        element_types: &[LocalTypeId],
+        rest_pattern_kind: SequenceRestPatternKind,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
         // locate a rest field when present
         let mut rest_index = None;
         for (index, field_id) in fields.iter().enumerate() {
@@ -635,21 +661,19 @@ impl Compiler {
 
         // validate the rest binding when present
         if let Some(rest_index) = rest_index {
-            // build the rest type from remaining elements
-            let rest_types = element_types[rest_index..].to_vec();
-            let rest_type = to_rest_type(rest_types);
-            let rest_type_id = types.insert_type_from_any(rest_type, source_id);
+            let rest_elements = &element_types[rest_index..];
 
             // validate the rest pattern when provided
             let PatternField::Spread { pattern, .. } = tree.get(fields[rest_index]) else {
                 return false;
             };
             if let Some(pattern_id) = pattern
-                && !self.is_irrefutable_pattern_for_type_inner(
+                && !self.is_irrefutable_sequence_rest_pattern(
                     module,
                     profile,
                     *pattern_id,
-                    rest_type_id,
+                    rest_elements,
+                    rest_pattern_kind,
                     tree,
                     symbols,
                     types,
@@ -661,6 +685,95 @@ impl Compiler {
         }
 
         true
+    }
+
+    /// Check whether one rest pattern is irrefutable for a virtual sequence rest shape.
+    fn is_irrefutable_sequence_rest_pattern(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        pattern_id: LocalNodeId<Pattern>,
+        rest_elements: &[LocalTypeId],
+        rest_pattern_kind: SequenceRestPatternKind,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        match tree.get(pattern_id) {
+            Pattern::Wildcard => true,
+            Pattern::Binding { pattern, .. } => {
+                if let Some(inner_pattern_id) = pattern {
+                    return self.is_irrefutable_sequence_rest_pattern(
+                        module,
+                        profile,
+                        *inner_pattern_id,
+                        rest_elements,
+                        rest_pattern_kind,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    );
+                }
+
+                true
+            }
+            Pattern::Union { patterns } => patterns.iter().any(|inner_pattern_id| {
+                self.is_irrefutable_sequence_rest_pattern(
+                    module,
+                    profile,
+                    *inner_pattern_id,
+                    rest_elements,
+                    rest_pattern_kind,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }),
+            Pattern::Tuple { fields } => {
+                if rest_pattern_kind != SequenceRestPatternKind::Tuple {
+                    return false;
+                }
+
+                self.is_irrefutable_sequence_pattern_for_fixed_elements(
+                    module,
+                    profile,
+                    fields,
+                    rest_elements,
+                    SequenceRestPatternKind::Tuple,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }
+            Pattern::Array { fields } => {
+                if rest_pattern_kind != SequenceRestPatternKind::Tuple {
+                    return false;
+                }
+
+                self.is_irrefutable_sequence_pattern_for_fixed_elements(
+                    module,
+                    profile,
+                    fields,
+                    rest_elements,
+                    SequenceRestPatternKind::Array,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }
+            Pattern::ReferenceOf { .. }
+            | Pattern::ValueOf { .. }
+            | Pattern::TaggedTuple { .. }
+            | Pattern::Object { .. }
+            | Pattern::TaggedObject { .. }
+            | Pattern::Must(_)
+            | Pattern::Expression { .. } => false,
+        }
     }
 
     /// Check whether a tagged tuple pattern is irrefutable for a nominal type.
@@ -744,10 +857,7 @@ impl Compiler {
             fields,
             target_type_id,
             ty.into_any(),
-            |rest_types| Type::Tuple {
-                elements: rest_types.into_iter().map(TypeElement::new).collect(),
-                is_readonly: false,
-            },
+            SequenceRestPatternKind::Tuple,
             tree,
             symbols,
             types,
@@ -984,11 +1094,13 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<usize> {
-        // prefer static evaluation for fixed array sizes
-        if let Ok(Some(StaticExpression::ScalarLiteral {
-            value: ScalarLiteral::Integer(value),
-        })) = self
-            .evaluate_static_expression_value(module, profile, count, tree, symbols, types, None)
+        // prefer static evaluation for real count expressions
+        if tree.has_node_id(count.id)
+            && let Ok(Some(StaticExpression::ScalarLiteral {
+                value: ScalarLiteral::Integer(value),
+            })) = self.evaluate_static_expression_value(
+                module, profile, count, tree, symbols, types, None,
+            )
         {
             return usize::try_from(value).ok();
         }

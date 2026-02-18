@@ -1,294 +1,309 @@
 # Analyze
 
-Analyze turns resolved DIR into typed DIR with deterministic semantic metadata.
-Analyze is where TypeScript compatibility and Destack semantics become concrete for each profile.
-Elaborate, Execute, and Lower consume Analyze output and must not repair missing Analyze facts.
+Analyze is where Destack commits program meaning on top of Resolve-identified symbol bindings.
+Analyze commits declaration meaning, expression meaning, module boundary meaning, and semantic legality.
+If a semantic fact is missing after Analyze, that is an Analyze bug.
 
-## Position in the Pipeline
+## Pipeline
 
 Analyze runs after Resolve and before Elaborate.
-Resolve owns symbol targeting, module graph construction, and export table construction.
-Analyze owns typing, contextual inference, flow facts, and semantic diagnostics.
-Elaborate owns canonicalization and reification and treats Analyze metadata as input.
 
 ```text
 Import -> Resolve -> Analyze -> Elaborate -> Execute -> Lower
 ```
 
-## Stage Model
+Analyze is staged and ordered.
 
-Analyze is split into ordered module tasks per profile.
-The stage order is declare, export, infer, capture, validate.
-Each stage has strict write ownership and explicit read dependencies.
-
-| Stage | Task | Owns |
-| --- | --- | --- |
-| Declare | `AnalyzeModuleDeclare` | Declaration type graph, associated type declarations, declaration metadata |
-| Export | `AnalyzeModuleExport` | Public module boundary type surface |
-| Infer | `AnalyzeModuleInfer` | Expression types, resolutions, contextual typing, instances, flow state |
-| Capture | `AnalyzeModuleCapture` | Closure capture metadata |
-| Validate | `AnalyzeModuleValidate` | Semantic diagnostics only |
-
-## Core Terms
-
-Analyze follows TypeScript terminology where possible because it makes edge cases debuggable.
-The terms below are normative for code comments and implementation decisions.
-
-- Contextual typing: an expected type influences an expression before widening.
-- Freshness: object and array literals start fresh and lose freshness when they escape literal context.
-- Widening: literal precision is relaxed at explicit commit points.
-- Commit point: a stage writes stable facts that downstream stages may read but not rewrite.
-- Materialization: static arguments are converted from syntax to stable type-level/static-level values.
-- Substitution: static parameters are replaced with use-site arguments in a known substitution context.
-- Evaluation: type expressions are reduced into canonical type ids.
-
-## Stage Contracts
-
-Stage ownership is a hard invariant.
-Cross-stage fallback mutation is a bug.
-Missing owner-stage data must fail loudly instead of being lazily created elsewhere.
-
-### Declare
-
-Declare builds declaration-owned structure.
-Declare may evaluate declaration type syntax to establish canonical declaration metadata.
-Declare owns associated type declaration maps, defaults, and constraints for class-shaped types.
-Declare must not perform runtime expression inference.
-Declare must not depend on remote inferred locals.
-
-### Export
-
-Export computes the module boundary type surface from local declaration data.
-Export may use local surface inference for export declarations that can be derived from local syntax.
-Export must not trigger remote module inference.
-Export publishes boundary data that other modules can consume without re-inferring this module.
-
-### Infer
-
-Infer performs expression typing and flow-sensitive reasoning.
-Infer owns contextual typing, freshness consumption, widening commit decisions, overload resolution, and instance registration.
-Infer performs use-site substitution and materialization when concrete arguments are known.
-Infer may project associated types through declaration-owned projection metadata using use-site substitutions.
-Infer must not backfill missing declaration-owned metadata.
-Infer run-state is owned by `InferSession` and recreated per module/profile infer task.
-
-### Capture
-
-Capture derives closure capture metadata from inferred state.
-Capture must not mutate declaration-owned or infer-owned type state.
-
-### Validate
-
-Validate emits diagnostics against committed semantic state.
-Validate must not materialize new types or mutate type graph data.
-Validate may read infer results and emit policy-dependent severities.
-
-## Mutation Matrix
-
-The matrix below defines write ownership.
-Any write outside the owner stage is a correctness bug.
-
-| Data | Owner | Non-owner behavior |
-| --- | --- | --- |
-| Declared type ids and declaration alias targets | Declare | Read-only |
-| Associated type declaration maps and defaults | Declare | Read-only |
-| Export boundary type data | Export | Read-only |
-| Inferred expression types and resolutions | Infer | Read-only |
-| Instance table entries | Infer | Read-only |
-| Infer session state (`InferTable`, `InferContext`) | Infer | Not accessible outside infer task |
-| Capture metadata | Capture | Read-only |
-| Diagnostics | Validate | Append-only |
-
-## Public Boundary Rule
-
-Analyze follows TypeScript boundary behavior with local surface inference.
-Other modules consume exported boundary types and do not re-infer provider internals.
-Cross-module inference cycles require explicit annotations to break recursion.
-
-```ds
-// a.ds
-export const version = "v1";
-
-// b.ds
-import { version } from "./a";
-version satisfies "v1";
+```text
+Declare -> Export -> Infer -> Capture -> Validate
 ```
 
-## Contextual Typing, Freshness, and Widening
+### Objectives
 
-Contextual typing happens before widening.
-Fresh literals are precise until they cross a commit boundary that consumes freshness.
-Widening is explicit and owned by Infer.
+- Commit one coherent semantic meaning per declaration and expression.
+- Preserve TypeScript-compatible behavior where Destack specifies compatibility.
+- Keep cross-module semantic behavior deterministic and stage-gated.
+- Make downstream phases consume semantic commitments instead of repairing them.
+
+### Input
+
+Analyze input is resolved DIR with symbol binding and module dependency structure (i.e. all the *Unresolved* variants should be gone and type as unknown in Analyze).
+
+### Output
+
+Analyze output is semantically committed DIR plus diagnostics.
+Downstream phases should see stable declaration and expression meaning.
+
+### Stage Model
+
+| Stage | Primary question | Reads | Writes | Must not write |
+| --- | --- | --- | --- | --- |
+| Declare | What do declarations mean | Resolved symbols, declaration syntax | Declaration type facts and declaration-owned metadata | Expression flow and use-site inference facts |
+| Export | What does this module promise to others | Resolve facts, Declare commitments | Export surface facts | Dependency internals and use-site expression facts |
+| Infer | What does each expression mean here | Resolve facts, Declare commitments, Export commitments | Expression types, resolutions, flow facts, instance facts | Declaration-owned and export-owned facts |
+| Capture | What closure environment data is required | Infer commitments | Capture metadata derived from infer facts | Declaration, export, infer, or validate semantic facts |
+| Validate | Are committed semantics legal | Resolve facts, Declare commitments, Infer commitments | Diagnostics | Semantic type facts and resolution facts |
+
+### Boundary Guarantees
+
+| Boundary | Upstream guarantees | Analyze responsibility |
+| --- | --- | --- |
+| Resolve -> Analyze | Symbol targeting and module graph are known | Commit semantic meaning over those symbols |
+| Analyze -> Elaborate | Declaration and expression semantics are committed | Emit complete semantic facts, not partial guesses |
+| Analyze -> Execute | Static and inferred meaning is committed | Avoid late semantic fabrication in Execute |
+| Analyze -> Lower | Types and resolutions are coherent | Keep type or resolution holes out of codegen input |
+
+### Downstream Contract
+
+Elaborate, Execute, and Lower consume Analyze commitments as fixed semantic input.
+They may lower and reify semantics, but they must not fabricate missing semantic meaning.
+
+## Declare
+
+Declare gives declarations their semantic shape.
+This is where declaration-side type expressions are evaluated and declaration-owned metadata is fixed.
+Declare is declaration-first, not use-site-first.
+
+### Declare Responsibilities
+
+- Evaluate declaration-side type expressions into canonical type facts.
+- Commit declaration-owned associated member definitions, requirements, and defaults.
+- Resolve declaration-context type-form ambiguities.
+- Register declaration facts early enough for export and infer to consume without fallback.
+
+### Declare Inputs And Outputs
+
+| Item | Description |
+| --- | --- |
+| input | Resolved declaration symbols and declaration syntax |
+| output: declaration type facts | Canonical type meaning for declared declarations and members |
+| output: declaration associated metadata | Required and default associated type or comptime members |
+| output: declaration disambiguation outcomes | Chosen interpretation for declaration-context ambiguous type forms |
+
+### Declare Disambiguation Example
+
+Declare owns declaration-context interpretation of `T[K]` forms.
+The default is TypeScript indexed access when the index is type-space.
+`as comptime` explicitly forces fixed-array interpretation in value-space.
 
 ```ds
-const a = { mode: "dev" };
-a.mode satisfies string;
+type Field<T, K: keyof T> = T[K];
 
-const b = { mode: "dev" } as const;
-b.mode satisfies "dev";
+type Row<T, comptime N: number> = T[N as comptime];
 ```
 
-Infer owns this decision and Elaborate/Lower must not reinterpret it.
+The first declaration is indexed access.
+The second declaration is fixed-array construction.
 
-## Substitution, Materialization, and Evaluation
+### Declare Associated Metadata Example
 
-Substitution, materialization, and evaluation are distinct operations.
-This separation is required for static parameters, associated type projections, and mapped or conditional operators.
-
-### Placement Rules
-
-- Declare may evaluate declaration-owned type syntax to establish stable metadata.
-- Export may read declaration-owned evaluated forms but must not do use-site inference work.
-- Infer performs use-site substitution and materialization where concrete arguments are known.
-- Validate must not perform substitution or materialization to make checks pass.
-- Pure relation checks consume existing type ids and must not trigger expression-to-type evaluation.
-
-### Associated Type Projection Rules
-
-Associated type declarations are declaration-owned metadata.
-Associated type projection is a read-only lookup of declaration metadata plus use-site substitutions.
-Projection lookup must not lazily hydrate declaration maps in Infer or Validate.
-Interface defaults, inheritance, and sibling projections must use the same projection pipeline.
+Declare commits declaration-owned associated contracts before use-site inference.
 
 ```ds
 interface Container<T> {
     type Item;
+    comptime const Capacity: number = 16;
 }
 
-struct Box<T> implements Container<T> {
-    type Item = T;
+class StringBox implements Container<string> {
+    type Item = string;
+    comptime const Capacity: number = 32;
 }
-
-const x: Box<int32>.Item = 1;
 ```
 
-## Purity Boundary
+Infer consumes these declaration facts later.
+Infer should not build these facts ad hoc at use sites.
 
-Analyze separates pure relation logic from effectful evaluation logic.
-This boundary is mandatory for determinism and for avoiding cross-stage feedback loops.
+### Declare Must Not
 
-Pure logic includes assignability, comparability, identity, and relation-mode normalization over existing types.
-Effectful logic includes declaration evaluation, static argument materialization, and require-gated remote metadata reads.
+- Infer runtime expression flow or call-site behavior.
+- Read later-stage inferred facts to patch missing declaration meaning.
+- Emit fallback semantics that hide missing declaration ownership.
 
-### Purity Rules
+## Export
 
-- `is_type_assignable*` and related relation helpers are read-only.
-- Relation helpers do not call expression-to-type evaluation.
-- Relation helpers do not perform default static argument resolution.
-- Missing declaration-owned metadata in relation helpers is an invariant failure.
+Export freezes the module boundary contract.
+This stage decides what other modules may rely on without re-inferring this module internals.
+Export is module-interface commitment, not expression checking.
 
-## Cross-Module Rules
+### Export Responsibilities
 
-Analyze is local by default and reads cross-module data through stage outputs.
-Cross-module inference of dependency internals is forbidden.
+- Commit exported symbol surface types from local committed facts.
+- Apply legal local surface inference for exports.
+- Publish boundary facts that dependency modules can read deterministically.
 
-### Boundary Rules
+### Export Inputs And Outputs
 
-- Dependency reads for declaration-owned metadata require dependency declare completion.
-- Dependency reads for boundary type data require dependency export completion.
-- Dependency reads for infer-owned metadata require dependency infer completion.
-- Cross-module reads must go through centralized require-gated access helpers.
-- Cross-module cycles in boundary inference require explicit annotations.
+| Item | Description |
+| --- | --- |
+| input | Resolve facts plus Declare commitments in the local module |
+| output | Stable exported type and symbol surface for dependency readers |
 
-## Flow and Narrowing Contract
+### Export Boundary Example
 
-Flow state is produced in Infer and consumed in Validate.
-Validate may report diagnostics from flow state but does not compute new narrowings.
-Guard semantics should match TypeScript for nullish checks, `typeof`, `instanceof`, `in`, and projection-friendly pattern checks.
-Join behavior must be driven by CFG merge semantics, not ad hoc narrowing-vector equality.
+Exports may use local surface inference.
+Consumers read the committed export surface rather than re-running local inference logic.
 
 ```ds
-if (value != null) {
-    value satisfies NonNullable<typeof value>;
-}
+// a.ds
+export const version = "v1";
+export function add(a: int32, b: int32) { a + b }
+
+// b.ds
+import { version, add } from "./a";
 ```
 
-## Match and Pattern Contract
+Module `b` reads the committed boundary shape from module `a`.
+Module `b` does not re-infer module `a` internals.
 
-Infer owns pattern typing and arm result typing.
-Validate owns exhaustiveness diagnostics and semantic pattern restrictions that require typed facts.
-Match arm result types join into a union and then follow normal commit and contextual typing rules.
-If the compiler cannot prove exhaustiveness, `_` is required.
+### Export Surface Rules
+
+| Rule | Meaning |
+| --- | --- |
+| local surface inference is allowed | Exported shapes may be inferred from local committed syntax |
+| dependency reinference is forbidden | Consumers do not derive provider internals from usage |
+| boundary shape is stable | Cross-module reads depend on committed export surface |
+
+### Export Must Not
+
+- Infer dependency internals.
+- Depend on fallback ordering to shape the boundary contract.
+- Commit expression use-site semantics that belong to Infer.
+
+## Infer
+
+Infer commits expression meaning at use sites.
+This stage is the checker core of Analyze.
+Infer is where most semantic decisions become concrete program facts.
+
+### Infer Responsibilities
+
+- Contextual typing and expression type commitment.
+- Resolution commitment for calls, members, operators, and overloads.
+- Flow-sensitive narrowing and instance commitment.
+- Static substitution and projection materialization at use sites.
+
+### Infer Inputs And Outputs
+
+| Item | Description |
+| --- | --- |
+| input | Resolve facts plus Declare and Export commitments |
+| output: expression type facts | Type meaning for expressions in context |
+| output: resolution facts | Selected callable or member targets |
+| output: flow facts | Narrowing and control-flow-refined types |
+| output: instance and substitution facts | Concrete static argument instantiations and replacements |
+
+### Infer Semantic Flow
+
+Infer work is ordered so commitments are reproducible.
+
+| Step | Operation | Result |
+| --- | --- | --- |
+| 1 | contextual typing | Expected types constrain expression analysis |
+| 2 | candidate collection | Candidate members, calls, and overloads are gathered |
+| 3 | relation and selection | Assignability and compatibility choose concrete targets |
+| 4 | substitution and materialization | Static parameters and projection arguments become concrete |
+| 5 | commitment | Type, resolution, flow, and instance facts are recorded |
+
+### Infer Behavior Example: Contextual Typing And Widening
+
+Infer applies contextual typing before widening commitments.
 
 ```ds
-const state = match (input) {
-    0 => "zero"
-    _ => "other"
-};
+const a = { mode: "dev" };
+
+const b = { mode: "dev" } as const;
 ```
 
-## Relation Modes
+`a.mode` widens to `string` under normal object literal rules.
+`b.mode` remains the literal `"dev"` because the const context suppresses widening.
 
-Every relation call must choose an explicit relation mode.
-Mode selection must be visible at call sites and propagated through nested checks.
+### Infer Behavior Example: Associated Projection At Use Site
 
-| Mode | Purpose |
-| --- | --- |
-| Assignable | Assignment and argument compatibility |
-| Comparable | Equality and comparison compatibility |
-| Identity | Exact semantic type identity |
-| TypeOps | Type-operator semantics (`keyof`, mapped, conditional, indexed access) |
+Infer resolves and materializes associated projections where expressions need concrete meaning.
 
-## Option and Policy Routing
+```ds
+interface LogStore<Record> {
+    comptime const SegmentRows: number = 1024;
+    type Segment = Record[this.SegmentRows];
+}
 
-Compiler options are part of the language contract and must be stage-stable.
-Checks that need inferred facts belong in Infer or Validate based on data ownership.
-Pure syntax restrictions belong in Parse.
-Analyze emits one diagnostic code path and maps policy severity centrally for `allow`, `warn`, and `deny`.
+class AuditLog implements LogStore<string> {
+    comptime const SegmentRows: number = 2048;
+}
 
-## Analyze and Elaborate Boundary
-
-Elaborate is downstream and separate.
-Elaborate may query Analyze metadata and rewrite IR accordingly.
-Elaborate must not mutate Analyze-owned semantic state.
-Missing required Analyze metadata during Elaborate is a compiler invariant violation.
-
-## Analyze and Lower Boundary
-
-Lower expects fully typed canonical DIR where substitutions and projections are already resolved.
-Lower does not perform type inference and does not repair missing Analyze metadata.
-Lower may consume resolution decisions and runtime-check planning metadata, but it does not re-type expressions.
-
-## Concurrency and Locking
-
-Analyze runs in parallel workers.
-Correctness depends on deterministic require-gate ordering and lock discipline.
-
-- Keep lock scopes narrow.
-- Avoid nested lock stacks that can re-enter stage work while locks are held.
-- Prefer importing remote snapshots into local temporaries over long-lived remote locks.
-
-## Module Map
-
-The ownership map below is the expected structure.
-
-| Concern | Primary modules |
-| --- | --- |
-| Stage orchestration | `analyze/process.rs`, `analyze/*/process.rs` |
-| Declaration-owned evaluation | `analyze/declare/*` |
-| Boundary type computation | `analyze/export/*` |
-| Inference and relations | `analyze/infer/*` |
-| Shared helpers | `analyze/common/*` |
-| Semantic validation | `analyze/validate/*` |
-| Capture metadata | `analyze/capture/*` |
-
-`analyze/common/*` should keep pure helpers and effectful helpers clearly separated.
-Effectful helpers should be explicit in naming and stage-safe by caller contract.
-
-## Failure Policy
-
-Analyze fails loudly on invariant violations.
-Silent recovery through cross-stage mutation is forbidden.
-If required owner-stage metadata is missing, emit an explicit compiler error and keep ownership boundaries intact.
-
-## Test Surface
-
-Analyze correctness is validated by specification fixtures, targeted compiler tests, and conformance suites.
-Use these as the primary guardrails during refactors.
-
-```bash
-cargo test --release -p destack_compiler
-cargo test --release -p destack_test --test specification
+const row: AuditLog.Segment = "ok";
 ```
 
-Contract violations should be fixed in stage ownership and helper architecture, not patched locally.
+`AuditLog.Segment` is committed using use-site substitution and projection materialization.
+If required associated comptime projections are unresolved at a required concrete site, Infer emits a semantic error.
+
+### Infer Behavior Example: Overload Commitment
+
+Overload selection is committed at the use site, not deferred to downstream phases.
+
+```ds
+function parse(input: string): int32 { parseInt(input) }
+function parse(input: int32): int32 { input }
+
+const a = parse("42");
+const b = parse(42);
+```
+
+The two calls commit different selected overload targets.
+Lower consumes those committed selections and does not rerun overload choice.
+
+### Infer Must Not
+
+- Rewrite declaration-owned metadata.
+- Rewrite export-owned boundary contracts.
+- Hide missing ownership facts behind generic fallback semantics.
+
+## Validate
+
+Validate checks legality over committed semantics.
+Validate is semantically read-only.
+Validate is the semantic policy and legality pass, not a semantic construction pass.
+
+### Validate Responsibilities
+
+- Enforce language legality rules over committed declaration and expression facts.
+- Enforce profile policy checks over committed semantic facts.
+- Emit diagnostics with accurate source context and committed semantic context.
+
+### Validate Inputs And Outputs
+
+| Item | Description |
+| --- | --- |
+| input | Resolve facts plus committed Declare and Infer semantic facts |
+| output | Diagnostics only |
+
+### Validate Read-Only Rule
+
+Validate may inspect syntax to classify context.
+Validate may read committed declaration and infer facts.
+Validate must not create new semantic meaning as a side effect of checking.
+
+### Validate Example
+
+```ds
+const state = { count: 0 };
+state.count = 1;
+```
+
+If policy or contextual rules make this illegal in a given setting, Validate reports the legality error.
+Validate does not fabricate new type facts to force the check to pass.
+
+### Validate Rule Categories
+
+| Category | Example question |
+| --- | --- |
+| language legality | Is this committed semantic usage legal in this language mode |
+| profile policy | Is this usage legal under active profile restrictions |
+| contextual diagnostics | What user-facing error best matches this committed semantic fact |
+
+### Validate Must Not
+
+- Evaluate expressions to create missing semantic type facts.
+- Write inferred type facts or resolution facts.
+- Repair ownership bugs from earlier stages.
