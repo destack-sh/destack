@@ -1,0 +1,82 @@
+import type { PlatformError } from "../error/index.ds";
+import { AudioStreamHandle } from "../resource/index.ds";
+
+/// Audio clock domain selector.
+export enum AudioClockDomain {
+    /// Runtime monotonic clock domain.
+    Monotonic = 1,
+    /// Host wall clock domain.
+    Wall = 2,
+    /// Host audio device clock domain.
+    Device = 3,
+}
+
+/// Audio clock snapshot.
+export struct AudioClockSnapshot {
+    /// Stream position in frames.
+    streamFrames: uint64;
+    /// Selected clock timestamp in nanoseconds.
+    clockNs: uint64;
+    /// Runtime monotonic timestamp in nanoseconds.
+    monotonicNs: uint64;
+}
+
+/// Audio clock bindings.
+declare namespace audio {
+    /// Read one timestamp in one selected clock domain.
+    ///
+    /// Read one clock timestamp for the selected domain.
+    /// Domain availability and precision follow host backend behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-clock or runtime-clock query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.clock.now", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.control"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>;
+
+    /// Read one stream clock snapshot.
+    ///
+    /// Read one synchronized stream-position and clock timestamp snapshot.
+    /// Snapshot values are advisory and can change immediately after read.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES stream-position and clock correlation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.clock.stream", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.control"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function streamClock(
+        handle: AudioStreamHandle,
+        domain: AudioClockDomain,
+    ): Result<AudioClockSnapshot, PlatformError>;
+}

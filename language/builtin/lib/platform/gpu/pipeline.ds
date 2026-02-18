@@ -1,57 +1,416 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import {
+    GpuBindGroupLayoutHandle,
     GpuDeviceHandle,
     GpuPipelineHandle,
+    GpuPipelineLayoutHandle,
     GpuShaderHandle,
 } from "../resource/index.ds";
 
-/// GPU shader stage selector.
-export enum GpuShaderStage {
-    /// Vertex stage.
-    Vertex = 1,
-    /// Fragment stage.
-    Fragment = 2,
-    /// Compute stage.
-    Compute = 3,
-}
-
 /// GPU shader module options.
 export struct GpuShaderOptions {
-    /// Shader stage selector.
-    stage: GpuShaderStage;
     /// Shader binary format selector.
     format: uint32;
-    /// Shader entry point name.
+    /// Shader option flags.
+    flags: uint32;
+    /// Human-readable debug label, empty when unspecified.
+    label: string;
+}
+
+/// Shader-compilation message kind.
+export enum GpuCompilationMessageKind {
+    /// Informational message.
+    Info = 1,
+    /// Warning message.
+    Warning = 2,
+    /// Error message.
+    Error = 3,
+}
+
+/// Shader-compilation message descriptor.
+export struct GpuCompilationMessage {
+    /// Message kind.
+    kind: GpuCompilationMessageKind;
+    /// Human-readable message text.
+    message: string;
+    /// One-indexed source line number when available.
+    line: uint32;
+    /// One-indexed source column number when available.
+    column: uint32;
+    /// Zero-based source byte offset when available.
+    offset: uint32;
+    /// Source span length in bytes when available.
+    length: uint32;
+}
+
+/// Shader-compilation information snapshot.
+export struct GpuCompilationInfo {
+    /// Compilation diagnostics emitted by backend validation or translation.
+    messages: Slice<GpuCompilationMessage>;
+}
+
+/// Vertex buffer layout descriptor.
+export struct GpuVertexBufferLayout {
+    /// Vertex buffer slot index.
+    slot: uint32;
+    /// Vertex buffer stride in bytes.
+    arrayStride: uint64;
+    /// Vertex layout step mode selector.
+    stepMode: GpuVertexStepMode;
+    /// Vertex attributes consumed from this buffer.
+    attributes: Slice<GpuVertexAttribute>;
+}
+
+/// Vertex layout step mode selector.
+export enum GpuVertexStepMode {
+    /// Advance attributes per vertex.
+    Vertex = 1,
+    /// Advance attributes per instance.
+    Instance = 2,
+}
+
+/// Vertex attribute descriptor.
+export struct GpuVertexAttribute {
+    /// Vertex attribute format selector.
+    format: uint32;
+    /// Byte offset for this attribute within one vertex element.
+    offset: uint64;
+    /// Shader location index.
+    shaderLocation: uint32;
+}
+
+/// Primitive topology selector.
+export enum GpuPrimitiveTopology {
+    /// Topology is unspecified.
+    Undefined = 0,
+    /// Point-list topology.
+    PointList = 1,
+    /// Line-list topology.
+    LineList = 2,
+    /// Line-strip topology.
+    LineStrip = 3,
+    /// Triangle-list topology.
+    TriangleList = 4,
+    /// Triangle-strip topology.
+    TriangleStrip = 5,
+}
+
+/// Front-face winding selector.
+export enum GpuFrontFace {
+    /// Front-face winding is unspecified.
+    Undefined = 0,
+    /// Counter-clockwise front-face winding.
+    Ccw = 1,
+    /// Clockwise front-face winding.
+    Cw = 2,
+}
+
+/// Face-culling selector.
+export enum GpuCullMode {
+    /// Culling mode is unspecified.
+    Undefined = 0,
+    /// Disable face culling.
+    None = 1,
+    /// Cull front faces.
+    Front = 2,
+    /// Cull back faces.
+    Back = 3,
+}
+
+/// Depth or stencil compare selector.
+export enum GpuCompareFunction {
+    /// Comparison function is unspecified.
+    Undefined = 0,
+    /// Comparison always fails.
+    Never = 1,
+    /// Pass when source is less than destination.
+    Less = 2,
+    /// Pass when source equals destination.
+    Equal = 3,
+    /// Pass when source is less than or equal to destination.
+    LessEqual = 4,
+    /// Pass when source is greater than destination.
+    Greater = 5,
+    /// Pass when source does not equal destination.
+    NotEqual = 6,
+    /// Pass when source is greater than or equal to destination.
+    GreaterEqual = 7,
+    /// Comparison always passes.
+    Always = 8,
+}
+
+/// Blend factor selector.
+export enum GpuBlendFactor {
+    /// Blend factor is unspecified.
+    Undefined = 0,
+    /// Zero factor.
+    Zero = 1,
+    /// One factor.
+    One = 2,
+    /// Source color factor.
+    Src = 3,
+    /// One-minus source color factor.
+    OneMinusSrc = 4,
+    /// Source alpha factor.
+    SrcAlpha = 5,
+    /// One-minus source alpha factor.
+    OneMinusSrcAlpha = 6,
+    /// Destination color factor.
+    Dst = 7,
+    /// One-minus destination color factor.
+    OneMinusDst = 8,
+    /// Destination alpha factor.
+    DstAlpha = 9,
+    /// One-minus destination alpha factor.
+    OneMinusDstAlpha = 10,
+    /// Source-alpha-saturated factor.
+    SrcAlphaSaturated = 11,
+    /// Constant-blend-color factor.
+    Constant = 12,
+    /// One-minus constant-blend-color factor.
+    OneMinusConstant = 13,
+    /// Secondary source color factor.
+    Src1 = 14,
+    /// One-minus secondary source color factor.
+    OneMinusSrc1 = 15,
+    /// Secondary source alpha factor.
+    Src1Alpha = 16,
+    /// One-minus secondary source alpha factor.
+    OneMinusSrc1Alpha = 17,
+}
+
+/// Blend operation selector.
+export enum GpuBlendOperation {
+    /// Blend operation is unspecified.
+    Undefined = 0,
+    /// Additive blend operation.
+    Add = 1,
+    /// Source minus destination operation.
+    Subtract = 2,
+    /// Destination minus source operation.
+    ReverseSubtract = 3,
+    /// Minimum operation.
+    Min = 4,
+    /// Maximum operation.
+    Max = 5,
+}
+
+/// Blend component descriptor.
+export struct GpuBlendComponent {
+    /// Source factor selector.
+    srcFactor: GpuBlendFactor;
+    /// Destination factor selector.
+    dstFactor: GpuBlendFactor;
+    /// Blend operation selector.
+    operation: GpuBlendOperation;
+}
+
+/// Blend-state descriptor.
+export struct GpuBlendState {
+    /// Color blend component.
+    color: GpuBlendComponent;
+    /// Alpha blend component.
+    alpha: GpuBlendComponent;
+}
+
+/// Color-write channel mask.
+export newtype GpuColorWriteMask = uint32;
+
+/// Color-target descriptor.
+export struct GpuColorTargetState {
+    /// Render-target texture format identifier.
+    format: uint32;
+    /// Whether blend state is provided.
+    hasBlend: boolean;
+    /// Blend-state descriptor when `hasBlend` is true.
+    blend: GpuBlendState;
+    /// Color-write channel mask.
+    writeMask: GpuColorWriteMask;
+}
+
+/// Primitive-state descriptor.
+export struct GpuPrimitiveState {
+    /// Primitive topology selector.
+    topology: GpuPrimitiveTopology;
+    /// Strip index format selector, zero when not used.
+    stripIndexFormat: uint32;
+    /// Front-face winding selector.
+    frontFace: GpuFrontFace;
+    /// Face-culling selector.
+    cullMode: GpuCullMode;
+    /// Whether unclipped depth is enabled.
+    unclippedDepth: boolean;
+}
+
+/// Stencil operation selector.
+export enum GpuStencilOperation {
+    /// Stencil operation is unspecified.
+    Undefined = 0,
+    /// Keep the current stencil value.
+    Keep = 1,
+    /// Set stencil to zero.
+    Zero = 2,
+    /// Replace stencil with the reference value.
+    Replace = 3,
+    /// Bitwise invert the current stencil value.
+    Invert = 4,
+    /// Increment and clamp stencil.
+    IncrementClamp = 5,
+    /// Decrement and clamp stencil.
+    DecrementClamp = 6,
+    /// Increment and wrap stencil.
+    IncrementWrap = 7,
+    /// Decrement and wrap stencil.
+    DecrementWrap = 8,
+}
+
+/// Stencil-face-state descriptor.
+export struct GpuStencilFaceState {
+    /// Compare selector for this face.
+    compare: GpuCompareFunction;
+    /// Operation when stencil test fails.
+    failOp: GpuStencilOperation;
+    /// Operation when depth test fails.
+    depthFailOp: GpuStencilOperation;
+    /// Operation when both tests pass.
+    passOp: GpuStencilOperation;
+}
+
+/// Depth-stencil-state descriptor.
+export struct GpuDepthStencilState {
+    /// Depth-stencil texture format identifier.
+    format: uint32;
+    /// Whether depth writes are enabled.
+    depthWriteEnabled: boolean;
+    /// Depth compare selector.
+    depthCompare: GpuCompareFunction;
+    /// Front-face stencil-state descriptor.
+    stencilFront: GpuStencilFaceState;
+    /// Back-face stencil-state descriptor.
+    stencilBack: GpuStencilFaceState;
+    /// Stencil read mask.
+    stencilReadMask: uint32;
+    /// Stencil write mask.
+    stencilWriteMask: uint32;
+    /// Constant depth-bias value.
+    depthBias: int32;
+    /// Depth-bias slope scale.
+    depthBiasSlopeScale: float64;
+    /// Depth-bias clamp value.
+    depthBiasClamp: float64;
+}
+
+/// Multisample-state descriptor.
+export struct GpuMultisampleState {
+    /// Sample count.
+    count: uint32;
+    /// Active sample mask.
+    mask: uint32;
+    /// Whether alpha-to-coverage is enabled.
+    alphaToCoverageEnabled: boolean;
+}
+
+/// Fragment-state descriptor.
+export struct GpuFragmentState {
+    /// Fragment shader-module handle.
+    module: GpuShaderHandle;
+    /// Whether an explicit fragment entry point is provided.
+    hasEntry: boolean;
+    /// Fragment entry point when `hasEntry` is true.
     entry: string;
+    /// Fragment-stage specialization constants.
+    constants: Slice<GpuPipelineConstant>;
+    /// Color-target states.
+    targets: Slice<GpuColorTargetState>;
+}
+
+/// Vertex-state descriptor.
+export struct GpuVertexState {
+    /// Vertex shader-module handle.
+    module: GpuShaderHandle;
+    /// Whether an explicit vertex entry point is provided.
+    hasEntry: boolean;
+    /// Vertex entry point when `hasEntry` is true.
+    entry: string;
+    /// Vertex-stage specialization constants.
+    constants: Slice<GpuPipelineConstant>;
+    /// Vertex buffer layouts.
+    buffers: Slice<GpuVertexBufferLayout>;
+}
+
+/// Compute-state descriptor.
+export struct GpuComputeState {
+    /// Compute shader-module handle.
+    module: GpuShaderHandle;
+    /// Whether an explicit compute entry point is provided.
+    hasEntry: boolean;
+    /// Compute entry point when `hasEntry` is true.
+    entry: string;
+    /// Compute-stage specialization constants.
+    constants: Slice<GpuPipelineConstant>;
+}
+
+/// Pipeline constants descriptor.
+export struct GpuPipelineConstant {
+    /// Constant identifier key.
+    key: string;
+    /// Constant value as float64.
+    value: float64;
+}
+
+/// Render-state descriptor.
+export struct GpuRenderState {
+    /// Primitive-state descriptor.
+    primitive: GpuPrimitiveState;
+    /// Whether depth-stencil state is enabled.
+    hasDepthStencil: boolean;
+    /// Depth-stencil-state descriptor.
+    depthStencil: GpuDepthStencilState;
+    /// Multisample-state descriptor.
+    multisample: GpuMultisampleState;
+}
+
+/// Pipeline creation metadata.
+export struct GpuPipelineMetadata {
+    /// Human-readable debug label, empty when unspecified.
+    label: string;
 }
 
 /// Compute pipeline creation options.
 export struct GpuComputePipelineOptions {
-    /// Compute shader module.
-    shader: GpuShaderHandle;
-    /// Compute shader entry point.
-    entry: string;
+    /// Whether one explicit pipeline layout is provided.
+    hasLayout: boolean;
+    /// Explicit pipeline layout handle when `hasLayout` is true.
+    layout: GpuPipelineLayoutHandle;
+    /// Compute stage descriptor.
+    compute: GpuComputeState;
+    /// Pipeline creation metadata.
+    metadata: GpuPipelineMetadata;
     /// Pipeline option flags.
     flags: uint32;
 }
 
 /// Render pipeline creation options.
 export struct GpuRenderPipelineOptions {
-    /// Vertex shader module.
-    vertexShader: GpuShaderHandle;
-    /// Vertex shader entry point.
-    vertexEntry: string;
-    /// Fragment shader module.
-    fragmentShader: GpuShaderHandle;
-    /// Fragment shader entry point.
-    fragmentEntry: string;
-    /// Color attachment format identifier.
-    colorFormat: uint32;
-    /// Depth stencil format identifier, zero when unused.
-    depthStencilFormat: uint32;
-    /// Sample count.
-    sampleCount: uint32;
+    /// Whether one explicit pipeline layout is provided.
+    hasLayout: boolean;
+    /// Explicit pipeline layout handle when `hasLayout` is true.
+    layout: GpuPipelineLayoutHandle;
+    /// Vertex stage descriptor.
+    vertex: GpuVertexState;
+    /// Whether a fragment stage is configured.
+    hasFragment: boolean;
+    /// Fragment stage descriptor.
+    fragment: GpuFragmentState;
+    /// Render-state descriptor.
+    render: GpuRenderState;
+    /// Whether one multiview mask is configured.
+    hasMultiviewMask: boolean;
+    /// Multiview mask when `hasMultiviewMask` is true.
+    multiviewMask: uint32;
+    /// Pipeline creation metadata.
+    metadata: GpuPipelineMetadata;
     /// Pipeline option flags.
     flags: uint32;
 }
@@ -60,12 +419,12 @@ export struct GpuRenderPipelineOptions {
 declare namespace gpu {
     /// Create one shader module.
     ///
-    /// Create one shader module from one binary payload and explicit stage metadata.
-    /// Shader validation and backend translation follow host compiler rules.
+    /// Create one shader module from one source or binary payload and module metadata.
+    /// Stage and entry-point selection are defined by pipeline stage descriptors, not by shader-module creation.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend shader module creation APIs.
+    /// Uses WebGPU-style shader module creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -96,7 +455,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend shader module destroy operations.
+    /// Uses WebGPU-style shader module destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -116,14 +475,44 @@ declare namespace gpu {
     })
     export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
 
+    /// Read one shader-compilation diagnostics snapshot.
+    ///
+    /// Read one snapshot of compilation diagnostics for one shader module.
+    /// Diagnostics are backend-defined and can include warnings and informational messages.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style shader compilation-info query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.shader`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.pipeline.shaderCompilationInfo", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.shader"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function shaderCompilationInfo(
+        handle: GpuShaderHandle,
+        timeoutNs: uint64,
+    ): Result<GpuCompilationInfo, PlatformError>;
+
     /// Create one compute pipeline.
     ///
-    /// Create one compute pipeline with one explicit compute stage descriptor.
+    /// Create one compute pipeline from one compute stage descriptor and one explicit or inferred layout.
     /// Pipeline compilation and cache behavior follow host backend semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend compute pipeline creation APIs.
+    /// Uses WebGPU-style compute pipeline creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -148,12 +537,12 @@ declare namespace gpu {
 
     /// Create one render pipeline.
     ///
-    /// Create one render pipeline with explicit vertex and fragment stages and attachment formats.
-    /// Pipeline compilation and backend render state linkage follow host API semantics.
+    /// Create one render pipeline with explicit shader stages, one explicit or inferred layout, and render-state descriptors.
+    /// Pipeline compilation and backend render-state linkage follow host API semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend render pipeline creation APIs.
+    /// Uses WebGPU-style render pipeline creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
@@ -176,14 +565,44 @@ declare namespace gpu {
         options: GpuRenderPipelineOptions,
     ): Result<GpuPipelineHandle, PlatformError>;
 
-    /// Destroy one pipeline object.
+    /// Resolve one bind-group layout from one pipeline.
     ///
-    /// Destroy one pipeline object and release backend compiled state.
-    /// Outstanding command lists referencing the pipeline should be synchronized by callers.
+    /// Resolve one bind-group layout at the requested group index from one pipeline object.
+    /// This follows pipeline-layout reflection rules of the selected backend.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend pipeline destroy operations.
+    /// Uses WebGPU-style pipeline bind-group-layout query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.pipeline.bindGroupLayout", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.bind"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function pipelineBindGroupLayout(
+        pipeline: GpuPipelineHandle,
+        groupIndex: uint32,
+    ): Result<GpuBindGroupLayoutHandle, PlatformError>;
+
+    /// Destroy one pipeline object.
+    ///
+    /// Destroy one pipeline object and release backend compiled state.
+    /// Outstanding command lists referencing the pipeline must be synchronized by callers.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style pipeline destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

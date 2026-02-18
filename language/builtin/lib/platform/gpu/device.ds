@@ -1,38 +1,93 @@
+import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import {
     GpuAdapterHandle,
     GpuDeviceHandle,
     GpuQueueHandle,
 } from "../resource/index.ds";
+import { GpuAdapterLimits, GpuBackend, GpuFeatureId } from "./adapter.ds";
 
 /// Device limits contract.
-export struct GpuDeviceLimits {
-    /// Maximum bind groups.
-    maxBindGroups: uint32;
-    /// Maximum 2D texture dimension.
-    maxTextureDimension2D: uint32;
-    /// Maximum uniform buffer binding size.
-    maxUniformBufferBindingSize: uint64;
-    /// Maximum storage buffer binding size.
-    maxStorageBufferBindingSize: uint64;
+export type GpuDeviceLimits = GpuAdapterLimits;
+
+/// Device-loss reason category.
+export enum GpuDeviceLossReason {
+    /// Device is healthy.
+    None = 0,
+    /// Device became unavailable due to driver reset.
+    DriverReset = 1,
+    /// Device was removed from the system.
+    DeviceRemoved = 2,
+    /// Device was lost due to out-of-memory conditions.
+    OutOfMemory = 3,
+    /// Device was lost due to internal backend error.
+    InternalError = 4,
+    /// Device was intentionally destroyed.
+    Destroyed = 5,
+    /// Device was lost for an unknown reason.
+    Unknown = 255,
+}
+
+/// Runtime-visible device status.
+export struct GpuDeviceStatus {
+    /// Whether the device is currently operational.
+    healthy: boolean;
+    /// Device-loss reason category.
+    lossReason: GpuDeviceLossReason;
+    /// Backend-specific status code.
+    backendCode: int32;
+    /// Human-readable status message.
+    message: string;
 }
 
 /// GPU device creation options.
 export struct GpuDeviceOptions {
-    /// Required feature bitset.
-    requiredFeatureMask: uint64;
+    /// Required feature identifiers.
+    requiredFeatures: Slice<GpuFeatureId>;
     /// Required minimum limits.
     requiredLimits: GpuDeviceLimits;
+    /// Preferred backend override.
+    backend: GpuBackend;
     /// Device option flags.
     flags: uint32;
 }
 
 /// Runtime-visible device metadata.
 export struct GpuDeviceInfo {
-    /// Feature bitset enabled on this device.
-    enabledFeatureMask: uint64;
+    /// Chosen backend for this device.
+    backend: GpuBackend;
+    /// Feature identifiers enabled on this device.
+    enabledFeatures: Slice<GpuFeatureId>;
     /// Effective device limits.
     effectiveLimits: GpuDeviceLimits;
+    /// Default queue count visible to the runtime.
+    queueCount: uint32;
+    /// Whether timeline synchronization is available.
+    hasTimelineSync: boolean;
+    /// Whether timestamp queries are available.
+    hasTimestampQueries: boolean;
+    /// Whether push constants are available.
+    hasPushConstants: boolean;
+}
+
+/// Device error-scope filter selector.
+export enum GpuErrorFilter {
+    /// Validation error scope.
+    Validation = 1,
+    /// Out-of-memory error scope.
+    OutOfMemory = 2,
+    /// Internal error scope.
+    Internal = 3,
+}
+
+/// Captured device error snapshot.
+export struct GpuCapturedError {
+    /// Whether an error was captured.
+    hasError: boolean;
+    /// Human-readable error message.
+    message: string;
+    /// Backend-specific status code.
+    backendCode: int32;
 }
 
 /// GPU device bindings.
@@ -40,7 +95,7 @@ declare namespace gpu {
     /// Open one logical GPU device.
     ///
     /// Create one logical device from one adapter using required features and limits.
-    /// Device creation fails when host backend cannot satisfy the requested contract.
+    /// Device creation fails when the backend cannot satisfy the requested contract.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -69,12 +124,12 @@ declare namespace gpu {
 
     /// Read metadata for one logical device.
     ///
-    /// Query effective features and limits of one created logical device.
+    /// Query effective features and limits for one created logical device.
     /// Results reflect backend feature enablement and negotiation outcomes.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend device feature and limits query paths.
+    /// Uses WebGPU-style device feature and limits query paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -94,14 +149,122 @@ declare namespace gpu {
     })
     export function deviceInfo(device: GpuDeviceHandle): Result<GpuDeviceInfo, PlatformError>;
 
-    /// Resolve the default queue for one logical device.
+    /// Read one device feature snapshot.
+    ///
+    /// Read one enabled feature identifier snapshot from one logical device.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.features", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function deviceFeatures(device: GpuDeviceHandle): Result<Slice<GpuFeatureId>, PlatformError>;
+
+    /// Read one device limits snapshot.
+    ///
+    /// Read one effective limits snapshot from one logical device.
+    /// Limits remain stable for the device lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device limits query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.limits", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function deviceLimits(device: GpuDeviceHandle): Result<GpuDeviceLimits, PlatformError>;
+
+    /// Check whether one device supports one feature.
+    ///
+    /// Check one feature identifier against one logical device enabled feature set.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.hasFeature", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function deviceHasFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, PlatformError>;
+
+    /// Read health status for one logical device.
+    ///
+    /// Return one snapshot of device-loss and backend health state.
+    /// Status can transition asynchronously as backend work progresses.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device-lost and status query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.status", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function deviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, PlatformError>;
+
+    /// Resolve one default queue for one logical device.
     ///
     /// Resolve one queue endpoint for command submission from one logical device.
     /// Queue identity follows backend default-queue semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend queue lookup operations.
+    /// Uses WebGPU-style queue lookup operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -124,11 +287,11 @@ declare namespace gpu {
     /// Poll one logical device for completion progress.
     ///
     /// Poll one device and optionally wait for work completion until the timeout expires.
-    /// Returned value is backend defined progress count for completed submission units.
+    /// Returned value is a backend-defined count of completed submission units.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend device poll or fence polling operations.
+    /// Uses WebGPU-style device poll or fence polling operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
@@ -152,6 +315,66 @@ declare namespace gpu {
         timeoutNs: uint64,
     ): Result<uint32, PlatformError>;
 
+    /// Push one device error scope.
+    ///
+    /// Push one error scope to capture asynchronous validation and runtime errors.
+    /// Scopes are popped in last-in-first-out order.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device error-scope push operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.pushErrorScope", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function devicePushErrorScope(
+        device: GpuDeviceHandle,
+        filter: GpuErrorFilter,
+    ): Result<void, PlatformError>;
+
+    /// Pop one device error scope.
+    ///
+    /// Pop one previously pushed error scope and return captured error details.
+    /// Pop fails when no scope exists on the device scope stack.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style device error-scope pop operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.device.popErrorScope", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function devicePopErrorScope(
+        device: GpuDeviceHandle,
+        timeoutNs: uint64,
+    ): Result<GpuCapturedError, PlatformError>;
+
     /// Close one logical GPU device.
     ///
     /// Close one logical device and release backend device resources.
@@ -159,7 +382,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific device destroy or release operations.
+    /// Uses WebGPU-style device destroy or release operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

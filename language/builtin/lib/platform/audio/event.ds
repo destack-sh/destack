@@ -1,0 +1,144 @@
+import type { PlatformError } from "../error/index.ds";
+import { AudioEventHandle } from "../resource/index.ds";
+
+/// Audio device event kind.
+export enum AudioDeviceEventKind {
+    /// One device became available.
+    DeviceAdded = 1,
+    /// One device became unavailable.
+    DeviceRemoved = 2,
+    /// Default playback device changed.
+    DefaultPlaybackChanged = 3,
+    /// Default capture device changed.
+    DefaultCaptureChanged = 4,
+    /// Device format capabilities changed.
+    DeviceFormatChanged = 5,
+    /// Backend session reset occurred.
+    BackendReset = 6,
+}
+
+/// Audio device event payload.
+export struct AudioDeviceEvent {
+    /// Event kind selector.
+    kind: AudioDeviceEventKind;
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Target device identifier when available.
+    deviceId: string;
+    /// Event flags.
+    flags: uint32;
+}
+
+/// Audio event bindings.
+declare namespace audio {
+    /// Open one audio device event subscription.
+    ///
+    /// Open one backend event subscription for hotplug and default-route changes.
+    /// Subscription routing and queue depth follow host backend behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device-notification registration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.event.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.device.monitor"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function eventOpen(): Result<AudioEventHandle, PlatformError>;
+
+    /// Close one audio device event subscription.
+    ///
+    /// Close one event subscription and release backend notification resources.
+    /// Pending events are discarded.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES notification unregistration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.event.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.device.monitor"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>;
+
+    /// Wait for one audio device event.
+    ///
+    /// Wait for one pending device event from one subscription queue.
+    /// Timeout uses nanoseconds in the runtime monotonic domain.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES event wait or callback-queue drain operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.event.read", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.device.monitor"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function eventRead(
+        handle: AudioEventHandle,
+        timeoutNs: uint64,
+    ): Result<AudioDeviceEvent, PlatformError>;
+
+    /// Poll one audio device event without blocking.
+    ///
+    /// Poll one pending device event from one subscription queue.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES nonblocking event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.event.tryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.device.monitor"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function eventTryRead(handle: AudioEventHandle): Result<AudioDeviceEvent, PlatformError>;
+}

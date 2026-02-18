@@ -126,6 +126,9 @@ export newtype AudioDeviceHandle = ResourceId;
 /// Handle for one audio stream endpoint.
 export newtype AudioStreamHandle = ResourceId;
 
+/// Handle for one audio event subscription endpoint.
+export newtype AudioEventHandle = ResourceId;
+
 /// Handle for one display device endpoint.
 export newtype DisplayHandle = ResourceId;
 
@@ -134,6 +137,9 @@ export newtype WindowHandle = ResourceId;
 
 /// Handle for one input device endpoint.
 export newtype InputDeviceHandle = ResourceId;
+
+/// Handle for one global input monitor stream.
+export newtype InputMonitorHandle = ResourceId;
 
 /// Handle for one GPU adapter endpoint.
 export newtype GpuAdapterHandle = ResourceId;
@@ -144,8 +150,32 @@ export newtype GpuDeviceHandle = ResourceId;
 /// Handle for one GPU queue endpoint.
 export newtype GpuQueueHandle = ResourceId;
 
+/// Handle for one GPU surface endpoint.
+export newtype GpuSurfaceHandle = ResourceId;
+
 /// Handle for one GPU command list endpoint.
 export newtype GpuCommandListHandle = ResourceId;
+
+/// Handle for one GPU render-bundle endpoint.
+export newtype GpuRenderBundleHandle = ResourceId;
+
+/// Handle for one GPU render-bundle-encoder endpoint.
+export newtype GpuRenderBundleEncoderHandle = ResourceId;
+
+/// Handle for one GPU pipeline layout endpoint.
+export newtype GpuPipelineLayoutHandle = ResourceId;
+
+/// Handle for one GPU bind group layout endpoint.
+export newtype GpuBindGroupLayoutHandle = ResourceId;
+
+/// Handle for one GPU bind group endpoint.
+export newtype GpuBindGroupHandle = ResourceId;
+
+/// Handle for one GPU synchronization fence endpoint.
+export newtype GpuFenceHandle = ResourceId;
+
+/// Handle for one GPU query set endpoint.
+export newtype GpuQuerySetHandle = ResourceId;
 
 /// Handle for one GPU memory allocation endpoint.
 export newtype GpuMemoryHandle = ResourceId;
@@ -155,6 +185,9 @@ export newtype GpuBufferHandle = ResourceId;
 
 /// Handle for one GPU texture endpoint.
 export newtype GpuTextureHandle = ResourceId;
+
+/// Handle for one GPU texture-view endpoint.
+export newtype GpuTextureViewHandle = ResourceId;
 
 /// Handle for one GPU sampler endpoint.
 export newtype GpuSamplerHandle = ResourceId;

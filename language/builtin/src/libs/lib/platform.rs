@@ -20,10 +20,22 @@ builtin_lib_sources_targeted!(
     PLATFORM_PLATFORMS,
     [
         (
+            LIB_PLATFORM_AUDIO_CLOCK_DS,
+            "lib",
+            "platform/audio",
+            "clock.ds"
+        ),
+        (
             LIB_PLATFORM_AUDIO_DEVICE_DS,
             "lib",
             "platform/audio",
             "device.ds"
+        ),
+        (
+            LIB_PLATFORM_AUDIO_EVENT_DS,
+            "lib",
+            "platform/audio",
+            "event.ds"
         ),
         (
             LIB_PLATFORM_AUDIO_INDEX_DS,
@@ -92,19 +104,6 @@ builtin_lib_sources_targeted!(
             "trace.ds"
         ),
         (
-            LIB_PLATFORM_DEVICE_CONTROL_DS,
-            "lib",
-            "platform/device",
-            "control.ds"
-        ),
-        (
-            LIB_PLATFORM_DEVICE_INDEX_DS,
-            "lib",
-            "platform/device",
-            "index.ds"
-        ),
-        (LIB_PLATFORM_DEVICE_IO_DS, "lib", "platform/device", "io.ds"),
-        (
             LIB_PLATFORM_DISPLAY_INDEX_DS,
             "lib",
             "platform/display",
@@ -170,12 +169,14 @@ builtin_lib_sources_targeted!(
             "platform/gpu",
             "adapter.ds"
         ),
+        (LIB_PLATFORM_GPU_BIND_DS, "lib", "platform/gpu", "bind.ds"),
         (
             LIB_PLATFORM_GPU_COMMAND_DS,
             "lib",
             "platform/gpu",
             "command.ds"
         ),
+        (LIB_PLATFORM_GPU_DEBUG_DS, "lib", "platform/gpu", "debug.ds"),
         (
             LIB_PLATFORM_GPU_DEVICE_DS,
             "lib",
@@ -201,6 +202,7 @@ builtin_lib_sources_targeted!(
             "platform/gpu",
             "resource.ds"
         ),
+        (LIB_PLATFORM_GPU_SYNC_DS, "lib", "platform/gpu", "sync.ds"),
         (LIB_PLATFORM_INDEX_DS, "lib", "platform", "index.ds"),
         (
             LIB_PLATFORM_INPUT_DEVICE_DS,
@@ -232,6 +234,7 @@ builtin_lib_sources_targeted!(
             "platform/io",
             "control.ds"
         ),
+        (LIB_PLATFORM_IO_DEVICE_DS, "lib", "platform/io", "device.ds"),
         (LIB_PLATFORM_IO_EVENT_DS, "lib", "platform/io", "event.ds"),
         (LIB_PLATFORM_IO_INDEX_DS, "lib", "platform/io", "index.ds"),
         (LIB_PLATFORM_IO_POLL_DS, "lib", "platform/io", "poll.ds"),
@@ -589,7 +592,9 @@ builtin_lib_sources_targeted!(
 pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
     "platform",
     &[
+        LIB_PLATFORM_AUDIO_CLOCK_DS,
         LIB_PLATFORM_AUDIO_DEVICE_DS,
+        LIB_PLATFORM_AUDIO_EVENT_DS,
         LIB_PLATFORM_AUDIO_INDEX_DS,
         LIB_PLATFORM_AUDIO_STREAM_DS,
         LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
@@ -601,9 +606,6 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_DEBUG_INSPECTOR_DS,
         LIB_PLATFORM_DEBUG_PROFILE_DS,
         LIB_PLATFORM_DEBUG_TRACE_DS,
-        LIB_PLATFORM_DEVICE_CONTROL_DS,
-        LIB_PLATFORM_DEVICE_INDEX_DS,
-        LIB_PLATFORM_DEVICE_IO_DS,
         LIB_PLATFORM_DISPLAY_INDEX_DS,
         LIB_PLATFORM_DISPLAY_MONITOR_DS,
         LIB_PLATFORM_DISPLAY_WINDOW_DS,
@@ -625,18 +627,22 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_FS_WATCH_DS,
         LIB_PLATFORM_FS_XATTR_DS,
         LIB_PLATFORM_GPU_ADAPTER_DS,
+        LIB_PLATFORM_GPU_BIND_DS,
         LIB_PLATFORM_GPU_COMMAND_DS,
+        LIB_PLATFORM_GPU_DEBUG_DS,
         LIB_PLATFORM_GPU_DEVICE_DS,
         LIB_PLATFORM_GPU_INDEX_DS,
         LIB_PLATFORM_GPU_PIPELINE_DS,
         LIB_PLATFORM_GPU_PRESENT_DS,
         LIB_PLATFORM_GPU_RESOURCE_DS,
+        LIB_PLATFORM_GPU_SYNC_DS,
         LIB_PLATFORM_INDEX_DS,
         LIB_PLATFORM_INPUT_DEVICE_DS,
         LIB_PLATFORM_INPUT_EVENT_DS,
         LIB_PLATFORM_INPUT_INDEX_DS,
         LIB_PLATFORM_IO_COMPLETION_DS,
         LIB_PLATFORM_IO_CONTROL_DS,
+        LIB_PLATFORM_IO_DEVICE_DS,
         LIB_PLATFORM_IO_EVENT_DS,
         LIB_PLATFORM_IO_INDEX_DS,
         LIB_PLATFORM_IO_POLL_DS,
