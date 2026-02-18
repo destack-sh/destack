@@ -17,6 +17,7 @@ use crate::resolve::cache::{
     NamespaceSymbolCacheKey, ReexportChainCacheKey, RemoteSymbolCacheKey,
     ResolveDependencyItemCache, TargetCacheKey,
 };
+use crate::resolve::loader::LoaderAttribute;
 use crate::timing::tags;
 use crate::{
     Compiler, ImportError, ImportResolveContext, ResolveError, ResolveResult, ResolveWarning,
@@ -518,7 +519,11 @@ impl Compiler {
                 // (no need to resolve through export entry since it's a simple local export)
                 if !self.is_code_module(module_id) {
                     if let Some(symbol) = export.symbol {
-                        return Ok(Some(symbol.into_global(module_id)));
+                        let symbol = symbol.into_global(module_id);
+                        let symbol_type = self.symbol_type_for_global(profile, symbol);
+                        let symbol =
+                            GlobalSymbolId::new(module_id, symbol.local_id.with_type(symbol_type));
+                        return Ok(Some(symbol));
                     }
                     return Ok(None);
                 }
@@ -800,15 +805,38 @@ impl Compiler {
                 target_module,
                 ..
             } => {
+                let item_id = item_node.local_id.try_into_typed::<DependencyItem>().ok();
+                let (expression_target_module, loader_override) = if let Some(item_id) = item_id {
+                    let tree = dir.tree.read();
+                    let expression_target_module =
+                        self.parent_expression_target_module_for_dependency_item(&tree, item_id);
+                    let loader_override = self
+                        .parent_expression_loader_override_for_dependency_item(
+                            module, profile, &tree, item_id,
+                        )?;
+                    (expression_target_module, loader_override)
+                } else {
+                    (None, None)
+                };
+
                 // resolve the target module
                 let target_module = if let Some(target_module) = target_module {
                     let Some(target_module) = target_module.for_kind(kind) else {
                         return Ok(None);
                     };
                     target_module
+                } else if let Some(target_module) = expression_target_module {
+                    target_module
                 } else {
                     let Some(target_module) = self.resolve_import_maybe(
-                        module, dir, profile, item_node, source, target, kind, None,
+                        module,
+                        dir,
+                        profile,
+                        item_node,
+                        source,
+                        target,
+                        kind,
+                        loader_override,
                     )?
                     else {
                         return Ok(None);
@@ -1025,11 +1053,19 @@ impl Compiler {
             return Ok(None);
         }
 
+        let expression_target_module =
+            self.parent_expression_target_module_for_dependency_item(tree, item_id);
+        let loader_override = self.parent_expression_loader_override_for_dependency_item(
+            module, profile, tree, item_id,
+        )?;
+
         // resolve the target module
         let target_module = if let Some(target_module) = target_module {
             let Some(target_module) = target_module.for_kind(kind) else {
                 return Ok(None);
             };
+            target_module
+        } else if let Some(target_module) = expression_target_module {
             target_module
         } else if let Some(target) = target {
             let Some(target_module) = self.resolve_import_maybe(
@@ -1040,7 +1076,7 @@ impl Compiler {
                 source.unwrap_or(DependencySource::ExportStatement),
                 target,
                 kind,
-                None,
+                loader_override,
             )?
             else {
                 return Ok(None);
@@ -2234,6 +2270,64 @@ impl Compiler {
         Ok(None)
     }
 
+    /// Resolve a dependency item's parent expression target module when available.
+    fn parent_expression_target_module_for_dependency_item(
+        &self,
+        tree: &NodeTree,
+        item_id: LocalNodeId<DependencyItem>,
+    ) -> Option<ModuleTarget> {
+        // locate the parent expression node
+        let parent_id = tree.get_parent(item_id.id)?;
+        let parent_id = parent_id.try_into_typed::<Expression>().ok()?;
+
+        // read the resolved target from import or re-export expressions
+        match tree.get(parent_id) {
+            Expression::Import { target_module, .. }
+            | Expression::ReExport { target_module, .. } => Some(*target_module),
+            _ => None,
+        }
+    }
+
+    /// Resolve a loader override from the dependency item's parent expression.
+    fn parent_expression_loader_override_for_dependency_item(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        item_id: LocalNodeId<DependencyItem>,
+    ) -> ResolveResult<Option<destack_workspace::Loader>> {
+        // locate the parent expression node
+        let Some(parent_id) = tree.get_parent(item_id.id) else {
+            return Ok(None);
+        };
+        let Ok(parent_id) = parent_id.try_into_typed::<Expression>() else {
+            return Ok(None);
+        };
+
+        // read import attributes from the parent import or re-export expression
+        let arguments = match tree.get(parent_id) {
+            Expression::UnresolvedImport { arguments, .. }
+            | Expression::UnresolvedReExport { arguments, .. }
+            | Expression::Import { arguments, .. }
+            | Expression::ReExport { arguments, .. } => arguments.as_ref(),
+            _ => return Ok(None),
+        };
+
+        // parse the optional loader override
+        match self.loader_from_import_attributes(arguments, tree) {
+            LoaderAttribute::None => Ok(None),
+            LoaderAttribute::Loader(loader) => Ok(Some(loader)),
+            LoaderAttribute::InvalidType { value } => {
+                Err(ResolveError::InvalidImportAttributeType {
+                    node: item_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                    value,
+                })
+            }
+        }
+    }
+
     /// Resolve a dependency item, optionally using a cache.
     pub(super) fn resolve_dependency_item(
         &self,
@@ -2255,39 +2349,62 @@ impl Compiler {
                 kind,
                 alias,
                 target,
-                target_module: _,
+                target_module,
                 symbol,
             } => {
                 // capture the origin symbol for cycle reporting
                 let origin_symbol = symbol.map(|symbol| symbol.into_global(module.id));
 
+                // preserve any already-resolved target from the item or parent expression
+                let item_target_module = *target_module;
+                let expression_target_module =
+                    self.parent_expression_target_module_for_dependency_item(tree, item_id);
+                let loader_override = self.parent_expression_loader_override_for_dependency_item(
+                    module, profile, tree, item_id,
+                )?;
+
                 // resolve the target module or binding
                 let remote_target = {
                     let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_IMPORT);
-                    let Some(remote_target) = self.resolve_import_maybe(
-                        module,
-                        dir,
-                        profile,
-                        item_id.into_global_any(module.id),
-                        *source,
-                        *target,
-                        *kind,
-                        None,
-                    )?
-                    else {
-                        return Ok(None);
-                    };
-                    remote_target
+                    if let Some(target_module) = item_target_module
+                        && let Some(remote_target) = target_module.for_kind(*kind)
+                    {
+                        remote_target
+                    } else if let Some(remote_target) = expression_target_module {
+                        remote_target
+                    } else {
+                        let Some(remote_target) = self.resolve_import_maybe(
+                            module,
+                            dir,
+                            profile,
+                            item_id.into_global_any(module.id),
+                            *source,
+                            *target,
+                            *kind,
+                            loader_override,
+                        )?
+                        else {
+                            return Ok(None);
+                        };
+                        remote_target
+                    }
                 };
-                let target_module = self
-                    .imported_module_resolution_for_specifier(
+
+                // preserve the most specific target resolution we can recover
+                let target_module = if let Some(target_module) = item_target_module {
+                    target_module
+                } else if let Some(remote_target) = expression_target_module {
+                    ModuleResolution::from_target(remote_target)
+                } else {
+                    self.imported_module_resolution_for_specifier(
                         module,
                         profile,
                         *target,
                         self.import_edge_kind(module, *source),
                         None,
                     )
-                    .unwrap_or_else(|| ModuleResolution::from_target(remote_target));
+                    .unwrap_or_else(|| ModuleResolution::from_target(remote_target))
+                };
                 let remote_symbol_target = self.select_symbol_target_for_dependency(
                     module,
                     *kind,

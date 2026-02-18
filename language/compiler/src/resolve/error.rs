@@ -94,6 +94,13 @@ pub enum ResolveError {
         target: Option<StringId>,
         target_node: AnchoredGlobalNodeId,
     },
+
+    /// Invalid loader type in import attributes.
+    #[error(code = "ER203", message = "invalid import attribute type '{value}'")]
+    InvalidImportAttributeType {
+        node: AnchoredGlobalNodeId,
+        value: String,
+    },
     // -------------------------------------------------------------------------
     // 3xx: Dependencies / cycles
     // -------------------------------------------------------------------------

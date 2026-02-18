@@ -939,6 +939,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 kind,
                 items: _,
+                arguments: _,
             } => {
                 self.node("Expression::UnresolvedReExport", id.id)
                     .field("kind", kind)
@@ -950,6 +951,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target_module,
                 kind,
                 items: _,
+                arguments: _,
             } => {
                 self.node("Expression::ReExport", id.id)
                     .field("kind", kind)

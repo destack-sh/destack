@@ -69,6 +69,40 @@ json;
 text;
 ```
 
+### re-export supports type attribute loader overrides
+
+> Re-export declarations apply the same loader override semantics as imports.
+
+```json:data.json
+{ "key": "value" }
+```
+
+```ds:bridge.ds
+export { default as text } from "./data.json" with { type: "text" };
+```
+
+```ds:main.ds
+import { text } from "./bridge.ds";
+
+text satisfies string;
+```
+
+### unknown type attribute reports an error
+
+> Unknown loader type attributes should be rejected.
+
+```json:data.json
+{ "key": "value" }
+```
+
+```ds:main.ds
+import data from "./data.json" with { type: "jsonc" };
+
+data;
+```
+
+- contains: invalid import attribute type
+
 ## Text Import
 
 ### import text file as string

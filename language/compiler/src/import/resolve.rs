@@ -286,7 +286,10 @@ impl Compiler {
         resolver: &Resolver,
     ) -> ImportResult<ModuleId> {
         // check if module already exists for this path
-        if let Some(module_id) = self.program.modules.get_id_by_path(path) {
+        // only use this fast path for default loader resolution
+        if loader_override.is_none()
+            && let Some(module_id) = self.program.modules.get_id_by_path(path)
+        {
             return Ok(module_id);
         }
 

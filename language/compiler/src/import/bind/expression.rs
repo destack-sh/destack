@@ -299,7 +299,7 @@ impl Compiler {
                 kind,
                 target,
                 items,
-                arguments: _,
+                arguments,
             } => {
                 let target = target.map(|target| {
                     self.program
@@ -327,12 +327,32 @@ impl Compiler {
                             )
                         })
                         .collect();
+                    // arguments
+                    let arguments = arguments.as_ref().map(|arguments| {
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                self.bind_argument(
+                                    module,
+                                    ast,
+                                    scope,
+                                    *argument,
+                                    Some(expression_id),
+                                    tree,
+                                    symbols,
+                                    types,
+                                    SymbolSpaceOrder::ValueThenType,
+                                )
+                            })
+                            .collect()
+                    });
                     let kind = self.bind_dependency_kind(*kind);
                     // re-export
                     Expression::UnresolvedReExport {
                         target,
                         kind,
                         items,
+                        arguments,
                     }
                 }
                 // export from module

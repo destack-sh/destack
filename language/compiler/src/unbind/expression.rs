@@ -121,18 +121,44 @@ impl Compiler {
                     }
                 }
 
-                dir::Expression::UnresolvedReExport { target, kind, items }
-                | dir::Expression::ReExport { target, kind, items, .. } => {
+                dir::Expression::UnresolvedReExport {
+                    target,
+                    kind,
+                    items,
+                    arguments,
+                }
+                | dir::Expression::ReExport {
+                    target,
+                    kind,
+                    items,
+                    arguments,
+                    ..
+                } => {
                     let kind = self.unbind_dependency_kind(context, *kind);
                     let target = ast_strings.intern_from(&self.program.strings, *target);
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
+                    let arguments = arguments.as_ref().map(|args| {
+                        args.iter()
+                            .map(|arg| {
+                                self.unbind_argument(
+                                    module,
+                                    *arg,
+                                    tree,
+                                    symbols,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect()
+                    });
                     ast::Expression::Export {
                         kind,
                         target: Some(target),
                         items,
-                        arguments: None,
+                        arguments,
                     }
                 }
 

@@ -3,6 +3,7 @@ use destack_dir::{
 };
 
 use crate::resolve::cache::{ResolveExpressionCache, ResolvePathCacheKey};
+use crate::resolve::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
 
 use destack_workspace::{Module, ModuleDir, ProfileId};
@@ -86,7 +87,18 @@ impl Compiler {
             } => {
                 if let destack_dir::ImportTarget::String(target) = target {
                     let loader_override =
-                        self.loader_from_import_attributes(arguments.as_ref(), tree);
+                        match self.loader_from_import_attributes(arguments.as_ref(), tree) {
+                            LoaderAttribute::None => None,
+                            LoaderAttribute::Loader(loader) => Some(loader),
+                            LoaderAttribute::InvalidType { value } => {
+                                return Err(ResolveError::InvalidImportAttributeType {
+                                    node: expression_id
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(profile)),
+                                    value,
+                                });
+                            }
+                        };
                     let Some(remote_target) = self.resolve_import_maybe(
                         module,
                         dir,
@@ -117,7 +129,21 @@ impl Compiler {
                 target,
                 kind,
                 items,
+                arguments,
             } => {
+                let loader_override =
+                    match self.loader_from_import_attributes(arguments.as_ref(), tree) {
+                        LoaderAttribute::None => None,
+                        LoaderAttribute::Loader(loader) => Some(loader),
+                        LoaderAttribute::InvalidType { value } => {
+                            return Err(ResolveError::InvalidImportAttributeType {
+                                node: expression_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
+                                value,
+                            });
+                        }
+                    };
                 let Some(remote_target) = self.resolve_import_maybe(
                     module,
                     dir,
@@ -126,7 +152,7 @@ impl Compiler {
                     DependencySource::ExportStatement,
                     *target,
                     *kind,
-                    None,
+                    loader_override,
                 )?
                 else {
                     return Ok(());
@@ -136,6 +162,7 @@ impl Compiler {
                     target_module: remote_target,
                     kind: *kind,
                     items: items.clone(),
+                    arguments: arguments.clone(),
                 }
             }
 

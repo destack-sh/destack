@@ -218,10 +218,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 target: _,
                 kind: _,
                 items,
+                arguments,
             } => {
                 for item_id in items {
                     let item = tree.get(*item_id);
                     visitor.visit_dependency_item(tree, *item_id, item);
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
                 }
             }
             Expression::ReExport {
@@ -229,10 +236,17 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 target_module: _,
                 kind: _,
                 items,
+                arguments,
             } => {
                 for item_id in items {
                     let item = tree.get(*item_id);
                     visitor.visit_dependency_item(tree, *item_id, item);
+                }
+                if let Some(arguments) = arguments {
+                    for argument_id in arguments {
+                        let argument = tree.get(*argument_id);
+                        visitor.visit_argument(tree, *argument_id, argument);
+                    }
                 }
             }
             Expression::Export { kind: _, items } => {
