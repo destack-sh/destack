@@ -759,7 +759,7 @@ fn test_parse_if_extends_type_reference() {
         });
         // { body }
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-            assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
+            assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
                 assert_eq!(expressions.len(), 1);
                 let body_statement_id = parser.unwrap_statement_expression(expressions[0]);
                 assert_expression_path!(parser, parser.tree.get(body_statement_id), "body");
@@ -793,7 +793,7 @@ fn test_parse_if_instanceof_type_reference() {
         });
         // { value }
         assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-            assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
+            assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
                 assert_eq!(expressions.len(), 1);
                 let value_statement_id = parser.unwrap_statement_expression(expressions[0]);
                 assert_expression_path!(parser, parser.tree.get(value_statement_id), "value");

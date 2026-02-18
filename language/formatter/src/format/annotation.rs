@@ -1292,8 +1292,10 @@ mod tests {
         // trailing-argument-marker
     );
 }";
-        let (formatter, _) = TestFormatter::parse(source, |p| p.eat_block())
-            .expect("parse trailing call argument marker source");
+        let (formatter, _) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse trailing call argument marker source");
         let context = context_from_formatter(&formatter);
 
         let annotation_id = find_annotation_by_marker(&context, "trailing-argument-marker")
@@ -1310,8 +1312,10 @@ mod tests {
     fn test_type_binary_block_comment_between_operator_and_right_type_renders() {
         let source = "{\n    const value = left as /* between */ Foo;\n}";
         let (formatter, block_id) =
-            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| p.eat_block())
-                .expect("parse type-binary block seam source");
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse type-binary block seam source");
         let context = context_from_formatter(&formatter);
         let annotation_id =
             find_annotation_by_marker(&context, "between").expect("expected between annotation");
@@ -1330,8 +1334,10 @@ mod tests {
     fn test_type_binary_block_comment_between_operator_and_right_type_expression_statement() {
         let source = "{\n    1 as /* between */ Foo;\n    1 satisfies /* sat-between */ Foo;\n}";
         let (formatter, block_id) =
-            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| p.eat_block())
-                .expect("parse type-binary block seam statement source");
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse type-binary block seam statement source");
         let context = context_from_formatter(&formatter);
         let first_annotation_id =
             find_annotation_by_marker(&context, "between").expect("expected between annotation");
@@ -1363,8 +1369,10 @@ mod tests {
         let source = "{\n    target(/** @type {{id: string}} */ (entry), second);\n}";
         let expected = "{\n    target(/** @type {{id: string}} */ (entry), second);\n}";
         let (formatter, block_id) =
-            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| p.eat_block())
-                .expect("parse parenthesized cast argument source");
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse parenthesized cast argument source");
 
         let formatted = formatter.format(&block_id, DestackFormatOptions::default());
         assert_eq!(formatted, expected);
@@ -1376,8 +1384,10 @@ mod tests {
         let source = "{
     if (true /* separator-marker */ ) {}
 }";
-        let (formatter, _) =
-            TestFormatter::parse(source, |p| p.eat_block()).expect("parse separator marker source");
+        let (formatter, _) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse separator marker source");
         let context = context_from_formatter(&formatter);
         let annotation_id = find_annotation_by_marker(&context, "separator-marker")
             .expect("expected marker-tagged separator annotation");
@@ -1406,7 +1416,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1426,7 +1436,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1441,7 +1451,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1452,7 +1462,7 @@ mod tests {
         assert_format!(
             "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
             "{\n    const buffer: @addrspace(\"shared\") &Buffer = value;\n}",
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1470,7 +1480,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1501,7 +1511,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1533,7 +1543,7 @@ mod tests {
      * over multiple lines */
     const X = 1;
 }",
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1551,7 +1561,7 @@ mod tests {
     /* some comment
     * over multiple lines yo       */
 }",
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1570,7 +1580,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1586,16 +1596,12 @@ mod tests {
         );
     }
 
-    /// Comments inside array literals cause expansion.
+    /// Inline array comments stay inline when the array still fits.
     #[test]
     fn test_format_comment_in_array() {
         assert_format!(
             "[/* first */ 1, /* second */ 2, /* third */ 3]",
-            "[
-    /* first */ 1,
-    /* second */ 2,
-    /* third */ 3,
-]",
+            "[/* first */ 1, /* second */ 2, /* third */ 3]",
             |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );
@@ -1633,7 +1639,7 @@ mod tests {
         3, // last element
     ];
 }",
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1703,7 +1709,7 @@ mod tests {
         let (first_formatter, first_block_id) = TestFormatter::parse_with_file_type(
             source,
             destack_source::FileType::JavaScript,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
         )
         .expect("parse first arrow comment statement");
         let first = first_formatter.format(&first_block_id, DestackFormatOptions::default());
@@ -1711,7 +1717,7 @@ mod tests {
         let (second_formatter, second_block_id) = TestFormatter::parse_with_file_type(
             first.as_str(),
             destack_source::FileType::JavaScript,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
         )
         .expect("parse second arrow comment statement");
         let second = second_formatter.format(&second_block_id, DestackFormatOptions::default());

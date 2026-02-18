@@ -543,47 +543,22 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
         }
 
         // check for single line ignore directives
-        if matches!(
-            trimmed,
-            "prettier-ignore" | "oxfmt-ignore" | "format-ignore" | "fmt-ignore" | "deno-fmt-ignore"
-        ) || (trimmed.starts_with("biome-ignore") && trimmed.contains("format"))
-        {
+        if matches!(trimmed, "prettier-ignore" | "oxfmt-ignore") {
             return Some(FormatterDirectiveToken::Ignore);
         }
 
         // check for file-level ignore directives
-        if matches!(
-            trimmed,
-            "prettier-ignore-file"
-                | "oxfmt-ignore-file"
-                | "format-ignore-file"
-                | "fmt-ignore-file"
-                | "deno-fmt-ignore-file"
-        ) {
+        if matches!(trimmed, "prettier-ignore-file" | "oxfmt-ignore-file") {
             return Some(FormatterDirectiveToken::IgnoreFile);
         }
 
         // check for range start directives
-        if matches!(
-            trimmed,
-            "prettier-ignore-start"
-                | "oxfmt-ignore-start"
-                | "format-ignore-start"
-                | "fmt-ignore-start"
-                | "biome-ignore-start"
-        ) {
+        if matches!(trimmed, "oxfmt-ignore-start") {
             return Some(FormatterDirectiveToken::IgnoreStart);
         }
 
         // check for range end directives
-        if matches!(
-            trimmed,
-            "prettier-ignore-end"
-                | "oxfmt-ignore-end"
-                | "format-ignore-end"
-                | "fmt-ignore-end"
-                | "biome-ignore-end"
-        ) {
+        if matches!(trimmed, "oxfmt-ignore-end") {
             return Some(FormatterDirectiveToken::IgnoreEnd);
         }
 
@@ -649,10 +624,10 @@ mod tests {
     fn test_ignore_range_for_call_arguments_uses_comment_column_start() {
         let source = r#"doThing(
     1,
-    // prettier-ignore-start
+    // oxfmt-ignore-start
     foo ( 1 ,2 ),
     bar(3),
-    // prettier-ignore-end
+    // oxfmt-ignore-end
     4,
 )"#;
         let file = Arc::new(File::from_text(
@@ -711,6 +686,6 @@ mod tests {
         assert_eq!(start_column, 4);
 
         let raw = ignored_span_source(&context, range);
-        assert!(raw.starts_with("// prettier-ignore-start"));
+        assert!(raw.starts_with("// oxfmt-ignore-start"));
     }
 }

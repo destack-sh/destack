@@ -781,7 +781,7 @@ mod tests {
 
     return 5;
 }"#,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -817,7 +817,10 @@ mod tests {
 
     return 5;
 }"#;
-        let (test, block_id) = TestFormatter::parse(source, |p| p.eat_block()).unwrap();
+        let (test, block_id) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .unwrap();
         let block = test.tree.get(block_id);
         let Block { expressions, .. } = block;
 
@@ -954,7 +957,7 @@ mod tests {
 
     let x = z();
 }"#,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -969,7 +972,10 @@ mod tests {
 
     let x = z()
 }"#;
-        let (test, block_id) = TestFormatter::parse(source, |p| p.eat_block()).unwrap();
+        let (test, block_id) = TestFormatter::parse(source, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .unwrap();
         let block = test.tree.get(block_id);
         let Block { expressions, .. } = block;
         assert_eq!(expressions.len(), 2);
@@ -1033,7 +1039,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1048,7 +1054,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1063,7 +1069,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1078,7 +1084,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
         );
     }
@@ -1112,7 +1118,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default_tab()
         );
     }
@@ -1123,7 +1129,7 @@ mod tests {
         assert_format!(
             "{ x = 1; class A {} }",
             "{\n\tx = 1;\n\tclass A {}\n}",
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default_tab()
         );
     }
@@ -1148,7 +1154,7 @@ mod tests {
 
     import lodash from "lodash";
 }"#,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             options
         );
     }
@@ -1176,7 +1182,7 @@ mod tests {
 
     import thing from "pkg";
 }"#,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             options
         );
     }
@@ -1205,7 +1211,7 @@ mod tests {
 
     import rel from "./rel";
 }"#,
-            |p| p.eat_block(),
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
             options
         );
     }

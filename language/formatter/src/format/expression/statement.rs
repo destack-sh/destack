@@ -25,6 +25,18 @@ fn statement_expression_needs_semicolon(
             | Expression::Match { .. }
     );
 
+    let is_do_while_statement = matches!(
+        expression,
+        Expression::While {
+            kind: WhileKind::DoWhile,
+            ..
+        }
+    );
+
+    if is_do_while_statement {
+        return true;
+    }
+
     !(is_declaration_statement || is_block_statement || is_control_flow_statement)
 }
 

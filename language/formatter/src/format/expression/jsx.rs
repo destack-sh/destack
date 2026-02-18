@@ -1312,21 +1312,21 @@ pub(super) fn tree_child_breaks_element(
     };
     let value_expr = context.tree.get(value_id);
     let span = context.get_span(value_id);
-    let argument_span = context.get_span(argument_id);
     let is_text_node = matches!(
         value_expr,
         Expression::ScalarLiteral(ScalarLiteral::String(_))
     );
     let is_tree_node = matches!(value_expr, Expression::TreeExpression { .. });
-    if !is_text_node && !is_tree_node {
-        let has_comment =
-            span_has_comment(context, span) || span_has_comment(context, argument_span);
-        if context.has_newline(span) || has_comment {
-            return true;
-        }
+    if !is_text_node && !is_tree_node && context.has_newline(span) {
+        return true;
     }
 
-    if (context.has_annotation(argument_id) || context.has_annotation(value_id)) && !is_text_node {
+    let has_line_comment_annotation = argument_has_line_comment_annotation(context, argument_id)
+        || expression_has_line_comment_annotation(context, value_id);
+    if (context.has_annotation(argument_id) || context.has_annotation(value_id))
+        && !is_text_node
+        && !has_line_comment_annotation
+    {
         return true;
     }
 
@@ -1919,30 +1919,60 @@ pub(crate) fn format_tree_literal<'ast>(
                     }
 
                     // otherwise, use fill so mixed content can share lines when it fits
+                    let inline_elements = elements
+                        .iter()
+                        .copied()
+                        .filter(|elem_id| {
+                            let whitespace_info =
+                                tree_text_is_whitespace_only(f.context(), *elem_id);
+                            let is_whitespace_only = whitespace_info
+                                .is_some_and(|(is_whitespace_only, _)| is_whitespace_only);
+                            if !is_whitespace_only {
+                                return true;
+                            }
+
+                            let argument_span = f.context().get_span(*elem_id);
+                            let argument_source = f.context().get_span_str(argument_span);
+                            let is_braced_whitespace =
+                                argument_source.trim_start().starts_with('{')
+                                    && argument_source.trim_end().ends_with('}');
+
+                            is_braced_whitespace
+                        })
+                        .collect::<Vec<_>>();
+                    if inline_elements.is_empty() {
+                        return Ok(());
+                    }
+
                     let separators = {
                         let context = f.context();
 
-                        let whitespace_flags = elements
+                        let whitespace_flags = inline_elements
                             .iter()
                             .map(|elem_id| tree_text_is_whitespace_only(context, *elem_id))
                             .map(|info| info.unwrap_or((false, false)))
                             .collect::<Vec<_>>();
-                        let boundary_spaces = elements
+                        let boundary_spaces = inline_elements
                             .iter()
                             .map(|elem_id| {
                                 tree_text_boundary_separator_space(context, *elem_id)
                                     .unwrap_or((false, false))
                             })
                             .collect::<Vec<_>>();
+                        let inline_child_breaks = inline_elements
+                            .iter()
+                            .map(|elem_id| tree_child_breaks_element(context, *elem_id))
+                            .collect::<Vec<_>>();
 
                         // compute the spacing decisions between adjacent children
-                        let mut separators = Vec::with_capacity(elements.len());
+                        let mut separators = Vec::with_capacity(inline_elements.len());
                         separators.push((false, false));
 
-                        for index in 1..elements.len() {
+                        for index in 1..inline_elements.len() {
                             let prev_is_whitespace_only = whitespace_flags[index - 1].0;
                             let current_is_whitespace_only = whitespace_flags[index].0;
-                            let force_hard_break = child_breaks[index - 1] || child_breaks[index];
+                            let force_hard_break =
+                                inline_child_breaks[index - 1] || inline_child_breaks[index];
 
                             if prev_is_whitespace_only || current_is_whitespace_only {
                                 separators.push((false, force_hard_break));
@@ -1962,7 +1992,7 @@ pub(crate) fn format_tree_literal<'ast>(
                     // render children using fill with the precomputed separators
                     let mut fill = f.fill();
 
-                    for (index, elem_id) in elements.iter().enumerate() {
+                    for (index, elem_id) in inline_elements.iter().enumerate() {
                         let (should_insert_space_inline, force_break) = separators[index];
 
                         // build a separator doc for fill

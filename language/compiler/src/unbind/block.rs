@@ -37,6 +37,7 @@ impl Compiler {
             })
             .collect();
         let ast_block = ast::Block {
+            context: ast::BlockContext::Expression,
             format: ast::BlockFormat::Explicit,
             expressions,
         };

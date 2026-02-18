@@ -1,5 +1,5 @@
 use crate::{ParseResult, Parser};
-use destack_ast::{Expression, Keyword, LocalNodeId, TokenType};
+use destack_ast::{BlockContext, Expression, Keyword, LocalNodeId, TokenType};
 
 impl Parser {
     /// Eat a try expression.
@@ -38,7 +38,7 @@ impl Parser {
         // try block
         if self.is_block_start() {
             // try block
-            let try_expression = self.eat_block()?;
+            let try_expression = self.eat_block(BlockContext::Expression)?;
             let try_expression = self.tree.insert(
                 Expression::Block(try_expression),
                 self.get_span_from(&start),
