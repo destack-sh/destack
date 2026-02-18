@@ -220,6 +220,16 @@ impl Compiler {
             );
         }
 
+        // report deferred associated comptime projection errors after inference convergence
+        self.report_deferred_associated_comptime_projection_errors(
+            &module,
+            profile,
+            &tree,
+            &symbols,
+            &mut types,
+            session.table_mut(),
+        );
+
         Ok(())
     }
 

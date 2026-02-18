@@ -3,7 +3,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalTypeId, VarianceBound};
+use crate::{
+    Expression, GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalNodeId, LocalTypeId,
+    VarianceBound,
+};
 
 /// Represent a single inference variable with bounds and defaults.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,6 +164,22 @@ pub struct InferTable {
     /// Mutation generation for this table.
     #[serde(default)]
     cache_generation: u64,
+    /// Deferred associated comptime projection checks.
+    #[serde(skip)]
+    pub deferred_associated_comptime_projections: Vec<DeferredAssociatedComptimeProjection>,
+}
+
+/// Deferred unresolved associated comptime projection check.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct DeferredAssociatedComptimeProjection {
+    /// The member expression being inferred.
+    pub expression_id: LocalNodeId<Expression>,
+    /// The projection receiver expression.
+    pub receiver_id: LocalNodeId<Expression>,
+    /// The resolved member symbol when available.
+    pub member_symbol: Option<GlobalSymbolId>,
+    /// The inferred member type id.
+    pub member_type_id: LocalTypeId,
 }
 
 impl Default for InferTable {
@@ -174,6 +193,7 @@ impl Default for InferTable {
             type_by_var_id: Vec::new(),
             cache_key_base: infer_table_cache_key_base_default(),
             cache_generation: 0,
+            deferred_associated_comptime_projections: Vec::new(),
         }
     }
 }
@@ -218,6 +238,22 @@ impl InferTable {
     /// Record a mutation that impacts cacheable inference state.
     fn bump_cache_generation(&mut self) {
         self.cache_generation = self.cache_generation.wrapping_add(1);
+    }
+
+    /// Record one deferred associated comptime projection check.
+    pub fn push_deferred_associated_comptime_projection(
+        &mut self,
+        projection: DeferredAssociatedComptimeProjection,
+    ) {
+        self.deferred_associated_comptime_projections
+            .push(projection);
+    }
+
+    /// Take deferred associated comptime projection checks.
+    pub fn take_deferred_associated_comptime_projections(
+        &mut self,
+    ) -> Vec<DeferredAssociatedComptimeProjection> {
+        std::mem::take(&mut self.deferred_associated_comptime_projections)
     }
 }
 

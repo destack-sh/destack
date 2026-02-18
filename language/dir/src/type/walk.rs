@@ -96,8 +96,9 @@ pub fn walk_type<V: TypeVisitor + ?Sized>(
             visitor.visit_type_id(types, *left);
             visitor.visit_type_id(types, *right);
         }
-        Type::ArraySized { element, .. } => {
+        Type::ArraySized { element, count, .. } => {
             visitor.visit_type_id(types, *element);
+            visitor.visit_type_id(types, *count);
         }
         Type::Array { element, .. } => {
             if let Some(element) = element.as_ref() {

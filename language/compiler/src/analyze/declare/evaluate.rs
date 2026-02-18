@@ -383,11 +383,6 @@ impl Compiler {
             }
         }
 
-        // synthetic count nodes do not exist in the syntax tree, so only cached type facts apply
-        if !tree.has_node_id(expression_id.id) {
-            return Ok(None);
-        }
-
         let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, tree);
         let value = self.evaluate_static_expression_value(
             module,
@@ -481,6 +476,29 @@ impl Compiler {
         };
         let literal_type_id = types.insert_type_from(literal_type, expression_id);
         types.set_inferred_type(expression_id.into_global_any(module_id), literal_type_id);
+    }
+
+    /// Resolve one array-size count type id for an expression.
+    fn array_sized_count_type_id_for_expression(
+        &self,
+        module_id: destack_source::ModuleId,
+        expression_id: LocalNodeId<Expression>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        if let Some(type_id) =
+            types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
+        {
+            return types.unwrap_value_type_id(type_id);
+        }
+
+        let unknown_type_id = types.insert_type_from(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            expression_id,
+        );
+        types.set_inferred_type(expression_id.into_global_any(module_id), unknown_type_id);
+        unknown_type_id
     }
 
     /// Resolve the inferred type for a static value parameter used as an array size.
@@ -3718,27 +3736,35 @@ impl Compiler {
                             });
                         }
                         self.set_integer_literal_type(module.id, index, value, types);
+                        let count_type_id =
+                            self.array_sized_count_type_id_for_expression(module.id, index, types);
                         Type::ArraySized {
                             element: left_id,
-                            count: index,
+                            count: count_type_id,
                             is_readonly: false,
                         }
                     } else if self.expression_is_array_size_candidate(
                         module, profile, index, tree, symbols, types,
                     )? {
-                        let _ = self.resolve_array_size_parameter_type(
-                            module,
-                            profile,
-                            index,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
+                        let count_type_id = self
+                            .resolve_array_size_parameter_type(
+                                module,
+                                profile,
+                                index,
+                                tree,
+                                symbols,
+                                types,
+                                validate_static_argument_bounds,
+                                enforce_implicit_managed,
+                            )?
+                            .unwrap_or_else(|| {
+                                self.array_sized_count_type_id_for_expression(
+                                    module.id, index, types,
+                                )
+                            });
                         Type::ArraySized {
                             element: left_id,
-                            count: index,
+                            count: count_type_id,
                             is_readonly: false,
                         }
                     } else {
@@ -4289,9 +4315,11 @@ impl Compiler {
                         });
                     }
                     self.set_integer_literal_type(module.id, right, value, types);
+                    let count_type_id =
+                        self.array_sized_count_type_id_for_expression(module.id, right, types);
                     Type::ArraySized {
                         element: left_id,
-                        count: right,
+                        count: count_type_id,
                         is_readonly: false,
                     }
                 }
@@ -4662,32 +4690,41 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Expression, LocalNodeId, LocalScopeMark, PrimitiveType, ScalarLiteral, StaticKey, Type,
-        TypeLiteral, TypeTable,
+        Expression, LocalScopeMark, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey,
+        SymbolTable, Type, TypeLiteral, TypeTable,
     };
-    use destack_source::{ModuleId, ProfileId};
+    use destack_source::ProfileId;
 
     use crate::TestProgram;
 
-    /// Resolve an inferred integer literal value for one fixed-array count node.
-    fn inferred_integer_count(
-        module_id: ModuleId,
-        count: LocalNodeId<Expression>,
+    /// Assert a fixed-array count resolves to either an integer literal or a named symbol.
+    fn assert_count_matches_integer_or_symbol_name(
+        count: LocalTypeId,
+        expected_integer: i64,
+        expected_symbol_name: StaticKey,
+        symbols: &SymbolTable,
         types: &TypeTable,
-    ) -> i64 {
-        let count_type_id = types
-            .get_inferred_type_id(count.into_global_any(module_id))
-            .expect("expected inferred count type");
-        let Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
-        } = types.get_type(count_type_id)
-        else {
-            panic!(
-                "expected integer literal count type, got {:?}",
-                types.get_type(count_type_id)
-            );
-        };
-        *value
+    ) {
+        let mut type_id = types.unwrap_value_type_id(count);
+        for _ in 0..16 {
+            match types.get_type(type_id) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
+                } => {
+                    assert_eq!(*value, expected_integer);
+                    return;
+                }
+                Type::Value { value } => type_id = *value,
+                Type::Reference { symbol, .. } => {
+                    let symbol_key = symbols.get_symbol(symbol.local_id).key;
+                    assert_eq!(symbol_key, Some(expected_symbol_name));
+                    return;
+                }
+                other => panic!("expected integer literal or reference count type, got {other:?}"),
+            }
+        }
+
+        panic!("expected integer literal or reference count type within unwrap steps")
     }
 
     #[test]
@@ -4985,7 +5022,13 @@ declare const segment: AuditStore.Segment;
             Type::ArraySized { count, .. } => *count,
             other => panic!("expected fixed-size alias target, got {other:?}"),
         };
-        assert_eq!(inferred_integer_count(module.id, alias_count, &types), 1024);
+        assert_count_matches_integer_or_symbol_name(
+            alias_count,
+            1024,
+            StaticKey::Name(test.program.strings.intern("SegmentBytes")),
+            &symbols,
+            &types,
+        );
 
         let segment_type_id = types
             .get_value_type_id(segment_symbol)
@@ -4995,6 +5038,12 @@ declare const segment: AuditStore.Segment;
             Type::ArraySized { count, .. } => *count,
             other => panic!("expected fixed-size segment projection, got {other:?}"),
         };
-        assert_eq!(inferred_integer_count(module.id, count, &types), 1024);
+        assert_count_matches_integer_or_symbol_name(
+            count,
+            1024,
+            StaticKey::Name(test.program.strings.intern("SegmentBytes")),
+            &symbols,
+            &types,
+        );
     }
 }

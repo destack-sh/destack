@@ -54,7 +54,7 @@ pub fn are_types_semantically_equal(source: &Type, target: &Type, types: &TypeTa
                 count: c2,
                 is_readonly: r2,
             },
-        ) => r1 == r2 && c1 == c2 && are_types_equal(*e1, *e2, types),
+        ) => r1 == r2 && are_types_equal(*e1, *e2, types) && are_types_equal(*c1, *c2, types),
 
         // tuples: same elements
         (

@@ -6,10 +6,10 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext}
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Argument, BindingAnchor, BindingModifier, Declaration, Expression, GlobalSymbolId, InferTable,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree, NodeType,
-    NormalizationMode, Parameter, StaticArgument, StaticKey, SymbolSpace, SymbolTable, SymbolType,
-    Type, TypeLiteral, TypeTable, Visibility,
+    Argument, BindingAnchor, BindingModifier, Declaration, DeferredAssociatedComptimeProjection,
+    Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member,
+    Mutability, NodeTree, NodeType, NormalizationMode, Parameter, StaticArgument, StaticKey,
+    SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, Visibility,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -758,7 +758,7 @@ impl Compiler {
             }
         };
 
-        let resolved_member_ty_id = {
+        let mut resolved_member_ty_id = {
             let mut cache = HashMap::new();
             self.substitute_this_type(resolved_member_ty_id, left_ty_id, types, &mut cache)
         };
@@ -772,17 +772,75 @@ impl Compiler {
             symbols,
             types,
         ) {
-            self.error(AnalyzeError::InvalidStaticArgument {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                message: "associated comptime projection must be resolvable".to_string(),
-            });
-            let error_ty_id = types.insert_type_from(Type::Error, expression_id);
-            return Ok(finish_result(error_ty_id, types));
+            infer.push_deferred_associated_comptime_projection(
+                DeferredAssociatedComptimeProjection {
+                    expression_id,
+                    receiver_id: left_id,
+                    member_symbol,
+                    member_type_id: resolved_member_ty_id,
+                },
+            );
+
+            // use a provisional declared member type to avoid cascading diagnostics
+            resolved_member_ty_id = self
+                .provisional_type_for_unresolved_associated_comptime_projection(
+                    module,
+                    ctx.profile,
+                    member_symbol,
+                    resolved_member_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                );
         }
 
         Ok(finish_result(resolved_member_ty_id, types))
+    }
+
+    /// Report deferred unresolved associated comptime projection errors after infer convergence.
+    pub(super) fn report_deferred_associated_comptime_projection_errors(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+    ) {
+        let deferred = infer.take_deferred_associated_comptime_projections();
+        let mut reported = HashSet::new();
+
+        for projection in deferred {
+            if !self.projection_is_unresolved_associated_comptime_value(
+                module,
+                profile,
+                projection.receiver_id,
+                projection.member_symbol,
+                projection.member_type_id,
+                tree,
+                symbols,
+                types,
+            ) {
+                continue;
+            }
+            if !reported.insert(projection.expression_id.id) {
+                continue;
+            }
+
+            self.error(AnalyzeError::InvalidStaticArgument {
+                node: projection
+                    .expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                message: "associated comptime projection must be resolvable".to_string(),
+            });
+
+            let error_type_id = types.insert_type_from(Type::Error, projection.expression_id);
+            types.set_inferred_type(
+                projection.expression_id.into_global_any(module.id),
+                error_type_id,
+            );
+        }
     }
 
     /// Return true when a static projection references an unresolved associated comptime value.
@@ -828,6 +886,82 @@ impl Compiler {
         )
     }
 
+    /// Return a provisional type for unresolved associated comptime projections.
+    fn provisional_type_for_unresolved_associated_comptime_projection(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        member_symbol: Option<GlobalSymbolId>,
+        member_type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let Some(member_symbol) = member_symbol else {
+            return member_type_id;
+        };
+
+        if let Some(declared_member_type_id) = self.declared_member_type_for_symbol(
+            module,
+            profile,
+            member_symbol,
+            tree,
+            symbols,
+            types,
+        ) {
+            let declared_member_type_id = types.unwrap_value_type_id(declared_member_type_id);
+            if !matches!(
+                types.get_type(declared_member_type_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                }
+            ) {
+                return declared_member_type_id;
+            }
+        }
+
+        let Some(declared_member_type_id) = types.get_value_type_id(member_symbol) else {
+            return member_type_id;
+        };
+        let declared_member_type_id = types.unwrap_value_type_id(declared_member_type_id);
+        if matches!(
+            types.get_type(declared_member_type_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            }
+        ) {
+            return member_type_id;
+        }
+
+        declared_member_type_id
+    }
+
+    /// Resolve one declared type for a member symbol when available.
+    fn declared_member_type_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        member_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let primary_declaration = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            member_symbol.module_id,
+            tree,
+            symbols,
+            |_, _, owner_symbols| {
+                owner_symbols
+                    .get_symbol(member_symbol.local_id)
+                    .primary_declaration
+            },
+        )?;
+
+        self.declared_type_for_node(module, profile, primary_declaration, member_symbol, types)
+    }
+
     /// Report invalid static arguments on a member access.
     fn error_invalid_member_static_arguments(
         &self,
@@ -854,16 +988,47 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> bool {
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
-        let receiver_expression = tree.get(receiver_id);
-        let has_static_arguments = receiver_expression
-            .static_arguments()
-            .is_some_and(|arguments| !arguments.is_empty());
-        if !has_static_arguments {
+        if !self.receiver_has_static_arguments(receiver_id, tree) {
             return false;
         }
 
-        let symbol = self
-            .direct_receiver_symbol_for_expression(module, receiver_id, profile, tree, symbols)
+        let symbol = self.projection_receiver_symbol_for_expression(
+            module,
+            profile,
+            receiver_id,
+            tree,
+            symbols,
+            types,
+        );
+        let Some(symbol) = symbol else {
+            return false;
+        };
+
+        self.symbol_supports_projection_receiver(module, profile, symbol, symbols)
+    }
+
+    /// Return true when a receiver expression has explicit static arguments.
+    fn receiver_has_static_arguments(
+        &self,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        tree.get(receiver_id)
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty())
+    }
+
+    /// Resolve a symbol candidate for associated projection receiver inference.
+    fn projection_receiver_symbol_for_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        self.direct_receiver_symbol_for_expression(module, receiver_id, profile, tree, symbols)
             .or_else(|| {
                 let receiver_type_id = self
                     .try_evaluate_expression_to_type(
@@ -878,10 +1043,17 @@ impl Compiler {
                     )
                     .ok()?;
                 self.type_like_receiver_symbol_for_type_id(receiver_type_id, types)
-            });
-        let Some(symbol) = symbol else {
-            return false;
-        };
+            })
+    }
+
+    /// Return true when a symbol can act as a projection receiver in infer.
+    fn symbol_supports_projection_receiver(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+    ) -> bool {
         let symbol = self.canonical_symbol_id(
             module,
             symbols,
@@ -1945,10 +2117,7 @@ impl Compiler {
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
         let nominal_symbol =
             self.nominal_value_symbol_for_expression(module, receiver_id, profile, tree, symbols);
-        let has_static_arguments = tree
-            .get(receiver_id)
-            .static_arguments()
-            .is_some_and(|arguments| !arguments.is_empty());
+        let has_static_arguments = self.receiver_has_static_arguments(receiver_id, tree);
         let lookup_mode = self.member_lookup_mode_for_receiver_type(nominal_symbol, receiver_ty);
 
         MemberReceiverContext {
