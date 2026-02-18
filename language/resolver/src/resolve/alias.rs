@@ -246,9 +246,7 @@ impl Resolver {
         ctx.is_fully_specified = false;
         match self.require(path, new_specifier.as_ref(), ctx) {
             Ok(resolved) => Ok(Some(resolved)),
-            Err(ResolveError::NotFound { .. } | ResolveError::MatchedAliasNotFound { .. }) => {
-                Ok(None)
-            }
+            Err(error) if error.is_alternative_candidate_miss() => Ok(None),
             Err(error) => Err(error),
         }
     }

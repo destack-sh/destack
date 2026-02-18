@@ -62,9 +62,13 @@ impl Resolver {
             let base_path = parsed.path();
             let fragment = ctx.fragment.take().unwrap();
             let candidate = format!("{base_path}{fragment}");
-            if let Ok(resolved) = self.require_specifier(path, &candidate, ctx) {
-                return Ok(resolved);
+
+            match self.require_specifier(path, &candidate, ctx) {
+                Ok(resolved) => return Ok(resolved),
+                Err(error) if error.is_alternative_candidate_miss() => {}
+                Err(error) => return Err(error),
             }
+
             ctx.fragment.replace(fragment);
         }
 
@@ -122,13 +126,19 @@ impl Resolver {
             _ => self.require_bare(path, specifier, ctx),
         };
 
-        result.or_else(|err| {
-            if err.is_ignore() {
-                return Err(err);
+        result.or_else(|error| {
+            // keep explicit ignore behavior
+            if error.is_ignore() {
+                return Err(error);
             }
-            // check fallback alias
+
+            // only try fallback aliases for alternative-candidate misses
+            if !error.is_alternative_candidate_miss() {
+                return Err(error);
+            }
+
             self.load_alias(path, specifier, &self.options.fallback, ctx)
-                .and_then(|value| value.ok_or(err))
+                .and_then(|value| value.ok_or(error))
         })
     }
 

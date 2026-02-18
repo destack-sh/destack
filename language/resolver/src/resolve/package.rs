@@ -1023,7 +1023,7 @@ impl Resolver {
                     conditions: self.options.conditions.clone(),
                 });
             }
-            for (i, target_value) in targets.iter().enumerate() {
+            for target_value in targets {
                 let resolved = self.package_target_resolve(
                     package_url,
                     target_key,
@@ -1033,10 +1033,17 @@ impl Resolver {
                     conditions,
                     ctx,
                 );
-                if let Ok(Some(path)) = resolved {
-                    return Ok(Some(path));
-                } else if resolved.is_err() && i == targets.len() {
-                    return resolved;
+
+                // accept the first concrete target
+                match resolved {
+                    Ok(Some(path)) => return Ok(Some(path)),
+                    Ok(None) => continue,
+                    // continue through fallback candidates on expected resolution failures
+                    Err(error) if error.is_alternative_candidate_miss() => {
+                        continue;
+                    }
+                    // surface non-fallback errors immediately
+                    Err(error) => return Err(error),
                 }
             }
         }

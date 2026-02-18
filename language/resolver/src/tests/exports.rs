@@ -2425,3 +2425,32 @@ fn test_resolve_exports_field_cases() {
         }
     }
 }
+
+/// Stop exports array fallback when the target mapping shape is invalid.
+#[test]
+fn test_resolve_exports_field_array_stops_on_invalid_mapping_shape() {
+    let resolver = Resolver::blank(
+        Arc::new(MemoryFileSystem::default()),
+        ResolveOptions::default(),
+    );
+    let exports = json!({
+        "./a/": [
+            "./bad",
+            "./ok/"
+        ]
+    });
+
+    let resolved_path = resolver.package_exports_resolve(
+        Path::new(""),
+        "./a/file.js",
+        &exports,
+        &mut crate::ResolveContext::default(),
+    );
+
+    assert_eq!(
+        resolved_path,
+        Err(ResolveError::InvalidPackageConfigDirectory {
+            path: Path::new("package.json").to_path_buf()
+        })
+    );
+}

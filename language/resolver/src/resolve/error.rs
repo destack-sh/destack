@@ -225,6 +225,18 @@ impl ResolveError {
             }
         }
     }
+
+    /// Return true when this error means one candidate missed and resolution can try the next.
+    pub const fn is_alternative_candidate_miss(&self) -> bool {
+        matches!(
+            self,
+            Self::InvalidPackageTarget { .. }
+                | Self::NotFound { .. }
+                | Self::MatchedAliasNotFound { .. }
+                | Self::PackagePathNotExported { .. }
+                | Self::PackageImportNotDefined { .. }
+        )
+    }
 }
 
 impl std::fmt::Display for ResolveError {
