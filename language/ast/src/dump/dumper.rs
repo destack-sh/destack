@@ -1786,12 +1786,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_comment(&mut self, _tree: &NodeTree, _id: LocalNodeId<Comment>, comment: &Comment) {
-        let string = comment
-            .string
-            .map(|string_id| truncate_string(self.strings.get(string_id), 40, "..."))
-            .unwrap_or_else(|| "<lazy>".into());
         self.node("Comment", _id.id)
-            .field("string", &string.as_ref())
             .field("style", &comment.style)
             .end();
         self.with_depth(|dumper| {

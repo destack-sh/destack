@@ -442,11 +442,9 @@ pub(super) fn format_primary_expression<'ast>(
                 if has_annotations {
                     let has_line_comment_annotations =
                         elements_ids.iter().copied().any(|element_id| {
-                            argument_has_line_comment_annotation(f.context(), element_id)
-                                || argument_has_prefix_line_comment_annotation(
-                                    f.context(),
-                                    element_id,
-                                )
+                            let annotation_profile =
+                                f.context().argument_annotation_profile(element_id);
+                            annotation_profile.has_line_comment
                         });
 
                     can_keep_inline_boundary_comment_array = elements_are_inline_in_source
