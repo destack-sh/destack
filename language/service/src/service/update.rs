@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
-use destack_source::{FileWatchEvent, FileWatchEventKind};
+use destack_source::{FileType, FileWatchEvent, FileWatchEventKind};
 use destack_workspace::FileUpdate;
 
 use super::workspace::{
@@ -126,8 +126,8 @@ impl LanguageService {
                 }
 
                 if self.is_watchable_path(&event.path) {
-                    match self.session.fs.read_to_string(&event.path) {
-                        Ok(content) => match self.update_virtual_file(&event.path, content) {
+                    match self.watch_update_for_path(&event.path) {
+                        Ok(update) => match self.apply_virtual_update(&event.path, update) {
                             Ok(update_result) => {
                                 result.updates.extend(update_result.updates);
                                 result.messages.extend(update_result.messages);
@@ -156,8 +156,8 @@ impl LanguageService {
             }
 
             // apply file content updates from disk
-            match self.session.fs.read_to_string(&event.path) {
-                Ok(content) => match self.update_virtual_file(&event.path, content) {
+            match self.watch_update_for_path(&event.path) {
+                Ok(update) => match self.apply_virtual_update(&event.path, update) {
                     Ok(update_result) => {
                         result.updates.extend(update_result.updates);
                         result.messages.extend(update_result.messages);
@@ -182,6 +182,19 @@ impl LanguageService {
         }
 
         Ok(result)
+    }
+
+    /// Read one watch path into a file update payload.
+    fn watch_update_for_path(&self, path: &Path) -> std::io::Result<FileUpdate> {
+        // read binary file types as bytes to avoid utf8 decode failures
+        if FileType::from_path(path).is_some_and(|file_type| file_type.is_binary()) {
+            let content = self.session.fs.read(path)?;
+            return Ok(FileUpdate::Bytes { content });
+        }
+
+        // read all other watchable files as text
+        let content = self.session.fs.read_to_string(path)?;
+        Ok(FileUpdate::Text { content })
     }
 
     /// Request a rescan for every workspace handle.

@@ -219,6 +219,7 @@ impl LanguageService {
         file_type.is_code()
             || file_type.is_data()
             || file_type.is_text()
+            || file_type.is_binary()
             || self.is_config_filename(path)
     }
 
