@@ -1,6 +1,6 @@
 use destack_ast::{
-    Block, BlockFormat, Declaration, Expression, FunctionKind, Keyword, LetKind, LocalNodeId,
-    NodeType, TokenType, YieldCardinality,
+    Block, BlockContext, BlockFormat, Declaration, Expression, FunctionKind, Keyword, LetKind,
+    LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
 
 use crate::parse::prelude::*;
@@ -122,6 +122,7 @@ impl Parser {
             self.bump(); // eat semicolon
             let block_id = self.tree.insert(
                 Block {
+                    context: BlockContext::Statement,
                     format: BlockFormat::Implicit,
                     expressions: Vec::new(),
                 },
@@ -216,7 +217,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // block statements stay in the statement lane
         if token_type == TokenType::OpenBrace {
-            let block_id = self.eat_block()?;
+            let block_id = self.eat_block(BlockContext::Expression)?;
             let expression_id = self
                 .tree
                 .insert(Expression::Block(block_id), self.get_span_from(start));
@@ -278,7 +279,7 @@ impl Parser {
 
         // if it's a block, just eat it
         if self.is_block_start() {
-            return self.eat_block();
+            return self.eat_block(BlockContext::Statement);
         }
 
         let start = self.mark_span();
@@ -288,6 +289,7 @@ impl Parser {
             self.bump();
             let block_id = self.tree.insert(
                 Block {
+                    context: BlockContext::Statement,
                     format: BlockFormat::Implicit,
                     expressions: vec![],
                 },
@@ -315,6 +317,7 @@ impl Parser {
         // wrap in a block
         let block_id = self.tree.insert(
             Block {
+                context: BlockContext::Statement,
                 format: BlockFormat::Implicit,
                 expressions: vec![expression_id],
             },
@@ -373,7 +376,7 @@ impl Parser {
     /// ```
     /// { ... }
     /// block: { ... }
-    pub fn eat_block(&mut self) -> ParseResult<LocalNodeId<Block>> {
+    pub fn eat_block(&mut self, block_context: BlockContext) -> ParseResult<LocalNodeId<Block>> {
         let start = self.mark_span();
 
         // `do` prefix
@@ -385,13 +388,14 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Block)?;
         let expressions = self
-            .eat_block_body(BlockFormat::Explicit)
+            .eat_block_body_with_context(BlockFormat::Explicit, block_context)
             .for_node_type(NodeType::Block)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // block
         let block_id = self.tree.insert(
             Block {
+                context: block_context,
                 format: BlockFormat::Explicit,
                 expressions,
             },
@@ -407,19 +411,33 @@ impl Parser {
         &mut self,
         format: BlockFormat,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        let block_context = if format == BlockFormat::Explicit {
+            BlockContext::Expression
+        } else {
+            BlockContext::Statement
+        };
+        self.eat_block_body_with_context(format, block_context)
+    }
+
+    /// Eat a block body with an explicit block context.
+    pub fn eat_block_body_with_context(
+        &mut self,
+        format: BlockFormat,
+        block_context: BlockContext,
+    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
 
         // keep statement options for the whole body to avoid per statement option churn
         let statement_options = self.options.nested().in_statement_position();
         if self.options == statement_options {
-            return self.eat_block_body_in_statement_position(format);
+            return self.eat_block_body_in_statement_position(format, block_context);
         }
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
             speculation_stats.with_options_calls += 1;
         }
         let old_options = self.swap_options(statement_options);
-        let result = self.eat_block_body_in_statement_position(format);
+        let result = self.eat_block_body_in_statement_position(format, block_context);
         self.restore_options(old_options);
         result
     }
@@ -428,6 +446,7 @@ impl Parser {
     fn eat_block_body_in_statement_position(
         &mut self,
         format: BlockFormat,
+        block_context: BlockContext,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         // parse all statement items and keep at most one tail expression
         let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
@@ -485,8 +504,11 @@ impl Parser {
 
         // finalize the remaining tail expression
         if let Some(expression_id) = pending_tail_expression {
-            // explicit blocks in destack preserve value tails for implicit returns
-            if format == BlockFormat::Explicit && self.language.is_destack() {
+            // explicit blocks in destack preserve expression tails for implicit returns
+            if format == BlockFormat::Explicit
+                && self.language.is_destack()
+                && block_context == BlockContext::Expression
+            {
                 statements.push(expression_id);
             } else {
                 self.push_block_body_non_tail_expression(&mut statements, expression_id);
@@ -920,8 +942,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        CommentStyle, Declaration, Expression, IfKind, LetKind, ScalarLiteral, TokenType,
-        TypeBinaryOperator, YieldCardinality,
+        BlockContext, CommentStyle, Declaration, Expression, IfKind, LetKind, ScalarLiteral,
+        TokenType, TypeBinaryOperator, YieldCardinality,
     };
     use destack_source::LanguageType;
 
@@ -931,7 +953,7 @@ mod tests {
     fn test_parse_empty_block() {
         let mut test = TestParser::new("{}");
         let mut parser = test.prepare();
-        let block_id = parser.eat_block().unwrap();
+        let block_id = parser.eat_block(BlockContext::Expression).unwrap();
         let block = parser.tree.get(block_id);
         assert!(block.expressions.is_empty());
     }
@@ -1386,7 +1408,7 @@ mod tests {
             LanguageType::TypeScript,
         );
         let mut parser = test.prepare();
-        let block_id = parser.eat_block().unwrap();
+        let block_id = parser.eat_block(BlockContext::Expression).unwrap();
         let block = parser.tree.get(block_id);
         assert_eq!(block.expressions.len(), 2);
 
@@ -1432,7 +1454,7 @@ mod tests {
     fn test_parse_block_statement_before_close_brace_without_semicolon_javascript() {
         let mut test = TestParser::new_with_options("{ process.exit(1)}", LanguageType::JavaScript);
         let mut parser = test.prepare();
-        let block_id = parser.eat_block().unwrap();
+        let block_id = parser.eat_block(BlockContext::Expression).unwrap();
         let block = parser.tree.get(block_id);
 
         // block should contain one statement expression
@@ -1528,7 +1550,7 @@ mod tests {
             LanguageType::JavaScript,
         );
         let mut parser = test.prepare();
-        let block_id = parser.eat_block().unwrap();
+        let block_id = parser.eat_block(BlockContext::Expression).unwrap();
         let block = parser.tree.get(block_id);
 
         // block should contain one statement expression

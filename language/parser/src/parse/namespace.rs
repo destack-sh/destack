@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BlockFormat, Declaration, DeclarationDescriptor, DeclarationKind, Expression, Generics,
-    Keyword, LocalNodeId, Name, NamespaceKind, NodeType, TokenType,
+    BlockContext, BlockFormat, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
+    Generics, Keyword, LocalNodeId, Name, NamespaceKind, NodeType, TokenType,
 };
 
 impl Parser {
@@ -18,7 +18,7 @@ impl Parser {
 
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
-            .eat_block_body(BlockFormat::Explicit)
+            .eat_block_body_with_context(BlockFormat::Explicit, BlockContext::Statement)
             .for_node_type(NodeType::Block)?;
         self.eat_token(TokenType::CloseBrace)
             .for_node_type(NodeType::Declaration)?;
@@ -81,7 +81,7 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
             let expressions_result = self.with_options(body_options, |parser| {
-                parser.eat_block_body(BlockFormat::Explicit)
+                parser.eat_block_body_with_context(BlockFormat::Explicit, BlockContext::Statement)
             })?;
             let expressions = expressions_result;
             self.eat_token(TokenType::CloseBrace)

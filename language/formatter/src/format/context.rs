@@ -1385,11 +1385,29 @@ fn resolve_formatter_comment_trivia_attachment(
     let token_before_is_less_than = facts.token_before_is(TokenType::LessThan);
     let token_before_is_open_parenthesis = facts.token_before_is(TokenType::OpenParenthesis);
     let token_before_is_open_brace = facts.token_before_is(TokenType::OpenBrace);
+    let token_before_is_close_brace = facts.token_before_is(TokenType::CloseBrace);
     let token_before_is_semicolon = facts.token_before_is(TokenType::Semicolon);
     let token_before_is_assign = facts.token_before_is(TokenType::Assign);
     let token_before_is_spread = facts.token_before_is(TokenType::Spread);
     let token_before_is_control_head_close_paren = facts.token_before_is_control_head_close_paren;
     let token_before_is_return_type_colon = facts.token_before_is_return_type_colon;
+
+    // trailing line comments after JSX child expression containers should stay on the child
+    if comment_is_line
+        && !has_leading_newline
+        && token_before_is_close_brace
+        && token_after_is_less_than
+        && let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner)
+        && tree.get_node_type(left_owner) == NodeType::Argument
+        && tree.get_node_type(right_owner) == NodeType::Expression
+        && matches!(
+            tree.get(LocalNodeId::<Expression>::new(right_owner)),
+            Expression::TreeExpression { .. }
+        )
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, left_owner);
+        return (Some(target_node), AnnotationPosition::LinePostfixBoundary);
+    }
 
     // same-line comments after no-semi guards should stay on the guarded expression
     if token_before_is_semicolon

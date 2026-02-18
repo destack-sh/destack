@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, MatchSelector,
-    NodeType, Pattern, TokenType,
+    Block, BlockContext, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind,
+    MatchSelector, NodeType, Pattern, TokenType,
 };
 
 impl Parser {
@@ -232,6 +232,7 @@ impl Parser {
                 self.eat_newlines_maybe()?;
                 let block_id = self.tree.insert(
                     Block {
+                        context: BlockContext::Statement,
                         format: BlockFormat::Implicit,
                         expressions: Vec::new(),
                     },
@@ -318,6 +319,7 @@ impl Parser {
             else {
                 let block_id = self.tree.insert(
                     Block {
+                        context: BlockContext::Statement,
                         format: BlockFormat::Implicit,
                         expressions,
                     },
@@ -341,7 +343,7 @@ impl Parser {
         }
         // block body
         else if self.is_block_start() {
-            let block_id = self.eat_block()?;
+            let block_id = self.eat_block(BlockContext::Expression)?;
             let match_case_id = self.tree.insert(
                 MatchCase::Block {
                     selector,
@@ -573,7 +575,7 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -588,7 +590,7 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -611,7 +613,7 @@ switch (left.type) {
             // case default (block)
             assert_node!(parser.tree, cases[3], MatchCase::Block { selector: MatchSelector::Default, body } => {
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -635,7 +637,7 @@ switch(a) { case 1: {}
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
-                assert_node!(parser.tree, *body, Block { format: _, expressions } => {
+                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
                     assert_eq!(expressions.len(), 2);
                     assert_node!(parser.tree, expressions[0], Expression::Block(_));
                     assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));

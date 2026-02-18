@@ -1,5 +1,5 @@
 use destack_ast::{
-    Annotation, AnnotationPosition, Argument, BinaryOperator, BlockFormat, Comment,
+    Annotation, AnnotationPosition, Argument, BinaryOperator, BlockContext, BlockFormat, Comment,
     CommentDirective, CommentStyle, Declaration, Decorator, Doc, DocStyle, Expression, LocalNodeId,
     TriviaRef,
 };
@@ -21,7 +21,7 @@ fn parse_block_source(
     let mut test = TestParser::new_with_options(source, language);
     let mut parser = test.prepare();
     let block_id = parser
-        .eat_block()
+        .eat_block(BlockContext::Expression)
         .expect("expected block expression in test source");
     parser.attach_trivia();
     (parser, block_id)

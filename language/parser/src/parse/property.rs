@@ -1,10 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property, Timing, TokenType,
-    Visibility,
+    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, BindingOperator, BlockContext,
+    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Property,
+    Timing, TokenType, Visibility,
 };
 use destack_source::NodeSpanType;
 
@@ -666,12 +666,12 @@ impl Parser {
             && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
-            let body = self.eat_expression(
-                self.options
-                    .not_in_position()
-                    .in_statement_position()
-                    .not_in_decorator(),
-            )?;
+            let body_start = self.mark_span();
+            let body_block = self.eat_block(BlockContext::Statement)?;
+            let body = self.tree.insert(
+                Expression::Block(body_block),
+                self.get_span_from(&body_start),
+            );
             // preserve modifiers for validation (static blocks shouldn't have other modifiers)
             let member = Member::StaticBlock { modifiers, body };
             return Ok(self.tree.insert(member, self.get_span_from(&start)));
@@ -720,12 +720,12 @@ impl Parser {
             && self.is_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
         {
             self.eat_newlines_maybe()?;
-            let body = self.eat_expression(
-                self.options
-                    .not_in_position()
-                    .in_statement_position()
-                    .not_in_decorator(),
-            )?;
+            let body_start = self.mark_span();
+            let body_block = self.eat_block(BlockContext::Statement)?;
+            let body = self.tree.insert(
+                Expression::Block(body_block),
+                self.get_span_from(&body_start),
+            );
             let member = Member::ComptimeBlock { modifiers, body };
             return Ok(self.tree.insert(member, self.get_span_from(&start)));
         }

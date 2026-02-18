@@ -1,8 +1,8 @@
 //! Parse loops, for, while, etc.
 
 use destack_ast::{
-    Asynchrony, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, Keyword,
-    LocalNodeId, Pattern, TokenType, WhileKind,
+    Asynchrony, BlockContext, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind,
+    Keyword, LocalNodeId, Pattern, TokenType, WhileKind,
 };
 
 use crate::{ParseError, ParseResult, Parser};
@@ -26,7 +26,7 @@ impl Parser {
         self.eat_keyword(Keyword::Loop)?;
 
         // body
-        let body_id = self.eat_block()?;
+        let body_id = self.eat_block(BlockContext::Statement)?;
 
         // loop
         let loop_id = self.tree.insert(

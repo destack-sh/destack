@@ -1,9 +1,4 @@
 destack_test::formatter::roundtrip::formatter-0002
-destack_test::formatter::smoke::tsx-idempotent-arguments
-destack_test::formatter::transform::transform/comments/comments.md/formatter-directives/biome-ignore-format-keeps-the-next-statement
-destack_test::formatter::transform::transform/comments/comments.md/formatter-directives/format-ignore-keeps-the-next-statement
-destack_test::formatter::transform::transform/comments/comments.md/formatter-directives/format-ignore-range-keeps-multiple-statements
-destack_test::formatter::transform::transform/comments/comments.md/formatter-directives/prettier-ignore-range-keeps-multiple-statements
 destack_test::formatter::transform::transform/comments/ownership.md/tsx-ternary-branches/tsx-ternary-branch-comments
 destack_test::formatter::transform::transform/comments/ownership.md/type-boundaries/union-arm-doc-block-comment
 destack_test::formatter::transform::transform/declarations/annotations.md/mapped-type-conformance-permutations/mapped-type-remap-with-comment-boundaries
@@ -62,16 +57,7 @@ destack_test::formatter::transform::transform/expressions/comments.md/comments-c
 destack_test::formatter::transform::transform/expressions/comments.md/comments-in-logical-operators/comment-between-logical-and-operands
 destack_test::formatter::transform::transform/expressions/comments.md/comments-in-logical-operators/comment-in-nullish-coalescing
 destack_test::formatter::transform::transform/expressions/comments.md/comments-in-logical-operators/comments-in-multiline-logical-chain
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/biome-ignore-preserves-statement-formatting
 destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/block-ignore-preserves-expression-formatting
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/deno-fmt-ignore-preserves-statement-formatting
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/fmt-ignore-range-preserves-statement-formatting
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-preserves-statement-formatting
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-range-preserves-array-elements
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-range-preserves-call-arguments
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-range-preserves-class-members
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-range-preserves-object-members
-destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/format-ignore-range-preserves-statement-formatting
 destack_test::formatter::transform::transform/expressions/comments.md/format-ignore-comments/prettier-ignore-preserves-class-member-formatting
 destack_test::formatter::transform::transform/expressions/complex.md/advanced-destructuring/array-destructuring-with-nested-objects
 destack_test::formatter::transform::transform/expressions/complex.md/advanced-destructuring/deeply-nested-object-destructuring
@@ -164,7 +150,6 @@ destack_test::formatter::transform::transform/tsx/children.md/text-and-expressio
 destack_test::formatter::transform::transform/tsx/children.md/text-and-expressions/text-with-inline-elements-breaks-into-lines
 destack_test::formatter::transform::transform/tsx/comment-boundaries.md/child-containers/comment-as-only-child
 destack_test::formatter::transform::transform/tsx/comment-boundaries.md/inline-expressions/logical-expression-with-trailing-comment
-destack_test::formatter::transform::transform/tsx/comment-boundaries.md/inline-expressions/map-callback-with-inline-comment
 destack_test::formatter::transform::transform/tsx/comment-boundaries.md/ternaries/ternary-alternate-trailing-line-comment
 destack_test::formatter::transform::transform/tsx/comment-boundaries.md/ternaries/ternary-branch-block-comments
 destack_test::formatter::transform::transform/tsx/comments.md/arrow-expressions/ternary-with-trailing-comment

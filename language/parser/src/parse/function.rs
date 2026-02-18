@@ -2,9 +2,10 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor, DependencyMode,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, Keyword, LocalNodeId, NodeType, Parameter, TokenType,
+    Asynchrony, BlockContext, Declaration, DeclarationAbstraction, DeclarationDescriptor,
+    DependencyMode, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind,
+    FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, NodeType, Parameter,
+    TokenType,
 };
 use destack_source::{NodeSpanType, Span};
 
@@ -49,9 +50,10 @@ impl Parser {
     fn eat_block_with_options(
         &mut self,
         options: ParserOptions,
+        block_context: BlockContext,
     ) -> ParseResult<LocalNodeId<destack_ast::Block>> {
         if self.options == options {
-            return self.eat_block();
+            return self.eat_block(block_context);
         }
 
         if let Some(speculation_stats) = self.speculation_stats.as_mut() {
@@ -59,7 +61,7 @@ impl Parser {
         }
 
         let old_options = self.swap_options(options);
-        let result = self.eat_block();
+        let result = self.eat_block(block_context);
         self.restore_options(old_options);
         result
     }
@@ -110,7 +112,7 @@ impl Parser {
                 .in_before_block()
                 .not_in_decorator();
             options.set_allow_sequence_expression(true);
-            let block_id = self.eat_block_with_options(options)?;
+            let block_id = self.eat_block_with_options(options, BlockContext::Expression)?;
             let body = self
                 .tree
                 .insert(Expression::Block(block_id), self.get_span_from(body_start));
@@ -995,7 +997,7 @@ impl Parser {
                 options.set_allow_sequence_expression(true);
                 options.set_forbid_await(options.is_forbid_await() && !is_async);
                 let body_start = self.mark_span();
-                let block_id = self.eat_block_with_options(options)?;
+                let block_id = self.eat_block_with_options(options, BlockContext::Expression)?;
                 let body = self
                     .tree
                     .insert(Expression::Block(block_id), self.get_span_from(&body_start));
@@ -1019,7 +1021,8 @@ impl Parser {
                     // block bodies are delimited, so sequence expressions stay local
                     options.set_allow_sequence_expression(true);
                     options.set_forbid_await(options.is_forbid_await() && !is_async);
-                    let block_id = self.eat_block_with_options(options)?;
+                    let block_id =
+                        self.eat_block_with_options(options, BlockContext::Expression)?;
                     self.tree
                         .insert(Expression::Block(block_id), self.get_span_from(&body_start))
                 } else {

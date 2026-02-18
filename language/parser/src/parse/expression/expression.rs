@@ -4,8 +4,8 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BinaryOperator, Block, BlockFormat, Declaration, DeclarationDescriptor, Expression, Keyword,
-    LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
+    BinaryOperator, Block, BlockContext, BlockFormat, Declaration, DeclarationDescriptor,
+    Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeUnaryOperator, UnaryOperator,
 };
 
 use super::super::annotation::PendingDecorators;
@@ -640,6 +640,7 @@ impl Parser {
                     self.bump(); // eat semicolon
                     let block_id = self.tree.insert(
                         Block {
+                            context: BlockContext::Statement,
                             format: BlockFormat::Implicit,
                             expressions: Vec::new(),
                         },
@@ -937,7 +938,7 @@ impl Parser {
                             if self.is_do_while_statement(next_token_type) {
                                 primary_expression_id = Some(self.eat_while()?);
                             } else if next_token_type == TokenType::OpenBrace {
-                                let block_id = self.eat_block()?;
+                                let block_id = self.eat_block(BlockContext::Expression)?;
                                 primary_expression_id = Some(self.tree.insert(
                                     Expression::Block(block_id),
                                     self.get_span_from(&start),
@@ -1240,7 +1241,7 @@ impl Parser {
                     }
                     // block
                     else if self.is_block_start() {
-                        let block_id = self.eat_block()?;
+                        let block_id = self.eat_block(BlockContext::Expression)?;
                         self.tree
                             .insert(Expression::Block(block_id), self.get_span_from(&start))
                     }
