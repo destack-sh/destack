@@ -31,15 +31,15 @@ However, Destack is optimized for incremental adoption, and you are free to pick
 
 - [**Destack Language**](language/README.md): TypeScript++ toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Standard library packages for most things most software needs, written in TS++.
-- [**Destack Platform**](platform/README.md): CLI, daemon, LSP, editor integrations, everything to run, deploy, and integrate software.
+- [**Destack Platform**](platform/README.md): CLI, daemon, LSP, IDE integrations, everything to run, deploy, and integrate software.
 
 ### Higher-Order Programming
 
-We're very early in the history of programming, even over 50 years .
+We're very early in the history of programming: 50 years in, it _still_ takes years to build a database.
 We have a lot of software, and there is about to be much, much more.
-At the same time, probabilistic software promises amazing features with built-in bugs.
+At the same time, probabilistic software promises new amazing features with built-in bugs.
 
-Computers are miraciously fast, but software is buggy, slow, and deceptively difficult to build right.
+Computers are miraciously fast, yet software is buggy, slow, and deceptively difficult to build right.
 Destack is an integrated system for describing the shape of software:
 the more we can express in one unified software system, the more software systems we can build.
 
