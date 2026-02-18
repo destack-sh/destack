@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::os::unix::io::RawFd;
+use std::sync::Arc;
 
 use libc::{c_int, c_short, poll, pollfd};
 
@@ -10,7 +11,7 @@ use crate::platform::diagnostic::{
 use crate::platform::poller::{
     PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
     PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PollerToken,
+    PlatformPollerWakeHandle, PollerToken,
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 
@@ -23,6 +24,8 @@ pub struct UnixPoller {
     wake_read: RawFd,
     /// Write end of the wake pipe.
     wake_write: RawFd,
+    /// Shared wake handle used by out-of-band wakeups.
+    wake_handle: Arc<UnixPollWakeHandle>,
     /// Pollfd buffer reused across polls.
     pollfds: Vec<pollfd>,
     /// Entry buffer reused across polls.
@@ -42,6 +45,19 @@ struct PollRegistration {
     flags: PlatformPollerFlags,
 }
 
+/// Shared wake handle for one unix poll poller.
+#[derive(Debug)]
+struct UnixPollWakeHandle {
+    /// Write end of the wake pipe.
+    wake_write: RawFd,
+}
+
+impl PlatformPollerWakeHandle for UnixPollWakeHandle {
+    fn wake(&self) -> RuntimeResult<()> {
+        wake_pipe(self.wake_write)
+    }
+}
+
 impl UnixPoller {
     /// Create a new Unix poller instance.
     pub fn new() -> RuntimeResult<Self> {
@@ -53,6 +69,7 @@ impl UnixPoller {
             registrations: HashMap::new(),
             wake_read,
             wake_write,
+            wake_handle: Arc::new(UnixPollWakeHandle { wake_write }),
             pollfds: Vec::new(),
             entries: Vec::new(),
         })
@@ -155,18 +172,12 @@ impl PlatformPoller for UnixPoller {
         Ok(())
     }
 
-    fn wake(&mut self) -> RuntimeResult<()> {
-        // write a byte to the wake pipe
-        let byte = [1u8];
-        let result = unsafe { libc::write(self.wake_write, byte.as_ptr() as *const _, byte.len()) };
-        if result < 0 {
-            let errno = core_platform::get_errno();
-            if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
-                return Err(io_error("poller.wake", None));
-            }
-        }
+    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+        Some(self.wake_handle.clone())
+    }
 
-        Ok(())
+    fn wake(&mut self) -> RuntimeResult<()> {
+        self.wake_handle.wake()
     }
 
     fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
@@ -263,6 +274,20 @@ impl PlatformPoller for UnixPoller {
 
         Ok(events)
     }
+}
+
+/// Write one wake byte into one wake pipe.
+fn wake_pipe(wake_write: RawFd) -> RuntimeResult<()> {
+    let byte = [1u8];
+    let result = unsafe { libc::write(wake_write, byte.as_ptr() as *const _, byte.len()) };
+    if result < 0 {
+        let errno = core_platform::get_errno();
+        if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
+            return Err(io_error("poller.wake", Some(wake_write)));
+        }
+    }
+
+    Ok(())
 }
 
 /// Convert interests and flags into poll events.

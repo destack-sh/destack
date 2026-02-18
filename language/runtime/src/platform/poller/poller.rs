@@ -1,6 +1,7 @@
 use super::PlatformEvent;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ResourceId;
+use std::sync::Arc;
 
 /// Opaque token used by the poller for event routing.
 #[repr(transparent)]
@@ -143,6 +144,12 @@ impl std::ops::BitOrAssign for PlatformPollerFlags {
     }
 }
 
+/// Shared wake handle for out-of-band poller wakeups.
+pub trait PlatformPollerWakeHandle: Send + Sync {
+    /// Wake the poller if it is blocked.
+    fn wake(&self) -> RuntimeResult<()>;
+}
+
 /// Platform poller interface for OS-level events.
 pub trait PlatformPoller: Send {
     /// Register a resource handle with the poller.
@@ -166,6 +173,11 @@ pub trait PlatformPoller: Send {
 
     /// Remove a resource from the poller.
     fn deregister(&mut self, resource_id: ResourceId) -> RuntimeResult<()>;
+
+    /// Return one shared wake handle for out-of-band wakeups.
+    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+        None
+    }
 
     /// Wake the poller if it is blocked.
     fn wake(&mut self) -> RuntimeResult<()>;

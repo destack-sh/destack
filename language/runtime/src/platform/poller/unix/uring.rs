@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::os::unix::io::RawFd;
+use std::sync::Arc;
 
 use io_uring::{IoUring, opcode, types};
 
@@ -10,7 +11,7 @@ use crate::platform::diagnostic::{
 use crate::platform::poller::{
     PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
     PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PollerToken,
+    PlatformPollerWakeHandle, PollerToken,
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 
@@ -31,6 +32,8 @@ pub struct IoUringPoller {
     tokens: HashMap<PollerToken, ResourceId>,
     /// Wake eventfd descriptor.
     wake_fd: RawFd,
+    /// Shared wake handle used by out-of-band wakeups.
+    wake_handle: Arc<IoUringWakeHandle>,
     /// Whether the wake entry is currently in flight.
     wake_pending: bool,
     /// Timeout timespec storage for in-flight requests.
@@ -66,6 +69,19 @@ struct PollRegistration {
     pending: bool,
 }
 
+/// Shared wake handle for one io_uring poller.
+#[derive(Debug)]
+struct IoUringWakeHandle {
+    /// Wake eventfd descriptor.
+    wake_fd: RawFd,
+}
+
+impl PlatformPollerWakeHandle for IoUringWakeHandle {
+    fn wake(&self) -> RuntimeResult<()> {
+        wake_eventfd(self.wake_fd)
+    }
+}
+
 impl IoUringPoller {
     /// Create a new io_uring poller instance.
     pub fn new() -> RuntimeResult<Self> {
@@ -93,6 +109,7 @@ impl IoUringPoller {
             registrations: HashMap::new(),
             tokens: HashMap::new(),
             wake_fd,
+            wake_handle: Arc::new(IoUringWakeHandle { wake_fd }),
             wake_pending: false,
             timeout_spec: types::Timespec::new(),
             timeout_pending: false,
@@ -369,23 +386,12 @@ impl PlatformPoller for IoUringPoller {
         Ok(())
     }
 
-    fn wake(&mut self) -> RuntimeResult<()> {
-        let value: u64 = 1;
-        let result = unsafe {
-            libc::write(
-                self.wake_fd,
-                &value as *const u64 as *const _,
-                std::mem::size_of::<u64>(),
-            )
-        };
-        if result < 0 {
-            let errno = core_platform::get_errno();
-            if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
-                return Err(io_error("poller.wake", None));
-            }
-        }
+    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+        Some(self.wake_handle.clone())
+    }
 
-        Ok(())
+    fn wake(&mut self) -> RuntimeResult<()> {
+        self.wake_handle.wake()
     }
 
     fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
@@ -488,6 +494,26 @@ impl PlatformPoller for IoUringPoller {
 
         Ok(output)
     }
+}
+
+/// Write one wake value into one eventfd.
+fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
+    let value: u64 = 1;
+    let result = unsafe {
+        libc::write(
+            fd,
+            &value as *const u64 as *const _,
+            std::mem::size_of::<u64>(),
+        )
+    };
+    if result < 0 {
+        let errno = core_platform::get_errno();
+        if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
+            return Err(io_error("poller.wake", Some(fd)));
+        }
+    }
+
+    Ok(())
 }
 
 fn poll_mask_for_interest(interests: PlatformInterest, flags: PlatformPollerFlags) -> u32 {

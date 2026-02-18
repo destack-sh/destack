@@ -19,6 +19,23 @@ use crate::platform::thread::{core as core_thread, resource as resource_thread};
 
 use crate::runtime::RuntimeCallContext;
 
+#[cfg(any(target_os = "linux", target_os = "android"))]
+const FUTEX_WAIT_PRIVATE_OPERATION: libc::c_int = 128;
+#[cfg(any(target_os = "linux", target_os = "android"))]
+const FUTEX_WAKE_PRIVATE_OPERATION: libc::c_int = 129;
+
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
+unsafe extern "C" {
+    fn pthread_rwlock_timedrdlock(
+        lock: *mut libc::pthread_rwlock_t,
+        abstime: *const libc::timespec,
+    ) -> libc::c_int;
+    fn pthread_rwlock_timedwrlock(
+        lock: *mut libc::pthread_rwlock_t,
+        abstime: *const libc::timespec,
+    ) -> libc::c_int;
+}
+
 /// Build one pthread-style I/O error from an explicit return code.
 fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
@@ -81,6 +98,24 @@ fn realtime_deadline(timeout: Duration) -> RuntimeResult<libc::timespec> {
         tv_nsec: deadline.subsec_nanos() as libc::c_long,
     })
 }
+
+/// Acquire a timed read lock using host pthread primitives.
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
+unsafe fn pthread_rwlock_timed_read_lock(
+    lock: *mut libc::pthread_rwlock_t,
+    deadline: *const libc::timespec,
+) -> libc::c_int {
+    unsafe { pthread_rwlock_timedrdlock(lock, deadline) }
+}
+
+/// Acquire a timed write lock using host pthread primitives.
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
+unsafe fn pthread_rwlock_timed_write_lock(
+    lock: *mut libc::pthread_rwlock_t,
+    deadline: *const libc::timespec,
+) -> libc::c_int {
+    unsafe { pthread_rwlock_timedwrlock(lock, deadline) }
+}
 /// Wait on one memory address value.
 ///
 /// Wait while the target memory word matches the expected value.
@@ -131,27 +166,24 @@ pub(crate) unsafe fn destack_thread_address_wait(
 
         // wait until the value changes or the host wakes this futex
         loop {
-            let mut timespec = libc::timespec {
-                tv_sec: 0,
-                tv_nsec: 0,
-            };
-
-            let timeout_ptr = if let Some(total_timeout) = timeout {
+            let timeout_value = if let Some(total_timeout) = timeout {
                 let remaining = match deadline {
                     Some(deadline) => deadline.saturating_duration_since(Instant::now()),
                     None => total_timeout,
                 };
-                timespec = relative_timespec(remaining)?;
-                &timespec as *const libc::timespec
+                Some(relative_timespec(remaining)?)
             } else {
-                ptr::null()
+                None
             };
+            let timeout_ptr = timeout_value
+                .as_ref()
+                .map_or(ptr::null(), |value| value as *const libc::timespec);
 
             let rc = unsafe {
                 libc::syscall(
                     libc::SYS_futex,
                     address_ptr,
-                    libc::FUTEX_WAIT_PRIVATE,
+                    FUTEX_WAIT_PRIVATE_OPERATION,
                     expected as libc::c_int,
                     timeout_ptr,
                     ptr::null::<libc::c_void>(),
@@ -257,7 +289,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
             libc::syscall(
                 libc::SYS_futex,
                 address_ptr,
-                libc::FUTEX_WAKE_PRIVATE,
+                FUTEX_WAKE_PRIVATE_OPERATION,
                 i32::MAX,
                 ptr::null::<libc::timespec>(),
                 ptr::null::<libc::c_void>(),
@@ -332,7 +364,7 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
             libc::syscall(
                 libc::SYS_futex,
                 address_ptr,
-                libc::FUTEX_WAKE_PRIVATE,
+                FUTEX_WAKE_PRIVATE_OPERATION,
                 1_i32,
                 ptr::null::<libc::timespec>(),
                 ptr::null::<libc::c_void>(),
@@ -1050,7 +1082,7 @@ pub(crate) unsafe fn destack_thread_rwlock_read_lock(
         #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
         {
             let deadline = realtime_deadline(timeout.expect("timeout should exist"))?;
-            unsafe { libc::pthread_rwlock_timedrdlock(rwlock.rwlock.get(), &deadline) }
+            unsafe { pthread_rwlock_timed_read_lock(rwlock.rwlock.get(), &deadline) }
         }
 
         #[cfg(not(any(target_os = "linux", target_os = "android", target_os = "freebsd")))]
@@ -1173,7 +1205,7 @@ pub(crate) unsafe fn destack_thread_rwlock_write_lock(
         #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
         {
             let deadline = realtime_deadline(timeout.expect("timeout should exist"))?;
-            unsafe { libc::pthread_rwlock_timedwrlock(rwlock.rwlock.get(), &deadline) }
+            unsafe { pthread_rwlock_timed_write_lock(rwlock.rwlock.get(), &deadline) }
         }
 
         #[cfg(not(any(target_os = "linux", target_os = "android", target_os = "freebsd")))]

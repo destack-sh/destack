@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -39,10 +40,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses close(2) on Unix-like hosts and handle close on Windows.
+    /// Uses close(2) on Unix and CloseHandle on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -66,10 +67,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses evdev or libinput or HID managers on Unix-like hosts and raw input or HID APIs on Windows.
+    /// Uses evdev device-node enumeration on Linux, terminal input discovery on other Unix hosts, and console-input availability checks on Windows.
     ///
     /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -102,10 +103,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses device node open on Unix-like hosts and raw-input registration or handle open on Windows.
+    /// Uses evdev device-node open on Linux, terminal-device open on other Unix hosts, and duplicated console-input handles on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -141,10 +142,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host input queue reads via evdev or window-system event queues and raw input APIs.
+    /// Uses evdev event reads on Linux, terminal-byte event reads on other Unix hosts, and ReadConsoleInputW queue reads on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -178,7 +179,7 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses EVIOCGRAB on Linux and raw-input capture equivalents on Windows where available.
+    /// Uses EVIOCGRAB on Linux, returns notSupported for terminal-backed Unix input, and uses SetConsoleMode capture toggles on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -210,10 +211,10 @@ impl<'call> InputHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking host input queue reads.
+    /// Uses nonblocking evdev reads on Linux, nonblocking terminal-byte reads on other Unix hosts, and nonblocking console queue reads on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
     ///
     /// # Security
     /// Requires `input.read`.

@@ -49,8 +49,8 @@ declare namespace input {
     /// Event ordering follows host event queue delivery semantics.
     ///
     /// # Platform
-    /// Linux and Windows.
-    /// Uses evdev event reads on Linux and ReadConsoleInputW queue reads on Windows.
+    /// Unix and Windows.
+    /// Uses evdev event reads on Linux, terminal-byte event reads on other Unix hosts, and ReadConsoleInputW queue reads on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted.
@@ -64,7 +64,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.read"],
-        platforms: ["windows", "linux"],
+        platforms: ["windows", "unix"],
         scope: "hybrid",
         blocking: "sometimes",
     })
@@ -76,8 +76,8 @@ declare namespace input {
     /// Empty queue state is reported through ioWouldBlock.
     ///
     /// # Platform
-    /// Linux and Windows.
-    /// Uses nonblocking evdev reads on Linux and nonblocking console queue reads on Windows.
+    /// Unix and Windows.
+    /// Uses nonblocking evdev reads on Linux, nonblocking terminal-byte reads on other Unix hosts, and nonblocking console queue reads on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock.
@@ -91,7 +91,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.read"],
-        platforms: ["windows", "linux"],
+        platforms: ["windows", "unix"],
         scope: "hybrid",
         blocking: "never",
     })
@@ -103,8 +103,8 @@ declare namespace input {
     /// Grabs can prevent event delivery to other clients.
     ///
     /// # Platform
-    /// Linux and Windows.
-    /// Uses EVIOCGRAB on Linux and SetConsoleMode capture toggles on Windows.
+    /// Unix and Windows.
+    /// Uses EVIOCGRAB on Linux, returns notSupported for terminal-backed Unix input, and uses SetConsoleMode capture toggles on Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -118,7 +118,7 @@ declare namespace input {
         effect: "external",
         replay: "recordable",
         capabilities: ["input.control"],
-        platforms: ["windows", "linux"],
+        platforms: ["windows", "unix"],
         scope: "os",
         blocking: "sometimes",
     })

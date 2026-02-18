@@ -1,4 +1,5 @@
 mod event;
+mod host;
 mod poller;
 #[cfg(unix)]
 mod unix;
@@ -6,6 +7,7 @@ mod unix;
 mod windows;
 
 pub use event::*;
+pub use host::*;
 pub use poller::*;
 #[cfg(target_os = "linux")]
 pub use unix::EpollPoller;

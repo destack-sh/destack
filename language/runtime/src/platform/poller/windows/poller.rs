@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use windows_sys::Win32::Networking::WinSock::{
     AF_INET, INVALID_SOCKET, IPPROTO_UDP, POLLERR, POLLHUP, POLLIN, POLLNVAL, POLLOUT, POLLPRI,
@@ -10,7 +11,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::poller::{
     PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
     PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PollerToken,
+    PlatformPollerWakeHandle, PollerToken,
 };
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
 
@@ -117,12 +118,7 @@ impl WakeSockets {
 
     /// Wake the poller.
     fn wake(&self) -> RuntimeResult<()> {
-        let buffer = [0u8; 1];
-        let rc = unsafe { send(self.sender, buffer.as_ptr() as *const _, 1, 0) };
-        if rc < 0 {
-            return Err(last_net_error("send"));
-        }
-        Ok(())
+        wake_socket(self.sender)
     }
 
     /// Drain pending wake bytes.
@@ -156,12 +152,27 @@ impl Drop for WakeSockets {
     }
 }
 
+/// Shared wake handle for one windows poller.
+#[derive(Debug)]
+struct WindowsWakeHandle {
+    /// Sender socket used to trigger wake.
+    sender: SOCKET,
+}
+
+impl PlatformPollerWakeHandle for WindowsWakeHandle {
+    fn wake(&self) -> RuntimeResult<()> {
+        wake_socket(self.sender)
+    }
+}
+
 /// WSAPoll-backed poller for Windows.
 pub struct WindowsPoller {
     /// Registered resource entries.
     registrations: HashMap<ResourceId, PollRegistration>,
     /// Wake sockets used to interrupt polling.
     wake: WakeSockets,
+    /// Shared wake handle used by out-of-band wakeups.
+    wake_handle: Arc<WindowsWakeHandle>,
     /// Pollfd buffer reused across polls.
     pollfds: Vec<WSAPOLLFD>,
     /// Entry buffer reused across polls.
@@ -181,9 +192,14 @@ impl std::fmt::Debug for WindowsPoller {
 impl WindowsPoller {
     /// Create a new Windows poller instance.
     pub fn new() -> RuntimeResult<Self> {
+        let wake = WakeSockets::new()?;
+
         Ok(Self {
             registrations: HashMap::new(),
-            wake: WakeSockets::new()?,
+            wake_handle: Arc::new(WindowsWakeHandle {
+                sender: wake.sender,
+            }),
+            wake,
             pollfds: Vec::new(),
             entries: Vec::new(),
         })
@@ -277,6 +293,10 @@ impl PlatformPoller for WindowsPoller {
     fn deregister(&mut self, resource_id: ResourceId) -> RuntimeResult<()> {
         self.registrations.remove(&resource_id);
         Ok(())
+    }
+
+    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+        Some(self.wake_handle.clone())
     }
 
     fn wake(&mut self) -> RuntimeResult<()> {
@@ -416,4 +436,15 @@ fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFla
         out |= PlatformEventFlags::ONESHOT;
     }
     out
+}
+
+/// Send one wake byte through one wake socket.
+fn wake_socket(sender: SOCKET) -> RuntimeResult<()> {
+    let buffer = [0u8; 1];
+    let rc = unsafe { send(sender, buffer.as_ptr() as *const _, 1, 0) };
+    if rc < 0 {
+        return Err(last_net_error("send"));
+    }
+
+    Ok(())
 }
