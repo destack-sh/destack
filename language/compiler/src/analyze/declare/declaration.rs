@@ -2290,7 +2290,7 @@ impl Compiler {
             }
 
             // require declared field types
-            let value_id = value.ok_or_else(|| AnalyzeError::MissingType {
+            let value_id = value.ok_or_else(|| AnalyzeError::ImplicitAny {
                 node: member_id
                     .into_global_any(module.id)
                     .into_anchored(Some(profile)),

@@ -2237,10 +2237,11 @@ impl Compiler {
 
                 let Some(signature_ty_id) = self.call_signature_for_type(left_ty_id, types)
                 else {
-                    self.error(AnalyzeError::MissingType {
+                    self.error(AnalyzeError::InvalidStaticArgument {
                         node: expression_id
                             .into_global_any(module.id)
                             .into_anchored(Some(ctx.profile)),
+                        message: "static arguments require a callable generic target".to_string(),
                     });
                     return Ok(left_ty_id);
                 };
@@ -2254,10 +2255,11 @@ impl Compiler {
                     return_type,
                 } = types.get_type(signature_ty_id).clone()
                 else {
-                    self.error(AnalyzeError::MissingType {
+                    self.error(AnalyzeError::InvalidStaticArgument {
                         node: expression_id
                             .into_global_any(module.id)
                             .into_anchored(Some(ctx.profile)),
+                        message: "static arguments require a callable generic target".to_string(),
                     });
                     return Ok(left_ty_id);
                 };
@@ -4487,10 +4489,11 @@ impl Compiler {
 
         // resolve a callable signature for generic instantiation
         let Some(signature_ty_id) = self.call_signature_for_type(base_ty_id, types) else {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::InvalidStaticArgument {
                 node: expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
+                message: "static arguments require a callable generic target".to_string(),
             });
             return Ok(base_ty_id);
         };
@@ -4504,10 +4507,11 @@ impl Compiler {
             return_type,
         } = types.get_type(signature_ty_id).clone()
         else {
-            self.error(AnalyzeError::MissingType {
+            self.error(AnalyzeError::InvalidStaticArgument {
                 node: expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
+                message: "static arguments require a callable generic target".to_string(),
             });
             return Ok(base_ty_id);
         };

@@ -316,6 +316,11 @@ impl Compiler {
             return Ok(Some(expected_object_ty_id));
         };
 
+        // only read local symbol tables for local reference symbols
+        if symbol.module_id != module.id {
+            return Ok(Some(expected_object_ty_id));
+        }
+
         // resolve the primary declaration for the symbol
         let symbol_entry = symbols.get_symbol(symbol.local_id);
         let Some(primary_declaration) = symbol_entry.primary_declaration else {

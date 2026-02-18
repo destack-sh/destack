@@ -1,6 +1,6 @@
 use super::SignatureResolutionMode;
 use super::argument::InheritedStaticArguments;
-use crate::analyze::common::{AnalyzeReadStage, RelationMode};
+use crate::analyze::common::{AnalyzeReadStage, CanonicalSymbolMode, RelationMode};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
@@ -79,6 +79,17 @@ pub(super) struct ParameterPropertyMemberContext {
     pub(super) owner_symbol: GlobalSymbolId,
 }
 
+/// Classification metadata for a member receiver expression.
+#[derive(Debug, Copy, Clone)]
+pub(super) struct MemberReceiverContext {
+    /// The nominal symbol when the receiver is a type-like value.
+    pub(super) nominal_symbol: Option<GlobalSymbolId>,
+    /// Whether the receiver expression carries explicit static arguments.
+    pub(super) has_static_arguments: bool,
+    /// The lookup mode to use for type-driven member inference.
+    pub(super) lookup_mode: MemberLookupMode,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Infer a member access expression.
@@ -114,8 +125,27 @@ impl Compiler {
                     optional_chain.has_nullish,
                 )
             } else {
-                let left_ty_id =
-                    self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+                let left_ty_id = if self.expression_is_projection_receiver_for_infer(
+                    module,
+                    ctx.profile,
+                    left_id,
+                    tree,
+                    symbols,
+                    types,
+                ) {
+                    self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        left_id,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )?
+                } else {
+                    self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?
+                };
                 (left_id, left_ty_id, false)
             };
         let left_ty_id = self.materialize_infer_type_for_check(
@@ -201,11 +231,22 @@ impl Compiler {
             types,
         )?;
 
+        // classify receiver semantics once for all member lookup paths
+        let receiver_context = self.member_receiver_context_for_expression(
+            module,
+            left_id,
+            &left_ty,
+            ctx.profile,
+            tree,
+            symbols,
+        );
+
         // resolve member dispatch for the left type
         let member_resolution = self.resolve_member_symbol_for_receiver(
             module,
             left_id,
             &left_ty,
+            &receiver_context,
             &member_key,
             ctx.profile,
             tree,
@@ -323,16 +364,6 @@ impl Compiler {
         // merge inherited and extension substitutions
         let substitutions = self.merge_member_substitutions(&inherited, extension_context.as_ref());
 
-        // decide how to filter member lookups for this receiver
-        let lookup_mode = self.member_lookup_mode_for_receiver_expression(
-            module,
-            left_id,
-            &left_ty,
-            ctx.profile,
-            tree,
-            symbols,
-        );
-
         // infer the member type
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
@@ -342,7 +373,7 @@ impl Compiler {
             symbols,
             &left_ty,
             &member_key,
-            lookup_mode,
+            receiver_context.lookup_mode,
             types,
             &mut member_type_visited,
         )?;
@@ -621,11 +652,11 @@ impl Compiler {
                         }
 
                         if resolved_signatures.is_empty() {
-                            self.error(AnalyzeError::MissingType {
-                                node: expression_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                            });
+                            self.error_invalid_member_static_arguments(
+                                module,
+                                ctx.profile,
+                                expression_id,
+                            );
                             member_ty_id
                         } else {
                             let overload_set = Type::Object {
@@ -638,11 +669,11 @@ impl Compiler {
                         }
                     }
                     _ => {
-                        self.error(AnalyzeError::MissingType {
-                            node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
+                        self.error_invalid_member_static_arguments(
+                            module,
+                            ctx.profile,
+                            expression_id,
+                        );
                         member_ty_id
                     }
                 }
@@ -731,8 +762,146 @@ impl Compiler {
             let mut cache = HashMap::new();
             self.substitute_this_type(resolved_member_ty_id, left_ty_id, types, &mut cache)
         };
+        if self.projection_is_unresolved_associated_comptime_value(
+            module,
+            ctx.profile,
+            left_id,
+            member_symbol,
+            resolved_member_ty_id,
+            tree,
+            symbols,
+            types,
+        ) {
+            self.error(AnalyzeError::InvalidStaticArgument {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+                message: "associated comptime projection must be resolvable".to_string(),
+            });
+            let error_ty_id = types.insert_type_from(Type::Error, expression_id);
+            return Ok(finish_result(error_ty_id, types));
+        }
 
         Ok(finish_result(resolved_member_ty_id, types))
+    }
+
+    /// Return true when a static projection references an unresolved associated comptime value.
+    fn projection_is_unresolved_associated_comptime_value(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_id: LocalNodeId<Expression>,
+        member_symbol: Option<GlobalSymbolId>,
+        member_type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        let Some(member_symbol) = member_symbol else {
+            return false;
+        };
+        if !matches!(
+            self.static_member_symbol_kind_for_symbol(
+                module,
+                profile,
+                member_symbol,
+                tree,
+                symbols
+            ),
+            Some(crate::analyze::common::StaticMemberSymbolKind::AssociatedComptimeConst)
+        ) {
+            return false;
+        }
+        if !tree
+            .get(receiver_id)
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return false;
+        }
+
+        matches!(
+            types.get_type(member_type_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown
+            }
+        )
+    }
+
+    /// Report invalid static arguments on a member access.
+    fn error_invalid_member_static_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        self.error(AnalyzeError::InvalidStaticArgument {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+            message: "member does not accept static arguments".to_string(),
+        });
+    }
+
+    /// Return true when a member receiver should be evaluated as a type projection receiver.
+    fn expression_is_projection_receiver_for_infer(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+        let receiver_expression = tree.get(receiver_id);
+        let has_static_arguments = receiver_expression
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty());
+        if !has_static_arguments {
+            return false;
+        }
+
+        let symbol = self
+            .direct_receiver_symbol_for_expression(module, receiver_id, profile, tree, symbols)
+            .or_else(|| {
+                let receiver_type_id = self
+                    .try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        receiver_id,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )
+                    .ok()?;
+                self.type_like_receiver_symbol_for_type_id(receiver_type_id, types)
+            });
+        let Some(symbol) = symbol else {
+            return false;
+        };
+        let symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            crate::analyze::common::CanonicalSymbolMode::FollowAliases,
+        );
+        let symbol = self
+            .declaration_symbol_id(module, symbols, profile, symbol)
+            .unwrap_or(symbol);
+
+        matches!(
+            symbol.ty(),
+            SymbolType::Class
+                | SymbolType::Struct
+                | SymbolType::Interface
+                | SymbolType::Enum
+                | SymbolType::TypeAlias
+                | SymbolType::Newtype
+        )
     }
 
     /// Return the member access type for `any` receivers.
@@ -1673,16 +1842,17 @@ impl Compiler {
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
         receiver_ty: &Type,
+        receiver_context: &MemberReceiverContext,
         member_key: &StaticKey,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
+        types: &mut TypeTable,
     ) -> AnalyzeResult<MemberResolution> {
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+
         // prefer static-only lookup for direct class values
-        if let Some(nominal_symbol) =
-            self.nominal_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
-        {
+        let nominal_receiver = if let Some(nominal_symbol) = receiver_context.nominal_symbol {
             let mut visited = Vec::new();
             let member_symbol = self.resolve_member_symbol_for_symbol(
                 module,
@@ -1695,9 +1865,39 @@ impl Compiler {
                 types,
                 &mut visited,
             )?;
-            return Ok(member_symbol
-                .map(|symbol| MemberResolution::Static { symbol })
-                .unwrap_or(MemberResolution::None));
+            if let Some(member_symbol) = member_symbol {
+                return Ok(MemberResolution::Static {
+                    symbol: member_symbol,
+                });
+            }
+            true
+        } else {
+            false
+        };
+
+        // allow associated projection fallback for static-argument receivers
+        if receiver_context.has_static_arguments
+            && let Some(selection) = self.select_associated_projection_member_symbol(
+                module,
+                profile,
+                receiver_id,
+                receiver_id,
+                *member_key,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            )?
+        {
+            return Ok(MemberResolution::Static {
+                symbol: selection.target_symbol,
+            });
+        }
+
+        // nominal type values do not support instance member fallback
+        if nominal_receiver {
+            return Ok(MemberResolution::None);
         }
 
         // fall back to regular member lookup
@@ -1712,21 +1912,14 @@ impl Compiler {
         )
     }
 
-    /// Select the lookup mode for a receiver expression.
-    pub(super) fn member_lookup_mode_for_receiver_expression(
+    /// Select a member lookup mode from nominal receiver metadata and receiver type.
+    pub(super) fn member_lookup_mode_for_receiver_type(
         &self,
-        module: &Module,
-        receiver_id: LocalNodeId<Expression>,
+        nominal_symbol: Option<GlobalSymbolId>,
         receiver_ty: &Type,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> MemberLookupMode {
         // nominal values only expose static members
-        if self
-            .nominal_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
-            .is_some()
-        {
+        if nominal_symbol.is_some() {
             return MemberLookupMode::Value;
         }
 
@@ -1739,6 +1932,32 @@ impl Compiler {
         MemberLookupMode::Any
     }
 
+    /// Classify member receiver behavior for symbol and type lookup paths.
+    pub(super) fn member_receiver_context_for_expression(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        receiver_ty: &Type,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> MemberReceiverContext {
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+        let nominal_symbol =
+            self.nominal_value_symbol_for_expression(module, receiver_id, profile, tree, symbols);
+        let has_static_arguments = tree
+            .get(receiver_id)
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty());
+        let lookup_mode = self.member_lookup_mode_for_receiver_type(nominal_symbol, receiver_ty);
+
+        MemberReceiverContext {
+            nominal_symbol,
+            has_static_arguments,
+            lookup_mode,
+        }
+    }
+
     /// Return a nominal symbol when the expression refers to a type value.
     fn nominal_value_symbol_for_expression(
         &self,
@@ -1748,12 +1967,14 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
-        // peel parenthesized receivers to their core symbol
-        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
-
         // resolve the direct reference symbol for the receiver
-        let symbol =
-            self.reference_symbol_for_expression(module, receiver_id, profile, tree, symbols)?;
+        let symbol = self.direct_receiver_symbol_for_expression(
+            module,
+            receiver_id,
+            profile,
+            tree,
+            symbols,
+        )?;
 
         // keep only nominal symbols in value space
         if !matches!(
@@ -1768,6 +1989,55 @@ impl Compiler {
         } else {
             None
         }
+    }
+
+    /// Resolve a canonical direct symbol for a receiver expression.
+    fn direct_receiver_symbol_for_expression(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // peel parenthesized receivers to their core symbol
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+
+        // resolve symbol references first and then fallback to the parse target symbol
+        self.reference_symbol_for_expression(module, receiver_id, profile, tree, symbols)
+            .or_else(|| {
+                tree.get(receiver_id).target_symbol().map(|symbol| {
+                    self.canonical_symbol_id(
+                        module,
+                        symbols,
+                        profile,
+                        symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    )
+                })
+            })
+    }
+
+    /// Resolve a type symbol for a potentially union or intersection receiver type.
+    fn type_like_receiver_symbol_for_type_id(
+        &self,
+        receiver_type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        // use direct type-symbol unwrap when possible
+        if let Some((symbol, _, _)) = self.unwrap_type_symbol(types, receiver_type_id) {
+            return Some(symbol);
+        }
+
+        // otherwise scan union and intersection members for a nominal type symbol
+        let element_ids = match types.get_type(receiver_type_id) {
+            Type::Intersection { elements } | Type::Union { elements } => elements.clone(),
+            _ => return None,
+        };
+        element_ids.iter().find_map(|element_id| {
+            self.unwrap_type_symbol(types, *element_id)
+                .map(|(symbol, _, _)| symbol)
+        })
     }
 
     /// Resolve the symbol space for a global symbol.
@@ -1931,7 +2201,7 @@ impl Compiler {
         types: &TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        // NOTE #Suspicious: member lookup order mixes merge groups, lineage, and extensions with implicit precedence
+        // lookup precedence: declaration members, merge members, lineage members, then visible extensions
         // stop on cycles in symbol lookup
         if visited.contains(&symbol) {
             return Ok(None);
@@ -1941,7 +2211,7 @@ impl Compiler {
         // resolve members from the local module data
         if symbol.module_id == module.id {
             let allow_merge = module.language_type.supports_declaration_merging();
-            return self.resolve_member_symbol_in_module(
+            let resolved = self.resolve_member_symbol_in_module(
                 module,
                 symbol,
                 member_key,
@@ -1952,6 +2222,21 @@ impl Compiler {
                 types,
                 allow_merge,
                 visited,
+            )?;
+            if resolved.is_some() {
+                return Ok(resolved);
+            }
+
+            // apply visible extensions only after declaration, merge, and lineage lookup
+            return self.resolve_member_symbol_in_extensions(
+                module,
+                symbol,
+                member_key,
+                lookup_mode,
+                profile,
+                tree,
+                symbols,
+                types,
             );
         }
 
@@ -1988,7 +2273,7 @@ impl Compiler {
             return Ok(resolved);
         }
 
-        // check locally visible extensions for remote targets
+        // apply visible extensions only after remote declaration, merge, and lineage lookup
         self.resolve_member_symbol_in_extensions(
             module,
             symbol,
@@ -2102,7 +2387,7 @@ impl Compiler {
             }
         }
 
-        // step 3: check inherited members and visible extensions
+        // step 3: check inherited members
         if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
             // follow extends first
             if let Some(extends) = lineage.extends
@@ -2138,18 +2423,7 @@ impl Compiler {
                 }
             }
         }
-
-        // check extensions
-        self.resolve_member_symbol_in_extensions(
-            module,
-            symbol,
-            member_key,
-            lookup_mode,
-            profile,
-            tree,
-            symbols,
-            types,
-        )
+        Ok(None)
     }
 
     /// Resolve members from extensions visible in the current module.

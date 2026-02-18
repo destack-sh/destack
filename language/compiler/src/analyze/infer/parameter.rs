@@ -366,8 +366,9 @@ impl Compiler {
         let symbols = parameters
             .iter()
             .map(|parameter_id| {
-                let symbol = tree.get(*parameter_id).symbol();
-                symbol.into_global(module_id)
+                let symbol_id = tree.get(*parameter_id).symbol();
+                let symbol_entry = symbols.get_symbol(symbol_id);
+                GlobalSymbolId::new(module_id, symbol_id.with_type(symbol_entry.ty))
             })
             .collect();
 

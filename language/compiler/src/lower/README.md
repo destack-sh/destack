@@ -39,32 +39,10 @@ MIR is generated per-target with target-specific decisions:
 - Alignment requirements
 - Policy-controlled checks (bounds, overflow, etc.)
 
-## Implementation Structure
-
-Lower organizes the implementation by responsibility.
-
-- `module/`: orchestration and caching
-- `type/`: type lowering and layout (including nominal field layouts)
-- `item/`: declaration lowering (globals, functions, methods)
-- `table/`: dispatch tables (vtables, itabs) and RTTI
-- `emit/`: function body lowering (statements, values, control)
-
-Nominal layouts are computed from declared fields and cached on demand.
-
 ## Layout Map
 
-Lower treats layout as a **queryable, cached graph** instead of a monolithic pass.
-The goal is to keep representation decisions explicit and local.
-Lower can answer "what is the layout of this type?" at any point during lowering.
-
-### Layout Categories
-
-We model layout in two layers:
-- **Shape**: logical fields, tags, tables, and constraints.
-- **Placement**: concrete offsets, alignment, size class, inline vs boxed decisions.
-
-This keeps unions, intersections, and interfaces manageable.
-Their shape often exists without a single concrete placement.
+Lower treats layout as a queryable, cached graph so we can answer "what is the layout of this type?" at (almost) any point during lowering.
+For the most part, layouts for each type are done exactly like how you would expect.
 
 | Category | Shape | Placement | Notes |
 | --- | --- | --- | --- |
@@ -80,7 +58,7 @@ Their shape often exists without a single concrete placement.
 | Interface | dispatch surface | itab/vtable + data | separate dispatch layout |
 | Intersection | composed view | no new storage | layout = primary + itabs |
 
-### Union Strategy
+### Unions
 
 Union layout is chosen per union:
 - **Inline tagged**: tag + payload in one block (size ≤ 2×ptr size)
@@ -90,7 +68,7 @@ Union layout is chosen per union:
 `null` and `undefined` are distinct union elements with distinct tags.
 The only special case is a union of a single reference type plus `null`, which lowers to a nullable reference.
 
-### Dispatch Layout (VTables/ITabs)
+### Dispatch Tables (VTables/ITabs)
 
 Dispatch layout is modeled separately from data layout.
 - **VTable**: class method table for virtual dispatch.
@@ -100,10 +78,9 @@ A type layout can reference zero or more dispatch layouts, but dispatch layouts 
 VTables are only emitted for classes that still require virtual dispatch after devirtualization.
 Interface dispatch always uses itabs, even when the concrete type is a class.
 
-### String Equality
+### String Identity
 
 `===` on strings is **value equality** (content comparison), not reference equality.
-String interning is an optimization detail with no semantic guarantees.
 
 ```ds
 const a = "hello";
@@ -122,19 +99,19 @@ Symbol("a") === Symbol("a")        // false (unique each call)
 Symbol.for("a") === Symbol.for("a") // true (same from registry)
 ```
 
-**Registry scope:** The `Symbol.for()` registry is global across all modules in a compilation unit.
+**Symbol scope:** The `Symbol.for()` registry is global across all modules in a compilation unit.
 If module A calls `Symbol.for("key")` and module B calls `Symbol.for("key")`, they get the same symbol.
 This matches JavaScript's global symbol registry behavior.
 
 ### Property Enumeration
 
-Object properties enumerate in **insertion order**, matching ES2015+.
+Object properties enumerate in **declaration order**.
 This applies to `Object.keys()`, `for...in`, and RTTI field iteration.
 
 ### Default Arguments
 
 Default argument expressions evaluate **per-call** when the argument is `undefined`.
-Evaluation occurs in the function's scope, not at definition time.
+Evaluation occurs in the function's scope.
 
 ```ds
 function log(timestamp = Date.now()) { ... }

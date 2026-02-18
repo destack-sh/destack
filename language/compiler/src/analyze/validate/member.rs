@@ -324,9 +324,9 @@ impl Compiler {
                             || modifiers.variance.is_some()
                             || modifiers.timing.is_some()
                     });
-                    let has_typescript_syntax =
+                    let has_typescript_field_constructs =
                         has_typescript_modifiers || value.is_some() || is_index_signature;
-                    if has_typescript_syntax {
+                    if has_typescript_field_constructs {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
                     }

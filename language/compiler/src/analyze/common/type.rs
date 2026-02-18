@@ -15,6 +15,9 @@ use super::{
 };
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
 
+/// Maximum number of unwrap steps when chasing type value wrappers.
+const MAX_TYPE_VALUE_UNWRAP_STEPS: usize = 8;
+
 fn base_visitor_options() -> TypeVisitorOptions {
     TypeWalkContext::new(TypeWalkKey::BASE).visitor_options()
 }
@@ -1060,6 +1063,85 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Resolve an integer literal value from one type id when possible.
+    pub(crate) fn integer_literal_value_for_type_id(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<i64> {
+        let mut current_id = type_id;
+
+        // peel wrappers and value symbols until we hit a concrete integer literal
+        for _ in 0..MAX_TYPE_VALUE_UNWRAP_STEPS {
+            match types.get_type(current_id) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
+                } => return Some(*value),
+                Type::Value { value } => current_id = *value,
+                Type::Reference { symbol, .. } => {
+                    current_id = types.get_value_type_id(*symbol)?;
+                }
+                _ => return None,
+            }
+        }
+
+        None
+    }
+
+    /// Follow symbol forwarding edges until a stable symbol is reached.
+    pub(crate) fn forwarded_symbol_id(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+    ) -> GlobalSymbolId {
+        let mut current_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let mut visited = HashSet::new();
+
+        // chase forwarding edges with cycle protection
+        loop {
+            if !visited.insert(current_symbol) {
+                break;
+            }
+
+            let next_symbol = self.with_module_symbols_or_local(
+                module,
+                profile,
+                current_symbol.module_id,
+                symbols,
+                |_owner_module, owner_symbols| {
+                    let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
+                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)
+                },
+            );
+            let Some(next_symbol) = next_symbol else {
+                break;
+            };
+
+            let next_symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                next_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            if next_symbol == current_symbol {
+                break;
+            }
+
+            current_symbol = next_symbol;
+        }
+
+        current_symbol
     }
 
     /// Import the alias target type for a symbol when available.

@@ -289,11 +289,15 @@ impl Compiler {
             return;
         }
 
-        // report fallthrough type mismatch
+        // suppress follow up diagnostics when body inference already failed
         if let Some(body_ty_id) =
             types.get_declared_or_inferred_type_id(body_id.into_global_any(module.id))
-            && !matches!(types.get_type(body_ty_id), Type::Error)
         {
+            if matches!(types.get_type(body_ty_id), Type::Error) {
+                return;
+            }
+
+            // report fallthrough type mismatch
             self.error(AnalyzeError::UnassignableType {
                 node: body_id
                     .into_global_any(module.id)

@@ -157,11 +157,10 @@ declare const segmentRows: LogBatch.SegmentRowsType;
 segmentRows satisfies 256;
 ```
 
-### abstract associated comptime constants in array-sized aliases remain pending
+### abstract associated comptime constants in array-sized aliases resolve in projected subclasses
 
-> Associated comptime constants referenced by inherited array-sized aliases should fold in projected subclasses.
-> This case tracks remaining materialization work for expression-backed array counts in inherited aliases.
-> Once implemented, `LogBatch.Segment` should resolve to `string[256]` without `<unevaluated>`.
+> Associated comptime constants referenced by inherited array-sized aliases fold in projected subclasses.
+> The inherited alias keeps expression-backed array counts and projects them through subclass overrides.
 
 ```ds
 abstract class BatchPlan<Row> {
@@ -176,8 +175,6 @@ class LogBatch extends BatchPlan<string> {
 declare const segment: LogBatch.Segment;
 segment satisfies string[256];
 ```
-
-- contains: not assignable
 
 ### concrete subclasses must implement abstract associated comptime constants
 
