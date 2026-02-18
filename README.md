@@ -2,11 +2,9 @@
 
 # Destack: Universal Software Engine
 
----
-
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-*Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform - all built on open standards.*
+_Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform - built on open standards._
 
 <p>
   <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>
@@ -14,6 +12,12 @@
   <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/nightly.yml/badge.svg" alt="Nightly"></a>
   <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/release.yml/badge.svg" alt="Release"></a>
   <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
+
+<p>
+    <a title="Commits" target="_blank" href="https://github.com/destack-sh/destack/commits/main"><img src="https://img.shields.io/github/commit-activity/m/destack-sh/destack.svg?style=flat-square"></a>
+     <a title="Last Commit" target="_blank" href="https://github.com/destack-sh/destack/commits/main"><img src="https://img.shields.io/github/last-commit/destack-sh/destack.svg?style=flat-square&color=FF9900"></a>
+     <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/discord/1079840654466752606?label=Discord&logo=Discord&style=social&label=Users"></a>
 </p>
 
 </div>
@@ -42,6 +46,7 @@ the more we can express in one unified software system, the more software system
 ## Getting Started
 
 <!--TODO #Incomplete: getting started (`bun i -g @destack-sh/cli`, `curl destack.sh/install`, and local development setup)-->
+
 Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack-sh/cli`.
 
 ---
@@ -51,7 +56,6 @@ Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack-s
 Destack is in very active development and confidently pre-1.0, alpha-stage software.
 Core language and tooling surprisingly usable for experimentation and the earliest of adopters.
 APIs, CLI behavior, and project structure may change on minor releases.
-
 
 ## Contributing
 
