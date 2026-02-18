@@ -118,6 +118,21 @@ impl Parser {
         })
     }
 
+    /// Return the keyword token text for identifier based infix operators.
+    #[inline]
+    fn infix_identifier_keyword_text(keyword: Keyword) -> Option<&'static str> {
+        match keyword {
+            Keyword::In => Some("in"),
+            Keyword::Is => Some("is"),
+            Keyword::As => Some("as"),
+            Keyword::Extends => Some("extends"),
+            Keyword::Implements => Some("implements"),
+            Keyword::InstanceOf => Some("instanceof"),
+            Keyword::Satisfies => Some("satisfies"),
+            _ => None,
+        }
+    }
+
     /// Make an infix operator from the current parser context.
     fn to_infix_operator(
         &self,
@@ -374,15 +389,23 @@ impl Parser {
         has_newline: bool,
     ) -> Option<(InfixOperator, u8)> {
         let token = *self.token_ref_at(index)?;
-        let (next_token, next_next_token) = if matches!(
-            token.token.ty,
-            TokenType::GreaterThan | TokenType::Identifier
-        ) {
-            (self.token_at(index + 1), self.token_at(index + 2))
+        let token_type = token.token.ty;
+        let (next_token, next_next_token) =
+            if matches!(token_type, TokenType::GreaterThan | TokenType::Identifier) {
+                (self.token_at(index + 1), self.token_at(index + 2))
+            } else {
+                (None, None)
+            };
+        let token_str = if token_type == TokenType::Identifier {
+            if self.has_active_split() {
+                self.get_span_str(token.span)
+            } else {
+                let keyword = self.keyword_for_index(index)?;
+                Self::infix_identifier_keyword_text(keyword)?
+            }
         } else {
-            (None, None)
+            ""
         };
-        let token_str = self.get_span_str(token.span);
         self.to_infix_operator(
             token_str,
             &token,

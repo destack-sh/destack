@@ -411,73 +411,89 @@ impl Parser {
 
         // keep statement options for the whole body to avoid per statement option churn
         let statement_options = self.options.nested().in_statement_position();
-        self.with_options(statement_options, |parser| {
-            // parse all statement items and keep at most one tail expression
-            let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
-            let mut pending_tail_expression: Option<LocalNodeId<Expression>> = None;
+        if self.options == statement_options {
+            return self.eat_block_body_in_statement_position(format);
+        }
 
-            loop {
-                // normalize block body cursor once per iteration
-                let cursor = parser.sync_to_scanner_cursor();
-                let token_type = cursor.token_type;
+        if let Some(speculation_stats) = self.speculation_stats.as_mut() {
+            speculation_stats.with_options_calls += 1;
+        }
+        let old_options = self.swap_options(statement_options);
+        let result = self.eat_block_body_in_statement_position(format);
+        self.restore_options(old_options);
+        result
+    }
 
-                // stop at block terminators
-                // NOTE #Cleanup: recover block parse more explicitly?
-                if parser.is_block_body_terminator_token(token_type, format) {
-                    break;
-                }
+    /// Eat a block body while already in statement position.
+    fn eat_block_body_in_statement_position(
+        &mut self,
+        format: BlockFormat,
+    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        // parse all statement items and keep at most one tail expression
+        let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
+        let mut pending_tail_expression: Option<LocalNodeId<Expression>> = None;
 
-                // consume statement separators
-                if token_type == TokenType::Semicolon {
-                    parser.bump(); // eat semicolon
-                    continue;
-                }
+        loop {
+            // normalize block body cursor once per iteration
+            let cursor = self.sync_to_scanner_cursor();
+            let token_type = cursor.token_type;
 
-                // previous tail expressions are no longer block tails once a new item starts
-                if let Some(pending_id) = pending_tail_expression.take() {
-                    parser.push_block_body_non_tail_expression(&mut statements, pending_id);
-                }
-
-                // parse and recover one statement item
-                let start = parser.mark_span();
-                let (expression_id, is_statement) = match parser
-                    .eat_statement_expression_in_current_options_from_normalized_token(token_type)
-                {
-                    Ok(expression_id) => {
-                        parser.finalize_statement_expression_with_flag(&start, expression_id)?
-                    }
-                    Err(err) => {
-                        let err = err.for_node_type(NodeType::Expression);
-                        let span = err.leaf_span();
-                        let start = ParserMark::from_span(span);
-                        parser.try_recover(&start, TokenType::Newline, Some(err))?;
-                        let error_id = parser
-                            .tree
-                            .insert(Expression::Error, parser.get_span_from(&start));
-                        (error_id, true)
-                    }
-                };
-
-                // keep at most one tail candidate, emit statements directly
-                if is_statement {
-                    statements.push(expression_id);
-                } else {
-                    pending_tail_expression = Some(expression_id);
-                }
+            // stop at block terminators
+            // NOTE #Cleanup: recover block parse more explicitly?
+            if self.is_block_body_terminator_token(token_type, format) {
+                break;
             }
 
-            // finalize the remaining tail expression
-            if let Some(expression_id) = pending_tail_expression {
-                // explicit blocks in destack preserve value tails for implicit returns
-                if format == BlockFormat::Explicit && parser.language.is_destack() {
-                    statements.push(expression_id);
-                } else {
-                    parser.push_block_body_non_tail_expression(&mut statements, expression_id);
-                }
+            // consume statement separators
+            if token_type == TokenType::Semicolon {
+                self.bump(); // eat semicolon
+                continue;
             }
 
-            Ok(statements)
-        })
+            // previous tail expressions are no longer block tails once a new item starts
+            if let Some(pending_id) = pending_tail_expression.take() {
+                self.push_block_body_non_tail_expression(&mut statements, pending_id);
+            }
+
+            // parse and recover one statement item
+            let start = self.mark_span();
+            let (expression_id, is_statement) = match self
+                .eat_statement_expression_in_current_options_from_normalized_token(token_type)
+            {
+                Ok(expression_id) => {
+                    self.finalize_statement_expression_with_flag(&start, expression_id)?
+                }
+                Err(err) => {
+                    let err = err.for_node_type(NodeType::Expression);
+                    let span = err.leaf_span();
+                    let start = ParserMark::from_span(span);
+                    self.try_recover(&start, TokenType::Newline, Some(err))?;
+                    let error_id = self
+                        .tree
+                        .insert(Expression::Error, self.get_span_from(&start));
+                    (error_id, true)
+                }
+            };
+
+            // keep at most one tail candidate, emit statements directly
+            if is_statement {
+                statements.push(expression_id);
+            } else {
+                pending_tail_expression = Some(expression_id);
+            }
+        }
+
+        // finalize the remaining tail expression
+        if let Some(expression_id) = pending_tail_expression {
+            // explicit blocks in destack preserve value tails for implicit returns
+            if format == BlockFormat::Explicit && self.language.is_destack() {
+                statements.push(expression_id);
+            } else {
+                self.push_block_body_non_tail_expression(&mut statements, expression_id);
+            }
+        }
+
+        Ok(statements)
     }
 
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
@@ -904,7 +920,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Comment, CommentStyle, Declaration, Expression, IfKind, LetKind, ScalarLiteral, TokenType,
+        CommentStyle, Declaration, Expression, IfKind, LetKind, ScalarLiteral, TokenType,
         TypeBinaryOperator, YieldCardinality,
     };
     use destack_source::LanguageType;
@@ -1585,10 +1601,7 @@ mod tests {
         let annotations = parser.tree.get_annotations(statement_id.id);
         assert!(annotations.is_empty());
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "throw-tail");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "throw-tail");
     }
 
     #[test]
@@ -1615,10 +1628,7 @@ mod tests {
         let annotations = parser.tree.get_annotations(statement_id.id);
         assert!(annotations.is_empty());
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "throw-tail");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "throw-tail");
     }
 
     #[test]
@@ -1647,10 +1657,7 @@ mod tests {
         let annotations = parser.tree.get_annotations(statement_id.id);
         assert!(annotations.is_empty());
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "return-tail");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "return-tail");
     }
 
     #[test]
@@ -1687,10 +1694,7 @@ mod tests {
                     let annotations = parser.tree.get_annotations(statement_id.id);
                     assert!(annotations.is_empty());
                     assert_eq!(parser.tree.comment_trivia().len(), 1);
-                    assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-                        assert_eq!(*style, CommentStyle::Slash);
-                        assert_string!(parser, *string, "throw-tail");
-                    });
+                    crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "throw-tail");
                 });
             });
         });
@@ -1756,9 +1760,6 @@ mod tests {
         let first_annotations = parser.tree.get_annotations(expressions[0].id);
         assert!(first_annotations.is_empty());
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "<- keep-marker");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "<- keep-marker");
     }
 }

@@ -1342,9 +1342,9 @@ mod tests {
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
     use destack_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, BindingKind, BindingModifier,
-        BindingOperator, Comment, CommentStyle, Declaration, DeclarationKind, Doc, DocStyle,
-        Expression, FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key,
-        Mutability, Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        BindingOperator, CommentStyle, Declaration, DeclarationKind, Doc, DocStyle, Expression,
+        FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
+        Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
         TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
@@ -4306,10 +4306,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "union-line");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "union-line");
     }
 
     #[test]
@@ -4337,10 +4334,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "intersection-line");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "intersection-line");
     }
 
     #[test]
@@ -4367,10 +4361,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "left-union");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "left-union");
     }
 
     #[test]
@@ -4397,10 +4388,7 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "left-intersection");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "left-intersection");
     }
 
     #[test]
@@ -4439,18 +4427,9 @@ mod tests {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 3);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "null-arm");
-        });
-        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "object-arm");
-        });
-        assert_node!(parser.tree, parser.tree.comment_trivia()[2].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "void-arm");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "null-arm");
+        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "object-arm");
+        crate::assert_comment_trivia!(parser, 2, CommentStyle::Slash, "void-arm");
     }
 
     #[test]

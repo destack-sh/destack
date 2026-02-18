@@ -27,29 +27,32 @@ impl Parser {
     pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
         let index = self.pos_index();
         let token = *self.eat_token(TokenType::Identifier)?;
+        let has_active_split = self.has_active_split();
+        debug_assert!(
+            !has_active_split,
+            "identifier tokens should never be produced from split token streams"
+        );
+        let has_escape = if has_active_split {
+            false
+        } else {
+            self.identifier_has_escape_for_index(index)
+        };
 
         // reject escaped keywords in JS/TS
-        {
+        if has_escape && (self.language.is_javascript() || self.language.is_typescript()) {
             let raw = self.file.span_str(token.span);
-            if (self.language.is_javascript() || self.language.is_typescript())
-                && raw.contains('\\')
-                && (self.identifier_is_escaped_keyword(raw)
-                    || self.identifier_has_disallowed_escape_code_point(raw))
+            if self.identifier_is_escaped_keyword(raw)
+                || self.identifier_has_disallowed_escape_code_point(raw)
             {
                 return Err(ParseError::unexpected(token.span));
             }
         }
 
-        let string_id = if self.has_active_split() {
+        let cached = self.identifier_for_index(index);
+        let string_id = cached.unwrap_or_else(|| {
             let raw = self.file.span_str(token.span);
             self.strings.intern(raw)
-        } else {
-            let cached = self.identifier_for_index(index);
-            cached.unwrap_or_else(|| {
-                let raw = self.file.span_str(token.span);
-                self.strings.intern(raw)
-            })
-        };
+        });
         Ok((string_id, token.span))
     }
 

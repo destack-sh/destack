@@ -153,14 +153,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Block, Comment, CommentStyle, Declaration, Declarator, Expression,
-        FunctionKind, IfCondition, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
+        BinaryOperator, Block, CommentStyle, Declaration, Declarator, Expression, FunctionKind,
+        IfCondition, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
-    use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
-    };
+    use crate::{TestParser, assert_expression_path, assert_name, assert_node, assert_path};
 
     #[test]
     fn test_parse_if_basic() {
@@ -765,10 +763,7 @@ else
         });
 
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "if-head");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "if-head");
     }
 
     #[test]
@@ -795,9 +790,6 @@ else
         });
 
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "else-boundary");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "else-boundary");
     }
 }

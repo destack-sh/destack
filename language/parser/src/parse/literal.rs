@@ -1463,9 +1463,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, Comment, CommentStyle, Declaration, Expression, FloatType,
-        FunctionKind, IfCondition, IfKind, IntType, Name, Parameter, ScalarLiteral,
-        TemplateLiteral, TypeBinaryOperator, TypeLiteral,
+        Argument, BinaryOperator, CommentStyle, Declaration, Expression, FloatType, FunctionKind,
+        IfCondition, IfKind, IntType, Name, Parameter, ScalarLiteral, TemplateLiteral,
+        TypeBinaryOperator, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -3698,13 +3698,7 @@ function app() {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 2);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "first-tail");
-        });
-        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Star);
-            assert_string!(parser, *string, " second-tail");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "first-tail");
+        crate::assert_comment_trivia!(parser, 1, CommentStyle::Star, " second-tail");
     }
 }

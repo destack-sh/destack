@@ -143,7 +143,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, BindingKind, Comment, CommentStyle, Declaration, DeclarationDescriptor,
+        BinaryOperator, BindingKind, CommentStyle, Declaration, DeclarationDescriptor,
         DeclarationKind, Expression, FunctionMode, IntType, Key, Member, Mutability, Name,
         Parameter, ScalarLiteral, TypeKind, TypeLiteral, VarianceModifier, WhereClause,
     };
@@ -938,9 +938,6 @@ interface Add<T, R = Self> {
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "interface-head");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "interface-head");
     }
 }

@@ -1,16 +1,16 @@
 use destack_ast::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, Comment,
-    CommentStyle, Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind,
-    ImportAliasTarget, ImportSource, ImportTarget, IntType, Key, Member, Mutability, Name,
-    Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral,
-    TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
-    VarianceBound,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingKind, Block, CommentStyle,
+    Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
+    EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
+    ImportSource, ImportTarget, IntType, Key, Member, Mutability, Name, Parameter, Pattern,
+    PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
+    TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::{DiagnosticSeverity, LanguageType};
 
 use crate::{
-    TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    TestParser, assert_comment_trivia, assert_expression_path, assert_name, assert_node,
+    assert_path, assert_string,
 };
 
 fn assert_import_target_string(parser: &crate::Parser, target: &ImportTarget, expected: &str) {
@@ -44,6 +44,19 @@ fn test_parse_super_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Super);
+}
+
+/// Parse a bare null literal in TypeScript.
+#[test]
+fn test_parse_null_literal_typescript() {
+    let mut test = TestParser::new_with_options("null", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::TypeLiteral(TypeLiteral::Null)
+    );
 }
 
 /// Parse super member access.
@@ -132,14 +145,8 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
     });
 
     assert_eq!(parser.tree.comment_trivia().len(), 2);
-    assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-        assert_eq!(*style, CommentStyle::Star);
-        assert_string!(parser, *string, " hop-a");
-    });
-    assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
-        assert_eq!(*style, CommentStyle::Star);
-        assert_string!(parser, *string, " hop-b");
-    });
+    assert_comment_trivia!(parser, 0, CommentStyle::Star, " hop-a");
+    assert_comment_trivia!(parser, 1, CommentStyle::Star, " hop-b");
 }
 
 /// Parse private member access with a newline before dot in TypeScript.
@@ -1563,14 +1570,8 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
     });
 
     assert_eq!(parser.tree.comment_trivia().len(), 2);
-    assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-        assert_eq!(*style, CommentStyle::Slash);
-        assert_string!(parser, *string, "then-seam");
-    });
-    assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
-        assert_eq!(*style, CommentStyle::Slash);
-        assert_string!(parser, *string, "else-seam");
-    });
+    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "then-seam");
+    assert_comment_trivia!(parser, 1, CommentStyle::Slash, "else-seam");
 }
 
 /// Parse a ternary if expression with parenthesis (disambiguate from call expression).
@@ -3473,6 +3474,21 @@ fn test_parse_member_boolean_identifier_name() {
     // a.true
     assert_node!(parser.tree, expr_id, Expression::Member { name, .. } => {
         assert_string!(parser, *name, "true");
+    });
+}
+
+/// Parse null IdentifierName path access in JavaScript.
+#[test]
+fn test_parse_path_null_identifier_name() {
+    // source: a.null
+    let mut test = TestParser::new_with_options("a.null", LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // a.null
+    assert_node!(parser.tree, expr_id, Expression::Path { path, .. } => {
+        assert_eq!(path.segments.len(), 2);
+        assert_string!(parser, path.segments[1], "null");
     });
 }
 

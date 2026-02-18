@@ -28,11 +28,6 @@ fn parse_block_source(
 }
 
 fn comment_text(parser: &Parser, comment_id: LocalNodeId<Comment>) -> String {
-    let comment = parser.tree.get(comment_id);
-    if let Some(string_id) = comment.string {
-        return parser.strings.get(string_id).to_string();
-    }
-
     let source = parser.get_span_str(parser.tree.get_span(comment_id));
     destack_ast::normalize_comment_payload(source).into_owned()
 }

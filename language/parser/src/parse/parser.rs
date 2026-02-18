@@ -77,7 +77,7 @@ impl TypeLiteralIdentifiers {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ParserOptions {
     /// Packed parser context and behavior flags.
-    flags: u64,
+    flags: u32,
     /// The left precedence preceding (i.e. before) the expression.
     /// Determines expression operator lifting and grouping.
     pub left_precedence: Option<u16>,
@@ -151,42 +151,42 @@ pub struct ParserSpeculationStats {
 
 #[allow(unused)]
 impl ParserOptions {
-    const IN_STATIC_FLAG: u64 = 1 << 0;
-    const IN_COMPTIME_FLAG: u64 = 1 << 1;
-    const IN_TYPE_FLAG: u64 = 1 << 2;
-    const IN_SUPER_TYPE_FLAG: u64 = 1 << 3;
-    const IN_VARIANT_FLAG: u64 = 1 << 4;
-    const IN_BEFORE_TYPE_FLAG: u64 = 1 << 5;
-    const IN_MATCH_CASE_FLAG: u64 = 1 << 6;
-    const IN_UNION_PATTERN_FLAG: u64 = 1 << 7;
-    const IN_DECLARE_CONTEXT_FLAG: u64 = 1 << 8;
-    const IN_PARENTHESIS_FLAG: u64 = 1 << 9;
-    const IN_STATEMENT_POSITION_FLAG: u64 = 1 << 10;
-    const IN_STATEMENT_CONTEXT_FLAG: u64 = 1 << 11;
-    const IN_BEFORE_BLOCK_FLAG: u64 = 1 << 12;
-    const IN_TREE_LITERAL_FLAG: u64 = 1 << 13;
-    const IN_DECORATOR_FLAG: u64 = 1 << 14;
-    const IN_TERNARY_CONDITION_FLAG: u64 = 1 << 15;
-    const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u64 = 1 << 16;
-    const IN_ARROW_RETURN_TYPE_FLAG: u64 = 1 << 17;
-    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u64 = 1 << 18;
-    const IN_FOR_EACH_FLAG: u64 = 1 << 19;
-    const IN_NEW_RECEIVER_FLAG: u64 = 1 << 20;
-    const IN_TYPEOF_QUERY_FLAG: u64 = 1 << 21;
-    const IN_GENERATOR_FLAG: u64 = 1 << 22;
-    const FORBID_YIELD_FLAG: u64 = 1 << 23;
-    const FORBID_AWAIT_FLAG: u64 = 1 << 24;
-    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u64 = 1 << 25;
-    const ALLOW_PRIVATE_HASH_KEY_FLAG: u64 = 1 << 26;
-    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u64 = 1 << 27;
+    const IN_STATIC_FLAG: u32 = 1 << 0;
+    const IN_COMPTIME_FLAG: u32 = 1 << 1;
+    const IN_TYPE_FLAG: u32 = 1 << 2;
+    const IN_SUPER_TYPE_FLAG: u32 = 1 << 3;
+    const IN_VARIANT_FLAG: u32 = 1 << 4;
+    const IN_BEFORE_TYPE_FLAG: u32 = 1 << 5;
+    const IN_MATCH_CASE_FLAG: u32 = 1 << 6;
+    const IN_UNION_PATTERN_FLAG: u32 = 1 << 7;
+    const IN_DECLARE_CONTEXT_FLAG: u32 = 1 << 8;
+    const IN_PARENTHESIS_FLAG: u32 = 1 << 9;
+    const IN_STATEMENT_POSITION_FLAG: u32 = 1 << 10;
+    const IN_STATEMENT_CONTEXT_FLAG: u32 = 1 << 11;
+    const IN_BEFORE_BLOCK_FLAG: u32 = 1 << 12;
+    const IN_TREE_LITERAL_FLAG: u32 = 1 << 13;
+    const IN_DECORATOR_FLAG: u32 = 1 << 14;
+    const IN_TERNARY_CONDITION_FLAG: u32 = 1 << 15;
+    const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u32 = 1 << 16;
+    const IN_ARROW_RETURN_TYPE_FLAG: u32 = 1 << 17;
+    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u32 = 1 << 18;
+    const IN_FOR_EACH_FLAG: u32 = 1 << 19;
+    const IN_NEW_RECEIVER_FLAG: u32 = 1 << 20;
+    const IN_TYPEOF_QUERY_FLAG: u32 = 1 << 21;
+    const IN_GENERATOR_FLAG: u32 = 1 << 22;
+    const FORBID_YIELD_FLAG: u32 = 1 << 23;
+    const FORBID_AWAIT_FLAG: u32 = 1 << 24;
+    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 25;
+    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 26;
+    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 27;
 
     #[inline]
-    const fn has_flag(self, flag: u64) -> bool {
+    const fn has_flag(self, flag: u32) -> bool {
         (self.flags & flag) != 0
     }
 
     #[inline]
-    fn with_flag(mut self, flag: u64, enabled: bool) -> Self {
+    fn with_flag(mut self, flag: u32, enabled: bool) -> Self {
         if enabled {
             self.flags |= flag;
         } else {
@@ -196,7 +196,7 @@ impl ParserOptions {
     }
 
     #[inline]
-    fn set_flag(&mut self, flag: u64, enabled: bool) {
+    fn set_flag(&mut self, flag: u32, enabled: bool) {
         if enabled {
             self.flags |= flag;
         } else {
@@ -815,8 +815,6 @@ pub(crate) struct NonNewlineTokenCursor {
 /// Scanner lookahead facts at the current parser position.
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct ScannerLookahead {
-    /// The current raw token type without newline normalization.
-    pub current_raw_token_type: TokenType,
     /// The next raw token type after the current parser position.
     pub next_raw_token_type: TokenType,
     /// The normalized non-newline cursor from the next raw index.
@@ -1158,6 +1156,11 @@ impl Parser {
     /// Return the matching pair index for an opening token index, lexing ahead if needed.
     #[inline]
     pub(crate) fn matching_pair_or_lex(&mut self, index: usize) -> Option<usize> {
+        // fully materialized streams can serve pair lookups without incremental lex checks
+        if self.token_stream.is_lexed_to_end() {
+            return self.token_stream.matching_pair(index);
+        }
+
         // tree literal lexing needs parser driven mode switches before aggressive lookahead
         if self.allow_tree_literals() && !self.options.is_in_type() {
             return self.token_stream.matching_pair(index);
@@ -1352,6 +1355,16 @@ impl Parser {
         self.token_stream.keyword_at(index)
     }
 
+    /// Return whether an identifier token contains escape syntax.
+    #[inline]
+    pub(crate) fn identifier_has_escape_for_index(&mut self, index: usize) -> bool {
+        if self.token_stream.is_lexed_to_end() && index < self.tokens().len() {
+            return self.token_stream.identifier_has_escape_cached(index);
+        }
+
+        self.token_stream.identifier_has_escape(index)
+    }
+
     /// Look up a pre interned identifier at a token index.
     #[inline]
     pub(crate) fn identifier_for_index(&mut self, index: usize) -> Option<StringId> {
@@ -1441,12 +1454,10 @@ impl Parser {
             return scanner_lookahead;
         }
 
-        let (current_raw_token_type, _) = self.peek_current_scanner_facts();
         let next_raw_index = self.index_for_next();
         let next_raw_token_type = self.token_type_at(next_raw_index);
         let next_cursor = self.non_newline_cursor_from(next_raw_index);
         let scanner_lookahead = ScannerLookahead {
-            current_raw_token_type,
             next_raw_token_type,
             next_cursor,
         };
@@ -1460,10 +1471,9 @@ impl Parser {
         self.truncate_token_caches();
     }
 
-    /// Parse everything as an implicit namespace.
-    #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
-    pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        // pre lex all tokens for non jsx files to keep parse hot paths purely token driven
+    /// Parse everything as an implicit namespace with optional trivia attachment.
+    fn parse_root_expressions(&mut self, attach_trivia: bool) -> Vec<LocalNodeId<Expression>> {
+        // pre lex all tokens for non tree literal mode to keep parse hot paths token driven
         self.prelex_all_tokens_maybe();
 
         // parse leading triple-slash reference path directives
@@ -1485,38 +1495,24 @@ impl Parser {
         // ensure one stable owner for trivia-only files
         self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
 
-        // attach trivia in the default parse pipeline
-        self.attach_trivia();
+        // attach trivia only in the full parse pipeline
+        if attach_trivia {
+            self.attach_trivia();
+            self.is_finished = true;
+        }
 
-        self.is_finished = true;
         expressions
+    }
+
+    /// Parse everything as an implicit namespace.
+    #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
+    pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
+        self.parse_root_expressions(true)
     }
 
     /// Parse everything as an implicit namespace without attaching trivia.
     pub fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
-        // pre lex all tokens for non jsx files to keep parse hot paths purely token driven
-        self.prelex_all_tokens_maybe();
-
-        // parse leading triple-slash reference path directives
-        let (mut expressions, consumed_to_end) =
-            self.parse_leading_triple_slash_reference_imports();
-
-        // parse the root block body with recovery when source has non-directive content
-        if !consumed_to_end {
-            let start = self.mark_span();
-            let mut body_expressions = self.with_recovery(
-                &start,
-                |parser| parser.eat_block_body(BlockFormat::Implicit),
-                Vec::new(),
-                TokenType::End,
-            );
-            expressions.append(&mut body_expressions);
-        }
-
-        // ensure one stable owner for trivia-only files
-        self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
-
-        expressions
+        self.parse_root_expressions(false)
     }
 
     /// Materialize the full semantic token stream for non jsx files.
@@ -1535,6 +1531,11 @@ impl Parser {
         expressions: &mut Vec<LocalNodeId<Expression>>,
         consumed_to_end: bool,
     ) {
+        // most files already have parsed body expressions and never need a trivia anchor
+        if !consumed_to_end && !expressions.is_empty() {
+            return;
+        }
+
         // materialize the full stream before trivia ownership checks
         self.token_stream.lex_to_end();
 
@@ -1559,17 +1560,8 @@ impl Parser {
             return;
         }
 
-        // ignore trivia tokens when checking for semantic source content
-        let has_semantic_tokens = self.token_stream.tokens().iter().any(|token| {
-            !matches!(
-                token.token.ty,
-                TokenType::LineComment
-                    | TokenType::BlockComment
-                    | TokenType::Newline
-                    | TokenType::End
-            )
-        });
-        if has_semantic_tokens {
+        // directive-only files with attachable semantic tokens already have stable owners
+        if self.token_stream.has_attachable_semantic_tokens() {
             return;
         }
 

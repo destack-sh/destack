@@ -257,7 +257,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor,
+        Annotation, AnnotationPosition, CommentStyle, Declaration, DeclarationDescriptor,
         DeclarationKind, Decorator, EnumField, EnumKind, Expression, Parameter, ScalarLiteral,
         WhereClause,
     };
@@ -577,18 +577,9 @@ Entry
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 3);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "before-first");
-        });
-        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "between");
-        });
-        assert_node!(parser.tree, parser.tree.comment_trivia()[2].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "before-name");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "before-first");
+        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "between");
+        crate::assert_comment_trivia!(parser, 2, CommentStyle::Slash, "before-name");
     }
 
     #[test]
@@ -624,10 +615,7 @@ B
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "a-tail");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "a-tail");
         assert_eq!(parser.tree.blank_trivia().len(), 2);
         assert_eq!(
             parser.tree.get(parser.tree.blank_trivia()[0].blank).lines,
@@ -658,9 +646,6 @@ B
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Star);
-            assert_string!(parser, *string, " enum-body");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Star, " enum-body");
     }
 }

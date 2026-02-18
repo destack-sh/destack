@@ -139,7 +139,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, BindingKind, Comment, CommentStyle, Declaration, DeclarationDescriptor,
+        BinaryOperator, BindingKind, CommentStyle, Declaration, DeclarationDescriptor,
         DeclarationKind, Expression, IntType, Key, Member, Name, Parameter, ScalarLiteral,
         TypeLiteral, Visibility, WhereClause,
     };
@@ -433,10 +433,7 @@ class Counter extends {}
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "extends-tail");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "extends-tail");
     }
 
     #[test]
@@ -480,14 +477,8 @@ Second // impl-second
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 2);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "impl-first");
-        });
-        assert_node!(parser.tree, parser.tree.comment_trivia()[1].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "impl-second");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "impl-first");
+        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "impl-second");
     }
 
     #[test]
@@ -524,10 +515,7 @@ Second // impl-second
             assert!(annotations.is_empty());
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
-        assert_node!(parser.tree, parser.tree.comment_trivia()[0].comment, Comment { string, style } => {
-            assert_eq!(*style, CommentStyle::Slash);
-            assert_string!(parser, *string, "box-head");
-        });
+        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "box-head");
     }
 
     #[test]
