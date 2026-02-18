@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_or_declaration_has_doc;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -38,9 +39,9 @@ impl LintRule for RequireJsdoc {
                 continue;
             };
 
-            let declaration = ctx.tree.get(*decl_id);
-
             // check if declaration is exported and lacks documentation
+            let declaration_id = *decl_id;
+            let declaration = ctx.tree.get(declaration_id);
             let (is_exported, decl_type) = match declaration {
                 Declaration::Function { descriptor, .. } => {
                     (descriptor.export.is_some(), "function")
@@ -54,14 +55,12 @@ impl LintRule for RequireJsdoc {
                 Declaration::Type { descriptor, .. } => (descriptor.export.is_some(), "type"),
                 _ => continue,
             };
-
             if !is_exported {
                 continue;
             }
 
-            // check if there's a doc annotation for this expression node
-            let has_doc = !ctx.tree.get_docs_for(expr_id.id).is_empty();
-
+            // doc ownership can live on the wrapper expression or declaration owner
+            let has_doc = expression_or_declaration_has_doc(ctx.tree, expr_id, declaration_id);
             if !has_doc {
                 let severity = ctx.get_effective_severity(meta, expr_id);
                 if !severity.is_enabled() {

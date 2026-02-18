@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -42,8 +43,9 @@ impl LintRule for NoEmptyStaticBlock {
             let is_empty = match body_expr {
                 ast::Expression::Block(block_id) => {
                     let block = ctx.tree.get(*block_id);
-                    // check if block is empty and has no comments
-                    block.expressions.is_empty() && !ctx.tree.has_infix_annotations(block_id.id)
+                    let block_span = ctx.tree.get_span(*block_id);
+                    let block_has_comment = span_has_comment_trivia(ctx.tree, block_span);
+                    block.expressions.is_empty() && !block_has_comment
                 }
                 _ => false,
             };

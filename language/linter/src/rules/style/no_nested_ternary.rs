@@ -124,7 +124,8 @@ fn no_nested_ternary_fix(
         return None;
     }
 
-    let replacement = format!("if ({condition_text}) {{ {then_text} }} else {{ {else_text} }}");
+    let replacement =
+        format!("if ({condition_text}) {{\n    {then_text}\n}} else {{\n    {else_text}\n}}");
     let edits = ctx
         .edit_builder()
         .replace(ctx.tree.get_span(expression_id), replacement)
@@ -150,7 +151,11 @@ const x = a ? b ? 1 : 2 : 3;
             .assert_lint("no-nested-ternary")
             .assert_unsafe_fixed(
                 r#"
-const x = if (a) { b ? 1 : 2; } else { 3 };
+const x = if (a) {
+    b ? 1 : 2;
+} else {
+    3
+};
 "#,
             );
     }
@@ -168,7 +173,11 @@ const x = a ? 1 : b ? 2 : 3;
             .assert_lint("no-nested-ternary")
             .assert_unsafe_fixed(
                 r#"
-const x = if (a) { 1 } else { b ? 2 : 3; };
+const x = if (a) {
+    1
+} else {
+    b ? 2 : 3;
+};
 "#,
             );
     }
@@ -186,7 +195,11 @@ const x = (a ? true : false) ? 1 : 2;
             .assert_lint("no-nested-ternary")
             .assert_unsafe_fixed(
                 r#"
-const x = if ((a ? true : false)) { 1 } else { 2 };
+const x = if ((a ? true : false)) {
+    1
+} else {
+    2
+};
 "#,
             );
     }

@@ -691,10 +691,9 @@ Promise.reject("failed").catch((error: any, context: unknown) => {
             .assert_lint("use-unknown-in-catch-callback-variable")
             .assert_safe_fixed(
                 r#"
-Promise.reject("failed")
-    .catch((error: unknown, context: unknown) => {
-        return [error, context];
-    });
+Promise.reject("failed").catch((error: unknown, context: unknown) => {
+    return [error, context];
+});
 "#,
             );
     }

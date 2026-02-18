@@ -329,7 +329,7 @@ for (const key/* left */in/* right */items) {
             .assert_unsafe_fixed(
                 r#"
 let items = [1, 2, 3];
-for (const key of /* right */ items) {
+for (const key of /* left */ /* right */ items) {
     let value = key;
 }
 "#,

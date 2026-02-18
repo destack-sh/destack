@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_or_declaration_docs;
 use crate::{LintDiagnostic, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -37,7 +38,8 @@ impl LintRule for RequireReturnsDoc {
                 continue;
             };
 
-            let declaration = ctx.tree.get(*decl_id);
+            let declaration_id = *decl_id;
+            let declaration = ctx.tree.get(declaration_id);
 
             let Declaration::Function {
                 descriptor,
@@ -58,20 +60,19 @@ impl LintRule for RequireReturnsDoc {
                 continue;
             }
 
-            // check if there's documentation (on the expression node)
-            let docs = ctx.tree.get_docs_for(expr_id.id);
-
+            let docs = expression_or_declaration_docs(ctx.tree, expr_id, declaration_id);
             if docs.is_empty() {
                 continue;
             }
 
-            // get the doc content and check for @returns
-            let doc_content = get_doc_content(ctx, expr_id);
-            let has_returns = doc_content
-                .as_ref()
-                .map(|d| d.contains("@returns") || d.contains("@return") || d.contains("Returns"))
-                .unwrap_or(false);
-
+            let has_returns = docs.into_iter().any(|(doc_id, _)| {
+                let doc = ctx.tree.get(doc_id);
+                let doc_content = ctx.strings.get(doc.string);
+                let doc_lowercase = doc_content.to_ascii_lowercase();
+                doc_lowercase.contains("@returns")
+                    || doc_lowercase.contains("@return")
+                    || doc_lowercase.contains("returns")
+            });
             if !has_returns {
                 let severity = ctx.get_effective_severity(meta, expr_id);
                 if !severity.is_enabled() {
@@ -93,18 +94,6 @@ impl LintRule for RequireReturnsDoc {
             }
         }
     }
-}
-
-fn get_doc_content(
-    ctx: &LintModuleAstContext<'_>,
-    expr_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<String> {
-    // get first doc annotation for this expression node
-    let docs = ctx.tree.get_docs_for(expr_id.id);
-    let (doc_id, _position) = docs.into_iter().next()?;
-    let doc = ctx.tree.get(doc_id);
-    let text = ctx.strings.get(doc.string);
-    Some(text.as_ref().to_string())
 }
 
 #[cfg(test)]

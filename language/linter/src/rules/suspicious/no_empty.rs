@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::span_has_comment_trivia;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -33,9 +34,11 @@ impl LintRule for NoEmpty {
 
         for node_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(node_id);
+            let block_span = ctx.tree.get_span(node_id);
+            let block_has_comment = span_has_comment_trivia(ctx.tree, block_span);
             if block.format == ast::BlockFormat::Explicit
                 && block.expressions.is_empty()
-                && !ctx.tree.has_infix_annotations(node_id.id)
+                && !block_has_comment
             {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {

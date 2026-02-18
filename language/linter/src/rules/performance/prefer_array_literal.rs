@@ -8,7 +8,7 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::expression_method_call;
+use crate::rules::common::{expand_span_to_statement_terminator, expression_method_call};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -288,8 +288,12 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         let array_literal = format!("[{}]", literal_elements.join(", "));
         let mut edit_builder = self.ctx.edit_builder();
         edit_builder = edit_builder.replace(self.ctx.get_span(decl.initializer_id), array_literal);
+        let file = self.ctx.program.files.get(self.ctx.module.file_id);
+        let source = file.text();
         for push_statement_id in push_statement_ids {
-            edit_builder = edit_builder.replace(self.ctx.get_span(push_statement_id), "");
+            let statement_span = self.ctx.get_span(push_statement_id);
+            let statement_span = expand_span_to_statement_terminator(source, statement_span);
+            edit_builder = edit_builder.replace(statement_span, "");
         }
         let edits = edit_builder.into_edits();
         Some(LintFix::r#unsafe("Initialize array with literal and remove pushes").with_edits(edits))

@@ -361,6 +361,7 @@ class Service {
             .assert_unsafe_fixed(
                 r#"
 class Service {
+
     read(): int32 {
         return 2;
     }

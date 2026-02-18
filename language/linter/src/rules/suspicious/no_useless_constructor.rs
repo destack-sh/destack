@@ -162,6 +162,7 @@ class Foo {
             .assert_safe_fixed(
                 r#"
 class Foo {
+
     value() {
         return 1;
     }

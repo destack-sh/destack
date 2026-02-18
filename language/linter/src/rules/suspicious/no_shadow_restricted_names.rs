@@ -12,7 +12,7 @@ declare_lint! {
     ///
     /// Shadowing names like `NaN`, `Infinity`, `eval`, or `arguments` can lead
     /// to confusing behavior and potential bugs. Also warns when shadowing
-    /// Destack language items like `Add`, `Type`, or `Range`.
+    /// Destack language items like `Add` or `Type`.
     #[lint(
         id = "no-shadow-restricted-names",
         code = "LU029",
@@ -482,16 +482,16 @@ struct Add {}
     }
 
     #[test]
-    fn test_detects_language_symbol_range() {
+    fn test_allows_removed_language_symbol_range() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "no_shadow_restricted_names/test_detects_language_symbol_range.ds",
+            "no_shadow_restricted_names/test_allows_removed_language_symbol_range.ds",
             r#"
 function Range() {}
 "#,
         );
         test.result(result)
-            .assert_lint("no-shadow-restricted-names");
+            .assert_no_lint("no-shadow-restricted-names");
     }
 
     #[test]

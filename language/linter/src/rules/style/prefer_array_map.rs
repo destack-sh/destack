@@ -3,7 +3,9 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{expression_method_call, is_array_type};
+use crate::rules::common::{
+    expand_span_to_statement_terminator, expression_method_call, is_array_type,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -396,7 +398,11 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         let mut edit_builder = self.ctx.edit_builder();
         edit_builder =
             edit_builder.replace(self.ctx.get_span(declaration.initializer_id), replacement);
-        edit_builder = edit_builder.replace(self.ctx.get_span(statement_id), "");
+        let file = self.ctx.program.files.get(self.ctx.module.file_id);
+        let source = file.text();
+        let statement_span = self.ctx.get_span(statement_id);
+        let statement_span = expand_span_to_statement_terminator(source, statement_span);
+        edit_builder = edit_builder.replace(statement_span, "");
         let edits = edit_builder.into_edits();
         Some(LintFix::r#unsafe("Rewrite forEach push loop as map assignment").with_edits(edits))
     }

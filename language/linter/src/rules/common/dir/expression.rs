@@ -88,12 +88,68 @@ pub fn expression_unwrap_parenthesized(
     tree: &dir::NodeTree,
     mut expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
-    // walk through parenthesized expressions
     loop {
         let dir::Expression::Parenthesized { expression } = tree.get(expression_id) else {
             return expression_id;
         };
         expression_id = *expression;
+    }
+}
+
+/// Return one discarded call like value and its replacement expression span owner.
+pub fn expression_discarded_call_like_value(
+    tree: &dir::NodeTree,
+    statement_expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<(
+    dir::LocalNodeId<dir::Expression>,
+    dir::LocalNodeId<dir::Expression>,
+)> {
+    let mut expression_id = statement_expression_id;
+    let mut replacement_expression_id = statement_expression_id;
+
+    loop {
+        let expression = tree.get(expression_id);
+
+        if let dir::Expression::Statement { statement } = expression {
+            expression_id = *statement;
+            continue;
+        }
+
+        if let dir::Expression::Parenthesized { expression } = expression {
+            let value_id = expression_unwrap_parenthesized(tree, *expression);
+            if matches!(
+                tree.get(value_id),
+                dir::Expression::Call { .. } | dir::Expression::New { .. }
+            ) {
+                return Some((value_id, expression_id));
+            }
+            expression_id = *expression;
+            replacement_expression_id = expression_id;
+            continue;
+        }
+
+        if matches!(
+            expression,
+            dir::Expression::Call { .. } | dir::Expression::New { .. }
+        ) {
+            return Some((expression_id, replacement_expression_id));
+        }
+
+        let dir::Expression::Block { block } = expression else {
+            return None;
+        };
+        let block = tree.get(*block);
+        let tail_expression_id = *block.expressions.last()?;
+
+        if matches!(
+            tree.get(tail_expression_id),
+            dir::Expression::Statement { .. }
+        ) {
+            return None;
+        }
+
+        expression_id = tail_expression_id;
+        replacement_expression_id = tail_expression_id;
     }
 }
 
