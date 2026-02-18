@@ -244,6 +244,32 @@ declare var Iterator: {
 
 - contains: duplicate identifier
 
+### exported ambient namespace and value declarations can merge
+
+> TypeScript allows exported ambient namespace declarations to share names with exported runtime value declarations.
+
+```ts:main.ts
+export declare namespace Tag {
+    export type Inner = string;
+}
+
+export const Tag = 1;
+```
+
+### exported runtime namespace and value declarations conflict
+
+> TypeScript rejects exported runtime namespace declarations that collide with exported runtime value declarations.
+
+```ts:main.ts
+export namespace Tag {
+    export const Inner = 1;
+}
+
+export const Tag = 1;
+```
+
+- contains: duplicate export
+
 ## declare namespace restrictions
 
 ### declare namespaces reject initializers and bodies

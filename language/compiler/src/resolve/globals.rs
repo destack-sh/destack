@@ -6,8 +6,8 @@ use destack_dir::{
 };
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{
-    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, ImportEdgeKind, Module,
-    ModuleDir, ProfileId, Target, TargetDiscovery, TargetId,
+    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir, ProfileId,
+    Target, TargetDiscovery, TargetId,
 };
 
 use crate::resolve::cache::ResolveScopeIndexCache;
@@ -141,8 +141,8 @@ impl Compiler {
         // load the target module symbols for namespace resolution
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.read();
-        let base_dir = target_module.dir_base();
-        let symbols = base_dir.symbols.read();
+        let target_dir = target_module.dir(profile_id);
+        let symbols = target_dir.symbols.read();
         let local_symbol_id = target_symbol.local_id;
         let symbol = symbols.get_symbol(local_symbol_id);
 
@@ -555,7 +555,16 @@ impl Compiler {
 
             // ensure bind validation before reading dir data
             if let Err(error) = self.require_import_module_validate(module_id) {
-                // put current module back for retry
+                cache.pending.push_front(module_id);
+                self.program
+                    .index
+                    .global_symbol_tables
+                    .insert(key.clone(), cache);
+                return Err(error.into());
+            }
+
+            // ensure per profile module data is prepared before reading dir data
+            if let Err(error) = self.require_resolve_module_prepare(module_id, profile_id) {
                 cache.pending.push_front(module_id);
                 self.program
                     .index
@@ -565,7 +574,6 @@ impl Compiler {
             }
 
             // load the module tree and symbols
-            self.require_resolve_module_prepare(module_id, profile_id)?;
             let module = self.program.modules.get(module_id);
             let module = module.read();
             let dir = module.dir(profile_id);
@@ -659,16 +667,19 @@ impl Compiler {
         let target =
             self.resolve_target_for_dependency_source(dependency.source, dependency.target);
 
-        self.resolve_specifier_to_module_resolution(
-            target,
-            Some(module_id),
-            ImportEdgeKind::Import,
-            None,
-        )
-        .map_err(|_| ResolveError::UnresolvedModule {
-            node: dependency.node.into_anchored(Some(profile_id)),
-            target: dependency.target,
-        })
+        // match direct resolve import edge semantics
+        let source_module = self.program.modules.get(module_id);
+        let source_module = source_module.read();
+        let is_typescript_commonjs = source_module.module_format.is_commonjs()
+            && source_module.language_type.is_typescript();
+        let edge_kind =
+            Self::import_edge_kind_for_dependency(dependency.source, is_typescript_commonjs);
+
+        self.resolve_specifier_to_module_resolution(target, Some(module_id), edge_kind, None)
+            .map_err(|_| ResolveError::UnresolvedModule {
+                node: dependency.node.into_anchored(Some(profile_id)),
+                target: dependency.target,
+            })
     }
 
     /// Collect module ids from primary and companion resolution targets.

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::resolve::cache::{ResolveDependencyItemCache, ResolveExpressionCache};
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ResolveError, ResolveResult, TaskResultCollector};
@@ -11,7 +12,7 @@ use destack_dir::{
     SymbolTable, SymbolType,
 };
 
-use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::{CacheKind, LanguageType, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
     ImportMeta, Module, ModuleContent, ModuleDir, ModuleGraph, ModuleGraphKey, ProfileId,
 };
@@ -801,6 +802,7 @@ impl Compiler {
             );
             self.insert_binding_symbol_exports(
                 module.id,
+                module.language_type,
                 &binding,
                 symbols,
                 &mut exports,
@@ -812,6 +814,7 @@ impl Compiler {
             if !export_items.is_empty() {
                 self.insert_binding_dependency_exports(
                     module.id,
+                    module.language_type,
                     &binding,
                     tree,
                     symbols,
@@ -843,6 +846,7 @@ impl Compiler {
     fn insert_binding_symbol_exports(
         &self,
         module_id: ModuleId,
+        language_type: LanguageType,
         binding: &ModuleBinding,
         symbols: &mut SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
@@ -902,6 +906,7 @@ impl Compiler {
                 let export = Export::local(module_id, key, space, symbol_id);
                 self.insert_exports(
                     module_id,
+                    language_type,
                     symbols,
                     exports,
                     export,
@@ -972,6 +977,7 @@ impl Compiler {
                 let export = Export::local(module_id, key, space, symbol_id);
                 self.insert_exports(
                     module_id,
+                    language_type,
                     symbols,
                     exports,
                     export,
@@ -997,6 +1003,7 @@ impl Compiler {
     fn insert_binding_dependency_exports(
         &self,
         module_id: ModuleId,
+        language_type: LanguageType,
         binding: &ModuleBinding,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1063,6 +1070,7 @@ impl Compiler {
                         );
                         self.insert_exports(
                             module_id,
+                            language_type,
                             symbols,
                             exports,
                             export,
@@ -1089,6 +1097,7 @@ impl Compiler {
                 let export = Export::reexport(key, *space, *item_id);
                 self.insert_exports(
                     module_id,
+                    language_type,
                     symbols,
                     exports,
                     export,
@@ -1329,6 +1338,7 @@ impl Compiler {
         );
         self.insert_symbol_exports(
             module.id,
+            module.language_type,
             dir,
             symbols,
             &mut exports,
@@ -1340,6 +1350,7 @@ impl Compiler {
         if !export_items.is_empty() {
             self.insert_dependency_exports(
                 module.id,
+                module.language_type,
                 dir,
                 tree,
                 symbols,
@@ -1373,6 +1384,7 @@ impl Compiler {
     fn insert_symbol_exports(
         &self,
         module_id: ModuleId,
+        language_type: LanguageType,
         dir: &ModuleDir,
         symbols: &mut SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
@@ -1426,6 +1438,7 @@ impl Compiler {
             let export = Export::local(module_id, key, symbol.space, symbol_id);
             self.insert_exports(
                 module_id,
+                language_type,
                 symbols,
                 exports,
                 export,
@@ -1486,6 +1499,7 @@ impl Compiler {
             let export = Export::local(module_id, key, symbol.space, symbol_id);
             self.insert_exports(
                 module_id,
+                language_type,
                 symbols,
                 exports,
                 export,
@@ -1510,6 +1524,7 @@ impl Compiler {
     fn insert_dependency_exports(
         &self,
         module_id: ModuleId,
+        language_type: LanguageType,
         dir: &ModuleDir,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1572,6 +1587,7 @@ impl Compiler {
                             Export::local(module_id, key, SymbolSpace::Value, dir.default_symbol);
                         self.insert_exports(
                             module_id,
+                            language_type,
                             symbols,
                             exports,
                             export,
@@ -1598,6 +1614,7 @@ impl Compiler {
                 let export = Export::reexport(key, *space, *item_id);
                 self.insert_exports(
                     module_id,
+                    language_type,
                     symbols,
                     exports,
                     export,
@@ -1961,6 +1978,7 @@ impl Compiler {
     fn insert_exports(
         &self,
         module_id: ModuleId,
+        language_type: LanguageType,
         symbols: &SymbolTable,
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export: Export,
@@ -1974,11 +1992,25 @@ impl Compiler {
         if export.space == SymbolSpace::TypeValue {
             let mut type_export = export.clone();
             type_export.space = SymbolSpace::Type;
-            self.insert_exports(module_id, symbols, exports, type_export, node);
+            self.insert_exports(
+                module_id,
+                language_type,
+                symbols,
+                exports,
+                type_export,
+                node,
+            );
 
             let mut value_export = export;
             value_export.space = SymbolSpace::Value;
-            self.insert_exports(module_id, symbols, exports, value_export, node);
+            self.insert_exports(
+                module_id,
+                language_type,
+                symbols,
+                exports,
+                value_export,
+                node,
+            );
             return;
         }
 
@@ -2023,6 +2055,17 @@ impl Compiler {
             if existing_merge.is_some() && existing_merge == next_merge {
                 return;
             }
+
+            // allow declaration merges even when symbols were bound separately
+            if self.local_export_symbols_can_merge(
+                language_type,
+                symbols,
+                existing_symbol,
+                next_symbol,
+            ) {
+                exports.insert((space, key), export);
+                return;
+            }
         }
 
         // report conflicts when the targets differ
@@ -2043,6 +2086,34 @@ impl Compiler {
 
         // insert the export entry
         exports.insert((space, key), export);
+    }
+
+    /// Return true when two local export symbols can merge as declarations.
+    fn local_export_symbols_can_merge(
+        &self,
+        language_type: LanguageType,
+        symbols: &SymbolTable,
+        left: LocalSymbolId,
+        right: LocalSymbolId,
+    ) -> bool {
+        // load symbols and descriptors
+        let left_symbol = symbols.get_symbol(left);
+        let right_symbol = symbols.get_symbol(right);
+        let left_descriptor = SymbolDescriptor::from(left_symbol);
+        let right_descriptor = SymbolDescriptor::from(right_symbol);
+
+        // apply declaration order to order-sensitive merges
+        match (
+            left_symbol.primary_declaration,
+            right_symbol.primary_declaration,
+        ) {
+            (Some(left_node), Some(right_node))
+                if left_node.local_id.id > right_node.local_id.id =>
+            {
+                can_merge_declarations(language_type, right_descriptor, left_descriptor)
+            }
+            _ => can_merge_declarations(language_type, left_descriptor, right_descriptor),
+        }
     }
 
     /// Compute canonical_symbol for all symbols (phase 2).

@@ -67,7 +67,7 @@ impl ReexportVisitStack {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Select import edge semantics from dependency source and source module kind.
-    fn import_edge_kind_for_dependency(
+    pub(super) fn import_edge_kind_for_dependency(
         source: DependencySource,
         is_typescript_commonjs: bool,
     ) -> ImportEdgeKind {
@@ -1332,11 +1332,20 @@ impl Compiler {
             && let Some(remote_target) =
                 self.select_import_target_for_kind(module, resolved_targets, kind)
         {
-            // require resolved modules to be bound
+            // collect unique module targets that must be import validated
+            let mut required_module_ids = Vec::new();
             for target in [resolved_targets.value, resolved_targets.ty] {
-                if let Some(ModuleTarget::Module(module_id)) = target {
-                    self.require_import_module_validate(module_id)?;
+                let Some(ModuleTarget::Module(module_id)) = target else {
+                    continue;
+                };
+                if !required_module_ids.contains(&module_id) {
+                    required_module_ids.push(module_id);
                 }
+            }
+
+            // require resolved modules to be bound
+            for module_id in required_module_ids {
+                self.require_import_module_validate(module_id)?;
             }
 
             // record the resolved import
@@ -3019,6 +3028,8 @@ impl Compiler {
         if lookup_kind == DependencyKind::Type {
             return true;
         }
+
+        // value lookups can still resolve type-only exports as type symbols
         matches!(export_kind, DependencyKind::Type | DependencyKind::Value)
     }
 

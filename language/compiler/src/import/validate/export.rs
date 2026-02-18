@@ -21,6 +21,15 @@ enum ExportConflictKind {
     Other,
 }
 
+/// One exported binding name with its merge classification.
+#[derive(Clone, Copy)]
+struct BindingExport {
+    /// The exported name.
+    name: StringId,
+    /// The merge behavior for this binding.
+    conflict_kind: ExportConflictKind,
+}
+
 impl Compiler {
     /// Validate import and export declarations appear at the module root.
     pub(super) fn validate_dependency_top_level(&self, module: &Module) {
@@ -199,19 +208,20 @@ impl Compiler {
 
                     for declarator_id in declarators {
                         let declarator = tree.get(*declarator_id);
-                        let mut names = Vec::new();
-                        self.collect_binding_names_from_pattern(
+                        let mut bindings = Vec::new();
+                        self.collect_binding_exports_from_pattern(
                             &tree,
+                            &symbols,
                             declarator.pattern,
-                            &mut names,
+                            &mut bindings,
                         );
 
-                        for name in names {
+                        for binding in bindings {
                             self.report_conflicting_export_name_maybe(
                                 module,
-                                name,
+                                binding.name,
                                 (*declarator_id).into_any(),
-                                ExportConflictKind::Other,
+                                binding.conflict_kind,
                                 &mut exported_names,
                                 default_name,
                             );
@@ -230,19 +240,20 @@ impl Compiler {
 
                     for declarator_id in declarators {
                         let declarator = tree.get(*declarator_id);
-                        let mut names = Vec::new();
-                        self.collect_binding_names_from_pattern(
+                        let mut bindings = Vec::new();
+                        self.collect_binding_exports_from_pattern(
                             &tree,
+                            &symbols,
                             declarator.pattern,
-                            &mut names,
+                            &mut bindings,
                         );
 
-                        for name in names {
+                        for binding in bindings {
                             self.report_conflicting_export_name_maybe(
                                 module,
-                                name,
+                                binding.name,
                                 (*declarator_id).into_any(),
-                                ExportConflictKind::Other,
+                                binding.conflict_kind,
                                 &mut exported_names,
                                 default_name,
                             );
@@ -496,28 +507,44 @@ impl Compiler {
         ExportConflictKind::Declaration(SymbolDescriptor::from(symbol))
     }
 
-    /// Collect all binding names declared by a pattern.
-    fn collect_binding_names_from_pattern(
+    /// Resolve the conflict category for a local symbol.
+    fn export_conflict_kind_for_symbol(
+        &self,
+        symbols: &SymbolTable,
+        symbol_id: destack_dir::LocalSymbolId,
+    ) -> ExportConflictKind {
+        let symbol = symbols.get_symbol(symbol_id);
+        ExportConflictKind::Declaration(SymbolDescriptor::from(symbol))
+    }
+
+    /// Collect all exported bindings declared by a pattern.
+    fn collect_binding_exports_from_pattern(
         &self,
         tree: &destack_dir::NodeTree,
+        symbols: &SymbolTable,
         pattern_id: LocalNodeId<Pattern>,
-        names: &mut Vec<StringId>,
+        bindings: &mut Vec<BindingExport>,
     ) {
         match tree.get(pattern_id) {
             Pattern::Wildcard | Pattern::Expression { .. } => {}
             Pattern::Must(right)
             | Pattern::ReferenceOf { right, .. }
             | Pattern::ValueOf { right, .. } => {
-                self.collect_binding_names_from_pattern(tree, *right, names);
+                self.collect_binding_exports_from_pattern(tree, symbols, *right, bindings);
             }
             Pattern::Binding {
                 name,
-                pattern: inner,
+                symbol,
+                pattern,
                 ..
             } => {
-                names.push(*name);
-                if let Some(inner) = inner {
-                    self.collect_binding_names_from_pattern(tree, *inner, names);
+                bindings.push(BindingExport {
+                    name: *name,
+                    conflict_kind: self.export_conflict_kind_for_symbol(symbols, *symbol),
+                });
+
+                if let Some(inner) = pattern {
+                    self.collect_binding_exports_from_pattern(tree, symbols, *inner, bindings);
                 }
             }
             Pattern::Tuple { fields }
@@ -526,46 +553,55 @@ impl Compiler {
             | Pattern::Object { fields }
             | Pattern::TaggedObject { fields, .. } => {
                 for field_id in fields {
-                    self.collect_binding_names_from_pattern_field(tree, *field_id, names);
+                    self.collect_binding_exports_from_pattern_field(
+                        tree, symbols, *field_id, bindings,
+                    );
                 }
             }
             Pattern::Union { patterns } => {
                 for pattern_id in patterns {
-                    self.collect_binding_names_from_pattern(tree, *pattern_id, names);
+                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern_id, bindings);
                 }
             }
         }
     }
 
-    /// Collect all binding names declared by a pattern field.
-    fn collect_binding_names_from_pattern_field(
+    /// Collect all exported bindings declared by a pattern field.
+    fn collect_binding_exports_from_pattern_field(
         &self,
         tree: &destack_dir::NodeTree,
+        symbols: &SymbolTable,
         field_id: LocalNodeId<PatternField>,
-        names: &mut Vec<StringId>,
+        bindings: &mut Vec<BindingExport>,
     ) {
         match tree.get(field_id) {
             PatternField::Named { name, pattern, .. } => {
                 if let Some(pattern) = pattern {
-                    self.collect_binding_names_from_pattern(tree, *pattern, names);
+                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
                 } else {
-                    names.push(*name);
+                    bindings.push(BindingExport {
+                        name: *name,
+                        conflict_kind: ExportConflictKind::Other,
+                    });
                 }
             }
             PatternField::Computed { pattern, .. } => {
                 if let Some(pattern) = pattern {
-                    self.collect_binding_names_from_pattern(tree, *pattern, names);
+                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
                 }
             }
-            PatternField::Alias { alias, .. } => {
-                names.push(*alias);
+            PatternField::Alias { alias, symbol, .. } => {
+                bindings.push(BindingExport {
+                    name: *alias,
+                    conflict_kind: self.export_conflict_kind_for_symbol(symbols, *symbol),
+                });
             }
             PatternField::Positional { pattern, .. } => {
-                self.collect_binding_names_from_pattern(tree, *pattern, names);
+                self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
             }
             PatternField::Spread { pattern, .. } => {
                 if let Some(pattern) = pattern {
-                    self.collect_binding_names_from_pattern(tree, *pattern, names);
+                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
                 }
             }
             PatternField::Elision => {}
@@ -692,6 +728,120 @@ export default function convert(value: string | number): string | number {
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI201");
+    }
+
+    /// Allow ambient namespace and variable exports in either order.
+    #[test]
+    fn test_allow_ambient_namespace_with_variable_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export const Tag = 1; export declare namespace Tag { export type A = number; }",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Allow ambient namespace and variable exports when namespace appears first.
+    #[test]
+    fn test_allow_ambient_namespace_then_variable_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export declare namespace Tag { export type A = number; } export const Tag = 1;",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Reject runtime namespace and variable exports.
+    #[test]
+    fn test_reject_runtime_namespace_with_variable_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export const Tag = 1; export namespace Tag { export const A = 2; }",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EI201");
+    }
+
+    /// Allow runtime namespace merges when the namespace is type-only.
+    #[test]
+    fn test_allow_runtime_type_only_namespace_with_variable_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export namespace Tag { export type A = number; } export const Tag = 1;",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Allow runtime type-only namespace merges with typed variable exports.
+    #[test]
+    fn test_allow_runtime_type_only_namespace_with_typed_variable_export_merge() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            "export namespace fn { export type Gen = {}; export type NonGen = {}; } export const fn: fn.Gen & fn.NonGen = {} as any;",
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Allow one typed variable export with no duplicate diagnostics.
+    #[test]
+    fn test_allow_single_typed_variable_export() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.ts", r#"export const Tag: string = "a";"#);
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Allow exported ambient namespaces to merge with exported values typed from that namespace.
+    #[test]
+    fn test_allow_exported_ambient_namespace_merge_with_typed_value_reference() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+export declare namespace Tag {
+    export type Inner = string;
+}
+
+export const Tag: Tag.Inner = "value";
+"#,
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
+    }
+
+    /// Allow exported ambient namespace merges for shorthand destructured value bindings.
+    #[test]
+    fn test_allow_exported_ambient_namespace_merge_with_shorthand_destructured_value() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+const source = { Tag: 1 };
+export const { Tag } = source;
+
+export declare namespace Tag {
+    export type Inner = string;
+}
+"#,
+        );
+        test.import_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EI201");
     }
 
     /// Reject export declarations nested under block statements.

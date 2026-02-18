@@ -306,6 +306,28 @@ User;
 
 - contains: value
 
+### export type star rejects runtime value usage
+
+> Value usage from export type star imports stays type-only.
+
+```ts:types.ts
+export interface User {
+    name: string;
+}
+```
+
+```ts:mod.ts
+export type * from "./types";
+```
+
+```ts:main.ts
+import { User } from "./mod";
+
+const value = User;
+```
+
+- contains: value
+
 ### export inference preserves namespace reexports
 
 > Export namespace preserves export inference.

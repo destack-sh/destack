@@ -32,7 +32,7 @@ impl Compiler {
         // rebuild when module bindings changed since the cache was built
         let mut rebuild_cache = true;
         if let Some(cache) = self.program.index.module_binding_tables.get(&key) {
-            rebuild_cache = self.module_binding_table_is_stale(package_id, &cache);
+            rebuild_cache = self.module_binding_table_is_stale(package_id, profile_id, &cache);
         }
         if rebuild_cache {
             let cache = self.build_module_binding_table(package_id, profile_id);
@@ -245,19 +245,42 @@ impl Compiler {
         versions
     }
 
-    /// Return true when package declared module bindings changed since caching.
+    /// Return true when module binding inputs changed since caching.
     fn module_binding_table_is_stale(
         &self,
         package_id: PackageId,
+        profile_id: ProfileId,
         cache: &ModuleBindingTable,
     ) -> bool {
-        let expected_versions = self.registry_module_binding_versions(package_id);
-        if expected_versions.len() != cache.registry_module_versions.len() {
+        // compare package registry inputs first
+        let expected_registry_versions = self.registry_module_binding_versions(package_id);
+        if expected_registry_versions.len() != cache.registry_module_versions.len() {
             return true;
         }
 
-        for (module_id, expected_version) in expected_versions {
+        for (module_id, expected_version) in expected_registry_versions.clone() {
             let Some(cached_version) = cache.registry_module_versions.get(&module_id) else {
+                return true;
+            };
+            if cached_version != &expected_version {
+                return true;
+            }
+        }
+
+        // compare the full module set, including ambient lib module bindings
+        let mut expected_module_versions = expected_registry_versions;
+        for module_id in self.ambient_binding_module_ids(profile_id) {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            expected_module_versions.insert(module_id, module.version);
+        }
+
+        if expected_module_versions.len() != cache.module_versions.len() {
+            return true;
+        }
+
+        for (module_id, expected_version) in expected_module_versions {
+            let Some(cached_version) = cache.module_versions.get(&module_id) else {
                 return true;
             };
             if cached_version != &expected_version {
