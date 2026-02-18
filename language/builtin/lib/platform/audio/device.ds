@@ -12,6 +12,38 @@ export enum AudioDeviceDirection {
     Duplex = 3,
 }
 
+/// Audio backend selector.
+export enum AudioBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
+    /// ALSA backend.
+    Alsa = 1,
+    /// PulseAudio backend.
+    PulseAudio = 2,
+    /// PipeWire backend.
+    PipeWire = 3,
+    /// CoreAudio backend.
+    CoreAudio = 4,
+    /// WASAPI backend.
+    Wasapi = 5,
+    /// AAudio backend.
+    AAudio = 6,
+    /// OpenSL ES backend.
+    OpenSLES = 7,
+    /// Web Audio backend.
+    WebAudio = 8,
+    /// Null backend for tests and simulation.
+    Null = 255,
+}
+
+/// Audio stream share mode selector.
+export enum AudioShareMode {
+    /// Shared mode with host mixing.
+    Shared = 1,
+    /// Exclusive mode with direct endpoint access.
+    Exclusive = 2,
+}
+
 /// Audio sample format selector.
 export enum AudioSampleFormat {
     /// Unsigned 8-bit PCM.
@@ -28,22 +60,86 @@ export enum AudioSampleFormat {
     F64 = 6,
 }
 
+/// Standard channel-layout selector.
+export enum AudioChannelLayout {
+    /// Backend did not report one canonical layout.
+    Unknown = 0,
+    /// Mono layout.
+    Mono = 1,
+    /// Stereo layout.
+    Stereo = 2,
+    /// Quadraphonic layout.
+    Quad = 3,
+    /// 5.1 surround layout.
+    Surround51 = 4,
+    /// 7.1 surround layout.
+    Surround71 = 5,
+    /// One custom layout described by a channel mask.
+    Custom = 255,
+}
+
+/// Audio device list request.
+export struct AudioDeviceListRequest {
+    /// Device direction filter.
+    direction: AudioDeviceDirection;
+    /// Preferred backend selector.
+    backend: AudioBackend;
+    /// Whether disconnected devices should be included.
+    includeDisconnected: boolean;
+    /// Request flags.
+    flags: uint32;
+}
+
+/// Audio device open options.
+export struct AudioDeviceOpenOptions {
+    /// Stream direction for the opened endpoint.
+    direction: AudioDeviceDirection;
+    /// Preferred backend selector.
+    backend: AudioBackend;
+    /// Shared or exclusive endpoint mode.
+    shareMode: AudioShareMode;
+    /// Open option flags.
+    flags: uint32;
+}
+
 /// Audio device information.
 export struct AudioDeviceInfo {
     /// Stable runtime device identifier.
     id: string;
     /// Host-facing device name.
     name: string;
+    /// Host backend for this device.
+    backend: AudioBackend;
     /// Device direction capability.
     direction: AudioDeviceDirection;
-    /// Preferred sample rate.
-    sampleRate: uint32;
+    /// Whether this device is currently connected.
+    connected: boolean;
+    /// Whether this device is the default playback endpoint.
+    isDefaultPlayback: boolean;
+    /// Whether this device is the default capture endpoint.
+    isDefaultCapture: boolean;
+    /// Preferred sample rate in hertz.
+    preferredSampleRate: uint32;
+    /// Minimum sample rate in hertz.
+    minSampleRate: uint32;
+    /// Maximum sample rate in hertz.
+    maxSampleRate: uint32;
     /// Minimum channel count.
     minChannels: uint16;
     /// Maximum channel count.
     maxChannels: uint16;
-    /// Default low-latency period in frames.
-    defaultPeriodFrames: uint32;
+    /// Preferred channel layout.
+    preferredLayout: AudioChannelLayout;
+    /// Preferred speaker channel mask when available.
+    preferredChannelMask: uint64;
+    /// Supported speaker channel mask when available.
+    supportedChannelMask: uint64;
+    /// Minimum low-latency period in frames.
+    minPeriodFrames: uint32;
+    /// Maximum period in frames.
+    maxPeriodFrames: uint32;
+    /// Preferred sample format mask.
+    formatMask: uint32;
 }
 
 /// Audio device bindings.
@@ -51,11 +147,11 @@ declare namespace audio {
     /// List available audio devices.
     ///
     /// Enumerate host audio endpoints and return stable identifiers for later open operations.
-    /// Device visibility and ordering follow host audio backend semantics.
+    /// Device visibility and ordering follow host backend semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA or PulseAudio or CoreAudio enumeration on Unix-like hosts and WASAPI or MMDevice on Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES device enumeration.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -73,7 +169,34 @@ declare namespace audio {
         scope: "os",
         blocking: "sometimes",
     })
-    export function deviceList(): Result<Slice<AudioDeviceInfo>, PlatformError>;
+    export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceInfo>, PlatformError>;
+
+    /// Read one default device identifier for the selected direction.
+    ///
+    /// Resolve one default host audio endpoint for the selected direction.
+    /// Default selection can change asynchronously as host policy changes.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES default-endpoint query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.device.default", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function deviceDefault(direction: AudioDeviceDirection): Result<string, PlatformError>;
 
     /// Open one audio device endpoint.
     ///
@@ -82,7 +205,7 @@ declare namespace audio {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA or CoreAudio or PulseAudio device open on Unix-like hosts and WASAPI endpoint open on Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint open operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -102,17 +225,44 @@ declare namespace audio {
     })
     export function deviceOpen(
         id: string,
-        direction: AudioDeviceDirection,
+        options: AudioDeviceOpenOptions,
     ): Result<AudioDeviceHandle, PlatformError>;
+
+    /// Read metadata for one opened device endpoint.
+    ///
+    /// Read one normalized snapshot for one opened device handle.
+    /// Snapshot values are advisory and can change as host routes are updated.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint information query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.device.info", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.device"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function deviceInfo(handle: AudioDeviceHandle): Result<AudioDeviceInfo, PlatformError>;
 
     /// Close one audio device endpoint.
     ///
-    /// Close one opened audio endpoint and release host stream resources.
+    /// Close one opened audio endpoint and release host resources.
     /// Close semantics follow host backend teardown behavior.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific stream close operations on both Unix-like hosts and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, and OpenSL ES endpoint close operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

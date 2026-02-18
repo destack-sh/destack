@@ -1,0 +1,361 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import {
+    GpuBindGroupHandle,
+    GpuBindGroupLayoutHandle,
+    GpuBufferHandle,
+    GpuDeviceHandle,
+    GpuPipelineLayoutHandle,
+    GpuSamplerHandle,
+    GpuTextureViewHandle,
+} from "../resource/index.ds";
+
+/// Shader stage visibility bitset.
+export newtype GpuShaderVisibilityMask = uint32;
+
+/// Shader stage visibility flags.
+export enum GpuShaderVisibilityFlag {
+    /// No shader visibility.
+    None = 0,
+    /// Vertex shader visibility.
+    Vertex = 1,
+    /// Fragment shader visibility.
+    Fragment = 2,
+    /// Compute shader visibility.
+    Compute = 4,
+}
+
+/// Binding resource kind.
+export enum GpuBindingResourceKind {
+    /// Resource kind is unspecified.
+    Undefined = 0,
+    /// Uniform buffer binding.
+    UniformBuffer = 1,
+    /// Storage buffer binding.
+    StorageBuffer = 2,
+    /// Read-only storage buffer binding.
+    ReadOnlyStorageBuffer = 3,
+    /// Sampled texture binding.
+    SampledTexture = 4,
+    /// Storage texture binding.
+    StorageTexture = 5,
+    /// Filtering sampler binding.
+    Sampler = 6,
+    /// Comparison sampler binding.
+    ComparisonSampler = 7,
+}
+
+/// Buffer binding layout selector.
+export enum GpuBufferBindingType {
+    /// Buffer lane is not used by this entry.
+    BindingNotUsed = 0,
+    /// Buffer binding type is unspecified.
+    Undefined = 1,
+    /// Uniform buffer binding.
+    Uniform = 2,
+    /// Storage buffer binding.
+    Storage = 3,
+    /// Read-only storage buffer binding.
+    ReadOnlyStorage = 4,
+}
+
+/// Sampler binding layout selector.
+export enum GpuSamplerBindingType {
+    /// Sampler lane is not used by this entry.
+    BindingNotUsed = 0,
+    /// Sampler binding type is unspecified.
+    Undefined = 1,
+    /// Filtering sampler binding.
+    Filtering = 2,
+    /// Non-filtering sampler binding.
+    NonFiltering = 3,
+    /// Comparison sampler binding.
+    Comparison = 4,
+}
+
+/// Texture sample-type selector.
+export enum GpuTextureSampleType {
+    /// Texture lane is not used by this entry.
+    BindingNotUsed = 0,
+    /// Texture sample type is unspecified.
+    Undefined = 1,
+    /// Filterable floating-point sample type.
+    Float = 2,
+    /// Non-filterable floating-point sample type.
+    UnfilterableFloat = 3,
+    /// Depth sample type.
+    Depth = 4,
+    /// Signed integer sample type.
+    Sint = 5,
+    /// Unsigned integer sample type.
+    Uint = 6,
+}
+
+/// Texture view-dimension selector.
+export enum GpuTextureViewDimension {
+    /// View dimension is unspecified.
+    Undefined = 0,
+    /// One-dimensional texture view.
+    D1 = 1,
+    /// Two-dimensional texture view.
+    D2 = 2,
+    /// Two-dimensional texture-array view.
+    D2Array = 3,
+    /// Cube texture view.
+    Cube = 4,
+    /// Cube texture-array view.
+    CubeArray = 5,
+    /// Three-dimensional texture view.
+    D3 = 6,
+}
+
+/// Storage-texture access selector.
+export enum GpuStorageTextureAccess {
+    /// Storage-texture lane is not used by this entry.
+    BindingNotUsed = 0,
+    /// Storage-texture access is unspecified.
+    Undefined = 1,
+    /// Write-only storage-texture access.
+    WriteOnly = 2,
+    /// Read-only storage-texture access.
+    ReadOnly = 3,
+    /// Read-write storage-texture access.
+    ReadWrite = 4,
+}
+
+/// Bind group layout entry.
+export struct GpuBindGroupLayoutEntry {
+    /// Binding index.
+    binding: uint32;
+    /// Resource kind.
+    resourceKind: GpuBindingResourceKind;
+    /// Shader stage visibility mask.
+    visibility: GpuShaderVisibilityMask;
+    /// Binding array length, zero when not an array binding.
+    bindingArrayCount: uint32;
+    /// Buffer binding layout selector when resource kind is buffer.
+    bufferBindingType: GpuBufferBindingType;
+    /// Whether this binding uses dynamic offsets.
+    hasDynamicOffset: boolean;
+    /// Minimum binding size in bytes when applicable.
+    minBindingSize: uint64;
+    /// Sampler binding layout selector when resource kind is sampler.
+    samplerBindingType: GpuSamplerBindingType;
+    /// Texture sample type selector when resource kind is sampled texture.
+    textureSampleType: GpuTextureSampleType;
+    /// Texture view dimension selector when resource kind is texture.
+    textureViewDimension: GpuTextureViewDimension;
+    /// Whether multisampled textures are required.
+    multisampled: boolean;
+    /// Storage-texture access selector when resource kind is storage texture.
+    storageTextureAccess: GpuStorageTextureAccess;
+    /// Storage-texture format identifier when resource kind is storage texture.
+    storageTextureFormat: uint32;
+}
+
+/// Bind group resource entry.
+export struct GpuBindGroupEntry {
+    /// Binding index.
+    binding: uint32;
+    /// Binding array element index, zero when not array-indexed.
+    bindingArrayElement: uint32;
+    /// Resource kind.
+    resourceKind: GpuBindingResourceKind;
+    /// Buffer handle when resource kind is buffer.
+    buffer: GpuBufferHandle;
+    /// Buffer byte offset when resource kind is buffer.
+    offset: uint64;
+    /// Buffer byte length when resource kind is buffer.
+    size: uint64;
+    /// Texture-view handle when resource kind is texture.
+    texture: GpuTextureViewHandle;
+    /// Sampler handle when resource kind is sampler.
+    sampler: GpuSamplerHandle;
+}
+
+/// Pipeline layout options.
+export struct GpuPipelineLayoutOptions {
+    /// Ordered bind group layouts for this pipeline layout.
+    bindGroupLayouts: Slice<GpuBindGroupLayoutHandle>;
+    /// Immediate-data byte size when supported.
+    immediateSize: uint32;
+    /// Pipeline layout option flags.
+    flags: uint32;
+}
+
+/// GPU bind bindings.
+declare namespace gpu {
+    /// Create one bind group layout.
+    ///
+    /// Create one bind group layout descriptor from ordered binding entries.
+    /// Validation rules follow backend pipeline-layout contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bind-group or descriptor-set layout creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.bind.groupLayoutCreate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.bind"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function bindGroupLayoutCreate(
+        device: GpuDeviceHandle,
+        entries: Slice<GpuBindGroupLayoutEntry>,
+        flags: uint32,
+    ): Result<GpuBindGroupLayoutHandle, PlatformError>;
+
+    /// Destroy one bind group layout.
+    ///
+    /// Destroy one bind group layout and release backend descriptor-layout resources.
+    /// The layout handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style layout destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.bind.groupLayoutDestroy", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.bind"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>;
+
+    /// Create one pipeline layout.
+    ///
+    /// Create one pipeline layout from ordered bind group layouts.
+    /// Backend layout compatibility checks occur during creation.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style pipeline-layout creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.bind.pipelineLayoutCreate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.bind"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function pipelineLayoutCreate(
+        device: GpuDeviceHandle,
+        options: GpuPipelineLayoutOptions,
+    ): Result<GpuPipelineLayoutHandle, PlatformError>;
+
+    /// Destroy one pipeline layout.
+    ///
+    /// Destroy one pipeline layout and release backend layout resources.
+    /// The layout handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style pipeline-layout destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.bind.pipelineLayoutDestroy", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.bind"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>;
+
+    /// Create one bind group.
+    ///
+    /// Create one bind group from one layout and explicit resource entries.
+    /// Resource compatibility is validated against the target layout.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bind-group or descriptor-set allocation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.bind.groupCreate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.bind"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function bindGroupCreate(
+        device: GpuDeviceHandle,
+        layout: GpuBindGroupLayoutHandle,
+        entries: Slice<GpuBindGroupEntry>,
+        flags: uint32,
+    ): Result<GpuBindGroupHandle, PlatformError>;
+
+    /// Destroy one bind group.
+    ///
+    /// Destroy one bind group and release backend descriptor allocation resources.
+    /// The bind group handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style bind-group destroy or free operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.bind`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.bind.groupDestroy", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.bind"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>;
+}

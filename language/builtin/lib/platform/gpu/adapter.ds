@@ -1,9 +1,11 @@
-import { Array } from "native";
+import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { GpuAdapterHandle } from "../resource/index.ds";
+import { GpuAdapterHandle, GpuSurfaceHandle } from "../resource/index.ds";
 
 /// GPU backend selector.
 export enum GpuBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
     /// Vulkan backend.
     Vulkan = 1,
     /// Metal backend.
@@ -12,42 +14,83 @@ export enum GpuBackend {
     D3D12 = 3,
     /// OpenGL backend.
     OpenGL = 4,
+    /// OpenGL ES backend.
+    OpenGles = 5,
     /// WebGPU backend.
-    WebGpu = 5,
+    WebGpu = 6,
     /// Null backend for tests and simulation.
     Null = 255,
 }
 
 /// GPU adapter category.
 export enum GpuAdapterType {
+    /// Other or unknown adapter type.
+    Other = 0,
     /// Integrated GPU.
     Integrated = 1,
     /// Discrete GPU.
     Discrete = 2,
+    /// Virtual or passthrough adapter.
+    Virtual = 3,
     /// Software or CPU adapter.
-    Cpu = 3,
-    /// Unknown adapter type.
-    Unknown = 255,
+    Cpu = 4,
 }
 
 /// Power preference for adapter selection.
 export enum GpuPowerPreference {
+    /// Do not request a specific preference.
+    None = 0,
     /// Prefer lower power adapters.
     LowPower = 1,
     /// Prefer higher performance adapters.
     HighPerformance = 2,
-    /// Do not request a specific preference.
-    None = 3,
 }
+
+/// Stable GPU feature identifier.
+export type GpuFeatureId = uint32;
 
 /// Adapter discovery options.
 export struct GpuAdapterRequest {
-    /// Preferred backend. Zero means backend agnostic.
-    backend: uint32;
+    /// Preferred backend.
+    backend: GpuBackend;
     /// Preferred power profile.
     powerPreference: GpuPowerPreference;
-    /// Whether software fallback adapters are allowed.
-    allowFallback: boolean;
+    /// Whether only one fallback adapter should be selected.
+    forceFallbackAdapter: boolean;
+    /// Whether one compatible surface constraint is provided.
+    hasCompatibleSurface: boolean;
+    /// Surface compatibility constraint when `hasCompatibleSurface` is true.
+    compatibleSurface: GpuSurfaceHandle;
+    /// Request flags.
+    flags: uint32;
+}
+
+/// Normalized adapter limits.
+export struct GpuAdapterLimits {
+    /// Maximum bind groups.
+    maxBindGroups: uint32;
+    /// Maximum push constant bytes.
+    maxPushConstantBytes: uint32;
+    /// Maximum 2D texture dimension.
+    maxTextureDimension2D: uint32;
+    /// Maximum color attachments in one render pass.
+    maxColorAttachments: uint32;
+    /// Maximum sampled textures per shader stage.
+    maxSampledTexturesPerStage: uint32;
+    /// Maximum samplers per shader stage.
+    maxSamplersPerStage: uint32;
+    /// Maximum storage buffers per shader stage.
+    maxStorageBuffersPerStage: uint32;
+    /// Maximum uniform buffers per shader stage.
+    maxUniformBuffersPerStage: uint32;
+    /// Maximum uniform buffer binding size.
+    maxUniformBufferBindingSize: uint64;
+    /// Maximum storage buffer binding size.
+    maxStorageBufferBindingSize: uint64;
+    /// Minimum storage buffer offset alignment.
+    minStorageBufferOffsetAlignment: uint32;
+    /// Minimum uniform buffer offset alignment.
+    minUniformBufferOffsetAlignment: uint32;
 }
 
 /// GPU adapter information.
@@ -56,6 +99,12 @@ export struct GpuAdapterInfo {
     id: string;
     /// Host adapter name.
     name: string;
+    /// Host vendor name when available.
+    vendor: string;
+    /// Host driver name when available.
+    driver: string;
+    /// Host driver version when available.
+    driverVersion: string;
     /// Backend API kind.
     backend: GpuBackend;
     /// Adapter category.
@@ -64,14 +113,32 @@ export struct GpuAdapterInfo {
     vendorId: uint32;
     /// Device identifier when available.
     deviceId: uint32;
-    /// Supported feature bitset.
-    featureMask: uint64;
-    /// Maximum bind groups supported by this adapter.
-    maxBindGroups: uint32;
-    /// Maximum 2D texture dimension.
-    maxTextureDimension2D: uint32;
-    /// Maximum storage buffer binding size.
-    maxStorageBufferBindingSize: uint64;
+    /// Minimum subgroup size when available.
+    subgroupMinSize: uint32;
+    /// Maximum subgroup size when available.
+    subgroupMaxSize: uint32;
+    /// Whether this adapter is a fallback implementation.
+    isFallback: boolean;
+    /// Supported feature identifiers.
+    features: Slice<GpuFeatureId>;
+    /// Supported adapter limits.
+    limits: GpuAdapterLimits;
+}
+
+/// Adapter texture-format capability snapshot.
+export struct GpuAdapterFormatCapabilities {
+    /// Texture format identifier.
+    format: uint32;
+    /// Supported usage bitset for this format.
+    usageMask: uint64;
+    /// Whether this format can be used as render attachment.
+    renderable: boolean;
+    /// Whether this format can be blended when used as render attachment.
+    blendable: boolean;
+    /// Whether this format supports multisampling.
+    multisample: boolean;
+    /// Supported sample-count bitset.
+    sampleCountMask: uint32;
 }
 
 /// GPU adapter bindings.
@@ -83,7 +150,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses Vulkan, Metal, D3D12, OpenGL, and backend discovery APIs.
+    /// Uses WebGPU-style adapter discovery and enumeration on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -110,7 +177,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific adapter open or retain operations.
+    /// Uses WebGPU-style adapter open or retain operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -137,7 +204,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend adapter property and feature query operations.
+    /// Uses WebGPU-style adapter property and feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -157,6 +224,117 @@ declare namespace gpu {
     })
     export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>;
 
+    /// Read one adapter feature snapshot.
+    ///
+    /// Read one feature identifier snapshot from one opened adapter.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.features", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>;
+
+    /// Read one adapter limits snapshot.
+    ///
+    /// Read one normalized limits snapshot from one opened adapter.
+    /// Limits remain stable for the adapter lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter limits query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.limits", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>;
+
+    /// Check whether one adapter supports one feature.
+    ///
+    /// Check one feature identifier against one opened adapter feature set.
+    /// Feature identifiers follow runtime GPU feature contracts.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.hasFeature", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function adapterHasFeature(handle: GpuAdapterHandle, feature: GpuFeatureId): Result<boolean, PlatformError>;
+
+    /// Query one adapter texture-format capability snapshot.
+    ///
+    /// Query one texture format on one adapter and return normalized format capability data.
+    /// Capabilities can vary by backend and device generation.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style adapter format-capability query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.adapter`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.adapter.formatCapabilities", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.adapter"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function adapterFormatCapabilities(
+        handle: GpuAdapterHandle,
+        format: uint32,
+    ): Result<GpuAdapterFormatCapabilities, PlatformError>;
+
     /// Close one GPU adapter.
     ///
     /// Close one opened adapter endpoint and release host backend references.
@@ -164,7 +342,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend-specific release or destroy operations.
+    /// Uses WebGPU-style release or destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.

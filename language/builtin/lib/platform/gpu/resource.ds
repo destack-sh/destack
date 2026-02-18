@@ -3,9 +3,9 @@ import type { PlatformError } from "../error/index.ds";
 import {
     GpuBufferHandle,
     GpuDeviceHandle,
-    GpuMemoryHandle,
     GpuSamplerHandle,
     GpuTextureHandle,
+    GpuTextureViewHandle,
 } from "../resource/index.ds";
 
 /// GPU buffer creation options.
@@ -14,6 +14,8 @@ export struct GpuBufferOptions {
     size: uint64;
     /// Buffer usage bitset.
     usage: uint64;
+    /// Whether the buffer starts mapped for host access.
+    mappedAtCreation: boolean;
     /// Buffer option flags.
     flags: uint32;
 }
@@ -32,8 +34,34 @@ export struct GpuTextureOptions {
     samples: uint32;
     /// Texture format identifier.
     format: uint32;
+    /// Texture dimension selector.
+    dimension: GpuTextureDimension;
     /// Texture usage bitset.
     usage: uint64;
+    /// Additional compatible texture-view format identifiers.
+    viewFormats: Slice<uint32>;
+    /// Texture option flags.
+    flags: uint32;
+}
+
+/// GPU texture-view creation options.
+export struct GpuTextureViewOptions {
+    /// View format identifier, zero to inherit the texture format.
+    format: uint32;
+    /// View dimension selector.
+    dimension: uint32;
+    /// Base mip-level index.
+    baseMipLevel: uint32;
+    /// Mip-level count, zero for all remaining levels.
+    mipLevelCount: uint32;
+    /// Base array-layer index.
+    baseArrayLayer: uint32;
+    /// Array-layer count, zero for all remaining layers.
+    arrayLayerCount: uint32;
+    /// Texture aspect selector.
+    aspect: uint32;
+    /// Texture-view option flags.
+    flags: uint32;
 }
 
 /// GPU sampler creation options.
@@ -42,20 +70,92 @@ export struct GpuSamplerOptions {
     minFilter: uint32;
     /// Magnification filter selector.
     magFilter: uint32;
+    /// Mipmap filter selector.
+    mipFilter: uint32;
     /// Address mode u selector.
     addressU: uint32;
     /// Address mode v selector.
     addressV: uint32;
     /// Address mode w selector.
     addressW: uint32;
+    /// Sampler LOD minimum clamp.
+    lodMinClamp: float64;
+    /// Sampler LOD maximum clamp.
+    lodMaxClamp: float64;
+    /// Compare-function selector, zero when comparison is disabled.
+    compare: uint32;
+    /// Maximum anisotropy level.
+    maxAnisotropy: uint16;
+    /// Sampler option flags.
+    flags: uint32;
 }
 
-/// GPU memory map result.
-export struct GpuMappedMemory {
+/// Buffer mapping mode.
+export enum GpuMapMode {
+    /// Read-only map mode.
+    Read = 1,
+    /// Write-only map mode.
+    Write = 2,
+}
+
+/// Buffer map-state selector.
+export enum GpuBufferMapState {
+    /// Buffer is not currently mapped.
+    Unmapped = 1,
+    /// Buffer map request is pending.
+    Pending = 2,
+    /// Buffer is currently mapped.
+    Mapped = 3,
+}
+
+/// Texture dimension selector.
+export enum GpuTextureDimension {
+    /// One-dimensional texture.
+    D1 = 1,
+    /// Two-dimensional texture.
+    D2 = 2,
+    /// Three-dimensional texture.
+    D3 = 3,
+}
+
+/// GPU mapped buffer range.
+export struct GpuMappedBufferRange {
     /// Host-visible pointer address represented as integer.
     address: uint64;
     /// Mapped byte length.
     length: uint64;
+    /// Whether cache coherence is guaranteed for this mapping.
+    coherent: boolean;
+}
+
+/// Buffer metadata snapshot.
+export struct GpuBufferInfo {
+    /// Buffer size in bytes.
+    size: uint64;
+    /// Buffer usage bitset.
+    usage: uint64;
+    /// Current map-state selector.
+    mapState: GpuBufferMapState;
+}
+
+/// Texture metadata snapshot.
+export struct GpuTextureInfo {
+    /// Texture width in texels.
+    width: uint32;
+    /// Texture height in texels.
+    height: uint32;
+    /// Texture depth or layer count.
+    depthOrLayers: uint32;
+    /// Texture mip-level count.
+    mipLevels: uint32;
+    /// Texture sample count.
+    samples: uint32;
+    /// Texture format identifier.
+    format: uint32;
+    /// Texture usage bitset.
+    usage: uint64;
+    /// Texture dimension selector.
+    dimension: GpuTextureDimension;
 }
 
 /// GPU resource bindings.
@@ -67,7 +167,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend buffer creation operations.
+    /// Uses WebGPU-style buffer creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -93,11 +193,11 @@ declare namespace gpu {
     /// Destroy one GPU buffer.
     ///
     /// Destroy one buffer resource and release host backend memory references.
-    /// Outstanding use of the buffer is host-undefined and should be synchronized by callers.
+    /// Outstanding use of the buffer is host-undefined and must be synchronized by callers.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend buffer destroy operations.
+    /// Uses WebGPU-style buffer destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -117,14 +217,14 @@ declare namespace gpu {
     })
     export function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>;
 
-    /// Write one byte range to a GPU buffer.
+    /// Write one byte range to one GPU buffer.
     ///
     /// Write one byte range into one buffer resource from host memory.
     /// Host staging and synchronization behavior follow backend upload semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend upload or mapped-write paths.
+    /// Uses WebGPU-style upload or mapped-write paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -148,14 +248,14 @@ declare namespace gpu {
         bytes: Slice<uint8>,
     ): Result<void, PlatformError>;
 
-    /// Read one byte range from a GPU buffer.
+    /// Read one byte range from one GPU buffer.
     ///
     /// Read one byte range from one buffer resource into host-visible memory.
     /// Readback can stall based on backend synchronization and transfer state.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend readback or mapped-read paths.
+    /// Uses WebGPU-style readback or mapped-read paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -179,14 +279,14 @@ declare namespace gpu {
         length: uint64,
     ): Result<Slice<uint8>, PlatformError>;
 
-    /// Map one memory allocation.
+    /// Map one buffer range.
     ///
-    /// Map one host-visible memory allocation for direct CPU access.
+    /// Map one host-visible byte range for direct CPU access.
     /// Mapping coherence and cache behavior follow host backend memory rules.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend memory map operations.
+    /// Uses WebGPU-style buffer map operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
@@ -196,7 +296,7 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.resource.memoryMap", {
+    @binding("destack.gpu.resource.bufferMap", {
         effect: "external",
         replay: "recordable",
         capabilities: ["gpu.memory"],
@@ -204,20 +304,21 @@ declare namespace gpu {
         scope: "os",
         blocking: "sometimes",
     })
-    export function memoryMap(
-        handle: GpuMemoryHandle,
+    export function bufferMap(
+        handle: GpuBufferHandle,
         offset: uint64,
         length: uint64,
-    ): Result<GpuMappedMemory, PlatformError>;
+        mode: GpuMapMode,
+    ): Result<GpuMappedBufferRange, PlatformError>;
 
-    /// Unmap one memory allocation.
+    /// Unmap one mapped buffer.
     ///
-    /// Unmap one previously mapped memory allocation and flush host synchronization as required.
+    /// Unmap one previously mapped buffer range and flush host synchronization as required.
     /// Visibility of writes follows backend memory model semantics.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend memory unmap operations.
+    /// Uses WebGPU-style buffer unmap operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -227,7 +328,7 @@ declare namespace gpu {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.gpu.resource.memoryUnmap", {
+    @binding("destack.gpu.resource.bufferUnmap", {
         effect: "external",
         replay: "recordable",
         capabilities: ["gpu.memory"],
@@ -235,7 +336,34 @@ declare namespace gpu {
         scope: "os",
         blocking: "sometimes",
     })
-    export function memoryUnmap(handle: GpuMemoryHandle): Result<void, PlatformError>;
+    export function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>;
+
+    /// Read one buffer metadata snapshot.
+    ///
+    /// Read one metadata snapshot for one buffer resource.
+    /// Snapshot values remain stable except map state, which can change asynchronously.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style buffer property query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.bufferInfo", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>;
 
     /// Create one texture resource.
     ///
@@ -244,7 +372,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend texture creation operations.
+    /// Uses WebGPU-style texture creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -270,11 +398,11 @@ declare namespace gpu {
     /// Destroy one texture resource.
     ///
     /// Destroy one texture resource and release host backend memory references.
-    /// Outstanding use of the texture should be synchronized by callers.
+    /// Outstanding use of the texture must be synchronized by callers.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend texture destroy operations.
+    /// Uses WebGPU-style texture destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -294,6 +422,90 @@ declare namespace gpu {
     })
     export function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>;
 
+    /// Read one texture metadata snapshot.
+    ///
+    /// Read one metadata snapshot for one texture resource.
+    /// Snapshot values remain stable for the texture lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style texture property query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.textureInfo", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "never",
+    })
+    export function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>;
+
+    /// Create one texture view.
+    ///
+    /// Create one view of one texture resource for bindings and render attachments.
+    /// View range and dimension are validated against the source texture descriptor.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style texture-view creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.textureViewCreate", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function textureViewCreate(
+        texture: GpuTextureHandle,
+        options: GpuTextureViewOptions,
+    ): Result<GpuTextureViewHandle, PlatformError>;
+
+    /// Destroy one texture view.
+    ///
+    /// Destroy one texture-view endpoint and release backend view resources.
+    /// The texture-view handle becomes invalid after destroy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses WebGPU-style texture-view destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `gpu.memory`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.gpu.resource.textureViewDestroy", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["gpu.memory"],
+        platforms: ["windows", "unix"],
+        scope: "os",
+        blocking: "sometimes",
+    })
+    export function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>;
+
     /// Create one sampler resource.
     ///
     /// Create one sampler resource with explicit filter and address mode selections.
@@ -301,7 +513,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend sampler creation operations.
+    /// Uses WebGPU-style sampler creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -331,7 +543,7 @@ declare namespace gpu {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses backend sampler destroy operations.
+    /// Uses WebGPU-style sampler destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.

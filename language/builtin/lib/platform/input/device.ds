@@ -30,8 +30,22 @@ export struct InputDeviceInfo {
     vendorId: uint16;
     /// Product identifier when available.
     productId: uint16;
+    /// Number of logical keys when reported by the backend.
+    keyCount: uint16;
+    /// Number of logical buttons when reported by the backend.
+    buttonCount: uint16;
+    /// Number of logical axes when reported by the backend.
+    axisCount: uint16;
     /// Whether this device is currently connected.
     connected: boolean;
+    /// Whether this endpoint supports exclusive-grab mode.
+    supportsGrab: boolean;
+    /// Whether this endpoint can emit raw host-native events.
+    supportsRaw: boolean;
+    /// Whether this endpoint can emit text events.
+    supportsText: boolean;
+    /// Whether this endpoint can provide haptic output.
+    supportsRumble: boolean;
 }
 
 /// Input device bindings.
@@ -42,11 +56,11 @@ declare namespace input {
     /// Device ordering and hotplug visibility follow host input subsystem semantics.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses evdev device-node enumeration on Linux, terminal input discovery on other Unix hosts, and console-input availability checks on Windows.
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one discoverable input backend.
+    /// Uses evdev device-node enumeration on Linux, global-session and terminal discovery on macOS, terminal input discovery on other Unix hosts, and console plus raw-state discovery on Windows.
     ///
     /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData.
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -58,7 +72,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "hybrid",
         blocking: "sometimes",
     })
     export function list(): Result<Slice<InputDeviceInfo>, PlatformError>;
@@ -69,11 +83,11 @@ declare namespace input {
     /// Exclusive-grab behavior and permission checks are host-defined.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses evdev device-node open on Linux, terminal-device open on other Unix hosts, and duplicated console-input handles on Windows.
+    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
+    /// Uses evdev device-node open on Linux, global-session or terminal-device open on macOS, terminal-device open on other Unix hosts, and duplicated console-input handles or raw-state handles on Windows.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock.
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
     /// Requires `input.read`.
@@ -85,7 +99,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "hybrid",
         blocking: "sometimes",
     })
     export function open(id: string): Result<InputDeviceHandle, PlatformError>;
@@ -112,7 +126,7 @@ declare namespace input {
         replay: "recordable",
         capabilities: ["input.read"],
         platforms: ["windows", "unix"],
-        scope: "os",
+        scope: "hybrid",
         blocking: "sometimes",
     })
     export function close(handle: InputDeviceHandle): Result<void, PlatformError>;
