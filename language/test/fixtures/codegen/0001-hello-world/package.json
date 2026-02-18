@@ -1,5 +1,5 @@
 {
-	"name": "@destack-sh/codegen/0001-hello-world",
+	"name": "@destack/codegen/0001-hello-world",
 	"version": "0.0.0",
 	"license": "MIT",
 	"type": "module",

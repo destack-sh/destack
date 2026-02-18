@@ -45,9 +45,9 @@ the more we can express in one unified software system, the more software system
 
 ## Getting Started
 
-<!--TODO #Incomplete: getting started (`bun i -g @destack-sh/cli`, `curl destack.sh/install`, and local development setup)-->
+<!--TODO #Incomplete: getting started (`bun i -g @destack/cli`, `curl destack.sh/install`, and local development setup)-->
 
-Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack-sh/cli`.
+Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
 
 ---
 

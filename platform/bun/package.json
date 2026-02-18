@@ -1,5 +1,5 @@
 {
-	"name": "@destack-sh/bun",
+	"name": "@destack/bun",
 	"version": "0.55.2",
 	"license": "MIT",
 	"type": "module",
@@ -9,7 +9,7 @@
 		"publish:live": "npm publish --access public"
 	},
 	"dependencies": {
-		"@destack-sh/napi": "workspace:*"
+		"@destack/napi": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

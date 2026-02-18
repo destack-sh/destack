@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/wasm",
+    "name": "@destack/wasm",
     "version": "0.55.2",
     "license": "MIT",
     "type": "module",

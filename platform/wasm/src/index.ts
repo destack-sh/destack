@@ -363,7 +363,7 @@ async function loadGenerated(): Promise<GeneratedModule> {
 
 function requireGenerated(): GeneratedModule {
     if (generated == null) {
-        throw new Error("@destack-sh/wasm is not initialized: call init() first");
+        throw new Error("@destack/wasm is not initialized: call init() first");
     }
 
     return generated;

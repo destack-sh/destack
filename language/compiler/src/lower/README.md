@@ -901,14 +901,14 @@ Large values are boxed into managed memory and referenced by `payload`.
 Destack's types-as-values feature makes `Type<T>` a first-class value, enabling
 both compile-time and runtime reflection (as needed).
 
-**Source-level API** (from `@destack-sh/core/reflection`):
+**Source-level API** (from `@destack/core/reflection`):
 ```ds
 Type<T> = StructType<T> | ClassType<T> | EnumType<T> | ...
 
 struct StructType<T> {
     kind: "struct"
     name: string
-    id: TypeId              // stable identifier: "@destack-sh/ui/components/button:Button"
+    id: TypeId              // stable identifier: "@destack/ui/components/button:Button"
     properties: Property[]
     decorators: DecoratorInfo[]
 }

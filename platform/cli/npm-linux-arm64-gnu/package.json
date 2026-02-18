@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/cli-linux-arm64-gnu",
+    "name": "@destack/cli-linux-arm64-gnu",
     "version": "0.55.2",
     "license": "MIT",
     "description": "Destack CLI binaries for linux arm64 gnu",

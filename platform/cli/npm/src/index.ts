@@ -17,11 +17,11 @@ type LinuxRuntimeReport = {
 
 /** The platform package names keyed by runtime target. */
 const PLATFORM_PACKAGES: Record<string, string> = {
-    "darwin-arm64": "@destack-sh/cli-darwin-arm64",
-    "darwin-x64": "@destack-sh/cli-darwin-x64",
-    "linux-arm64-gnu": "@destack-sh/cli-linux-arm64-gnu",
-    "linux-x64-gnu": "@destack-sh/cli-linux-x64-gnu",
-    "win32-x64-msvc": "@destack-sh/cli-win32-x64-msvc",
+    "darwin-arm64": "@destack/cli-darwin-arm64",
+    "darwin-x64": "@destack/cli-darwin-x64",
+    "linux-arm64-gnu": "@destack/cli-linux-arm64-gnu",
+    "linux-x64-gnu": "@destack/cli-linux-x64-gnu",
+    "win32-x64-msvc": "@destack/cli-win32-x64-msvc",
 };
 
 /** The supported CLI binary names exposed by npm wrappers. */
@@ -120,7 +120,7 @@ function resolveBinaryPath(binaryName: string): string {
         throw new Error(
             [
                 `could not resolve ${platformPackageName} for ${platformKey}`,
-                "run npm install -g @destack-sh/cli for your platform",
+                "run npm install -g @destack/cli for your platform",
                 "or build locally with cargo build --release -p destack_cli",
             ].join("\n"),
         );

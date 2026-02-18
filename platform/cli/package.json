@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/cli",
+    "name": "@destack/cli",
     "version": "0.55.2",
     "license": "MIT",
     "type": "module",
@@ -23,11 +23,11 @@
         "publish:live": "npm publish --access public"
     },
     "optionalDependencies": {
-        "@destack-sh/cli-darwin-arm64": "0.55.2",
-        "@destack-sh/cli-darwin-x64": "0.55.2",
-        "@destack-sh/cli-linux-arm64-gnu": "0.55.2",
-        "@destack-sh/cli-linux-x64-gnu": "0.55.2",
-        "@destack-sh/cli-win32-x64-msvc": "0.55.2"
+        "@destack/cli-darwin-arm64": "0.55.2",
+        "@destack/cli-darwin-x64": "0.55.2",
+        "@destack/cli-linux-arm64-gnu": "0.55.2",
+        "@destack/cli-linux-x64-gnu": "0.55.2",
+        "@destack/cli-win32-x64-msvc": "0.55.2"
     },
     "publishConfig": {
         "access": "public"
