@@ -10,11 +10,11 @@ type MainPackageManifest = {
 
 /** The platform package names expected in optionalDependencies. */
 const PLATFORM_PACKAGE_NAMES = [
-    "@destack-sh/cli-darwin-arm64",
-    "@destack-sh/cli-darwin-x64",
-    "@destack-sh/cli-linux-arm64-gnu",
-    "@destack-sh/cli-linux-x64-gnu",
-    "@destack-sh/cli-win32-x64-msvc",
+    "@destack/cli-darwin-arm64",
+    "@destack/cli-darwin-x64",
+    "@destack/cli-linux-arm64-gnu",
+    "@destack/cli-linux-x64-gnu",
+    "@destack/cli-win32-x64-msvc",
 ];
 
 /** The built bin wrapper paths required for npm publish. */

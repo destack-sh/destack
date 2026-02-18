@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/schema",
+    "name": "@destack/schema",
     "version": "0.55.2",
     "license": "MIT",
     "type": "module",

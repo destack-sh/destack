@@ -8,18 +8,18 @@ The `destack` binary for working with Destack projects, with short aliases:
 
 ## npm distribution
 
-The CLI is published on npm as `@destack-sh/cli`.
+The CLI is published on npm as `@destack/cli`.
 The main package dispatches to platform-specific optional dependency packages that contain prebuilt Rust binaries.
 The npm shims expose `destack`, `ds`, `dsc`, and `dsx`.
 The direct curl and PowerShell installers are in `install/install.sh` and `install/install.ps1`.
 
 Supported npm binary packages:
 
-- `@destack-sh/cli-darwin-arm64`
-- `@destack-sh/cli-darwin-x64`
-- `@destack-sh/cli-linux-arm64-gnu`
-- `@destack-sh/cli-linux-x64-gnu`
-- `@destack-sh/cli-win32-x64-msvc`
+- `@destack/cli-darwin-arm64`
+- `@destack/cli-darwin-x64`
+- `@destack/cli-linux-arm64-gnu`
+- `@destack/cli-linux-x64-gnu`
+- `@destack/cli-win32-x64-msvc`
 
 Stage npm binaries from release artifacts before publish:
 
@@ -29,7 +29,7 @@ just platform/stage-cli-binaries-from-artifacts
 
 This command validates checksums before staging binaries into npm package directories.
 
-Publish platform packages first, then publish `@destack-sh/cli`.
+Publish platform packages first, then publish `@destack/cli`.
 You can run the full npm publish flow from the repository root with `just platform/publish-cli`.
 You can run the integrated developer release flow with `destack dev release`.
 You can stage a Zed registry PR from the same command with `--publish-zed`.

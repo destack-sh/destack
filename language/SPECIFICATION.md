@@ -2866,7 +2866,7 @@ myOldMethod.decorators  // [{ name: "deprecated", args: ["use newAPI"] }]
 ### Standard Library
 
 The built-in `Type<T>` interface provides basic reflection.
-The standard library `@destack-sh/schema` extends it for general schema use:
+The standard library `@destack/schema` extends it for general schema use:
 
 ```ds
 // built-in (always available with Reflection feature)
@@ -2875,7 +2875,7 @@ Point.fields      // [{ name: "x", ... }, { name: "y", ... }]
 Point.is(value)   // type guard
 
 // standard library (requires import)
-import { parse } from "@destack-sh/schema";
+import { parse } from "@destack/schema";
 parse(Point, data)      // runtime validation
 Point.parse(data)       // shorthand via extension
 ```

@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/napi",
+    "name": "@destack/napi",
     "version": "0.55.2",
     "license": "MIT",
     "type": "module",

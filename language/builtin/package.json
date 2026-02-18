@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/builtin",
+    "name": "@destack/builtin",
     "version": "0.55.2",
     "license": "MIT",
     "private": true,

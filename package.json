@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/monorepo",
+    "name": "@destack/monorepo",
     "version": "0.55.2",
     "license": "MIT",
     "private": true,
@@ -26,7 +26,7 @@
         "build:napi": "bun run --cwd platform/napi build"
     },
     "catalog": {
-        "@destack-sh/napi": "workspace:*",
+        "@destack/napi": "workspace:*",
         "temporal-polyfill": "^0.3.0"
     },
     "catalogs": {

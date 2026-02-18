@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/grammar",
+    "name": "@destack/grammar",
     "private": true,
     "version": "0.55.2",
     "type": "module",

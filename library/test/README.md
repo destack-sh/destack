@@ -1,3 +1,3 @@
-# @destack-sh/test
+# @destack/test
 
 Testing framework for Destack.

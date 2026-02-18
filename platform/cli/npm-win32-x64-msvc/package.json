@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/cli-win32-x64-msvc",
+    "name": "@destack/cli-win32-x64-msvc",
     "version": "0.55.2",
     "license": "MIT",
     "description": "Destack CLI binaries for win32 x64 msvc",

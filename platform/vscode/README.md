@@ -1,4 +1,4 @@
-# @destack-sh/vscode
+# @destack/vscode
 
 VS Code extension for the Destack language, library and platform.
 

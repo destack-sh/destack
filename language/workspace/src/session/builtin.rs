@@ -101,7 +101,7 @@ fn file_type_for_builtin_name(name: &str) -> FileType {
 pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);
 
 /// Well-known package name for builtins.
-pub const BUILTIN_PACKAGE_NAME: &str = "@destack-sh/builtin";
+pub const BUILTIN_PACKAGE_NAME: &str = "@destack/builtin";
 
 /// Well-known symbol key metadata.
 #[derive(Debug, Clone, Copy)]

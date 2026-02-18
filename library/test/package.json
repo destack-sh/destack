@@ -1,5 +1,5 @@
 {
-    "name": "@destack-sh/test",
+    "name": "@destack/test",
     "version": "0.55.2",
     "license": "MIT",
     "type": "module",
